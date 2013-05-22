@@ -1,5 +1,6 @@
 import threading
 import logging
+import signal
 from Request import *
 from FuzzerDictionary import *
 
@@ -27,23 +28,9 @@ class Fuzzer:
         for thread in self.threads:
             thread.start()
 
-    def stop(self):
-        if self.running == False:
-            return
-        self.running = False
-        self.stoppedByUser = True
-        self.finishedCondition.acquire()
-        while (self.runningThreadsCount > 0):
-            self.finishedCondition.wait()
-        self.finishedCondition.release()
-        self.isRunningCondition.acquire()
-        self.isRunningCondition.notify()
-        self.isRunningCondition.release()
-
     def wait(self):
-        self.isRunningCondition.acquire()
-        self.isRunningCondition.wait()
-        self.isRunningCondition.release()
+        while self.running: continue
+        return
 
     def testPath(self, path):
         response = self.requester.request(path)
@@ -56,7 +43,6 @@ class Fuzzer:
         try:
             while self.running:
                 path = self.dictionary.getNextPath()
-
                 if(path == None):
                     self.running = False
                     break
@@ -70,11 +56,8 @@ class Fuzzer:
             self.runningThreadsCountCondition.release()
             self.finishedCondition.notify()
             self.finishedCondition.release()
-            if self.stoppedByUser == False and self.runningThreadsCount == 0:
-                self.isRunningCondition.acquire()
-                self.isRunningCondition.notify()
-                self.isRunningCondition.release()
-        except KeyboardInterrupt:
+        except KeyboardInterrupt, SystemExit:
+            self.running = False
             return
         except RequestException as e:
             self.output.printError("Unexpected error:\n{0}".format(e.args[0]['message']))

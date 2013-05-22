@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+import signal
+import sys
 from optparse import OptionParser, OptionGroup
 from Fuzzer import *
 from Request import *
@@ -68,6 +70,7 @@ class Program:
         try:
             fuzzer.start()
             fuzzer.wait()
+            #while fuzzer.running: continue
         except KeyboardInterrupt:
             output.printError("\nCanceled by the user")
             exit(0)
