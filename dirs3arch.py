@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 from optparse import OptionParser, OptionGroup
 from Fuzzer import *
 from Request import *

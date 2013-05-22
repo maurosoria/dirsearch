@@ -1,4 +1,4 @@
-import http.client, urllib.parse, socket
+import httplib, urlparse, socket, urllib
 
 class RequestException(Exception):
     pass
@@ -25,9 +25,9 @@ class Requester:
             url = url + '/'
 
         #if not protocol specified, set http by default
-        parsed = urllib.parse.urlparse(url)
+        parsed = urlparse.urlparse(url)
         if(parsed.scheme == ''):
-            parsed = urllib.parse.urlparse('http://' + url)
+            parsed = urlparse.urlparse('http://' + url)
         self.protocol = parsed.scheme
         if (self.protocol != 'http') and (self.protocol != 'https'): 
             self.protocol = 'http'
@@ -59,22 +59,22 @@ class Requester:
     def getConnection(self):
         connection = None
         if (self.protocol == 'https'):
-            return http.client.HTTPSConnection(self.ip, port = self.port)
+            return httplib.HTTPSConnection(self.ip, port = self.port)
         else:
-            return http.client.HTTPConnection(self.ip, port = self.port)
+            return httplib.HTTPConnection(self.ip, port = self.port)
 
     def request(self, path, method="GET", params=""):
         i = 0
         while i <= self.maxRetries:
             try:
                 conn = self.getConnection()
-                conn.request(method, self.basePath + path, urllib.parse.urlencode(params), self.headers)
+                conn.request(method, self.basePath + path, urllib.urlencode(params), self.headers)
                 response = conn.getresponse()
                 result = Response(response.status, response.reason, response.read())
                 break
             except socket.error:
                 continue
-            except http.client.BadStatusLine:
+            except httplib.BadStatusLine:
                 return Response(0, "", "")
             finally:
                 i = i + 1
