@@ -69,7 +69,6 @@ class Program:
             fuzzer.start()
             fuzzer.wait()
         except KeyboardInterrupt:
-            fuzzer.stop()
             output.printError("\nCanceled by the user")
             exit(0)
         output.printWarning("\nTask Completed")

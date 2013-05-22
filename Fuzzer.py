@@ -13,6 +13,7 @@ class Fuzzer:
         self.running = False
         for thread in range(threads):
             newThread = threading.Thread(target=self.thread_proc)
+            newThread.daemon = True
             self.threads.append(newThread)
     
     def start(self):
