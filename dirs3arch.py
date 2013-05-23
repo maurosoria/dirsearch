@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import signal
+import os
 import sys
 from optparse import OptionParser, OptionGroup
 from Fuzzer import *
@@ -27,7 +27,7 @@ class Program:
         settings.add_option("--cookie", "--cookie", action="store", type="string", dest="cookie", default="")
         settings.add_option("--user-agent", "--user-agent", action="store", type="string", dest="useragent", \
             default="")
-        settings.add_option("-w", "--wordlist", action="store", dest="wordlist", default="db/dicc.txt")
+        settings.add_option("-w", "--wordlist", action="store", dest="wordlist", default=("%s/db/dicc.txt" % (os.path.dirname(os.path.realpath(__file__)))))
         settings.add_option("-l", "--lowercase", action="store_true", dest="lowercase", default="False")
         settings.add_option("--ignore-response-status", "--ignore-response-status", action="store", type="string", dest="ignoreResponseStatus", default="")
 
