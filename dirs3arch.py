@@ -75,7 +75,6 @@ class Program:
         try:
             fuzzer.start()
             fuzzer.wait()
-            #while fuzzer.running: continue
         except KeyboardInterrupt:
             output.printError("\nCanceled by the user")
             exit(0)

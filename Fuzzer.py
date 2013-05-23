@@ -30,6 +30,9 @@ class Fuzzer:
 
     def wait(self):
         while self.running: continue
+        for thread in self.threads:
+            while thread.is_alive(): continue
+
         return
 
     def testPath(self, path):
