@@ -57,7 +57,11 @@ class Program:
 
     def run(self):
         output = Output()
-        output.setStatusBlacklist(403, "%s/db/403_blacklist.txt" % (self.script_path))
+        try:
+            with open("%s/db/403_blacklist.txt" % (self.script_path)): pass
+            output.setStatusBlacklist(403, "%s/db/403_blacklist.txt" % (self.script_path))
+        except IOError:
+            pass
         output.printHeader(programBanner)
         output.printHeader("version 0.2\n")
         output.printWarning("- Searching in: {0}".format(self.url))
