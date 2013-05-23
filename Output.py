@@ -19,8 +19,21 @@ class Output:
         self.lastInLine = False
         self.mutex = threading.Lock()
         self.checkedPaths = []
+        self.blacklists = {}
         self.mutexCheckedPaths = threading.Lock()
-        
+    
+    def setStatusBlacklist(self, status, file):
+        blacklistFile = open(file, 'r')
+
+        # Test if blacklists exists, if not, initializes
+        try:
+            test = self.blacklists[status]
+        except KeyError:
+            self.blacklists[status] = []
+        for line in blacklistFile:
+            self.blacklists[status].append(line.replace('\n', ''))
+
+
     def printInLine(self, string):
         self.mutex.acquire()
         sys.stdout.write('\033[1K')
@@ -42,6 +55,11 @@ class Output:
         self.mutex.release()
 
     def printStatusReport(self, path, status):
+        try:
+            if path in self.blacklists[status]: return
+        except KeyError:
+            pass
+
         message = "[{0}]  {1}: {2}".format(time.strftime("%H:%M:%S"), status, path)
         self.mutexCheckedPaths.acquire()
         if path in self.checkedPaths:

@@ -1,0 +1,11 @@
+.htaccess
+.htaccess.bak
+.htaccess.inc
+.htaccess/
+.htpasswd.bak
+.htpasswd
+.htpasswd.inc
+.htpa55wd
+.htpasswd/
+.htpasswrd
+
