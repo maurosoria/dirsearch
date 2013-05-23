@@ -9,9 +9,9 @@ from Output import *
 
 class Program:
     def __init__(self):
+        self.script_path = (os.path.dirname(os.path.realpath(__file__)))
         usage = "Usage: %prog [-u|--url] target [-e|--extensions] extensions [options]"
         parser = OptionParser(usage)
-        
         # Mandatory arguments
         mandatory = OptionGroup(parser, 'Mandatory')
         mandatory.add_option("-u", "--url", help="URL target", action="store", type="string", dest="url", default=None)
@@ -27,7 +27,7 @@ class Program:
         settings.add_option("--cookie", "--cookie", action="store", type="string", dest="cookie", default="")
         settings.add_option("--user-agent", "--user-agent", action="store", type="string", dest="useragent", \
             default="")
-        settings.add_option("-w", "--wordlist", action="store", dest="wordlist", default=("%s/db/dicc.txt" % (os.path.dirname(os.path.realpath(__file__)))))
+        settings.add_option("-w", "--wordlist", action="store", dest="wordlist", default=("%s/db/dicc.txt" % (self.script_path)))
         settings.add_option("-l", "--lowercase", action="store_true", dest="lowercase", default="False")
         settings.add_option("--ignore-response-status", "--ignore-response-status", action="store", type="string", dest="ignoreResponseStatus", default="")
 
