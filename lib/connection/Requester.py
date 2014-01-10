@@ -1,5 +1,6 @@
 import urlparse, socket, urllib
 from thirdparty.urllib3 import *
+from .Response import *
 
 class Requester:
     headers = {
@@ -78,8 +79,6 @@ class Requester:
                 break
             except socket.error:
                 continue
-            except httplib.BadStatusLine:
-                return Response(0, "", "")
             finally:
                 i = i + 1
         if(i > self.maxRetries):
