@@ -1,8 +1,10 @@
 import threading
 import logging
 import signal
-from lib.connection.Request import *
+from config import *
+from lib.connection import *
 from .FuzzerDictionary import *
+from .NotFoundTester import *
 
 class Fuzzer:
     def __init__(self, requester, dictionary, output, threads=1, excludeInternalServerError=False):
@@ -12,6 +14,7 @@ class Fuzzer:
         self.excludeInternalServerError = excludeInternalServerError
         self.threads = []
         self.running = False
+        self.notFoundTester = NotFoundTester(requester, NOT_FOUND_PATH)
         for thread in range(threads):
             newThread = threading.Thread(target=self.thread_proc)
             newThread.daemon = True
@@ -37,10 +40,14 @@ class Fuzzer:
 
     def testPath(self, path):
         response = self.requester.request(path)
-        if (response.status == 404) or (response.status == 301 ) or ((response.status >= 500) and self.excludeInternalServerError):
+        ''' if (response.status == 404) or (response.status == 301 ) or ((response.status >= 500) and self.excludeInternalServerError):
             return 0
 
-        return response.status
+        return response.status'''
+        if self.notFoundTester.test(response):
+            return response.status
+
+        return 0
 
     def thread_proc(self):
         try:
