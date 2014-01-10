@@ -22,9 +22,11 @@ class Requester:
         self.basePath = parsed.path
 
         #if not protocol specified, set http by default
-        if(parsed.scheme == ''):
+        if(parsed.scheme != 'http' and parsed.scheme != 'https'):
             parsed = urlparse.urlparse('http://' + url)
+            self.basePath = parsed.path
         self.protocol = parsed.scheme
+
         if (self.protocol != 'http') and (self.protocol != 'https'): 
             self.protocol = 'http'
         
