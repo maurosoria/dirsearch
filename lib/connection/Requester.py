@@ -1,5 +1,6 @@
 import urlparse, socket, urllib
 from thirdparty.urllib3 import *
+from .Response import *
 
 class Requester:
     headers = {
@@ -21,9 +22,11 @@ class Requester:
         self.basePath = parsed.path
 
         #if not protocol specified, set http by default
-        if(parsed.scheme == ''):
+        if(parsed.scheme != 'http' and parsed.scheme != 'https'):
             parsed = urlparse.urlparse('http://' + url)
+            self.basePath = parsed.path
         self.protocol = parsed.scheme
+
         if (self.protocol != 'http') and (self.protocol != 'https'): 
             self.protocol = 'http'
         
@@ -78,8 +81,6 @@ class Requester:
                 break
             except socket.error:
                 continue
-            except httplib.BadStatusLine:
-                return Response(0, "", "")
             finally:
                 i = i + 1
         if(i > self.maxRetries):
