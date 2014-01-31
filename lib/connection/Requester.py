@@ -65,9 +65,10 @@ class Requester:
         if (self.pool == None):
             if (self.protocol == 'https'):
                 self.pool = HTTPSConnectionPool(self.ip, port=self.port, timeout=self.timeout, maxsize=self.maxPool, block=True, cert_reqs='CERT_NONE',
-                                assert_hostname=False, assert_same_host=False)
+                                assert_hostname=False)
             else:
-                self.pool = HTTPConnectionPool(self.ip, port=self.port, timeout=self.timeout, maxsize=self.maxPool, block=True,  assert_same_host=False)
+                self.pool = HTTPConnectionPool(self.ip, port=self.port, timeout=self.timeout, maxsize=self.maxPool, block=True)
+
         return self.pool
 
     def request(self, path, method="GET", params="", data=""):
@@ -75,7 +76,7 @@ class Requester:
         while i <= self.maxRetries:
             try:
                 url = "{0}{1}?{2}".format(self.basePath, path, params)
-                response = self.getConnection().request(method, url, headers=self.headers, fields=data)
+                response = self.getConnection().request(method, url, headers=self.headers, fields=data, assert_same_host=False)
                 
                 result = Response(response.status, response.reason, response.headers, response.data)
                 break
