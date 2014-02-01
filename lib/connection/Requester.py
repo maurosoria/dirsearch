@@ -1,6 +1,8 @@
 import urlparse, socket, urllib
 from thirdparty.urllib3 import *
+from thirdparty.urllib3.exceptions import *
 from .Response import *
+from .RequestException import *
 
 class Requester:
     headers = {
@@ -80,7 +82,7 @@ class Requester:
                 
                 result = Response(response.status, response.reason, response.headers, response.data)
                 break
-            except socket.error:
+            except (MaxRetryError, ReadTimeoutError, socket.error):
                 continue
             finally:
                 i = i + 1
