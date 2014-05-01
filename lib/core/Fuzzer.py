@@ -7,29 +7,43 @@ from .FuzzerDictionary import *
 from .NotFoundTester import *
 
 class Fuzzer:
-    def __init__(self, requester, dictionary, output, threads=1, excludeInternalServerError=False):
+    def __init__(self, requester, dictionary, output, threads=1, recursive=False, excludeInternalServerError=False):
         self.requester = requester
         self.dictionary = dictionary
         self.output = output
         self.excludeInternalServerError = excludeInternalServerError
         self.threads = []
+        self.threadsCount = threads
         self.running = False
-    
-        # Setting up testers
+        self.directories = []
         self.testers = {}
-        self.testers['/'] = NotFoundTester(requester, "%s/" % (NOT_FOUND_PATH))
+        self.recursive = recursive
+        # Setting up testers
+        self.testersSetup()
+        # Setting up threads  
+        self.threadsSetup()
+  
+
+    def testersSetup(self):
+        if len(self.testers) != 0: self.testers = []
+        self.testers['/'] = NotFoundTester(self.requester, "%s/" % (NOT_FOUND_PATH))
         for extension in self.dictionary.getExtensions():
-            self.testers[extension] = NotFoundTester(requester, "%s.%s" % (NOT_FOUND_PATH, extension))
-    
-        for thread in range(threads):
+            self.testers[extension] = NotFoundTester(self.requester, "%s.%s" % (NOT_FOUND_PATH, extension))
+        
+
+    def threadsSetup(self):
+        if len(self.threads) != 0: self.threads = []
+        for thread in range(self.threadsCount):
             newThread = threading.Thread(target=self.thread_proc)
             newThread.daemon = True
             self.threads.append(newThread)
-    
+
+
+    # Get Tester by extension  
     def getTester(self, path):
         for extension in self.testers.keys():
             if path.endswith(extension): return self.testers[extension]
-
+        #By default, returns folder tester
         return self.testers['/']
 
 
@@ -44,6 +58,7 @@ class Fuzzer:
         for thread in self.threads:
             thread.start()
 
+
     def wait(self):
         while self.running: continue
         for thread in self.threads:
@@ -51,12 +66,22 @@ class Fuzzer:
 
         return
 
+
     def testPath(self, path):
         response = self.requester.request(path)
         if self.getTester(path).test(response):
             return 0 if response.status == 404 else response.status
 
         return 0
+
+
+    def addDirectory(self, path):
+        if not self.recursive: return False
+        if path.endswith("/"):
+            self.directories.append(path)
+            return True
+        return False
+
 
     def thread_proc(self):
         try:
