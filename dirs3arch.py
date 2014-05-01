@@ -2,10 +2,6 @@
 import os
 import sys
 from lib.core import *
-#from Fuzzer import *
-#from Request import *
-#from FuzzerDictionary import *
-#from Output import *
 
 class Program:
     def __init__(self):
