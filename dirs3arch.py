@@ -17,7 +17,7 @@ class Program:
         except IOError:
             pass
         output.printHeader(programBanner)
-        output.printHeader("version 0.2\n")
+        output.printHeader("version 0.2.1\n")
         output.printWarning("- Searching in: {0}".format(self.arguments.url))
         output.printWarning("- For extensions: {0}".format(', '.join(self.arguments.extensions)))
         output.printWarning("- Number of Threads: {0}\n".format(self.arguments.threadsCount))
