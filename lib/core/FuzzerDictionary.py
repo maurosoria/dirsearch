@@ -13,6 +13,9 @@ class FuzzerDictionary:
     def setExtensions(self, extensions):
         self.extensions = extensions
 
+    def getExtensions(self):
+        return self.extensions
+
     def setPath(self, path):
         self.path = path
 

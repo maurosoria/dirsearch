@@ -14,12 +14,25 @@ class Fuzzer:
         self.excludeInternalServerError = excludeInternalServerError
         self.threads = []
         self.running = False
-        self.notFoundTester = NotFoundTester(requester, NOT_FOUND_PATH)
+    
+        # Setting up testers
+        self.testers = {}
+        self.testers['/'] = NotFoundTester(requester, "%s/" % (NOT_FOUND_PATH))
+        for extension in self.dictionary.getExtensions():
+            self.testers[extension] = NotFoundTester(requester, "%s.%s" % (NOT_FOUND_PATH, extension))
+    
         for thread in range(threads):
             newThread = threading.Thread(target=self.thread_proc)
             newThread.daemon = True
             self.threads.append(newThread)
     
+    def getTester(self, path):
+        for extension in self.testers.keys():
+            if path.endswith(extension): return self.testers[extension]
+
+        return self.testers['/']
+
+
     def start(self):
         self.dictionary.reset()
         self.runningThreadsCount = len(self.threads)
@@ -44,7 +57,7 @@ class Fuzzer:
             return 0
 
         return response.status'''
-        if self.notFoundTester.test(response):
+        if self.getTester(path).test(response):
             return response.status
 
         return 0
