@@ -25,7 +25,7 @@ class Program:
             requester = Requester(self.arguments.url, cookie = self.arguments.cookie, useragent = self.arguments.useragent, maxPool = self.arguments.threadsCount, maxRetries = self.arguments.maxRetries, timeout = self.arguments.timeout, ip = self.arguments.ip)
             dictionary = FuzzerDictionary(self.arguments.wordlist, self.arguments.extensions, self.arguments.lowercase)
             fuzzer = Fuzzer(requester, dictionary, output, threads = self.arguments.threadsCount, \
-                excludeInternalServerError = self.arguments.exclude500)
+                recursive = False, excludeInternalServerError = self.arguments.exclude500)
             fuzzer.start()
             fuzzer.wait()
         except RequestException as e:
