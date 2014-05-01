@@ -53,12 +53,8 @@ class Fuzzer:
 
     def testPath(self, path):
         response = self.requester.request(path)
-        ''' if (response.status == 404) or (response.status == 301 ) or ((response.status >= 500) and self.excludeInternalServerError):
-            return 0
-
-        return response.status'''
         if self.getTester(path).test(response):
-            return response.status
+            return 0 if response.status == 404 else response.status
 
         return 0
 
