@@ -1,7 +1,7 @@
 dirs3arch
 =========
 
-Current Release: v0.2.0 (2014-1-31)
+Current Release: v0.2.1 (2014-5-1)
 
 Overview
 --------
@@ -13,10 +13,11 @@ Features
 - Keep alive connections
 - Multithreaded
 - Detect not found web pages when 404 not found errors are masked (.htaccess, web.config, etc).
-
+- Recursive brute forcing
 
 Changelog
 ---------
+0.2.1 - 2014.5.1 Fixed some bugs and added recursive option
 0.2.0 - 2014.1.31 Initial public release
 
 
