@@ -8,7 +8,8 @@ class FuzzerDictionary:
         self.condition = threading.Condition()
         self.setExtensions(extensions)
         self.setPath(path)
-        self.generateDictionary(lowercase = lowercase)
+        self.lowercase = lowercase
+        self.generateDictionary(lowercase = self.lowercase)
 
     def setExtensions(self, extensions):
         self.extensions = extensions
@@ -31,16 +32,22 @@ class FuzzerDictionary:
         if (lowercase == True):
             self.entries = list(set([entry.lower() for entry in self.entries]))
 
-    def getNextPath(self):
+    def regenerateDictionary(self):
+        self.generateDictionary(lowercase = self.lowercase)
+        self.reset()
+
+    def getNextPath(self, basePath=None):
         self.condition.acquire()
         try:
             result = self.entries[self.currentIndex]
         except IndexError:
+            self.condition.release()
             return None
         self.currentIndex = self.currentIndex + 1
         self.condition.release()
 
         return result
+
 
     def getDictionaryLen(self):
         return len(self.entries)

@@ -14,6 +14,8 @@ class ArgumentsParser:
 
         # Optional Settings
         settings = OptionGroup(parser, 'Optional Settings')
+        settings.add_option("-r", "--recursive", help="Bruteforce recursively", action="store_true", \
+            dest="recursive", default=False)
         settings.add_option("-t", "--threads", help="Number of Threads", action="store", type="int", \
             dest="threadsCount", default=10)
         settings.add_option("-x", "--exclude-500", help="Exclude Internal Server Error Status (500)", action="store_true", \
@@ -56,3 +58,4 @@ class ArgumentsParser:
         self.timeout = options.timeout
         self.ip = options.ip
         self.maxRetries = options.maxRetries
+        self.recursive = options.recursive

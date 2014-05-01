@@ -21,6 +21,7 @@ class Output:
         self.checkedPaths = []
         self.blacklists = {}
         self.mutexCheckedPaths = threading.Lock()
+        self.basePath = None
     
     def setStatusBlacklist(self, status, file):
         blacklistFile = open(file, 'r')
@@ -60,7 +61,7 @@ class Output:
         except KeyError:
             pass
 
-        message = "[{0}]  {1}: {2}".format(time.strftime("%H:%M:%S"), status, path)
+        message = "[{0}]  {1}: {2}".format(time.strftime("%H:%M:%S"), status, "/{0}".format(path) if self.basePath == None else "{0}{1}".format(self.basePath, path))
         self.mutexCheckedPaths.acquire()
         if path in self.checkedPaths:
             self.mutexCheckedPaths.release()
