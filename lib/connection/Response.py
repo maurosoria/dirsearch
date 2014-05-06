@@ -4,3 +4,6 @@ class Response:
         self.reason = reason
         self.headers = headers
         self.body = body
+
+    def __str__(self):
+        return self.body
