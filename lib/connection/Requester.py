@@ -16,9 +16,7 @@ class Requester:
 
     def __init__(self, url, cookie=None, useragent=None, maxPool=1, maxRetries=5, timeout=30, ip=None):
         #if no backslash, append one    
-        if url[len(url) - 1] != '/':
-            url = url + '/'
-
+        if url[-1] is not '/': url = url + '/'
 
         parsed = urlparse.urlparse(url)
         self.basePath = parsed.path
@@ -63,6 +61,7 @@ class Requester:
     def setHeader(self, header, content):
         self.headers[header] = content
 
+
     def getConnection(self):
         if (self.pool == None):
             if (self.protocol == 'https'):
@@ -73,6 +72,7 @@ class Requester:
 
         return self.pool
 
+        
     def request(self, path, method="GET", params="", data=""):
         i = 0
         while i <= self.maxRetries:
