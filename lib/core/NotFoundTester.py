@@ -12,13 +12,16 @@ class NotFoundTester:
 		else:
 			self.tester = ContentTester(self.getNotFoundDynamicContentParser())
 
+
 	def testNotFoundStatus(self):
 		response = self.requester.request(self.notFoundPath)
 
 		return response.status == 404
 
+
 	def getNotFoundDynamicContentParser(self):
 		return DynamicContentParser(self.requester, self.notFoundPath)
+
 
 	def test(self, response):
 		return self.tester.test(response)

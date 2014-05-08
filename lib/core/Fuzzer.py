@@ -6,9 +6,11 @@ from config import *
 from lib.connection import *
 from .FuzzerDictionary import *
 from .NotFoundTester import *
+from .ReportManager import *
+from lib.reports import *
 
 class Fuzzer:
-    def __init__(self, requester, dictionary, output, threads=1, recursive=True, excludeInternalServerError=False):
+    def __init__(self, requester, dictionary, output, threads=1, recursive=True, reportManager = None, excludeInternalServerError=False):
         self.requester = requester
         self.dictionary = dictionary
         self.basePath = self.requester.basePath
@@ -25,6 +27,8 @@ class Fuzzer:
         self.testersSetup()
         # Setting up threads  
         self.threadsSetup()
+        self.reportManager = ReportManager() if reportManager is None else reportManager
+    
   
 
     def testersSetup(self):
@@ -78,7 +82,8 @@ class Fuzzer:
             while self.running: continue
             for thread in self.threads:
                 while thread.is_alive(): continue
-
+        self.reportManager.save()
+        self.reportManager.close()
         return
 
 
@@ -113,6 +118,7 @@ class Fuzzer:
                 if status != 0:
                     self.output.printStatusReport(path, status)
                     self.addDirectory(path)
+                    self.reportManager.addPath(status, self.currentDirectory + path)
                 self.output.printLastPathEntry(path)
             self.finishedCondition.acquire()
             self.runningThreadsCountCondition.acquire()

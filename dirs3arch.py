@@ -2,6 +2,7 @@
 import os
 import sys
 from lib.core import *
+from lib.reports import *
 
 class Program:
     def __init__(self):
@@ -23,9 +24,14 @@ class Program:
         output.printWarning("- Number of Threads: {0}\n".format(self.arguments.threadsCount))
         try:
             requester = Requester(self.arguments.url, cookie = self.arguments.cookie, useragent = self.arguments.useragent, maxPool = self.arguments.threadsCount, maxRetries = self.arguments.maxRetries, timeout = self.arguments.timeout, ip = self.arguments.ip)
+
+            reportManager = ReportManager()
+            if self.arguments.outputFile is not None:
+                reportManager.addOutput(ListReport(requester.host, requester.port, requester.protocol, requester.basePath, self.arguments.outputFile))
+
             dictionary = FuzzerDictionary(self.arguments.wordlist, self.arguments.extensions, self.arguments.lowercase)
             fuzzer = Fuzzer(requester, dictionary, output, threads = self.arguments.threadsCount, \
-                recursive = self.arguments.recursive, excludeInternalServerError = self.arguments.exclude500)
+                recursive = self.arguments.recursive, reportManager= reportManager, excludeInternalServerError = self.arguments.exclude500)
             fuzzer.start()
             fuzzer.wait()
         except RequestException as e:
@@ -35,6 +41,8 @@ class Program:
             output.printError("\nCanceled by the user")
             exit(0)
         output.printWarning("\nTask Completed")
+
+
 
 if __name__ == '__main__':
     programBanner = \

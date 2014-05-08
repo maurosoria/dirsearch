@@ -13,6 +13,7 @@ class Output:
     FAILBOLD = '\033[1;91m'
     ENDC = '\033[0;0m'
 
+
     def __init__(self):
         self.lastLength = 0
         self.lastOutput = ''
@@ -22,6 +23,7 @@ class Output:
         self.blacklists = {}
         self.mutexCheckedPaths = threading.Lock()
         self.basePath = None
+
     
     def setStatusBlacklist(self, status, file):
         blacklistFile = open(file, 'r')
@@ -44,6 +46,7 @@ class Output:
         self.lastInLine = True
         self.mutex.release()
 
+
     def printNewLine(self, string):
         self.mutex.acquire()
 
@@ -54,6 +57,7 @@ class Output:
         sys.stdout.flush()
         self.lastInLine = False
         self.mutex.release()
+
 
     def printStatusReport(self, path, status):
         try:
@@ -73,17 +77,21 @@ class Output:
             message = self.OKBLUEBOLD + message + self.ENDC
         self.printNewLine(message)
 
+
     def printLastPathEntry(self, path):
         message = "- Last request to: {0}".format(path)
         self.printInLine(message)
+
 
     def printError(self, reason):
         message = self.FAILBOLD + reason + self.ENDC
         self.printNewLine(message)
 
+
     def printWarning(self, reason):
         message = self.WARNINGBOLD + reason + self.ENDC
         self.printNewLine(message)
+
 
     def printHeader(self, text):
         message = self.HEADERBOLD + text + self.ENDC

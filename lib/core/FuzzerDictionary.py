@@ -11,14 +11,18 @@ class FuzzerDictionary:
         self.lowercase = lowercase
         self.generateDictionary(lowercase = self.lowercase)
 
+
     def setExtensions(self, extensions):
         self.extensions = extensions
+
 
     def getExtensions(self):
         return self.extensions
 
+
     def setPath(self, path):
         self.path = path
+
 
     def generateDictionary(self, lowercase = False):
         self.entries = []
@@ -32,9 +36,11 @@ class FuzzerDictionary:
         if (lowercase == True):
             self.entries = list(set([entry.lower() for entry in self.entries]))
 
+
     def regenerateDictionary(self):
         self.generateDictionary(lowercase = self.lowercase)
         self.reset()
+
 
     def getNextPath(self, basePath=None):
         self.condition.acquire()
@@ -51,6 +57,7 @@ class FuzzerDictionary:
 
     def getDictionaryLen(self):
         return len(self.entries)
+
 
     def reset(self):
         self.condition.acquire()

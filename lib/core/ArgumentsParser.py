@@ -25,12 +25,17 @@ class ArgumentsParser:
             default=None)
         settings.add_option("-w", "--wordlist", action="store", dest="wordlist", default=("%s/db/dicc.txt" % (self.script_path)))
         settings.add_option("-l", "--lowercase", action="store_true", dest="lowercase", default="False")
-        settings.add_option("-o", "--output", action="store", dest="outputFile", default=None)
+        
         settings.add_option("--timeout", "--timeout", action="store", dest="timeout", type="int", default=30)
         settings.add_option("--ip", "--ip", action="store", dest="ip", default=None)
         settings.add_option("--max-retries", "--max-retries", action="store", dest="maxRetries", type="int", default=5)
 
         #settings.add_option("--ignore-response-status", "--ignore-response-status", action="store", type="string", dest="ignoreResponseStatus", default="")
+
+        # Reports Settings
+        reports = OptionGroup(parser, 'Reports')
+        reports.add_option("-o", "--output", action="store", dest="outputFile", default=None)
+        
 
         parser.add_option_group(mandatory)
         parser.add_option_group(settings)

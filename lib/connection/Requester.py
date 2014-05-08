@@ -45,7 +45,7 @@ class Requester:
         try:
             self.port = parsed.netloc.split(':')[1]
         except IndexError:
-            self.port = None
+            self.port = 80
 
         #Set cookie and user-agent headers
         if cookie != None:
@@ -88,4 +88,5 @@ class Requester:
                 i = i + 1
         if(i > self.maxRetries):
             raise RequestException({"message" : "There was a problem in the request to: {0}".format(path)})
+
         return result
