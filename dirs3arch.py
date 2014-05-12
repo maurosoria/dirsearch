@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 import os
-import sys
 from lib.controller import *
 
 class Program:
