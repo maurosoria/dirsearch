@@ -89,10 +89,12 @@ class Fuzzer:
 
     def testPath(self, path):
         response = self.requester.request(path)
+        result = 0
         if self.getTester(path).test(response):
-            return 0 if response.status == 404 else response.status
+            result = 0 if response.status == 404 else response.status
+        del(response)
 
-        return 0
+        return result
 
 
     def addDirectory(self, path):
