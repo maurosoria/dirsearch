@@ -35,10 +35,12 @@ class ArgumentsParser:
         # Reports Settings
         reports = OptionGroup(parser, 'Reports')
         reports.add_option("-o", "--output", action="store", dest="outputFile", default=None)
+        reports.add_option("--json-output", "--json-output", action="store", dest="jsonOutputFile", default=None)
         
 
         parser.add_option_group(mandatory)
         parser.add_option_group(settings)
+        parser.add_option_group(reports)
         (options, arguments) = parser.parse_args()
         if options.url == None:
             print("Url target is missing")
@@ -60,6 +62,7 @@ class ArgumentsParser:
         self.wordlist = options.wordlist
         self.lowercase = options.lowercase
         self.outputFile = options.outputFile
+        self.jsonOutputFile = options.jsonOutputFile
         self.timeout = options.timeout
         self.ip = options.ip
         self.maxRetries = options.maxRetries

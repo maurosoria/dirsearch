@@ -28,7 +28,8 @@ class Program:
             reportManager = ReportManager()
             if self.arguments.outputFile is not None:
                 reportManager.addOutput(ListReport(requester.host, requester.port, requester.protocol, requester.basePath, self.arguments.outputFile))
-
+            if self.arguments.jsonOutputFile is not None:
+                reportManager.addOutput(JSONReport(requester.host, requester.port, requester.protocol, requester.basePath, self.arguments.jsonOutputFile))
             dictionary = FuzzerDictionary(self.arguments.wordlist, self.arguments.extensions, self.arguments.lowercase)
             fuzzer = Fuzzer(requester, dictionary, output, threads = self.arguments.threadsCount, \
                 recursive = self.arguments.recursive, reportManager= reportManager, excludeInternalServerError = self.arguments.exclude500)
