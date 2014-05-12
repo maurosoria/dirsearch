@@ -8,31 +8,43 @@ class Controller(object):
         self.script_path = script_path
         self.arguments = arguments
         self.output = output
-        try:
-            with open("%s/db/403_blacklist.txt" % (self.script_path)): pass
-            output.setStatusBlacklist(403, "%s/db/403_blacklist.txt" % (self.script_path))
-        except IOError:
-            pass
-        output.printWarning("- Searching in: {0}".format(self.arguments.url))
-        output.printWarning("- For extensions: {0}".format(', '.join(self.arguments.extensions)))
-        output.printWarning("- Number of Threads: {0}\n".format(self.arguments.threadsCount))
+        self.setupBlacklist()
+        self.printConfig()
+
         try:
             requester = Requester(self.arguments.url, cookie = self.arguments.cookie, useragent = self.arguments.useragent, maxPool = self.arguments.threadsCount, maxRetries = self.arguments.maxRetries, timeout = self.arguments.timeout, ip = self.arguments.ip)
-
-            reportManager = ReportManager()
-            if self.arguments.outputFile is not None:
-                reportManager.addOutput(ListReport(requester.host, requester.port, requester.protocol, requester.basePath, self.arguments.outputFile))
-            if self.arguments.jsonOutputFile is not None:
-                reportManager.addOutput(JSONReport(requester.host, requester.port, requester.protocol, requester.basePath, self.arguments.jsonOutputFile))
+            self.reportManager = ReportManager()
+            self.setupReports(requester)
             dictionary = FuzzerDictionary(self.arguments.wordlist, self.arguments.extensions, self.arguments.lowercase)
             fuzzer = Fuzzer(requester, dictionary, output, threads = self.arguments.threadsCount, \
-                recursive = self.arguments.recursive, reportManager= reportManager, excludeInternalServerError = self.arguments.exclude500)
+                recursive = self.arguments.recursive, reportManager= self.reportManager, excludeInternalServerError = self.arguments.exclude500)
             fuzzer.start()
             fuzzer.wait()
         except RequestException as e:
-            output.printError("Unexpected error:\n{0}".format(e.args[0]['message']))
+            self.output.printError("Unexpected error:\n{0}".format(e.args[0]['message']))
             exit(0)
         except KeyboardInterrupt:
-            output.printError("\nCanceled by the user")
+            self.output.printError("\nCanceled by the user")
             exit(0)
-        output.printWarning("\nTask Completed")
+        self.output.printWarning("\nTask Completed")
+
+
+    def printConfig(self):
+        self.output.printWarning("- Searching in: {0}".format(self.arguments.url))
+        self.output.printWarning("- For extensions: {0}".format(', '.join(self.arguments.extensions)))
+        self.output.printWarning("- Number of Threads: {0}\n".format(self.arguments.threadsCount))
+
+
+    def setupBlacklist(self):
+        try:
+            with open("%s/db/403_blacklist.txt" % (self.script_path)): pass
+            self.output.setStatusBlacklist(403, "%s/db/403_blacklist.txt" % (self.script_path))
+        except IOError:
+            pass
+
+
+    def setupReports(self, requester):
+        if self.arguments.outputFile is not None:
+            self.reportManager.addOutput(ListReport(requester.host, requester.port, requester.protocol, requester.basePath, self.arguments.outputFile))
+        if self.arguments.jsonOutputFile is not None:
+            self.reportManager.addOutput(JSONReport(requester.host, requester.port, requester.protocol, requester.basePath, self.arguments.jsonOutputFile))
