@@ -42,20 +42,27 @@ class FuzzerDictionary:
         self.reset()
 
 
-    def getNextPath(self, basePath=None):
+    def getNextPathWithIndex(self, basePath=None):
         self.condition.acquire()
         try:
             result = self.entries[self.currentIndex]
         except IndexError:
             self.condition.release()
-            return None
+            return None, None
         self.currentIndex = self.currentIndex + 1
+        currentIndex = self.currentIndex
         self.condition.release()
 
-        return result
+        return currentIndex, result
 
 
-    def getDictionaryLen(self):
+    def getNextPath(self, basePath=None):
+        _, path = self.getNextPathWithIndex(basePath)
+        return path
+
+
+
+    def __len__(self):
         return len(self.entries)
 
 

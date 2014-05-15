@@ -78,8 +78,9 @@ class Output:
         self.printNewLine(message)
 
 
-    def printLastPathEntry(self, path):
-        message = "- Last request to: {0}".format(path)
+    def printLastPathEntry(self, path, index, length):
+        percentage = lambda x, y: float(x) / float(y) * 100
+        message = "{1:.2f}% - Last request to: {0}".format(path, percentage(index, length))
         self.printInLine(message)
 
 

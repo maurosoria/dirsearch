@@ -9,14 +9,14 @@ class Controller(object):
         self.arguments = arguments
         self.output = output
         self.setupBlacklist()
-        self.printConfig()
-
+        
         try:
             requester = Requester(self.arguments.url, cookie = self.arguments.cookie, useragent = self.arguments.useragent, maxPool = self.arguments.threadsCount, maxRetries = self.arguments.maxRetries, timeout = self.arguments.timeout, ip = self.arguments.ip)
             self.reportManager = ReportManager()
             self.setupReports(requester)
-            dictionary = FuzzerDictionary(self.arguments.wordlist, self.arguments.extensions, self.arguments.lowercase)
-            fuzzer = Fuzzer(requester, dictionary, output, threads = self.arguments.threadsCount, \
+            self.dictionary = FuzzerDictionary(self.arguments.wordlist, self.arguments.extensions, self.arguments.lowercase)
+            self.printConfig()
+            fuzzer = Fuzzer(requester, self.dictionary, output, threads = self.arguments.threadsCount, \
                 recursive = self.arguments.recursive, reportManager= self.reportManager, excludeInternalServerError = self.arguments.exclude500)
             fuzzer.start()
             fuzzer.wait()
@@ -32,7 +32,9 @@ class Controller(object):
     def printConfig(self):
         self.output.printWarning("- Searching in: {0}".format(self.arguments.url))
         self.output.printWarning("- For extensions: {0}".format(', '.join(self.arguments.extensions)))
-        self.output.printWarning("- Number of Threads: {0}\n".format(self.arguments.threadsCount))
+        self.output.printWarning("- Number of Threads: {0}".format(self.arguments.threadsCount))
+        self.output.printWarning("- Wordlist size: {0}".format(len(self.dictionary)))
+        self.output.printWarning("\n")
 
 
     def setupBlacklist(self):

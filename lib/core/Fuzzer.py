@@ -112,7 +112,7 @@ class Fuzzer:
     def thread_proc(self):
         try:
             while self.running:
-                path = self.dictionary.getNextPath()
+                index, path = self.dictionary.getNextPathWithIndex()
                 if(path == None):
                     self.running = False
                     break
@@ -121,7 +121,7 @@ class Fuzzer:
                     self.output.printStatusReport(path, status)
                     self.addDirectory(path)
                     self.reportManager.addPath(status, self.currentDirectory + path)
-                self.output.printLastPathEntry(path)
+                self.output.printLastPathEntry(path, index, len(self.dictionary))
             self.finishedCondition.acquire()
             self.runningThreadsCountCondition.acquire()
             self.runningThreadsCount = self.runningThreadsCount - 1
