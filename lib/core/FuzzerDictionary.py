@@ -1,30 +1,37 @@
 import threading
 
-class FuzzerDictionary:
+class FuzzerDictionary(object):
     def __init__(self, path, extensions, lowercase = False):
         self.extensions = []
         self.entries = []
         self.currentIndex = 0
         self.condition = threading.Condition()
-        self.setExtensions(extensions)
-        self.setPath(path)
+        self._extensions = extensions
+        self._path = path
         self.lowercase = lowercase
-        self.generateDictionary(lowercase = self.lowercase)
+        self.generate(lowercase = self.lowercase)
 
 
-    def setExtensions(self, extensions):
-        self.extensions = extensions
+    @property
+    def extensions(self):
+        return self._extensions
 
 
-    def getExtensions(self):
-        return self.extensions
+    @extensions.setter
+    def extensions(self, value):
+        self._extensions = value
 
 
-    def setPath(self, path):
-        self.path = path
+    @property
+    def path(self):
+        return self._path
+
+    @path.setter    
+    def path(self, path):
+        self._path = path
 
 
-    def generateDictionary(self, lowercase = False):
+    def generate(self, lowercase = False):
         self.entries = []
         dictionary_file = open(self.path, 'r')
         for line in dictionary_file:
@@ -37,12 +44,12 @@ class FuzzerDictionary:
             self.entries = list(set([entry.lower() for entry in self.entries]))
 
 
-    def regenerateDictionary(self):
-        self.generateDictionary(lowercase = self.lowercase)
+    def regenerate(self):
+        self.generate(lowercase = self.lowercase)
         self.reset()
 
 
-    def getNextPathWithIndex(self, basePath=None):
+    def nextWithIndex(self, basePath=None):
         self.condition.acquire()
         try:
             result = self.entries[self.currentIndex]
@@ -56,17 +63,16 @@ class FuzzerDictionary:
         return currentIndex, result
 
 
-    def getNextPath(self, basePath=None):
-        _, path = self.getNextPathWithIndex(basePath)
+    def next(self, basePath=None):
+        _, path = self.nextWithIndex(basePath)
         return path
-
-
-
-    def __len__(self):
-        return len(self.entries)
 
 
     def reset(self):
         self.condition.acquire()
         self.currentIndex = 0
         self.condition.release()
+
+
+    def __len__(self):
+        return len(self.entries)

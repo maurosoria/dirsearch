@@ -2,7 +2,7 @@
 import os
 from lib.controller import *
 
-class Program:
+class Program(object):
     def __init__(self):
         self.script_path = (os.path.dirname(os.path.realpath(__file__)))
         self.arguments = ArgumentsParser(self.script_path)

@@ -1,7 +1,7 @@
 from optparse import OptionParser, OptionGroup
 
 
-class ArgumentsParser:
+class ArgumentsParser(object):
     def __init__(self, script_path):
         usage = "Usage: %prog [-u|--url] target [-e|--extensions] extensions [options]"
         parser = OptionParser(usage)
@@ -29,6 +29,8 @@ class ArgumentsParser:
         settings.add_option("--timeout", "--timeout", action="store", dest="timeout", type="int", default=30)
         settings.add_option("--ip", "--ip", action="store", dest="ip", default=None)
         settings.add_option("--max-retries", "--max-retries", action="store", dest="maxRetries", type="int", default=5)
+        settings.add_option("--no-follow-redirects", "--no-follow-redirects", action="store_true", dest="followRedirects", default=False)
+        settings.add_option("--http-proxy", "--http-proxy", action="store", dest="httpProxy", type="string", default=None)
 
         #settings.add_option("--ignore-response-status", "--ignore-response-status", action="store", type="string", dest="ignoreResponseStatus", default="")
 
@@ -53,6 +55,13 @@ class ArgumentsParser:
         except IOError:
             print ("Invalid wordlist file")
             exit(0)
+        if options.httpProxy is not None:
+            if options.httpProxy.startswith("http://"):
+                self.proxy = options.httpProxy
+            else:
+                self.proxy = "http://{0}".format(options.httpProxy) 
+        else:
+            self.proxy = None
         self.url = options.url
         self.extensions = [extension.strip() for extension in options.extensions.split(",")]
         self.useragent = options.useragent
@@ -67,3 +76,4 @@ class ArgumentsParser:
         self.ip = options.ip
         self.maxRetries = options.maxRetries
         self.recursive = options.recursive
+        self.redirect = not options.followRedirects
