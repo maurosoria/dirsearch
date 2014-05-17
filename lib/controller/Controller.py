@@ -35,6 +35,7 @@ class Controller(object):
             exit(0)
         self.output.printWarning('\nTask Completed')
 
+
     def printConfig(self):
         self.output.printWarning('- Searching in: {0}'.format(self.arguments.url))
         self.output.printWarning('- For extensions: {0}'.format(', '.join(self.arguments.extensions)))

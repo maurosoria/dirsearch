@@ -1,5 +1,6 @@
 from optparse import OptionParser, OptionGroup
-
+from lib.utils.FileUtils import File
+import os
 
 class ArgumentsParser(object):
     def __init__(self, script_path):
@@ -23,7 +24,7 @@ class ArgumentsParser(object):
         settings.add_option("--cookie", "--cookie", action="store", type="string", dest="cookie", default=None)
         settings.add_option("--user-agent", "--user-agent", action="store", type="string", dest="useragent", \
             default=None)
-        settings.add_option("-w", "--wordlist", action="store", dest="wordlist", default=("%s/db/dicc.txt" % (self.script_path)))
+        settings.add_option("-w", "--wordlist", action="store", dest="wordlist", default=("{1}{0}db{0}dicc.txt".format(os.path.sep, self.script_path)))
         settings.add_option("-l", "--lowercase", action="store_true", dest="lowercase", default="False")
         
         settings.add_option("--timeout", "--timeout", action="store", dest="timeout", type="int", default=30)
@@ -50,11 +51,17 @@ class ArgumentsParser(object):
         if options.extensions == None:
             print("No extension specified. You must specify at least one extension")
             exit(0)
-        try:
-            with open(options.wordlist): pass
-        except IOError:
-            print ("Invalid wordlist file")
-            exit(0)
+        
+        with File(options.wordlist) as wordlist:
+            if not wordlist.exists():
+                print ("The wordlist file does not exists")
+                exit(0)
+            if not wordlist.isValid():
+                print ("The wordlist is invalid")
+                exit(0)
+            if not wordlist.canRead():
+                print ("The wordlist cannot be read")
+                exit(0)
         if options.httpProxy is not None:
             if options.httpProxy.startswith("http://"):
                 self.proxy = options.httpProxy
