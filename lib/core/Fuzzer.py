@@ -116,7 +116,7 @@ class Fuzzer(object):
                     self.running = False
                     break
                 status, response = self.testPath(path)
-                if status != 0:
+                if status is not 0:
                     self.output.printStatusReport(path, response)
                     self.addDirectory(path)
                     self.reportManager.addPath(status, self.currentDirectory + path)
