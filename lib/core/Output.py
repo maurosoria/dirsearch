@@ -76,12 +76,12 @@ class Output(object):
         if path in self.checkedPaths:
             self.mutexCheckedPaths.release()
             return
-        self.mutexCheckedPaths.release()
         if status == 200:
             message = self.OKGREENBOLD + message + self.ENDC
         elif status == 403:
             message = self.OKBLUEBOLD + message + self.ENDC
         self.printNewLine(message)
+        self.mutexCheckedPaths.release()
 
     def printLastPathEntry(self, path, index, length):
         percentage = lambda x, y: float(x) / float(y) * 100
