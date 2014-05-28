@@ -9,7 +9,8 @@ from FuzzerDictionary import *
 from NotFoundTester import *
 from ReportManager import *
 from lib.reports import *
-
+import threading
+import time
 
 class Fuzzer(object):
 
@@ -27,6 +28,8 @@ class Fuzzer(object):
         self.testers = {}
         self.recursive = recursive
         self.currentDirectory = ''
+        self.indexMutex = threading.Lock()
+        self.index = 0
         # Setting up testers
         self.testersSetup()
         # Setting up threads
@@ -58,19 +61,20 @@ class Fuzzer(object):
     def start(self):
         self.dictionary.reset()
         self.runningThreadsCount = len(self.threads)
-        self.isRunningCondition = threading.Condition()
-        self.finishedCondition = threading.Condition()
-        self.runningThreadsCountCondition = threading.Condition()
         self.stoppedByUser = False
         self.running = True
         for thread in self.threads:
             thread.start()
 
     def wait(self):
+        # Sleep makes the OS to switch to another thread
+        sleepTime = 0
         while self.running:
+            time.sleep(sleepTime)
             continue
         for thread in self.threads:
             while thread.is_alive():
+                time.sleep(sleepTime)
                 continue
         while not self.directories.empty():
             self.currentDirectory = self.directories.get()
@@ -81,9 +85,11 @@ class Fuzzer(object):
             self.threadsSetup()
             self.start()
             while self.running:
+                time.sleep(sleepTime)
                 continue
             for thread in self.threads:
                 while thread.is_alive():
+                    time.sleep(sleepTime)
                     continue
         self.reportManager.save()
         self.reportManager.close()
@@ -108,25 +114,23 @@ class Fuzzer(object):
         else:
             return False
 
+
     def thread_proc(self):
         try:
-            while self.running:
-                index, path = self.dictionary.nextWithIndex()
-                if path == None:
-                    self.running = False
-                    break
+            path = self.dictionary.next()
+            while path is not None:
                 status, response = self.testPath(path)
                 if status is not 0:
                     self.output.printStatusReport(path, response)
                     self.addDirectory(path)
                     self.reportManager.addPath(status, self.currentDirectory + path)
-                self.output.printLastPathEntry(path, index, len(self.dictionary))
-            self.finishedCondition.acquire()
-            self.runningThreadsCountCondition.acquire()
-            self.runningThreadsCount = self.runningThreadsCount - 1
-            self.runningThreadsCountCondition.release()
-            self.finishedCondition.notify()
-            self.finishedCondition.release()
+                self.indexMutex.acquire()
+                self.index += 1
+                self.output.printLastPathEntry(path, self.index, len(self.dictionary))
+                self.indexMutex.release()
+                path = self.dictionary.next()
+                if path is None: self.running = False
+                if not self.running: break
         except KeyboardInterrupt, SystemExit:
             self.running = False
             return
