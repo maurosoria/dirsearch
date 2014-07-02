@@ -1,7 +1,7 @@
 dirs3arch
 =========
 
-Current Release: v0.2.1 (2014-5-1)
+Current Release: v0.2.2 (2014-7-2)
 
 Overview
 --------
