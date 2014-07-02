@@ -17,6 +17,7 @@ Features
 
 Changelog
 ---------
+- 0.2.2 - 2014.7.2 Fixed some bugs, showing percentage of tested paths and added report generation feature
 - 0.2.1 - 2014.5.1 Fixed some bugs and added recursive option
 - 0.2.0 - 2014.1.31 Initial public release
 
