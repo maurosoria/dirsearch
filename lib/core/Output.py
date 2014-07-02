@@ -28,17 +28,6 @@ class Output(object):
         self.mutexCheckedPaths = threading.Lock()
         self.basePath = None
 
-    def setStatusBlacklist(self, status, file):
-        blacklistFile = open(file, 'r')
-
-        # Test if blacklists exists, if not, initializes
-        try:
-            test = self.blacklists[status]
-        except KeyError:
-            self.blacklists[status] = []
-        for line in blacklistFile:
-            self.blacklists[status].append(line.replace('\n', ''))
-
     def printInLine(self, string):
         self.mutex.acquire()
         sys.stdout.write('\033[1K')

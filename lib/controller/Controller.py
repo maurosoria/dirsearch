@@ -3,6 +3,8 @@ import os
 import sys
 from lib.core import *
 from lib.reports import *
+from lib.utils import *
+import time
 
 
 class Controller(object):
@@ -11,7 +13,7 @@ class Controller(object):
         self.script_path = script_path
         self.arguments = arguments
         self.output = output
-        self.setupBlacklist()
+        self.blacklists = self.getBlacklists()
         try:
             requester = Requester(self.arguments.url, cookie=self.arguments.cookie, useragent=self.arguments.useragent,
                                   maxPool=self.arguments.threadsCount, maxRetries=self.arguments.maxRetries,
@@ -24,17 +26,16 @@ class Controller(object):
             self.printConfig()
             fuzzer = Fuzzer(requester, self.dictionary, output, threads=self.arguments.threadsCount,
                             recursive=self.arguments.recursive, reportManager=self.reportManager,
-                            excludeInternalServerError=self.arguments.exclude500)
+                            blacklists=self.blacklists, excludeInternalServerError=self.arguments.exclude500)
             fuzzer.start()
             fuzzer.wait()
         except RequestException, e:
             self.output.printError('Unexpected error:\n{0}'.format(e.args[0]['message']))
             exit(0)
-        except KeyboardInterrupt:
+        except KeyboardInterrupt, SystemExit:
             self.output.printError('\nCanceled by the user')
             exit(0)
         self.output.printWarning('\nTask Completed')
-
 
     def printConfig(self):
         self.output.printWarning('- Searching in: {0}'.format(self.arguments.url))
@@ -43,13 +44,16 @@ class Controller(object):
         self.output.printWarning('- Wordlist size: {0}'.format(len(self.dictionary)))
         self.output.printWarning('\n')
 
-    def setupBlacklist(self):
-        try:
-            with open('%s/db/403_blacklist.txt' % self.script_path):
-                pass
-            self.output.setStatusBlacklist(403, '%s/db/403_blacklist.txt' % self.script_path)
-        except IOError:
-            pass
+    def getBlacklists(self):
+        blacklists = {}
+        for status in [400, 403]:
+            blacklistFileName = '%s/db/%d_blacklist.txt' % (self.script_path, status)
+            if not FileUtils.canRead(blacklistFileName):
+                continue
+            blacklists[status] = []
+            for line in FileUtils.getLines(blacklistFileName):
+                blacklists[status].append(line)
+        return blacklists
 
     def setupReports(self, requester):
         if self.arguments.outputFile is not None:
