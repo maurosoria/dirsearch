@@ -64,21 +64,77 @@ class Fuzzer(object):
         self.index = 0
         self.dictionary.reset()
         self.runningThreadsCount = len(self.threads)
-        self.stoppedByUser = False
         self.running = True
-        self.finishedCondition = threading.Condition()
+        self.finishedEvent = threading.Event()
         self.finishedThreadCondition = threading.Condition()
+        self.playEvent = threading.Event()
+        self.pausedSemaphore = threading.Semaphore(0)
+        self.playEvent.set()
         for thread in self.threads:
             thread.start()
 
-    def wait(self):
-        # Sleep makes the OS to switch to another thread
-        self.finishedCondition.acquire()
-        while self.running:
-            self.finishedCondition.wait(1)
-        self.finishedCondition.release()
+    def play(self):
+        self.playEvent.set()
+
+    def pause(self):
+        self.playEvent.clear()
+        for thread in self.threads:
+            if thread.is_alive():
+                self.pausedSemaphore.acquire()
+
+    def handleInterrupt(self):
+        time.sleep(0.2)
+        self.pause()
+        try:
+            while True:
+                if self.recursive and not self.directories.empty():
+                    self.output.printInLine('[e]xit / [c]ontinue / [n]ext: ')
+                else:
+                    self.output.printInLine('[e]xit / [c]ontinue: ')
+                option = raw_input()
+                if option.lower() == 'e':
+                    self.running = False
+                    self.exit = True
+                    self.play()
+                    raise KeyboardInterrupt
+                elif option.lower() == 'c':
+                    self.play()
+                    return
+                elif self.recursive and not self.directories.empty() and option.lower() == 'n':
+                    self.running = False
+                    self.play()
+                    return
+                else:
+                    continue
+        except KeyboardInterrupt, SystemExit:
+            self.exit = True
+            raise KeyboardInterrupt
+
+    def waitThreads(self):
+        try:
+            while self.running:
+                try:
+                    self.finishedEvent.wait(1)
+                except (KeyboardInterrupt, SystemExit), e:
+                    self.handleInterrupt()
+                    if self.exit:
+                        raise e
+                    else:
+                        pass
+        except (KeyboardInterrupt, SystemExit), e:
+            if self.exit:
+                raise e
+            self.handleInterrupt()
+            if self.exit:
+                raise e
+            else:
+                pass
         for thread in self.threads:
             thread.join()
+
+    def wait(self):
+        self.exit = False
+        self.waitThreads()
         while not self.directories.empty():
             self.currentDirectory = self.directories.get()
             self.output.printWarning('\nSwitching to founded directory: {0}'.format(self.currentDirectory))
@@ -87,12 +143,7 @@ class Fuzzer(object):
             self.testersSetup()
             self.threadsSetup()
             self.start()
-            self.finishedCondition.acquire()
-            while self.running:
-                self.finishedCondition.wait(1)
-            self.finishedCondition.release()
-            for thread in self.threads:
-                thread.join()
+            self.waitThreads()
         self.reportManager.save()
         self.reportManager.close()
         return
@@ -117,10 +168,8 @@ class Fuzzer(object):
             return False
 
     def finishThreads(self):
-        self.finishedCondition.acquire()
         self.running = False
-        self.finishedCondition.notify()
-        self.finishedCondition.release()
+        self.finishedEvent.set()
 
     def thread_proc(self):
         try:
@@ -138,6 +187,9 @@ class Fuzzer(object):
                     self.output.printLastPathEntry(path, self.index, len(self.dictionary))
                     self.indexMutex.release()
                     path = self.dictionary.next()
+                    if not self.playEvent.isSet():
+                        self.pausedSemaphore.release()
+                        self.playEvent.wait()
                     if not self.running:
                         break
                     if path is None:
@@ -147,5 +199,11 @@ class Fuzzer(object):
                     self.output.printError('Unexpected error:\n{0}'.format(e.args[0]['message']))
                     continue
         except KeyboardInterrupt, SystemExit:
-            self.running = False
-            self.finishThreads()
+            if self.exit:
+                raise e
+            self.handleInterrupt()
+            if self.exit:
+                raise e
+            pass
+
+
