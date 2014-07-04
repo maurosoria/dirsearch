@@ -13,25 +13,32 @@ class ArgumentsParser(object):
         mandatory.add_option("-e", "--extensions", help="Extensions list separated by comma (Example: php, asp)", \
             action="store", dest="extensions", default=None)
 
+
+        # Connection settings
+        connection = OptionGroup(parser, 'Connection Settings')
+        connection.add_option("--timeout", "--timeout", action="store", dest="timeout", type="int", default=30, help="Connection timeout")
+        connection.add_option("--ip", "--ip", action="store", dest="ip", default=None, help="Destination IP (instead of resolving domain, use this ip)")
+        connection.add_option("--http-proxy", "--http-proxy", action="store", dest="httpProxy", type="string", default=None, help="Http Proxy (example: localhost:8080")
+        connection.add_option("--max-retries", "--max-retries", action="store", dest="maxRetries", type="int", default=5)
+
+        # Dictionary settings
+        dictionary = OptionGroup(parser, 'Dictionary Settings')
+        dictionary.add_option("-w", "--wordlist", action="store", dest="wordlist", default=("{1}{0}db{0}dicc.txt".format(os.path.sep, self.script_path)))
+        dictionary.add_option("-l", "--lowercase", action="store_true", dest="lowercase", default="False")
+
         # Optional Settings
-        settings = OptionGroup(parser, 'Optional Settings')
-        settings.add_option("-r", "--recursive", help="Bruteforce recursively", action="store_true", \
+        general = OptionGroup(parser, 'General Settings')
+        general.add_option("-r", "--recursive", help="Bruteforce recursively", action="store_true", \
             dest="recursive", default=False)
-        settings.add_option("-t", "--threads", help="Number of Threads", action="store", type="int", \
+        general.add_option("-t", "--threads", help="Number of Threads", action="store", type="int", \
             dest="threadsCount", default=10)
-        settings.add_option("-x", "--exclude-500", help="Exclude Internal Server Error Status (500)", action="store_true", \
-            dest="exclude500", default=False)
-        settings.add_option("--cookie", "--cookie", action="store", type="string", dest="cookie", default=None)
-        settings.add_option("--user-agent", "--user-agent", action="store", type="string", dest="useragent", \
+        general.add_option("-x", "--exclude-status", help="Exclude status code, separated by comma (example: 301, 500)", action="store", \
+            dest="excludeStatusCodes", default=[])
+        general.add_option("--cookie", "--cookie", action="store", type="string", dest="cookie", default=None)
+        general.add_option("--user-agent", "--user-agent", action="store", type="string", dest="useragent", \
             default=None)
-        settings.add_option("-w", "--wordlist", action="store", dest="wordlist", default=("{1}{0}db{0}dicc.txt".format(os.path.sep, self.script_path)))
-        settings.add_option("-l", "--lowercase", action="store_true", dest="lowercase", default="False")
+        general.add_option("--no-follow-redirects", "--no-follow-redirects", action="store_true", dest="followRedirects", default=False)
         
-        settings.add_option("--timeout", "--timeout", action="store", dest="timeout", type="int", default=30)
-        settings.add_option("--ip", "--ip", action="store", dest="ip", default=None)
-        settings.add_option("--max-retries", "--max-retries", action="store", dest="maxRetries", type="int", default=5)
-        settings.add_option("--no-follow-redirects", "--no-follow-redirects", action="store_true", dest="followRedirects", default=False)
-        settings.add_option("--http-proxy", "--http-proxy", action="store", dest="httpProxy", type="string", default=None)
 
         #settings.add_option("--ignore-response-status", "--ignore-response-status", action="store", type="string", dest="ignoreResponseStatus", default="")
 
@@ -42,7 +49,9 @@ class ArgumentsParser(object):
         
 
         parser.add_option_group(mandatory)
-        parser.add_option_group(settings)
+        parser.add_option_group(dictionary)
+        parser.add_option_group(general)
+        parser.add_option_group(connection)
         parser.add_option_group(reports)
         (options, arguments) = parser.parse_args()
         if options.url == None:
@@ -74,7 +83,7 @@ class ArgumentsParser(object):
         self.useragent = options.useragent
         self.cookie = options.cookie
         self.threadsCount = options.threadsCount
-        self.exclude500 = options.exclude500
+        self.excludeStatusCodes = [int(excludeStatusCode.strip()) for excludeStatusCode in options.excludeStatusCodes.split(",")]
         self.wordlist = options.wordlist
         self.lowercase = options.lowercase
         self.outputFile = options.outputFile

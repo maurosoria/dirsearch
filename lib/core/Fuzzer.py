@@ -16,13 +16,13 @@ import time
 class Fuzzer(object):
 
     def __init__(self, requester, dictionary, output, threads=1, recursive=True, reportManager=None, blacklists={},
-                 excludeInternalServerError=False):
+                 excludeStatusCodes=[]):
         self.requester = requester
         self.dictionary = dictionary
         self.blacklists = blacklists
         self.basePath = self.requester.basePath
         self.output = output
-        self.excludeInternalServerError = excludeInternalServerError
+        self.excludeStatusCodes = excludeStatusCodes
         self.threads = []
         self.threadsCount = threads
         self.running = False
@@ -178,7 +178,8 @@ class Fuzzer(object):
                 try:
                     status, response = self.testPath(path)
                     if status is not 0:
-                        if self.blacklists.get(status) is None or path not in self.blacklists.get(status):
+                        if status not in self.excludeStatusCodes and (self.blacklists.get(status) is None or path
+                                not in self.blacklists.get(status)):
                             self.output.printStatusReport(path, response)
                             self.addDirectory(path)
                             self.reportManager.addPath(status, self.currentDirectory + path)
@@ -205,3 +206,5 @@ class Fuzzer(object):
             if self.exit:
                 raise e
             pass
+
+

@@ -26,7 +26,7 @@ class Controller(object):
             self.printConfig()
             fuzzer = Fuzzer(requester, self.dictionary, output, threads=self.arguments.threadsCount,
                             recursive=self.arguments.recursive, reportManager=self.reportManager,
-                            blacklists=self.blacklists, excludeInternalServerError=self.arguments.exclude500)
+                            blacklists=self.blacklists, excludeStatusCodes=self.arguments.excludeStatusCodes)
             fuzzer.start()
             fuzzer.wait()
         except RequestException, e:
