@@ -83,7 +83,7 @@ class Fuzzer(object):
                 self.pausedSemaphore.acquire()
 
     def handleInterrupt(self):
-        time.sleep(0.2)
+        self.output.printWarning('CTRL+C detected: Pausing threads...')
         self.pause()
         try:
             while True:
@@ -114,7 +114,7 @@ class Fuzzer(object):
         try:
             while self.running:
                 try:
-                    self.finishedEvent.wait(1)
+                    self.finishedEvent.wait(0.3)
                 except (KeyboardInterrupt, SystemExit), e:
                     self.handleInterrupt()
                     if self.exit:
@@ -205,5 +205,3 @@ class Fuzzer(object):
             if self.exit:
                 raise e
             pass
-
-
