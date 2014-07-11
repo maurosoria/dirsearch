@@ -31,7 +31,7 @@ class ArgumentsParser(object):
         # Mandatory arguments
         mandatory = OptionGroup(parser, 'Mandatory')
         mandatory.add_option('-u', '--url', help='URL target', action='store', type='string', dest='url', default=None)
-        mandatory.add_option('-e', '--extensions', help='Extensions list separated by comma (Example: php, asp)',
+        mandatory.add_option('-e', '--extensions', help='Extension list separated by comma (Example: php, asp)',
                              action='store', dest='extensions', default=None)
 
         connection = OptionGroup(parser, 'Connection Settings')
