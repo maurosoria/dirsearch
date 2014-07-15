@@ -63,6 +63,9 @@ class Controller(object):
         except KeyboardInterrupt, SystemExit:
             self.output.printError('\nCanceled by the user')
             exit(0)
+        finally:
+            self.reportManager.save()
+            self.reportManager.close()
         self.output.printWarning('\nTask Completed')
 
     def printConfig(self):
@@ -90,9 +93,6 @@ class Controller(object):
         if self.arguments.jsonOutputFile is not None:
             self.reportManager.addOutput(JSONReport(requester.host, requester.port, requester.protocol,
                                          requester.basePath, self.arguments.jsonOutputFile))
-
-
-
 
     def handleInterrupt(self):
         self.output.printWarning('CTRL+C detected: Pausing threads...')
@@ -158,8 +158,6 @@ class Controller(object):
             #self.threadsSetup()
             self.fuzzer.start()
             self.processPaths()
-        self.reportManager.save()
-        self.reportManager.close()
         return
 
     def addDirectory(self, path):
