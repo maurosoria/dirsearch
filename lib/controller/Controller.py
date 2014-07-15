@@ -32,6 +32,12 @@ class Controller(object):
         self.arguments = arguments
         self.output = output
         self.blacklists = self.getBlacklists()
+        self.fuzzer = None
+        self.indexMutex = threading.Lock()
+        self.index = 0
+        self.excludeStatusCodes = self.arguments.excludeStatusCodes
+        self.recursive = self.arguments.recursive
+        self.currentDirectory = ''
         try:
             requester = Requester(self.arguments.url, cookie=self.arguments.cookie, useragent=self.arguments.useragent,
                                   maxPool=self.arguments.threadsCount, maxRetries=self.arguments.maxRetries,
@@ -42,11 +48,11 @@ class Controller(object):
             self.dictionary = FuzzerDictionary(self.arguments.wordlist, self.arguments.extensions,
                                                self.arguments.lowercase)
             self.printConfig()
-            fuzzer = Fuzzer(requester, self.dictionary, output, threads=self.arguments.threadsCount,
+            self.fuzzer = Fuzzer(requester, self.dictionary, output, threads=self.arguments.threadsCount,
                             recursive=self.arguments.recursive, reportManager=self.reportManager,
                             blacklists=self.blacklists, excludeStatusCodes=self.arguments.excludeStatusCodes)
-            fuzzer.start()
-            fuzzer.wait()
+            self.fuzzer.start()
+            self.wait()
         except RequestException, e:
             self.output.printError('Unexpected error:\n{0}'.format(e.args[0]['message']))
             exit(0)
@@ -82,3 +88,109 @@ class Controller(object):
                                          requester.basePath, self.arguments.jsonOutputFile))
 
 
+
+
+    def handleInterrupt(self):
+        self.output.printWarning('CTRL+C detected: Pausing threads...')
+        print("ATTEMPTING TO PAUSE")
+        self.fuzzer.pause()
+        print("SUCCESFULLY PAUSED")
+        try:
+            while True:
+                if self.recursive and not self.fuzzer.directories.empty():
+                    self.output.printInLine('[e]xit / [c]ontinue / [n]ext: ')
+                    pass
+                else:
+                    self.output.printInLine('[e]xit / [c]ontinue: ')
+                    pass
+                option = raw_input()
+                if option.lower() == 'e':
+                    self.fuzzer.running = False
+                    self.exit = True
+                    self.fuzzer.play()
+                    raise KeyboardInterrupt
+                elif option.lower() == 'c':
+                    print("CONTINUE")
+                    self.fuzzer.play()
+                    print("PLAYED")
+                    return
+                elif self.recursive and not self.directories.empty() and option.lower() == 'n':
+                    self.fuzzer.running = False
+                    self.fuzzer.play()
+                    return
+                else:
+                    continue
+        except KeyboardInterrupt, SystemExit:
+            self.exit = True
+            raise KeyboardInterrupt
+
+    def waitThreads(self):
+
+        try:
+            while self.fuzzer.running:
+                try:
+
+                    path = self.fuzzer.getPath()
+                    if path.status is not 0:
+                        if path.status not in self.excludeStatusCodes and (self.blacklists.get(path.status) is None or path.path
+                                not in self.blacklists.get(path.status)):
+                            self.output.printStatusReport(path.path, path.response)
+                            self.addDirectory(path.path)
+                            self.reportManager.addPath(path.status, self.currentDirectory + path.path)
+                    self.index += 1
+                    self.output.printLastPathEntry(path, self.index, len(self.dictionary))
+
+                except (KeyboardInterrupt, SystemExit), e:
+                    print("HANDLE INTERRUPT 1")
+                    self.handleInterrupt()
+                    print("OUT OF HANDLE INTERRUPT 1")
+                    if self.exit:
+                        raise e
+                    else:
+                        print("PASS")
+                        pass
+        except (KeyboardInterrupt, SystemExit), e:
+            if self.exit:
+                raise e
+            print("HANDLE INTERRUPT 2")
+            self.handleInterrupt()
+            print("OUT OF HANDLE INTERRUPT 2")
+            if self.exit:
+                raise e
+            print("HANDLE INTERRUPT 3")
+            self.handleInterrupt()
+            print("OUT OF HANDLE INTERRUPT 3")
+            if self.exit:
+                raise e
+            else:
+                pass
+        
+        self.fuzzer.waitThreads()
+
+    def wait(self):
+        self.exit = False
+        self.waitThreads()
+        #while not self.directories.empty():
+        #    self.currentDirectory = self.directories.get()
+        #    self.output.printWarning('\nSwitching to founded directory: {0}'.format(self.currentDirectory))
+        #    self.requester.basePath = '{0}{1}'.format(self.basePath, self.currentDirectory)
+        #    self.output.basePath = '{0}{1}'.format(self.basePath, self.currentDirectory)
+        #    self.testersSetup()
+        #    self.threadsSetup()
+        #    self.start()
+        #    self.waitThreads()
+        self.reportManager.save()
+        self.reportManager.close()
+        return
+
+    def addDirectory(self, path):
+        if self.recursive == False:
+            return False
+        if path.endswith('/'):
+            if self.currentDirectory == '':
+                self.directories.put(path)
+            else:
+                self.directories.put('{0}{1}'.format(self.currentDirectory, path))
+            return True
+        else:
+            return False

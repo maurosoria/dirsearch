@@ -19,9 +19,11 @@
 
 import threading
 import logging
+import sys
 import signal
 from Queue import Queue
 from config import *
+from .Path import *
 from lib.connection import *
 from FuzzerDictionary import *
 from NotFoundTester import *
@@ -37,24 +39,27 @@ class Fuzzer(object):
                  excludeStatusCodes=[]):
         self.requester = requester
         self.dictionary = dictionary
+        self.testedPaths = Queue(maxsize=0)
         self.blacklists = blacklists
         self.basePath = self.requester.basePath
         self.output = output
-        self.excludeStatusCodes = excludeStatusCodes
+        
         self.threads = []
         self.threadsCount = threads
         self.running = False
         self.directories = Queue()
         self.testers = {}
         self.recursive = recursive
-        self.currentDirectory = ''
-        self.indexMutex = threading.Lock()
-        self.index = 0
+        
         # Setting up testers
         self.testersSetup()
         # Setting up threads
         self.threadsSetup()
         self.reportManager = (ReportManager() if reportManager is None else reportManager)
+
+    def waitThreads(self):
+        for thread in self.threads:
+            thread.join()
 
     def testersSetup(self):
         if len(self.testers) != 0:
@@ -87,9 +92,11 @@ class Fuzzer(object):
         self.finishedThreadCondition = threading.Condition()
         self.playEvent = threading.Event()
         self.pausedSemaphore = threading.Semaphore(0)
-        self.playEvent.set()
+        self.playEvent.clear()
+        self.exit = False
         for thread in self.threads:
             thread.start()
+        self.playEvent.set()
 
     def play(self):
         self.playEvent.set()
@@ -98,73 +105,9 @@ class Fuzzer(object):
         self.playEvent.clear()
         for thread in self.threads:
             if thread.is_alive():
+                print("Pausing " + str(thread.getName()))
                 self.pausedSemaphore.acquire()
-
-    def handleInterrupt(self):
-        self.output.printWarning('CTRL+C detected: Pausing threads...')
-        self.pause()
-        try:
-            while True:
-                if self.recursive and not self.directories.empty():
-                    self.output.printInLine('[e]xit / [c]ontinue / [n]ext: ')
-                else:
-                    self.output.printInLine('[e]xit / [c]ontinue: ')
-                option = raw_input()
-                if option.lower() == 'e':
-                    self.running = False
-                    self.exit = True
-                    self.play()
-                    raise KeyboardInterrupt
-                elif option.lower() == 'c':
-                    self.play()
-                    return
-                elif self.recursive and not self.directories.empty() and option.lower() == 'n':
-                    self.running = False
-                    self.play()
-                    return
-                else:
-                    continue
-        except KeyboardInterrupt, SystemExit:
-            self.exit = True
-            raise KeyboardInterrupt
-
-    def waitThreads(self):
-        try:
-            while self.running:
-                try:
-                    self.finishedEvent.wait(0.3)
-                except (KeyboardInterrupt, SystemExit), e:
-                    self.handleInterrupt()
-                    if self.exit:
-                        raise e
-                    else:
-                        pass
-        except (KeyboardInterrupt, SystemExit), e:
-            if self.exit:
-                raise e
-            self.handleInterrupt()
-            if self.exit:
-                raise e
-            else:
-                pass
-        for thread in self.threads:
-            thread.join()
-
-    def wait(self):
-        self.exit = False
-        self.waitThreads()
-        while not self.directories.empty():
-            self.currentDirectory = self.directories.get()
-            self.output.printWarning('\nSwitching to founded directory: {0}'.format(self.currentDirectory))
-            self.requester.basePath = '{0}{1}'.format(self.basePath, self.currentDirectory)
-            self.output.basePath = '{0}{1}'.format(self.basePath, self.currentDirectory)
-            self.testersSetup()
-            self.threadsSetup()
-            self.start()
-            self.waitThreads()
-        self.reportManager.save()
-        self.reportManager.close()
-        return
+        print("FINISHED PAUSE\n")
 
     def testPath(self, path):
         response = self.requester.request(path)
@@ -173,40 +116,34 @@ class Fuzzer(object):
             result = (0 if response.status == 404 else response.status)
         return result, response
 
-    def addDirectory(self, path):
-        if self.recursive == False:
-            return False
-        if path.endswith('/'):
-            if self.currentDirectory == '':
-                self.directories.put(path)
-            else:
-                self.directories.put('{0}{1}'.format(self.currentDirectory, path))
-            return True
-        else:
-            return False
 
     def finishThreads(self):
         self.running = False
         self.finishedEvent.set()
 
+    def getPath(self):
+        return self.testedPaths.get()
+
     def thread_proc(self):
+        self.playEvent.wait()
         try:
             path = self.dictionary.next()
             while path is not None:
                 try:
                     status, response = self.testPath(path)
-                    if status is not 0:
-                        if status not in self.excludeStatusCodes and (self.blacklists.get(status) is None or path
-                                not in self.blacklists.get(status)):
-                            self.output.printStatusReport(path, response)
-                            self.addDirectory(path)
-                            self.reportManager.addPath(status, self.currentDirectory + path)
-                    self.indexMutex.acquire()
-                    self.index += 1
-                    self.output.printLastPathEntry(path, self.index, len(self.dictionary))
-                    self.indexMutex.release()
+                    #if status is not 0:
+                        #if status not in self.excludeStatusCodes and (self.blacklists.get(status) is None or path
+                        #        not in self.blacklists.get(status)):
+                        #    
+                        #    self.output.printStatusReport(path, response)
+                        #    self.addDirectory(path)
+                        #    self.reportManager.addPath(status, self.currentDirectory + path)
+                    self.testedPaths.put(Path(path=path, status=status, response=response))
+
                     path = self.dictionary.next()
                     if not self.playEvent.isSet():
+                        print (str(threading.currentThread().getName()) + " caught pause")
+                        sys.stdout.flush()
                         self.pausedSemaphore.release()
                         self.playEvent.wait()
                     if not self.running:
@@ -215,14 +152,9 @@ class Fuzzer(object):
                         self.running = False
                         self.finishThreads()
                 except RequestException, e:
-                    self.output.printError('Unexpected error:\n{0}'.format(e.args[0]['message']))
+                    # self.output.printError('Unexpected error:\n{0}'.format(e.args[0]['message']))
                     continue
         except KeyboardInterrupt, SystemExit:
-            if self.exit:
-                raise e
-            self.handleInterrupt()
-            if self.exit:
-                raise e
             pass
 
 

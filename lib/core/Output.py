@@ -47,23 +47,23 @@ class Output(object):
         self.basePath = None
 
     def printInLine(self, string):
-        self.mutex.acquire()
         sys.stdout.write('\033[1K')
         sys.stdout.write('\033[0G')
         sys.stdout.write(string)
         sys.stdout.flush()
         self.lastInLine = True
-        self.mutex.release()
+
 
     def printNewLine(self, string):
-        self.mutex.acquire()
+
+        sys.stdout.flush()
         if self.lastInLine == True:
             sys.stdout.write('\033[1K')
             sys.stdout.write('\033[0G')
         sys.stdout.write(string + '\n')
         sys.stdout.flush()
         self.lastInLine = False
-        self.mutex.release()
+        sys.stdout.flush()
 
     def printStatusReport(self, path, response):
         status = response.status
@@ -79,11 +79,16 @@ class Output(object):
                 message += '  ->  {0}'.format(response.headers['location'])
             except KeyError:
                 pass
-        self.mutexCheckedPaths.acquire()
-        if path in self.checkedPaths:
+        
+        try:
+            self.mutexCheckedPaths.acquire()
+            if path in self.checkedPaths:
+                self.mutexCheckedPaths.release()
+                return
+        except (KeyboardInterrupt, SystemExit), e:
+            raise e
+        finally:
             self.mutexCheckedPaths.release()
-            return
-        self.mutexCheckedPaths.release()
         if status == 200:
             message = self.OKGREENBOLD + message + self.ENDC
         elif status == 403:
