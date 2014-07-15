@@ -39,7 +39,7 @@ class Fuzzer(object):
                  excludeStatusCodes=[]):
         self.requester = requester
         self.dictionary = dictionary
-        self.testedPaths = Queue(maxsize=0)
+        self.testedPaths = Queue()
         self.blacklists = blacklists
         self.basePath = self.requester.basePath
         self.output = output
