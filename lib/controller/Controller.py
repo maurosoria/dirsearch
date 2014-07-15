@@ -52,9 +52,7 @@ class Controller(object):
             self.dictionary = FuzzerDictionary(self.arguments.wordlist, self.arguments.extensions,
                                                self.arguments.lowercase)
             self.printConfig()
-            self.fuzzer = Fuzzer(self.requester, self.dictionary, threads=self.arguments.threadsCount,
-                            recursive=self.arguments.recursive, reportManager=self.reportManager,
-                            blacklists=self.blacklists, excludeStatusCodes=self.arguments.excludeStatusCodes)
+            self.fuzzer = Fuzzer(self.requester, self.dictionary, threads=self.arguments.threadsCount)
             #self.fuzzer.start()
             self.wait()
         except RequestException, e:

@@ -35,19 +35,16 @@ import time
 
 class Fuzzer(object):
 
-    def __init__(self, requester, dictionary, threads=1, recursive=True, reportManager=None, blacklists={},
-                 excludeStatusCodes=[]):
+    def __init__(self, requester, dictionary, threads=1):
         self.requester = requester
         self.dictionary = dictionary
         self.testedPaths = Queue()
-        self.blacklists = blacklists
         self.basePath = self.requester.basePath
         #self.output = output
         self.threads = []
         self.threadsCount = threads
         self.running = False
         self.testers = {}
-        self.recursive = recursive
         #self.reportManager = (ReportManager() if reportManager is None else reportManager)
 
     def wait(self):
