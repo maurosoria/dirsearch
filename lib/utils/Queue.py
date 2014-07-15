@@ -31,20 +31,29 @@ class Queue(object):
 
     def qsize(self):
         """Return the approximate size of the queue (not reliable!)."""
-        self.mutex.acquire()
-        n = self._qsize()
-        self.mutex.release()
-        return n
+        try:
+            self.mutex.acquire()
+            n = self._qsize()
+            return n
+        finally:
+            try:
+                self.mutex.release()
+            except:
+                pass
 
     def empty(self):
         """Return True if the queue is empty, False otherwise (not reliable!)."""
-        self.mutex.acquire()
-        n = not self._qsize()
-        self.mutex.release()
-        return n
+        try:
+            self.mutex.acquire()
+            n = not self._qsize()
+            return n
+        finally:
+            try:
+                self.mutex.release()
+            except:
+                pass
 
     def put(self, item):
-        
         try:
             self.mutex.acquire()
             if not self.not_empty.isSet():
@@ -52,10 +61,12 @@ class Queue(object):
             self._put(item)
             
         finally:
-            self.mutex.release()
+            try:
+                self.mutex.release()
+            except:
+                pass
 
     def get(self):
-        
         try:
             self.mutex.acquire()
             while not self.not_empty.isSet():
@@ -67,7 +78,10 @@ class Queue(object):
                 self.not_empty.clear()
             return item
         finally:
-            self.mutex.release()
+            try:
+                self.mutex.release()
+            except:
+                pass
 
     def _init(self):
         self.queue = deque()
