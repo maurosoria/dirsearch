@@ -170,15 +170,15 @@ class Controller(object):
     def wait(self):
         self.exit = False
         self.waitThreads()
-        #while not self.directories.empty():
-        #    self.currentDirectory = self.directories.get()
-        #    self.output.printWarning('\nSwitching to founded directory: {0}'.format(self.currentDirectory))
-        #    self.requester.basePath = '{0}{1}'.format(self.basePath, self.currentDirectory)
-        #    self.output.basePath = '{0}{1}'.format(self.basePath, self.currentDirectory)
-        #    self.testersSetup()
-        #    self.threadsSetup()
-        #    self.start()
-        #    self.waitThreads()
+        while not self.directories.empty():
+            self.currentDirectory = self.directories.get()
+            self.output.printWarning('\nSwitching to founded directory: {0}'.format(self.currentDirectory))
+            self.fuzzer.requester.basePath = '{0}{1}'.format(self.basePath, self.currentDirectory)
+            self.output.basePath = '{0}{1}'.format(self.basePath, self.currentDirectory)
+            self.testersSetup()
+            self.threadsSetup()
+            self.start()
+            self.waitThreads()
         self.reportManager.save()
         self.reportManager.close()
         return

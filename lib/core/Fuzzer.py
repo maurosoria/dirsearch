@@ -21,7 +21,7 @@ import threading
 import logging
 import sys
 import signal
-from Queue import Queue
+from lib.utils.Queue import Queue
 from config import *
 from .Path import *
 from lib.connection import *
@@ -96,7 +96,7 @@ class Fuzzer(object):
         self.exit = False
         for thread in self.threads:
             thread.start()
-        self.playEvent.set()
+        self.play()
 
     def play(self):
         self.playEvent.set()
@@ -138,11 +138,14 @@ class Fuzzer(object):
                         #    self.output.printStatusReport(path, response)
                         #    self.addDirectory(path)
                         #    self.reportManager.addPath(status, self.currentDirectory + path)
+                    #print ("Attemping to " + str(threading.currentThread().getName()) + " Added path")
+                    sys.stdout.flush()
                     self.testedPaths.put(Path(path=path, status=status, response=response))
-
+                    #print (str(threading.currentThread().getName()) + " Added path")
+                    sys.stdout.flush()
                     path = self.dictionary.next()
                     if not self.playEvent.isSet():
-                        print (str(threading.currentThread().getName()) + " caught pause")
+                        #print (str(threading.currentThread().getName()) + " caught pause")
                         sys.stdout.flush()
                         self.pausedSemaphore.release()
                         self.playEvent.wait()
