@@ -35,29 +35,22 @@ import time
 
 class Fuzzer(object):
 
-    def __init__(self, requester, dictionary, output, threads=1, recursive=True, reportManager=None, blacklists={},
+    def __init__(self, requester, dictionary, threads=1, recursive=True, reportManager=None, blacklists={},
                  excludeStatusCodes=[]):
         self.requester = requester
         self.dictionary = dictionary
         self.testedPaths = Queue()
         self.blacklists = blacklists
         self.basePath = self.requester.basePath
-        self.output = output
-        
+        #self.output = output
         self.threads = []
         self.threadsCount = threads
         self.running = False
-        self.directories = Queue()
         self.testers = {}
         self.recursive = recursive
-        
-        # Setting up testers
-        self.testersSetup()
-        # Setting up threads
-        self.threadsSetup()
-        self.reportManager = (ReportManager() if reportManager is None else reportManager)
+        #self.reportManager = (ReportManager() if reportManager is None else reportManager)
 
-    def waitThreads(self):
+    def wait(self):
         for thread in self.threads:
             thread.join()
 
@@ -84,6 +77,10 @@ class Fuzzer(object):
         return self.testers['/']
 
     def start(self):
+        # Setting up testers
+        self.testersSetup()
+        # Setting up threads
+        self.threadsSetup()
         self.index = 0
         self.dictionary.reset()
         self.runningThreadsCount = len(self.threads)
@@ -105,9 +102,13 @@ class Fuzzer(object):
         self.playEvent.clear()
         for thread in self.threads:
             if thread.is_alive():
-                print("Pausing " + str(thread.getName()))
+                #print("Pausing " + str(thread.getName()))
                 self.pausedSemaphore.acquire()
-        print("FINISHED PAUSE\n")
+        #print("FINISHED PAUSE\n")
+
+    def stop(self):
+        self.running = False
+        self.play()
 
     def testPath(self, path):
         response = self.requester.request(path)
@@ -116,6 +117,8 @@ class Fuzzer(object):
             result = (0 if response.status == 404 else response.status)
         return result, response
 
+    def isRunning(self):
+        return self.running
 
     def finishThreads(self):
         self.running = False
@@ -139,14 +142,14 @@ class Fuzzer(object):
                         #    self.addDirectory(path)
                         #    self.reportManager.addPath(status, self.currentDirectory + path)
                     #print ("Attemping to " + str(threading.currentThread().getName()) + " Added path")
-                    sys.stdout.flush()
+                    #sys.stdout.flush()
                     self.testedPaths.put(Path(path=path, status=status, response=response))
                     #print (str(threading.currentThread().getName()) + " Added path")
-                    sys.stdout.flush()
+                    #sys.stdout.flush()
                     path = self.dictionary.next()
                     if not self.playEvent.isSet():
                         #print (str(threading.currentThread().getName()) + " caught pause")
-                        sys.stdout.flush()
+                        #sys.stdout.flush()
                         self.pausedSemaphore.release()
                         self.playEvent.wait()
                     if not self.running:

@@ -19,6 +19,7 @@
 
 import os
 import sys
+from lib.utils import *
 from lib.core import *
 from lib.reports import *
 from lib.utils import *
@@ -29,29 +30,32 @@ class Controller(object):
 
     def __init__(self, script_path, arguments, output):
         self.script_path = script_path
+        self.exit = False
         self.arguments = arguments
         self.output = output
         self.blacklists = self.getBlacklists()
         self.fuzzer = None
-        self.indexMutex = threading.Lock()
-        self.index = 0
+        self.recursive = self.arguments.recursive
         self.excludeStatusCodes = self.arguments.excludeStatusCodes
         self.recursive = self.arguments.recursive
-        self.currentDirectory = ''
+        self.directories = Queue()
         try:
-            requester = Requester(self.arguments.url, cookie=self.arguments.cookie, useragent=self.arguments.useragent,
+            self.requester = Requester(self.arguments.url, cookie=self.arguments.cookie, useragent=self.arguments.useragent,
                                   maxPool=self.arguments.threadsCount, maxRetries=self.arguments.maxRetries,
                                   timeout=self.arguments.timeout, ip=self.arguments.ip, proxy=self.arguments.proxy,
                                   redirect=self.arguments.redirect)
+            # Initialize directories Queue with start Path
+            self.basePath = self.requester.basePath
+            self.directories.put("")
             self.reportManager = ReportManager()
-            self.setupReports(requester)
+            self.setupReports(self.requester)
             self.dictionary = FuzzerDictionary(self.arguments.wordlist, self.arguments.extensions,
                                                self.arguments.lowercase)
             self.printConfig()
-            self.fuzzer = Fuzzer(requester, self.dictionary, output, threads=self.arguments.threadsCount,
+            self.fuzzer = Fuzzer(self.requester, self.dictionary, threads=self.arguments.threadsCount,
                             recursive=self.arguments.recursive, reportManager=self.reportManager,
                             blacklists=self.blacklists, excludeStatusCodes=self.arguments.excludeStatusCodes)
-            self.fuzzer.start()
+            #self.fuzzer.start()
             self.wait()
         except RequestException, e:
             self.output.printError('Unexpected error:\n{0}'.format(e.args[0]['message']))
@@ -92,12 +96,10 @@ class Controller(object):
 
     def handleInterrupt(self):
         self.output.printWarning('CTRL+C detected: Pausing threads...')
-        print("ATTEMPTING TO PAUSE")
         self.fuzzer.pause()
-        print("SUCCESFULLY PAUSED")
         try:
             while True:
-                if self.recursive and not self.fuzzer.directories.empty():
+                if self.recursive and not self.directories.empty():
                     self.output.printInLine('[e]xit / [c]ontinue / [n]ext: ')
                     pass
                 else:
@@ -105,18 +107,14 @@ class Controller(object):
                     pass
                 option = raw_input()
                 if option.lower() == 'e':
-                    self.fuzzer.running = False
                     self.exit = True
-                    self.fuzzer.play()
+                    self.fuzzer.stop()
                     raise KeyboardInterrupt
                 elif option.lower() == 'c':
-                    print("CONTINUE")
                     self.fuzzer.play()
-                    print("PLAYED")
                     return
                 elif self.recursive and not self.directories.empty() and option.lower() == 'n':
-                    self.fuzzer.running = False
-                    self.fuzzer.play()
+                    self.fuzzer.stop()
                     return
                 else:
                     continue
@@ -124,12 +122,10 @@ class Controller(object):
             self.exit = True
             raise KeyboardInterrupt
 
-    def waitThreads(self):
-
+    def processPaths(self):
         try:
-            while self.fuzzer.running:
+            while self.fuzzer.isRunning():
                 try:
-
                     path = self.fuzzer.getPath()
                     if path.status is not 0:
                         if path.status not in self.excludeStatusCodes and (self.blacklists.get(path.status) is None or path.path
@@ -139,46 +135,29 @@ class Controller(object):
                             self.reportManager.addPath(path.status, self.currentDirectory + path.path)
                     self.index += 1
                     self.output.printLastPathEntry(path, self.index, len(self.dictionary))
-
                 except (KeyboardInterrupt, SystemExit), e:
-                    print("HANDLE INTERRUPT 1")
                     self.handleInterrupt()
-                    print("OUT OF HANDLE INTERRUPT 1")
-                    if self.exit:
-                        raise e
-                    else:
-                        print("PASS")
-                        pass
+                    if self.exit: raise e 
+                    else: pass
         except (KeyboardInterrupt, SystemExit), e:
-            if self.exit:
-                raise e
-            print("HANDLE INTERRUPT 2")
+            if self.exit: raise e
             self.handleInterrupt()
-            print("OUT OF HANDLE INTERRUPT 2")
-            if self.exit:
-                raise e
-            print("HANDLE INTERRUPT 3")
-            self.handleInterrupt()
-            print("OUT OF HANDLE INTERRUPT 3")
-            if self.exit:
-                raise e
-            else:
-                pass
-        
-        self.fuzzer.waitThreads()
+            if self.exit: raise e 
+            else: pass
+        self.fuzzer.wait()
 
     def wait(self):
-        self.exit = False
-        self.waitThreads()
+        #self.waitThreads()
         while not self.directories.empty():
+            self.index = 0
             self.currentDirectory = self.directories.get()
-            self.output.printWarning('\nSwitching to founded directory: {0}'.format(self.currentDirectory))
+            self.output.printWarning('\nScanning in directory: {0}'.format(self.currentDirectory))
             self.fuzzer.requester.basePath = '{0}{1}'.format(self.basePath, self.currentDirectory)
             self.output.basePath = '{0}{1}'.format(self.basePath, self.currentDirectory)
-            self.testersSetup()
-            self.threadsSetup()
-            self.start()
-            self.waitThreads()
+            #self.testersSetup()
+            #self.threadsSetup()
+            self.fuzzer.start()
+            self.processPaths()
         self.reportManager.save()
         self.reportManager.close()
         return
@@ -187,10 +166,11 @@ class Controller(object):
         if self.recursive == False:
             return False
         if path.endswith('/'):
-            if self.currentDirectory == '':
+            if self.currentDirectory == "":
                 self.directories.put(path)
             else:
                 self.directories.put('{0}{1}'.format(self.currentDirectory, path))
+
             return True
         else:
             return False
