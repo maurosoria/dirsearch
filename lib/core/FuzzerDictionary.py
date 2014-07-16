@@ -24,10 +24,9 @@ from lib.utils.FileUtils import File
 class FuzzerDictionary(object):
 
     def __init__(self, path, extensions, lowercase=False):
-        self.extensions = []
         self.entries = []
         self.currentIndex = 0
-        self.condition = threading.Condition()
+        self.condition = threading.Lock()
         self._extensions = extensions
         self._path = path
         self.lowercase = lowercase
@@ -54,8 +53,10 @@ class FuzzerDictionary(object):
     def generate(self, lowercase=False):
         self.entries = []
         for line in self.dictionaryFile.getLines():
+            # Skip comments
+            if line.startswith("#"): continue
             if '%EXT%' in line:
-                for extension in self.extensions:
+                for extension in self._extensions:
                     self.entries.append(line.replace('%EXT%', extension))
             else:
                 self.entries.append(line)

@@ -16,14 +16,13 @@
 #
 #  Author: Mauro Soria
 
-
 import threading
 import logging
 import sys
 import signal
 from lib.utils.Queue import Queue
 from config import *
-from .Path import *
+from Path import *
 from lib.connection import *
 from FuzzerDictionary import *
 from NotFoundTester import *
@@ -40,12 +39,10 @@ class Fuzzer(object):
         self.dictionary = dictionary
         self.testedPaths = Queue()
         self.basePath = self.requester.basePath
-        #self.output = output
         self.threads = []
         self.threadsCount = threads
         self.running = False
         self.testers = {}
-        #self.reportManager = (ReportManager() if reportManager is None else reportManager)
 
     def wait(self):
         for thread in self.threads:
@@ -82,8 +79,6 @@ class Fuzzer(object):
         self.dictionary.reset()
         self.runningThreadsCount = len(self.threads)
         self.running = True
-        self.finishedEvent = threading.Event()
-        self.finishedThreadCondition = threading.Condition()
         self.playEvent = threading.Event()
         self.pausedSemaphore = threading.Semaphore(0)
         self.playEvent.clear()
@@ -99,9 +94,7 @@ class Fuzzer(object):
         self.playEvent.clear()
         for thread in self.threads:
             if thread.is_alive():
-                #print("Pausing " + str(thread.getName()))
                 self.pausedSemaphore.acquire()
-        #print("FINISHED PAUSE\n")
 
     def stop(self):
         self.running = False
@@ -122,7 +115,17 @@ class Fuzzer(object):
         self.finishedEvent.set()
 
     def getPath(self):
-        return self.testedPaths.get()
+        path = (self.testedPaths.get() if not self.empty() or not self.isFinished() else None)
+        return path
+
+    def qsize(self):
+        return self.testedPaths.qsize()
+
+    def empty(self):
+        return self.testedPaths.empty()
+
+    def isFinished(self):
+        return self.runningThreadsCount == 0
 
     def thread_proc(self):
         self.playEvent.wait()
@@ -131,31 +134,19 @@ class Fuzzer(object):
             while path is not None:
                 try:
                     status, response = self.testPath(path)
-                    #if status is not 0:
-                        #if status not in self.excludeStatusCodes and (self.blacklists.get(status) is None or path
-                        #        not in self.blacklists.get(status)):
-                        #    
-                        #    self.output.printStatusReport(path, response)
-                        #    self.addDirectory(path)
-                        #    self.reportManager.addPath(status, self.currentDirectory + path)
-                    #print ("Attemping to " + str(threading.currentThread().getName()) + " Added path")
-                    #sys.stdout.flush()
                     self.testedPaths.put(Path(path=path, status=status, response=response))
-                    #print (str(threading.currentThread().getName()) + " Added path")
-                    #sys.stdout.flush()
                     path = self.dictionary.next()
                     if not self.playEvent.isSet():
-                        #print (str(threading.currentThread().getName()) + " caught pause")
-                        #sys.stdout.flush()
                         self.pausedSemaphore.release()
                         self.playEvent.wait()
                     if not self.running:
+                        self.runningThreadsCount -= 1
                         break
                     if path is None:
-                        self.running = False
-                        self.finishThreads()
+                        self.runningThreadsCount -= 1
                 except RequestException, e:
-                    # self.output.printError('Unexpected error:\n{0}'.format(e.args[0]['message']))
+                    print '\nUnexpected error:\n{0}\n'.format(e.args[0]['message'])
+                    sys.stdout.flush()
                     continue
         except KeyboardInterrupt, SystemExit:
             pass

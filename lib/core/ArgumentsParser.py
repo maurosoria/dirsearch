@@ -54,6 +54,10 @@ class ArgumentsParser(object):
         general = OptionGroup(parser, 'General Settings')
         general.add_option('-r', '--recursive', help='Bruteforce recursively', action='store_true', dest='recursive',
                            default=False)
+        general.add_option('--scan-subdir', '--scan-subdirs', help='Scan subdirectories of the given -u|--url (separated by comma)', action='store', dest='scanSubdirs',
+                           default=None)
+        general.add_option('--exclude-subdir', '--exclude-subdirs', help='Exclude the following subdirectories during recursive scan (separated by comma)', action='store', dest='excludeSubdirs',
+                           default=None)
         general.add_option('-t', '--threads', help='Number of Threads', action='store', type='int', dest='threadsCount'
                            , default=10)
         general.add_option('-x', '--exclude-status', help='Exclude status code, separated by comma (example: 301, 500)'
@@ -63,6 +67,9 @@ class ArgumentsParser(object):
                            default=None)
         general.add_option('--no-follow-redirects', '--no-follow-redirects', action='store_true', dest='followRedirects'
                            , default=False)
+        general.add_option('--header', '--header',
+                    help='Headers to add (example: --header "Referer: example.com" --header "User-Agent: IE"',
+                    action='append', type='string', dest='headers', default=None)
 
         reports = OptionGroup(parser, 'Reports')
         reports.add_option('-o', '--output', action='store', dest='outputFile', default=None)
@@ -96,15 +103,24 @@ class ArgumentsParser(object):
                 self.proxy = 'http://{0}'.format(options.httpProxy)
         else:
             self.proxy = None
+        if options.headers is not None:
+            try:
+                self.headers = dict((key.strip(), value.strip()) for (key, value) in (header.split(':', 1)
+                                    for header in options.headers))
+            except Exception, e:
+                print 'Invalid headers'
+                exit(0)
+        else:
+            self.headers = {}
         self.url = options.url
-        self.extensions = [extension.strip() for extension in options.extensions.split(',')]
+        self.extensions = list(set([extension.strip() for extension in options.extensions.split(',')]))
         self.useragent = options.useragent
         self.cookie = options.cookie
         self.threadsCount = options.threadsCount
         if options.excludeStatusCodes is not None:
             try:
-                self.excludeStatusCodes = [int(excludeStatusCode.strip()) if excludeStatusCode else None for excludeStatusCode in
-                                           options.excludeStatusCodes.split(',')]
+                self.excludeStatusCodes = list(set([int(excludeStatusCode.strip()) if excludeStatusCode else None for excludeStatusCode in
+                                           options.excludeStatusCodes.split(',')]))
             except ValueError:
                 self.excludeStatusCodes = []
         else: 
@@ -117,6 +133,28 @@ class ArgumentsParser(object):
         self.ip = options.ip
         self.maxRetries = options.maxRetries
         self.recursive = options.recursive
+        if options.scanSubdirs is not None:
+            self.scanSubdirs = list(set([subdir.strip() for subdir in options.scanSubdirs.split(',')]))
+            for i in range(len(self.scanSubdirs)):
+                while self.scanSubdirs[i].startswith("/"):
+                    self.scanSubdirs[i] = self.scanSubdirs[i][1:]
+                while self.scanSubdirs[i].endswith("/"):
+                    self.scanSubdirs[i] = self.scanSubdirs[i][:-1]
+            self.scanSubdirs = list(set([subdir + "/" for subdir in self.scanSubdirs]))
+        else: self.scanSubdirs = None
+        if not self.recursive and options.excludeSubdirs is not None:
+            print '--exclude-subdir argument can only be used with -r|--recursive'
+            exit(0)
+        elif options.excludeSubdirs is not None:
+            self.excludeSubdirs = list(set([subdir.strip() for subdir in options.excludeSubdirs.split(',')]))
+            for i in range(len(self.excludeSubdirs)):
+                while self.excludeSubdirs[i].startswith("/"):
+                    self.excludeSubdirs[i] = self.excludeSubdirs[i][1:]
+                while self.excludeSubdirs[i].endswith("/"):
+                    self.excludeSubdirs[i] = self.excludeSubdirs[i][:-1]
+            self.excludeSubdirs = list(set(self.excludeSubdirs))
+        else:
+            self.excludeSubdirs = None
         self.redirect = not options.followRedirects
 
 
