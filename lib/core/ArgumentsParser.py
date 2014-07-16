@@ -19,6 +19,7 @@
 
 from optparse import OptionParser, OptionGroup
 from lib.utils.FileUtils import File
+from thirdparty.oset import *
 import os
 
 
@@ -113,13 +114,13 @@ class ArgumentsParser(object):
         else:
             self.headers = {}
         self.url = options.url
-        self.extensions = list(set([extension.strip() for extension in options.extensions.split(',')]))
+        self.extensions = list(oset([extension.strip() for extension in options.extensions.split(',')]))
         self.useragent = options.useragent
         self.cookie = options.cookie
         self.threadsCount = options.threadsCount
         if options.excludeStatusCodes is not None:
             try:
-                self.excludeStatusCodes = list(set([int(excludeStatusCode.strip()) if excludeStatusCode else None for excludeStatusCode in
+                self.excludeStatusCodes = list(oset([int(excludeStatusCode.strip()) if excludeStatusCode else None for excludeStatusCode in
                                            options.excludeStatusCodes.split(',')]))
             except ValueError:
                 self.excludeStatusCodes = []
@@ -134,25 +135,25 @@ class ArgumentsParser(object):
         self.maxRetries = options.maxRetries
         self.recursive = options.recursive
         if options.scanSubdirs is not None:
-            self.scanSubdirs = list(set([subdir.strip() for subdir in options.scanSubdirs.split(',')]))
+            self.scanSubdirs = list(oset([subdir.strip() for subdir in options.scanSubdirs.split(',')]))
             for i in range(len(self.scanSubdirs)):
                 while self.scanSubdirs[i].startswith("/"):
                     self.scanSubdirs[i] = self.scanSubdirs[i][1:]
                 while self.scanSubdirs[i].endswith("/"):
                     self.scanSubdirs[i] = self.scanSubdirs[i][:-1]
-            self.scanSubdirs = list(set([subdir + "/" for subdir in self.scanSubdirs]))
+            self.scanSubdirs = list(oset([subdir + "/" for subdir in self.scanSubdirs]))
         else: self.scanSubdirs = None
         if not self.recursive and options.excludeSubdirs is not None:
             print '--exclude-subdir argument can only be used with -r|--recursive'
             exit(0)
         elif options.excludeSubdirs is not None:
-            self.excludeSubdirs = list(set([subdir.strip() for subdir in options.excludeSubdirs.split(',')]))
+            self.excludeSubdirs = list(oset([subdir.strip() for subdir in options.excludeSubdirs.split(',')]))
             for i in range(len(self.excludeSubdirs)):
                 while self.excludeSubdirs[i].startswith("/"):
                     self.excludeSubdirs[i] = self.excludeSubdirs[i][1:]
                 while self.excludeSubdirs[i].endswith("/"):
                     self.excludeSubdirs[i] = self.excludeSubdirs[i][:-1]
-            self.excludeSubdirs = list(set(self.excludeSubdirs))
+            self.excludeSubdirs = list(oset(self.excludeSubdirs))
         else:
             self.excludeSubdirs = None
         self.redirect = not options.followRedirects

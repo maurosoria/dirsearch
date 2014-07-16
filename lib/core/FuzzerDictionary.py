@@ -19,6 +19,7 @@
 
 import threading
 from lib.utils.FileUtils import File
+from thirdparty.oset import *
 
 
 class FuzzerDictionary(object):
@@ -61,7 +62,7 @@ class FuzzerDictionary(object):
             else:
                 self.entries.append(line)
         if lowercase == True:
-            self.entries = list(set([entry.lower() for entry in self.entries]))
+            self.entries = list(oset([entry.lower() for entry in self.entries]))
 
     def regenerate(self):
         self.generate(lowercase=self.lowercase)
