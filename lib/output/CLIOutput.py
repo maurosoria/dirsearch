@@ -20,23 +20,17 @@
 import threading
 import time
 import sys
+from thirdparty.colorama import *
+import platform
 
+if platform.system() == "Windows":
+    from ctypes import windll, create_string_buffer
+    from thirdparty.colorama.win32 import *
 
-class Output(object):
-
-    HEADER = '\033[95m'
-    HEADERBOLD = '\033[1;95m'
-    OKBLUE = '\033[94m'
-    OKGREEN = '\033[92m'
-    OKBLUEBOLD = '\033[1;94m'
-    OKGREENBOLD = '\033[1;92m'
-    WARNING = '\033[93m'
-    WARNINGBOLD = '\033[1;93m'
-    FAIL = '\033[91m'
-    FAILBOLD = '\033[1;91m'
-    ENDC = '\033[0;0m'
+class CLIOutput(object):
 
     def __init__(self):
+        init()
         self.lastLength = 0
         self.lastOutput = ''
         self.lastInLine = False
@@ -47,20 +41,35 @@ class Output(object):
         self.basePath = None
 
     def printInLine(self, string):
-        sys.stdout.write('\033[1K')
-        sys.stdout.write('\033[0G')
+        self.eraseLine()
         sys.stdout.write(string)
         sys.stdout.flush()
         self.lastInLine = True
 
-
-    def printNewLine(self, string):
-
-        sys.stdout.flush()
-        if self.lastInLine == True:
+    def eraseLine(self):
+        if platform.system() == "Windows":
+            csbi = GetConsoleScreenBufferInfo()
+            line = "\b" * int(csbi.dwCursorPosition.X)
+            sys.stdout.write(line)
+            csbi.dwCursorPosition.X = 0
+            FillConsoleOutputCharacter(STDOUT, " ", int(csbi.dwCursorPosition.Y), csbi.dwCursorPosition)
+            sys.stdout.write(line)
+            sys.stdout.flush()
+        else:
             sys.stdout.write('\033[1K')
             sys.stdout.write('\033[0G')
-        sys.stdout.write(string + '\n')
+
+    def printNewLine(self, string):
+        if self.lastInLine == True:
+            self.eraseLine()
+        if platform.system() == "Windows":
+            sys.stdout.write(string)
+            sys.stdout.flush()
+            sys.stdout.write("\n")
+            sys.stdout.flush()
+
+        else:
+            sys.stdout.write(string + '\n')
         sys.stdout.flush()
         self.lastInLine = False
         sys.stdout.flush()
@@ -90,9 +99,9 @@ class Output(object):
         finally:
             self.mutexCheckedPaths.release()
         if status == 200:
-            message = self.OKGREENBOLD + message + self.ENDC
+            message = Style.BRIGHT + Fore.GREEN + message + Style.RESET_ALL
         elif status == 403:
-            message = self.OKBLUEBOLD + message + self.ENDC
+            message = Style.BRIGHT + Fore.BLUE + message + Style.RESET_ALL
         self.printNewLine(message)
         
 
@@ -102,15 +111,20 @@ class Output(object):
         self.printInLine(message)
 
     def printError(self, reason):
-        message = self.FAILBOLD + reason + self.ENDC
+        stripped = reason.strip()
+        start = reason.find(stripped[0])
+        end = reason.find(stripped[-1]) + 1
+        message = reason[0:start]
+        message += Style.BRIGHT + Fore.WHITE + Back.RED 
+        message += reason[start:end] 
+        message += Style.RESET_ALL
+        message += reason[end:]
         self.printNewLine(message)
 
     def printWarning(self, reason):
-        message = self.WARNINGBOLD + reason + self.ENDC
+        message = Style.BRIGHT + Fore.YELLOW + reason + Style.RESET_ALL
         self.printNewLine(message)
 
     def printHeader(self, text):
-        message = self.HEADERBOLD + text + self.ENDC
+        message = Style.BRIGHT + Fore.MAGENTA + text + Style.RESET_ALL
         self.printNewLine(message)
-
-

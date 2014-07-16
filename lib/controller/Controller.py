@@ -17,6 +17,7 @@
 #  Author: Mauro Soria
 
 import os
+import os.path
 import sys
 from lib.utils import *
 from lib.core import *
@@ -82,12 +83,15 @@ class Controller(object):
 
     def getBlacklists(self):
         blacklists = {}
-        for status in [400, 403]:
-            blacklistFileName = '%s/db/%d_blacklist.txt' % (self.script_path, status)
+        for status in [400, 403, 500]:
+            blacklistFileName = os.path.join(self.script_path, "db")
+            blacklistFileName = os.path.join(blacklistFileName, "{0}_blacklist.txt".format(status))
             if not FileUtils.canRead(blacklistFileName):
                 continue
             blacklists[status] = []
             for line in FileUtils.getLines(blacklistFileName):
+                # Skip comments
+                if line.startswith("#"): continue
                 blacklists[status].append(line)
         return blacklists
 

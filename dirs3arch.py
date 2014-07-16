@@ -19,12 +19,13 @@
 
 import os
 from lib.controller import *
+from lib.output import *
 
 class Program(object):
     def __init__(self):
         self.script_path = (os.path.dirname(os.path.realpath(__file__)))
         self.arguments = ArgumentsParser(self.script_path)
-        self.output = Output()
+        self.output = CLIOutput()
         self.output.printHeader(PROGRAM_BANNER)
         self.output.printHeader("version {0}.{1}.{2}\n".format(MAYOR_VERSION, MINOR_VERSION, REVISION))
         self.controller = Controller(self.script_path, self.arguments, self.output)

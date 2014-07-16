@@ -21,4 +21,5 @@ from FuzzerDictionary import *
 from Fuzzer import *
 from Output import *
 from ArgumentsParser import *
+from Path import *
 pass
