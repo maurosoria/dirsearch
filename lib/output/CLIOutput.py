@@ -51,8 +51,9 @@ class CLIOutput(object):
             csbi = GetConsoleScreenBufferInfo()
             line = "\b" * int(csbi.dwCursorPosition.X)
             sys.stdout.write(line)
+            width = csbi.dwCursorPosition.X
             csbi.dwCursorPosition.X = 0
-            FillConsoleOutputCharacter(STDOUT, " ", int(csbi.dwCursorPosition.Y), csbi.dwCursorPosition)
+            FillConsoleOutputCharacter(STDOUT, " ", width, csbi.dwCursorPosition)
             sys.stdout.write(line)
             sys.stdout.flush()
         else:
