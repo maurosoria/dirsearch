@@ -165,7 +165,7 @@ class Controller(object):
         while not self.directories.empty():
             self.index = 0
             self.currentDirectory = self.directories.get()
-            self.output.printWarning('\nScanning in directory: {0}'.format(self.currentDirectory))
+            self.output.printWarning('\nScanning directory: {0}'.format(self.currentDirectory))
             self.fuzzer.requester.basePath = '{0}{1}'.format(self.basePath, self.currentDirectory)
             self.output.basePath = '{0}{1}'.format(self.basePath, self.currentDirectory)
             self.fuzzer.start()
