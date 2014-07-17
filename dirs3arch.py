@@ -34,7 +34,7 @@ class Program(object):
 if __name__ == '__main__':
     MAYOR_VERSION = 0
     MINOR_VERSION = 2
-    REVISION = 3
+    REVISION = 4
     PROGRAM_BANNER = \
     r"""         _ _            _____                  _     
       __| (_)_ __ ___  |___ /    __ _ _ __ ___| |__  
