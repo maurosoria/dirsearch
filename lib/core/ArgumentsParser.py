@@ -66,7 +66,7 @@ class ArgumentsParser(object):
         general.add_option('--cookie', '--cookie', action='store', type='string', dest='cookie', default=None)
         general.add_option('--user-agent', '--user-agent', action='store', type='string', dest='useragent',
                            default=None)
-        general.add_option('--no-follow-redirects', '--no-follow-redirects', action='store_true', dest='followRedirects'
+        general.add_option('--follow-redirects', '--follow-redirects', action='store_true', dest='noFollowRedirects'
                            , default=False)
         general.add_option('--header', '--header',
                     help='Headers to add (example: --header "Referer: example.com" --header "User-Agent: IE"',
@@ -156,6 +156,6 @@ class ArgumentsParser(object):
             self.excludeSubdirs = list(oset(self.excludeSubdirs))
         else:
             self.excludeSubdirs = None
-        self.redirect = not options.followRedirects
+        self.redirect = options.noFollowRedirects
 
 
