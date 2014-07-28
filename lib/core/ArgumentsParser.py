@@ -39,7 +39,7 @@ class ArgumentsParser(object):
         connection.add_option('--timeout', '--timeout', action='store', dest='timeout', type='int', default=30,
                               help='Connection timeout')
         connection.add_option('--ip', '--ip', action='store', dest='ip', default=None,
-                              help='Destination IP (instead of resolving domain, use this ip)')
+                              help='Resolve name to IP address')
         connection.add_option('--http-proxy', '--http-proxy', action='store', dest='httpProxy', type='string',
                               default=None, help='Http Proxy (example: localhost:8080')
         connection.add_option('--max-retries', '--max-retries', action='store', dest='maxRetries', type='int',

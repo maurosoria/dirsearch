@@ -42,6 +42,7 @@ class Controller(object):
         self.directories = Queue()
         self.excludeSubdirs = (arguments.excludeSubdirs if arguments.excludeSubdirs is not None else [])
         try:
+            self.reportManager = ReportManager()
             self.requester = Requester(self.arguments.url, cookie=self.arguments.cookie,
                                        useragent=self.arguments.useragent, maxPool=self.arguments.threadsCount,
                                        maxRetries=self.arguments.maxRetries, timeout=self.arguments.timeout,
@@ -56,7 +57,6 @@ class Controller(object):
                     self.directories.put(subdir)
             else:
                 self.directories.put('')
-            self.reportManager = ReportManager()
             self.setupReports(self.requester)
             self.dictionary = FuzzerDictionary(self.arguments.wordlist, self.arguments.extensions,
                                                self.arguments.lowercase)
@@ -185,5 +185,3 @@ class Controller(object):
             return True
         else:
             return False
-
-
