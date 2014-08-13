@@ -135,6 +135,11 @@ class Fuzzer(object):
                 try:
                     status, response = self.testPath(path)
                     self.testedPaths.put(Path(path=path, status=status, response=response))
+                except RequestException, e:
+                    print '\nUnexpected error:\n{0}\n'.format(e.args[0]['message'])
+                    sys.stdout.flush()
+                    continue
+                finally:
                     path = self.dictionary.next()
                     if not self.playEvent.isSet():
                         self.pausedSemaphore.release()
@@ -144,10 +149,6 @@ class Fuzzer(object):
                         break
                     if path is None:
                         self.runningThreadsCount -= 1
-                except RequestException, e:
-                    print '\nUnexpected error:\n{0}\n'.format(e.args[0]['message'])
-                    sys.stdout.flush()
-                    continue
         except KeyboardInterrupt, SystemExit:
             pass
 
