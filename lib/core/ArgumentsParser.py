@@ -73,8 +73,9 @@ class ArgumentsParser(object):
                     action='append', type='string', dest='headers', default=None)
 
         reports = OptionGroup(parser, 'Reports')
-        reports.add_option('-o', '--output', action='store', dest='outputFile', default=None)
-        reports.add_option('--json-output', '--json-output', action='store', dest='jsonOutputFile', default=None)
+        reports.add_option('--simple-report', '--simple-report', action='store', help="Only founded paths", dest='simpleOutputFile', default=None)
+        reports.add_option('--plain-text-report', '--plain-text-report', action='store', help="Founded paths with status codes", dest='plainTextOutputFile', default=None)
+        reports.add_option('--json-report', '--json-output', action='store', dest='jsonOutputFile', default=None)
         parser.add_option_group(mandatory)
         parser.add_option_group(dictionary)
         parser.add_option_group(general)
@@ -128,7 +129,8 @@ class ArgumentsParser(object):
             self.excludeStatusCodes = []
         self.wordlist = options.wordlist
         self.lowercase = options.lowercase
-        self.outputFile = options.outputFile
+        self.simpleOutputFile = options.simpleOutputFile
+        self.plainTextOutputFile = options.plainTextOutputFile
         self.jsonOutputFile = options.jsonOutputFile
         self.timeout = options.timeout
         self.ip = options.ip

@@ -96,9 +96,12 @@ class Controller(object):
         return blacklists
 
     def setupReports(self, requester):
-        if self.arguments.outputFile is not None:
-            self.reportManager.addOutput(ListReport(requester.host, requester.port, requester.protocol,
-                                         requester.basePath, self.arguments.outputFile))
+        if self.arguments.simpleOutputFile is not None:
+            self.reportManager.addOutput(SimpleReport(requester.host, requester.port, requester.protocol,
+                                         requester.basePath, self.arguments.simpleOutputFile))
+        if self.arguments.plainTextOutputFile is not None:
+            self.reportManager.addOutput(PlainTextReport(requester.host, requester.port, requester.protocol,
+                                         requester.basePath, self.arguments.plainTextOutputFile))
         if self.arguments.jsonOutputFile is not None:
             self.reportManager.addOutput(JSONReport(requester.host, requester.port, requester.protocol,
                                          requester.basePath, self.arguments.jsonOutputFile))
