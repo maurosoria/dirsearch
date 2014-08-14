@@ -105,7 +105,6 @@ class Controller(object):
             directoryName = "{0}".format(requester.host)
             directoryPath =  FileUtils.buildPath(self.script_path, "reports", directoryName)
             outputFile = FileUtils.buildPath(directoryPath, fileName)
-            print (outputFile)
             if not FileUtils.exists(directoryPath):
                 FileUtils.createDirectory(directoryPath)
                 if not FileUtils.exists(directoryPath):
