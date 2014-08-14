@@ -108,4 +108,8 @@ class FileUtils(object):
     def isFile(fileName):
         return os.path.isfile(fileName)
 
+    @staticmethod
+    def createDirectory(directory):
+        if not FileUtils.exists(directory):
+            os.makedirs(directory)
 

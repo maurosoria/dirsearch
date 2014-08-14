@@ -16,9 +16,10 @@
 #
 #  Author: Mauro Soria
 
+import ConfigParser
 import os
-import os.path
 import sys
+import time
 from lib.utils import *
 from lib.core import *
 from lib.reports import *
@@ -61,7 +62,7 @@ class Controller(object):
             self.dictionary = FuzzerDictionary(self.arguments.wordlist, self.arguments.extensions,
                                                self.arguments.lowercase)
             self.printConfig()
-            self.fuzzer = Fuzzer(self.requester, self.dictionary, threads=self.arguments.threadsCount)
+            self.fuzzer = Fuzzer(self.requester, self.dictionary, testFailPath=self.arguments.testFailPath, threads=self.arguments.threadsCount)
             self.wait()
         except RequestException, e:
             self.output.printError('Unexpected error:\n{0}'.format(e.args[0]['message']))
@@ -84,8 +85,8 @@ class Controller(object):
     def getBlacklists(self):
         blacklists = {}
         for status in [400, 403, 500]:
-            blacklistFileName = os.path.join(self.script_path, "db")
-            blacklistFileName = os.path.join(blacklistFileName, "{0}_blacklist.txt".format(status))
+            blacklistFileName = FileUtils.buildPath(self.script_path, "db")
+            blacklistFileName = FileUtils.buildPath(blacklistFileName, "{0}_blacklist.txt".format(status))
             if not FileUtils.canRead(blacklistFileName):
                 continue
             blacklists[status] = []
@@ -96,6 +97,35 @@ class Controller(object):
         return blacklists
 
     def setupReports(self, requester):
+        if self.arguments.autoSave:
+            basePath = "/" if requester.basePath is "" else requester.basePath
+            basePath = basePath.replace(os.path.sep, ".")[1:-1]
+            fileName = "{0}_".format(basePath) if basePath is not "" else ""
+            fileName += time.strftime("%y-%m-%d_%H-%M-%S.txt")
+            directoryName = "{0}".format(requester.host)
+            directoryPath =  FileUtils.buildPath(self.script_path, "reports", directoryName)
+            outputFile = FileUtils.buildPath(directoryPath, fileName)
+            print (outputFile)
+            if not FileUtils.exists(directoryPath):
+                FileUtils.createDirectory(directoryPath)
+                if not FileUtils.exists(directoryPath):
+                    self.output.printError("Couldn't create reports folder {0}".format(directoryPath))
+                    sys.exit(1)
+            if FileUtils.canWrite(directoryPath):
+                report = None
+                if self.arguments.autoSaveFormat == "simple":
+                    report = SimpleReport(requester.host, requester.port, requester.protocol,
+                                             requester.basePath, outputFile)
+                if self.arguments.autoSaveFormat == "json":
+                    report = JSONReport(requester.host, requester.port, requester.protocol,
+                                             requester.basePath, outputFile)
+                else:
+                    report = PlainTextReport(requester.host, requester.port, requester.protocol,
+                                             requester.basePath, outputFile)
+                self.reportManager.addOutput(report)
+            else:
+                self.output.printError("Can't write reports to {0}".format(directoryPath))
+                sys.exit(1)
         if self.arguments.simpleOutputFile is not None:
             self.reportManager.addOutput(SimpleReport(requester.host, requester.port, requester.protocol,
                                          requester.basePath, self.arguments.simpleOutputFile))

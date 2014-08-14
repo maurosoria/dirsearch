@@ -21,7 +21,6 @@ import logging
 import sys
 import signal
 from lib.utils.Queue import Queue
-from config import *
 from Path import *
 from lib.connection import *
 from FuzzerDictionary import *
@@ -34,9 +33,10 @@ import time
 
 class Fuzzer(object):
 
-    def __init__(self, requester, dictionary, threads=1):
+    def __init__(self, requester, dictionary, testFailPath="youCannotBeHere7331", threads=1):
         self.requester = requester
         self.dictionary = dictionary
+        self.testFailPath = testFailPath
         self.testedPaths = Queue()
         self.basePath = self.requester.basePath
         self.threads = []
@@ -51,9 +51,9 @@ class Fuzzer(object):
     def testersSetup(self):
         if len(self.testers) != 0:
             self.testers = {}
-        self.testers['/'] = NotFoundTester(self.requester, '{0}/'.format(NOT_FOUND_PATH))
+        self.testers['/'] = NotFoundTester(self.requester, '{0}/'.format(self.testFailPath))
         for extension in self.dictionary.extensions:
-            self.testers[extension] = NotFoundTester(self.requester, '{0}.{1}'.format(NOT_FOUND_PATH, extension))
+            self.testers[extension] = NotFoundTester(self.requester, '{0}.{1}'.format(self.testFailPath, extension))
 
     def threadsSetup(self):
         if len(self.threads) != 0:

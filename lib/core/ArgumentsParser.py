@@ -17,8 +17,12 @@
 #  Author: Mauro Soria
 
 
+
+import ConfigParser
 from optparse import OptionParser, OptionGroup
 from lib.utils.FileUtils import File
+from lib.utils.FileUtils import FileUtils
+from lib.utils.DefaultConfigParser import DefaultConfigParser
 from thirdparty.oset import *
 import os
 
@@ -26,62 +30,9 @@ import os
 class ArgumentsParser(object):
 
     def __init__(self, script_path):
-        usage = 'Usage: %prog [-u|--url] target [-e|--extensions] extensions [options]'
-        parser = OptionParser(usage)
         self.script_path = script_path
-        # Mandatory arguments
-        mandatory = OptionGroup(parser, 'Mandatory')
-        mandatory.add_option('-u', '--url', help='URL target', action='store', type='string', dest='url', default=None)
-        mandatory.add_option('-e', '--extensions', help='Extension list separated by comma (Example: php, asp)',
-                             action='store', dest='extensions', default=None)
-
-        connection = OptionGroup(parser, 'Connection Settings')
-        connection.add_option('--timeout', '--timeout', action='store', dest='timeout', type='int', default=30,
-                              help='Connection timeout')
-        connection.add_option('--ip', '--ip', action='store', dest='ip', default=None,
-                              help='Resolve name to IP address')
-        connection.add_option('--http-proxy', '--http-proxy', action='store', dest='httpProxy', type='string',
-                              default=None, help='Http Proxy (example: localhost:8080')
-        connection.add_option('--max-retries', '--max-retries', action='store', dest='maxRetries', type='int',
-                              default=5)
-
-        # Dictionary settings
-        dictionary = OptionGroup(parser, 'Dictionary Settings')
-        dictionary.add_option('-w', '--wordlist', action='store', dest='wordlist',
-                              default='{1}{0}db{0}dicc.txt'.format(os.path.sep, self.script_path))
-        dictionary.add_option('-l', '--lowercase', action='store_true', dest='lowercase', default='False')
-
-        # Optional Settings
-        general = OptionGroup(parser, 'General Settings')
-        general.add_option('-r', '--recursive', help='Bruteforce recursively', action='store_true', dest='recursive',
-                           default=False)
-        general.add_option('--scan-subdir', '--scan-subdirs', help='Scan subdirectories of the given -u|--url (separated by comma)', action='store', dest='scanSubdirs',
-                           default=None)
-        general.add_option('--exclude-subdir', '--exclude-subdirs', help='Exclude the following subdirectories during recursive scan (separated by comma)', action='store', dest='excludeSubdirs',
-                           default=None)
-        general.add_option('-t', '--threads', help='Number of Threads', action='store', type='int', dest='threadsCount'
-                           , default=10)
-        general.add_option('-x', '--exclude-status', help='Exclude status code, separated by comma (example: 301, 500)'
-                           , action='store', dest='excludeStatusCodes', default=None)
-        general.add_option('--cookie', '--cookie', action='store', type='string', dest='cookie', default=None)
-        general.add_option('--user-agent', '--user-agent', action='store', type='string', dest='useragent',
-                           default=None)
-        general.add_option('--follow-redirects', '--follow-redirects', action='store_true', dest='noFollowRedirects'
-                           , default=False)
-        general.add_option('--header', '--header',
-                    help='Headers to add (example: --header "Referer: example.com" --header "User-Agent: IE"',
-                    action='append', type='string', dest='headers', default=None)
-
-        reports = OptionGroup(parser, 'Reports')
-        reports.add_option('--simple-report', '--simple-report', action='store', help="Only found paths", dest='simpleOutputFile', default=None)
-        reports.add_option('--plain-text-report', '--plain-text-report', action='store', help="Found paths with status codes", dest='plainTextOutputFile', default=None)
-        reports.add_option('--json-report', '--json-output', action='store', dest='jsonOutputFile', default=None)
-        parser.add_option_group(mandatory)
-        parser.add_option_group(dictionary)
-        parser.add_option_group(general)
-        parser.add_option_group(connection)
-        parser.add_option_group(reports)
-        options, arguments = parser.parse_args()
+        self.parseConfig()
+        options = self.parseArguments()
         if options.url == None:
             print 'Url target is missing'
             exit(0)
@@ -118,6 +69,9 @@ class ArgumentsParser(object):
         self.extensions = list(oset([extension.strip() for extension in options.extensions.split(',')]))
         self.useragent = options.useragent
         self.cookie = options.cookie
+        if options.threadsCount < 1:
+            print 'Threads number must be a number greater than zero'
+            exit(0)
         self.threadsCount = options.threadsCount
         if options.excludeStatusCodes is not None:
             try:
@@ -160,4 +114,89 @@ class ArgumentsParser(object):
             self.excludeSubdirs = None
         self.redirect = options.noFollowRedirects
 
+
+
+
+    def parseConfig(self):
+        config = DefaultConfigParser()
+        configPath = FileUtils.buildPath(self.script_path, "default.conf")
+        config.read(configPath)
+
+        # General
+        self.threadsCount = config.safe_getint("general", "threads", 10, range(1, 50))
+        self.excludeStatusCodes = config.safe_get("general", "exclude-status", None)
+        self.redirect  = config.safe_getboolean("general", "follow-redirects", False)
+        self.recursive = config.safe_getboolean("general", "recursive", False)
+        self.testFailPath = config.safe_get("general", "test-fail-path", "youCannotBeHere7331").strip()
+        # Reports
+        self.autoSave = config.safe_getboolean("reports", "autosave-report", False)
+        self.autoSaveFormat = config.safe_get("reports", "autosave-report-format", "plain", ["plain", "json", "simple"])
+        # Dictionary
+        self.wordlist = config.safe_get("dictionary", "wordlist", FileUtils.buildPath(self.script_path, "db", "dicc.txt"))
+        self.lowercase = config.safe_getboolean("dictionary", "lowercase", False)
+        # Connection
+        self.useragent = config.safe_get("connection", "user-agent", None)
+        self.timeout = config.safe_getint("connection", "timeout", 30)
+        self.maxRetries = config.safe_getint("connection", "max-retries", 5)
+        self.proxy = config.safe_get("connection", "http-proxy", None)
+
+
+
+    def parseArguments(self):
+        usage = 'Usage: %prog [-u|--url] target [-e|--extensions] extensions [options]'
+        parser = OptionParser(usage)
+        # Mandatory arguments
+        mandatory = OptionGroup(parser, 'Mandatory')
+        mandatory.add_option('-u', '--url', help='URL target', action='store', type='string', dest='url', default=None)
+        mandatory.add_option('-e', '--extensions', help='Extension list separated by comma (Example: php, asp)',
+                             action='store', dest='extensions', default=None)
+
+        connection = OptionGroup(parser, 'Connection Settings')
+        connection.add_option('--timeout', '--timeout', action='store', dest='timeout', type='int', default=self.timeout,
+                              help='Connection timeout')
+        connection.add_option('--ip', '--ip', action='store', dest='ip', default=None,
+                              help='Resolve name to IP address')
+        connection.add_option('--http-proxy', '--http-proxy', action='store', dest='httpProxy', type='string',
+                              default=self.proxy, help='Http Proxy (example: localhost:8080')
+        connection.add_option('--max-retries', '--max-retries', action='store', dest='maxRetries', type='int',
+                              default=self.maxRetries)
+
+        # Dictionary settings
+        dictionary = OptionGroup(parser, 'Dictionary Settings')
+        dictionary.add_option('-w', '--wordlist', action='store', dest='wordlist',
+                              default=self.wordlist)
+        dictionary.add_option('-l', '--lowercase', action='store_true', dest='lowercase', default=self.lowercase)
+
+        # Optional Settings
+        general = OptionGroup(parser, 'General Settings')
+        general.add_option('-r', '--recursive', help='Bruteforce recursively', action='store_true', dest='recursive',
+                           default=self.recursive)
+        general.add_option('--scan-subdir', '--scan-subdirs', help='Scan subdirectories of the given -u|--url (separated by comma)', action='store', dest='scanSubdirs',
+                           default=None)
+        general.add_option('--exclude-subdir', '--exclude-subdirs', help='Exclude the following subdirectories during recursive scan (separated by comma)', action='store', dest='excludeSubdirs',
+                           default=None)
+        general.add_option('-t', '--threads', help='Number of Threads', action='store', type='int', dest='threadsCount'
+                           , default=self.threadsCount)
+        general.add_option('-x', '--exclude-status', help='Exclude status code, separated by comma (example: 301, 500)'
+                           , action='store', dest='excludeStatusCodes', default=self.excludeStatusCodes)
+        general.add_option('--cookie', '--cookie', action='store', type='string', dest='cookie', default=None)
+        general.add_option('--user-agent', '--user-agent', action='store', type='string', dest='useragent',
+                           default=self.useragent)
+        general.add_option('--follow-redirects', '--follow-redirects', action='store_true', dest='noFollowRedirects'
+                           , default=self.redirect)
+        general.add_option('--header', '--header',
+                    help='Headers to add (example: --header "Referer: example.com" --header "User-Agent: IE"',
+                    action='append', type='string', dest='headers', default=None)
+
+        reports = OptionGroup(parser, 'Reports')
+        reports.add_option('--simple-report', '--simple-report', action='store', help="Only found paths", dest='simpleOutputFile', default=None)
+        reports.add_option('--plain-text-report', '--plain-text-report', action='store', help="Found paths with status codes", dest='plainTextOutputFile', default=None)
+        reports.add_option('--json-report', '--json-output', action='store', dest='jsonOutputFile', default=None)
+        parser.add_option_group(mandatory)
+        parser.add_option_group(dictionary)
+        parser.add_option_group(general)
+        parser.add_option_group(connection)
+        parser.add_option_group(reports)
+        options, arguments = parser.parse_args()
+        return options
 
