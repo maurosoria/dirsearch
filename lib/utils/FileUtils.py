@@ -113,3 +113,12 @@ class FileUtils(object):
         if not FileUtils.exists(directory):
             os.makedirs(directory)
 
+    @staticmethod
+    def sizeHuman(num):
+        base = 1024
+        for x in ['B ','KB','MB','GB']:
+            if num < base and num > -base:
+                return "%3.0f%s" % (num, x)
+            num /= base
+        return "%3.0f %s" % (num, 'TB')
+

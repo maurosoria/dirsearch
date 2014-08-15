@@ -25,9 +25,9 @@ class ReportManager(object):
     def addOutput(self, output):
         self.outputs.append(output)
 
-    def addPath(self, status, path):
+    def addPath(self, path, status, response):
         for output in self.outputs:
-            output.addPath(status, path)
+            output.addPath(path, status, response)
 
     def save(self):
         for output in self.outputs:

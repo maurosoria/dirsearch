@@ -16,7 +16,6 @@
 #
 #  Author: Mauro Soria
 
-
 class BaseReport(object):
 
     def __init__(self, host, port, protocol, basePath, output):
@@ -32,8 +31,13 @@ class BaseReport(object):
         self.pathList = []
         self.open()
 
-    def addPath(self, status, path):
-        self.pathList.append((status, path))
+    def addPath(self, path, status, response):
+        contentLength = None
+        try:
+            contentLength = int(response.headers['content-length'])
+        except KeyError:
+            contentLength = len(response.body)
+        self.pathList.append((path, status, contentLength))
 
     def open(self):
         self.file = open(self.output, 'w+')

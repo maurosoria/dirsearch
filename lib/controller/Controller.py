@@ -173,7 +173,7 @@ class Controller(object):
                                 or path.path not in self.blacklists.get(path.status)):
                             self.output.printStatusReport(path.path, path.response)
                             self.addDirectory(path.path)
-                            self.reportManager.addPath(path.status, self.currentDirectory + path.path)
+                            self.reportManager.addPath(self.currentDirectory + path.path, path.status, path.response)
                     self.index += 1
                     self.output.printLastPathEntry(path, self.index, len(self.dictionary))
                     path = self.fuzzer.getPath()
