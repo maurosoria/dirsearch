@@ -140,7 +140,7 @@ class Controller(object):
         self.fuzzer.pause()
         try:
             while True:
-                if self.recursive and not self.directories.empty():
+                if not self.directories.empty():
                     self.output.printInLine('[e]xit / [c]ontinue / [n]ext: ')
                     pass
                 else:
