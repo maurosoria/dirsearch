@@ -1,7 +1,7 @@
 dirs3arch
 =========
 
-Current Release: v0.2.4 (2014.7.17)
+Current Release: v0.2.5 (2014.9.2)
 
 Overview
 --------
@@ -32,6 +32,7 @@ License: GNU General Public License, version 2
 
 Changelog
 ---------
+- 0.2.5 - 2014.9.2 Shows Content-Length in output and reports, added default.conf file (for setting defaults) and report auto save feature added.
 - 0.2.4 - 2014.7.17 Added Windows support, --scan-subdir|--scan-subdirs argument added, --exclude-subdir|--exclude-subdirs added, --header argument added, dirbuster dictionaries added, fixed some concurrency bugs, MVC refactoring
 - 0.2.3 - 2014.7.7 Fixed some bugs, minor refactorings, exclude status switch, "pause/next directory" feature, changed help structure, expaded default dictionary
 - 0.2.2 - 2014.7.2 Fixed some bugs, showing percentage of tested paths and added report generation feature
