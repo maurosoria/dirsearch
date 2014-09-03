@@ -86,7 +86,7 @@ class CLIOutput(object):
         contentLength = None
         try:
             contentLength = FileUtils.sizeHuman(int(response.headers['content-length']))
-        except KeyError:
+        except (KeyError, ValueError):
             contentLength = FileUtils.sizeHuman(len(response.body))
 
         message = '[{0}] {1} - {2} - {3}'.format(
