@@ -35,7 +35,7 @@ class BaseReport(object):
         contentLength = None
         try:
             contentLength = int(response.headers['content-length'])
-        except KeyError:
+        except (KeyError, ValueError):
             contentLength = len(response.body)
         self.pathList.append((path, status, contentLength))
 
