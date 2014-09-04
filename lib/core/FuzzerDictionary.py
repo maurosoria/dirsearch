@@ -18,6 +18,7 @@
 
 
 import threading
+import urllib
 from lib.utils.FileUtils import File
 from thirdparty.oset import *
 
@@ -55,12 +56,12 @@ class FuzzerDictionary(object):
         self.entries = []
         for line in self.dictionaryFile.getLines():
             # Skip comments
+            entry = line
             if line.startswith("#"): continue
             if '%EXT%' in line:
                 for extension in self._extensions:
-                    self.entries.append(line.replace('%EXT%', extension))
-            else:
-                self.entries.append(line)
+                    entry = (line.replace('%EXT%', extension))
+            self.entries.append(urllib.quote(entry))
         if lowercase == True:
             self.entries = list(oset([entry.lower() for entry in self.entries]))
 

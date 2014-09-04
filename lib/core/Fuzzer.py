@@ -39,8 +39,8 @@ class Fuzzer(object):
         self.testFailPath = testFailPath
         self.testedPaths = Queue()
         self.basePath = self.requester.basePath
-        self.threads = []
-        self.threadsCount = threads
+        self.threads = []    
+        self.threadsCount = threads if len(self.dictionary) >= threads else len(self.dictionary)
         self.running = False
         self.testers = {}
 
