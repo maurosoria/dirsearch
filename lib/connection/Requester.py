@@ -121,7 +121,7 @@ class Requester(object):
             finally:
                 i = i + 1
         if i > self.maxRetries:
-            raise RequestException({'message': 'There was a problem in the request to: {0}'.format(path)})
+            raise RequestException({'message': 'CONNECTION TIMEOUT: There was a problem in the request to: {0}'.format(path)})
         return result
 
 
