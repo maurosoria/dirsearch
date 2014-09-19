@@ -1,20 +1,4 @@
 # -*- coding: utf-8 -*-
-#  This program is free software; you can redistribute it and/or modify
-#  it under the terms of the GNU General Public License as published by
-#  the Free Software Foundation; either version 2 of the License, or
-#  (at your option) any later version.
-#  
-#  This program is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#  
-#  You should have received a copy of the GNU General Public License
-#  along with this program; if not, write to the Free Software
-#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
-#  MA 02110-1301, USA.
-#
-#  Author: Mauro Soria
 
 import ConfigParser
 import os
@@ -62,7 +46,8 @@ class Controller(object):
             self.dictionary = FuzzerDictionary(self.arguments.wordlist, self.arguments.extensions,
                                                self.arguments.lowercase)
             self.printConfig()
-            self.fuzzer = Fuzzer(self.requester, self.dictionary, testFailPath=self.arguments.testFailPath, threads=self.arguments.threadsCount)
+            self.fuzzer = Fuzzer(self.requester, self.dictionary, testFailPath=self.arguments.testFailPath,
+                                 threads=self.arguments.threadsCount)
             self.wait()
         except RequestException, e:
             self.output.printError('Unexpected error:\n{0}'.format(e.args[0]['message']))
@@ -76,34 +61,32 @@ class Controller(object):
         self.output.printWarning('\nTask Completed')
 
     def printConfig(self):
-        self.output.printWarning('- Searching in: {0}'.format(self.arguments.url))
-        self.output.printWarning('- For extensions: {0}'.format(', '.join(self.arguments.extensions)))
-        self.output.printWarning('- Number of Threads: {0}'.format(self.arguments.threadsCount))
-        self.output.printWarning('- Wordlist size: {0}'.format(len(self.dictionary)))
-        self.output.printWarning('\n')
+        self.output.printConfig(self.arguments.url, ', '.join(self.arguments.extensions), str(self.arguments.threadsCount),
+                                str(len(self.dictionary)))
 
     def getBlacklists(self):
         blacklists = {}
         for status in [400, 403, 500]:
-            blacklistFileName = FileUtils.buildPath(self.script_path, "db")
-            blacklistFileName = FileUtils.buildPath(blacklistFileName, "{0}_blacklist.txt".format(status))
+            blacklistFileName = FileUtils.buildPath(self.script_path, 'db')
+            blacklistFileName = FileUtils.buildPath(blacklistFileName, '{0}_blacklist.txt'.format(status))
             if not FileUtils.canRead(blacklistFileName):
                 continue
             blacklists[status] = []
             for line in FileUtils.getLines(blacklistFileName):
                 # Skip comments
-                if line.startswith("#"): continue
+                if line.startswith('#'):
+                    continue
                 blacklists[status].append(line)
         return blacklists
 
     def setupReports(self, requester):
         if self.arguments.autoSave:
-            basePath = "/" if requester.basePath is "" else requester.basePath
-            basePath = basePath.replace(os.path.sep, ".")[1:-1]
-            fileName = "{0}_".format(basePath) if basePath is not "" else ""
-            fileName += time.strftime("%y-%m-%d_%H-%M-%S.txt")
-            directoryName = "{0}".format(requester.host)
-            directoryPath =  FileUtils.buildPath(self.script_path, "reports", directoryName)
+            basePath = ('/' if requester.basePath is '' else requester.basePath)
+            basePath = basePath.replace(os.path.sep, '.')[1:-1]
+            fileName = ('{0}_'.format(basePath) if basePath is not '' else '')
+            fileName += time.strftime('%y-%m-%d_%H-%M-%S.txt')
+            directoryName = '{0}'.format(requester.host)
+            directoryPath = FileUtils.buildPath(self.script_path, 'reports', directoryName)
             outputFile = FileUtils.buildPath(directoryPath, fileName)
             if not FileUtils.exists(directoryPath):
                 FileUtils.createDirectory(directoryPath)
@@ -112,15 +95,15 @@ class Controller(object):
                     sys.exit(1)
             if FileUtils.canWrite(directoryPath):
                 report = None
-                if self.arguments.autoSaveFormat == "simple":
-                    report = SimpleReport(requester.host, requester.port, requester.protocol,
-                                             requester.basePath, outputFile)
-                if self.arguments.autoSaveFormat == "json":
-                    report = JSONReport(requester.host, requester.port, requester.protocol,
-                                             requester.basePath, outputFile)
+                if self.arguments.autoSaveFormat == 'simple':
+                    report = SimpleReport(requester.host, requester.port, requester.protocol, requester.basePath,
+                                          outputFile)
+                if self.arguments.autoSaveFormat == 'json':
+                    report = JSONReport(requester.host, requester.port, requester.protocol, requester.basePath,
+                                        outputFile)
                 else:
-                    report = PlainTextReport(requester.host, requester.port, requester.protocol,
-                                             requester.basePath, outputFile)
+                    report = PlainTextReport(requester.host, requester.port, requester.protocol, requester.basePath,
+                                             outputFile)
                 self.reportManager.addOutput(report)
             else:
                 self.output.printError("Can't write reports to {0}".format(directoryPath))
@@ -217,3 +200,5 @@ class Controller(object):
             return True
         else:
             return False
+
+

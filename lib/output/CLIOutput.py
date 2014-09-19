@@ -107,12 +107,12 @@ class CLIOutput(object):
             self.mutexCheckedPaths.release()
 
         if status == 200:
-            message = Style.BRIGHT + Fore.GREEN + message + Style.RESET_ALL
+            message = Fore.GREEN + message + Style.RESET_ALL
         elif status == 403:
-            message = Style.BRIGHT + Fore.BLUE + message + Style.RESET_ALL
+            message = Fore.BLUE + message + Style.RESET_ALL
         # Check if redirect
         elif status in [301, 302, 307] and 'location' in response.headers:
-            message = Style.BRIGHT + Fore.CYAN + message + Style.RESET_ALL
+            message = Fore.CYAN + message + Style.RESET_ALL
             message += '  ->  {0}'.format(response.headers['location'])
 
         self.printNewLine(message)
@@ -141,5 +141,14 @@ class CLIOutput(object):
     def printHeader(self, text):
         message = Style.BRIGHT + Fore.MAGENTA + text + Style.RESET_ALL
         self.printNewLine(message)
+
+    def printConfig(self, target, extensions, threads, wordlistSize):
+        config =  Style.BRIGHT + Fore.YELLOW
+        config += 'Target: {0}'.format(Fore.CYAN + target + Fore.YELLOW)
+        config += ' | Extensions: {0}'.format(Fore.CYAN + extensions + Fore.YELLOW)
+        config += ' | Threads: {0}'.format(Fore.CYAN + threads + Fore.YELLOW)
+        config += ' | Wordlist size: {0}'.format(Fore.CYAN + wordlistSize + Fore.YELLOW)
+        config += Style.RESET_ALL
+        self.printNewLine(config)
 
 

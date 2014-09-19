@@ -27,7 +27,7 @@ class Program(object):
         self.arguments = ArgumentsParser(self.script_path)
         self.output = CLIOutput()
         self.output.printHeader(PROGRAM_BANNER)
-        self.output.printHeader("version {0}.{1}.{2}\n".format(MAYOR_VERSION, MINOR_VERSION, REVISION))
+        #self.output.printHeader("version {0}.{1}.{2}\n".format(MAYOR_VERSION, MINOR_VERSION, REVISION))
         self.controller = Controller(self.script_path, self.arguments, self.output)
 
 
@@ -35,12 +35,10 @@ if __name__ == '__main__':
     MAYOR_VERSION = 0
     MINOR_VERSION = 2
     REVISION = 6
+
     PROGRAM_BANNER = \
-    r"""         _ _            _____                  _     
-      __| (_)_ __ ___  |___ /    __ _ _ __ ___| |__  
-     / _` | | '__/ __|   |_ \   / _` | '__/ __| '_ \ 
-    | (_| | | |  \__ \  ___) | | (_| | | | (__| | | |
-     \__,_|_|_|  |___/ |____/   \__,_|_|  \___|_| |_|
-                                                     
-    """
+r"""         __           
+ _|. _ _  _) _  _ _|_    v{0}.{1}.{2}
+(_||| _) __)(_|| (_| )
+""".format(MAYOR_VERSION, MINOR_VERSION, REVISION)
     main = Program()
