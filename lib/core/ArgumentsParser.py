@@ -34,14 +34,29 @@ class ArgumentsParser(object):
         self.parseConfig()
         options = self.parseArguments()
         if options.url == None:
-            print 'Url target is missing'
-            exit(0)
+            if options.urlList != None:
+                with File(options.urlList) as urlList:
+                    if not urlList.exists():
+                        print "The file with URLs does not exist"
+                        exit(0)
+                    if not urlList.isValid():
+                        print 'The wordlist is invalid'
+                        exit(0)
+                    if not urlList.canRead():
+                        print 'The wordlist cannot be read'
+                        exit(0)
+                    self.urlList = list(urlList.getLines())
+            elif options.url == None:
+                print 'Url target is missing'
+                exit(0)
+        else:
+            self.urlList = [options.url]
         if options.extensions == None:
             print 'No extension specified. You must specify at least one extension'
             exit(0)
         with File(options.wordlist) as wordlist:
             if not wordlist.exists():
-                print 'The wordlist file does not exists'
+                print 'The wordlist file does not exist'
                 exit(0)
             if not wordlist.isValid():
                 print 'The wordlist is invalid'
@@ -65,7 +80,7 @@ class ArgumentsParser(object):
                 exit(0)
         else:
             self.headers = {}
-        self.url = options.url
+        
         self.extensions = list(oset([extension.strip() for extension in options.extensions.split(',')]))
         self.useragent = options.useragent
         self.cookie = options.cookie
@@ -148,6 +163,7 @@ class ArgumentsParser(object):
         # Mandatory arguments
         mandatory = OptionGroup(parser, 'Mandatory')
         mandatory.add_option('-u', '--url', help='URL target', action='store', type='string', dest='url', default=None)
+        mandatory.add_option('-L', '--url-list', help='URL list target', action='store', type='string', dest='urlList', default=None)
         mandatory.add_option('-e', '--extensions', help='Extension list separated by comma (Example: php, asp)',
                              action='store', dest='extensions', default=None)
 

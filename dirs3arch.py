@@ -25,20 +25,9 @@ class Program(object):
     def __init__(self):
         self.script_path = (os.path.dirname(os.path.realpath(__file__)))
         self.arguments = ArgumentsParser(self.script_path)
-        self.output = CLIOutput()
-        self.output.printHeader(PROGRAM_BANNER)
-        #self.output.printHeader("version {0}.{1}.{2}\n".format(MAYOR_VERSION, MINOR_VERSION, REVISION))
+        self.output = CLIOutput()        
         self.controller = Controller(self.script_path, self.arguments, self.output)
 
 
 if __name__ == '__main__':
-    MAYOR_VERSION = 0
-    MINOR_VERSION = 2
-    REVISION = 6
-
-    PROGRAM_BANNER = \
-r"""         __           
- _|. _ _  _) _  _ _|_    v{0}.{1}.{2}
-(_||| _) __)(_|| (_| )
-""".format(MAYOR_VERSION, MINOR_VERSION, REVISION)
     main = Program()

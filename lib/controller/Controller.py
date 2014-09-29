@@ -11,6 +11,8 @@ from lib.utils import *
 from lib.utils.Queue import Queue
 import time
 
+class SkipTargetInterrupt(Exception):
+    pass
 
 class Controller(object):
 
@@ -26,29 +28,37 @@ class Controller(object):
         self.recursive = self.arguments.recursive
         self.directories = Queue()
         self.excludeSubdirs = (arguments.excludeSubdirs if arguments.excludeSubdirs is not None else [])
+        self.output.printHeader(PROGRAM_BANNER)
+        self.dictionary = FuzzerDictionary(self.arguments.wordlist, self.arguments.extensions,
+                self.arguments.lowercase)
+        self.printConfig()
         try:
-            self.reportManager = ReportManager()
-            self.requester = Requester(self.arguments.url, cookie=self.arguments.cookie,
-                                       useragent=self.arguments.useragent, maxPool=self.arguments.threadsCount,
-                                       maxRetries=self.arguments.maxRetries, timeout=self.arguments.timeout,
-                                       ip=self.arguments.ip, proxy=self.arguments.proxy,
-                                       redirect=self.arguments.redirect)
-            for key, value in arguments.headers.iteritems():
-                self.requester.setHeader(key, value)
-            # Initialize directories Queue with start Path
-            self.basePath = self.requester.basePath
-            if self.arguments.scanSubdirs is not None:
-                for subdir in self.arguments.scanSubdirs:
-                    self.directories.put(subdir)
-            else:
-                self.directories.put('')
-            self.setupReports(self.requester)
-            self.dictionary = FuzzerDictionary(self.arguments.wordlist, self.arguments.extensions,
-                                               self.arguments.lowercase)
-            self.printConfig()
-            self.fuzzer = Fuzzer(self.requester, self.dictionary, testFailPath=self.arguments.testFailPath,
-                                 threads=self.arguments.threadsCount)
-            self.wait()
+            for url in self.arguments.urlList:
+                try:
+                    self.currentUrl = url
+                    self.reportManager = ReportManager()
+                    self.requester = Requester(url, cookie=self.arguments.cookie,
+                                               useragent=self.arguments.useragent, maxPool=self.arguments.threadsCount,
+                                               maxRetries=self.arguments.maxRetries, timeout=self.arguments.timeout,
+                                               ip=self.arguments.ip, proxy=self.arguments.proxy,
+                                               redirect=self.arguments.redirect)
+                    for key, value in arguments.headers.iteritems():
+                        self.requester.setHeader(key, value)
+                    # Initialize directories Queue with start Path
+                    self.basePath = self.requester.basePath
+                    if self.arguments.scanSubdirs is not None:
+                        for subdir in self.arguments.scanSubdirs:
+                            self.directories.put(subdir)
+                    else:
+                        self.directories.put('')
+                    self.setupReports(self.requester)
+
+                    self.output.printTarget(self.currentUrl)
+                    self.fuzzer = Fuzzer(self.requester, self.dictionary, testFailPath=self.arguments.testFailPath,
+                                         threads=self.arguments.threadsCount)
+                    self.wait()
+                except SkipTargetInterrupt:
+                    continue
         except RequestException, e:
             self.output.printError('Unexpected error:\n{0}'.format(e.args[0]['message']))
             exit(0)
@@ -61,7 +71,7 @@ class Controller(object):
         self.output.printWarning('\nTask Completed')
 
     def printConfig(self):
-        self.output.printConfig(self.arguments.url, ', '.join(self.arguments.extensions), str(self.arguments.threadsCount),
+        self.output.printConfig( ', '.join(self.arguments.extensions), str(self.arguments.threadsCount),
                                 str(len(self.dictionary)))
 
     def getBlacklists(self):
@@ -123,12 +133,13 @@ class Controller(object):
         self.fuzzer.pause()
         try:
             while True:
+                msg = "[e]xit / [c]ontinue"
                 if not self.directories.empty():
-                    self.output.printInLine('[e]xit / [c]ontinue / [n]ext: ')
-                    pass
-                else:
-                    self.output.printInLine('[e]xit / [c]ontinue: ')
-                    pass
+                    msg += "/ [n]ext"
+                if len(self.arguments.urlList) > 1:
+                    msg += "/ [s]kip target"
+                self.output.printInLine(msg + ': ')
+                    
                 option = raw_input()
                 if option.lower() == 'e':
                     self.exit = True
@@ -140,6 +151,8 @@ class Controller(object):
                 elif self.recursive and not self.directories.empty() and option.lower() == 'n':
                     self.fuzzer.stop()
                     return
+                elif len(self.arguments.urlList) > 1 and option.lower() == 's':
+                    raise SkipTargetInterrupt
                 else:
                     continue
         except KeyboardInterrupt, SystemExit:
@@ -180,7 +193,7 @@ class Controller(object):
         while not self.directories.empty():
             self.index = 0
             self.currentDirectory = self.directories.get()
-            self.output.printWarning('\nScanning directory: {0}'.format(self.currentDirectory))
+            self.output.printWarning('Scanning directory: {0}'.format(self.currentDirectory))
             self.fuzzer.requester.basePath = '{0}{1}'.format(self.basePath, self.currentDirectory)
             self.output.basePath = '{0}{1}'.format(self.basePath, self.currentDirectory)
             self.fuzzer.start()
@@ -202,3 +215,12 @@ class Controller(object):
             return False
 
 
+    MAYOR_VERSION = 0
+    MINOR_VERSION = 2
+    REVISION = 6
+    global PROGRAM_BANNER
+    PROGRAM_BANNER = \
+r"""         __           
+ _|. _ _  _) _  _ _|_    v{0}.{1}.{2}
+(_||| _) __)(_|| (_| )
+""".format(MAYOR_VERSION, MINOR_VERSION, REVISION)
