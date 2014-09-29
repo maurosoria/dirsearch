@@ -143,11 +143,15 @@ class CLIOutput(object):
         self.printNewLine(message)
 
     def printConfig(self, target, extensions, threads, wordlistSize):
+        separator = Fore.MAGENTA + ' | ' + Fore.YELLOW
         config =  Style.BRIGHT + Fore.YELLOW
         config += 'Target: {0}'.format(Fore.CYAN + target + Fore.YELLOW)
-        config += ' | Extensions: {0}'.format(Fore.CYAN + extensions + Fore.YELLOW)
-        config += ' | Threads: {0}'.format(Fore.CYAN + threads + Fore.YELLOW)
-        config += ' | Wordlist size: {0}'.format(Fore.CYAN + wordlistSize + Fore.YELLOW)
+        config += separator
+        config += 'Extensions: {0}'.format(Fore.CYAN + extensions + Fore.YELLOW)
+        config += separator
+        config += 'Threads: {0}'.format(Fore.CYAN + threads + Fore.YELLOW)
+        config += separator
+        config += 'Wordlist size: {0}'.format(Fore.CYAN + wordlistSize + Fore.YELLOW)
         config += Style.RESET_ALL
         self.printNewLine(config)
 
