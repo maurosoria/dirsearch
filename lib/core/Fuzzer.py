@@ -115,7 +115,11 @@ class Fuzzer(object):
         self.finishedEvent.set()
 
     def getPath(self):
-        path = (self.testedPaths.get() if not self.empty() or not self.isFinished() else None)
+        path = None
+        if not self.empty():
+            path = self.testedPaths.get()  
+        if not self.isFinished():
+            path = self.testedPaths.get()  
         return path
 
     def qsize(self):
