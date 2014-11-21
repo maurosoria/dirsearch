@@ -217,7 +217,7 @@ class Controller(object):
 
     MAYOR_VERSION = 0
     MINOR_VERSION = 2
-    REVISION = 6
+    REVISION = 7
     global PROGRAM_BANNER
     PROGRAM_BANNER = \
 r"""         __           
