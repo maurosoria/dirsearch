@@ -3,6 +3,8 @@ dirs3arch
 
 Current Release: v0.2.7 (2014.11.21)
 
+![alt tag](http://4.bp.blogspot.com/-YF6eVa_2Yu0/VHFhKT2Ac9I/AAAAAAAAAFQ/YC6ouf1b8WM/s1600/d3.png)
+
 Overview
 --------
 dirs3arch is a simple command line tool designed to brute force directories and files in websites.
