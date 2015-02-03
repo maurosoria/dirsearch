@@ -12,13 +12,13 @@
 # Author: Mauro Soria
 
 
-import urlparse
+import urllib.parse
 import socket
-import urllib
+import urllib.request, urllib.parse, urllib.error
 from thirdparty.urllib3 import *
 from thirdparty.urllib3.exceptions import *
-from Response import *
-from RequestException import *
+from .Response import *
+from .RequestException import *
 
 
 class Requester(object):
@@ -37,12 +37,12 @@ class Requester(object):
         # if no backslash, append one
         if url[-1] is not '/':
             url = url + '/'
-        parsed = urlparse.urlparse(url)
+        parsed = urllib.parse.urlparse(url)
         self.basePath = parsed.path
 
         # if not protocol specified, set http by default
         if parsed.scheme != 'http' and parsed.scheme != 'https':
-            parsed = urlparse.urlparse('http://' + url)
+            parsed = urllib.parse.urlparse('http://' + url)
             self.basePath = parsed.path
         self.protocol = parsed.scheme
         if self.protocol != 'http' and self.protocol != 'https':
@@ -114,9 +114,11 @@ class Requester(object):
                                                    assert_same_host=False)
                 result = Response(response.status, response.reason, response.headers, response.data)
                 break
-            except ProxyError, e:
+            except ProxyError as e:
                 raise RequestException({'message': 'Error with the proxy: {0}'.format(e)})
             except (MaxRetryError, ReadTimeoutError):
+                continue
+            except ConnectTimeoutError:
                 continue
             finally:
                 i = i + 1

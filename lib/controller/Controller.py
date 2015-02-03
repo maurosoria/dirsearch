@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-import ConfigParser
+import configparser
 import os
 import sys
 import time
@@ -42,7 +42,7 @@ class Controller(object):
                                                maxRetries=self.arguments.maxRetries, timeout=self.arguments.timeout,
                                                ip=self.arguments.ip, proxy=self.arguments.proxy,
                                                redirect=self.arguments.redirect)
-                    for key, value in arguments.headers.iteritems():
+                    for key, value in arguments.headers.items():
                         self.requester.setHeader(key, value)
                     # Initialize directories Queue with start Path
                     self.basePath = self.requester.basePath
@@ -59,10 +59,10 @@ class Controller(object):
                     self.wait()
                 except SkipTargetInterrupt:
                     continue
-        except RequestException, e:
+        except RequestException as e:
             self.output.printError('Unexpected error:\n{0}'.format(e.args[0]['message']))
             exit(0)
-        except KeyboardInterrupt, SystemExit:
+        except KeyboardInterrupt as SystemExit:
             self.output.printError('\nCanceled by the user')
             exit(0)
         finally:
@@ -140,7 +140,7 @@ class Controller(object):
                     msg += "/ [s]kip target"
                 self.output.printInLine(msg + ': ')
                     
-                option = raw_input()
+                option = input()
                 if option.lower() == 'e':
                     self.exit = True
                     self.fuzzer.stop()
@@ -148,14 +148,14 @@ class Controller(object):
                 elif option.lower() == 'c':
                     self.fuzzer.play()
                     return
-                elif self.recursive and not self.directories.empty() and option.lower() == 'n':
+                elif not self.directories.empty() and option.lower() == 'n':
                     self.fuzzer.stop()
                     return
                 elif len(self.arguments.urlList) > 1 and option.lower() == 's':
                     raise SkipTargetInterrupt
                 else:
                     continue
-        except KeyboardInterrupt, SystemExit:
+        except KeyboardInterrupt as SystemExit:
             self.exit = True
             raise KeyboardInterrupt
 
@@ -173,13 +173,13 @@ class Controller(object):
                     self.index += 1
                     self.output.printLastPathEntry(path, self.index, len(self.dictionary))
                     path = self.fuzzer.getPath()
-                except (KeyboardInterrupt, SystemExit), e:
+                except (KeyboardInterrupt, SystemExit) as e:
                     self.handleInterrupt()
                     if self.exit:
                         raise e
                     else:
                         pass
-        except (KeyboardInterrupt, SystemExit), e:
+        except (KeyboardInterrupt, SystemExit) as e:
             if self.exit:
                 raise e
             self.handleInterrupt()
@@ -216,8 +216,8 @@ class Controller(object):
 
 
     MAYOR_VERSION = 0
-    MINOR_VERSION = 2
-    REVISION = 7
+    MINOR_VERSION = 3
+    REVISION = 0
     global PROGRAM_BANNER
     PROGRAM_BANNER = \
 r"""         __           
