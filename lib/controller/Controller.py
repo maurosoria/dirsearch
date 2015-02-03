@@ -129,7 +129,7 @@ class Controller(object):
                                          requester.basePath, self.arguments.jsonOutputFile))
 
     def handleInterrupt(self):
-        self.output.printWarning('CTRL+C detected: Pausing threads...')
+        self.output.printWarning('CTRL+C detected: Pausing threads, please wait...')
         self.fuzzer.pause()
         try:
             while True:
