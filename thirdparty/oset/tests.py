@@ -3,7 +3,7 @@
 
 """Partially backported python ABC classes"""
 
-from __future__ import absolute_import
+
 
 import doctest
 import unittest

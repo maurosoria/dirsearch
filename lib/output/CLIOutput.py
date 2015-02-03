@@ -101,7 +101,7 @@ class CLIOutput(object):
             if path in self.checkedPaths:
                 self.mutexCheckedPaths.release()
                 return
-        except (KeyboardInterrupt, SystemExit), e:
+        except (KeyboardInterrupt, SystemExit) as e:
             raise e
         finally:
             self.mutexCheckedPaths.release()

@@ -17,5 +17,5 @@
 #  Author: Mauro Soria
 
 
-from Controller import *
+from .Controller import *
 pass

@@ -17,8 +17,8 @@
 #  Author: Mauro Soria
 
 
-from FuzzerDictionary import *
-from Fuzzer import *
-from ArgumentsParser import *
-from Path import *
+from .FuzzerDictionary import *
+from .Fuzzer import *
+from .ArgumentsParser import *
+from .Path import *
 pass

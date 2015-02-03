@@ -3,7 +3,7 @@
 
 """Partially backported python ABC classes"""
 
-from __future__ import absolute_import
+
 
 import sys
 import types
@@ -65,7 +65,7 @@ class ABCMeta(type):
         cls = super(ABCMeta, mcls).__new__(mcls, name, bases, namespace)
         # Compute set of abstract method names
         abstracts = set(name
-                     for name, value in namespace.items()
+                     for name, value in list(namespace.items())
                      if getattr(value, "__isabstractmethod__", False))
         for base in bases:
             for name in getattr(base, "__abstractmethods__", set()):
@@ -82,7 +82,7 @@ class ABCMeta(type):
 
     def register(cls, subclass):
         """Register a virtual subclass of an ABC."""
-        if not isinstance(subclass, (type, types.ClassType)):
+        if not isinstance(subclass, type):
             raise TypeError("Can only register classes")
         if issubclass(subclass, cls):
             return  # Already a subclass
@@ -96,12 +96,12 @@ class ABCMeta(type):
 
     def _dump_registry(cls, file=None):
         """Debug helper to print the ABC registry."""
-        print >> file, "Class: %s.%s" % (cls.__module__, cls.__name__)
-        print >> file, "Inv.counter: %s" % ABCMeta._abc_invalidation_counter
+        print("Class: %s.%s" % (cls.__module__, cls.__name__), file=file)
+        print("Inv.counter: %s" % ABCMeta._abc_invalidation_counter, file=file)
         for name in sorted(cls.__dict__.keys()):
             if name.startswith("_abc_"):
                 value = getattr(cls, name)
-                print >> file, "%s: %r" % (name, value)
+                print("%s: %r" % (name, value), file=file)
 
     def __instancecheck__(cls, instance):
         """Override for isinstance(instance, cls)."""
@@ -171,9 +171,7 @@ def _hasattr(C, attr):
         return hasattr(C, attr)
 
 
-class Sized:
-    __metaclass__ = ABCMeta
-
+class Sized(metaclass=ABCMeta):
     @abstractmethod
     def __len__(self):
         return 0
@@ -186,9 +184,7 @@ class Sized:
         return NotImplemented
 
 
-class Container:
-    __metaclass__ = ABCMeta
-
+class Container(metaclass=ABCMeta):
     @abstractmethod
     def __contains__(self, x):
         return False
@@ -201,9 +197,7 @@ class Container:
         return NotImplemented
 
 
-class Iterable:
-    __metaclass__ = ABCMeta
-
+class Iterable(metaclass=ABCMeta):
     @abstractmethod
     def __iter__(self):
         while False:
@@ -322,7 +316,7 @@ class Set(Sized, Iterable, Container):
         freedom for __eq__ or __hash__.  We match the algorithm used
         by the built-in frozenset type.
         """
-        MAX = sys.maxint
+        MAX = sys.maxsize
         MASK = 2 * MAX + 1
         n = len(self)
         h = 1927868237 * (n + 1)
@@ -364,7 +358,7 @@ class MutableSet(Set):
         """Return the popped value.  Raise KeyError if empty."""
         it = iter(self)
         try:
-            value = it.next()
+            value = next(it)
         except StopIteration:
             raise KeyError
         self.discard(value)
@@ -453,7 +447,7 @@ class OrderedSet(MutableSet):
     def pop(self, last=True):
         if not self:
             raise KeyError('set is empty')
-        key = reversed(self).next() if last else iter(self).next()
+        key = next(reversed(self)) if last else next(iter(self))
         self.discard(key)
         return key
 
@@ -471,5 +465,5 @@ class OrderedSet(MutableSet):
         self.clear()                    # remove circular references
 
 if __name__ == '__main__':
-    print(OrderedSet('abracadaba'))
-    print(OrderedSet('simsalabim'))
+    print((OrderedSet('abracadaba')))
+    print((OrderedSet('simsalabim')))

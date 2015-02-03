@@ -10,7 +10,7 @@ from socket import timeout as SocketTimeout
 try: # Python 3
     from http.client import HTTPConnection, HTTPException
 except ImportError:
-    from httplib import HTTPConnection, HTTPException
+    from http.client import HTTPConnection, HTTPException
 
 class DummyConnection(object):
     "Used to detect a failed ConnectionCls import."
@@ -26,7 +26,7 @@ try: # Compiled with SSL?
     try: # Python 3
         from http.client import HTTPSConnection
     except ImportError:
-        from httplib import HTTPSConnection
+        from http.client import HTTPSConnection
 
     import ssl
     BaseSSLError = ssl.SSLError

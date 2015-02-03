@@ -100,4 +100,4 @@ class RecentlyUsedContainer(MutableMapping):
 
     def keys(self):
         with self.lock:
-            return self._container.keys()
+            return list(self._container.keys())

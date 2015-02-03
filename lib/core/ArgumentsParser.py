@@ -18,7 +18,7 @@
 
 
 
-import ConfigParser
+import configparser
 from optparse import OptionParser, OptionGroup
 from lib.utils.FileUtils import File
 from lib.utils.FileUtils import FileUtils
@@ -37,32 +37,32 @@ class ArgumentsParser(object):
             if options.urlList != None:
                 with File(options.urlList) as urlList:
                     if not urlList.exists():
-                        print "The file with URLs does not exist"
+                        print("The file with URLs does not exist")
                         exit(0)
                     if not urlList.isValid():
-                        print 'The wordlist is invalid'
+                        print('The wordlist is invalid')
                         exit(0)
                     if not urlList.canRead():
-                        print 'The wordlist cannot be read'
+                        print('The wordlist cannot be read')
                         exit(0)
                     self.urlList = list(urlList.getLines())
             elif options.url == None:
-                print 'Url target is missing'
+                print('Url target is missing')
                 exit(0)
         else:
             self.urlList = [options.url]
         if options.extensions == None:
-            print 'No extension specified. You must specify at least one extension'
+            print('No extension specified. You must specify at least one extension')
             exit(0)
         with File(options.wordlist) as wordlist:
             if not wordlist.exists():
-                print 'The wordlist file does not exist'
+                print('The wordlist file does not exist')
                 exit(0)
             if not wordlist.isValid():
-                print 'The wordlist is invalid'
+                print('The wordlist is invalid')
                 exit(0)
             if not wordlist.canRead():
-                print 'The wordlist cannot be read'
+                print('The wordlist cannot be read')
                 exit(0)
         if options.httpProxy is not None:
             if options.httpProxy.startswith('http://'):
@@ -75,8 +75,8 @@ class ArgumentsParser(object):
             try:
                 self.headers = dict((key.strip(), value.strip()) for (key, value) in (header.split(':', 1)
                                     for header in options.headers))
-            except Exception, e:
-                print 'Invalid headers'
+            except Exception as e:
+                print('Invalid headers')
                 exit(0)
         else:
             self.headers = {}
@@ -85,7 +85,7 @@ class ArgumentsParser(object):
         self.useragent = options.useragent
         self.cookie = options.cookie
         if options.threadsCount < 1:
-            print 'Threads number must be a number greater than zero'
+            print('Threads number must be a number greater than zero')
             exit(0)
         self.threadsCount = options.threadsCount
         if options.excludeStatusCodes is not None:
@@ -115,7 +115,7 @@ class ArgumentsParser(object):
             self.scanSubdirs = list(oset([subdir + "/" for subdir in self.scanSubdirs]))
         else: self.scanSubdirs = None
         if not self.recursive and options.excludeSubdirs is not None:
-            print '--exclude-subdir argument can only be used with -r|--recursive'
+            print('--exclude-subdir argument can only be used with -r|--recursive')
             exit(0)
         elif options.excludeSubdirs is not None:
             self.excludeSubdirs = list(oset([subdir.strip() for subdir in options.excludeSubdirs.split(',')]))
@@ -138,7 +138,7 @@ class ArgumentsParser(object):
         config.read(configPath)
 
         # General
-        self.threadsCount = config.safe_getint("general", "threads", 10, range(1, 50))
+        self.threadsCount = config.safe_getint("general", "threads", 10, list(range(1, 50)))
         self.excludeStatusCodes = config.safe_get("general", "exclude-status", None)
         self.redirect  = config.safe_getboolean("general", "follow-redirects", False)
         self.recursive = config.safe_getboolean("general", "recursive", False)

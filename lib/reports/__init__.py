@@ -17,8 +17,8 @@
 #  Author: Mauro Soria
 
 
-from BaseReport import *
-from SimpleReport import *
-from PlainTextReport import *
-from JSONReport import *
+from .BaseReport import *
+from .SimpleReport import *
+from .PlainTextReport import *
+from .JSONReport import *
 pass

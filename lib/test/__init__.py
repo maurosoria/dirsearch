@@ -17,6 +17,6 @@
 #  Author: Mauro Soria
 
 
-from ContentTester import *
-from StatusTester import *
+from .ContentTester import *
+from .StatusTester import *
 pass

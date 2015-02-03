@@ -3,7 +3,7 @@
 
 """Partially backported python ABC classes"""
 
-from __future__ import absolute_import
+
 
 try:
     from collections import MutableSet
@@ -12,7 +12,7 @@ except ImportError:
     from ._abc import MutableSet
 
 
-KEY, PREV, NEXT = range(3)
+KEY, PREV, NEXT = list(range(3))
 
 
 class OrderedSet(MutableSet):
@@ -62,7 +62,7 @@ class OrderedSet(MutableSet):
     def pop(self, last=True):
         if not self:
             raise KeyError('set is empty')
-        key = reversed(self).next() if last else iter(self).next()
+        key = next(reversed(self)) if last else next(iter(self))
         self.discard(key)
         return key
 

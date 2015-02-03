@@ -1,3 +1,3 @@
-from CLIOutput import *
+from .CLIOutput import *
 
 pass

@@ -17,49 +17,49 @@
 #  Author: Mauro Soria
 
 
-import ConfigParser
+import configparser
 
-class DefaultConfigParser(ConfigParser.ConfigParser):
+class DefaultConfigParser(configparser.ConfigParser):
 	def __init__(self):
-		ConfigParser.ConfigParser.__init__(self)
+		configparser.ConfigParser.__init__(self)
 
 
 	def safe_get(self, section, option, default, allowed=None):
 		try:
-			result = ConfigParser.ConfigParser.get(self, section, option)
+			result = configparser.ConfigParser.get(self, section, option)
 			if allowed is not None:
 				return result if result in allowed else default
 			else:
 				return result
-		except (ConfigParser.NoSectionError, ConfigParser.NoOptionError):
+		except (configparser.NoSectionError, configparser.NoOptionError):
 			return default
 
 	def safe_getfloat(self, section, option, default, allowed=None):
 		try:
-			result = ConfigParser.ConfigParser.getfloat(self, section, option)
+			result = configparser.ConfigParser.getfloat(self, section, option)
 			if allowed is not None:
 				return result if result in allowed else default
 			else:
 				return result
-		except (ConfigParser.NoSectionError, ConfigParser.NoOptionError):
+		except (configparser.NoSectionError, configparser.NoOptionError):
 			return default
 
 	def safe_getboolean(self, section, option, default, allowed=None):
 		try:
-			result = ConfigParser.ConfigParser.getboolean(self, section, option)
+			result = configparser.ConfigParser.getboolean(self, section, option)
 			if allowed is not None:
 				return result if result in allowed else default
 			else:
 				return result
-		except (ConfigParser.NoSectionError, ConfigParser.NoOptionError):
+		except (configparser.NoSectionError, configparser.NoOptionError):
 			return default
 
 	def safe_getint(self, section, option, default, allowed=None):
 		try:
-			result = ConfigParser.ConfigParser.getint(self, section, option)
+			result = configparser.ConfigParser.getint(self, section, option)
 			if allowed is not None:
 				return result if result in allowed else default
 			else:
 				return result
-		except (ConfigParser.NoSectionError, ConfigParser.NoOptionError):
+		except (configparser.NoSectionError, configparser.NoOptionError):
 			return default

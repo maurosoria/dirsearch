@@ -70,7 +70,7 @@ class DynamicContentParser:
 			blocks.insert(0, None)
 			blocks.append(None)
 
-			for i in xrange(len(blocks) - 1):
+			for i in range(len(blocks) - 1):
 				prefix = firstPage[blocks[i][0]:blocks[i][0] + blocks[i][2]] if blocks[i] else None
 				suffix = firstPage[blocks[i + 1][0]:blocks[i + 1][0] + blocks[i + 1][2]] if blocks[i + 1] else None
 

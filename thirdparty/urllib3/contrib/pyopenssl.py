@@ -27,7 +27,7 @@ from pyasn1.codec.der import decoder as der_decoder
 from socket import _fileobject
 import ssl
 import select
-from cStringIO import StringIO
+from io import StringIO
 
 from .. import connection
 from .. import util
