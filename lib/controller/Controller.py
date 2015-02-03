@@ -135,9 +135,9 @@ class Controller(object):
             while True:
                 msg = "[e]xit / [c]ontinue"
                 if not self.directories.empty():
-                    msg += "/ [n]ext"
+                    msg += " / [n]ext"
                 if len(self.arguments.urlList) > 1:
-                    msg += "/ [s]kip target"
+                    msg += " / [s]kip target"
                 self.output.printInLine(msg + ': ')
                     
                 option = input()
