@@ -147,10 +147,9 @@ class Fuzzer(object):
                 if not self.playEvent.isSet():
                     self.pausedSemaphore.release()
                     self.playEvent.wait()
-                if not self.running:
+                if not self.running or path is None:
                     self.runningThreadsCount -= 1
                     break
-                if path is None:
-                    self.runningThreadsCount -= 1
+
 
 
