@@ -15,7 +15,10 @@
 #  MA 02110-1301, USA.
 #
 #  Author: Mauro Soria
-
+import sys
+if sys.version_info < (3, 0):
+    sys.stdout.write("Sorry, dirs3arch requires Python 3.x\n")
+    sys.exit(1)
 
 import os
 from lib.controller import *
