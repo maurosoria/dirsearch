@@ -144,6 +144,8 @@ class Fuzzer(object):
                 continue
             finally:
                 path = next(self.dictionary)
+                if path is None:
+                    self.testedPaths.put(None)
                 if not self.playEvent.isSet():
                     self.pausedSemaphore.release()
                     self.playEvent.wait()
