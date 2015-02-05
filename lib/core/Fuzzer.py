@@ -143,14 +143,17 @@ class Fuzzer(object):
                 sys.stdout.flush()
                 continue
             finally:
-                path = next(self.dictionary)
-                if path is None:
-                    self.testedPaths.put(None)
+                
                 if not self.playEvent.isSet():
                     self.pausedSemaphore.release()
                     self.playEvent.wait()
+
+                path = next(self.dictionary)
+
                 if not self.running or path is None:
                     self.runningThreadsCount -= 1
+                    if self.runningThreadsCount is 0:
+                        self.testedPaths.put(None)
                     break
 
 
