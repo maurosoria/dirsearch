@@ -76,7 +76,7 @@ class FuzzerDictionary(object):
             result = self.entries[self.currentIndex]
         except IndexError:
             self.condition.release()
-            return None, None
+            raise StopIteration
         self.currentIndex = self.currentIndex + 1
         currentIndex = self.currentIndex
         self.condition.release()

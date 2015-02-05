@@ -131,30 +131,36 @@ class Fuzzer(object):
     def isFinished(self):
         return self.runningThreadsCount == 0
 
+    def stopThread(self):
+        self.runningThreadsCount -= 1
+        if self.runningThreadsCount is 0:
+            self.testedPaths.put(None)
+
     def thread_proc(self):
+
         self.playEvent.wait()
-        path = next(self.dictionary)
-        while path is not None:
-            try:
-                status, response = self.testPath(path)
-                self.testedPaths.put(Path(path=path, status=status, response=response))
-            except RequestException as e:
-                print('\nUnexpected error:\n{0}\n'.format(e.args[0]['message']))
-                sys.stdout.flush()
-                continue
-            finally:
-                
-                if not self.playEvent.isSet():
-                    self.pausedSemaphore.release()
-                    self.playEvent.wait()
+        try:
+            path = next(self.dictionary)
+            while path is not None:
+                try:
+                    status, response = self.testPath(path)
+                    self.testedPaths.put(Path(path=path, status=status, response=response))
+                except RequestException as e:
+                    print('\nUnexpected error:\n{0}\n'.format(e.args[0]['message']))
+                    sys.stdout.flush()
+                    continue
+                finally:
+                    if not self.playEvent.isSet():
+                        self.pausedSemaphore.release()
+                        self.playEvent.wait()
+                    path = next(self.dictionary) # Raises StopIteration when finishes
+                    if not self.running:
+                        break
+        except StopIteration:
+            return
+        finally:
+            self.stopThread()
 
-                path = next(self.dictionary)
-
-                if not self.running or path is None:
-                    self.runningThreadsCount -= 1
-                    if self.runningThreadsCount is 0:
-                        self.testedPaths.put(None)
-                    break
 
 
 
