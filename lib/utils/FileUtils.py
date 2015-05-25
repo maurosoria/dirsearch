@@ -96,7 +96,7 @@ class FileUtils(object):
 
     @staticmethod
     def getLines(fileName):
-        with open(fileName, 'r') as fd:
+        with open(fileName, 'r', errors="replace") as fd:
             for line in fd.readlines():
                 yield line.replace('\n', '')
 
