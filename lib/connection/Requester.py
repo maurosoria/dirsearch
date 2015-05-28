@@ -106,9 +106,9 @@ class Requester(object):
         while i <= self.maxRetries:
             try:
                 if self.proxy is None:
-                    url = '{0}{1}?{2}'.format(self.basePath, path, params)
+                    url = '{0}{1}'.format(self.basePath, path)
                 else:
-                    url = '{5}://{3}:{4}{0}{1}?{2}'.format(self.basePath, path, params, self.host, self.port,
+                    url = '{4}://{2}:{3}{0}{1}'.format(self.basePath, path, self.host, self.port,
                                                            self.protocol)
                 response = self.connection.urlopen(method, url, headers=self.headers, redirect=self.redirect,
                                                    assert_same_host=False)
