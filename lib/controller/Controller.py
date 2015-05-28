@@ -203,16 +203,21 @@ class Controller(object):
     def addDirectory(self, path):
         if self.recursive == False:
             return False
-        if path.endswith('/'):
-            if path in [directory + '/' for directory in self.excludeSubdirs]:
-                return False
-            if self.currentDirectory == '':
-                self.directories.put(path)
-            else:
-                self.directories.put('{0}{1}'.format(self.currentDirectory, path))
-            return True
-        else:
+        filename = path.split("/")[-1]
+        if filename.find(".") != -1:                    # If path is a file (contains an ".") returns
             return False
+        while path.endswith('/'): path = path[:-1]               # Delete all the final consecutive "/": avoid loops
+        if len(path) == 0:                                                    # If path only has "/" returns
+            return False
+        if path in [directory for directory in self.excludeSubdirs]:
+            return False
+        if self.currentDirectory == '':
+            self.directories.put('{0}/'.format(path))           # Because I've eliminated previosly "/" char I've to add it now
+        else:
+            self.directories.put('{0}{1}/'.format(self.currentDirectory, path))   # Because I've eliminated previosly "/" char I've to add it now 
+        return True
+    
+
 
 
     MAYOR_VERSION = 0
