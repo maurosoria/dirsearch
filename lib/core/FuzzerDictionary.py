@@ -62,7 +62,10 @@ class FuzzerDictionary(object):
                 for extension in self._extensions:
                     self.entries.append(urllib.parse.quote(line.replace('%EXT%', extension)))
             else:
-                self.entries.append(urllib.parse.quote(line))
+                if line.endswith('/'): self.entries.append(urllib.parse.quote(line))
+                else:
+                    self.entries.append(urllib.parse.quote(line))
+                    self.entries.append(urllib.parse.quote(line)+'/')
         if lowercase == True:
             self.entries = list(oset([entry.lower() for entry in self.entries]))
 
