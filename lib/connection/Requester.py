@@ -19,7 +19,11 @@
 import random
 import urllib.parse
 import socket
-import urllib.request, urllib.parse, urllib.error
+import http.client
+import urllib.request
+import urllib.parse
+import urllib.error
+
 import thirdparty.requests as requests
 from .Response import *
 from .RequestException import *
@@ -116,6 +120,8 @@ class Requester(object):
             except requests.exceptions.ReadTimeout:
                 continue
             except requests.exceptions.Timeout:
+                continue
+            except http.client.IncompleteRead:
                 continue
             finally:
                 i = i + 1
