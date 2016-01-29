@@ -23,7 +23,8 @@ Features
 - Reporting (plain text, JSON)
 - Heuristically detects invalid web pages
 - Recursive brute forcing
-- HTTP(S) proxy support
+- HTTP proxy support
+- User agent randomization
 - Batch processing
 
 License
@@ -34,7 +35,7 @@ License: GNU General Public License, version 2
 
 Changelog
 ---------
-- 0.3.5 - 2015.01.29 Improved heuristic, replaced urllib3 for requests, error logs, batch reports, bugfixes
+- 0.3.5 - 2015.01.29 Improved heuristic, replaced urllib3 for requests, error logs, batch reports, user agent randomization, bugfixes
 - 0.3.0 - 2015.02.05 Fixed issue3, fixed timeout exception, ported to Python3, other bugfixes
 - 0.2.7 - 2014.11.21 Added Url List feature (-L). Changed output. Minor Fixes
 - 0.2.6 - 2014.9.12 Fixed bug when dictionary size is greater than threads count. Fixed URL encoding bug (issue2).
