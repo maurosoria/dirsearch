@@ -16,7 +16,6 @@
 #
 #  Author: Mauro Soria
 
-
 class ReportManager(object):
 
     def __init__(self):

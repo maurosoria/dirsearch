@@ -17,16 +17,16 @@
 #  Author: Mauro Soria
 
 
-from lib.reports import *
 import json
+
+from lib.reports import *
 
 
 class JSONReport(BaseReport):
-
     def generate(self):
         headerName = '{0}://{1}:{2}/{3}'.format(self.protocol, self.host, self.port, self.basePath)
         result = {headerName: []}
         for path, status, contentLength in self.pathList:
-            entry = {'status' : status, 'path' : path, 'content-length' : contentLength}
+            entry = {'status': status, 'path': path, 'content-length': contentLength}
             result[headerName].append(entry)
         return json.dumps(result, sort_keys=True, indent=4)

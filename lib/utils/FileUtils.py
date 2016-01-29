@@ -1,10 +1,26 @@
 # -*- coding: utf-8 -*-
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+#  MA 02110-1301, USA.
+#
+#  Author: Mauro Soria
+
 import os
 import os.path
 
 
 class File(object):
-
     def __init__(self, *pathComponents):
         self._path = FileUtils.buildPath(*pathComponents)
         self.content = None
@@ -56,9 +72,7 @@ class File(object):
         pass
 
 
-
 class FileUtils(object):
-
     @staticmethod
     def buildPath(*pathComponents):
         if pathComponents:
@@ -97,8 +111,7 @@ class FileUtils(object):
     @staticmethod
     def getLines(fileName):
         with open(fileName, 'r', errors="replace") as fd:
-            for line in fd.readlines():
-                yield line.replace('\n', '')
+            return fd.read().splitlines()
 
     @staticmethod
     def isDir(fileName):
@@ -116,9 +129,18 @@ class FileUtils(object):
     @staticmethod
     def sizeHuman(num):
         base = 1024
-        for x in ['B ','KB','MB','GB']:
+        for x in ['B ', 'KB', 'MB', 'GB']:
             if num < base and num > -base:
                 return "%3.0f%s" % (num, x)
             num /= base
         return "%3.0f %s" % (num, 'TB')
 
+    @staticmethod
+    def writeLines(fileName, lines):
+        content = None
+        if type(lines) is list:
+            content = "\n".join(lines)
+        else:
+            content = lines
+        with open(fileName, "w") as f:
+            f.writelines(content)

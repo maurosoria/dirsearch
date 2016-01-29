@@ -16,7 +16,6 @@
 #
 #  Author: Mauro Soria
 
-
 import configparser
 
 class DefaultConfigParser(configparser.ConfigParser):

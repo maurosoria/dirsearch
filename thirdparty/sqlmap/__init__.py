@@ -1,3 +1,1 @@
 from .DynamicContentParser import *
-
-pass

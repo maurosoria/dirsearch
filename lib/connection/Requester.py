@@ -1,22 +1,26 @@
 # -*- coding: utf-8 -*-
-# This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public
-# License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later
-# version.
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
 #
-# This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied
-# warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License along with this program; if not, write to the Free
-# Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+#  MA 02110-1301, USA.
 #
-# Author: Mauro Soria
+#  Author: Mauro Soria
 
-
+import random
 import urllib.parse
 import socket
 import urllib.request, urllib.parse, urllib.error
-from thirdparty.urllib3 import *
-from thirdparty.urllib3.exceptions import *
+import thirdparty.requests as requests
 from .Response import *
 from .RequestException import *
 
@@ -35,7 +39,7 @@ class Requester(object):
     def __init__(self, url, cookie=None, useragent=None, maxPool=1, maxRetries=5, timeout=30, ip=None, proxy=None,
                  redirect=False):
         # if no backslash, append one
-        if url[-1] is not '/':
+        if not url.endswith('/'):
             url = url + '/'
         parsed = urllib.parse.urlparse(url)
         self.basePath = parsed.path
@@ -49,7 +53,7 @@ class Requester(object):
             self.protocol = 'http'
         self.host = parsed.netloc.split(':')[0]
 
-        # resolve DNS to decrease proxychains overhead
+        # resolve DNS to decrease overhead
         if ip is not None:
             self.ip = ip
         else:
@@ -66,9 +70,9 @@ class Requester(object):
             self.port = (443 if self.protocol == 'https' else 80)
 
         # Set cookie and user-agent headers
-        if cookie != None:
+        if cookie is not None:
             self.setHeader('Cookie', cookie)
-        if useragent != None:
+        if useragent is not None:
             self.setHeader('User-agent', useragent)
         self.maxRetries = maxRetries
         self.maxPool = maxPool
@@ -76,49 +80,42 @@ class Requester(object):
         self.pool = None
         self.proxy = proxy
         self.redirect = redirect
+        self.randomAgents = None
 
     def setHeader(self, header, content):
         self.headers[header] = content
 
-    @property
-    def connection(self):
-        if self.pool == None:
-            if self.proxy is not None:
-                return self.connectionWithProxy()
-            if self.protocol == 'https':
-                self.pool = HTTPSConnectionPool(self.ip, port=self.port, timeout=self.timeout, maxsize=self.maxPool,
-                                                block=True, cert_reqs='CERT_NONE', assert_hostname=False)
-            else:
-                self.pool = HTTPConnectionPool(self.ip, port=self.port, timeout=self.timeout, maxsize=self.maxPool,
-                                               block=True)
-        return self.pool
+    def setRandomAgents(self, agents):
+        self.randomAgents = list(agents)
 
-    def connectionWithProxy(self):
-        if self.protocol == 'https':
-            self.pool = proxy_from_url(self.proxy, timeout=self.timeout, maxsize=self.maxPool, block=True,
-                                       cert_reqs='CERT_NONE', assert_hostname=False)
-        else:
-            self.pool = proxy_from_url(self.proxy, timeout=self.timeout, maxsize=self.maxPool, block=True)
-        return self.pool
+    def unsetRandomAgents(self):
+        self.randomAgents = None
 
-    def request(self, path, method='GET', params='', data=''):
+    def request(self, path):
         i = 0
+        proxy = None
+        result = None
         while i <= self.maxRetries:
             try:
-                if self.proxy is None:
-                    url = '{0}{1}'.format(self.basePath, path)
-                else:
-                    url = '{4}://{2}:{3}{0}{1}'.format(self.basePath, path, self.host, self.port,
-                                                           self.protocol)
-                response = self.connection.urlopen(method, url, headers=self.headers, redirect=self.redirect,
-                                                   assert_same_host=False)
-                result = Response(response.status, response.reason, response.headers, response.data)
+                if self.proxy is not None:
+                    proxy = {"https" : self.proxy, "http" : self.proxy}
+                url = "{0}://{1}:{2}".format(self.protocol, self.host, self.port)
+                url = urllib.parse.urljoin(url, self.basePath)
+                url = urllib.parse.urljoin(url, path)
+                headers = dict(self.headers)
+                if self.randomAgents is not None:
+                    headers["User-agent"] = random.choice(self.randomAgents)
+                response = requests.get(url, proxies=proxy, verify=False, allow_redirects=self.redirect, headers=headers, timeout=self.timeout)
+                result = Response(response.status_code, response.reason, response.headers, response.content)
+                del headers
                 break
-            except ProxyError as e:
-                raise RequestException({'message': 'Error with the proxy: {0}'.format(e)})
-            except (MaxRetryError, ReadTimeoutError):
+            except requests.exceptions.ConnectionError as e:
+                if self.proxy is not None:
+                    raise RequestException({'message': 'Error with the proxy: {0}'.format(e)})
                 continue
-            except ConnectTimeoutError:
+            except requests.exceptions.ReadTimeout:
+                continue
+            except requests.exceptions.Timeout:
                 continue
             finally:
                 i = i + 1

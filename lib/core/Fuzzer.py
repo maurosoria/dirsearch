@@ -3,12 +3,12 @@
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation; either version 2 of the License, or
 #  (at your option) any later version.
-#  
+#
 #  This program is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU General Public License for more details.
-#  
+#
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
@@ -16,44 +16,48 @@
 #
 #  Author: Mauro Soria
 
+from queue import Queue
 import threading
-import logging
-import sys
-import signal
-from lib.utils.Queue import Queue
+
+from lib.connection.RequestException import RequestException
 from .Path import *
-from lib.connection import *
-from .FuzzerDictionary import *
-from .NotFoundTester import *
-from .ReportManager import *
-from lib.reports import *
-import threading
-import time
+from .Scanner import *
 
 
 class Fuzzer(object):
+    def __init__(self, requester, dictionary, testFailPath=None, threads=1, matchCallbacks=[], notFoundCallbacks=[],
+                 errorCallbacks=[]):
 
-    def __init__(self, requester, dictionary, testFailPath="youCannotBeHere7331", threads=1):
         self.requester = requester
         self.dictionary = dictionary
         self.testFailPath = testFailPath
         self.testedPaths = Queue()
         self.basePath = self.requester.basePath
-        self.threads = []    
+        self.threads = []
         self.threadsCount = threads if len(self.dictionary) >= threads else len(self.dictionary)
         self.running = False
-        self.testers = {}
+        self.scanners = {}
+        self.defaultScanner = None
+        self.matchCallbacks = matchCallbacks
+        self.notFoundCallbacks = notFoundCallbacks
+        self.errorCallbacks = errorCallbacks
+        self.matches = []
+        self.errors = []
 
-    def wait(self):
+    def wait(self, timeout=None):
         for thread in self.threads:
-            thread.join()
+            thread.join(timeout)
+            if timeout is not None and thread.is_alive():
+                return False
+        return True
 
-    def testersSetup(self):
-        if len(self.testers) != 0:
-            self.testers = {}
-        self.testers['/'] = NotFoundTester(self.requester, '{0}/'.format(self.testFailPath))
+    def setupScanners(self):
+        if len(self.scanners) != 0:
+            self.scanners = {}
+        self.defaultScanner = Scanner(self.requester, self.testFailPath, "")
+        self.scanners['/'] = Scanner(self.requester, self.testFailPath, "/")
         for extension in self.dictionary.extensions:
-            self.testers[extension] = NotFoundTester(self.requester, '{0}.{1}'.format(self.testFailPath, extension))
+            self.scanners[extension] = Scanner(self.requester, self.testFailPath, "." + extension)
 
     def threadsSetup(self):
         if len(self.threads) != 0:
@@ -63,16 +67,18 @@ class Fuzzer(object):
             newThread.daemon = True
             self.threads.append(newThread)
 
-    def getTester(self, path):
-        for extension in list(self.testers.keys()):
+    def getScannerFor(self, path):
+        if path.endswith('/'):
+            return self.scanners['/']
+        for extension in list(self.scanners.keys()):
             if path.endswith(extension):
-                return self.testers[extension]
-        # By default, returns folder tester
-        return self.testers['/']
+                return self.scanners[extension]
+        # By default, returns empty tester
+        return self.defaultScanner
 
     def start(self):
         # Setting up testers
-        self.testersSetup()
+        self.setupScanners()
         # Setting up threads
         self.threadsSetup()
         self.index = 0
@@ -100,11 +106,11 @@ class Fuzzer(object):
         self.running = False
         self.play()
 
-    def testPath(self, path):
+    def scan(self, path):
         response = self.requester.request(path)
-        result = 0
-        if self.getTester(path).test(response):
-            result = (0 if response.status == 404 else response.status)
+        result = None
+        if self.getScannerFor(path).scan(path, response):
+            result = (None if response.status == 404 else response.status)
         return result, response
 
     def isRunning(self):
@@ -117,9 +123,9 @@ class Fuzzer(object):
     def getPath(self):
         path = None
         if not self.empty():
-            path = self.testedPaths.get()  
+            path = self.testedPaths.get()
         if not self.isFinished():
-            path = self.testedPaths.get()  
+            path = self.testedPaths.get()
         return path
 
     def qsize(self):
@@ -137,30 +143,34 @@ class Fuzzer(object):
             self.testedPaths.put(None)
 
     def thread_proc(self):
-
         self.playEvent.wait()
         try:
             path = next(self.dictionary)
             while path is not None:
                 try:
-                    status, response = self.testPath(path)
-                    self.testedPaths.put(Path(path=path, status=status, response=response))
+                    status, response = self.scan(path)
+                    result = Path(path=path, status=status, response=response)
+                    if status is not None:
+                        self.matches.append(result)
+                        for callback in self.matchCallbacks:
+                            callback(result)
+                    else:
+                        for callback in self.notFoundCallbacks:
+                            callback(result)
+                    del status
+                    del response
                 except RequestException as e:
-                    print('\nUnexpected error:\n{0}\n'.format(e.args[0]['message']))
-                    sys.stdout.flush()
+                    for callback in self.errorCallbacks:
+                        callback(path, e.args[0]['message'])
                     continue
                 finally:
                     if not self.playEvent.isSet():
                         self.pausedSemaphore.release()
                         self.playEvent.wait()
-                    path = next(self.dictionary) # Raises StopIteration when finishes
+                    path = next(self.dictionary)  # Raises StopIteration when finishes
                     if not self.running:
                         break
         except StopIteration:
             return
         finally:
             self.stopThread()
-
-
-
-

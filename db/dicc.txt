@@ -358,8 +358,8 @@ accesslog/
 AccessPlatform/
 AccessPlatform/auth/
 AccessPlatform/auth/clientscripts/
-AccessPlatform/auth/clientscripts/cookies.js 
-AccessPlatform/auth/clientscripts/login.js 
+AccessPlatform/auth/clientscripts/cookies.js
+AccessPlatform/auth/clientscripts/login.js
 account
 account.%EXT%
 account.html
@@ -1408,10 +1408,10 @@ checkapache.html
 checkout
 cimjobpostadmin
 citrix/
-Citrix//AccessPlatform/auth/clientscripts/cookies.js 
+Citrix//AccessPlatform/auth/clientscripts/cookies.js
 citrix/AccessPlatform/auth/
 citrix/AccessPlatform/auth/clientscripts/
-Citrix/AccessPlatform/auth/clientscripts/login.js 
+Citrix/AccessPlatform/auth/clientscripts/login.js
 Citrix/PNAgent/config.xml
 city.html
 city_admin

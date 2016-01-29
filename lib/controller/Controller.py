@@ -1,47 +1,92 @@
 # -*- coding: utf-8 -*-
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+#  MA 02110-1301, USA.
+#
+#  Author: Mauro Soria
 
-import configparser
 import os
+from queue import Queue
+import time
 import sys
-import time
-from lib.utils import *
-from lib.core import *
-from lib.reports import *
-from lib.utils import *
-from lib.utils.Queue import Queue
-import time
+import gc
+from threading import Lock
+
+from lib.connection import Requester
+from lib.core import Dictionary, Fuzzer, ReportManager
+from lib.reports import JSONReport, PlainTextReport, SimpleReport
+from lib.utils import FileUtils
+
 
 class SkipTargetInterrupt(Exception):
     pass
 
-class Controller(object):
 
+MAYOR_VERSION = 0
+MINOR_VERSION = 3
+REVISION = 5
+VERSION = {
+    "MAYOR_VERSION": MAYOR_VERSION,
+    "MINOR_VERSION": MINOR_VERSION,
+    "REVISION": REVISION
+}
+
+class Controller(object):
     def __init__(self, script_path, arguments, output):
+        global VERSION
+        PROGRAM_BANNER = open(FileUtils.buildPath(script_path, "lib", "controller", "banner.txt")).read().format(
+            **VERSION)
         self.script_path = script_path
         self.exit = False
         self.arguments = arguments
         self.output = output
         self.blacklists = self.getBlacklists()
         self.fuzzer = None
-        self.recursive = self.arguments.recursive
         self.excludeStatusCodes = self.arguments.excludeStatusCodes
         self.recursive = self.arguments.recursive
         self.directories = Queue()
         self.excludeSubdirs = (arguments.excludeSubdirs if arguments.excludeSubdirs is not None else [])
-        self.output.printHeader(PROGRAM_BANNER)
-        self.dictionary = FuzzerDictionary(self.arguments.wordlist, self.arguments.extensions,
-                self.arguments.lowercase)
+        self.output.header(PROGRAM_BANNER)
+        self.dictionary = Dictionary(self.arguments.wordlist, self.arguments.extensions,
+                                     self.arguments.lowercase)
         self.printConfig()
+        self.errorLog = None
+        self.errorLogPath = None
+        self.errorLogLock = Lock()
+        self.batch = False
+        self.batchSession = None
+        self.setupErrorLogs()
+        self.output.newLine("\nError Log: {0}".format(self.errorLogPath))
+        if self.arguments.autoSave and len(self.arguments.urlList) > 1:
+            self.setupBatchReports()
+            self.output.newLine("\nAutoSave path: {0}".format(self.batchDirectoryPath))
+        if self.arguments.useRandomAgents:
+            self.randomAgents = FileUtils.getLines(FileUtils.buildPath(script_path, "db", "user-agents.txt"))
         try:
             for url in self.arguments.urlList:
                 try:
-                    self.currentUrl = url
+                    gc.collect()
                     self.reportManager = ReportManager()
+                    self.currentUrl = url
+
                     self.requester = Requester(url, cookie=self.arguments.cookie,
                                                useragent=self.arguments.useragent, maxPool=self.arguments.threadsCount,
                                                maxRetries=self.arguments.maxRetries, timeout=self.arguments.timeout,
                                                ip=self.arguments.ip, proxy=self.arguments.proxy,
                                                redirect=self.arguments.redirect)
+                    if self.arguments.useRandomAgents:
+                        self.requester.setRandomAgents(self.randomAgents)
                     for key, value in arguments.headers.items():
                         self.requester.setHeader(key, value)
                     # Initialize directories Queue with start Path
@@ -53,55 +98,94 @@ class Controller(object):
                         self.directories.put('')
                     self.setupReports(self.requester)
 
-                    self.output.printTarget(self.currentUrl)
+                    self.output.target(self.currentUrl)
+                    matchCallbacks = [self.matchCallback]
+                    notFoundCallbacks = [self.notFoundCallback]
+                    errorCallbacks = [self.errorCallback, self.appendErrorLog]
                     self.fuzzer = Fuzzer(self.requester, self.dictionary, testFailPath=self.arguments.testFailPath,
-                                         threads=self.arguments.threadsCount)
+                                         threads=self.arguments.threadsCount, matchCallbacks=matchCallbacks,
+                                         notFoundCallbacks=notFoundCallbacks, errorCallbacks=errorCallbacks)
                     self.wait()
                 except SkipTargetInterrupt:
                     continue
-        except RequestException as e:
-            self.output.printError('Unexpected error:\n{0}'.format(e.args[0]['message']))
-            exit(0)
-        except KeyboardInterrupt as SystemExit:
-            self.output.printError('\nCanceled by the user')
+                finally:
+                    self.reportManager.save()
+        except KeyboardInterrupt:
+            self.output.error('\nCanceled by the user')
             exit(0)
         finally:
-            self.reportManager.save()
+            if not self.errorLog.closed:
+                self.errorLog.close()
             self.reportManager.close()
-        self.output.printWarning('\nTask Completed')
+
+        self.output.warning('\nTask Completed')
 
     def printConfig(self):
-        self.output.printConfig( ', '.join(self.arguments.extensions), str(self.arguments.threadsCount),
+        self.output.config(', '.join(self.arguments.extensions), str(self.arguments.threadsCount),
                                 str(len(self.dictionary)))
 
     def getBlacklists(self):
         blacklists = {}
         for status in [400, 403, 500]:
             blacklistFileName = FileUtils.buildPath(self.script_path, 'db')
-            blacklistFileName = FileUtils.buildPath(blacklistFileName, '{0}_blacklist.txt'.format(status))
+            blacklistFileName = FileUtils.buildPath(blacklistFileName, '{}_blacklist.txt'.format(status))
             if not FileUtils.canRead(blacklistFileName):
+                # Skip if cannot read file
                 continue
             blacklists[status] = []
             for line in FileUtils.getLines(blacklistFileName):
                 # Skip comments
-                if line.startswith('#'):
+                if line.lstrip().startswith('#'):
                     continue
                 blacklists[status].append(line)
         return blacklists
+
+    def setupErrorLogs(self):
+        fileName = "errors-{0}.log".format(time.strftime('%y-%m-%d_%H-%M-%S'))
+        self.errorLogPath = FileUtils.buildPath(self.script_path, 'logs', fileName)
+        self.errorLog = open(self.errorLogPath, "w")
+
+    def setupBatchReports(self):
+        self.batch = True
+        self.batchSession = "BATCH-{0}".format(time.strftime('%y-%m-%d_%H-%M-%S'))
+        self.batchDirectoryPath = FileUtils.buildPath(self.script_path, 'reports', self.batchSession)
+        if not FileUtils.exists(self.batchDirectoryPath):
+            FileUtils.createDirectory(self.batchDirectoryPath)
+            if not FileUtils.exists(self.batchDirectoryPath):
+                self.output.error("Couldn't create batch folder {}".format(self.batchDirectoryPath))
+                sys.exit(1)
+        if FileUtils.canWrite(self.batchDirectoryPath):
+            FileUtils.createDirectory(self.batchDirectoryPath)
+            targetsFile = FileUtils.buildPath(self.batchDirectoryPath, "TARGETS.txt")
+            FileUtils.writeLines(targetsFile, self.arguments.urlList)
+        else:
+            self.output.error("Couldn't create batch folder {}.".format(self.batchDirectoryPath))
+            sys.exit(1)
 
     def setupReports(self, requester):
         if self.arguments.autoSave:
             basePath = ('/' if requester.basePath is '' else requester.basePath)
             basePath = basePath.replace(os.path.sep, '.')[1:-1]
-            fileName = ('{0}_'.format(basePath) if basePath is not '' else '')
-            fileName += time.strftime('%y-%m-%d_%H-%M-%S.txt')
-            directoryName = '{0}'.format(requester.host)
-            directoryPath = FileUtils.buildPath(self.script_path, 'reports', directoryName)
+            fileName = None
+            directoryPath = None
+            if self.batch:
+                fileName = requester.host
+                directoryPath = self.batchDirectoryPath
+            else:
+                fileName = ('{}_'.format(basePath) if basePath is not '' else '')
+                fileName += time.strftime('%y-%m-%d_%H-%M-%S')
+                directoryPath = FileUtils.buildPath(self.script_path, 'reports', requester.host)
             outputFile = FileUtils.buildPath(directoryPath, fileName)
+
+            if FileUtils.exists(outputFile):
+                i = 2
+                while FileUtils.exists(outputFile + "_" + str(i)):
+                    i += 1
+                outputFile += "_" + str(i)
             if not FileUtils.exists(directoryPath):
                 FileUtils.createDirectory(directoryPath)
                 if not FileUtils.exists(directoryPath):
-                    self.output.printError("Couldn't create reports folder {0}".format(directoryPath))
+                    self.output.error("Couldn't create reports folder {}".format(directoryPath))
                     sys.exit(1)
             if FileUtils.canWrite(directoryPath):
                 report = None
@@ -116,20 +200,48 @@ class Controller(object):
                                              outputFile)
                 self.reportManager.addOutput(report)
             else:
-                self.output.printError("Can't write reports to {0}".format(directoryPath))
+                self.output.error("Can't write reports to {}".format(directoryPath))
                 sys.exit(1)
         if self.arguments.simpleOutputFile is not None:
             self.reportManager.addOutput(SimpleReport(requester.host, requester.port, requester.protocol,
-                                         requester.basePath, self.arguments.simpleOutputFile))
+                                                      requester.basePath, self.arguments.simpleOutputFile))
         if self.arguments.plainTextOutputFile is not None:
             self.reportManager.addOutput(PlainTextReport(requester.host, requester.port, requester.protocol,
-                                         requester.basePath, self.arguments.plainTextOutputFile))
+                                                         requester.basePath, self.arguments.plainTextOutputFile))
         if self.arguments.jsonOutputFile is not None:
             self.reportManager.addOutput(JSONReport(requester.host, requester.port, requester.protocol,
-                                         requester.basePath, self.arguments.jsonOutputFile))
+                                                    requester.basePath, self.arguments.jsonOutputFile))
+
+    def matchCallback(self, path):
+        self.index += 1
+        if path.status is not None:
+            if path.status not in self.excludeStatusCodes and (
+                            self.blacklists.get(path.status) is None or path.path not in self.blacklists.get(
+                        path.status)):
+                self.output.statusReport(path.path, path.response)
+                self.addDirectory(path.path)
+                self.reportManager.addPath(self.currentDirectory + path.path, path.status, path.response)
+                self.reportManager.save()
+                del path
+
+    def notFoundCallback(self, path):
+        self.index += 1
+        self.output.lastPath(path, self.index, len(self.dictionary))
+        del path
+
+    def errorCallback(self, path, errorMsg):
+        self.output.addConnectionError()
+        del path
+
+    def appendErrorLog(self, path, errorMsg):
+        with self.errorLogLock:
+            line = time.strftime('[%y-%m-%d %H:%M:%S] - ')
+            line += self.currentUrl + " - " + path + " - " + errorMsg
+            self.errorLog.write(os.linesep + line)
+            self.errorLog.flush()
 
     def handleInterrupt(self):
-        self.output.printWarning('CTRL+C detected: Pausing threads, please wait...')
+        self.output.warning('CTRL+C detected: Pausing threads, please wait...')
         self.fuzzer.pause()
         try:
             while True:
@@ -138,8 +250,8 @@ class Controller(object):
                     msg += " / [n]ext"
                 if len(self.arguments.urlList) > 1:
                     msg += " / [s]kip target"
-                self.output.printInLine(msg + ': ')
-                    
+                self.output.inLine(msg + ': ')
+
                 option = input()
                 if option.lower() == 'e':
                     self.exit = True
@@ -159,68 +271,34 @@ class Controller(object):
             self.exit = True
             raise KeyboardInterrupt
 
+
     def processPaths(self):
-        try:
-            path = self.fuzzer.getPath()
-            while path is not None:
-                try:
-                    if path.status is not 0:
-                        if path.status not in self.excludeStatusCodes and (self.blacklists.get(path.status) is None
-                                or path.path not in self.blacklists.get(path.status)):
-                            self.output.printStatusReport(path.path, path.response)
-                            self.addDirectory(path.path)
-                            self.reportManager.addPath(self.currentDirectory + path.path, path.status, path.response)
-                    self.index += 1
-                    self.output.printLastPathEntry(path, self.index, len(self.dictionary))
-                    path = self.fuzzer.getPath()
-                except (KeyboardInterrupt, SystemExit) as e:
-                    self.handleInterrupt()
-                    if self.exit:
-                        raise e
-                    else:
-                        pass
-        except (KeyboardInterrupt, SystemExit) as e:
-            if self.exit:
-                raise e
-            self.handleInterrupt()
-            if self.exit:
-                raise e
-            else:
-                pass
-        self.fuzzer.wait()
+        while True:
+            try:
+                while not self.fuzzer.wait(0.3):
+                    continue
+                break
+            except (KeyboardInterrupt, SystemExit) as e:
+                self.handleInterrupt()
 
     def wait(self):
         while not self.directories.empty():
             self.index = 0
             self.currentDirectory = self.directories.get()
-            self.output.printWarning('[{1}] Starting: {0}'.format(self.currentDirectory, time.strftime('%H:%M:%S')))
-            self.fuzzer.requester.basePath = '{0}{1}'.format(self.basePath, self.currentDirectory)
-            self.output.basePath = '{0}{1}'.format(self.basePath, self.currentDirectory)
+            self.output.warning('[{1}] Starting: {0}'.format(self.currentDirectory, time.strftime('%H:%M:%S')))
+            self.fuzzer.requester.basePath = self.basePath + self.currentDirectory
+            self.output.basePath = self.basePath + self.currentDirectory
             self.fuzzer.start()
             self.processPaths()
         return
 
     def addDirectory(self, path):
-        if self.recursive == False:
+        if not self.recursive:
             return False
         if path.endswith('/'):
             if path in [directory + '/' for directory in self.excludeSubdirs]:
                 return False
-            if self.currentDirectory == '':
-                self.directories.put(path)
-            else:
-                self.directories.put('{0}{1}'.format(self.currentDirectory, path))
+            self.directories.put(self.currentDirectory + path)
             return True
         else:
             return False
-
-
-    MAYOR_VERSION = 0
-    MINOR_VERSION = 3
-    REVISION = 0
-    global PROGRAM_BANNER
-    PROGRAM_BANNER = \
-r"""         __           
- _|. _ _  _) _  _ _|_    v{0}.{1}.{2}
-(_||| _) __)(_|| (_| )
-""".format(MAYOR_VERSION, MINOR_VERSION, REVISION)

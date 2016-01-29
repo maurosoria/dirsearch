@@ -86,7 +86,7 @@ class ABCMeta(type):
             raise TypeError("Can only register classes")
         if issubclass(subclass, cls):
             return  # Already a subclass
-        # Subtle: test for cycles *after* testing for "already a subclass";
+        # Subtle: scanner for cycles *after* testing for "already a subclass";
         # this means we allow X.register(X) and interpret it as a no-op.
         if issubclass(cls, subclass):
             # This would create a cycle, which is bad for the algorithm below

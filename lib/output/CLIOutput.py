@@ -19,34 +19,36 @@
 import threading
 import time
 import sys
+import platform
+import urllib.parse
+
 from lib.utils.FileUtils import *
 from thirdparty.colorama import *
-import platform
+from lib.utils.TerminalSize import get_terminal_size
+
 if platform.system() == 'Windows':
-    from ctypes import windll, create_string_buffer
     from thirdparty.colorama.win32 import *
 
 
 class CLIOutput(object):
-
     def __init__(self):
         init()
         self.lastLength = 0
         self.lastOutput = ''
         self.lastInLine = False
         self.mutex = threading.Lock()
-        self.checkedPaths = []
         self.blacklists = {}
         self.mutexCheckedPaths = threading.Lock()
         self.basePath = None
+        self.errors = 0
 
-    def printInLine(self, string):
-        self.eraseLine()
+    def inLine(self, string):
+        self.erase()
         sys.stdout.write(string)
         sys.stdout.flush()
         self.lastInLine = True
 
-    def eraseLine(self):
+    def erase(self):
         if platform.system() == 'Windows':
             csbi = GetConsoleScreenBufferInfo()
             line = "\b" * int(csbi.dwCursorPosition.X)
@@ -60,9 +62,9 @@ class CLIOutput(object):
             sys.stdout.write('\033[1K')
             sys.stdout.write('\033[0G')
 
-    def printNewLine(self, string):
+    def newLine(self, string):
         if self.lastInLine == True:
-            self.eraseLine()
+            self.erase()
         if platform.system() == 'Windows':
             sys.stdout.write(string)
             sys.stdout.flush()
@@ -74,90 +76,103 @@ class CLIOutput(object):
         self.lastInLine = False
         sys.stdout.flush()
 
-    def printStatusReport(self, path, response):
-        status = response.status
+    def statusReport(self, path, response):
+        with self.mutex:
+            contentLength = None
+            status = response.status
 
-        # Check blacklist
-        if status in self.blacklists and path in self.blacklists[status]:
-            return
-
-
-        # Format message
-        contentLength = None
-        try:
-            contentLength = FileUtils.sizeHuman(int(response.headers['content-length']))
-        except (KeyError, ValueError):
-            contentLength = FileUtils.sizeHuman(len(response.body))
-
-        message = '[{0}] {1} - {2} - {3}'.format(
-            time.strftime('%H:%M:%S'), 
-            status,
-            contentLength.rjust(6, ' '),
-            ('/{0}'.format(path) if self.basePath is None 
-                else '{0}{1}'.format(self.basePath, path)))
-    
-        try:
-            self.mutexCheckedPaths.acquire()
-            if path in self.checkedPaths:
-                self.mutexCheckedPaths.release()
+            # Check blacklist
+            if status in self.blacklists and path in self.blacklists[status]:
                 return
-        except (KeyboardInterrupt, SystemExit) as e:
-            raise e
-        finally:
-            self.mutexCheckedPaths.release()
 
-        if status == 200:
-            message = Fore.GREEN + message + Style.RESET_ALL
-        elif status == 403:
-            message = Fore.BLUE + message + Style.RESET_ALL
-        elif status == 401:
-            message = Fore.YELLOW + message + Style.RESET_ALL
-        # Check if redirect
-        elif status in [301, 302, 307] and 'location' in response.headers:
-            message = Fore.CYAN + message + Style.RESET_ALL
-            message += '  ->  {0}'.format(response.headers['location'])
+            # Format message
+            try:
+                size = int(response.headers['content-length'])
+            except (KeyError, ValueError):
+                size = len(response.body)
+            finally:
+                contentLength = FileUtils.sizeHuman(size)
 
-        self.printNewLine(message)
+            if self.basePath is None:
+                showPath = urllib.parse.urljoin("/", path)
+            else:
+                showPath = urllib.parse.urljoin("/", self.basePath)
+                showPath = urllib.parse.urljoin(showPath, path)
+            message = '[{0}] {1} - {2} - {3}'.format(
+                time.strftime('%H:%M:%S'),
+                status,
+                contentLength.rjust(6, ' '),
+                showPath
+            )
 
+            if status == 200:
+                message = Fore.GREEN + message + Style.RESET_ALL
+            elif status == 403:
+                message = Fore.BLUE + message + Style.RESET_ALL
+            elif status == 401:
+                message = Fore.YELLOW + message + Style.RESET_ALL
+            # Check if redirect
+            elif status in [301, 302, 307] and 'location' in [h.lower() for h in response.headers]:
+                message = Fore.CYAN + message + Style.RESET_ALL
+                message += '  ->  {0}'.format(response.headers['location'])
 
-    def printLastPathEntry(self, path, index, length):
-        percentage = lambda x, y: float(x) / float(y) * 100
-        message = '{1:.2f}% - Last request to: {0}'.format(path, percentage(index, length))
-        self.printInLine(message)
+            self.newLine(message)
 
-    def printError(self, reason):
-        stripped = reason.strip()
-        start = reason.find(stripped[0])
-        end = reason.find(stripped[-1]) + 1
-        message = reason[0:start]
-        message += Style.BRIGHT + Fore.WHITE + Back.RED
-        message += reason[start:end]
-        message += Style.RESET_ALL
-        message += reason[end:]
-        self.printNewLine(message)
+    def lastPath(self, path, index, length):
+        with self.mutex:
+            percentage = lambda x, y: float(x) / float(y) * 100
+            x, y = get_terminal_size()
+            message = '{0:.2f}% - '.format(percentage(index, length))
+            if self.errors > 0:
+                message += Style.BRIGHT + Fore.RED
+                message += 'Errors: {0}'.format(self.errors)
+                message += Style.RESET_ALL
+                message += ' - '
+            message += 'Last request to: {0}'.format(path)
+            if len(message) > x:
+                message = message[:x]
+            self.inLine(message)
 
-    def printWarning(self, reason):
+    def addConnectionError(self):
+        self.errors += 1
+
+    def error(self, reason):
+        with self.mutex:
+            stripped = reason.strip()
+            start = reason.find(stripped[0])
+            end = reason.find(stripped[-1]) + 1
+            message = reason[0:start]
+            message += Style.BRIGHT + Fore.WHITE + Back.RED
+            message += reason[start:end]
+            message += Style.RESET_ALL
+            message += reason[end:]
+            self.newLine(message)
+
+    def warning(self, reason):
         message = Style.BRIGHT + Fore.YELLOW + reason + Style.RESET_ALL
-        self.printNewLine(message)
+        self.newLine(message)
 
-    def printHeader(self, text):
+    def header(self, text):
         message = Style.BRIGHT + Fore.MAGENTA + text + Style.RESET_ALL
-        self.printNewLine(message)
+        self.newLine(message)
 
-    def printConfig(self, extensions, threads, wordlistSize):
+    def config(self, extensions, threads, wordlistSize):
         separator = Fore.MAGENTA + ' | ' + Fore.YELLOW
-        config =  Style.BRIGHT + Fore.YELLOW
+        config = Style.BRIGHT + Fore.YELLOW
         config += 'Extensions: {0}'.format(Fore.CYAN + extensions + Fore.YELLOW)
         config += separator
         config += 'Threads: {0}'.format(Fore.CYAN + threads + Fore.YELLOW)
         config += separator
         config += 'Wordlist size: {0}'.format(Fore.CYAN + wordlistSize + Fore.YELLOW)
         config += Style.RESET_ALL
-        self.printNewLine(config)
+        self.newLine(config)
 
-    def printTarget(self, target):
-        config =  Style.BRIGHT + Fore.YELLOW
+    def target(self, target):
+        config = Style.BRIGHT + Fore.YELLOW
         config += '\nTarget: {0}\n'.format(Fore.CYAN + target + Fore.YELLOW)
         config += Style.RESET_ALL
-        self.printNewLine(config)
+        self.newLine(config)
 
+    def debug(self, info):
+        line = "[{0}] - {1}".format(time.strftime('%H:%M:%S'), info)
+        self.newLine(line)
