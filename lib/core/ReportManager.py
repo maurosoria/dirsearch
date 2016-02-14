@@ -16,21 +16,26 @@
 #
 #  Author: Mauro Soria
 
+import threading
+
 class ReportManager(object):
 
     def __init__(self):
         self.outputs = []
+        self.lock = threading.Lock()
 
     def addOutput(self, output):
         self.outputs.append(output)
 
     def addPath(self, path, status, response):
-        for output in self.outputs:
-            output.addPath(path, status, response)
+        with self.lock:
+            for output in self.outputs:
+                output.addPath(path, status, response)
 
     def save(self):
-        for output in self.outputs:
-            output.save()
+        with self.lock:
+            for output in self.outputs:
+                output.save()
 
     def close(self):
         for output in self.outputs:

@@ -43,6 +43,7 @@ class BaseReport(object):
         self.file = open(self.output, 'w+')
 
     def save(self):
+        self.file.seek(0)
         self.file.truncate(0)
         self.file.flush()
         self.file.writelines(self.generate())

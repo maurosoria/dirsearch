@@ -59,7 +59,7 @@ class Fuzzer(object):
         for extension in self.dictionary.extensions:
             self.scanners[extension] = Scanner(self.requester, self.testFailPath, "." + extension)
 
-    def threadsSetup(self):
+    def setupThreads(self):
         if len(self.threads) != 0:
             self.threads = []
         for thread in range(self.threadsCount):
@@ -80,7 +80,7 @@ class Fuzzer(object):
         # Setting up testers
         self.setupScanners()
         # Setting up threads
-        self.threadsSetup()
+        self.setupThreads()
         self.index = 0
         self.dictionary.reset()
         self.runningThreadsCount = len(self.threads)

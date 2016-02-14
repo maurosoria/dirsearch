@@ -109,7 +109,8 @@ class Requester(object):
                 headers = dict(self.headers)
                 if self.randomAgents is not None:
                     headers["User-agent"] = random.choice(self.randomAgents)
-                response = requests.get(url, proxies=proxy, verify=False, allow_redirects=self.redirect, headers=headers, timeout=self.timeout)
+                response = requests.get(url, proxies=proxy, verify=False, allow_redirects=self.redirect, \
+                                        headers=headers, timeout=self.timeout)
                 result = Response(response.status_code, response.reason, response.headers, response.content)
                 del headers
                 break
@@ -117,16 +118,15 @@ class Requester(object):
                 if self.proxy is not None:
                     raise RequestException({'message': 'Error with the proxy: {0}'.format(e)})
                 continue
-            except requests.exceptions.ReadTimeout:
-                continue
-            except requests.exceptions.Timeout:
-                continue
-            except http.client.IncompleteRead:
+            except (requests.exceptions.ReadTimeout, requests.exceptions.Timeout, http.client.IncompleteRead, \
+                    socket.timeout):
                 continue
             finally:
                 i = i + 1
         if i > self.maxRetries:
-            raise RequestException({'message': 'CONNECTION TIMEOUT: There was a problem in the request to: {0}'.format(path)})
+            raise RequestException(\
+                {'message': 'CONNECTION TIMEOUT: There was a problem in the request to: {0}'.format(path)}
+                )
         return result
 
 
