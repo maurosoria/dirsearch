@@ -23,7 +23,7 @@ import sys
 import gc
 from threading import Lock
 
-from lib.connection import Requester
+from lib.connection import Requester, RequestException
 from lib.core import Dictionary, Fuzzer, ReportManager
 from lib.reports import JSONReport, PlainTextReport, SimpleReport
 from lib.utils import FileUtils
@@ -79,12 +79,16 @@ class Controller(object):
                     gc.collect()
                     self.reportManager = ReportManager()
                     self.currentUrl = url
-
-                    self.requester = Requester(url, cookie=self.arguments.cookie,
+                    self.output.target(self.currentUrl)
+                    try:
+                        self.requester = Requester(url, cookie=self.arguments.cookie,
                                                useragent=self.arguments.useragent, maxPool=self.arguments.threadsCount,
                                                maxRetries=self.arguments.maxRetries, timeout=self.arguments.timeout,
                                                ip=self.arguments.ip, proxy=self.arguments.proxy,
                                                redirect=self.arguments.redirect)
+                    except RequestException as e:
+                        self.output.error(e.args[0]['message'])
+                        raise SkipTargetInterrupt
                     if self.arguments.useRandomAgents:
                         self.requester.setRandomAgents(self.randomAgents)
                     for key, value in arguments.headers.items():
@@ -97,8 +101,6 @@ class Controller(object):
                     else:
                         self.directories.put('')
                     self.setupReports(self.requester)
-
-                    self.output.target(self.currentUrl)
                     matchCallbacks = [self.matchCallback]
                     notFoundCallbacks = [self.notFoundCallback]
                     errorCallbacks = [self.errorCallback, self.appendErrorLog]
