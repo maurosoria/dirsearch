@@ -1,7 +1,7 @@
 dirsearch
 =========
 
-Current Release: v0.3.5 (2016.01.29)
+Current Release: v0.3.6 (2016.02.14)
 
 
 Overview
@@ -35,6 +35,7 @@ License: GNU General Public License, version 2
 
 Changelog
 ---------
+- 0.3.6 - 2016.02.14 Bugfixes
 - 0.3.5 - 2016.01.29 Improved heuristic, replaced urllib3 for requests, error logs, batch reports, user agent randomization, bugfixes
 - 0.3.0 - 2015.02.05 Fixed issue3, fixed timeout exception, ported to Python3, other bugfixes
 - 0.2.7 - 2014.11.21 Added Url List feature (-L). Changed output. Minor Fixes
