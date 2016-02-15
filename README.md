@@ -47,4 +47,8 @@ Changelog
 - 0.2.1 - 2014.5.1 Fixed some bugs and added recursive option
 - 0.2.0 - 2014.1.31 Initial public release
 
+Contributors
+---------
+- Bo0oM
+
 
