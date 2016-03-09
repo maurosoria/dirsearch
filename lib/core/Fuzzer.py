@@ -124,7 +124,7 @@ class Fuzzer(object):
         path = None
         if not self.empty():
             path = self.testedPaths.get()
-        if not self.isFinished():
+        elif not self.isFinished():
             path = self.testedPaths.get()
         return path
 
