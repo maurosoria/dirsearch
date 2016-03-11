@@ -31,7 +31,6 @@ class Fuzzer(object):
         self.requester = requester
         self.dictionary = dictionary
         self.testFailPath = testFailPath
-        self.testedPaths = Queue()
         self.basePath = self.requester.basePath
         self.threads = []
         self.threadsCount = threads if len(self.dictionary) >= threads else len(self.dictionary)
@@ -120,27 +119,11 @@ class Fuzzer(object):
         self.running = False
         self.finishedEvent.set()
 
-    def getPath(self):
-        path = None
-        if not self.empty():
-            path = self.testedPaths.get()
-        if not self.isFinished():
-            path = self.testedPaths.get()
-        return path
-
-    def qsize(self):
-        return self.testedPaths.qsize()
-
-    def empty(self):
-        return self.testedPaths.empty()
-
     def isFinished(self):
         return self.runningThreadsCount == 0
 
     def stopThread(self):
         self.runningThreadsCount -= 1
-        if self.runningThreadsCount is 0:
-            self.testedPaths.put(None)
 
     def thread_proc(self):
         self.playEvent.wait()
