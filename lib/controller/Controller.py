@@ -149,12 +149,10 @@ class Controller(object):
     def getSavePath(self):
         basePath = None
         dirPath = None
+        basePath = os.path.expanduser('~')
         if os.name == 'nt':
-            from win32com.shell import shell, shellcon
-            basePath = shell.SHGetFolderPath(0, shellcon.CSIDL_MYPICTURES, None, 0)
             dirPath = "dirsearch"
         else:
-            basePath = os.path.expanduser('~')
             dirPath = ".dirsearch"
         return FileUtils.buildPath(basePath, dirPath)
 
