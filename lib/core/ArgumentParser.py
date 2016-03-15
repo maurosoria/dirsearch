@@ -139,6 +139,8 @@ class ArgumentParser(object):
         self.redirect = config.safe_getboolean("general", "follow-redirects", False)
         self.recursive = config.safe_getboolean("general", "recursive", False)
         self.testFailPath = config.safe_get("general", "scanner-fail-path", "").strip()
+        self.saveHome = config.safe_getboolean("general", "save-logs-home", False)
+
         # Reports
         self.autoSave = config.safe_getboolean("reports", "autosave-report", False)
         self.autoSaveFormat = config.safe_get("reports", "autosave-report-format", "plain", ["plain", "json", "simple"])
