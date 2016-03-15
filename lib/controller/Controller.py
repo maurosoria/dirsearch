@@ -51,6 +51,25 @@ class Controller(object):
         self.exit = False
         self.arguments = arguments
         self.output = output
+        self.savePath = self.script_path
+        if self.arguments.saveHome:
+            savePath = self.getSavePath()
+            if not FileUtils.exists(savePath):
+                FileUtils.createDirectory(savePath)
+            if FileUtils.exists(savePath) and not FileUtils.isDir(savePath):
+                self.output.error('Cannot use {} because is a file. Should be a directory'.format(savePath))
+                exit(1)
+            if not FileUtils.canWrite(savePath):
+                self.output.error('Directory {} is not writable'.format(savePath))
+                exit(1)
+            logs = FileUtils.buildPath(savePath, "logs")
+            if not FileUtils.exists(logs):
+                FileUtils.createDirectory(logs)
+            reports = FileUtils.buildPath(savePath, "reports")
+            if not FileUtils.exists(reports):
+                FileUtils.createDirectory(reports)
+            self.savePath = savePath
+        self.reportsPath = FileUtils.buildPath(self.savePath, "logs")
         self.blacklists = self.getBlacklists()
         self.fuzzer = None
         self.excludeStatusCodes = self.arguments.excludeStatusCodes
@@ -127,6 +146,18 @@ class Controller(object):
         self.output.config(', '.join(self.arguments.extensions), str(self.arguments.threadsCount),
                                 str(len(self.dictionary)))
 
+    def getSavePath(self):
+        basePath = None
+        dirPath = None
+        if os.name == 'nt':
+            from win32com.shell import shell, shellcon
+            basePath = shell.SHGetFolderPath(0, shellcon.CSIDL_MYPICTURES, None, 0)
+            dirPath = "dirsearch"
+        else:
+            basePath = os.path.expanduser('~')
+            dirPath = ".dirsearch"
+        return FileUtils.buildPath(basePath, dirPath)
+
     def getBlacklists(self):
         blacklists = {}
         for status in [400, 403, 500]:
@@ -145,13 +176,13 @@ class Controller(object):
 
     def setupErrorLogs(self):
         fileName = "errors-{0}.log".format(time.strftime('%y-%m-%d_%H-%M-%S'))
-        self.errorLogPath = FileUtils.buildPath(self.script_path, 'logs', fileName)
+        self.errorLogPath = FileUtils.buildPath(FileUtils.buildPath(self.savePath, "logs", fileName))
         self.errorLog = open(self.errorLogPath, "w")
 
     def setupBatchReports(self):
         self.batch = True
         self.batchSession = "BATCH-{0}".format(time.strftime('%y-%m-%d_%H-%M-%S'))
-        self.batchDirectoryPath = FileUtils.buildPath(self.script_path, 'reports', self.batchSession)
+        self.batchDirectoryPath = FileUtils.buildPath(self.savePath, "reports", self.batchSession)
         if not FileUtils.exists(self.batchDirectoryPath):
             FileUtils.createDirectory(self.batchDirectoryPath)
             if not FileUtils.exists(self.batchDirectoryPath):
@@ -177,7 +208,7 @@ class Controller(object):
             else:
                 fileName = ('{}_'.format(basePath) if basePath is not '' else '')
                 fileName += time.strftime('%y-%m-%d_%H-%M-%S')
-                directoryPath = FileUtils.buildPath(self.script_path, 'reports', requester.host)
+                directoryPath = FileUtils.buildPath(self.savePath,'reports', requester.host)
             outputFile = FileUtils.buildPath(directoryPath, fileName)
 
             if FileUtils.exists(outputFile):

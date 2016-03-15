@@ -105,7 +105,14 @@ class Requester(object):
                     proxy = {"https" : self.proxy, "http" : self.proxy}
                 url = "{0}://{1}:{2}".format(self.protocol, self.host, self.port)
                 url = urllib.parse.urljoin(url, self.basePath)
-                url = urllib.parse.urljoin(url, path)
+
+                # Joining with concatenation because a urljoin bug with "::"
+                if not url.endswith('/'):
+                    url += "/"
+                if path.startswith('/'):
+                    path = path[1:]
+                url += path
+
                 headers = dict(self.headers)
                 if self.randomAgents is not None:
                     headers["User-agent"] = random.choice(self.randomAgents)
@@ -128,5 +135,3 @@ class Requester(object):
                 {'message': 'CONNECTION TIMEOUT: There was a problem in the request to: {0}'.format(path)}
                 )
         return result
-
-
