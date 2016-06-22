@@ -1106,6 +1106,7 @@ _AuthChangeUrl?
 _DynaCacheEsi
 _DynaCacheEsi/
 _DynaCacheEsi/esiInvalidator
+_h5ai/
 _SQL
 _WEB_INF/
 __MACOSX
