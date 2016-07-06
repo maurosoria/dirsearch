@@ -27,6 +27,19 @@ Features
 - User agent randomization
 - Batch processing
 
+About wordlists
+---------------
+Dictionaries must be text files. Each line will be processed as such, except that the special word %EXT% is used, which will generate one entry for each extension (-e | --extension) passed as an argument. 
+
+Example:
+- example/
+- example.%EXT%
+ 
+Passing the extensions "asp" and "aspx" will generate the following dictionary:
+- example/
+- example.asp
+- example.aspx
+
 License
 -------
 Copyright (C) Mauro Soria (maurosoria at gmail dot com)
