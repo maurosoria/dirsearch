@@ -24,12 +24,13 @@ from thirdparty.oset import *
 
 class Dictionary(object):
 
-    def __init__(self, path, extensions, lowercase=False):
+    def __init__(self, path, extensions, lowercase=False, forcedExtensions=False):
         self.entries = []
         self.currentIndex = 0
         self.condition = threading.Lock()
         self._extensions = extensions
         self._path = path
+        self._forcedExtensions = forcedExtensions
         self.lowercase = lowercase
         self.dictionaryFile = File(self.path)
         self.generate(lowercase=self.lowercase)
@@ -65,6 +66,9 @@ class Dictionary(object):
                 for extension in self._extensions:
                     self.entries.append(self.quote(line.replace('%EXT%', extension)))
             else:
+                if self._forcedExtensions:
+                    for extension in self._extensions:
+                        self.entries.append(self.quote(line) + '.' + extension)
                 quote = self.quote(line)
                 self.entries.append(quote)
         if lowercase == True:
