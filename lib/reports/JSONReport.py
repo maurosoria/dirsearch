@@ -3,12 +3,12 @@
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation; either version 2 of the License, or
 #  (at your option) any later version.
-#  
+#
 #  This program is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU General Public License for more details.
-#  
+#
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
@@ -16,17 +16,25 @@
 #
 #  Author: Mauro Soria
 
-
 import json
 
 from lib.reports import *
 
 
 class JSONReport(BaseReport):
+
+    def addPath(self, path, status, response):
+        contentLength = None
+        try:
+            contentLength = int(response.headers['content-length'])
+        except (KeyError, ValueError):
+            contentLength = len(response.body)
+        self.pathList.append((path, status, contentLength, response.redirect))
+
     def generate(self):
         headerName = '{0}://{1}:{2}/{3}'.format(self.protocol, self.host, self.port, self.basePath)
         result = {headerName: []}
-        for path, status, contentLength in self.pathList:
-            entry = {'status': status, 'path': path, 'content-length': contentLength}
+        for path, status, contentLength, redirect in self.pathList:
+            entry = {'status': status, 'path': path, 'content-length': contentLength, 'redirect' : redirect}
             result[headerName].append(entry)
         return json.dumps(result, sort_keys=True, indent=4)
