@@ -1,7 +1,7 @@
 dirsearch
 =========
 
-Current Release: v0.3.6 (2016.02.14)
+Current Release: v0.3.7 (2016.08.22)
 
 
 Overview
@@ -40,6 +40,8 @@ Passing the extensions "asp" and "aspx" will generate the following dictionary:
 - example.asp
 - example.aspx
 
+You can also use -f | --force-extensions switch to append extensions to every word in the wordlists (like DirBuster).
+
 License
 -------
 Copyright (C) Mauro Soria (maurosoria at gmail dot com)
@@ -48,6 +50,7 @@ License: GNU General Public License, version 2
 
 Changelog
 ---------
+- 0.3.7 - 2016.08.22 Force extensions switch added.
 - 0.3.6 - 2016.02.14 Bugfixes
 - 0.3.5 - 2016.01.29 Improved heuristic, replaced urllib3 for requests, error logs, batch reports, user agent randomization, bugfixes
 - 0.3.0 - 2015.02.05 Fixed issue3, fixed timeout exception, ported to Python3, other bugfixes
