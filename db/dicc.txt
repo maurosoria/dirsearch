@@ -428,6 +428,7 @@
 .viminfo
 .vimrc
 .web
+.well-known/
 .workspace/
 .wp-config.php.swp
 .www_acl
