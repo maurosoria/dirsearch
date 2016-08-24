@@ -429,6 +429,7 @@
 .vimrc
 .web
 .well-known/
+.well-known/dnt-policy.txt
 .workspace/
 .wp-config.php.swp
 .www_acl
