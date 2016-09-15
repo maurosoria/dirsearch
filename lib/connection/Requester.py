@@ -103,7 +103,7 @@ class Requester(object):
             try:
                 if self.proxy is not None:
                     proxy = {"https" : self.proxy, "http" : self.proxy}
-                url = "{0}://{1}:{2}".format(self.protocol, self.host, self.port)
+                url = "{0}://{1}:{2}".format(self.protocol, self.ip, self.port)
                 url = urllib.parse.urljoin(url, self.basePath)
 
                 # Joining with concatenation because a urljoin bug with "::"
@@ -116,6 +116,11 @@ class Requester(object):
                 headers = dict(self.headers)
                 if self.randomAgents is not None:
                     headers["User-agent"] = random.choice(self.randomAgents)
+                headers["Host"] = self.host
+                # include port in Host header if it's non-standard
+                if (self.protocol == "https" and self.port != 443) or (self.protocol == "http" and self.port != 80):
+                    headers["Host"]+=":%d"%self.port
+
                 response = requests.get(url, proxies=proxy, verify=False, allow_redirects=self.redirect, \
                                         headers=headers, timeout=self.timeout)
                 result = Response(response.status_code, response.reason, response.headers, response.content)
