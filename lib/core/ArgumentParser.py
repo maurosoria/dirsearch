@@ -43,7 +43,7 @@ class ArgumentParser(object):
                         exit(0)
                     self.urlList = list(urlList.getLines())
             elif options.url == None:
-                print('Url target is missing')
+                print('URL target is missing, try using -u <url> ')
                 exit(0)
         else:
             self.urlList = [options.url]
