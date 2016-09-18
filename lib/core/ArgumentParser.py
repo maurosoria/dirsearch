@@ -43,7 +43,7 @@ class ArgumentParser(object):
                         exit(0)
                     self.urlList = list(urlList.getLines())
             elif options.url == None:
-                print('Url target is missing')
+                print('URL target is missing, try using -u <url> ')
                 exit(0)
         else:
             self.urlList = [options.url]
@@ -170,14 +170,14 @@ class ArgumentParser(object):
                              action='store', dest='extensions', default=None)
 
         connection = OptionGroup(parser, 'Connection Settings')
-        connection.add_option('--timeout', '--timeout', action='store', dest='timeout', type='int',
+        connection.add_option('--timeout', action='store', dest='timeout', type='int',
                               default=self.timeout,
                               help='Connection timeout')
-        connection.add_option('--ip', '--ip', action='store', dest='ip', default=None,
+        connection.add_option('--ip', action='store', dest='ip', default=None,
                               help='Resolve name to IP address')
-        connection.add_option('--http-proxy', '--http-proxy', action='store', dest='httpProxy', type='string',
+        connection.add_option('--proxy', '--http-proxy', action='store', dest='httpProxy', type='string',
                               default=self.proxy, help='Http Proxy (example: localhost:8080')
-        connection.add_option('--max-retries', '--max-retries', action='store', dest='maxRetries', type='int',
+        connection.add_option('--max-retries', action='store', dest='maxRetries', type='int',
                               default=self.maxRetries)
 
         # Dictionary settings
@@ -205,21 +205,21 @@ class ArgumentParser(object):
                            , default=self.threadsCount)
         general.add_option('-x', '--exclude-status', help='Exclude status code, separated by comma (example: 301, 500)'
                            , action='store', dest='excludeStatusCodes', default=self.excludeStatusCodes)
-        general.add_option('--cookie', '--cookie', action='store', type='string', dest='cookie', default=None)
-        general.add_option('--user-agent', '--user-agent', action='store', type='string', dest='useragent',
+        general.add_option('-c', '--cookie', action='store', type='string', dest='cookie', default=None)
+        general.add_option('--ua', '--user-agent', action='store', type='string', dest='useragent',
                            default=self.useragent)
-        general.add_option('--follow-redirects', '--follow-redirects', action='store_true', dest='noFollowRedirects'
+        general.add_option('-F', '--follow-redirects', action='store_true', dest='noFollowRedirects'
                            , default=self.redirect)
-        general.add_option('--header', '--header',
+        general.add_option('-H', '--header',
                            help='Headers to add (example: --header "Referer: example.com" --header "User-Agent: IE"',
                            action='append', type='string', dest='headers', default=None)
         general.add_option('--random-agents', '--random-user-agents', action="store_true", dest='useRandomAgents')
         reports = OptionGroup(parser, 'Reports')
-        reports.add_option('--simple-report', '--simple-report', action='store', help="Only found paths",
+        reports.add_option('--simple-report', action='store', help="Only found paths",
                            dest='simpleOutputFile', default=None)
-        reports.add_option('--plain-text-report', '--plain-text-report', action='store',
+        reports.add_option('--plain-text-report', action='store',
                            help="Found paths with status codes", dest='plainTextOutputFile', default=None)
-        reports.add_option('--json-report', '--json-output', action='store', dest='jsonOutputFile', default=None)
+        reports.add_option('--json-report', action='store', dest='jsonOutputFile', default=None)
         parser.add_option_group(mandatory)
         parser.add_option_group(dictionary)
         parser.add_option_group(general)
