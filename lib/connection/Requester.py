@@ -119,7 +119,7 @@ class Requester(object):
                 headers["Host"] = self.host
                 # include port in Host header if it's non-standard
                 if (self.protocol == "https" and self.port != 443) or (self.protocol == "http" and self.port != 80):
-                    headers["Host"]+=":%s"%self.port
+                    headers["Host"]+=":{0}".format(self.port)
 
                 response = requests.get(url, proxies=proxy, verify=False, allow_redirects=self.redirect, \
                                         headers=headers, timeout=self.timeout)
