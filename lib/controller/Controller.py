@@ -25,7 +25,7 @@ from threading import Lock
 
 from lib.connection import Requester, RequestException
 from lib.core import Dictionary, Fuzzer, ReportManager
-from lib.reports import JSONReport, PlainTextReport, SimpleReport
+from lib.reports import JSONReport, PlainTextReport, SimpleReport,CSVReport,SQLiteReport
 from lib.utils import FileUtils
 
 
@@ -220,6 +220,12 @@ class Controller(object):
                     self.output.error("Couldn't create reports folder {}".format(directoryPath))
                     sys.exit(1)
             if FileUtils.canWrite(directoryPath):
+# I assume this section checks the default.config
+# In this section
+#[reports]
+#autosave-report = True
+#autosave-report-format = simple
+
                 report = None
                 if self.arguments.autoSaveFormat == 'simple':
                     report = SimpleReport(requester.host, requester.port, requester.protocol, requester.basePath,
@@ -227,6 +233,17 @@ class Controller(object):
                 if self.arguments.autoSaveFormat == 'json':
                     report = JSONReport(requester.host, requester.port, requester.protocol, requester.basePath,
                                         outputFile)
+
+                if self.arguments.autoSaveFormat == 'csv':
+                    report = CSVReport(requester.host, requester.port, requester.protocol, requester.basePath,
+                                        outputFile)
+
+                if self.arguments.autoSaveFormat == 'sqlite':
+                    report = SQLiteReport(requester.host, requester.port, requester.protocol, requester.basePath,
+                                        outputFile)
+# The default autosave format is plainText hence:
+# autosave-report-format = plain
+
                 else:
                     report = PlainTextReport(requester.host, requester.port, requester.protocol, requester.basePath,
                                              outputFile)
@@ -240,6 +257,15 @@ class Controller(object):
         if self.arguments.plainTextOutputFile is not None:
             self.reportManager.addOutput(PlainTextReport(requester.host, requester.port, requester.protocol,
                                                          requester.basePath, self.arguments.plainTextOutputFile))
+# sqliteOutputFile
+        if self.arguments.sqliteOutputFile is not None:
+            self.reportManager.addOutput(SQLiteReport(requester.host, requester.port, requester.protocol,
+                                                    requester.basePath, self.arguments.sqliteOutputFile))
+# csvOutputFile
+        if self.arguments.csvOutputFile is not None:
+            self.reportManager.addOutput(CSVReport(requester.host, requester.port, requester.protocol,
+                                                    requester.basePath, self.arguments.csvOutputFile))
+
         if self.arguments.jsonOutputFile is not None:
             self.reportManager.addOutput(JSONReport(requester.host, requester.port, requester.protocol,
                                                     requester.basePath, self.arguments.jsonOutputFile))

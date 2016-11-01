@@ -3,12 +3,12 @@
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation; either version 2 of the License, or
 #  (at your option) any later version.
-#  
+#
 #  This program is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU General Public License for more details.
-#  
+#
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
@@ -100,6 +100,9 @@ class ArgumentParser(object):
         self.simpleOutputFile = options.simpleOutputFile
         self.plainTextOutputFile = options.plainTextOutputFile
         self.jsonOutputFile = options.jsonOutputFile
+        self.sqliteOutputFile = options.sqliteOutputFile
+        self.csvOutputFile = options.csvOutputFile
+
         self.timeout = options.timeout
         self.ip = options.ip
         self.maxRetries = options.maxRetries
@@ -144,7 +147,7 @@ class ArgumentParser(object):
 
         # Reports
         self.autoSave = config.safe_getboolean("reports", "autosave-report", False)
-        self.autoSaveFormat = config.safe_get("reports", "autosave-report-format", "plain", ["plain", "json", "simple"])
+        self.autoSaveFormat = config.safe_get("reports", "autosave-report-format", "plain", ["plain", "json", "simple","sqlite","csv"])
         # Dictionary
         self.wordlist = config.safe_get("dictionary", "wordlist",
                                         FileUtils.buildPath(self.script_path, "db", "dicc.txt"))
@@ -186,7 +189,7 @@ class ArgumentParser(object):
                               default=self.wordlist)
         dictionary.add_option('-l', '--lowercase', action='store_true', dest='lowercase', default=self.lowercase)
 
-        dictionary.add_option('-f', '--force-extensions', help='Force extensions for every wordlist entry (like in DirBuster)', 
+        dictionary.add_option('-f', '--force-extensions', help='Force extensions for every wordlist entry (like in DirBuster)',
                               action='store_true', dest='forceExtensions', default=self.forceExtensions)
 
         # Optional Settings
@@ -219,7 +222,10 @@ class ArgumentParser(object):
                            dest='simpleOutputFile', default=None)
         reports.add_option('--plain-text-report', action='store',
                            help="Found paths with status codes", dest='plainTextOutputFile', default=None)
+        reports.add_option('--csv-report', action='store',
+                                   help="In csv format with no CSV heading", dest='csvOutputFile', default=None)
         reports.add_option('--json-report', action='store', dest='jsonOutputFile', default=None)
+        reports.add_option('--sqlite-report', action='store', dest='sqliteOutputFile', default=None)
         parser.add_option_group(mandatory)
         parser.add_option_group(dictionary)
         parser.add_option_group(general)
