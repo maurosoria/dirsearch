@@ -14,7 +14,7 @@
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #  MA 02110-1301, USA.
 #
-#  Author: Mauro Soria
+#  Author: Timo Goosen
 
 from lib.reports import *
 from lib.utils.FileUtils import *
@@ -26,7 +26,8 @@ class CSVReport(BaseReport):
         result = ''
         for path, status, contentLength in self.pathList:
             result += '{0},'.format(status)
-            result += '{0},'.format(FileUtils.sizeHuman(contentLength).rjust(6, ' '))
+#            result += '{0}'.format(FileUtils.sizeHuman(contentLength).rjust(6, ','))
+            result += '{0},'.format(FileUtils.sizeHuman(contentLength))
             result += '{0},'.format(self.host)  # site
             result += ('{0}\n'.format(path) if self.basePath is '' else '{0}/{1}\n'.format(self.basePath, path))
         return result
