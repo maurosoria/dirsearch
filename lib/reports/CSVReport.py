@@ -27,7 +27,9 @@ class CSVReport(BaseReport):
         for path, status, contentLength in self.pathList:
             result += '{0},'.format(status)
 #            result += '{0}'.format(FileUtils.sizeHuman(contentLength).rjust(6, ','))
-            result += '{0},'.format(FileUtils.sizeHuman(contentLength))
+            contentlength_string = FileUtils.sizeHuman(contentLength)
+            contentlength_string = contentlength_string.strip()
+            result += '{0},'.format(contentlength_string)
             result += '{0},'.format(self.host)  # site
             result += ('{0}\n'.format(path) if self.basePath is '' else '{0}/{1}\n'.format(self.basePath, path))
         return result
