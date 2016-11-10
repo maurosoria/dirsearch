@@ -20,7 +20,7 @@ Features
 - Multithreaded
 - Keep alive connections
 - Support for multiple extensions (-e|--extensions asp,php)
-- Reporting (plain text, JSON)
+- Reporting (plain text, JSON,CSV and SQLite is coming soon too...)
 - Heuristically detects invalid web pages
 - Recursive brute forcing
 - HTTP proxy support
@@ -29,18 +29,35 @@ Features
 
 About wordlists
 ---------------
-Dictionaries must be text files. Each line will be processed as such, except that the special word %EXT% is used, which will generate one entry for each extension (-e | --extension) passed as an argument. 
+Dictionaries must be text files. Each line will be processed as such, except that the special word %EXT% is used, which will generate one entry for each extension (-e | --extension) passed as an argument.
 
 Example:
 - example/
 - example.%EXT%
- 
+
 Passing the extensions "asp" and "aspx" will generate the following dictionary:
 - example/
 - example.asp
 - example.aspx
 
 You can also use -f | --force-extensions switch to append extensions to every word in the wordlists (like DirBuster).
+
+
+Usage:
+----------
+
+Dirsearch should be usable without the need to install any dependencies. Just make sure you have python3 installed on your system.
+The basic usage is as follows:
+
+In this example I'm specifying my own wordlist,I'm checking for extension php and I'm excluding HTTP status code 403 responses.
+
+<pre>
+$ python3 dirsearch.py -u https://site.com -e php -w ~/Desktop/pentest_tools/SecLists/Discovery/Web_Content/raft-small-files.txt -x 403
+</pre>
+
+
+
+
 
 License
 -------
@@ -66,5 +83,3 @@ Changelog
 Contributors
 ---------
 - Bo0oM
-
-
