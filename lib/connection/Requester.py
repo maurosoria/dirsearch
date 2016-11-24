@@ -126,6 +126,8 @@ class Requester(object):
                 result = Response(response.status_code, response.reason, response.headers, response.content)
                 del headers
                 break
+            except requests.exceptions.TooManyRedirects as e:
+                raise RequestException({'message': 'Too many redirects: {0}'.format(e)})
             except requests.exceptions.ConnectionError as e:
                 if self.proxy is not None:
                     raise RequestException({'message': 'Error with the proxy: {0}'.format(e)})
