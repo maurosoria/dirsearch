@@ -128,6 +128,8 @@ class Requester(object):
                 break
             except requests.exceptions.TooManyRedirects as e:
                 raise RequestException({'message': 'Too many redirects: {0}'.format(e)})
+            except ConnectionResetError as e:
+                raise RequestException({'message': 'ConnectionResetError: {0}'.format(e)})
             except requests.exceptions.ConnectionError as e:
                 if self.proxy is not None:
                     raise RequestException({'message': 'Error with the proxy: {0}'.format(e)})
