@@ -104,7 +104,8 @@ class Controller(object):
                                                useragent=self.arguments.useragent, maxPool=self.arguments.threadsCount,
                                                maxRetries=self.arguments.maxRetries, timeout=self.arguments.timeout,
                                                ip=self.arguments.ip, proxy=self.arguments.proxy,
-                                               redirect=self.arguments.redirect)
+                                               redirect=self.arguments.redirect, 
+                                               requestByHostname=self.arguments.requestByHostname)
                         self.requester.request("/")
                     except RequestException as e:
                         self.output.error(e.args[0]['message'])
