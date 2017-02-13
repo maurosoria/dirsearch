@@ -41,7 +41,7 @@ class Requester(object):
         }
 
     def __init__(self, url, cookie=None, useragent=None, maxPool=1, maxRetries=5, timeout=30, ip=None, proxy=None,
-                 redirect=False):
+                 redirect=False, queryByHosename=False):
         # if no backslash, append one
         if not url.endswith('/'):
             url = url + '/'
@@ -85,6 +85,7 @@ class Requester(object):
         self.proxy = proxy
         self.redirect = redirect
         self.randomAgents = None
+        self.queryByHostname = queryByHostname
 
     def setHeader(self, header, content):
         self.headers[header] = content
@@ -103,7 +104,10 @@ class Requester(object):
             try:
                 if self.proxy is not None:
                     proxy = {"https" : self.proxy, "http" : self.proxy}
-                url = "{0}://{1}:{2}".format(self.protocol, self.ip, self.port)
+                if self.queryByHostname:
+                    url = "{0}://{1}:{2}".format(self.protocol, self.host, self.port)
+                else:
+                    url = "{0}://{1}:{2}".format(self.protocol, self.ip, self.port)
                 url = urllib.parse.urljoin(url, self.basePath)
 
                 # Joining with concatenation because a urljoin bug with "::"
