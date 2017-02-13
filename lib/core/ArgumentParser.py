@@ -128,6 +128,7 @@ class ArgumentParser(object):
         else:
             self.excludeSubdirs = None
         self.redirect = options.noFollowRedirects
+        self.requestByHostname = options.requestByHostname
 
     def parseConfig(self):
         config = DefaultConfigParser()
@@ -157,6 +158,7 @@ class ArgumentParser(object):
         self.timeout = config.safe_getint("connection", "timeout", 30)
         self.maxRetries = config.safe_getint("connection", "max-retries", 5)
         self.proxy = config.safe_get("connection", "http-proxy", None)
+        self.requestByHostname = config.safe_get("connection", "request-by-hostname", False)
 
     def parseArguments(self):
         usage = 'Usage: %prog [-u|--url] target [-e|--extensions] extensions [options]'
@@ -179,6 +181,9 @@ class ArgumentParser(object):
                               default=self.proxy, help='Http Proxy (example: localhost:8080')
         connection.add_option('--max-retries', action='store', dest='maxRetries', type='int',
                               default=self.maxRetries)
+        connection.add_option('-b', '--request-by-hostname', 
+                               help='By default dirsearch will request by IP for speed. This forces requests by hostname', 
+                               action='store_true', dest='requestByHostname', default=self.requestByHostname)
 
         # Dictionary settings
         dictionary = OptionGroup(parser, 'Dictionary Settings')
@@ -214,6 +219,7 @@ class ArgumentParser(object):
                            help='Headers to add (example: --header "Referer: example.com" --header "User-Agent: IE"',
                            action='append', type='string', dest='headers', default=None)
         general.add_option('--random-agents', '--random-user-agents', action="store_true", dest='useRandomAgents')
+
         reports = OptionGroup(parser, 'Reports')
         reports.add_option('--simple-report', action='store', help="Only found paths",
                            dest='simpleOutputFile', default=None)
