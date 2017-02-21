@@ -40,6 +40,13 @@ class BaseReport(object):
         self.pathList.append((path, status, contentLength))
 
     def open(self):
+        from os import name as os_name
+        if os_name == "nt":            
+            from os.path import normpath, dirname
+            from os import makedirs
+            output = normpath(self.output)
+            makedirs(dirname(output))
+            self.output = output
         self.file = open(self.output, 'w+')
 
     def save(self):
