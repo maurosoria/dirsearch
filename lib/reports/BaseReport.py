@@ -45,7 +45,7 @@ class BaseReport(object):
             from os.path import normpath, dirname
             from os import makedirs
             output = normpath(self.output)
-            makedirs(dirname(output))
+            makedirs(dirname(output), exist_ok=True)
             self.output = output
         self.file = open(self.output, 'w+')
 
