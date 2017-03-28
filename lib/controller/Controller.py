@@ -95,6 +95,7 @@ class Controller(object):
         try:
             for url in self.arguments.urlList:
                 try:
+
                     gc.collect()
                     self.reportManager = ReportManager()
                     self.currentUrl = url
@@ -102,11 +103,12 @@ class Controller(object):
                     try:
                         self.requester = Requester(url, cookie=self.arguments.cookie,
                                                useragent=self.arguments.useragent, maxPool=self.arguments.threadsCount,
-                                               maxRetries=self.arguments.maxRetries, timeout=self.arguments.timeout,
+                                               maxRetries=self.arguments.maxRetries, delay=self.arguments.delay, timeout=self.arguments.timeout,
                                                ip=self.arguments.ip, proxy=self.arguments.proxy,
                                                redirect=self.arguments.redirect, 
                                                requestByHostname=self.arguments.requestByHostname)
                         self.requester.request("/")
+
                     except RequestException as e:
                         self.output.error(e.args[0]['message'])
                         raise SkipTargetInterrupt
@@ -133,6 +135,8 @@ class Controller(object):
                     continue
                 finally:
                     self.reportManager.save()
+
+                
         except KeyboardInterrupt:
             self.output.error('\nCanceled by the user')
             exit(0)

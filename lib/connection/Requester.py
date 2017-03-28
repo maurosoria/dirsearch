@@ -23,6 +23,7 @@ import http.client
 import urllib.request
 import urllib.parse
 import urllib.error
+import time
 
 import thirdparty.requests as requests
 from .Response import *
@@ -40,7 +41,7 @@ class Requester(object):
         'Cache-Control': 'max-age=0',
         }
 
-    def __init__(self, url, cookie=None, useragent=None, maxPool=1, maxRetries=5, timeout=30, ip=None, proxy=None,
+    def __init__(self, url, cookie=None, useragent=None, maxPool=1, maxRetries=5, delay=0, timeout=30, ip=None, proxy=None,
                  redirect=False, requestByHostname=False):
         # if no backslash, append one
         if not url.endswith('/'):
@@ -80,6 +81,7 @@ class Requester(object):
             self.setHeader('User-agent', useragent)
         self.maxRetries = maxRetries
         self.maxPool = maxPool
+        self.dalay = delay
         self.timeout = timeout
         self.pool = None
         self.proxy = proxy
@@ -128,6 +130,7 @@ class Requester(object):
                 response = requests.get(url, proxies=proxy, verify=False, allow_redirects=self.redirect, \
                                         headers=headers, timeout=self.timeout)
                 result = Response(response.status_code, response.reason, response.headers, response.content)
+                time.sleep(self.dalay)
                 del headers
                 break
             except requests.exceptions.TooManyRedirects as e:
