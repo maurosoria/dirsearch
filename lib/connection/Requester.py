@@ -81,7 +81,7 @@ class Requester(object):
             self.setHeader('User-agent', useragent)
         self.maxRetries = maxRetries
         self.maxPool = maxPool
-        self.dalay = delay
+        self.delay = delay
         self.timeout = timeout
         self.pool = None
         self.proxy = proxy
@@ -130,7 +130,7 @@ class Requester(object):
                 response = requests.get(url, proxies=proxy, verify=False, allow_redirects=self.redirect, \
                                         headers=headers, timeout=self.timeout)
                 result = Response(response.status_code, response.reason, response.headers, response.content)
-                time.sleep(self.dalay)
+                time.sleep(self.delay)
                 del headers
                 break
             except requests.exceptions.TooManyRedirects as e:
