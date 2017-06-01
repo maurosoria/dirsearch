@@ -227,7 +227,6 @@ class ArgumentParser(object):
                            action='append', type='string', dest='headers', default=None)
         general.add_option('--random-agents', '--random-user-agents', action="store_true", dest='useRandomAgents')
 
-
         reports = OptionGroup(parser, 'Reports')
         reports.add_option('--simple-report', action='store', help="Only found paths",
                            dest='simpleOutputFile', default=None)
