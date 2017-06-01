@@ -105,6 +105,7 @@ class ArgumentParser(object):
         self.ip = options.ip
         self.maxRetries = options.maxRetries
         self.recursive = options.recursive
+        self.suppressEmpty = options.suppressEmpty
         if options.scanSubdirs is not None:
             self.scanSubdirs = list(oset([subdir.strip() for subdir in options.scanSubdirs.split(',')]))
             for i in range(len(self.scanSubdirs)):
@@ -142,6 +143,7 @@ class ArgumentParser(object):
         self.excludeStatusCodes = config.safe_get("general", "exclude-status", None)
         self.redirect = config.safe_getboolean("general", "follow-redirects", False)
         self.recursive = config.safe_getboolean("general", "recursive", False)
+        self.suppressEmpty = config.safe_getboolean("general", "suppress-empty", False)
         self.testFailPath = config.safe_get("general", "scanner-fail-path", "").strip()
         self.saveHome = config.safe_getboolean("general", "save-logs-home", False)
 
@@ -202,6 +204,7 @@ class ArgumentParser(object):
         general.add_option('-s', '--delay', help='Delay between requests', action='store', dest='delay', type='int', default=self.delay)
         general.add_option('-r', '--recursive', help='Bruteforce recursively', action='store_true', dest='recursive',
                            default=self.recursive)
+        general.add_option('--suppress-empty', "--suppress-empty", action="store_true", dest='suppressEmpty')
         general.add_option('--scan-subdir', '--scan-subdirs',
                            help='Scan subdirectories of the given -u|--url (separated by comma)', action='store',
                            dest='scanSubdirs',
@@ -223,6 +226,7 @@ class ArgumentParser(object):
                            help='Headers to add (example: --header "Referer: example.com" --header "User-Agent: IE"',
                            action='append', type='string', dest='headers', default=None)
         general.add_option('--random-agents', '--random-user-agents', action="store_true", dest='useRandomAgents')
+
 
         reports = OptionGroup(parser, 'Reports')
         reports.add_option('--simple-report', action='store', help="Only found paths",
