@@ -74,6 +74,7 @@ class Controller(object):
         self.fuzzer = None
         self.excludeStatusCodes = self.arguments.excludeStatusCodes
         self.recursive = self.arguments.recursive
+        self.suppressEmpty = self.arguments.suppressEmpty
         self.directories = Queue()
         self.excludeSubdirs = (arguments.excludeSubdirs if arguments.excludeSubdirs is not None else [])
         self.output.header(PROGRAM_BANNER)
@@ -254,11 +255,12 @@ class Controller(object):
         if path.status is not None:
             if path.status not in self.excludeStatusCodes and (
                             self.blacklists.get(path.status) is None or path.path not in self.blacklists.get(
-                        path.status)):
+                                path.status)) and not (
+                            self.suppressEmpty and (len(path.response.body) == 0)):
                 self.output.statusReport(path.path, path.response)
                 self.addDirectory(path.path)
                 self.reportManager.addPath(self.currentDirectory + path.path, path.status, path.response)
-                self.reportManager.save()
+                self.reportManager.save()git 
                 del path
 
     def notFoundCallback(self, path):
