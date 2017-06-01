@@ -260,7 +260,7 @@ class Controller(object):
                 self.output.statusReport(path.path, path.response)
                 self.addDirectory(path.path)
                 self.reportManager.addPath(self.currentDirectory + path.path, path.status, path.response)
-                self.reportManager.save()git 
+                self.reportManager.save()
                 del path
 
     def notFoundCallback(self, path):
