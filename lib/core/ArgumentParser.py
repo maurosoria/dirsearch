@@ -100,6 +100,7 @@ class ArgumentParser(object):
         self.simpleOutputFile = options.simpleOutputFile
         self.plainTextOutputFile = options.plainTextOutputFile
         self.jsonOutputFile = options.jsonOutputFile
+        self.delay = options.delay
         self.timeout = options.timeout
         self.ip = options.ip
         self.maxRetries = options.maxRetries
@@ -130,6 +131,7 @@ class ArgumentParser(object):
         self.redirect = options.noFollowRedirects
         self.requestByHostname = options.requestByHostname
 
+
     def parseConfig(self):
         config = DefaultConfigParser()
         configPath = FileUtils.buildPath(self.script_path, "default.conf")
@@ -155,6 +157,7 @@ class ArgumentParser(object):
         # Connection
         self.useRandomAgents = config.safe_get("connection", "random-user-agents", False)
         self.useragent = config.safe_get("connection", "user-agent", None)
+        self.delay = config.safe_get("connection", "delay", 0)
         self.timeout = config.safe_getint("connection", "timeout", 30)
         self.maxRetries = config.safe_getint("connection", "max-retries", 5)
         self.proxy = config.safe_get("connection", "http-proxy", None)
@@ -196,6 +199,7 @@ class ArgumentParser(object):
 
         # Optional Settings
         general = OptionGroup(parser, 'General Settings')
+        general.add_option('-s', '--delay', help='Delay between requests', action='store', dest='delay', type='int', default=self.delay)
         general.add_option('-r', '--recursive', help='Bruteforce recursively', action='store_true', dest='recursive',
                            default=self.recursive)
         general.add_option('--scan-subdir', '--scan-subdirs',
