@@ -5063,6 +5063,7 @@ showlogin/
 showthread
 shradmin
 sibstatus
+sidekiq
 sign-in
 sign-in/
 sign_in
