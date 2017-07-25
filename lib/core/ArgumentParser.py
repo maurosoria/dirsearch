@@ -3,12 +3,12 @@
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation; either version 2 of the License, or
 #  (at your option) any later version.
-#  
+#
 #  This program is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU General Public License for more details.
-#  
+#
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
@@ -186,8 +186,8 @@ class ArgumentParser(object):
                               default=self.proxy, help='Http Proxy (example: localhost:8080')
         connection.add_option('--max-retries', action='store', dest='maxRetries', type='int',
                               default=self.maxRetries)
-        connection.add_option('-b', '--request-by-hostname', 
-                               help='By default dirsearch will request by IP for speed. This forces requests by hostname', 
+        connection.add_option('-b', '--request-by-hostname',
+                               help='By default dirsearch will request by IP for speed. This forces requests by hostname',
                                action='store_true', dest='requestByHostname', default=self.requestByHostname)
 
         # Dictionary settings
@@ -196,12 +196,12 @@ class ArgumentParser(object):
                               default=self.wordlist)
         dictionary.add_option('-l', '--lowercase', action='store_true', dest='lowercase', default=self.lowercase)
 
-        dictionary.add_option('-f', '--force-extensions', help='Force extensions for every wordlist entry (like in DirBuster)', 
+        dictionary.add_option('-f', '--force-extensions', help='Force extensions for every wordlist entry (like in DirBuster)',
                               action='store_true', dest='forceExtensions', default=self.forceExtensions)
 
         # Optional Settings
         general = OptionGroup(parser, 'General Settings')
-        general.add_option('-s', '--delay', help='Delay between requests', action='store', dest='delay', type='int', default=self.delay)
+        general.add_option('-s', '--delay', help='Delay between requests', action='store', dest='delay', type='float', default=self.delay)
         general.add_option('-r', '--recursive', help='Bruteforce recursively', action='store_true', dest='recursive',
                            default=self.recursive)
         general.add_option('--suppress-empty', "--suppress-empty", action="store_true", dest='suppressEmpty')
