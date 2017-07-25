@@ -35,7 +35,7 @@ class SkipTargetInterrupt(Exception):
 
 MAYOR_VERSION = 0
 MINOR_VERSION = 3
-REVISION = 7
+REVISION = 8
 VERSION = {
     "MAYOR_VERSION": MAYOR_VERSION,
     "MINOR_VERSION": MINOR_VERSION,
@@ -106,7 +106,7 @@ class Controller(object):
                                                useragent=self.arguments.useragent, maxPool=self.arguments.threadsCount,
                                                maxRetries=self.arguments.maxRetries, delay=self.arguments.delay, timeout=self.arguments.timeout,
                                                ip=self.arguments.ip, proxy=self.arguments.proxy,
-                                               redirect=self.arguments.redirect, 
+                                               redirect=self.arguments.redirect,
                                                requestByHostname=self.arguments.requestByHostname)
                         self.requester.request("/")
 
@@ -137,7 +137,7 @@ class Controller(object):
                 finally:
                     self.reportManager.save()
 
-                
+
         except KeyboardInterrupt:
             self.output.error('\nCanceled by the user')
             exit(0)
