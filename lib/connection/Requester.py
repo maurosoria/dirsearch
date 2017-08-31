@@ -141,7 +141,7 @@ class Requester(object):
                 if self.proxy is not None:
                     raise RequestException({'message': 'Error with the proxy: {0}'.format(e)})
                 continue
-            except (requests.exceptions.ReadTimeout, requests.exceptions.Timeout, http.client.IncompleteRead, \
+            except (thirdparty.requests.exceptions.ConnectTimeout, requests.exceptions.ReadTimeout, requests.exceptions.Timeout, http.client.IncompleteRead, \
                     socket.timeout):
                 continue
             finally:
