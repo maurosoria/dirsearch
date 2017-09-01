@@ -192,7 +192,8 @@ class ArgumentParser(object):
 
         # Dictionary settings
         dictionary = OptionGroup(parser, 'Dictionary Settings')
-        dictionary.add_option('-w', '--wordlist', action='store', dest='wordlist',
+        dictionary.add_option('-w', '--wordlist', action='store', dest='wordlist', help= "Recommended uses is with \
+                                                                                         the -f option below",
                               default=self.wordlist)
         dictionary.add_option('-l', '--lowercase', action='store_true', dest='lowercase', default=self.lowercase)
 
