@@ -69,7 +69,7 @@ class Dictionary(object):
                 if self._forcedExtensions:
                     for extension in self._extensions:
                         self.entries.append(self.quote(line) + '.' + extension)
-                    if ("/") not in line:
+                    if ("/") not in line and (".") not in line:
                         self.entries.append(self.quote(line) + '/')
                 quote = self.quote(line)
                 self.entries.append(quote)
