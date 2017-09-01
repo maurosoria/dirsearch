@@ -72,7 +72,7 @@ class Dictionary(object):
                 if (".") not in line and ("/") not in line:
                 	self.entries.append(self.quote(line) + '/')
                 quote = self.quote(line)
--               self.entries.append(quote)
+                self.entries.append(quote)
         if lowercase == True:
             self.entries = list(oset([entry.lower() for entry in self.entries]))
 
