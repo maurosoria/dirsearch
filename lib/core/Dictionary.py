@@ -33,8 +33,7 @@ class Dictionary(object):
         self._forcedExtensions = forcedExtensions
         self.lowercase = lowercase
         self.dictionaryFile = File(self.path)
-        self.generate(lowercase=self.lowercase)
-
+        self.generate()
 
     @property
     def extensions(self):
@@ -55,24 +54,50 @@ class Dictionary(object):
     @classmethod
     def quote(cls, string):
         return urllib.parse.quote(string, safe=":/~?%&+-=$")
+    
+    """
+    Dictionary.generate() behaviour
 
-    def generate(self, lowercase=False):
-        self.entries = []
+    Classic dirsearch wordlist:
+      1. If %EXT% keyword is present, append one with each extension REPLACED.
+      2. If the special word is no present, append line unmodified.
+    
+    Forced extensions wordlist (NEW):
+      This type of wordlist processing is a mix between classic processing
+      and DirBuster processing.
+          1. If %EXT% keyword is present in the line, immediately process as "classic dirsearch" (1).
+          2. If the line does not include the special word AND is NOT terminated by a slash, 
+            append one with each extension APPENDED (line.ext) and ONLYE ONE with a slash. 
+          3. If the line does not include the special word and IS ALREADY terminated by slash, 
+            append line unmodified.
+    """
+    def generate(self):
+        result = []
         for line in self.dictionaryFile.getLines():
             # Skip comments
-            entry = line
             if line.lstrip().startswith("#"): continue
+            # Classic dirsearch wordlist processing (with %EXT% keyword)
             if '%EXT%' in line:
                 for extension in self._extensions:
-                    self.entries.append(self.quote(line.replace('%EXT%', extension)))
+                    quote = self.quote(line.replace('%EXT%', extension))
+                    result.append(quote)
+            # If forced extensions is used and the path is not a directory ... (terminated by /)
+            # process line like a forced extension. 
+            elif self._forcedExtensions and not line.rstrip().endswith("/"):
+                quoted = self.quote(line)
+                for extension in self._extensions:
+                    result.append(quoted + '.' + extension)
+                if quoted.strip() not in ['']:
+                    result.append(quoted + "/")
+            # Append line unmodified.
             else:
-                if self._forcedExtensions:
-                    for extension in self._extensions:
-                        self.entries.append(self.quote(line) + '.' + extension)
-                quote = self.quote(line)
-                self.entries.append(quote)
-        if lowercase == True:
-            self.entries = list(oset([entry.lower() for entry in self.entries]))
+                result.append(self.quote(line))
+        # oset library provides inserted ordered and unique collection.
+        if self.lowercase:
+            self.entries = list(oset(map(lambda l: l.lower(), result)))
+        else:
+            self.entries = list(oset(result))
+        del(result)
 
     def regenerate(self):
         self.generate(lowercase=self.lowercase)
