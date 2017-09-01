@@ -201,7 +201,7 @@ class ArgumentParser(object):
 
         # Optional Settings
         general = OptionGroup(parser, 'General Settings')
-        general.add_option('-s', '--delay', help='Delay between requests', action='store', dest='delay', type='float', default=self.delay)
+        general.add_option('-s', '--delay', help='Delay between requests (float number)', action='store', dest='delay', type='float', default=self.delay)
         general.add_option('-r', '--recursive', help='Bruteforce recursively', action='store_true', dest='recursive',
                            default=self.recursive)
         general.add_option('--suppress-empty', "--suppress-empty", action="store_true", dest='suppressEmpty')
