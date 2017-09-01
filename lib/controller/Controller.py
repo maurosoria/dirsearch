@@ -334,10 +334,10 @@ class Controller(object):
     def addDirectory(self, path):
         if not self.recursive:
             return False
-        if path.endswith('/'):
+        if not (".") in path:
             if path in [directory + '/' for directory in self.excludeSubdirs]:
                 return False
-            self.directories.put(self.currentDirectory + path)
+            self.directories.put(self.currentDirectory + path + '/')
             return True
         else:
             return False
