@@ -196,7 +196,8 @@ class ArgumentParser(object):
                               default=self.wordlist)
         dictionary.add_option('-l', '--lowercase', action='store_true', dest='lowercase', default=self.lowercase)
 
-        dictionary.add_option('-f', '--force-extensions', help='Force extensions for every wordlist entry (like in DirBuster)',
+        dictionary.add_option('-f', '--force-extensions', help='Force extensions and add directory "/" for every \
+        wordlist entry (like in DirBuster). Recommended for custom wordlists',
                               action='store_true', dest='forceExtensions', default=self.forceExtensions)
 
         # Optional Settings
