@@ -69,8 +69,8 @@ class Dictionary(object):
                 if self._forcedExtensions:
                     for extension in self._extensions:
                         self.entries.append(self.quote(line) + '.' + extension)
-                quote = self.quote(line)
-                self.entries.append(quote)
+                if (".") not in line and ("/") not in line:
+                	self.entries.append(self.quote(line) + '/')
         if lowercase == True:
             self.entries = list(oset([entry.lower() for entry in self.entries]))
 
