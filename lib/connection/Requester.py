@@ -88,6 +88,7 @@ class Requester(object):
         self.redirect = redirect
         self.randomAgents = None
         self.requestByHostname = requestByHostname
+        self.session = requests.Session()
 
     def setHeader(self, header, content):
         self.headers[header] = content
@@ -127,7 +128,7 @@ class Requester(object):
                 if (self.protocol == "https" and self.port != 443) or (self.protocol == "http" and self.port != 80):
                     headers["Host"]+=":{0}".format(self.port)
 
-                response = requests.get(url, proxies=proxy, verify=False, allow_redirects=self.redirect, \
+                response = self.session.get(url, proxies=proxy, verify=False, allow_redirects=self.redirect, \
                                         headers=headers, timeout=self.timeout)
                 result = Response(response.status_code, response.reason, response.headers, response.content)
                 time.sleep(self.delay)
