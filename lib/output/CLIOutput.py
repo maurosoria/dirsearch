@@ -31,8 +31,9 @@ if platform.system() == 'Windows':
 
 
 class CLIOutput(object):
-    def __init__(self):
+    def __init__(self, arguments):
         init()
+        self.arguments = arguments
         self.lastLength = 0
         self.lastOutput = ''
         self.lastInLine = False
@@ -101,22 +102,25 @@ class CLIOutput(object):
             message = '[{0}] {1} - {2} - {3}'.format(
                 time.strftime('%H:%M:%S'),
                 status,
-                contentLength.rjust(6, ' '),
+                size,
                 showPath
             )
+            filter_size = self.arguments.filterSize
+            if size == filter_size:
+                pass
+            else:    
+                if status == 200:
+                    message = Fore.GREEN + message + Style.RESET_ALL
+                elif status == 403:
+                    message = Fore.BLUE + message + Style.RESET_ALL
+                elif status == 401:
+                    message = Fore.YELLOW + message + Style.RESET_ALL
+                # Check if redirect
+                elif status in [301, 302, 307] and 'location' in [h.lower() for h in response.headers]:
+                    message = Fore.CYAN + message + Style.RESET_ALL
+                    message += '  ->  {0}'.format(response.headers['location'])
 
-            if status == 200:
-                message = Fore.GREEN + message + Style.RESET_ALL
-            elif status == 403:
-                message = Fore.BLUE + message + Style.RESET_ALL
-            elif status == 401:
-                message = Fore.YELLOW + message + Style.RESET_ALL
-            # Check if redirect
-            elif status in [301, 302, 307] and 'location' in [h.lower() for h in response.headers]:
-                message = Fore.CYAN + message + Style.RESET_ALL
-                message += '  ->  {0}'.format(response.headers['location'])
-
-            self.newLine(message)
+                self.newLine(message)
 
     def lastPath(self, path, index, length):
         with self.mutex:

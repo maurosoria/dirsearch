@@ -77,6 +77,7 @@ class ArgumentParser(object):
         else:
             self.headers = {}
 
+        self.filterSize = options.filterSize    
         self.extensions = list(oset([extension.strip() for extension in options.extensions.split(',')]))
         self.useragent = options.useragent
         self.useRandomAgents = options.useRandomAgents
@@ -212,6 +213,10 @@ class ArgumentParser(object):
         general.add_option('--exclude-subdir', '--exclude-subdirs',
                            help='Exclude the following subdirectories during recursive scan (separated by comma)',
                            action='store', dest='excludeSubdirs',
+                           default=None)
+        general.add_option('--filter-size', '--filter-size',
+                           help='Exclude the following size',
+                           action='store', dest='filterSize', type= 'int',
                            default=None)
         general.add_option('-t', '--threads', help='Number of Threads', action='store', type='int', dest='threadsCount'
                            , default=self.threadsCount)

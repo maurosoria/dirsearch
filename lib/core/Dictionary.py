@@ -86,7 +86,10 @@ class Dictionary(object):
             elif self._forcedExtensions and not line.rstrip().endswith("/"):
                 quoted = self.quote(line)
                 for extension in self._extensions:
-                    result.append(quoted + '.' + extension)
+                    if extension == "":
+                        result.append(quoted)
+                    else:
+                        result.append(quoted + '.' + extension)
                 if quoted.strip() not in ['']:
                     result.append(quoted + "/")
             # Append line unmodified.
