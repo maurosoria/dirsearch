@@ -19,7 +19,7 @@ Features
 --------
 - Multithreaded
 - Keep alive connections
-- Support for multiple extensions (-e|--extensions asp,php)
+- Support for multiple extensions and no-extension (-e|--extensions asp,php,)
 - Reporting (plain text, JSON)
 - Heuristically detects invalid web pages
 - Recursive brute forcing
