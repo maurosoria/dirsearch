@@ -27,6 +27,7 @@ Features
 - User agent randomization
 - Batch processing
 - Request delaying
+- Filter by size
 
 About wordlists
 ---------------
