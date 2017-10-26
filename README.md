@@ -62,3 +62,7 @@ Special thanks for these people.
 - k2l8m11n2
 - vlohacks
 - r0p0s3c
+
+This fork by aDoN allows the possibility of filtering the response by number of chars (like the wfuzz filter) and also generating a dictionary with no-extension words.
+
+`python3 dirsearch.py -r -w /root/Documents/SecLists/Discovery/Web_Content/common_and_portuguese.txt -u https://xxxxxx/ -e , -f --random-agent -t 10 --exclude-subdirs=Images,Recursos --filter-size 475`
