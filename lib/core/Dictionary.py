@@ -3,12 +3,12 @@
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation; either version 2 of the License, or
 #  (at your option) any later version.
-#  
+#
 #  This program is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU General Public License for more details.
-#  
+#
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
@@ -54,21 +54,21 @@ class Dictionary(object):
     @classmethod
     def quote(cls, string):
         return urllib.parse.quote(string, safe=":/~?%&+-=$")
-    
+
     """
     Dictionary.generate() behaviour
 
     Classic dirsearch wordlist:
       1. If %EXT% keyword is present, append one with each extension REPLACED.
       2. If the special word is no present, append line unmodified.
-    
+
     Forced extensions wordlist (NEW):
       This type of wordlist processing is a mix between classic processing
       and DirBuster processing.
           1. If %EXT% keyword is present in the line, immediately process as "classic dirsearch" (1).
-          2. If the line does not include the special word AND is NOT terminated by a slash, 
-            append one with each extension APPENDED (line.ext) and ONLYE ONE with a slash. 
-          3. If the line does not include the special word and IS ALREADY terminated by slash, 
+          2. If the line does not include the special word AND is NOT terminated by a slash,
+            append one with each extension APPENDED (line.ext) and ONLYE ONE with a slash.
+          3. If the line does not include the special word and IS ALREADY terminated by slash,
             append line unmodified.
     """
     def generate(self):
@@ -82,11 +82,15 @@ class Dictionary(object):
                     quote = self.quote(line.replace('%EXT%', extension))
                     result.append(quote)
             # If forced extensions is used and the path is not a directory ... (terminated by /)
-            # process line like a forced extension. 
+            # process line like a forced extension.
             elif self._forcedExtensions and not line.rstrip().endswith("/"):
                 quoted = self.quote(line)
                 for extension in self._extensions:
-                    result.append(quoted + '.' + extension)
+                    #Why? check https://github.com/maurosoria/dirsearch/issues/70
+                    if extension.strip() == '':
+                        result.append(quoted)
+                    else:
+                        result.append(quoted + '.' + extension)
                 if quoted.strip() not in ['']:
                     result.append(quoted + "/")
             # Append line unmodified.
