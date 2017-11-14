@@ -87,10 +87,11 @@ class DynamicContentParser:
                 if prefix is None and suffix is None:
                     continue
                 elif prefix is None:
-                    page = re.sub(r'(?s)^.+%s' % suffix, suffix, str(page))
+                    page = re.sub(r'(?s)^.+{0}'.format(re.escape(suffix)), suffix.replace('\\', r'\\'), page)
                 elif suffix is None:
-                    page = re.sub(r'(?s)%s.+$' % prefix, prefix, str(page))
+                    page = re.sub(r'(?s){0}.+$'.format(re.escape(prefix)), prefix.replace('\\', r'\\'), page)
                 else:
-                    page = re.sub(r'(?s)%s.+%s' % (prefix, suffix), '%s%s' % (prefix, suffix), str(page))
+                    page = re.sub(r'(?s){0}.+{1}'.format(re.escape(prefix), re.escape(suffix)), "{0}{1}".format(prefix.replace('\\', r'\\'), suffix.replace('\\', r'\\')), page)
+
 
         return page
