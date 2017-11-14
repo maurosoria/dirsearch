@@ -131,7 +131,11 @@ class Controller(object):
                     self.fuzzer = Fuzzer(self.requester, self.dictionary, testFailPath=self.arguments.testFailPath,
                                          threads=self.arguments.threadsCount, matchCallbacks=matchCallbacks,
                                          notFoundCallbacks=notFoundCallbacks, errorCallbacks=errorCallbacks)
-                    self.wait()
+                    try:
+                        self.wait()
+                    except RequestException as e:
+                        self.output.error("Fatal error during site scanning: " + e.args[0]['message'])
+                        raise SkipTargetInterrupt
                 except SkipTargetInterrupt:
                     continue
                 finally:
