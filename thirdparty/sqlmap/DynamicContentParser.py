@@ -1,6 +1,8 @@
 from difflib import SequenceMatcher
 import re
 
+import thirdparty.chardet
+
 
 class DynamicContentParser:
     def __init__(self, requester, path, firstPage, secondPage, comparisons=2):
@@ -81,6 +83,8 @@ class DynamicContentParser:
         precalculated dynamic markings
         """
         if page:
+            encoding = chardet.detect(page)['encoding']
+            page = page.decode(encoding, errors='replace')
             for item in dynamicMarks:
                 prefix, suffix = item
 
