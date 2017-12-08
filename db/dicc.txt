@@ -251,6 +251,7 @@
 .jshintignore
 .jshintrc
 .keep
+.keys.yml
 .kitchen.yml
 .komodotools
 .komodotools/
@@ -2579,6 +2580,7 @@ cpn.php
 cpsadmin
 crack
 CREDITS
+credentials
 creo_admin
 crm/
 cron.log
