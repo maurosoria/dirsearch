@@ -1,7 +1,7 @@
 from difflib import SequenceMatcher
 import re
 
-import thirdparty.chardet
+from thirdparty import chardet
 
 
 class DynamicContentParser:
