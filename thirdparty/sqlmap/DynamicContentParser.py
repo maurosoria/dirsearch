@@ -1,7 +1,7 @@
 from difflib import SequenceMatcher
 import re
 
-from thirdparty import chardet
+import thirdparty.chardet
 
 
 class DynamicContentParser:
@@ -87,6 +87,8 @@ class DynamicContentParser:
             page = page.decode(encoding, errors='replace')
             for item in dynamicMarks:
                 prefix, suffix = item
+                prefix = prefix.decode(encoding, errors='replace')
+                suffix = suffix.decode(encoding, errors='replace')
 
                 if prefix is None and suffix is None:
                     continue
