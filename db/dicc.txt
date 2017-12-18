@@ -1861,6 +1861,7 @@ app/vendor-src
 app_admin
 App_Code
 App_Data
+app.php
 app_dev.php
 appadmin
 appcache.manifest
@@ -2359,6 +2360,8 @@ clients.sqlite
 clients.zip
 clientsadmin
 clocktower
+cloud
+cloud/
 club_admin.%EXT%
 ClusterRollout
 cm-admin
@@ -2582,6 +2585,7 @@ crack
 CREDITS
 credentials
 creo_admin
+crm
 crm/
 cron.log
 cron.php
@@ -2803,6 +2807,8 @@ doctrine/schema/tmx.yml
 documentation
 documentation/config.yml
 documents
+dokuwiki
+dokuwiki/
 dom.php
 domain
 domcfg.nsf
@@ -2894,6 +2900,7 @@ ekw_admin
 elfinder/elfinder.php
 elmah.axd
 email
+email/
 email.htm
 email_admin
 emailadmin
@@ -3158,6 +3165,7 @@ getior
 gfx
 git-service
 gitlog
+gitlab
 giveadmin
 gladius/README.TXT
 global
@@ -3181,6 +3189,8 @@ globals
 globals.inc
 globes_admin/
 glossary
+glpi
+glpi/
 go
 google
 grabbed.html
@@ -3678,6 +3688,8 @@ license.php
 LICENSE.txt
 license.txt
 License.txt
+liferay
+liferay/
 liferay.log
 lighttpd.access.log
 lighttpd.error.log
@@ -3865,6 +3877,7 @@ magazine
 magic.default
 magmi/conf/magmi.ini
 mail
+mail/
 mail.html
 mail.log
 Mail/smtp/Admin/smadv.%EXT%
@@ -4178,6 +4191,8 @@ newsletter-admin
 newsletter/
 newsletteradmin
 newsletters
+nextcloud
+nextcloud/
 nginx-access.log
 nginx-error.log
 nginx-ssl.access.log
@@ -4271,6 +4286,8 @@ osadmin
 osCadmin
 oscommerce
 ospfd.conf
+osticket
+osticket/
 other
 out.cgi
 out.txt
@@ -4281,6 +4298,8 @@ owa
 OWA
 OWA/
 owfadmin
+owncloud
+owncloud/
 oxebiz_admin
 p
 p.php
@@ -4804,6 +4823,8 @@ recover
 RecoverPassword
 redadmin
 redirect
+redmine
+redmine/
 regadmin
 register
 register.php
@@ -5632,6 +5653,8 @@ uddiexplorer
 uddigui/
 uddilistener
 uddisoap/
+ui
+ui/
 ujadmin
 uk
 umbraco/webservices/codeEditorSave.asmx
@@ -5782,6 +5805,8 @@ vorud
 vorud.php
 vorud/
 vpn/
+vtiger
+vtiger/
 vtund.conf
 WarehouseEJB/
 WarehouseEJB/services/WarehouseFront
@@ -5876,6 +5901,8 @@ webstats/
 wenzhang
 whmcs.php
 whmcs/downloads/dz.php
+wiki
+wiki/
 Wishlist.%EXT%
 wizmysqladmin/
 WLDummyInitJVMIDs
@@ -5991,5 +6018,7 @@ zebra.conf
 zehir.php
 zeroclipboard.swf
 zf_backend.php
+zimbra
+zimbra/
 zone-h.php
 ~admin/
