@@ -1812,6 +1812,7 @@ api
 api.log
 api/
 api/error_log
+api/swagger.yml
 apibuild.pyc
 app
 APP
