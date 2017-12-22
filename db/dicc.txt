@@ -5379,6 +5379,7 @@ svn
 svn.revision
 SVN/
 svn/
+swagger-ui.html
 swf
 swfobject.js
 swfupload
