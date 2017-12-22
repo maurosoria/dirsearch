@@ -1812,6 +1812,7 @@ api
 api.log
 api/
 api/error_log
+api/swagger.yml
 apibuild.pyc
 app
 APP
@@ -5378,6 +5379,7 @@ svn
 svn.revision
 SVN/
 svn/
+swagger-ui.html
 swf
 swfobject.js
 swfupload
