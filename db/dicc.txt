@@ -2095,6 +2095,7 @@ bin
 Bin/
 bin/
 bin/config.sh
+bin/hostname
 bin/reset-db-prod.sh
 bin/reset-db.sh
 BingSiteAuth.xml
