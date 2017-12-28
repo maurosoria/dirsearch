@@ -87,6 +87,10 @@ class DynamicContentParser:
             page = page.decode(encoding, errors='replace')
             for item in dynamicMarks:
                 prefix, suffix = item
+                if prefix is not None:
+                    prefix = prefix.decode(encoding, errors='replace')
+                if suffix is not None:
+                    suffix = suffix.decode(encoding, errors='replace')
 
                 if prefix is None and suffix is None:
                     continue
