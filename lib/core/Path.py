@@ -16,6 +16,7 @@
 #
 #  Author: Mauro Soria
 
+
 class Path(object):
     def __init__(self, path=None, status=None, response=None):
         self.path = path
