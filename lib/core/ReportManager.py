@@ -18,6 +18,7 @@
 
 import threading
 
+
 class ReportManager(object):
 
     def __init__(self):
@@ -40,5 +41,3 @@ class ReportManager(object):
     def close(self):
         for output in self.outputs:
             output.close()
-
-
