@@ -24,29 +24,39 @@ class BaseReport(object):
         self.host = host
         self.protocol = protocol
         self.basePath = basePath
+
         if self.basePath.endswith('/'):
             self.basePath = self.basePath[:-1]
+
         if self.basePath.startswith('/'):
             self.basePath = self.basePath[1:]
+
         self.pathList = []
         self.open()
 
     def addPath(self, path, status, response):
         contentLength = None
+
         try:
             contentLength = int(response.headers['content-length'])
+
         except (KeyError, ValueError):
             contentLength = len(response.body)
+
         self.pathList.append((path, status, contentLength))
 
     def open(self):
         from os import name as os_name
-        if os_name == "nt":            
+
+        if os_name == "nt":
             from os.path import normpath, dirname
             from os import makedirs
+
             output = normpath(self.output)
             makedirs(dirname(output), exist_ok=True)
+
             self.output = output
+
         self.file = open(self.output, 'w+')
 
     def save(self):
@@ -61,5 +71,3 @@ class BaseReport(object):
 
     def generate(self):
         raise NotImplementedError
-
-

@@ -16,5 +16,6 @@
 #
 #  Author: Mauro Soria
 
+
 class RequestException(Exception):
     pass
