@@ -18,6 +18,7 @@
 #  Author: Mauro Soria
 
 import sys
+
 if sys.version_info < (3, 0):
     sys.stdout.write("Sorry, dirsearch requires Python 3.x\n")
     sys.exit(1)
@@ -25,6 +26,7 @@ if sys.version_info < (3, 0):
 from lib.core import ArgumentParser
 from lib.controller import *
 from lib.output import *
+
 
 class Program(object):
     def __init__(self):

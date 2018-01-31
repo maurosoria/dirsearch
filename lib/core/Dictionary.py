@@ -17,7 +17,11 @@
 #  Author: Mauro Soria
 
 import threading
-import urllib.request, urllib.parse, urllib.error
+
+import urllib.error
+import urllib.parse
+import urllib.request
+
 from lib.utils.FileUtils import File
 from thirdparty.oset import *
 
@@ -71,37 +75,48 @@ class Dictionary(object):
           3. If the line does not include the special word and IS ALREADY terminated by slash,
             append line unmodified.
     """
+
     def generate(self):
         result = []
         for line in self.dictionaryFile.getLines():
+
             # Skip comments
-            if line.lstrip().startswith("#"): continue
+            if line.lstrip().startswith("#"):
+                continue
+
             # Classic dirsearch wordlist processing (with %EXT% keyword)
             if '%EXT%' in line:
                 for extension in self._extensions:
                     quote = self.quote(line.replace('%EXT%', extension))
                     result.append(quote)
+
             # If forced extensions is used and the path is not a directory ... (terminated by /)
             # process line like a forced extension.
             elif self._forcedExtensions and not line.rstrip().endswith("/"):
                 quoted = self.quote(line)
+
                 for extension in self._extensions:
-                    #Why? check https://github.com/maurosoria/dirsearch/issues/70
+                    # Why? check https://github.com/maurosoria/dirsearch/issues/70
                     if extension.strip() == '':
                         result.append(quoted)
                     else:
                         result.append(quoted + '.' + extension)
+
                 if quoted.strip() not in ['']:
                     result.append(quoted + "/")
+
             # Append line unmodified.
             else:
                 result.append(self.quote(line))
+
         # oset library provides inserted ordered and unique collection.
         if self.lowercase:
             self.entries = list(oset(map(lambda l: l.lower(), result)))
+
         else:
             self.entries = list(oset(result))
-        del(result)
+
+        del (result)
 
     def regenerate(self):
         self.generate(lowercase=self.lowercase)
@@ -109,11 +124,14 @@ class Dictionary(object):
 
     def nextWithIndex(self, basePath=None):
         self.condition.acquire()
+
         try:
             result = self.entries[self.currentIndex]
+
         except IndexError:
             self.condition.release()
             raise StopIteration
+
         self.currentIndex = self.currentIndex + 1
         currentIndex = self.currentIndex
         self.condition.release()
@@ -130,5 +148,3 @@ class Dictionary(object):
 
     def __len__(self):
         return len(self.entries)
-
-

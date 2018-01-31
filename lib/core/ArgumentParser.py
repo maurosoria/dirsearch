@@ -18,9 +18,9 @@
 
 from optparse import OptionParser, OptionGroup
 
+from lib.utils.DefaultConfigParser import DefaultConfigParser
 from lib.utils.FileUtils import File
 from lib.utils.FileUtils import FileUtils
-from lib.utils.DefaultConfigParser import DefaultConfigParser
 from thirdparty.oset import *
 
 
@@ -28,45 +28,63 @@ class ArgumentParser(object):
     def __init__(self, script_path):
         self.script_path = script_path
         self.parseConfig()
+
         options = self.parseArguments()
+
         if options.url == None:
+
             if options.urlList != None:
+
                 with File(options.urlList) as urlList:
+
                     if not urlList.exists():
                         print("The file with URLs does not exist")
                         exit(0)
+
                     if not urlList.isValid():
                         print('The wordlist is invalid')
                         exit(0)
+
                     if not urlList.canRead():
                         print('The wordlist cannot be read')
                         exit(0)
+
                     self.urlList = list(urlList.getLines())
+
             elif options.url == None:
                 print('URL target is missing, try using -u <url> ')
                 exit(0)
+
         else:
             self.urlList = [options.url]
+
         if options.extensions == None:
             print('No extension specified. You must specify at least one extension')
             exit(0)
+
         with File(options.wordlist) as wordlist:
             if not wordlist.exists():
                 print('The wordlist file does not exist')
                 exit(0)
+
             if not wordlist.isValid():
                 print('The wordlist is invalid')
                 exit(0)
+
             if not wordlist.canRead():
                 print('The wordlist cannot be read')
                 exit(0)
+
         if options.httpProxy is not None:
+
             if options.httpProxy.startswith('http://'):
                 self.proxy = options.httpProxy
             else:
                 self.proxy = 'http://{0}'.format(options.httpProxy)
+
         else:
             self.proxy = None
+
         if options.headers is not None:
             try:
                 self.headers = dict((key.strip(), value.strip()) for (key, value) in (header.split(':', 1)
@@ -74,6 +92,7 @@ class ArgumentParser(object):
             except Exception as e:
                 print('Invalid headers')
                 exit(0)
+
         else:
             self.headers = {}
 
@@ -81,19 +100,25 @@ class ArgumentParser(object):
         self.useragent = options.useragent
         self.useRandomAgents = options.useRandomAgents
         self.cookie = options.cookie
+
         if options.threadsCount < 1:
             print('Threads number must be a number greater than zero')
             exit(0)
+
         self.threadsCount = options.threadsCount
+
         if options.excludeStatusCodes is not None:
+
             try:
                 self.excludeStatusCodes = list(
                     oset([int(excludeStatusCode.strip()) if excludeStatusCode else None for excludeStatusCode in
                           options.excludeStatusCodes.split(',')]))
             except ValueError:
                 self.excludeStatusCodes = []
+
         else:
             self.excludeStatusCodes = []
+
         self.wordlist = options.wordlist
         self.lowercase = options.lowercase
         self.forceExtensions = options.forceExtensions
@@ -106,32 +131,44 @@ class ArgumentParser(object):
         self.maxRetries = options.maxRetries
         self.recursive = options.recursive
         self.suppressEmpty = options.suppressEmpty
+
         if options.scanSubdirs is not None:
             self.scanSubdirs = list(oset([subdir.strip() for subdir in options.scanSubdirs.split(',')]))
+
             for i in range(len(self.scanSubdirs)):
+
                 while self.scanSubdirs[i].startswith("/"):
                     self.scanSubdirs[i] = self.scanSubdirs[i][1:]
+
                 while self.scanSubdirs[i].endswith("/"):
                     self.scanSubdirs[i] = self.scanSubdirs[i][:-1]
+
             self.scanSubdirs = list(oset([subdir + "/" for subdir in self.scanSubdirs]))
+
         else:
             self.scanSubdirs = None
+
         if not self.recursive and options.excludeSubdirs is not None:
             print('--exclude-subdir argument can only be used with -r|--recursive')
             exit(0)
+
         elif options.excludeSubdirs is not None:
             self.excludeSubdirs = list(oset([subdir.strip() for subdir in options.excludeSubdirs.split(',')]))
+
             for i in range(len(self.excludeSubdirs)):
+
                 while self.excludeSubdirs[i].startswith("/"):
                     self.excludeSubdirs[i] = self.excludeSubdirs[i][1:]
+
                 while self.excludeSubdirs[i].endswith("/"):
                     self.excludeSubdirs[i] = self.excludeSubdirs[i][:-1]
             self.excludeSubdirs = list(oset(self.excludeSubdirs))
+
         else:
             self.excludeSubdirs = None
+
         self.redirect = options.noFollowRedirects
         self.requestByHostname = options.requestByHostname
-
 
     def parseConfig(self):
         config = DefaultConfigParser()
@@ -187,8 +224,8 @@ class ArgumentParser(object):
         connection.add_option('--max-retries', action='store', dest='maxRetries', type='int',
                               default=self.maxRetries)
         connection.add_option('-b', '--request-by-hostname',
-                               help='By default dirsearch will request by IP for speed. This forces requests by hostname',
-                               action='store_true', dest='requestByHostname', default=self.requestByHostname)
+                              help='By default dirsearch will request by IP for speed. This forces requests by hostname',
+                              action='store_true', dest='requestByHostname', default=self.requestByHostname)
 
         # Dictionary settings
         dictionary = OptionGroup(parser, 'Dictionary Settings')
@@ -196,12 +233,14 @@ class ArgumentParser(object):
                               default=self.wordlist)
         dictionary.add_option('-l', '--lowercase', action='store_true', dest='lowercase', default=self.lowercase)
 
-        dictionary.add_option('-f', '--force-extensions', help='Force extensions for every wordlist entry (like in DirBuster)',
+        dictionary.add_option('-f', '--force-extensions',
+                              help='Force extensions for every wordlist entry (like in DirBuster)',
                               action='store_true', dest='forceExtensions', default=self.forceExtensions)
 
         # Optional Settings
         general = OptionGroup(parser, 'General Settings')
-        general.add_option('-s', '--delay', help='Delay between requests (float number)', action='store', dest='delay', type='float', default=self.delay)
+        general.add_option('-s', '--delay', help='Delay between requests (float number)', action='store', dest='delay',
+                           type='float', default=self.delay)
         general.add_option('-r', '--recursive', help='Bruteforce recursively', action='store_true', dest='recursive',
                            default=self.recursive)
         general.add_option('--suppress-empty', "--suppress-empty", action="store_true", dest='suppressEmpty')
