@@ -16,6 +16,8 @@
 #
 #  Author: Mauro Soria
 
+import json
+
 from lib.reports import *
 
 
