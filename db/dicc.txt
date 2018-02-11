@@ -2472,6 +2472,7 @@ config.php.old
 config.php.save
 config.php.swp
 config.php.txt
+config.php.zip
 config.php~
 config.rb
 config.txt
