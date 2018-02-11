@@ -2511,6 +2511,7 @@ configuration.php.old
 configuration.php.save
 configuration.php.swp
 configuration.php.txt
+configuration.php.zip
 configuration.php~
 configuration/
 confirmation.%EXT%
