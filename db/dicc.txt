@@ -5937,6 +5937,7 @@ wp-config.php.old
 wp-config.php.save
 wp-config.php.swp
 wp-config.php.txt
+wp-config.php.zip
 wp-config.php~
 wp-content
 wp-content/
