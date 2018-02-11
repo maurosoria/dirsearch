@@ -2472,6 +2472,7 @@ config.php.old
 config.php.save
 config.php.swp
 config.php.txt
+config.php.zip
 config.php~
 config.rb
 config.txt
@@ -2511,6 +2512,7 @@ configuration.php.old
 configuration.php.save
 configuration.php.swp
 configuration.php.txt
+configuration.php.zip
 configuration.php~
 configuration/
 confirmation.%EXT%
@@ -5936,6 +5938,7 @@ wp-config.php.old
 wp-config.php.save
 wp-config.php.swp
 wp-config.php.txt
+wp-config.php.zip
 wp-config.php~
 wp-content
 wp-content/
