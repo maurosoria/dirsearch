@@ -164,7 +164,7 @@ class Requester(object):
             except requests.exceptions.TooManyRedirects as e:
                 raise RequestException({'message': 'Too many redirects: {0}'.format(e)})
 
-            except ConnectionResetError as e:
+            except requests.exceptions.ConnectionResetError as e:
                 raise RequestException({'message': 'ConnectionResetError: {0}'.format(e)})
 
             except requests.exceptions.ConnectionError as e:
