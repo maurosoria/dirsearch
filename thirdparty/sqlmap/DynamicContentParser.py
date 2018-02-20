@@ -82,7 +82,7 @@ class DynamicContentParser:
         Removing dynamic content from supplied page basing removal on
         precalculated dynamic markings
         """
-        if page:
+        if page and len(dynamicMarks) > 0:
             encoding = chardet.detect(page)['encoding']
             page = page.decode(encoding, errors='replace')
             for item in dynamicMarks:
@@ -102,5 +102,5 @@ class DynamicContentParser:
                     page = re.sub(r'(?s){0}.+{1}'.format(re.escape(prefix), re.escape(suffix)), "{0}{1}".format(prefix.replace('\\', r'\\'), suffix.replace('\\', r'\\')), page)
 
             page = page.encode()
-            
+
         return page
