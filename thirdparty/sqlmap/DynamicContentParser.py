@@ -101,5 +101,6 @@ class DynamicContentParser:
                 else:
                     page = re.sub(r'(?s){0}.+{1}'.format(re.escape(prefix), re.escape(suffix)), "{0}{1}".format(prefix.replace('\\', r'\\'), suffix.replace('\\', r'\\')), page)
 
-
+            page = page.encode()
+            
         return page
