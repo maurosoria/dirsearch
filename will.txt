@@ -1,0 +1,50 @@
+CORO-rt-00867-193.127.200.243
+03/04/2017
+03/04/2017
+Sensitive Information in Headers
+http://193.127.200.243
+CORO-rt-00897-193.127.200.110
+04/04/2017
+04/04/2017
+Open SilverLight Client Access Policy
+http://193.127.200.110
+CORO-rt-00898-193.127.200.110
+11/04/2017
+11/04/2017
+Flash cross-domain policy
+http://193.127.200.110
+CORO-rt-00890-193.127.200.243
+17/04/2017
+17/04/2017
+Clickjacking: X-Frame-Options header missing
+http://193.127.200.243
+CORO-rt-00890-193.127.200.240
+17/04/2017
+17/04/2017
+Clickjacking: X-Frame-Options header missing
+http://193.127.200.240
+CORO-rt-00890-193.127.200.110
+17/04/2017
+17/04/2017
+Clickjacking: X-Frame-Options header missing
+http://193.127.200.110
+CORO-RT-01016-193.127.200.225
+09/05/2017
+11/05/2017
+OPTIONS method is enabled
+193.127.200.225/sessions/
+CORO-rt-00804-193.127.200.98
+21/06/2017
+21/06/2017
+OPTIONS method is enabled
+http://gsnetwave.santandergroup.net/sessions/
+CORO-rt-00866-193.127.200.240
+15/09/2017
+15/09/2017
+Sensitive Information in Headers
+http://193.127.200.240
+CORO-rt-00945-193.127.200.234
+18/10/2017
+18/10/2017
+Insecure Transportation Security Protocol Supported (SSLv2) and weak ciphers enabled
+waveplayer01.santandergroup.net

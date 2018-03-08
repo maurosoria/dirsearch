@@ -88,7 +88,8 @@ class CLIOutput(object):
 
             # Format message
             try:
-                size = int(response.headers['content-length'])
+                #size = int(response.headers['content-length'])
+                size = len(str(response.body))
             except (KeyError, ValueError):
                 size = len(response.body)
             finally:
