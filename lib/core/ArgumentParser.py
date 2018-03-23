@@ -216,7 +216,7 @@ class ArgumentParser(object):
                            default=None)
         general.add_option('--filter-size', '--filter-size',
                            help='Exclude the following size',
-                           action='store', dest='filterSize', type= 'int',
+                           action='store', dest='filterSize', type= 'str',
                            default=None)
         general.add_option('-t', '--threads', help='Number of Threads', action='store', type='int', dest='threadsCount'
                            , default=self.threadsCount)

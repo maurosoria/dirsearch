@@ -107,8 +107,18 @@ class CLIOutput(object):
                 showPath
             )
             filter_size = self.arguments.filterSize
-            if size == filter_size:
+
+            #size = str(size)
+
+            try:
+                low, high = filter_size.split("-")
+            except:
+                low = filter_size
+                high = None
+
+            if str(size) >= str(low) and str(size) <= str(high) or str(size) == str(low) and str(high) == None:
                 pass
+
             else:    
                 if status == 200:
                     message = Fore.GREEN + message + Style.RESET_ALL
