@@ -215,7 +215,7 @@ class ArgumentParser(object):
                            action='store', dest='excludeSubdirs',
                            default=None)
         general.add_option('--filter-size', '--filter-size',
-                           help='Exclude the following size',
+                           help='Exclude the following size --filter-size=<size> or --filter-size=<size_low>-<size_high>',
                            action='store', dest='filterSize', type= 'str',
                            default=None)
         general.add_option('-t', '--threads', help='Number of Threads', action='store', type='int', dest='threadsCount'
