@@ -1818,6 +1818,8 @@ api.log
 api/
 api/error_log
 api/swagger.yml
+api-doc
+api-docs
 apibuild.pyc
 app
 APP
