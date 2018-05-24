@@ -251,6 +251,7 @@
 .jshintignore
 .jshintrc
 .keep
+.keys.yml
 .kitchen.yml
 .komodotools
 .komodotools/
@@ -532,17 +533,7 @@
 2008
 2009
 2010
-2010.sql
-2010.tar
-2010.tar.gz
-2010.tgz
-2010.zip
 2011
-2011.sql
-2011.tar
-2011.tar.gz
-2011.tgz
-2011.zip
 2012
 2012.sql
 2012.tar
@@ -555,21 +546,36 @@
 2013.tar.gz
 2013.tgz
 2013.zip
+2014
 2014.sql
 2014.tar
 2014.tar.gz
 2014.tgz
 2014.zip
+2015
 2015.sql
 2015.tar
 2015.tar.gz
 2015.tgz
 2015.zip
+2016
 2016.sql
 2016.tar
 2016.tar.gz
 2016.tgz
 2016.zip
+2017
+2017.sql
+2017.tar
+2017.tar.gz
+2017.tgz
+2017.zip
+2018
+2018.sql
+2018.tar
+2018.tar.gz
+2018.tgz
+2018.zip
 21
 22
 2257.%EXT%
@@ -1811,6 +1817,9 @@ api
 api.log
 api/
 api/error_log
+api/swagger.yml
+api-doc
+api-docs
 apibuild.pyc
 app
 APP
@@ -1860,6 +1869,7 @@ app/vendor-src
 app_admin
 App_Code
 App_Data
+app.php
 app_dev.php
 appadmin
 appcache.manifest
@@ -2092,6 +2102,7 @@ bin
 Bin/
 bin/
 bin/config.sh
+bin/hostname
 bin/reset-db-prod.sh
 bin/reset-db.sh
 BingSiteAuth.xml
@@ -2358,6 +2369,8 @@ clients.sqlite
 clients.zip
 clientsadmin
 clocktower
+cloud
+cloud/
 club_admin.%EXT%
 ClusterRollout
 cm-admin
@@ -2461,6 +2474,7 @@ config.php.old
 config.php.save
 config.php.swp
 config.php.txt
+config.php.zip
 config.php~
 config.rb
 config.txt
@@ -2500,6 +2514,7 @@ configuration.php.old
 configuration.php.save
 configuration.php.swp
 configuration.php.txt
+configuration.php.zip
 configuration.php~
 configuration/
 confirmation.%EXT%
@@ -2579,7 +2594,9 @@ cpn.php
 cpsadmin
 crack
 CREDITS
+credentials
 creo_admin
+crm
 crm/
 cron.log
 cron.php
@@ -2801,6 +2818,8 @@ doctrine/schema/tmx.yml
 documentation
 documentation/config.yml
 documents
+dokuwiki
+dokuwiki/
 dom.php
 domain
 domcfg.nsf
@@ -2892,6 +2911,7 @@ ekw_admin
 elfinder/elfinder.php
 elmah.axd
 email
+email/
 email.htm
 email_admin
 emailadmin
@@ -3156,6 +3176,7 @@ getior
 gfx
 git-service
 gitlog
+gitlab
 giveadmin
 gladius/README.TXT
 global
@@ -3179,6 +3200,8 @@ globals
 globals.inc
 globes_admin/
 glossary
+glpi
+glpi/
 go
 google
 grabbed.html
@@ -3676,6 +3699,8 @@ license.php
 LICENSE.txt
 license.txt
 License.txt
+liferay
+liferay/
 liferay.log
 lighttpd.access.log
 lighttpd.error.log
@@ -3863,6 +3888,7 @@ magazine
 magic.default
 magmi/conf/magmi.ini
 mail
+mail/
 mail.html
 mail.log
 Mail/smtp/Admin/smadv.%EXT%
@@ -4176,6 +4202,8 @@ newsletter-admin
 newsletter/
 newsletteradmin
 newsletters
+nextcloud
+nextcloud/
 nginx-access.log
 nginx-error.log
 nginx-ssl.access.log
@@ -4269,6 +4297,8 @@ osadmin
 osCadmin
 oscommerce
 ospfd.conf
+osticket
+osticket/
 other
 out.cgi
 out.txt
@@ -4279,6 +4309,8 @@ owa
 OWA
 OWA/
 owfadmin
+owncloud
+owncloud/
 oxebiz_admin
 p
 p.php
@@ -4802,6 +4834,8 @@ recover
 RecoverPassword
 redadmin
 redirect
+redmine
+redmine/
 regadmin
 register
 register.php
@@ -5063,6 +5097,7 @@ showlogin/
 showthread
 shradmin
 sibstatus
+sidekiq
 sign-in
 sign-in/
 sign_in
@@ -5354,6 +5389,7 @@ svn
 svn.revision
 SVN/
 svn/
+swagger-ui.html
 swf
 swfobject.js
 swfupload
@@ -5629,6 +5665,8 @@ uddiexplorer
 uddigui/
 uddilistener
 uddisoap/
+ui
+ui/
 ujadmin
 uk
 umbraco/webservices/codeEditorSave.asmx
@@ -5745,6 +5783,9 @@ utils
 uvpanel/
 v
 v1
+v1/test/js/console.html
+v1/test/js/console_ajax.js
+v1/public/yql
 vadmin
 vadmin.%EXT%
 vadmind/
@@ -5779,6 +5820,8 @@ vorud
 vorud.php
 vorud/
 vpn/
+vtiger
+vtiger/
 vtund.conf
 WarehouseEJB/
 WarehouseEJB/services/WarehouseFront
@@ -5873,6 +5916,8 @@ webstats/
 wenzhang
 whmcs.php
 whmcs/downloads/dz.php
+wiki
+wiki/
 Wishlist.%EXT%
 wizmysqladmin/
 WLDummyInitJVMIDs
@@ -5895,6 +5940,7 @@ wp-config.php.old
 wp-config.php.save
 wp-config.php.swp
 wp-config.php.txt
+wp-config.php.zip
 wp-config.php~
 wp-content
 wp-content/
@@ -5988,5 +6034,7 @@ zebra.conf
 zehir.php
 zeroclipboard.swf
 zf_backend.php
+zimbra
+zimbra/
 zone-h.php
 ~admin/

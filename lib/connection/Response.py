@@ -16,6 +16,7 @@
 #
 #  Author: Mauro Soria
 
+
 class Response(object):
 
     def __init__(self, status, reason, headers, body):

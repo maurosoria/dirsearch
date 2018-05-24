@@ -16,15 +16,16 @@
 #
 #  Author: Mauro Soria
 
+import platform
+import sys
 import threading
 import time
-import sys
-import platform
+
 import urllib.parse
 
 from lib.utils.FileUtils import *
-from thirdparty.colorama import *
 from lib.utils.TerminalSize import get_terminal_size
+from thirdparty.colorama import *
 
 if platform.system() == 'Windows':
     from thirdparty.colorama.win32 import *
@@ -58,6 +59,7 @@ class CLIOutput(object):
             FillConsoleOutputCharacter(STDOUT, ' ', width, csbi.dwCursorPosition)
             sys.stdout.write(line)
             sys.stdout.flush()
+
         else:
             sys.stdout.write('\033[1K')
             sys.stdout.write('\033[0G')
@@ -65,13 +67,16 @@ class CLIOutput(object):
     def newLine(self, string):
         if self.lastInLine == True:
             self.erase()
+
         if platform.system() == 'Windows':
             sys.stdout.write(string)
             sys.stdout.flush()
             sys.stdout.write('\n')
             sys.stdout.flush()
+
         else:
             sys.stdout.write(string + '\n')
+
         sys.stdout.flush()
         self.lastInLine = False
         sys.stdout.flush()
@@ -88,13 +93,16 @@ class CLIOutput(object):
             # Format message
             try:
                 size = int(response.headers['content-length'])
+
             except (KeyError, ValueError):
                 size = len(response.body)
+
             finally:
                 contentLength = FileUtils.sizeHuman(size)
 
             if self.basePath is None:
                 showPath = urllib.parse.urljoin("/", path)
+
             else:
                 showPath = urllib.parse.urljoin("/", self.basePath)
                 showPath = urllib.parse.urljoin(showPath, path)
@@ -107,10 +115,13 @@ class CLIOutput(object):
 
             if status == 200:
                 message = Fore.GREEN + message + Style.RESET_ALL
+
             elif status == 403:
                 message = Fore.BLUE + message + Style.RESET_ALL
+
             elif status == 401:
                 message = Fore.YELLOW + message + Style.RESET_ALL
+
             # Check if redirect
             elif status in [301, 302, 307] and 'location' in [h.lower() for h in response.headers]:
                 message = Fore.CYAN + message + Style.RESET_ALL
@@ -121,16 +132,22 @@ class CLIOutput(object):
     def lastPath(self, path, index, length):
         with self.mutex:
             percentage = lambda x, y: float(x) / float(y) * 100
+
             x, y = get_terminal_size()
+
             message = '{0:.2f}% - '.format(percentage(index, length))
+
             if self.errors > 0:
                 message += Style.BRIGHT + Fore.RED
                 message += 'Errors: {0}'.format(self.errors)
                 message += Style.RESET_ALL
                 message += ' - '
+
             message += 'Last request to: {0}'.format(path)
+
             if len(message) > x:
                 message = message[:x]
+
             self.inLine(message)
 
     def addConnectionError(self):
@@ -165,12 +182,14 @@ class CLIOutput(object):
         config += separator
         config += 'Wordlist size: {0}'.format(Fore.CYAN + wordlistSize + Fore.YELLOW)
         config += Style.RESET_ALL
+
         self.newLine(config)
 
     def target(self, target):
         config = Style.BRIGHT + Fore.YELLOW
         config += '\nTarget: {0}\n'.format(Fore.CYAN + target + Fore.YELLOW)
         config += Style.RESET_ALL
+
         self.newLine(config)
 
     def debug(self, info):
