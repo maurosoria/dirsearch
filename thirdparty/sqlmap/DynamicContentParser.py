@@ -1,6 +1,8 @@
 from difflib import SequenceMatcher
 import re
 
+from thirdparty import chardet
+
 
 class DynamicContentParser:
     def __init__(self, requester, path, firstPage, secondPage, comparisons=2):
@@ -80,17 +82,25 @@ class DynamicContentParser:
         Removing dynamic content from supplied page basing removal on
         precalculated dynamic markings
         """
-        if page:
+        if page and len(dynamicMarks) > 0:
+            encoding = chardet.detect(page)['encoding']
+            page = page.decode(encoding, errors='replace')
             for item in dynamicMarks:
                 prefix, suffix = item
+                if prefix is not None:
+                    prefix = prefix.decode(encoding, errors='replace')
+                if suffix is not None:
+                    suffix = suffix.decode(encoding, errors='replace')
 
                 if prefix is None and suffix is None:
                     continue
                 elif prefix is None:
-                    page = re.sub(r'(?s)^.+%s' % suffix, suffix, str(page))
+                    page = re.sub(r'(?s)^.+{0}'.format(re.escape(suffix)), suffix.replace('\\', r'\\'), page)
                 elif suffix is None:
-                    page = re.sub(r'(?s)%s.+$' % prefix, prefix, str(page))
+                    page = re.sub(r'(?s){0}.+$'.format(re.escape(prefix)), prefix.replace('\\', r'\\'), page)
                 else:
-                    page = re.sub(r'(?s)%s.+%s' % (prefix, suffix), '%s%s' % (prefix, suffix), str(page))
+                    page = re.sub(r'(?s){0}.+{1}'.format(re.escape(prefix), re.escape(suffix)), "{0}{1}".format(prefix.replace('\\', r'\\'), suffix.replace('\\', r'\\')), page)
+
+            page = page.encode()
 
         return page

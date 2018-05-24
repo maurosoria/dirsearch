@@ -1,5 +1,6 @@
 from .BaseReport import *
-from .SimpleReport import *
-from .PlainTextReport import *
 from .JSONReport import *
+from .PlainTextReport import *
+from .SimpleReport import *
+
 pass
