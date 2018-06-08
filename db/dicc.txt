@@ -127,6 +127,7 @@
 .tar.bz2
 .tar.gz
 .user.ini
+.well-known/security.txt
 .zip
 0
 00
@@ -2952,6 +2953,7 @@ securecleanup
 secured
 secureemail
 security
+security.txt
 security.xml
 Security/login/
 sendmail
