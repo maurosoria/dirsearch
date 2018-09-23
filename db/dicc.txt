@@ -3207,6 +3207,12 @@ google
 grabbed.html
 graffiti-admin
 graphics
+graphql
+graphql/console/
+graphql.php
+graphiql/
+graphiql.php
+graphql.js
 grappelli/
 Greenhouse
 Greenhouse/
