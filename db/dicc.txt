@@ -1869,6 +1869,7 @@ app/vendor-src
 app_admin
 App_Code
 App_Data
+app.js
 app.php
 app_dev.php
 appadmin
@@ -5004,6 +5005,7 @@ server.cfg
 server.log
 Server.php
 server.xml
+server.js
 Server/
 server_admin_small/
 server_stats
