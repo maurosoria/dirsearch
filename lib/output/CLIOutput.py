@@ -181,6 +181,8 @@ class CLIOutput(object):
         config += 'Threads: {0}'.format(Fore.CYAN + threads + Fore.YELLOW)
         config += separator
         config += 'Wordlist size: {0}'.format(Fore.CYAN + wordlistSize + Fore.YELLOW)
+        config += separator
+        config += 'Scan for: {0}'.format(Fore.CYAN + '200,301,302,307,400,401' + Fore.YELLOW)
         config += Style.RESET_ALL
 
         self.newLine(config)
