@@ -3615,6 +3615,10 @@ joomla.xml
 joomla.zip
 joomla/administrator
 js
+js/envConfig.js
+js/prod.js
+js/prepod.js
+js/qa.js
 js/elfinder/elfinder.php
 js/FCKeditor
 js/routing
