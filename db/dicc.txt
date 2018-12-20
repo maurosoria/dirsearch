@@ -457,6 +457,8 @@
 .viminfo
 .vimrc
 .web
+.well-known/
+.well-known/security.txt
 .workspace/
 .wp-config.php.swp
 .www_acl
@@ -4993,6 +4995,7 @@ securecleanup
 secured
 secureemail
 security
+security.txt
 security.xml
 security/
 Security/login/
