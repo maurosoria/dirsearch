@@ -5939,6 +5939,7 @@ WLDummyInitJVMIDs
 Wordpress/
 WordPress/
 WP
+wp
 wp-admin
 wp-admin/
 wp-admin/c99.php
