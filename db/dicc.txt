@@ -457,6 +457,8 @@
 .viminfo
 .vimrc
 .web
+.well-known/
+.well-known/security.txt
 .workspace/
 .wp-config.php.swp
 .www_acl
@@ -1869,6 +1871,7 @@ app/vendor-src
 app_admin
 App_Code
 App_Data
+app.js
 app.php
 app_dev.php
 appadmin
@@ -3207,6 +3210,12 @@ google
 grabbed.html
 graffiti-admin
 graphics
+graphql
+graphql/console/
+graphql.php
+graphiql/
+graphiql.php
+graphql.js
 grappelli/
 Greenhouse
 Greenhouse/
@@ -3608,6 +3617,10 @@ joomla.xml
 joomla.zip
 joomla/administrator
 js
+js/envConfig.js
+js/prod.js
+js/prepod.js
+js/qa.js
 js/elfinder/elfinder.php
 js/FCKeditor
 js/routing
@@ -4982,6 +4995,7 @@ securecleanup
 secured
 secureemail
 security
+security.txt
 security.xml
 security/
 Security/login/
@@ -4998,6 +5012,7 @@ server.cfg
 server.log
 Server.php
 server.xml
+server.js
 Server/
 server_admin_small/
 server_stats
@@ -5924,6 +5939,7 @@ WLDummyInitJVMIDs
 Wordpress/
 WordPress/
 WP
+wp
 wp-admin
 wp-admin/
 wp-admin/c99.php
