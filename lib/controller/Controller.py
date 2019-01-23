@@ -20,6 +20,7 @@ import gc
 import os
 import sys
 import time
+import urllib.parse
 from threading import Lock
 
 from queue import Queue
@@ -318,7 +319,10 @@ class Controller(object):
                 path.status)) and not (
                     self.suppressEmpty and (len(path.response.body) == 0)):
                 self.output.statusReport(path.path, path.response)
-                self.addDirectory(path.path)
+                if path.response.redirect:
+                    self.addRedirectDirectory(path)
+                else:
+                    self.addDirectory(path.path)
                 self.reportManager.addPath(self.currentDirectory + path.path, path.status, path.response)
                 self.reportManager.save()
                 del path
@@ -414,3 +418,18 @@ class Controller(object):
 
         else:
             return False
+
+    def addRedirectDirectory(self, path):
+        """Resolve the redirect header relative to the current URL and add the
+        path to self.directories if it is a subdirectory of the current URL."""
+        if not self.recursive:
+            return False
+
+        baseUrl = self.currentUrl.rstrip("/") + "/" + self.currentDirectory
+        absoluteUrl = urllib.parse.urljoin(baseUrl, path.response.redirect)
+        if absoluteUrl.startswith(baseUrl) and absoluteUrl != baseUrl and absoluteUrl.endswith("/"):
+            parsed = urllib.parse.urlparse(absoluteUrl)
+            self.directories.put(parsed.path.lstrip("/"))
+            return True
+
+        return False
