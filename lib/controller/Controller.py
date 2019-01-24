@@ -428,8 +428,8 @@ class Controller(object):
         baseUrl = self.currentUrl.rstrip("/") + "/" + self.currentDirectory
         absoluteUrl = urllib.parse.urljoin(baseUrl, path.response.redirect)
         if absoluteUrl.startswith(baseUrl) and absoluteUrl != baseUrl and absoluteUrl.endswith("/"):
-            parsed = urllib.parse.urlparse(absoluteUrl)
-            self.directories.put(parsed.path.lstrip("/"))
+            subdir = absoluteUrl[len(baseUrl):]
+            self.directories.put(subdir)
             return True
 
         return False
