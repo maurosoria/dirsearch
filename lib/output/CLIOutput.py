@@ -173,10 +173,12 @@ class CLIOutput(object):
         message = Style.BRIGHT + Fore.MAGENTA + text + Style.RESET_ALL
         self.newLine(message)
 
-    def config(self, extensions, threads, wordlistSize):
+    def config(self, extensions, threads, wordlistSize, method):
         separator = Fore.MAGENTA + ' | ' + Fore.YELLOW
         config = Style.BRIGHT + Fore.YELLOW
         config += 'Extensions: {0}'.format(Fore.CYAN + extensions + Fore.YELLOW)
+        config += separator
+        config += 'HTTP method: {0}'.format(Fore.CYAN + method + Fore.YELLOW)
         config += separator
         config += 'Threads: {0}'.format(Fore.CYAN + threads + Fore.YELLOW)
         config += separator

@@ -201,7 +201,7 @@ class ArgumentParser(object):
         self.timeout = config.safe_getint("connection", "timeout", 30)
         self.maxRetries = config.safe_getint("connection", "max-retries", 5)
         self.proxy = config.safe_get("connection", "http-proxy", None)
-        self.httpmethod = config.safe_get("connection", "httpmethod", "get", ["get", "head"])
+        self.httpmethod = config.safe_get("connection", "httpmethod", "get", ["get", "head", "post"])
         self.requestByHostname = config.safe_get("connection", "request-by-hostname", False)
 
     def parseArguments(self):
@@ -224,7 +224,7 @@ class ArgumentParser(object):
         connection.add_option('--proxy', '--http-proxy', action='store', dest='httpProxy', type='string',
                               default=self.proxy, help='Http Proxy (example: localhost:8080')
         connection.add_option('--http-method', action='store', dest='httpmethod', type='string',
-                              default=self.httpmethod, help='Method to use, default: GET, possible also: HEAD')
+                              default=self.httpmethod, help='Method to use, default: GET, possible also: HEAD;POST')
         connection.add_option('--max-retries', action='store', dest='maxRetries', type='int',
                               default=self.maxRetries)
         connection.add_option('-b', '--request-by-hostname',
