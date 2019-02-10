@@ -56,6 +56,12 @@ class Controller(object):
         self.output = output
         self.savePath = self.script_path
 
+        if self.arguments.httpmethod.lower() not in ["get","head"]:
+            self.output.error("Inavlid http method!")
+            exit(1)
+
+        self.httpmethod = self.arguments.httpmethod.lower()
+
         if self.arguments.saveHome:
             savePath = self.getSavePath()
 
@@ -126,7 +132,8 @@ class Controller(object):
                                                    timeout=self.arguments.timeout,
                                                    ip=self.arguments.ip, proxy=self.arguments.proxy,
                                                    redirect=self.arguments.redirect,
-                                                   requestByHostname=self.arguments.requestByHostname)
+                                                   requestByHostname=self.arguments.requestByHostname,
+                                                   httpmethod=self.httpmethod)
                         self.requester.request("/")
 
                     except RequestException as e:

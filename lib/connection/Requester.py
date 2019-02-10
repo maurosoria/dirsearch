@@ -42,7 +42,9 @@ class Requester(object):
 
     def __init__(self, url, cookie=None, useragent=None,
                  maxPool=1, maxRetries=5, delay=0, timeout=30,
-                 ip=None, proxy=None, redirect=False, requestByHostname=False):
+                 ip=None, proxy=None, redirect=False, requestByHostname=False, httpmethod="get"):
+
+        self.httpmethod = httpmethod
 
         # if no backslash, append one
         if not url.endswith('/'):
@@ -143,18 +145,29 @@ class Requester(object):
 
                 # include port in Host header if it's non-standard
                 if (self.protocol == "https" and self.port != 443) or \
-                    (self.protocol == "http" and self.port != 80):
-
+                        (self.protocol == "http" and self.port != 80):
                     headers["Host"] += ":{0}".format(self.port)
 
-                response = self.session.get(
-                    url,
-                    proxies=proxy,
-                    verify=False,
-                    allow_redirects=self.redirect,
-                    headers=headers,
-                    timeout=self.timeout
-                )
+
+                if(self.httpmethod == "get"):
+                    response = self.session.get(
+                        url,
+                        proxies=proxy,
+                        verify=False,
+                        allow_redirects=self.redirect,
+                        headers=headers,
+                        timeout=self.timeout
+                    )
+
+                if (self.httpmethod == "head"):
+                    response = self.session.head(
+                        url,
+                        proxies=proxy,
+                        verify=False,
+                        allow_redirects=self.redirect,
+                        headers=headers,
+                        timeout=self.timeout
+                    )
 
                 result = Response(response.status_code, response.reason, response.headers, response.content)
                 time.sleep(self.delay)
@@ -165,7 +178,8 @@ class Requester(object):
                 raise RequestException({'message': 'Too many redirects: {0}'.format(e)})
 
             except requests.exceptions.SSLError:
-                raise RequestException({'message': 'SSL Error connecting to server. Try the -b flag to connect by hostname'})
+                raise RequestException(
+                    {'message': 'SSL Error connecting to server. Try the -b flag to connect by hostname'})
 
             except requests.exceptions.ConnectionError as e:
                 if self.proxy is not None:

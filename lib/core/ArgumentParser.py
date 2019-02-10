@@ -169,6 +169,7 @@ class ArgumentParser(object):
 
         self.redirect = options.noFollowRedirects
         self.requestByHostname = options.requestByHostname
+        self.httpmethod = options.httpmethod
 
     def parseConfig(self):
         config = DefaultConfigParser()
@@ -200,6 +201,7 @@ class ArgumentParser(object):
         self.timeout = config.safe_getint("connection", "timeout", 30)
         self.maxRetries = config.safe_getint("connection", "max-retries", 5)
         self.proxy = config.safe_get("connection", "http-proxy", None)
+        self.httpmethod = config.safe_get("connection", "httpmethod", "get", ["get", "head"])
         self.requestByHostname = config.safe_get("connection", "request-by-hostname", False)
 
     def parseArguments(self):
@@ -221,6 +223,8 @@ class ArgumentParser(object):
                               help='Resolve name to IP address')
         connection.add_option('--proxy', '--http-proxy', action='store', dest='httpProxy', type='string',
                               default=self.proxy, help='Http Proxy (example: localhost:8080')
+        connection.add_option('--http-method', action='store', dest='httpmethod', type='string',
+                              default=self.httpmethod, help='Method to use, default: GET, possible also: HEAD')
         connection.add_option('--max-retries', action='store', dest='maxRetries', type='int',
                               default=self.maxRetries)
         connection.add_option('-b', '--request-by-hostname',
