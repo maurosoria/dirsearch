@@ -148,8 +148,7 @@ class Requester(object):
                         (self.protocol == "http" and self.port != 80):
                     headers["Host"] += ":{0}".format(self.port)
 
-
-                if(self.httpmethod == "get"):
+                if (self.httpmethod == "get"):
                     response = self.session.get(
                         url,
                         proxies=proxy,
@@ -161,6 +160,16 @@ class Requester(object):
 
                 if (self.httpmethod == "head"):
                     response = self.session.head(
+                        url,
+                        proxies=proxy,
+                        verify=False,
+                        allow_redirects=self.redirect,
+                        headers=headers,
+                        timeout=self.timeout
+                    )
+
+                if (self.httpmethod == "post"):
+                    response = self.session.post(
                         url,
                         proxies=proxy,
                         verify=False,

@@ -57,7 +57,7 @@ class Controller(object):
         self.output = output
         self.savePath = self.script_path
 
-        if self.arguments.httpmethod.lower() not in ["get","head"]:
+        if self.arguments.httpmethod.lower() not in ["get", "head", "post"]:
             self.output.error("Inavlid http method!")
             exit(1)
 
@@ -191,8 +191,12 @@ class Controller(object):
         self.output.warning('\nTask Completed')
 
     def printConfig(self):
-        self.output.config(', '.join(self.arguments.extensions), str(self.arguments.threadsCount),
-                           str(len(self.dictionary)))
+        self.output.config(
+            ', '.join(self.arguments.extensions),
+            str(self.arguments.threadsCount),
+            str(len(self.dictionary)),
+            str(self.httpmethod)
+        )
 
     def getSavePath(self):
         basePath = None
