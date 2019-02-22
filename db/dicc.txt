@@ -2086,6 +2086,7 @@ bea_wls_internal/psquare/x.jsp
 bea_wls_internal/WebServiceServlet
 bea_wls_internal/WLDummyInitJVMIDs
 beanManaged
+beans
 BeenThere
 behat.yml
 beheer/
@@ -2203,6 +2204,7 @@ c22.php
 c99.php
 c99shell.php
 cache
+caches
 cache/
 cache/sql_error_latest.cgi
 cache_html
@@ -2934,6 +2936,7 @@ english
 enteradmin
 enterprise
 entertainment
+env
 environment.rb
 epsadmin
 err
@@ -3254,6 +3257,7 @@ header
 header_admin.%EXT%
 headers
 health
+heapdump
 heip65_admin.nsf
 hello
 helloEJB
