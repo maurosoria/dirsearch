@@ -3631,6 +3631,8 @@ joomla.rar
 joomla.xml
 joomla.zip
 joomla/administrator
+jolokia
+jolokia/list
 js
 js/envConfig.js
 js/prod.js
