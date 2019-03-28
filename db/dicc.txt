@@ -878,6 +878,11 @@ activation.%EXT%
 ActiveDirectoryRemoteAdminScripts/
 activity.log
 activitysessions/docs/
+actuator
+actuator/dump
+actuator/trace
+actuator/logfile
+actuator/mappings
 ad
 ad_admin.%EXT%
 ad_login
@@ -3626,6 +3631,8 @@ joomla.rar
 joomla.xml
 joomla.zip
 joomla/administrator
+jolokia
+jolokia/list
 js
 js/envConfig.js
 js/prod.js
@@ -3972,6 +3979,7 @@ mapadmin
 mapix/doc/en/changes.html
 mapix/mapix/doc/en/changes.html
 mapping
+mappings
 maps
 market
 master-admin
@@ -5662,6 +5670,7 @@ tradetheme
 training
 trans
 transfer
+trace
 travel
 trivia/
 tst
