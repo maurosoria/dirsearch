@@ -3966,6 +3966,7 @@ manager/html/
 manager/login
 manager/login.asp
 manager/VERSION
+manifest.json
 MANIFEST.MF
 manifest.mf
 manual
