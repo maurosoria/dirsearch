@@ -15,6 +15,10 @@ Operating Systems supported
 - GNU/Linux
 - MacOSX
 
+Installation
+------------
+`pip install git+https://github.com/maurosoria/dirsearch.git`
+
 Features
 --------
 - Multithreaded
