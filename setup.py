@@ -13,6 +13,6 @@ setup(name='dirsearch',
       license='GNU',
       scripts=['dirsearch.py'],
       entry_points = {
-        'console_scripts': ['dirsearch=dirsearch'],
+        'console_scripts': ['dirsearch=dirsearch:main'],
       },
       zip_safe=False)
