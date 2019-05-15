@@ -171,6 +171,8 @@ class ArgumentParser(object):
         self.requestByHostname = options.requestByHostname
         self.httpmethod = options.httpmethod
 
+        self.recursive_level_max = options.recursive_level_max
+
     def parseConfig(self):
         config = DefaultConfigParser()
         configPath = FileUtils.buildPath(self.script_path, "default.conf")
@@ -181,6 +183,7 @@ class ArgumentParser(object):
         self.excludeStatusCodes = config.safe_get("general", "exclude-status", None)
         self.redirect = config.safe_getboolean("general", "follow-redirects", False)
         self.recursive = config.safe_getboolean("general", "recursive", False)
+        self.recursive_level_max = config.safe_getint("general", "recursive-level-max", 1)
         self.suppressEmpty = config.safe_getboolean("general", "suppress-empty", False)
         self.testFailPath = config.safe_get("general", "scanner-fail-path", "").strip()
         self.saveHome = config.safe_getboolean("general", "save-logs-home", False)
@@ -247,7 +250,13 @@ class ArgumentParser(object):
                            type='float', default=self.delay)
         general.add_option('-r', '--recursive', help='Bruteforce recursively', action='store_true', dest='recursive',
                            default=self.recursive)
+        general.add_option('-R', '--recursive-level-max',
+                           help='Max recursion level (subdirs) (Default: 1 [only rootdir + 1 dir])', action='store', type="int",
+                           dest='recursive_level_max',
+                           default=self.recursive_level_max)
+
         general.add_option('--suppress-empty', "--suppress-empty", action="store_true", dest='suppressEmpty')
+
         general.add_option('--scan-subdir', '--scan-subdirs',
                            help='Scan subdirectories of the given -u|--url (separated by comma)', action='store',
                            dest='scanSubdirs',
