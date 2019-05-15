@@ -435,10 +435,7 @@ class Controller(object):
                 return False
 
             if dir.count("/") > self.recursive_level_max:
-                print("Skip because of level")
                 return False
-
-            print("Append " + dir)
 
             self.directories.put(dir)
 
@@ -464,10 +461,7 @@ class Controller(object):
                 return False
 
             if dir.count("/") > self.recursive_level_max:
-                print("Skip because of level")
                 return False
-
-            print("Append " + dir)
 
             self.directories.put(dir)
 
