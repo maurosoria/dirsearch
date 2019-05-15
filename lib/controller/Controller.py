@@ -56,6 +56,9 @@ class Controller(object):
         self.arguments = arguments
         self.output = output
         self.savePath = self.script_path
+        self.doneDirs = []
+
+        self.recursive_level_max = self.arguments.recursive_level_max
 
         if self.arguments.httpmethod.lower() not in ["get", "head", "post"]:
             self.output.error("Inavlid http method!")
@@ -195,7 +198,9 @@ class Controller(object):
             ', '.join(self.arguments.extensions),
             str(self.arguments.threadsCount),
             str(len(self.dictionary)),
-            str(self.httpmethod)
+            str(self.httpmethod),
+            self.recursive,
+            str(self.recursive_level_max)
         )
 
     def getSavePath(self):
@@ -424,7 +429,21 @@ class Controller(object):
             if path in [directory + '/' for directory in self.excludeSubdirs]:
                 return False
 
-            self.directories.put(self.currentDirectory + path)
+            dir = self.currentDirectory + path
+
+            if dir in self.doneDirs:
+                return False
+
+            if dir.count("/") > self.recursive_level_max:
+                print("Skip because of level")
+                return False
+
+            print("Append " + dir)
+
+            self.directories.put(dir)
+
+            self.doneDirs.append(dir)
+
             return True
 
         else:
@@ -439,8 +458,21 @@ class Controller(object):
         baseUrl = self.currentUrl.rstrip("/") + "/" + self.currentDirectory
         absoluteUrl = urllib.parse.urljoin(baseUrl, path.response.redirect)
         if absoluteUrl.startswith(baseUrl) and absoluteUrl != baseUrl and absoluteUrl.endswith("/"):
-            subdir = absoluteUrl[len(baseUrl):]
-            self.directories.put(subdir)
+            dir = absoluteUrl[len(baseUrl):]
+
+            if dir in self.doneDirs:
+                return False
+
+            if dir.count("/") > self.recursive_level_max:
+                print("Skip because of level")
+                return False
+
+            print("Append " + dir)
+
+            self.directories.put(dir)
+
+            self.doneDirs.append(dir)
+
             return True
 
         return False
