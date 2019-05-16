@@ -169,6 +169,9 @@ class ArgumentParser(object):
 
         self.redirect = options.noFollowRedirects
         self.requestByHostname = options.requestByHostname
+        self.httpmethod = options.httpmethod
+
+        self.recursive_level_max = options.recursive_level_max
 
     def parseConfig(self):
         config = DefaultConfigParser()
@@ -180,6 +183,7 @@ class ArgumentParser(object):
         self.excludeStatusCodes = config.safe_get("general", "exclude-status", None)
         self.redirect = config.safe_getboolean("general", "follow-redirects", False)
         self.recursive = config.safe_getboolean("general", "recursive", False)
+        self.recursive_level_max = config.safe_getint("general", "recursive-level-max", 1)
         self.suppressEmpty = config.safe_getboolean("general", "suppress-empty", False)
         self.testFailPath = config.safe_get("general", "scanner-fail-path", "").strip()
         self.saveHome = config.safe_getboolean("general", "save-logs-home", False)
@@ -200,6 +204,7 @@ class ArgumentParser(object):
         self.timeout = config.safe_getint("connection", "timeout", 30)
         self.maxRetries = config.safe_getint("connection", "max-retries", 5)
         self.proxy = config.safe_get("connection", "http-proxy", None)
+        self.httpmethod = config.safe_get("connection", "httpmethod", "get", ["get", "head", "post"])
         self.requestByHostname = config.safe_get("connection", "request-by-hostname", False)
 
     def parseArguments(self):
@@ -221,6 +226,8 @@ class ArgumentParser(object):
                               help='Resolve name to IP address')
         connection.add_option('--proxy', '--http-proxy', action='store', dest='httpProxy', type='string',
                               default=self.proxy, help='Http Proxy (example: localhost:8080')
+        connection.add_option('--http-method', action='store', dest='httpmethod', type='string',
+                              default=self.httpmethod, help='Method to use, default: GET, possible also: HEAD;POST')
         connection.add_option('--max-retries', action='store', dest='maxRetries', type='int',
                               default=self.maxRetries)
         connection.add_option('-b', '--request-by-hostname',
@@ -243,7 +250,13 @@ class ArgumentParser(object):
                            type='float', default=self.delay)
         general.add_option('-r', '--recursive', help='Bruteforce recursively', action='store_true', dest='recursive',
                            default=self.recursive)
+        general.add_option('-R', '--recursive-level-max',
+                           help='Max recursion level (subdirs) (Default: 1 [only rootdir + 1 dir])', action='store', type="int",
+                           dest='recursive_level_max',
+                           default=self.recursive_level_max)
+
         general.add_option('--suppress-empty', "--suppress-empty", action="store_true", dest='suppressEmpty')
+
         general.add_option('--scan-subdir', '--scan-subdirs',
                            help='Scan subdirectories of the given -u|--url (separated by comma)', action='store',
                            dest='scanSubdirs',
