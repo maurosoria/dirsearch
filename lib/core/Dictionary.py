@@ -85,9 +85,15 @@ class Dictionary(object):
                 continue
 
             # Classic dirsearch wordlist processing (with %EXT% keyword)
-            if '%EXT%' in line:
+            if '%EXT%' in line or '%ext%' in line:
                 for extension in self._extensions:
-                    quote = self.quote(line.replace('%EXT%', extension))
+                    if '%EXT%' in line:
+                        newline = line.replace('%EXT%', extension)
+
+                    if '%ext%' in line:
+                        newline = line.replace('%ext%', extension)
+
+                    quote = self.quote(newline)
                     result.append(quote)
 
             # If forced extensions is used and the path is not a directory ... (terminated by /)
