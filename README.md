@@ -9,6 +9,85 @@ Overview
 dirsearch is a simple command line tool designed to brute force directories and files in websites.
 
 
+Installation & Usage
+------------
+
+```
+git clone https://github.com/maurosoria/dirsearch.git
+cd dirsearch
+python3 dirsearch.py -u <URL> -e <EXTENSION>
+```
+
+you can also use this alias to send directly to proxy
+`python3 /path/to/dirsearch/dirsearch.py --http-proxy=localhost:8080`
+
+
+Options
+-------
+
+
+```
+Options:
+  -h, --help            show this help message and exit
+
+  Mandatory:
+    -u URL, --url=URL   URL target
+    -L URLLIST, --url-list=URLLIST
+                        URL list target
+    -e EXTENSIONS, --extensions=EXTENSIONS
+                        Extension list separated by comma (Example: php,asp)
+
+  Dictionary Settings:
+    -w WORDLIST, --wordlist=WORDLIST
+    -l, --lowercase     
+    -f, --force-extensions
+                        Force extensions for every wordlist entry (like in
+                        DirBuster)
+
+  General Settings:
+    -s DELAY, --delay=DELAY
+                        Delay between requests (float number)
+    -r, --recursive     Bruteforce recursively
+    --suppress-empty, --suppress-empty
+    --scan-subdir=SCANSUBDIRS, --scan-subdirs=SCANSUBDIRS
+                        Scan subdirectories of the given -u|--url (separated
+                        by comma)
+    --exclude-subdir=EXCLUDESUBDIRS, --exclude-subdirs=EXCLUDESUBDIRS
+                        Exclude the following subdirectories during recursive
+                        scan (separated by comma)
+    -t THREADSCOUNT, --threads=THREADSCOUNT
+                        Number of Threads
+    -x EXCLUDESTATUSCODES, --exclude-status=EXCLUDESTATUSCODES
+                        Exclude status code, separated by comma (example: 301,
+                        500)
+    -c COOKIE, --cookie=COOKIE
+    --ua=USERAGENT, --user-agent=USERAGENT
+    -F, --follow-redirects
+    -H HEADERS, --header=HEADERS
+                        Headers to add (example: --header "Referer:
+                        example.com" --header "User-Agent: IE"
+    --random-agents, --random-user-agents
+
+  Connection Settings:
+    --timeout=TIMEOUT   Connection timeout
+    --ip=IP             Resolve name to IP address
+    --proxy=HTTPPROXY, --http-proxy=HTTPPROXY
+                        Http Proxy (example: localhost:8080
+    --max-retries=MAXRETRIES
+    -b, --request-by-hostname
+                        By default dirsearch will request by IP for speed.
+                        This forces requests by hostname
+
+  Reports:
+    --simple-report=SIMPLEOUTPUTFILE
+                        Only found paths
+    --plain-text-report=PLAINTEXTOUTPUTFILE
+                        Found paths with status codes
+    --json-report=JSONOUTPUTFILE
+
+```
+
+
 Operating Systems supported
 ---------------------------
 - Windows XP/7/8/10
