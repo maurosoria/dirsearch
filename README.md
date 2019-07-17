@@ -43,6 +43,28 @@ Passing the extensions "asp" and "aspx" will generate the following dictionary:
 
 You can also use -f | --force-extensions switch to append extensions to every word in the wordlists (like DirBuster).
 
+## Support Docker
+### Install Docker Linux
+Install Docker
+```sh
+curl -fsSL https://get.docker.com | bash
+```
+> To use docker you need superuser power
+
+### Build Image dirsearch
+To create image
+```sh
+docker build -t "dirsearch:v0.3.8" .
+```
+> **dirsearch** this is name the image and **v0.3.8** is version
+
+### Using dirsearch
+For using
+```sh
+docker run -it --rm "dirsearch:v0.3.8" -u target -e php,html,png,js,jpg
+```
+> target is the site or IP
+
 License
 -------
 Copyright (C) Mauro Soria (maurosoria at gmail dot com)
