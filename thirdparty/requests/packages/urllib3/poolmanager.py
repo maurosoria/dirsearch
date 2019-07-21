@@ -14,18 +14,14 @@ from .util.url import parse_url
 from .util.retry import Retry
 
 
-__all__ = ['PoolManager', 'ProxyManager', 'proxy_from_url']
+__all__ = ["PoolManager", "ProxyManager", "proxy_from_url"]
 
 
-pool_classes_by_scheme = {
-    'http': HTTPConnectionPool,
-    'https': HTTPSConnectionPool,
-}
+pool_classes_by_scheme = {"http": HTTPConnectionPool, "https": HTTPSConnectionPool}
 
 log = logging.getLogger(__name__)
 
-SSL_KEYWORDS = ('key_file', 'cert_file', 'cert_reqs', 'ca_certs',
-                'ssl_version')
+SSL_KEYWORDS = ("key_file", "cert_file", "cert_reqs", "ca_certs", "ssl_version")
 
 
 class PoolManager(RequestMethods):
@@ -61,8 +57,7 @@ class PoolManager(RequestMethods):
     def __init__(self, num_pools=10, headers=None, **connection_pool_kw):
         RequestMethods.__init__(self, headers)
         self.connection_pool_kw = connection_pool_kw
-        self.pools = RecentlyUsedContainer(num_pools,
-                                           dispose_func=lambda p: p.close())
+        self.pools = RecentlyUsedContainer(num_pools, dispose_func=lambda p: p.close())
 
     def __enter__(self):
         return self
@@ -82,7 +77,7 @@ class PoolManager(RequestMethods):
         """
         pool_cls = pool_classes_by_scheme[scheme]
         kwargs = self.connection_pool_kw
-        if scheme == 'http':
+        if scheme == "http":
             kwargs = self.connection_pool_kw.copy()
             for kw in SSL_KEYWORDS:
                 kwargs.pop(kw, None)
@@ -98,7 +93,7 @@ class PoolManager(RequestMethods):
         """
         self.pools.clear()
 
-    def connection_from_host(self, host, port=None, scheme='http'):
+    def connection_from_host(self, host, port=None, scheme="http"):
         """
         Get a :class:`ConnectionPool` based on the host, port, and scheme.
 
@@ -109,7 +104,7 @@ class PoolManager(RequestMethods):
         if not host:
             raise LocationValueError("No host specified.")
 
-        scheme = scheme or 'http'
+        scheme = scheme or "http"
         port = port or port_by_scheme.get(scheme, 80)
         pool_key = (scheme, host, port)
 
@@ -150,10 +145,10 @@ class PoolManager(RequestMethods):
         u = parse_url(url)
         conn = self.connection_from_host(u.host, port=u.port, scheme=u.scheme)
 
-        kw['assert_same_host'] = False
-        kw['redirect'] = False
-        if 'headers' not in kw:
-            kw['headers'] = self.headers
+        kw["assert_same_host"] = False
+        kw["redirect"] = False
+        if "headers" not in kw:
+            kw["headers"] = self.headers
 
         if self.proxy is not None and u.scheme == "http":
             response = conn.urlopen(method, url, **kw)
@@ -169,9 +164,9 @@ class PoolManager(RequestMethods):
 
         # RFC 7231, Section 6.4.4
         if response.status == 303:
-            method = 'GET'
+            method = "GET"
 
-        retries = kw.get('retries')
+        retries = kw.get("retries")
         if not isinstance(retries, Retry):
             retries = Retry.from_int(retries, redirect=redirect)
 
@@ -182,8 +177,8 @@ class PoolManager(RequestMethods):
                 raise
             return response
 
-        kw['retries'] = retries
-        kw['redirect'] = redirect
+        kw["retries"] = retries
+        kw["redirect"] = redirect
 
         log.info("Redirecting %s -> %s" % (url, redirect_location))
         return self.urlopen(method, redirect_location, **kw)
@@ -216,47 +211,56 @@ class ProxyManager(PoolManager):
 
     """
 
-    def __init__(self, proxy_url, num_pools=10, headers=None,
-                 proxy_headers=None, **connection_pool_kw):
+    def __init__(
+        self,
+        proxy_url,
+        num_pools=10,
+        headers=None,
+        proxy_headers=None,
+        **connection_pool_kw
+    ):
 
         if isinstance(proxy_url, HTTPConnectionPool):
-            proxy_url = '%s://%s:%i' % (proxy_url.scheme, proxy_url.host,
-                                        proxy_url.port)
+            proxy_url = "%s://%s:%i" % (
+                proxy_url.scheme,
+                proxy_url.host,
+                proxy_url.port,
+            )
         proxy = parse_url(proxy_url)
         if not proxy.port:
             port = port_by_scheme.get(proxy.scheme, 80)
             proxy = proxy._replace(port=port)
 
-        assert proxy.scheme in ("http", "https"), \
-            'Not supported proxy scheme %s' % proxy.scheme
+        assert proxy.scheme in ("http", "https"), (
+            "Not supported proxy scheme %s" % proxy.scheme
+        )
 
         self.proxy = proxy
         self.proxy_headers = proxy_headers or {}
 
-        connection_pool_kw['_proxy'] = self.proxy
-        connection_pool_kw['_proxy_headers'] = self.proxy_headers
+        connection_pool_kw["_proxy"] = self.proxy
+        connection_pool_kw["_proxy_headers"] = self.proxy_headers
 
-        super(ProxyManager, self).__init__(
-            num_pools, headers, **connection_pool_kw)
+        super(ProxyManager, self).__init__(num_pools, headers, **connection_pool_kw)
 
-    def connection_from_host(self, host, port=None, scheme='http'):
+    def connection_from_host(self, host, port=None, scheme="http"):
         if scheme == "https":
-            return super(ProxyManager, self).connection_from_host(
-                host, port, scheme)
+            return super(ProxyManager, self).connection_from_host(host, port, scheme)
 
         return super(ProxyManager, self).connection_from_host(
-            self.proxy.host, self.proxy.port, self.proxy.scheme)
+            self.proxy.host, self.proxy.port, self.proxy.scheme
+        )
 
     def _set_proxy_headers(self, url, headers=None):
         """
         Sets headers needed by proxies: specifically, the Accept and Host
         headers. Only sets headers not provided by the user.
         """
-        headers_ = {'Accept': '*/*'}
+        headers_ = {"Accept": "*/*"}
 
         netloc = parse_url(url).netloc
         if netloc:
-            headers_['Host'] = netloc
+            headers_["Host"] = netloc
 
         if headers:
             headers_.update(headers)
@@ -270,8 +274,8 @@ class ProxyManager(PoolManager):
             # For proxied HTTPS requests, httplib sets the necessary headers
             # on the CONNECT to the proxy. For HTTP, we'll definitely
             # need to set 'Host' at the very least.
-            headers = kw.get('headers', self.headers)
-            kw['headers'] = self._set_proxy_headers(url, headers)
+            headers = kw.get("headers", self.headers)
+            kw["headers"] = self._set_proxy_headers(url, headers)
 
         return super(ProxyManager, self).urlopen(method, url, redirect=redirect, **kw)
 

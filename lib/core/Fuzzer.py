@@ -24,15 +24,25 @@ from .Scanner import *
 
 
 class Fuzzer(object):
-    def __init__(self, requester, dictionary, testFailPath=None, threads=1, matchCallbacks=[], notFoundCallbacks=[],
-                 errorCallbacks=[]):
+    def __init__(
+        self,
+        requester,
+        dictionary,
+        testFailPath=None,
+        threads=1,
+        matchCallbacks=[],
+        notFoundCallbacks=[],
+        errorCallbacks=[],
+    ):
 
         self.requester = requester
         self.dictionary = dictionary
         self.testFailPath = testFailPath
         self.basePath = self.requester.basePath
         self.threads = []
-        self.threadsCount = threads if len(self.dictionary) >= threads else len(self.dictionary)
+        self.threadsCount = (
+            threads if len(self.dictionary) >= threads else len(self.dictionary)
+        )
         self.running = False
         self.scanners = {}
         self.defaultScanner = None
@@ -56,10 +66,12 @@ class Fuzzer(object):
             self.scanners = {}
 
         self.defaultScanner = Scanner(self.requester, self.testFailPath, "")
-        self.scanners['/'] = Scanner(self.requester, self.testFailPath, "/")
+        self.scanners["/"] = Scanner(self.requester, self.testFailPath, "/")
 
         for extension in self.dictionary.extensions:
-            self.scanners[extension] = Scanner(self.requester, self.testFailPath, "." + extension)
+            self.scanners[extension] = Scanner(
+                self.requester, self.testFailPath, "." + extension
+            )
 
     def setupThreads(self):
         if len(self.threads) != 0:
@@ -71,8 +83,8 @@ class Fuzzer(object):
             self.threads.append(newThread)
 
     def getScannerFor(self, path):
-        if path.endswith('/'):
-            return self.scanners['/']
+        if path.endswith("/"):
+            return self.scanners["/"]
 
         for extension in list(self.scanners.keys()):
             if path.endswith(extension):
@@ -117,7 +129,7 @@ class Fuzzer(object):
         response = self.requester.request(path)
         result = None
         if self.getScannerFor(path).scan(path, response):
-            result = (None if response.status == 404 else response.status)
+            result = None if response.status == 404 else response.status
         return result, response
 
     def isRunning(self):
@@ -155,7 +167,7 @@ class Fuzzer(object):
                 except RequestException as e:
 
                     for callback in self.errorCallbacks:
-                        callback(path, e.args[0]['message'])
+                        callback(path, e.args[0]["message"])
 
                     continue
 

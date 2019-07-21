@@ -22,12 +22,11 @@ from lib.reports import *
 
 
 class JSONReport(BaseReport):
-
     def addPath(self, path, status, response):
         contentLength = None
 
         try:
-            contentLength = int(response.headers['content-length'])
+            contentLength = int(response.headers["content-length"])
 
         except (KeyError, ValueError):
             contentLength = len(response.body)
@@ -35,11 +34,18 @@ class JSONReport(BaseReport):
         self.pathList.append((path, status, contentLength, response.redirect))
 
     def generate(self):
-        headerName = '{0}://{1}:{2}/{3}'.format(self.protocol, self.host, self.port, self.basePath)
+        headerName = "{0}://{1}:{2}/{3}".format(
+            self.protocol, self.host, self.port, self.basePath
+        )
         result = {headerName: []}
 
         for path, status, contentLength, redirect in self.pathList:
-            entry = {'status': status, 'path': path, 'content-length': contentLength, 'redirect': redirect}
+            entry = {
+                "status": status,
+                "path": path,
+                "content-length": contentLength,
+                "redirect": redirect,
+            }
             result[headerName].append(entry)
 
         return json.dumps(result, sort_keys=True, indent=4)

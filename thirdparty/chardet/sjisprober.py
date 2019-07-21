@@ -57,8 +57,12 @@ class SJISProber(MultiByteCharSetProber):
         for i in range(len(byte_str)):
             coding_state = self.coding_sm.next_state(byte_str[i])
             if coding_state == MachineState.ERROR:
-                self.logger.debug('%s %s prober hit error at byte %s',
-                                  self.charset_name, self.language, i)
+                self.logger.debug(
+                    "%s %s prober hit error at byte %s",
+                    self.charset_name,
+                    self.language,
+                    i,
+                )
                 self._state = ProbingState.NOT_ME
                 break
             elif coding_state == MachineState.ITS_ME:
@@ -68,20 +72,22 @@ class SJISProber(MultiByteCharSetProber):
                 char_len = self.coding_sm.get_current_charlen()
                 if i == 0:
                     self._last_char[1] = byte_str[0]
-                    self.context_analyzer.feed(self._last_char[2 - char_len:],
-                                               char_len)
+                    self.context_analyzer.feed(
+                        self._last_char[2 - char_len :], char_len
+                    )
                     self.distribution_analyzer.feed(self._last_char, char_len)
                 else:
-                    self.context_analyzer.feed(byte_str[i + 1 - char_len:i + 3
-                                                        - char_len], char_len)
-                    self.distribution_analyzer.feed(byte_str[i - 1:i + 1],
-                                                    char_len)
+                    self.context_analyzer.feed(
+                        byte_str[i + 1 - char_len : i + 3 - char_len], char_len
+                    )
+                    self.distribution_analyzer.feed(byte_str[i - 1 : i + 1], char_len)
 
         self._last_char[0] = byte_str[-1]
 
         if self.state == ProbingState.DETECTING:
-            if (self.context_analyzer.got_enough_data() and
-               (self.get_confidence() > self.SHORTCUT_THRESHOLD)):
+            if self.context_analyzer.got_enough_data() and (
+                self.get_confidence() > self.SHORTCUT_THRESHOLD
+            ):
                 self._state = ProbingState.FOUND_IT
 
         return self.state

@@ -27,7 +27,6 @@ from thirdparty.oset import *
 
 
 class Dictionary(object):
-
     def __init__(self, path, extensions, lowercase=False, forcedExtensions=False):
         self.entries = []
         self.currentIndex = 0
@@ -85,13 +84,13 @@ class Dictionary(object):
                 continue
 
             # Classic dirsearch wordlist processing (with %EXT% keyword)
-            if '%EXT%' in line or '%ext%' in line:
+            if "%EXT%" in line or "%ext%" in line:
                 for extension in self._extensions:
-                    if '%EXT%' in line:
-                        newline = line.replace('%EXT%', extension)
+                    if "%EXT%" in line:
+                        newline = line.replace("%EXT%", extension)
 
-                    if '%ext%' in line:
-                        newline = line.replace('%ext%', extension)
+                    if "%ext%" in line:
+                        newline = line.replace("%ext%", extension)
 
                     quote = self.quote(newline)
                     result.append(quote)
@@ -103,12 +102,12 @@ class Dictionary(object):
 
                 for extension in self._extensions:
                     # Why? check https://github.com/maurosoria/dirsearch/issues/70
-                    if extension.strip() == '':
+                    if extension.strip() == "":
                         result.append(quoted)
                     else:
-                        result.append(quoted + '.' + extension)
+                        result.append(quoted + "." + extension)
 
-                if quoted.strip() not in ['']:
+                if quoted.strip() not in [""]:
                     result.append(quoted + "/")
 
             # Append line unmodified.
@@ -122,7 +121,7 @@ class Dictionary(object):
         else:
             self.entries = list(oset(result))
 
-        del (result)
+        del result
 
     def regenerate(self):
         self.generate(lowercase=self.lowercase)

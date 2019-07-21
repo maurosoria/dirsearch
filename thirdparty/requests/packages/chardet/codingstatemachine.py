@@ -43,14 +43,13 @@ class CodingStateMachine:
         # for each byte we get its class
         # if it is first byte, we also get byte length
         # PY3K: aBuf is a byte stream, so c is an int, not a byte
-        byteCls = self._mModel['classTable'][wrap_ord(c)]
+        byteCls = self._mModel["classTable"][wrap_ord(c)]
         if self._mCurrentState == eStart:
             self._mCurrentBytePos = 0
-            self._mCurrentCharLen = self._mModel['charLenTable'][byteCls]
+            self._mCurrentCharLen = self._mModel["charLenTable"][byteCls]
         # from byte's class and stateTable, we get its next state
-        curr_state = (self._mCurrentState * self._mModel['classFactor']
-                      + byteCls)
-        self._mCurrentState = self._mModel['stateTable'][curr_state]
+        curr_state = self._mCurrentState * self._mModel["classFactor"] + byteCls
+        self._mCurrentState = self._mModel["stateTable"][curr_state]
         self._mCurrentBytePos += 1
         return self._mCurrentState
 
@@ -58,4 +57,4 @@ class CodingStateMachine:
         return self._mCurrentCharLen
 
     def get_coding_state_machine(self):
-        return self._mModel['name']
+        return self._mModel["name"]

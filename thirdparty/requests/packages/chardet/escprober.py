@@ -26,8 +26,7 @@
 ######################### END LICENSE BLOCK #########################
 
 from . import constants
-from .escsm import (HZSMModel, ISO2022CNSMModel, ISO2022JPSMModel,
-                    ISO2022KRSMModel)
+from .escsm import HZSMModel, ISO2022CNSMModel, ISO2022JPSMModel, ISO2022KRSMModel
 from .charsetprober import CharSetProber
 from .codingstatemachine import CodingStateMachine
 from .compat import wrap_ord
@@ -40,7 +39,7 @@ class EscCharSetProber(CharSetProber):
             CodingStateMachine(HZSMModel),
             CodingStateMachine(ISO2022CNSMModel),
             CodingStateMachine(ISO2022JPSMModel),
-            CodingStateMachine(ISO2022KRSMModel)
+            CodingStateMachine(ISO2022KRSMModel),
         ]
         self.reset()
 
@@ -80,7 +79,9 @@ class EscCharSetProber(CharSetProber):
                         return self.get_state()
                 elif codingState == constants.eItsMe:
                     self._mState = constants.eFoundIt
-                    self._mDetectedCharset = codingSM.get_coding_state_machine()  # nopep8
+                    self._mDetectedCharset = (
+                        codingSM.get_coding_state_machine()
+                    )  # nopep8
                     return self.get_state()
 
         return self.get_state()
