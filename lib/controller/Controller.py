@@ -20,6 +20,7 @@ import gc
 import os
 import sys
 import time
+import re
 import urllib.parse
 from threading import Lock
 
@@ -96,6 +97,8 @@ class Controller(object):
         self.blacklists = self.getBlacklists()
         self.fuzzer = None
         self.excludeStatusCodes = self.arguments.excludeStatusCodes
+        self.excludeTexts = self.arguments.excludeTexts
+        self.excludeRegexps = self.arguments.excludeRegexps
         self.recursive = self.arguments.recursive
         self.suppressEmpty = self.arguments.suppressEmpty
         self.directories = Queue()
@@ -334,6 +337,17 @@ class Controller(object):
                     self.blacklists.get(path.status) is None or path.path not in self.blacklists.get(
                 path.status)) and not (
                     self.suppressEmpty and (len(path.response.body) == 0)):
+
+                for excludeText in self.excludeTexts:
+                    if excludeText in path.response.body.decode():
+                        del path
+                        return
+
+                for excludeRegexp in self.excludeRegexps:
+                    if re.search(excludeRegexp, path.response.body.decode()) is not None:
+                        del path
+                        return
+
                 self.output.statusReport(path.path, path.response)
                 if path.response.redirect:
                     self.addRedirectDirectory(path)
