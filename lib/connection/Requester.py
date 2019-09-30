@@ -143,7 +143,8 @@ class Requester(object):
 
                 url = "{}/{}".format(url, self.basePath)
 
-                # Joining with concatenation because a urljoin bug with "::"
+                url = url.rstrip("/")
+
                 if not url.endswith("/"):
                     url += "/"
 
@@ -157,7 +158,7 @@ class Requester(object):
                     headers["User-agent"] = random.choice(self.randomAgents)
 
                 headers["Host"] = self.host
-
+                print("\nScan: "+url)
                 # include port in Host header if it's non-standard
                 if (self.protocol == "https" and self.port != 443) or (
                     self.protocol == "http" and self.port != 80
