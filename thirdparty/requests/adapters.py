@@ -16,9 +16,14 @@ from .packages.urllib3.response import HTTPResponse
 from .packages.urllib3.util import Timeout as TimeoutSauce
 from .packages.urllib3.util.retry import Retry
 from .compat import urlparse, basestring
-from .utils import (DEFAULT_CA_BUNDLE_PATH, get_encoding_from_headers,
-                    prepend_scheme_if_needed, get_auth_from_url, urldefragauth,
-                    select_proxy)
+from .utils import (
+    DEFAULT_CA_BUNDLE_PATH,
+    get_encoding_from_headers,
+    prepend_scheme_if_needed,
+    get_auth_from_url,
+    urldefragauth,
+    select_proxy,
+)
 from .structures import CaseInsensitiveDict
 from .packages.urllib3.exceptions import ConnectTimeoutError
 from .packages.urllib3.exceptions import HTTPError as _HTTPError
@@ -29,8 +34,14 @@ from .packages.urllib3.exceptions import ReadTimeoutError
 from .packages.urllib3.exceptions import SSLError as _SSLError
 from .packages.urllib3.exceptions import ResponseError
 from .cookies import extract_cookies_to_jar
-from .exceptions import (ConnectionError, ConnectTimeout, ReadTimeout, SSLError,
-                         ProxyError, RetryError)
+from .exceptions import (
+    ConnectionError,
+    ConnectTimeout,
+    ReadTimeout,
+    SSLError,
+    ProxyError,
+    RetryError,
+)
 from .auth import _basic_auth_str
 
 DEFAULT_POOLBLOCK = False
@@ -78,12 +89,22 @@ class HTTPAdapter(BaseAdapter):
       >>> a = requests.adapters.HTTPAdapter(max_retries=3)
       >>> s.mount('http://', a)
     """
-    __attrs__ = ['max_retries', 'config', '_pool_connections', '_pool_maxsize',
-                 '_pool_block']
 
-    def __init__(self, pool_connections=DEFAULT_POOLSIZE,
-                 pool_maxsize=DEFAULT_POOLSIZE, max_retries=DEFAULT_RETRIES,
-                 pool_block=DEFAULT_POOLBLOCK):
+    __attrs__ = [
+        "max_retries",
+        "config",
+        "_pool_connections",
+        "_pool_maxsize",
+        "_pool_block",
+    ]
+
+    def __init__(
+        self,
+        pool_connections=DEFAULT_POOLSIZE,
+        pool_maxsize=DEFAULT_POOLSIZE,
+        max_retries=DEFAULT_RETRIES,
+        pool_block=DEFAULT_POOLBLOCK,
+    ):
         if max_retries == DEFAULT_RETRIES:
             self.max_retries = Retry(0, read=False)
         else:
@@ -100,8 +121,7 @@ class HTTPAdapter(BaseAdapter):
         self.init_poolmanager(pool_connections, pool_maxsize, block=pool_block)
 
     def __getstate__(self):
-        return dict((attr, getattr(self, attr, None)) for attr in
-                    self.__attrs__)
+        return dict((attr, getattr(self, attr, None)) for attr in self.__attrs__)
 
     def __setstate__(self, state):
         # Can't handle by adding 'proxy_manager' to self.__attrs__ because
@@ -112,10 +132,13 @@ class HTTPAdapter(BaseAdapter):
         for attr, value in state.items():
             setattr(self, attr, value)
 
-        self.init_poolmanager(self._pool_connections, self._pool_maxsize,
-                              block=self._pool_block)
+        self.init_poolmanager(
+            self._pool_connections, self._pool_maxsize, block=self._pool_block
+        )
 
-    def init_poolmanager(self, connections, maxsize, block=DEFAULT_POOLBLOCK, **pool_kwargs):
+    def init_poolmanager(
+        self, connections, maxsize, block=DEFAULT_POOLBLOCK, **pool_kwargs
+    ):
         """Initializes a urllib3 PoolManager.
 
         This method should not be called from user code, and is only
@@ -132,8 +155,13 @@ class HTTPAdapter(BaseAdapter):
         self._pool_maxsize = maxsize
         self._pool_block = block
 
-        self.poolmanager = PoolManager(num_pools=connections, maxsize=maxsize,
-                                       block=block, strict=True, **pool_kwargs)
+        self.poolmanager = PoolManager(
+            num_pools=connections,
+            maxsize=maxsize,
+            block=block,
+            strict=True,
+            **pool_kwargs
+        )
 
     def proxy_manager_for(self, proxy, **proxy_kwargs):
         """Return urllib3 ProxyManager for the given proxy.
@@ -154,7 +182,8 @@ class HTTPAdapter(BaseAdapter):
                 num_pools=self._pool_connections,
                 maxsize=self._pool_maxsize,
                 block=self._pool_block,
-                **proxy_kwargs)
+                **proxy_kwargs
+            )
 
         return self.proxy_manager[proxy]
 
@@ -168,7 +197,7 @@ class HTTPAdapter(BaseAdapter):
         :param verify: Whether we should actually verify the certificate.
         :param cert: The SSL certificate to verify.
         """
-        if url.lower().startswith('https') and verify:
+        if url.lower().startswith("https") and verify:
 
             cert_loc = None
 
@@ -182,10 +211,10 @@ class HTTPAdapter(BaseAdapter):
             if not cert_loc:
                 raise Exception("Could not find a suitable SSL CA certificate bundle.")
 
-            conn.cert_reqs = 'CERT_REQUIRED'
+            conn.cert_reqs = "CERT_REQUIRED"
             conn.ca_certs = cert_loc
         else:
-            conn.cert_reqs = 'CERT_NONE'
+            conn.cert_reqs = "CERT_NONE"
             conn.ca_certs = None
 
         if cert:
@@ -207,10 +236,10 @@ class HTTPAdapter(BaseAdapter):
         response = Response()
 
         # Fallback to None if there's no status_code, for whatever reason.
-        response.status_code = getattr(resp, 'status', None)
+        response.status_code = getattr(resp, "status", None)
 
         # Make headers case-insensitive.
-        response.headers = CaseInsensitiveDict(getattr(resp, 'headers', {}))
+        response.headers = CaseInsensitiveDict(getattr(resp, "headers", {}))
 
         # Set encoding.
         response.encoding = get_encoding_from_headers(response.headers)
@@ -218,7 +247,7 @@ class HTTPAdapter(BaseAdapter):
         response.reason = response.raw.reason
 
         if isinstance(req.url, bytes):
-            response.url = req.url.decode('utf-8')
+            response.url = req.url.decode("utf-8")
         else:
             response.url = req.url
 
@@ -242,7 +271,7 @@ class HTTPAdapter(BaseAdapter):
         proxy = select_proxy(url, proxies)
 
         if proxy:
-            proxy = prepend_scheme_if_needed(proxy, 'http')
+            proxy = prepend_scheme_if_needed(proxy, "http")
             proxy_manager = self.proxy_manager_for(proxy)
             conn = proxy_manager.connection_from_url(url)
         else:
@@ -276,7 +305,7 @@ class HTTPAdapter(BaseAdapter):
         """
         proxy = select_proxy(request.url, proxies)
         scheme = urlparse(request.url).scheme
-        if proxy and scheme != 'https':
+        if proxy and scheme != "https":
             url = urldefragauth(request.url)
         else:
             url = request.path_url
@@ -313,12 +342,13 @@ class HTTPAdapter(BaseAdapter):
         username, password = get_auth_from_url(proxy)
 
         if username and password:
-            headers['Proxy-Authorization'] = _basic_auth_str(username,
-                                                             password)
+            headers["Proxy-Authorization"] = _basic_auth_str(username, password)
 
         return headers
 
-    def send(self, request, stream=False, timeout=None, verify=True, cert=None, proxies=None):
+    def send(
+        self, request, stream=False, timeout=None, verify=True, cert=None, proxies=None
+    ):
         """Sends PreparedRequest object. Returns Response object.
 
         :param request: The :class:`PreparedRequest <PreparedRequest>` being sent.
@@ -338,7 +368,7 @@ class HTTPAdapter(BaseAdapter):
         url = self.request_url(request, proxies)
         self.add_headers(request)
 
-        chunked = not (request.body is None or 'Content-Length' in request.headers)
+        chunked = not (request.body is None or "Content-Length" in request.headers)
 
         if isinstance(timeout, tuple):
             try:
@@ -346,9 +376,11 @@ class HTTPAdapter(BaseAdapter):
                 timeout = TimeoutSauce(connect=connect, read=read)
             except ValueError as e:
                 # this may raise a string formatting error.
-                err = ("Invalid timeout {0}. Pass a (connect, read) "
-                       "timeout tuple, or a single float to set "
-                       "both timeouts to the same value".format(timeout))
+                err = (
+                    "Invalid timeout {0}. Pass a (connect, read) "
+                    "timeout tuple, or a single float to set "
+                    "both timeouts to the same value".format(timeout)
+                )
                 raise ValueError(err)
         else:
             timeout = TimeoutSauce(connect=timeout, read=timeout)
@@ -365,20 +397,18 @@ class HTTPAdapter(BaseAdapter):
                     preload_content=False,
                     decode_content=False,
                     retries=self.max_retries,
-                    timeout=timeout
+                    timeout=timeout,
                 )
 
             # Send the request.
             else:
-                if hasattr(conn, 'proxy_pool'):
+                if hasattr(conn, "proxy_pool"):
                     conn = conn.proxy_pool
 
                 low_conn = conn._get_conn(timeout=DEFAULT_POOL_TIMEOUT)
 
                 try:
-                    low_conn.putrequest(request.method,
-                                        url,
-                                        skip_accept_encoding=True)
+                    low_conn.putrequest(request.method, url, skip_accept_encoding=True)
 
                     for header, value in request.headers.items():
                         low_conn.putheader(header, value)
@@ -386,11 +416,11 @@ class HTTPAdapter(BaseAdapter):
                     low_conn.endheaders()
 
                     for i in request.body:
-                        low_conn.send(hex(len(i))[2:].encode('utf-8'))
-                        low_conn.send(b'\r\n')
+                        low_conn.send(hex(len(i))[2:].encode("utf-8"))
+                        low_conn.send(b"\r\n")
                         low_conn.send(i)
-                        low_conn.send(b'\r\n')
-                    low_conn.send(b'0\r\n\r\n')
+                        low_conn.send(b"\r\n")
+                    low_conn.send(b"0\r\n\r\n")
 
                     r = low_conn.getresponse()
                     resp = HTTPResponse.from_httplib(
@@ -398,7 +428,7 @@ class HTTPAdapter(BaseAdapter):
                         pool=conn,
                         connection=low_conn,
                         preload_content=False,
-                        decode_content=False
+                        decode_content=False,
                     )
                 except:
                     # If we hit any problems here, clean up the connection.

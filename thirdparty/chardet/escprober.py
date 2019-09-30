@@ -28,8 +28,12 @@
 from .charsetprober import CharSetProber
 from .codingstatemachine import CodingStateMachine
 from .enums import LanguageFilter, ProbingState, MachineState
-from .escsm import (HZ_SM_MODEL, ISO2022CN_SM_MODEL, ISO2022JP_SM_MODEL,
-                    ISO2022KR_SM_MODEL)
+from .escsm import (
+    HZ_SM_MODEL,
+    ISO2022CN_SM_MODEL,
+    ISO2022JP_SM_MODEL,
+    ISO2022KR_SM_MODEL,
+)
 
 
 class EscCharSetProber(CharSetProber):

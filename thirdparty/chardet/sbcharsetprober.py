@@ -65,21 +65,21 @@ class SingleByteCharSetProber(CharSetProber):
         if self._name_prober:
             return self._name_prober.charset_name
         else:
-            return self._model['charset_name']
+            return self._model["charset_name"]
 
     @property
     def language(self):
         if self._name_prober:
             return self._name_prober.language
         else:
-            return self._model.get('language')
+            return self._model.get("language")
 
     def feed(self, byte_str):
-        if not self._model['keep_english_letter']:
+        if not self._model["keep_english_letter"]:
             byte_str = self.filter_international_words(byte_str)
         if not byte_str:
             return self.state
-        char_to_order_map = self._model['char_to_order_map']
+        char_to_order_map = self._model["char_to_order_map"]
         for i, c in enumerate(byte_str):
             # XXX: Order is in range 1-64, so one would think we want 0-63 here,
             #      but that leads to 27 more test failures than before.
@@ -97,26 +97,29 @@ class SingleByteCharSetProber(CharSetProber):
                     self._total_seqs += 1
                     if not self._reversed:
                         i = (self._last_order * self.SAMPLE_SIZE) + order
-                        model = self._model['precedence_matrix'][i]
+                        model = self._model["precedence_matrix"][i]
                     else:  # reverse the order of the letters in the lookup
                         i = (order * self.SAMPLE_SIZE) + self._last_order
-                        model = self._model['precedence_matrix'][i]
+                        model = self._model["precedence_matrix"][i]
                     self._seq_counters[model] += 1
             self._last_order = order
 
-        charset_name = self._model['charset_name']
+        charset_name = self._model["charset_name"]
         if self.state == ProbingState.DETECTING:
             if self._total_seqs > self.SB_ENOUGH_REL_THRESHOLD:
                 confidence = self.get_confidence()
                 if confidence > self.POSITIVE_SHORTCUT_THRESHOLD:
-                    self.logger.debug('%s confidence = %s, we have a winner',
-                                      charset_name, confidence)
+                    self.logger.debug(
+                        "%s confidence = %s, we have a winner", charset_name, confidence
+                    )
                     self._state = ProbingState.FOUND_IT
                 elif confidence < self.NEGATIVE_SHORTCUT_THRESHOLD:
-                    self.logger.debug('%s confidence = %s, below negative '
-                                      'shortcut threshhold %s', charset_name,
-                                      confidence,
-                                      self.NEGATIVE_SHORTCUT_THRESHOLD)
+                    self.logger.debug(
+                        "%s confidence = %s, below negative " "shortcut threshhold %s",
+                        charset_name,
+                        confidence,
+                        self.NEGATIVE_SHORTCUT_THRESHOLD,
+                    )
                     self._state = ProbingState.NOT_ME
 
         return self.state
@@ -124,8 +127,11 @@ class SingleByteCharSetProber(CharSetProber):
     def get_confidence(self):
         r = 0.01
         if self._total_seqs > 0:
-            r = ((1.0 * self._seq_counters[SequenceLikelihood.POSITIVE]) /
-                 self._total_seqs / self._model['typical_positive_ratio'])
+            r = (
+                (1.0 * self._seq_counters[SequenceLikelihood.POSITIVE])
+                / self._total_seqs
+                / self._model["typical_positive_ratio"]
+            )
             r = r * self._freq_char / self._total_char
             if r >= 1.0:
                 r = 0.99

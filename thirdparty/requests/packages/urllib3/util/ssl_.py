@@ -39,9 +39,9 @@ except ImportError:
 # - use 3DES as fallback which is secure but slow,
 # - disable NULL authentication, MD5 MACs and DSS for security reasons.
 DEFAULT_CIPHERS = (
-    'ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:ECDH+HIGH:'
-    'DH+HIGH:ECDH+3DES:DH+3DES:RSA+AESGCM:RSA+AES:RSA+HIGH:RSA+3DES:!aNULL:'
-    '!eNULL:!MD5'
+    "ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:ECDH+HIGH:"
+    "DH+HIGH:ECDH+3DES:DH+3DES:RSA+AESGCM:RSA+AES:RSA+HIGH:RSA+3DES:!aNULL:"
+    "!eNULL:!MD5"
 )
 
 try:
@@ -50,8 +50,10 @@ except ImportError:
     import sys
 
     class SSLContext(object):  # Platform-specific: Python 2 & 3.1
-        supports_set_ciphers = ((2, 7) <= sys.version_info < (3,) or
-                                (3, 2) <= sys.version_info)
+        supports_set_ciphers = (2, 7) <= sys.version_info < (3,) or (
+            3,
+            2,
+        ) <= sys.version_info
 
         def __init__(self, protocol_version):
             self.protocol = protocol_version
@@ -74,27 +76,27 @@ except ImportError:
         def set_ciphers(self, cipher_suite):
             if not self.supports_set_ciphers:
                 raise TypeError(
-                    'Your version of Python does not support setting '
-                    'a custom cipher suite. Please upgrade to Python '
-                    '2.7, 3.2, or later if you need this functionality.'
+                    "Your version of Python does not support setting "
+                    "a custom cipher suite. Please upgrade to Python "
+                    "2.7, 3.2, or later if you need this functionality."
                 )
             self.ciphers = cipher_suite
 
         def wrap_socket(self, socket, server_hostname=None):
             warnings.warn(
-                'A true SSLContext object is not available. This prevents '
-                'urllib3 from configuring SSL appropriately and may cause '
-                'certain SSL connections to fail. For more information, see '
-                'https://urllib3.readthedocs.org/en/latest/security.html'
-                '#insecureplatformwarning.',
-                InsecurePlatformWarning
+                "A true SSLContext object is not available. This prevents "
+                "urllib3 from configuring SSL appropriately and may cause "
+                "certain SSL connections to fail. For more information, see "
+                "https://urllib3.readthedocs.org/en/latest/security.html"
+                "#insecureplatformwarning.",
+                InsecurePlatformWarning,
             )
             kwargs = {
-                'keyfile': self.keyfile,
-                'certfile': self.certfile,
-                'ca_certs': self.ca_certs,
-                'cert_reqs': self.verify_mode,
-                'ssl_version': self.protocol,
+                "keyfile": self.keyfile,
+                "certfile": self.certfile,
+                "ca_certs": self.ca_certs,
+                "cert_reqs": self.verify_mode,
+                "ssl_version": self.protocol,
             }
             if self.supports_set_ciphers:  # Platform-specific: Python 2.7+
                 return wrap_socket(socket, ciphers=self.ciphers, **kwargs)
@@ -114,17 +116,13 @@ def assert_fingerprint(cert, fingerprint):
 
     # Maps the length of a digest to a possible hash function producing
     # this digest.
-    hashfunc_map = {
-        16: md5,
-        20: sha1,
-        32: sha256,
-    }
+    hashfunc_map = {16: md5, 20: sha1, 32: sha256}
 
-    fingerprint = fingerprint.replace(':', '').lower()
+    fingerprint = fingerprint.replace(":", "").lower()
     digest_length, odd = divmod(len(fingerprint), 2)
 
     if odd or digest_length not in hashfunc_map:
-        raise SSLError('Fingerprint is of invalid length.')
+        raise SSLError("Fingerprint is of invalid length.")
 
     # We need encode() here for py32; works on py2 and p33.
     fingerprint_bytes = unhexlify(fingerprint.encode())
@@ -134,9 +132,11 @@ def assert_fingerprint(cert, fingerprint):
     cert_digest = hashfunc(cert).digest()
 
     if not cert_digest == fingerprint_bytes:
-        raise SSLError('Fingerprints did not match. Expected "{0}", got "{1}".'
-                       .format(hexlify(fingerprint_bytes),
-                               hexlify(cert_digest)))
+        raise SSLError(
+            'Fingerprints did not match. Expected "{0}", got "{1}".'.format(
+                hexlify(fingerprint_bytes), hexlify(cert_digest)
+            )
+        )
 
 
 def resolve_cert_reqs(candidate):
@@ -156,7 +156,7 @@ def resolve_cert_reqs(candidate):
     if isinstance(candidate, str):
         res = getattr(ssl, candidate, None)
         if res is None:
-            res = getattr(ssl, 'CERT_' + candidate)
+            res = getattr(ssl, "CERT_" + candidate)
         return res
 
     return candidate
@@ -172,14 +172,15 @@ def resolve_ssl_version(candidate):
     if isinstance(candidate, str):
         res = getattr(ssl, candidate, None)
         if res is None:
-            res = getattr(ssl, 'PROTOCOL_' + candidate)
+            res = getattr(ssl, "PROTOCOL_" + candidate)
         return res
 
     return candidate
 
 
-def create_urllib3_context(ssl_version=None, cert_reqs=None,
-                           options=None, ciphers=None):
+def create_urllib3_context(
+    ssl_version=None, cert_reqs=None, options=None, ciphers=None
+):
     """All arguments have the same meaning as ``ssl_wrap_socket``.
 
     By default, this function does a lot of the same work that
@@ -230,20 +231,30 @@ def create_urllib3_context(ssl_version=None, cert_reqs=None,
 
     context.options |= options
 
-    if getattr(context, 'supports_set_ciphers', True):  # Platform-specific: Python 2.6
+    if getattr(context, "supports_set_ciphers", True):  # Platform-specific: Python 2.6
         context.set_ciphers(ciphers or DEFAULT_CIPHERS)
 
     context.verify_mode = cert_reqs
-    if getattr(context, 'check_hostname', None) is not None:  # Platform-specific: Python 3.2
+    if (
+        getattr(context, "check_hostname", None) is not None
+    ):  # Platform-specific: Python 3.2
         # We do our own verification, including fingerprints and alternative
         # hostnames. So disable it here
         context.check_hostname = False
     return context
 
 
-def ssl_wrap_socket(sock, keyfile=None, certfile=None, cert_reqs=None,
-                    ca_certs=None, server_hostname=None,
-                    ssl_version=None, ciphers=None, ssl_context=None):
+def ssl_wrap_socket(
+    sock,
+    keyfile=None,
+    certfile=None,
+    cert_reqs=None,
+    ca_certs=None,
+    server_hostname=None,
+    ssl_version=None,
+    ciphers=None,
+    ssl_context=None,
+):
     """
     All arguments except for server_hostname and ssl_context have the same
     meaning as they do when using :func:`ssl.wrap_socket`.
@@ -259,8 +270,7 @@ def ssl_wrap_socket(sock, keyfile=None, certfile=None, cert_reqs=None,
     """
     context = ssl_context
     if context is None:
-        context = create_urllib3_context(ssl_version, cert_reqs,
-                                         ciphers=ciphers)
+        context = create_urllib3_context(ssl_version, cert_reqs, ciphers=ciphers)
 
     if ca_certs:
         try:

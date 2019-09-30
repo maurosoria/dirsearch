@@ -1,4 +1,5 @@
 import socket
+
 try:
     from select import poll, POLLIN
 except ImportError:  # `poll` doesn't exist on OSX and other platforms
@@ -19,7 +20,7 @@ def is_connection_dropped(conn):  # Platform-specific
     Note: For platforms like AppEngine, this will always return ``False`` to
     let the platform handle connection recycling transparently for us.
     """
-    sock = getattr(conn, 'sock', False)
+    sock = getattr(conn, "sock", False)
     if sock is False:  # Platform-specific: AppEngine
         return False
     if sock is None:  # Connection already closed (such as by httplib).
@@ -45,8 +46,12 @@ def is_connection_dropped(conn):  # Platform-specific
 
 # This function is copied from socket.py in the Python 2.7 standard
 # library scanner suite. Added to its signature is only `socket_options`.
-def create_connection(address, timeout=socket._GLOBAL_DEFAULT_TIMEOUT,
-                      source_address=None, socket_options=None):
+def create_connection(
+    address,
+    timeout=socket._GLOBAL_DEFAULT_TIMEOUT,
+    source_address=None,
+    socket_options=None,
+):
     """Connect to *address* and return the socket object.
 
     Convenience function.  Connect to *address* (a 2-tuple ``(host,

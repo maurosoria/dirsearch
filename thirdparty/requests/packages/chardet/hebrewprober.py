@@ -127,16 +127,16 @@ from .compat import wrap_ord
 # charset identified, either "windows-1255" or "ISO-8859-8".
 
 # windows-1255 / ISO-8859-8 code points of interest
-FINAL_KAF = 0xea
-NORMAL_KAF = 0xeb
-FINAL_MEM = 0xed
-NORMAL_MEM = 0xee
-FINAL_NUN = 0xef
-NORMAL_NUN = 0xf0
-FINAL_PE = 0xf3
-NORMAL_PE = 0xf4
-FINAL_TSADI = 0xf5
-NORMAL_TSADI = 0xf6
+FINAL_KAF = 0xEA
+NORMAL_KAF = 0xEB
+FINAL_MEM = 0xED
+NORMAL_MEM = 0xEE
+FINAL_NUN = 0xEF
+NORMAL_NUN = 0xF0
+FINAL_PE = 0xF3
+NORMAL_PE = 0xF4
+FINAL_TSADI = 0xF5
+NORMAL_TSADI = 0xF6
 
 # Minimum Visual vs Logical final letter score difference.
 # If the difference is below this, don't rely solely on the final letter score
@@ -165,8 +165,8 @@ class HebrewProber(CharSetProber):
         # The two last characters seen in the previous buffer,
         # mPrev and mBeforePrev are initialized to space in order to simulate
         # a word delimiter at the beginning of the data
-        self._mPrev = ' '
-        self._mBeforePrev = ' '
+        self._mPrev = " "
+        self._mBeforePrev = " "
         # These probers are owned by the group prober.
 
     def set_model_probers(self, logicalProber, visualProber):
@@ -174,8 +174,7 @@ class HebrewProber(CharSetProber):
         self._mVisualProber = visualProber
 
     def is_final(self, c):
-        return wrap_ord(c) in [FINAL_KAF, FINAL_MEM, FINAL_NUN, FINAL_PE,
-                               FINAL_TSADI]
+        return wrap_ord(c) in [FINAL_KAF, FINAL_MEM, FINAL_NUN, FINAL_PE, FINAL_TSADI]
 
     def is_non_final(self, c):
         # The normal Tsadi is not a good Non-Final letter due to words like
@@ -224,9 +223,9 @@ class HebrewProber(CharSetProber):
         aBuf = self.filter_high_bit_only(aBuf)
 
         for cur in aBuf:
-            if cur == ' ':
+            if cur == " ":
                 # We stand on a space - a word just ended
-                if self._mBeforePrev != ' ':
+                if self._mBeforePrev != " ":
                     # next-to-last char was not a space so self._mPrev is not a
                     # 1 letter word
                     if self.is_final(self._mPrev):
@@ -238,8 +237,11 @@ class HebrewProber(CharSetProber):
                         self._mFinalCharVisualScore += 1
             else:
                 # Not standing on a space
-                if ((self._mBeforePrev == ' ') and
-                        (self.is_final(self._mPrev)) and (cur != ' ')):
+                if (
+                    (self._mBeforePrev == " ")
+                    and (self.is_final(self._mPrev))
+                    and (cur != " ")
+                ):
                     # case (3) [-2:space][-1:final letter][cur:not space]
                     self._mFinalCharVisualScore += 1
             self._mBeforePrev = self._mPrev
@@ -259,8 +261,9 @@ class HebrewProber(CharSetProber):
             return VISUAL_HEBREW_NAME
 
         # It's not dominant enough, try to rely on the model scores instead.
-        modelsub = (self._mLogicalProber.get_confidence()
-                    - self._mVisualProber.get_confidence())
+        modelsub = (
+            self._mLogicalProber.get_confidence() - self._mVisualProber.get_confidence()
+        )
         if modelsub > MIN_MODEL_DISTANCE:
             return LOGICAL_HEBREW_NAME
         if modelsub < -MIN_MODEL_DISTANCE:
@@ -277,7 +280,8 @@ class HebrewProber(CharSetProber):
 
     def get_state(self):
         # Remain active as long as any of the model probers are active.
-        if (self._mLogicalProber.get_state() == eNotMe) and \
-           (self._mVisualProber.get_state() == eNotMe):
+        if (self._mLogicalProber.get_state() == eNotMe) and (
+            self._mVisualProber.get_state() == eNotMe
+        ):
             return eNotMe
         return eDetecting

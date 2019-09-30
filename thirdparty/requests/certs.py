@@ -16,10 +16,12 @@ import os.path
 try:
     from certifi import where
 except ImportError:
+
     def where():
         """Return the preferred certificate bundle."""
         # vendored bundle inside Requests
-        return os.path.join(os.path.dirname(__file__), 'cacert.pem')
+        return os.path.join(os.path.dirname(__file__), "cacert.pem")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     print(where())

@@ -1,7 +1,9 @@
 from collections import Mapping, MutableMapping
+
 try:
     from threading import RLock
 except ImportError:  # Platform-specific: No threads available
+
     class RLock:
         def __enter__(self):
             pass
@@ -17,7 +19,7 @@ except ImportError:
 from .packages.six import iterkeys, itervalues, PY3
 
 
-__all__ = ['RecentlyUsedContainer', 'HTTPHeaderDict']
+__all__ = ["RecentlyUsedContainer", "HTTPHeaderDict"]
 
 
 _Null = object()
@@ -80,7 +82,9 @@ class RecentlyUsedContainer(MutableMapping):
             return len(self._container)
 
     def __iter__(self):
-        raise NotImplementedError('Iteration over this class is unlikely to be threadsafe.')
+        raise NotImplementedError(
+            "Iteration over this class is unlikely to be threadsafe."
+        )
 
     def clear(self):
         with self.lock:
@@ -153,7 +157,7 @@ class HTTPHeaderDict(dict):
 
     def __getitem__(self, key):
         val = _dict_getitem(self, key.lower())
-        return ', '.join(val[1:])
+        return ", ".join(val[1:])
 
     def __delitem__(self, key):
         return _dict_delitem(self, key.lower())
@@ -162,11 +166,13 @@ class HTTPHeaderDict(dict):
         return _dict_contains(self, key.lower())
 
     def __eq__(self, other):
-        if not isinstance(other, Mapping) and not hasattr(other, 'keys'):
+        if not isinstance(other, Mapping) and not hasattr(other, "keys"):
             return False
         if not isinstance(other, type(self)):
             other = type(self)(other)
-        return dict((k1, self[k1]) for k1 in self) == dict((k2, other[k2]) for k2 in other)
+        return dict((k1, self[k1]) for k1 in self) == dict(
+            (k2, other[k2]) for k2 in other
+        )
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -174,17 +180,17 @@ class HTTPHeaderDict(dict):
     values = MutableMapping.values
     get = MutableMapping.get
     update = MutableMapping.update
-    
-    if not PY3: # Python 2
+
+    if not PY3:  # Python 2
         iterkeys = MutableMapping.iterkeys
         itervalues = MutableMapping.itervalues
 
     __marker = object()
 
     def pop(self, key, default=__marker):
-        '''D.pop(k[,d]) -> v, remove specified key and return the corresponding value.
+        """D.pop(k[,d]) -> v, remove specified key and return the corresponding value.
           If key is not found, d is returned if given, otherwise KeyError is raised.
-        '''
+        """
         # Using the MutableMapping function directly fails due to the private marker.
         # Using ordinary dict.pop would expose the internal structures.
         # So let's reinvent the wheel.
@@ -233,10 +239,12 @@ class HTTPHeaderDict(dict):
         with self.add instead of self.__setitem__
         """
         if len(args) > 1:
-            raise TypeError("extend() takes at most 1 positional "
-                            "arguments ({} given)".format(len(args)))
+            raise TypeError(
+                "extend() takes at most 1 positional "
+                "arguments ({} given)".format(len(args))
+            )
         other = args[0] if len(args) >= 1 else ()
-        
+
         if isinstance(other, HTTPHeaderDict):
             for key, val in other.iteritems():
                 self.add(key, val)
@@ -298,26 +306,26 @@ class HTTPHeaderDict(dict):
         """Iterate over all headers, merging duplicate ones together."""
         for key in self:
             val = _dict_getitem(self, key)
-            yield val[0], ', '.join(val[1:])
+            yield val[0], ", ".join(val[1:])
 
     def items(self):
         return list(self.iteritems())
 
     @classmethod
-    def from_httplib(cls, message): # Python 2
+    def from_httplib(cls, message):  # Python 2
         """Read headers from a Python 2 httplib message object."""
         # python2.7 does not expose a proper API for exporting multiheaders
-        # efficiently. This function re-reads raw lines from the message 
+        # efficiently. This function re-reads raw lines from the message
         # object and extracts the multiheaders properly.
         headers = []
-         
+
         for line in message.headers:
-            if line.startswith((' ', '\t')):
+            if line.startswith((" ", "\t")):
                 key, value = headers[-1]
-                headers[-1] = (key, value + '\r\n' + line.rstrip())
+                headers[-1] = (key, value + "\r\n" + line.rstrip())
                 continue
-    
-            key, value = line.split(':', 1)
+
+            key, value = line.split(":", 1)
             headers.append((key, value.strip()))
 
         return cls(headers)

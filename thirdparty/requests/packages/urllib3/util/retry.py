@@ -103,15 +103,25 @@ class Retry(object):
         response code in the 3xx range.
     """
 
-    DEFAULT_METHOD_WHITELIST = frozenset([
-        'HEAD', 'GET', 'PUT', 'DELETE', 'OPTIONS', 'TRACE'])
+    DEFAULT_METHOD_WHITELIST = frozenset(
+        ["HEAD", "GET", "PUT", "DELETE", "OPTIONS", "TRACE"]
+    )
 
     #: Maximum backoff time.
     BACKOFF_MAX = 120
 
-    def __init__(self, total=10, connect=None, read=None, redirect=None,
-                 method_whitelist=DEFAULT_METHOD_WHITELIST, status_forcelist=None,
-                 backoff_factor=0, raise_on_redirect=True, _observed_errors=0):
+    def __init__(
+        self,
+        total=10,
+        connect=None,
+        read=None,
+        redirect=None,
+        method_whitelist=DEFAULT_METHOD_WHITELIST,
+        status_forcelist=None,
+        backoff_factor=0,
+        raise_on_redirect=True,
+        _observed_errors=0,
+    ):
 
         self.total = total
         self.connect = connect
@@ -126,12 +136,14 @@ class Retry(object):
         self.method_whitelist = method_whitelist
         self.backoff_factor = backoff_factor
         self.raise_on_redirect = raise_on_redirect
-        self._observed_errors = _observed_errors # TODO: use .history instead?
+        self._observed_errors = _observed_errors  # TODO: use .history instead?
 
     def new(self, **kw):
         params = dict(
             total=self.total,
-            connect=self.connect, read=self.read, redirect=self.redirect,
+            connect=self.connect,
+            read=self.read,
+            redirect=self.redirect,
             method_whitelist=self.method_whitelist,
             status_forcelist=self.status_forcelist,
             backoff_factor=self.backoff_factor,
@@ -206,7 +218,15 @@ class Retry(object):
 
         return min(retry_counts) < 0
 
-    def increment(self, method=None, url=None, response=None, error=None, _pool=None, _stacktrace=None):
+    def increment(
+        self,
+        method=None,
+        url=None,
+        response=None,
+        error=None,
+        _pool=None,
+        _stacktrace=None,
+    ):
         """ Return a new Retry object with incremented retry counters.
 
         :param response: A response object, or None, if the server did not
@@ -229,7 +249,7 @@ class Retry(object):
         connect = self.connect
         read = self.read
         redirect = self.redirect
-        cause = 'unknown'
+        cause = "unknown"
 
         if error and self._is_connection_error(error):
             # Connect retry?
@@ -251,7 +271,7 @@ class Retry(object):
             # Redirect retry?
             if redirect is not None:
                 redirect -= 1
-            cause = 'too many redirects'
+            cause = "too many redirects"
 
         else:
             # Incrementing because of a server error like a 500 in
@@ -259,13 +279,15 @@ class Retry(object):
             _observed_errors += 1
             cause = ResponseError.GENERIC_ERROR
             if response and response.status:
-                cause = ResponseError.SPECIFIC_ERROR.format(
-                    status_code=response.status)
+                cause = ResponseError.SPECIFIC_ERROR.format(status_code=response.status)
 
         new_retry = self.new(
             total=total,
-            connect=connect, read=read, redirect=redirect,
-            _observed_errors=_observed_errors)
+            connect=connect,
+            read=read,
+            redirect=redirect,
+            _observed_errors=_observed_errors,
+        )
 
         if new_retry.is_exhausted():
             raise MaxRetryError(_pool, url, error or ResponseError(cause))
@@ -274,11 +296,11 @@ class Retry(object):
 
         return new_retry
 
-
     def __repr__(self):
-        return ('{cls.__name__}(total={self.total}, connect={self.connect}, '
-                'read={self.read}, redirect={self.redirect})').format(
-                    cls=type(self), self=self)
+        return (
+            "{cls.__name__}(total={self.total}, connect={self.connect}, "
+            "read={self.read}, redirect={self.redirect})"
+        ).format(cls=type(self), self=self)
 
 
 # For backwards compatibility (equivalent to pre-v1.9):

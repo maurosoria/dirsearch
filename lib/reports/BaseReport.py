@@ -3,12 +3,12 @@
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation; either version 2 of the License, or
 #  (at your option) any later version.
-#  
+#
 #  This program is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU General Public License for more details.
-#  
+#
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
@@ -16,8 +16,8 @@
 #
 #  Author: Mauro Soria
 
-class BaseReport(object):
 
+class BaseReport(object):
     def __init__(self, host, port, protocol, basePath, output):
         self.output = output
         self.port = port
@@ -25,10 +25,10 @@ class BaseReport(object):
         self.protocol = protocol
         self.basePath = basePath
 
-        if self.basePath.endswith('/'):
+        if self.basePath.endswith("/"):
             self.basePath = self.basePath[:-1]
 
-        if self.basePath.startswith('/'):
+        if self.basePath.startswith("/"):
             self.basePath = self.basePath[1:]
 
         self.pathList = []
@@ -38,7 +38,7 @@ class BaseReport(object):
         contentLength = None
 
         try:
-            contentLength = int(response.headers['content-length'])
+            contentLength = int(response.headers["content-length"])
 
         except (KeyError, ValueError):
             contentLength = len(response.body)
@@ -57,7 +57,7 @@ class BaseReport(object):
 
             self.output = output
 
-        self.file = open(self.output, 'w+')
+        self.file = open(self.output, "w+")
 
     def save(self):
         self.file.seek(0)
