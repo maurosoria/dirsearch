@@ -2011,6 +2011,8 @@ backend/
 backend/core/info.xml
 backend_dev.%EXT%
 backend_dev/
+backoffice
+backoffice/
 backup
 backup.7z
 backup.htpasswd
@@ -2413,6 +2415,8 @@ cmsadmin
 cmsadmin.php
 cmsadmin/
 cmsample/
+cmscockpit
+cmscockpit/
 cncat_admin
 cnt
 COadmin
@@ -2628,6 +2632,8 @@ cs
 cs-admin
 cs_admin
 csadmin
+cscockpit
+cscockpit/
 css
 CSV
 csv
@@ -3260,6 +3266,8 @@ gulpfile.coffee
 gulpfile.js
 gwadmin
 h
+hac
+hac/
 hadmin
 hardware
 hc_admin
@@ -3299,6 +3307,8 @@ history.txt
 HitCount
 hitcount
 HitCount.jsp
+hmc
+hmc/
 HNAP1/
 Home
 home
@@ -3418,6 +3428,8 @@ import
 import.php
 import/
 import_error.log
+importcockpit
+importcockpit/
 imprimer.%EXT%
 imprint.html
 in
@@ -4770,6 +4782,8 @@ product
 production.log
 Products
 products
+productcockpit
+productcockpit/
 profile
 Profile
 profiles
