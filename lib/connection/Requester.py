@@ -126,7 +126,10 @@ class Requester(object):
                 else:
                     url = "{0}://{1}:{2}".format(self.protocol, self.ip, self.port)
 
-                url = urllib.parse.urljoin(url, self.basePath)
+                if (self.basePath.startswith("/")):
+                    self.basePath = self.basePath[len("/"):]
+
+                url = "{}/{}".format(url, self.basePath)
 
                 # Joining with concatenation because a urljoin bug with "::"
                 if not url.endswith('/'):

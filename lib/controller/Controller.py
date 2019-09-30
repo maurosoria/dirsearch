@@ -121,7 +121,6 @@ class Controller(object):
 
         try:
             for url in self.arguments.urlList:
-
                 try:
                     gc.collect()
                     self.reportManager = ReportManager()
@@ -194,10 +193,17 @@ class Controller(object):
         self.output.warning('\nTask Completed')
 
     def printConfig(self):
+
+        requestCount = len(self.dictionary)
+
+        if self.arguments.scanSubdirs is not None:
+            requestCount = requestCount * len(self.arguments.scanSubdirs)
+
         self.output.config(
             ', '.join(self.arguments.extensions),
             str(self.arguments.threadsCount),
             str(len(self.dictionary)),
+            str(requestCount),
             str(self.httpmethod),
             self.recursive,
             str(self.recursive_level_max)
@@ -335,12 +341,25 @@ class Controller(object):
                 path.status)) and not (
                     self.suppressEmpty and (len(path.response.body) == 0)):
                 self.output.statusReport(path.path, path.response)
-                if path.response.redirect:
-                    self.addRedirectDirectory(path)
-                else:
-                    self.addDirectory(path.path)
-                self.reportManager.addPath(self.currentDirectory + path.path, path.status, path.response)
+
+                pathIsInScanSubdirs = False
+
+                if self.arguments.scanSubdirs is not None:
+                    for subdir in self.arguments.scanSubdirs:
+                        if (subdir == path.path + "/"):
+                            pathIsInScanSubdirs = True
+
+                if pathIsInScanSubdirs == False:
+                    if path.response.redirect:
+                        self.addRedirectDirectory(path)
+                    else:
+                        self.addDirectory(path.path)
+
+                newPath = "{}{}".format(self.currentDirectory, path.path)
+
+                self.reportManager.addPath(newPath, path.status, path.response)
                 self.reportManager.save()
+
                 del path
 
     def notFoundCallback(self, path):
@@ -419,6 +438,7 @@ class Controller(object):
             self.output.basePath = self.basePath + self.currentDirectory
             self.fuzzer.start()
             self.processPaths()
+
         return
 
     def addDirectory(self, path):
@@ -453,7 +473,11 @@ class Controller(object):
             return False
 
         baseUrl = self.currentUrl.rstrip("/") + "/" + self.currentDirectory
+
+        baseUrl = baseUrl.rstrip("/") + "/"
+
         absoluteUrl = urllib.parse.urljoin(baseUrl, path.response.redirect)
+
         if absoluteUrl.startswith(baseUrl) and absoluteUrl != baseUrl and absoluteUrl.endswith("/"):
             dir = absoluteUrl[len(baseUrl):]
 

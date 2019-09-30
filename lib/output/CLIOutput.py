@@ -173,7 +173,7 @@ class CLIOutput(object):
         message = Style.BRIGHT + Fore.MAGENTA + text + Style.RESET_ALL
         self.newLine(message)
 
-    def config(self, extensions, threads, wordlist_size, method, recursive, recursion_level):
+    def config(self, extensions, threads, wordlist_size, request_count, method, recursive, recursion_level):
         separator = Fore.MAGENTA + ' | ' + Fore.YELLOW
         config = Style.BRIGHT + Fore.YELLOW
         config += 'Extensions: {0}'.format(Fore.CYAN + extensions + Fore.YELLOW)
@@ -183,6 +183,8 @@ class CLIOutput(object):
         config += 'Threads: {0}'.format(Fore.CYAN + threads + Fore.YELLOW)
         config += separator
         config += 'Wordlist size: {0}'.format(Fore.CYAN + wordlist_size + Fore.YELLOW)
+        config += separator
+        config += 'Request count: {0}'.format(Fore.CYAN + request_count + Fore.YELLOW)
 
         if recursive == True:
             config += separator
