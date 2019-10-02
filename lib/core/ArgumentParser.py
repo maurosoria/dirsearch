@@ -119,6 +119,27 @@ class ArgumentParser(object):
         else:
             self.excludeStatusCodes = []
 
+        if options.excludeTexts is not None:
+            try:
+                self.excludeTexts = list(
+                    oset([excludeTexts.strip() if excludeTexts else None for excludeTexts in
+                          options.excludeTexts.split(',')]))
+            except ValueError:
+                self.excludeTexts = []
+        else:
+            self.excludeTexts = []
+
+
+        if options.excludeRegexps is not None:
+            try:
+                self.excludeRegexps = list(
+                    oset([excludeRegexps.strip() if excludeRegexps else None for excludeRegexps in
+                          options.excludeRegexps.split(',')]))
+            except ValueError:
+                self.excludeRegexps = []
+        else:
+            self.excludeRegexps = []
+
         self.wordlist = options.wordlist
         self.lowercase = options.lowercase
         self.forceExtensions = options.forceExtensions
@@ -269,6 +290,10 @@ class ArgumentParser(object):
                            , default=self.threadsCount)
         general.add_option('-x', '--exclude-status', help='Exclude status code, separated by comma (example: 301, 500)'
                            , action='store', dest='excludeStatusCodes', default=self.excludeStatusCodes)
+        general.add_option('--exclude-texts', help='Exclude responses by texts, separated by comma (example: "Not found", "Error")'
+                           , action='store', dest='excludeTexts', default=None)
+        general.add_option('--exclude-regexps', help='Exclude responses by regexps, separated by comma (example: "Not foun[a-z]{1}", "^Error$")'
+                           , action='store', dest='excludeRegexps', default=None)
         general.add_option('-c', '--cookie', action='store', type='string', dest='cookie', default=None)
         general.add_option('--ua', '--user-agent', action='store', type='string', dest='useragent',
                            default=self.useragent)
