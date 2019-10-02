@@ -55,6 +55,10 @@ Options:
     --exclude-subdir=EXCLUDESUBDIRS, --exclude-subdirs=EXCLUDESUBDIRS
                         Exclude the following subdirectories during recursive
                         scan (separated by comma)
+    --exclude-texts='Not found', 'Error'
+                        Exclude results by text in response        
+    --exclude-regexps='Not foun[a-z]{1}', '^Error$'
+                        Exclude results by text regexp in response                             
     -t THREADSCOUNT, --threads=THREADSCOUNT
                         Number of Threads
     -x EXCLUDESTATUSCODES, --exclude-status=EXCLUDESTATUSCODES
