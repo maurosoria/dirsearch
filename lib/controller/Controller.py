@@ -56,7 +56,7 @@ class Controller(object):
         self.exit = False
         self.arguments = arguments
         self.output = output
-        self.savePath = self.script_path
+        self.savePath = FileUtils.buildPath(os.path.expanduser('~'), ".dirsearch")
         self.doneDirs = []
 
         self.recursive_level_max = self.arguments.recursive_level_max
@@ -243,6 +243,12 @@ class Controller(object):
     def setupErrorLogs(self):
         fileName = "errors-{0}.log".format(time.strftime('%y-%m-%d_%H-%M-%S'))
         self.errorLogPath = FileUtils.buildPath(FileUtils.buildPath(self.savePath, "logs", fileName))
+
+        logs = FileUtils.buildPath(self.savePath, "logs")
+        if not FileUtils.exists(logs):
+            FileUtils.createDirectory(logs)
+
+        self.errorLogPath = FileUtils.buildPath(logs, fileName)
         self.errorLog = open(self.errorLogPath, "w")
 
     def setupBatchReports(self):

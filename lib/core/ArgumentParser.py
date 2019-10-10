@@ -16,6 +16,9 @@
 #
 #  Author: Mauro Soria
 
+import os
+import shutil
+
 from optparse import OptionParser, OptionGroup
 
 from lib.utils.DefaultConfigParser import DefaultConfigParser
@@ -196,7 +199,12 @@ class ArgumentParser(object):
 
     def parseConfig(self):
         config = DefaultConfigParser()
-        configPath = FileUtils.buildPath(self.script_path, "default.conf")
+        configPath = FileUtils.buildPath(os.path.expanduser('~'), ".dirsearch", "dirsearch.conf")
+
+        if not FileUtils.exists(configPath):
+            FileUtils.createDirectory(os.path.dirname(configPath))
+            shutil.copyfile(FileUtils.buildPath(self.script_path, 'default.conf'), configPath)
+
         config.read(configPath)
 
         # General
