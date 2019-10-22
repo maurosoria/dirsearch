@@ -1,6 +1,23 @@
 reports/
 logs/
 
+# Distribution / packaging
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

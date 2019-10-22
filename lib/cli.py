@@ -19,22 +19,24 @@
 
 import os
 import sys
-
-if sys.version_info < (3, 0):
-    sys.stdout.write("Sorry, dirsearch requires Python 3.x\n")
-    sys.exit(1)
-
 from lib.core import ArgumentParser
 from lib.controller import *
 from lib.output import *
+from lib.utils import FileUtils
 
 
 class Program(object):
     def __init__(self, script_path, save_path):
         self.arguments = ArgumentParser(script_path)
         self.output = CLIOutput()
+        log_path = os.path.join(save_path, 'logs')
+        if not FileUtils.exists(log_path):
+            FileUtils.createDirectory(log_path)
         self.controller = Controller(script_path, save_path, self.arguments, self.output)
 
-if __name__ == '__main__':
-    current_path = os.path.dirname(os.path.realpath(__file__))
-    main = Program(current_path, current_path)
+def run_as_command():
+    if sys.version_info < (3, 0):
+        sys.stdout.write("Sorry, dirsearch requires Python 3.x\n")
+        sys.exit(1)
+
+    main = Program(os.path.dirname(os.path.dirname(__file__)), './')

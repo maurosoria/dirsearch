@@ -21,6 +21,12 @@ python3 dirsearch.py -u <URL> -e <EXTENSION>
 you can also use this alias to send directly to proxy
 `python3 /path/to/dirsearch/dirsearch.py --http-proxy=localhost:8080`
 
+If you use dirsearch as command:
+
+```
+python3 setup.py install
+dirsearch -u <URL> -e <EXTENSION>
+```
 
 Options
 -------

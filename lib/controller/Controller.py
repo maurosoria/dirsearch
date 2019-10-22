@@ -47,7 +47,7 @@ VERSION = {
 
 
 class Controller(object):
-    def __init__(self, script_path, arguments, output):
+    def __init__(self, script_path, save_path, arguments, output):
         global VERSION
         program_banner = open(FileUtils.buildPath(script_path, "lib", "controller", "banner.txt")).read().format(
             **VERSION)
@@ -56,7 +56,7 @@ class Controller(object):
         self.exit = False
         self.arguments = arguments
         self.output = output
-        self.savePath = self.script_path
+        self.savePath = save_path
         self.doneDirs = []
 
         self.recursive_level_max = self.arguments.recursive_level_max
