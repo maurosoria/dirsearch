@@ -30,7 +30,7 @@ class ScannerException(Exception):
 class Scanner(object):
     def __init__(self, requester, testPath=None, suffix=None):
         if testPath is None or testPath is "":
-            self.testPath = RandomUtils.randString()
+            self.testPath = RandomUtils.rand_string()
         else:
             self.testPath = testPath
 
@@ -54,7 +54,7 @@ class Scanner(object):
             return
 
         # look for redirects
-        secondPath = RandomUtils.randString(omit=self.testPath) + self.suffix
+        secondPath = RandomUtils.rand_string(omit=self.testPath) + self.suffix
         secondResponse = self.requester.request(secondPath)
 
         if firstResponse.status in self.redirectStatusCodes and firstResponse.redirect and secondResponse.redirect:

@@ -97,7 +97,7 @@ class CLIOutput(object):
                 size = len(response.body)
 
             finally:
-                contentLength = FileUtils.sizeHuman(size)
+                contentLength = FileUtils.size_human(size)
 
             if self.basePath is None:
                 showPath = urllib.parse.urljoin("/", path)

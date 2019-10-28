@@ -27,9 +27,9 @@ from thirdparty.oset import *
 class ArgumentParser(object):
     def __init__(self, script_path):
         self.script_path = script_path
-        self.parseConfig()
+        self.parse_config()
 
-        options = self.parseArguments()
+        options = self.parse_arguments()
 
         if not options.url:
 
@@ -41,15 +41,15 @@ class ArgumentParser(object):
                         print("The file with URLs does not exist")
                         exit(0)
 
-                    if not urlList.isValid():
+                    if not urlList.is_valid():
                         print('The wordlist is invalid')
                         exit(0)
 
-                    if not urlList.canRead():
+                    if not urlList.can_read():
                         print('The wordlist cannot be read')
                         exit(0)
 
-                    self.urlList = list(urlList.getLines())
+                    self.urlList = list(urlList.get_lines())
 
             elif not options.url:
                 print('URL target is missing, try using -u <url> ')
@@ -67,11 +67,11 @@ class ArgumentParser(object):
                 print('The wordlist file does not exist')
                 exit(0)
 
-            if not wordlist.isValid():
+            if not wordlist.is_valid():
                 print('The wordlist is invalid')
                 exit(0)
 
-            if not wordlist.canRead():
+            if not wordlist.can_read():
                 print('The wordlist cannot be read')
                 exit(0)
 
@@ -193,9 +193,9 @@ class ArgumentParser(object):
 
         self.recursive_level_max = options.recursive_level_max
 
-    def parseConfig(self):
+    def parse_config(self):
         config = DefaultConfigParser()
-        configPath = FileUtils.buildPath(self.script_path, "default.conf")
+        configPath = FileUtils.build_path(self.script_path, "default.conf")
         config.read(configPath)
 
         # General
@@ -213,7 +213,7 @@ class ArgumentParser(object):
         self.autoSaveFormat = config.safe_get("reports", "autosave-report-format", "plain", ["plain", "json", "simple"])
         # Dictionary
         self.wordlist = config.safe_get("dictionary", "wordlist",
-                                        FileUtils.buildPath(self.script_path, "db", "dicc.txt"))
+                                        FileUtils.build_path(self.script_path, "db", "dicc.txt"))
         self.lowercase = config.safe_getboolean("dictionary", "lowercase", False)
         self.forceExtensions = config.safe_get("dictionary", "force-extensions", False)
 
@@ -227,7 +227,7 @@ class ArgumentParser(object):
         self.httpmethod = config.safe_get("connection", "httpmethod", "get", ["get", "head", "post"])
         self.requestByHostname = config.safe_get("connection", "request-by-hostname", False)
 
-    def parseArguments(self):
+    def parse_arguments(self):
         usage = 'Usage: %prog [-u|--url] target [-e|--extensions] extensions [options]'
         parser = OptionParser(usage)
         # Mandatory arguments

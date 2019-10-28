@@ -78,7 +78,7 @@ class Dictionary(object):
 
     def generate(self):
         result = []
-        for line in self.dictionaryFile.getLines():
+        for line in self.dictionaryFile.get_lines():
 
             # Skip comments
             if line.lstrip().startswith("#"):

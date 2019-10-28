@@ -25,13 +25,13 @@ class ReportManager(object):
         self.outputs = []
         self.lock = threading.Lock()
 
-    def addOutput(self, output):
+    def add_output(self, output):
         self.outputs.append(output)
 
-    def addPath(self, path, status, response):
+    def add_path(self, path, status, response):
         with self.lock:
             for output in self.outputs:
-                output.addPath(path, status, response)
+                output.add_path(path, status, response)
 
     def save(self):
         with self.lock:
