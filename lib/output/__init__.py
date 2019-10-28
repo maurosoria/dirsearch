@@ -1,3 +1,3 @@
-from .CLIOutput import *
+from .cli_output import *
 
 pass

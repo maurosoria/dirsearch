@@ -22,7 +22,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from lib.utils.FileUtils import File
+from lib.utils.file_utils import File
 from thirdparty.oset import *
 
 

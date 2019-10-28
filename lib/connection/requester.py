@@ -26,8 +26,8 @@ import urllib.parse
 import urllib.request
 
 import thirdparty.requests as requests
-from .RequestException import *
-from .Response import *
+from .request_exception import *
+from .response import *
 
 
 class Requester(object):

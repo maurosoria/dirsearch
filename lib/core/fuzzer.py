@@ -18,9 +18,9 @@
 
 import threading
 
-from lib.connection.RequestException import RequestException
-from .Path import *
-from .Scanner import *
+from lib.connection.request_exception import RequestException
+from .path import *
+from .scanner import *
 
 
 class Fuzzer(object):

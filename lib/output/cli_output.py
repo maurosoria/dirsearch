@@ -23,8 +23,8 @@ import time
 
 import urllib.parse
 
-from lib.utils.FileUtils import *
-from lib.utils.TerminalSize import get_terminal_size
+from lib.utils.file_utils import *
+from lib.utils.terminal_size import get_terminal_size
 from thirdparty.colorama import *
 
 if platform.system() == 'Windows':

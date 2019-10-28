@@ -18,9 +18,9 @@
 
 from optparse import OptionParser, OptionGroup
 
-from lib.utils.DefaultConfigParser import DefaultConfigParser
-from lib.utils.FileUtils import File
-from lib.utils.FileUtils import FileUtils
+from lib.utils.default_config_parser import DefaultConfigParser
+from lib.utils.file_utils import File
+from lib.utils.file_utils import FileUtils
 from thirdparty.oset import *
 
 
