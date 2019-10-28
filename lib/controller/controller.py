@@ -335,8 +335,8 @@ class Controller(object):
         if path.status is not None:
             if path.status not in self.excludeStatusCodes and (
                     self.blacklists.get(path.status) is None or path.path not in self.blacklists.get(
-                path.status)) and not (
-                    self.suppressEmpty and (len(path.response.body) == 0)):
+                        path.status)) and not (
+                            self.suppressEmpty and (len(path.response.body) == 0)):
 
                 for excludeText in self.excludeTexts:
                     if excludeText in path.response.body.decode():

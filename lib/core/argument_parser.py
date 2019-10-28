@@ -31,9 +31,9 @@ class ArgumentParser(object):
 
         options = self.parseArguments()
 
-        if options.url == None:
+        if not options.url:
 
-            if options.urlList != None:
+            if options.urlList:
 
                 with File(options.urlList) as urlList:
 
@@ -51,14 +51,14 @@ class ArgumentParser(object):
 
                     self.urlList = list(urlList.getLines())
 
-            elif options.url == None:
+            elif not options.url:
                 print('URL target is missing, try using -u <url> ')
                 exit(0)
 
         else:
             self.urlList = [options.url]
 
-        if options.extensions == None:
+        if not options.extensions:
             print('No extension specified. You must specify at least one extension')
             exit(0)
 
@@ -128,7 +128,6 @@ class ArgumentParser(object):
                 self.excludeTexts = []
         else:
             self.excludeTexts = []
-
 
         if options.excludeRegexps is not None:
             try:
@@ -286,19 +285,19 @@ class ArgumentParser(object):
                            help='Exclude the following subdirectories during recursive scan (separated by comma)',
                            action='store', dest='excludeSubdirs',
                            default=None)
-        general.add_option('-t', '--threads', help='Number of Threads', action='store', type='int', dest='threadsCount'
-                           , default=self.threadsCount)
-        general.add_option('-x', '--exclude-status', help='Exclude status code, separated by comma (example: 301, 500)'
-                           , action='store', dest='excludeStatusCodes', default=self.excludeStatusCodes)
-        general.add_option('--exclude-texts', help='Exclude responses by texts, separated by comma (example: "Not found", "Error")'
-                           , action='store', dest='excludeTexts', default=None)
-        general.add_option('--exclude-regexps', help='Exclude responses by regexps, separated by comma (example: "Not foun[a-z]{1}", "^Error$")'
-                           , action='store', dest='excludeRegexps', default=None)
+        general.add_option('-t', '--threads', help='Number of Threads', action='store', type='int', dest='threadsCount',
+                           default=self.threadsCount)
+        general.add_option('-x', '--exclude-status', help='Exclude status code, separated by comma (example: 301, 500)',
+                           action='store', dest='excludeStatusCodes', default=self.excludeStatusCodes)
+        general.add_option('--exclude-texts', help='Exclude responses by texts, separated by comma (example: "Not found", "Error")',
+                           action='store', dest='excludeTexts', default=None)
+        general.add_option('--exclude-regexps', help='Exclude responses by regexps, separated by comma (example: "Not foun[a-z]{1}", "^Error$")',
+                           action='store', dest='excludeRegexps', default=None)
         general.add_option('-c', '--cookie', action='store', type='string', dest='cookie', default=None)
         general.add_option('--ua', '--user-agent', action='store', type='string', dest='useragent',
                            default=self.useragent)
-        general.add_option('-F', '--follow-redirects', action='store_true', dest='noFollowRedirects'
-                           , default=self.redirect)
+        general.add_option('-F', '--follow-redirects', action='store_true', dest='noFollowRedirects',
+                           default=self.redirect)
         general.add_option('-H', '--header',
                            help='Headers to add (example: --header "Referer: example.com" --header "User-Agent: IE"',
                            action='append', type='string', dest='headers', default=None)

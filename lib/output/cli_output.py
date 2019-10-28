@@ -3,12 +3,12 @@
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation; either version 2 of the License, or
 #  (at your option) any later version.
-#  
+#
 #  This program is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU General Public License for more details.
-#  
+#
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
@@ -65,7 +65,7 @@ class CLIOutput(object):
             sys.stdout.write('\033[0G')
 
     def newLine(self, string):
-        if self.lastInLine == True:
+        if self.lastInLine:
             self.erase()
 
         if platform.system() == 'Windows':
@@ -83,7 +83,6 @@ class CLIOutput(object):
 
     def statusReport(self, path, response):
         with self.mutex:
-            contentLength = None
             status = response.status
 
             # Check blacklist
@@ -184,7 +183,7 @@ class CLIOutput(object):
         config += separator
         config += 'Wordlist size: {0}'.format(Fore.CYAN + wordlist_size + Fore.YELLOW)
 
-        if recursive == True:
+        if recursive:
             config += separator
             config += 'Recursion level: {0}'.format(Fore.CYAN + recursion_level + Fore.YELLOW)
 
