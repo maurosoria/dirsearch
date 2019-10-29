@@ -28,15 +28,15 @@ from thirdparty.oset import *
 
 class Dictionary(object):
 
-    def __init__(self, path, extensions, lowercase=False, forcedExtensions=False):
+    def __init__(self, path, extensions, lowercase=False, forced_extensions=False):
         self.entries = []
-        self.currentIndex = 0
+        self.current_index = 0
         self.condition = threading.Lock()
         self._extensions = extensions
         self._path = path
-        self._forcedExtensions = forcedExtensions
+        self._forced_extensions = forced_extensions
         self.lowercase = lowercase
-        self.dictionaryFile = File(self.path)
+        self.dictionary_file = File(self.path)
         self.generate()
 
     @property
@@ -78,7 +78,7 @@ class Dictionary(object):
 
     def generate(self):
         result = []
-        for line in self.dictionaryFile.get_lines():
+        for line in self.dictionary_file.get_lines():
 
             # Skip comments
             if line.lstrip().startswith("#"):
@@ -98,7 +98,7 @@ class Dictionary(object):
 
             # If forced extensions is used and the path is not a directory ... (terminated by /)
             # process line like a forced extension.
-            elif self._forcedExtensions and not line.rstrip().endswith("/"):
+            elif self._forced_extensions and not line.rstrip().endswith("/"):
                 quoted = self.quote(line)
 
                 for extension in self._extensions:
@@ -122,34 +122,34 @@ class Dictionary(object):
         else:
             self.entries = list(oset(result))
 
-        del (result)
+        del result
 
     def regenerate(self):
         self.generate(lowercase=self.lowercase)
         self.reset()
 
-    def nextWithIndex(self, basePath=None):
+    def next_with_index(self, base_path=None):
         self.condition.acquire()
 
         try:
-            result = self.entries[self.currentIndex]
+            result = self.entries[self.current_index]
 
         except IndexError:
             self.condition.release()
             raise StopIteration
 
-        self.currentIndex = self.currentIndex + 1
-        currentIndex = self.currentIndex
+        self.current_index = self.current_index + 1
+        current_index = self.current_index
         self.condition.release()
-        return currentIndex, result
+        return current_index, result
 
-    def __next__(self, basePath=None):
-        _, path = self.nextWithIndex(basePath)
+    def __next__(self, base_path=None):
+        _, path = self.next_with_index(base_path)
         return path
 
     def reset(self):
         self.condition.acquire()
-        self.currentIndex = 0
+        self.current_index = 0
         self.condition.release()
 
     def __len__(self):

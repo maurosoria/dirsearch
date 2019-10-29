@@ -34,20 +34,20 @@ if platform.system() == 'Windows':
 class CLIOutput(object):
     def __init__(self):
         init()
-        self.lastLength = 0
-        self.lastOutput = ''
-        self.lastInLine = False
+        self.last_length = 0
+        self.last_output = ''
+        self.last_in_line = False
         self.mutex = threading.Lock()
         self.blacklists = {}
-        self.mutexCheckedPaths = threading.Lock()
-        self.basePath = None
+        self.mutex_checked_paths = threading.Lock()
+        self.base_path = None
         self.errors = 0
 
-    def inLine(self, string):
+    def in_line(self, string):
         self.erase()
         sys.stdout.write(string)
         sys.stdout.flush()
-        self.lastInLine = True
+        self.last_in_line = True
 
     def erase(self):
         if platform.system() == 'Windows':
@@ -64,8 +64,8 @@ class CLIOutput(object):
             sys.stdout.write('\033[1K')
             sys.stdout.write('\033[0G')
 
-    def newLine(self, string):
-        if self.lastInLine:
+    def new_line(self, string):
+        if self.last_in_line:
             self.erase()
 
         if platform.system() == 'Windows':
@@ -78,10 +78,10 @@ class CLIOutput(object):
             sys.stdout.write(string + '\n')
 
         sys.stdout.flush()
-        self.lastInLine = False
+        self.last_in_line = False
         sys.stdout.flush()
 
-    def statusReport(self, path, response):
+    def status_report(self, path, response):
         with self.mutex:
             status = response.status
 
@@ -97,19 +97,19 @@ class CLIOutput(object):
                 size = len(response.body)
 
             finally:
-                contentLength = FileUtils.size_human(size)
+                content_length = FileUtils.size_human(size)
 
-            if self.basePath is None:
-                showPath = urllib.parse.urljoin("/", path)
+            if self.base_path is None:
+                show_path = urllib.parse.urljoin("/", path)
 
             else:
-                showPath = urllib.parse.urljoin("/", self.basePath)
-                showPath = urllib.parse.urljoin(showPath, path)
+                show_path = urllib.parse.urljoin("/", self.base_path)
+                show_path = urllib.parse.urljoin(show_path, path)
             message = '[{0}] {1} - {2} - {3}'.format(
                 time.strftime('%H:%M:%S'),
                 status,
-                contentLength.rjust(6, ' '),
-                showPath
+                content_length.rjust(6, ' '),
+                show_path
             )
 
             if status == 200:
@@ -126,7 +126,7 @@ class CLIOutput(object):
                 message = Fore.CYAN + message + Style.RESET_ALL
                 message += '  ->  {0}'.format(response.headers['location'])
 
-            self.newLine(message)
+            self.new_line(message)
 
     def lastPath(self, path, index, length):
         with self.mutex:
@@ -147,9 +147,9 @@ class CLIOutput(object):
             if len(message) > x:
                 message = message[:x]
 
-            self.inLine(message)
+            self.in_line(message)
 
-    def addConnectionError(self):
+    def add_connection_error(self):
         self.errors += 1
 
     def error(self, reason):
@@ -162,15 +162,15 @@ class CLIOutput(object):
             message += reason[start:end]
             message += Style.RESET_ALL
             message += reason[end:]
-            self.newLine(message)
+            self.new_line(message)
 
     def warning(self, reason):
         message = Style.BRIGHT + Fore.YELLOW + reason + Style.RESET_ALL
-        self.newLine(message)
+        self.new_line(message)
 
     def header(self, text):
         message = Style.BRIGHT + Fore.MAGENTA + text + Style.RESET_ALL
-        self.newLine(message)
+        self.new_line(message)
 
     def config(self, extensions, threads, wordlist_size, method, recursive, recursion_level):
         separator = Fore.MAGENTA + ' | ' + Fore.YELLOW
@@ -189,15 +189,15 @@ class CLIOutput(object):
 
         config += Style.RESET_ALL
 
-        self.newLine(config)
+        self.new_line(config)
 
     def target(self, target):
         config = Style.BRIGHT + Fore.YELLOW
         config += '\nTarget: {0}\n'.format(Fore.CYAN + target + Fore.YELLOW)
         config += Style.RESET_ALL
 
-        self.newLine(config)
+        self.new_line(config)
 
     def debug(self, info):
         line = "[{0}] - {1}".format(time.strftime('%H:%M:%S'), info)
-        self.newLine(line)
+        self.new_line(line)

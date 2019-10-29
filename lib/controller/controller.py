@@ -113,11 +113,11 @@ class Controller(object):
         self.batch = False
         self.batchSession = None
         self.setup_error_logs()
-        self.output.newLine("\nError Log: {0}".format(self.errorLogPath))
+        self.output.new_line("\nError Log: {0}".format(self.errorLogPath))
 
         if self.arguments.autoSave and len(self.arguments.urlList) > 1:
             self.setup_batch_reports()
-            self.output.newLine("\nAutoSave path: {0}".format(self.batchDirectoryPath))
+            self.output.new_line("\nAutoSave path: {0}".format(self.batchDirectoryPath))
 
         if self.arguments.useRandomAgents:
             self.randomAgents = FileUtils.get_lines(FileUtils.build_path(script_path, "db", "user-agents.txt"))
@@ -148,10 +148,10 @@ class Controller(object):
                         raise SkipTargetInterrupt
 
                     if self.arguments.useRandomAgents:
-                        self.requester.setRandomAgents(self.randomAgents)
+                        self.requester.set_random_agents(self.randomAgents)
 
                     for key, value in arguments.headers.items():
-                        self.requester.setHeader(key, value)
+                        self.requester.set_header(key, value)
 
                     # Initialize directories Queue with start Path
                     self.basePath = self.requester.basePath
@@ -169,9 +169,9 @@ class Controller(object):
                     notFoundCallbacks = [self.not_found_callback]
                     errorCallbacks = [self.error_callback, self.append_error_log]
 
-                    self.fuzzer = Fuzzer(self.requester, self.dictionary, testFailPath=self.arguments.testFailPath,
-                                         threads=self.arguments.threadsCount, matchCallbacks=matchCallbacks,
-                                         notFoundCallbacks=notFoundCallbacks, errorCallbacks=errorCallbacks)
+                    self.fuzzer = Fuzzer(self.requester, self.dictionary, test_fail_path=self.arguments.testFailPath,
+                                         threads=self.arguments.threadsCount, match_callbacks=matchCallbacks,
+                                         not_found_callbacks=notFoundCallbacks, error_callbacks=errorCallbacks)
                     try:
                         self.wait()
                     except RequestException as e:
@@ -348,7 +348,7 @@ class Controller(object):
                         del path
                         return
 
-                self.output.statusReport(path.path, path.response)
+                self.output.status_report(path.path, path.response)
                 if path.response.redirect:
                     self.add_redirect_directory(path)
                 else:
@@ -363,7 +363,7 @@ class Controller(object):
         del path
 
     def error_callback(self, path, errorMsg):
-        self.output.addConnectionError()
+        self.output.add_connection_error()
         del path
 
     def append_error_log(self, path, errorMsg):
@@ -387,7 +387,7 @@ class Controller(object):
                 if len(self.arguments.urlList) > 1:
                     msg += " / [s]kip target"
 
-                self.output.inLine(msg + ': ')
+                self.output.in_line(msg + ': ')
 
                 option = input()
 

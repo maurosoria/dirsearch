@@ -42,7 +42,7 @@ class File(object):
     def can_read(self):
         return FileUtils.can_read(self.path)
 
-    def canWrite(self):
+    def can_write(self):
         return FileUtils.can_write(self.path)
 
     def read(self):

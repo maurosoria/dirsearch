@@ -84,10 +84,10 @@ class Requester(object):
 
         # Set cookie and user-agent headers
         if cookie is not None:
-            self.setHeader('Cookie', cookie)
+            self.set_header('Cookie', cookie)
 
         if useragent is not None:
-            self.setHeader('User-agent', useragent)
+            self.set_header('User-agent', useragent)
 
         self.maxRetries = maxRetries
         self.maxPool = maxPool
@@ -100,13 +100,13 @@ class Requester(object):
         self.requestByHostname = requestByHostname
         self.session = requests.Session()
 
-    def setHeader(self, header, content):
+    def set_header(self, header, content):
         self.headers[header] = content
 
-    def setRandomAgents(self, agents):
+    def set_random_agents(self, agents):
         self.randomAgents = list(agents)
 
-    def unsetRandomAgents(self):
+    def unset_random_agents(self):
         self.randomAgents = None
 
     def request(self, path):
@@ -148,7 +148,7 @@ class Requester(object):
                         (self.protocol == "http" and self.port != 80):
                     headers["Host"] += ":{0}".format(self.port)
 
-                if (self.httpmethod == "get"):
+                if self.httpmethod == "get":
                     response = self.session.get(
                         url,
                         proxies=proxy,
@@ -158,7 +158,7 @@ class Requester(object):
                         timeout=self.timeout
                     )
 
-                if (self.httpmethod == "head"):
+                if self.httpmethod == "head":
                     response = self.session.head(
                         url,
                         proxies=proxy,
@@ -168,7 +168,7 @@ class Requester(object):
                         timeout=self.timeout
                     )
 
-                if (self.httpmethod == "post"):
+                if self.httpmethod == "post":
                     response = self.session.post(
                         url,
                         proxies=proxy,
@@ -177,6 +177,8 @@ class Requester(object):
                         headers=headers,
                         timeout=self.timeout
                     )
+                else:
+                    raise NotImplementedError
 
                 result = Response(response.status_code, response.reason, response.headers, response.content)
                 time.sleep(self.delay)
