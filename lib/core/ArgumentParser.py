@@ -58,9 +58,12 @@ class ArgumentParser(object):
         else:
             self.urlList = [options.url]
 
-        if options.extensions == None:
-            print('No extension specified. You must specify at least one extension')
+        if not options.extensions and not options.extensions_list:
+            print('No extension specified. You must specify at least one extension or try using default extension list.')
             exit(0)
+
+        if not options.extensions and options.extensions_list:
+            options.extensions = "html,php,tar.gz,txt,xml,zip,jpg,png,jpeg"
 
         with File(options.wordlist) as wordlist:
             if not wordlist.exists():
@@ -238,6 +241,8 @@ class ArgumentParser(object):
                              default=None)
         mandatory.add_option('-e', '--extensions', help='Extension list separated by comma (Example: php,asp)',
                              action='store', dest='extensions', default=None)
+        mandatory.add_option('-E', '--extensions-list', help='Use predefined list of common extensions',
+                             action='store_true', default=False)
 
         connection = OptionGroup(parser, 'Connection Settings')
         connection.add_option('--timeout', action='store', dest='timeout', type='int',
