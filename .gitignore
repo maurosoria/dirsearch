@@ -9,3 +9,5 @@ __pycache__/
 .idea
 
 db/test.txt
+
+default.conf
