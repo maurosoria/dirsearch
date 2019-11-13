@@ -159,6 +159,7 @@ Contributors
 ---------
 Special thanks for these people.
 
+- mzfr
 - Damian89
 - Bo0oM
 - liamosaur
