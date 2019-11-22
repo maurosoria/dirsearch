@@ -303,13 +303,13 @@ class Controller(object):
 
                 if self.arguments.autoSaveFormat == 'simple':
                     report = SimpleReport(requester.host, requester.port, requester.protocol, requester.basePath,
-                                          outputFile)
+                                          outputFile, self.batch)
                 if self.arguments.autoSaveFormat == 'json':
                     report = JSONReport(requester.host, requester.port, requester.protocol, requester.basePath,
-                                        outputFile)
+                                        outputFile, self.batch)
                 else:
                     report = PlainTextReport(requester.host, requester.port, requester.protocol, requester.basePath,
-                                             outputFile)
+                                             outputFile, self.batch)
 
                 self.reportManager.addOutput(report)
 
@@ -319,15 +319,15 @@ class Controller(object):
 
         if self.arguments.simpleOutputFile is not None:
             self.reportManager.addOutput(SimpleReport(requester.host, requester.port, requester.protocol,
-                                                      requester.basePath, self.arguments.simpleOutputFile))
+                                                      requester.basePath, self.arguments.simpleOutputFile, self.batch))
 
         if self.arguments.plainTextOutputFile is not None:
             self.reportManager.addOutput(PlainTextReport(requester.host, requester.port, requester.protocol,
-                                                         requester.basePath, self.arguments.plainTextOutputFile))
+                                                         requester.basePath, self.arguments.plainTextOutputFile, self.batch))
 
         if self.arguments.jsonOutputFile is not None:
             self.reportManager.addOutput(JSONReport(requester.host, requester.port, requester.protocol,
-                                                    requester.basePath, self.arguments.jsonOutputFile))
+                                                    requester.basePath, self.arguments.jsonOutputFile, self.batch))
 
     def matchCallback(self, path):
         self.index += 1
