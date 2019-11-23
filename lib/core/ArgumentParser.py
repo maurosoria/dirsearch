@@ -58,25 +58,25 @@ class ArgumentParser(object):
         else:
             self.urlList = [options.url]
 
-        if not options.extensions and not options.extensions_list:
+        if not options.extensions and not options.defaultExtensions:
             print('No extension specified. You must specify at least one extension or try using default extension list.')
             exit(0)
 
-        if not options.extensions and options.extensions_list:
-            options.extensions = "html,php,tar.gz,txt,xml,zip,jpg,png,jpeg"
+        if not options.extensions and options.defaultExtensions:
+            options.extensions = self.defaultExtensions
 
         with File(options.wordlist) as wordlist:
             if not wordlist.exists():
                 print('The wordlist file does not exist')
-                exit(0)
+                exit(1)
 
             if not wordlist.isValid():
                 print('The wordlist is invalid')
-                exit(0)
+                exit(1)
 
             if not wordlist.canRead():
                 print('The wordlist cannot be read')
-                exit(0)
+                exit(1)
 
         if options.httpProxy is not None:
 
@@ -106,7 +106,7 @@ class ArgumentParser(object):
 
         if options.threadsCount < 1:
             print('Threads number must be a number greater than zero')
-            exit(0)
+            exit(1)
 
         self.threadsCount = options.threadsCount
 
@@ -174,7 +174,7 @@ class ArgumentParser(object):
 
         if not self.recursive and options.excludeSubdirs is not None:
             print('--exclude-subdir argument can only be used with -r|--recursive')
-            exit(0)
+            exit(1)
 
         elif options.excludeSubdirs is not None:
             self.excludeSubdirs = list(oset([subdir.strip() for subdir in options.excludeSubdirs.split(',')]))
@@ -211,6 +211,7 @@ class ArgumentParser(object):
         self.suppressEmpty = config.safe_getboolean("general", "suppress-empty", False)
         self.testFailPath = config.safe_get("general", "scanner-fail-path", "").strip()
         self.saveHome = config.safe_getboolean("general", "save-logs-home", False)
+        self.defaultExtensions = config.safe_get("general", "default-extensions", "php,asp,aspx,jsp,js,html,do,action")
 
         # Reports
         self.autoSave = config.safe_getboolean("reports", "autosave-report", False)
@@ -242,7 +243,7 @@ class ArgumentParser(object):
         mandatory.add_option('-e', '--extensions', help='Extension list separated by comma (Example: php,asp)',
                              action='store', dest='extensions', default=None)
         mandatory.add_option('-E', '--extensions-list', help='Use predefined list of common extensions',
-                             action='store_true', default=False)
+                             action='store_true', dest='defaultExtensions', default=False)
 
         connection = OptionGroup(parser, 'Connection Settings')
         connection.add_option('--timeout', action='store', dest='timeout', type='int',
