@@ -1,7 +1,7 @@
 dirsearch
 =========
 
-Current Release: v0.3.8 (2017.07.25)
+Current Release: v0.3.9 (2019.11.26)
 
 
 Overview
@@ -36,10 +36,12 @@ Options:
                         URL list target
     -e EXTENSIONS, --extensions=EXTENSIONS
                         Extension list separated by comma (Example: php,asp)
+    -E, --extensions-list
+                        Use predefined list of common extensions
 
   Dictionary Settings:
     -w WORDLIST, --wordlist=WORDLIST
-    -l, --lowercase     
+    -l, --lowercase
     -f, --force-extensions
                         Force extensions for every wordlist entry (like in
                         DirBuster)
@@ -48,6 +50,9 @@ Options:
     -s DELAY, --delay=DELAY
                         Delay between requests (float number)
     -r, --recursive     Bruteforce recursively
+    -R RECURSIVE_LEVEL_MAX, --recursive-level-max=RECURSIVE_LEVEL_MAX
+                        Max recursion level (subdirs) (Default: 1 [only
+                        rootdir + 1 dir])
     --suppress-empty, --suppress-empty
     --scan-subdir=SCANSUBDIRS, --scan-subdirs=SCANSUBDIRS
                         Scan subdirectories of the given -u|--url (separated
@@ -55,15 +60,17 @@ Options:
     --exclude-subdir=EXCLUDESUBDIRS, --exclude-subdirs=EXCLUDESUBDIRS
                         Exclude the following subdirectories during recursive
                         scan (separated by comma)
-    --exclude-texts='Not found', 'Error'
-                        Exclude results by text in response        
-    --exclude-regexps='Not foun[a-z]{1}', '^Error$'
-                        Exclude results by text regexp in response                             
     -t THREADSCOUNT, --threads=THREADSCOUNT
                         Number of Threads
     -x EXCLUDESTATUSCODES, --exclude-status=EXCLUDESTATUSCODES
                         Exclude status code, separated by comma (example: 301,
                         500)
+    --exclude-texts=EXCLUDETEXTS
+                        Exclude responses by texts, separated by comma
+                        (example: "Not found", "Error")
+    --exclude-regexps=EXCLUDEREGEXPS
+                        Exclude responses by regexps, separated by comma
+                        (example: "Not foun[a-z]{1}", "^Error$")
     -c COOKIE, --cookie=COOKIE
     --ua=USERAGENT, --user-agent=USERAGENT
     -F, --follow-redirects
@@ -77,6 +84,8 @@ Options:
     --ip=IP             Resolve name to IP address
     --proxy=HTTPPROXY, --http-proxy=HTTPPROXY
                         Http Proxy (example: localhost:8080
+    --http-method=HTTPMETHOD
+                        Method to use, default: GET, possible also: HEAD;POST
     --max-retries=MAXRETRIES
     -b, --request-by-hostname
                         By default dirsearch will request by IP for speed.
@@ -88,7 +97,6 @@ Options:
     --plain-text-report=PLAINTEXTOUTPUTFILE
                         Found paths with status codes
     --json-report=JSONOUTPUTFILE
-
 ```
 
 
