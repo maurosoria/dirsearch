@@ -29,7 +29,7 @@ class ScannerException(Exception):
 
 class Scanner(object):
     def __init__(self, requester, testPath=None, suffix=None):
-        if testPath is None or testPath is "":
+        if testPath == None or testPath == "":
             self.testPath = RandomUtils.randString()
         else:
             self.testPath = testPath
