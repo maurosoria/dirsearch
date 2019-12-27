@@ -52,7 +52,9 @@ class ArgumentParser(object):
                     self.urlList = list(urlList.getLines())
 
             elif options.url == None:
-                print('URL target is missing, try using -u <url> ')
+                print("USAGE:")
+                print("./dirsearch.py -u <URL> -e <EXTENSION>")
+                print("./dirsearch.py -h, --help show help message")
                 exit(0)
 
         else:
