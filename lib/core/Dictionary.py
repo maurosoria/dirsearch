@@ -28,15 +28,15 @@ from thirdparty.oset import *
 
 class Dictionary(object):
 
-    def __init__(self, path, extensions, lowercase=False, forcedExtensions=False):
+    def __init__(self, paths, extensions, lowercase=False, forcedExtensions=False):
         self.entries = []
         self.currentIndex = 0
         self.condition = threading.Lock()
         self._extensions = extensions
-        self._path = path
+        self._paths = paths
         self._forcedExtensions = forcedExtensions
         self.lowercase = lowercase
-        self.dictionaryFile = File(self.path)
+        self.dictionaryFiles = [File(path) for path in self.paths]
         self.generate()
 
     @property
@@ -48,12 +48,12 @@ class Dictionary(object):
         self._extensions = value
 
     @property
-    def path(self):
-        return self._path
+    def paths(self):
+        return self._paths
 
-    @path.setter
-    def path(self, path):
-        self._path = path
+    @paths.setter
+    def paths(self, paths):
+        self._paths = paths
 
     @classmethod
     def quote(cls, string):
@@ -78,42 +78,44 @@ class Dictionary(object):
 
     def generate(self):
         result = []
-        for line in self.dictionaryFile.getLines():
+        # Enable to use multiple dictionaries at once
+        for dictFile in self.dictionaryFiles:
+            for line in dictFile.getLines():
 
-            # Skip comments
-            if line.lstrip().startswith("#"):
-                continue
+                # Skip comments
+                if line.lstrip().startswith("#"):
+                    continue
 
-            # Classic dirsearch wordlist processing (with %EXT% keyword)
-            if '%EXT%' in line or '%ext%' in line:
-                for extension in self._extensions:
-                    if '%EXT%' in line:
-                        newline = line.replace('%EXT%', extension)
+                # Classic dirsearch wordlist processing (with %EXT% keyword)
+                if '%EXT%' in line or '%ext%' in line:
+                    for extension in self._extensions:
+                        if '%EXT%' in line:
+                            newline = line.replace('%EXT%', extension)
 
-                    if '%ext%' in line:
-                        newline = line.replace('%ext%', extension)
+                        if '%ext%' in line:
+                            newline = line.replace('%ext%', extension)
 
-                    quote = self.quote(newline)
-                    result.append(quote)
+                        quote = self.quote(newline)
+                        result.append(quote)
 
-            # If forced extensions is used and the path is not a directory ... (terminated by /)
-            # process line like a forced extension.
-            elif self._forcedExtensions and not line.rstrip().endswith("/"):
-                quoted = self.quote(line)
+                # If forced extensions is used and the path is not a directory ... (terminated by /)
+                # process line like a forced extension.
+                elif self._forcedExtensions and not line.rstrip().endswith("/"):
+                    quoted = self.quote(line)
 
-                for extension in self._extensions:
-                    # Why? check https://github.com/maurosoria/dirsearch/issues/70
-                    if extension.strip() == '':
-                        result.append(quoted)
-                    else:
-                        result.append(quoted + '.' + extension)
+                    for extension in self._extensions:
+                        # Why? check https://github.com/maurosoria/dirsearch/issues/70
+                        if extension.strip() == '':
+                            result.append(quoted)
+                        else:
+                            result.append(quoted + '.' + extension)
 
-                if quoted.strip() not in ['']:
-                    result.append(quoted + "/")
+                    if quoted.strip() not in ['']:
+                        result.append(quoted + "/")
 
-            # Append line unmodified.
-            else:
-                result.append(self.quote(line))
+                # Append line unmodified.
+                else:
+                    result.append(self.quote(line))
 
         # oset library provides inserted ordered and unique collection.
         if self.lowercase:

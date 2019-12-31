@@ -65,18 +65,20 @@ class ArgumentParser(object):
         if not options.extensions and options.defaultExtensions:
             options.extensions = self.defaultExtensions
 
-        with File(options.wordlist) as wordlist:
-            if not wordlist.exists():
-                print('The wordlist file does not exist')
-                exit(1)
+        # Enable to use multiple dictionaries at once
+        for dictFile in options.wordlist.split(','):
+            with File(dictFile) as wordlist:
+                if not wordlist.exists():
+                    print('The wordlist file does not exist')
+                    exit(1)
 
-            if not wordlist.isValid():
-                print('The wordlist is invalid')
-                exit(1)
+                if not wordlist.isValid():
+                    print('The wordlist is invalid')
+                    exit(1)
 
-            if not wordlist.canRead():
-                print('The wordlist cannot be read')
-                exit(1)
+                if not wordlist.canRead():
+                    print('The wordlist cannot be read')
+                    exit(1)
 
         if options.httpProxy is not None:
 
@@ -143,7 +145,7 @@ class ArgumentParser(object):
         else:
             self.excludeRegexps = []
 
-        self.wordlist = options.wordlist
+        self.wordlist = list(oset([wordlist.strip() for wordlist in options.wordlist.split(',')]))
         self.lowercase = options.lowercase
         self.forceExtensions = options.forceExtensions
         self.simpleOutputFile = options.simpleOutputFile
@@ -264,6 +266,7 @@ class ArgumentParser(object):
         # Dictionary settings
         dictionary = OptionGroup(parser, 'Dictionary Settings')
         dictionary.add_option('-w', '--wordlist', action='store', dest='wordlist',
+                              help='Customize wordlist (separated by comma)',
                               default=self.wordlist)
         dictionary.add_option('-l', '--lowercase', action='store_true', dest='lowercase', default=self.lowercase)
 
