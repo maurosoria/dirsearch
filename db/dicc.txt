@@ -6102,3 +6102,8 @@ zimbra
 zimbra/
 zone-h.php
 ~admin/
+%ext%.zip
+%ext%.php
+%ext%.txt
+%ext%.tar
+%ext%.bak
