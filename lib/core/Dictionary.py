@@ -107,6 +107,8 @@ class Dictionary(object):
                         # Why? check https://github.com/maurosoria/dirsearch/issues/70
                         if extension.strip() == '':
                             result.append(quoted)
+                        elif extension.strip() == '~':
+                            result.append(quoted + extension)
                         else:
                             result.append(quoted + '.' + extension)
 
