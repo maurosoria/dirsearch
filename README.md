@@ -182,3 +182,5 @@ Special thanks for these people.
 - k2l8m11n2
 - vlohacks
 - r0p0s3c
+- V-Rico
+- russtone
