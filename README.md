@@ -122,6 +122,7 @@ Features
 - Options to display only items with response length from range (--min & --max)
 - Option to whitelist response codes (-i 200,500)
 - Option to remove output from console (-q, keeps output to files)
+- Option to add custom suffixes to filenames without dots (--suff .BAK,.old, example.%EXT%%SUFFIX%)
 
 About wordlists
 ---------------

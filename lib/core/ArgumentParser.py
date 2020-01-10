@@ -157,6 +157,7 @@ class ArgumentParser(object):
         else:
             self.excludeRegexps = []
 
+        self.suffixes = [] if not options.suffixes else list(oset([suffix.strip() for suffix in options.suffixes.split(',')]))
         self.wordlist = list(oset([wordlist.strip() for wordlist in options.wordlist.split(',')]))
         self.lowercase = options.lowercase
         self.forceExtensions = options.forceExtensions
@@ -289,6 +290,9 @@ class ArgumentParser(object):
                               help='Customize wordlist (separated by comma)',
                               default=self.wordlist)
         dictionary.add_option('-l', '--lowercase', action='store_true', dest='lowercase', default=self.lowercase)
+        dictionary.add_option('--suff', '--suffixes',
+                             help='Add custom suffixes to all files, ignores directories (example.%EXT%%SUFFIX%)',
+                             action='store', dest='suffixes', default=None)
 
         dictionary.add_option('-f', '--force-extensions',
                               help='Force extensions for every wordlist entry (like in DirBuster)',

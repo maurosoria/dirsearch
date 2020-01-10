@@ -108,7 +108,7 @@ class Controller(object):
         self.directories = Queue()
         self.excludeSubdirs = (arguments.excludeSubdirs if arguments.excludeSubdirs is not None else [])
         self.output.header(program_banner)
-        self.dictionary = Dictionary(self.arguments.wordlist, self.arguments.extensions,
+        self.dictionary = Dictionary(self.arguments.wordlist, self.arguments.extensions, self.arguments.suffixes,
                                      self.arguments.lowercase, self.arguments.forceExtensions,
                                      self.arguments.noDotExtensions)
         self.printConfig()
