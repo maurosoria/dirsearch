@@ -204,6 +204,7 @@ class Controller(object):
     def printConfig(self):
         self.output.config(
             ', '.join(self.arguments.extensions),
+            ', '.join(self.arguments.suffixes),
             str(self.arguments.threadsCount),
             str(len(self.dictionary)),
             str(self.httpmethod),
@@ -285,7 +286,7 @@ class Controller(object):
             else:
                 fileName = ('{}_'.format(basePath) if basePath != '' else '')
                 fileName += time.strftime('%y-%m-%d_%H-%M-%S')
-                directoryPath = FileUtils.buildPath(self.savePath, 'reports', requester.host)
+                directoryPath = FileUtils.buildPath(self.savePath, 'reports', f'{requester.protocol}_{requester.host}_{requester.httpmethod}')
 
             outputFile = FileUtils.buildPath(directoryPath, fileName)
 
