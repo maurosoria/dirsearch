@@ -16,6 +16,7 @@
 #
 #  Author: Mauro Soria
 
+import re
 import threading
 
 import urllib.error
@@ -79,6 +80,8 @@ class Dictionary(object):
     """
 
     def generate(self):
+        reext = re.compile('\%ext\%', re.IGNORECASE)
+        reextdot = re.compile('\.\%ext\%', re.IGNORECASE)
         result = []
         # Enable to use multiple dictionaries at once
         for dictFile in self.dictionaryFiles:
@@ -91,13 +94,12 @@ class Dictionary(object):
                 # Classic dirsearch wordlist processing (with %EXT% keyword)
                 if '%EXT%' in line or '%ext%' in line:
                     for extension in self._extensions:
-                        if '%EXT%' in line:
-                            newline = line.replace('%EXT%', extension)
+                        if self._noDotExtensions:
+                            line = reextdot.sub(extension, line)
 
-                        if '%ext%' in line:
-                            newline = line.replace('%ext%', extension)
+                        line = reext.sub(extension, line)
 
-                        quote = self.quote(newline)
+                        quote = self.quote(line)
                         result.append(quote)
 
                 # If forced extensions is used and the path is not a directory ... (terminated by /)
@@ -113,6 +115,7 @@ class Dictionary(object):
                             result.append(quoted + ('' if self._noDotExtensions else '.') + extension)
 
                     if quoted.strip() not in ['']:
+                        result.append(quoted)
                         result.append(quoted + "/")
 
                 # Append line unmodified.
