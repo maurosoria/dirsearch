@@ -279,7 +279,7 @@ class ArgumentParser(object):
                               help='Force extensions for every wordlist entry (like in DirBuster)',
                               action='store_true', dest='forceExtensions', default=self.forceExtensions)
         dictionary.add_option('--nd', '--no-dot-extensions',
-                              help='Don\'t add a \'.\' character before extensiond', action='store_true',
+                              help='Don\'t add a \'.\' character before extensions', action='store_true',
                               dest='noDotExtensions', default=self.noDotExtensions)
 
         # Optional Settings
