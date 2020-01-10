@@ -101,6 +101,8 @@ class Controller(object):
         self.excludeRegexps = self.arguments.excludeRegexps
         self.recursive = self.arguments.recursive
         self.suppressEmpty = self.arguments.suppressEmpty
+        self.minimumResponseSize = self.arguments.minimumResponseSize
+        self.maximumResponseSize = self.arguments.maximumResponseSize
         self.directories = Queue()
         self.excludeSubdirs = (arguments.excludeSubdirs if arguments.excludeSubdirs is not None else [])
         self.output.header(program_banner)
@@ -337,7 +339,9 @@ class Controller(object):
             if path.status not in self.excludeStatusCodes and (
                     self.blacklists.get(path.status) is None or path.path not in self.blacklists.get(
                 path.status)) and not (
-                    self.suppressEmpty and (len(path.response.body) == 0)):
+                    self.suppressEmpty and (len(path.response.body) == 0)) and not (
+                    self.minimumResponseSize and not self.minimumResponseSize <= len(path.response.body)) and not (
+                    self.maximumResponseSize and not self.maximumResponseSize >= len(path.response.body)):
 
                 for excludeText in self.excludeTexts:
                     if excludeText in path.response.body.decode():

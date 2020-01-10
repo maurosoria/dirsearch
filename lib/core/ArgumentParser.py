@@ -158,6 +158,9 @@ class ArgumentParser(object):
         self.maxRetries = options.maxRetries
         self.recursive = options.recursive
         self.suppressEmpty = options.suppressEmpty
+        self.minimumResponseSize = options.minimumResponseSize
+        self.maximumResponseSize = options.maximumResponseSize
+
 
         if options.scanSubdirs is not None:
             self.scanSubdirs = list(oset([subdir.strip() for subdir in options.scanSubdirs.split(',')]))
@@ -291,6 +294,10 @@ class ArgumentParser(object):
                            default=self.recursive_level_max)
 
         general.add_option('--suppress-empty', "--suppress-empty", action="store_true", dest='suppressEmpty')
+        general.add_option('--min', action='store', dest='minimumResponseSize', type='int', default=None,
+                           help='Minimal response length')
+        general.add_option('--max', action='store', dest='maximumResponseSize', type='int', default=None,
+                           help='Maximal response length')
 
         general.add_option('--scan-subdir', '--scan-subdirs',
                            help='Scan subdirectories of the given -u|--url (separated by comma)', action='store',
