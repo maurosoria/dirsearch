@@ -164,6 +164,7 @@ class ArgumentParser(object):
         self.simpleOutputFile = options.simpleOutputFile
         self.plainTextOutputFile = options.plainTextOutputFile
         self.jsonOutputFile = options.jsonOutputFile
+        self.quietMode = options.quietMode
         self.delay = options.delay
         self.timeout = options.timeout
         self.ip = options.ip
@@ -233,6 +234,7 @@ class ArgumentParser(object):
         self.defaultExtensions = config.safe_get("general", "default-extensions", "php,asp,aspx,jsp,js,html,do,action")
 
         # Reports
+        self.quietMode = config.safe_get("reports", "quiet-mode", False)
         self.autoSave = config.safe_getboolean("reports", "autosave-report", False)
         self.autoSaveFormat = config.safe_get("reports", "autosave-report-format", "plain", ["plain", "json", "simple"])
         # Dictionary
@@ -346,6 +348,9 @@ class ArgumentParser(object):
         reports.add_option('--plain-text-report', action='store',
                            help="Found paths with status codes", dest='plainTextOutputFile', default=None)
         reports.add_option('--json-report', action='store', dest='jsonOutputFile', default=None)
+        reports.add_option('-q', '--quiet-mode', help='Disable output to console (only to reports)', action='store_true',
+                           dest='quietMode', default=self.quietMode)
+
         parser.add_option_group(mandatory)
         parser.add_option_group(dictionary)
         parser.add_option_group(general)

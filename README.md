@@ -121,6 +121,7 @@ Features
 - Option to remove dot from extension when forcing (--nd, example%EXT% instead of example.%EXT%)
 - Options to display only items with response length from range (--min & --max)
 - Option to whitelist response codes (-i 200,500)
+- Option to remove output from console (-q, keeps output to files)
 
 About wordlists
 ---------------

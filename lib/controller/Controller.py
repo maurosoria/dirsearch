@@ -94,6 +94,7 @@ class Controller(object):
             self.savePath = savePath
 
         self.reportsPath = FileUtils.buildPath(self.savePath, "logs")
+        self.quietMode = self.arguments.quietMode
         self.blacklists = self.getBlacklists()
         self.fuzzer = None
         self.includeStatusCodes = self.arguments.includeStatusCodes
@@ -288,6 +289,8 @@ class Controller(object):
 
             outputFile = FileUtils.buildPath(directoryPath, fileName)
 
+            self.output.newLine("Output File: {0}\n".format(outputFile))
+
             if FileUtils.exists(outputFile):
                 i = 2
 
@@ -338,7 +341,7 @@ class Controller(object):
 
         if path.status is not None:
             if path.status not in self.excludeStatusCodes and (
-                    self.includeStatusCodes and path.status in self.includeStatusCodes) and (
+                    not self.includeStatusCodes or path.status in self.includeStatusCodes) and (
                     self.blacklists.get(path.status) is None or path.path not in self.blacklists.get(
                 path.status)) and not (
                     self.suppressEmpty and (len(path.response.body) == 0)) and not (
@@ -355,7 +358,9 @@ class Controller(object):
                         del path
                         return
 
-                self.output.statusReport(path.path, path.response)
+                if not self.quietMode:
+                    self.output.statusReport(path.path, path.response)
+
                 if path.response.redirect:
                     self.addRedirectDirectory(path)
                 else:
