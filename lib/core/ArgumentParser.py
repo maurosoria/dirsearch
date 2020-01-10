@@ -148,6 +148,7 @@ class ArgumentParser(object):
         self.wordlist = list(oset([wordlist.strip() for wordlist in options.wordlist.split(',')]))
         self.lowercase = options.lowercase
         self.forceExtensions = options.forceExtensions
+        self.noDotExtensions = options.noDotExtensions
         self.simpleOutputFile = options.simpleOutputFile
         self.plainTextOutputFile = options.plainTextOutputFile
         self.jsonOutputFile = options.jsonOutputFile
@@ -223,6 +224,7 @@ class ArgumentParser(object):
                                         FileUtils.buildPath(self.script_path, "db", "dicc.txt"))
         self.lowercase = config.safe_getboolean("dictionary", "lowercase", False)
         self.forceExtensions = config.safe_get("dictionary", "force-extensions", False)
+        self.noDotExtensions = config.safe_get("dictionary", "no-dot-extensions", False)
 
         # Connection
         self.useRandomAgents = config.safe_get("connection", "random-user-agents", False)
@@ -273,6 +275,9 @@ class ArgumentParser(object):
         dictionary.add_option('-f', '--force-extensions',
                               help='Force extensions for every wordlist entry (like in DirBuster)',
                               action='store_true', dest='forceExtensions', default=self.forceExtensions)
+        dictionary.add_option('--nd', '--no-dot-extensions',
+                              help='Don\'t add a \'.\' character before extensiond', action='store_true',
+                              dest='noDotExtensions', default=self.noDotExtensions)
 
         # Optional Settings
         general = OptionGroup(parser, 'General Settings')

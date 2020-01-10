@@ -105,7 +105,8 @@ class Controller(object):
         self.excludeSubdirs = (arguments.excludeSubdirs if arguments.excludeSubdirs is not None else [])
         self.output.header(program_banner)
         self.dictionary = Dictionary(self.arguments.wordlist, self.arguments.extensions,
-                                     self.arguments.lowercase, self.arguments.forceExtensions)
+                                     self.arguments.lowercase, self.arguments.forceExtensions,
+                                     self.arguments.noDotExtensions)
         self.printConfig()
         self.errorLog = None
         self.errorLogPath = None
