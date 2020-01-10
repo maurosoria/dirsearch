@@ -96,6 +96,7 @@ class Controller(object):
         self.reportsPath = FileUtils.buildPath(self.savePath, "logs")
         self.blacklists = self.getBlacklists()
         self.fuzzer = None
+        self.includeStatusCodes = self.arguments.includeStatusCodes
         self.excludeStatusCodes = self.arguments.excludeStatusCodes
         self.excludeTexts = self.arguments.excludeTexts
         self.excludeRegexps = self.arguments.excludeRegexps
@@ -337,6 +338,7 @@ class Controller(object):
 
         if path.status is not None:
             if path.status not in self.excludeStatusCodes and (
+                    self.includeStatusCodes and path.status in self.includeStatusCodes) and (
                     self.blacklists.get(path.status) is None or path.path not in self.blacklists.get(
                 path.status)) and not (
                     self.suppressEmpty and (len(path.response.body) == 0)) and not (

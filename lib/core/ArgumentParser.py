@@ -112,6 +112,18 @@ class ArgumentParser(object):
 
         self.threadsCount = options.threadsCount
 
+        if options.includeStatusCodes is not None:
+
+            try:
+                self.includeStatusCodes = list(
+                    oset([int(includeStatusCode.strip()) if includeStatusCode else None for includeStatusCode in
+                          options.includeStatusCodes.split(',')]))
+            except ValueError:
+                self.includeStatusCodes = []
+
+        else:
+            self.includeStatusCodes = []
+
         if options.excludeStatusCodes is not None:
 
             try:
@@ -210,6 +222,7 @@ class ArgumentParser(object):
 
         # General
         self.threadsCount = config.safe_getint("general", "threads", 10, list(range(1, 50)))
+        self.includeStatusCodes = config.safe_get("general", "include-status", None)
         self.excludeStatusCodes = config.safe_get("general", "exclude-status", None)
         self.redirect = config.safe_getboolean("general", "follow-redirects", False)
         self.recursive = config.safe_getboolean("general", "recursive", False)
@@ -309,6 +322,8 @@ class ArgumentParser(object):
                            default=None)
         general.add_option('-t', '--threads', help='Number of Threads', action='store', type='int', dest='threadsCount'
                            , default=self.threadsCount)
+        general.add_option('-i', '--include-status', help='Show only included status codes, separated by comma (example: 301, 500)'
+                           , action='store', dest='includeStatusCodes', default=self.includeStatusCodes)
         general.add_option('-x', '--exclude-status', help='Exclude status code, separated by comma (example: 301, 500)'
                            , action='store', dest='excludeStatusCodes', default=self.excludeStatusCodes)
         general.add_option('--exclude-texts', help='Exclude responses by texts, separated by comma (example: "Not found", "Error")'
