@@ -28,11 +28,12 @@ from thirdparty.oset import *
 
 class Dictionary(object):
 
-    def __init__(self, paths, extensions, lowercase=False, forcedExtensions=False, noDotExtensions=False):
+    def __init__(self, paths, extensions, suffixes=None, lowercase=False, forcedExtensions=False, noDotExtensions=False):
         self.entries = []
         self.currentIndex = 0
         self.condition = threading.Lock()
         self._extensions = extensions
+        self._suffixes = suffixes
         self._paths = paths
         self._forcedExtensions = forcedExtensions
         self._noDotExtensions = noDotExtensions
@@ -117,6 +118,13 @@ class Dictionary(object):
                 # Append line unmodified.
                 else:
                     result.append(self.quote(line))
+
+        # Adding suffixes for finding backups etc
+        if self._suffixes:
+            for res in list(result):
+                if not res.rstrip().endswith("/"):
+                    for suff in self._suffixes:
+                        result.append(res + suff)
 
         # oset library provides inserted ordered and unique collection.
         if self.lowercase:
