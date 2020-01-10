@@ -28,13 +28,14 @@ from thirdparty.oset import *
 
 class Dictionary(object):
 
-    def __init__(self, paths, extensions, lowercase=False, forcedExtensions=False):
+    def __init__(self, paths, extensions, lowercase=False, forcedExtensions=False, noDotExtensions=False):
         self.entries = []
         self.currentIndex = 0
         self.condition = threading.Lock()
         self._extensions = extensions
         self._paths = paths
         self._forcedExtensions = forcedExtensions
+        self._noDotExtensions = noDotExtensions
         self.lowercase = lowercase
         self.dictionaryFiles = [File(path) for path in self.paths]
         self.generate()
@@ -108,7 +109,7 @@ class Dictionary(object):
                         if extension.strip() == '':
                             result.append(quoted)
                         else:
-                            result.append(quoted + '.' + extension)
+                            result.append(quoted + ('' if self._noDotExtensions else '.') + extension)
 
                     if quoted.strip() not in ['']:
                         result.append(quoted + "/")
