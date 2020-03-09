@@ -348,7 +348,7 @@ class Controller(object):
                         del path
                         return
 
-                self.output.statusReport(path.path, path.response, self.currentUrl)
+                self.output.statusReport(path.path, path.response, self.requester)
                 if path.response.redirect:
                     self.addRedirectDirectory(path)
                 else:
