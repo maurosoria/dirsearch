@@ -110,7 +110,7 @@ class CLIOutput(object):
                 time.strftime('%H:%M:%S'),
                 status,
                 contentLength.rjust(6, ' '),
-                requester.protocol + '://' + requester.host + ':' + requester.port,
+                requester.protocol + '://' + requester.host + ':' + str(requester.port),
                 showPath
             )
 
