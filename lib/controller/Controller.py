@@ -181,9 +181,6 @@ class Controller(object):
                 except SkipTargetInterrupt:
                     continue
 
-                finally:
-                    self.reportManager.save()
-
         except KeyboardInterrupt:
             self.output.error('\nCanceled by the user')
             exit(0)
