@@ -458,6 +458,7 @@
 .vimrc
 .web
 .well-known/
+.well-known/oauth-authorization-server
 .well-known/security.txt
 .workspace/
 .wp-config.php.swp
