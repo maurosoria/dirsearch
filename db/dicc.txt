@@ -5,6 +5,11 @@
 %2e%2e//google.com
 %3f/
 %EXT%
+%ext%.bak
+%ext%.php
+%ext%.tar
+%ext%.txt
+%ext%.zip
 %ff/
 ..;/
 .7z
@@ -3724,6 +3729,10 @@ lib/flex/varien/.actionScriptProperties
 lib/flex/varien/.flexLibProperties
 lib/flex/varien/.project
 lib/flex/varien/.settings
+lib/phpunit/phpunit/src/Util/PHP/eval-stdin.php
+lib/phpunit/phpunit/Util/PHP/eval-stdin.php
+lib/phpunit/src/Util/PHP/eval-stdin.php
+lib/phpunit/Util/PHP/eval-stdin.php
 lib/tiny_mce
 lib/tiny_mce/
 lib/tinymce
@@ -4674,6 +4683,10 @@ phpThumb/
 phpunit.phar
 phpunit.xml
 phpunit.xml.dist
+phpunit/phpunit/src/Util/PHP/eval-stdin.php
+phpunit/phpunit/Util/PHP/eval-stdin.php
+phpunit/src/Util/PHP/eval-stdin.php
+phpunit/Util/PHP/eval-stdin.php
 phymyadmin
 phymyadmin/
 physican/login.do
@@ -5866,6 +5879,10 @@ vendor/composer/autoload_static.php
 vendor/composer/ClassLoader.php
 vendor/composer/installed.json
 vendor/composer/LICENSE
+vendor/phpunit/phpunit/src/Util/PHP/eval-stdin.php
+vendor/phpunit/phpunit/Util/PHP/eval-stdin.php
+vendor/phpunit/src/Util/PHP/eval-stdin.php
+vendor/phpunit/Util/PHP/eval-stdin.php
 Version.%EXT%
 VERSION.md
 VERSION.txt
@@ -6103,8 +6120,3 @@ zimbra
 zimbra/
 zone-h.php
 ~admin/
-%ext%.zip
-%ext%.php
-%ext%.txt
-%ext%.tar
-%ext%.bak
