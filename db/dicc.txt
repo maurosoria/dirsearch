@@ -4093,6 +4093,7 @@ mh_admin
 mhadmin
 microsoft
 Microsoft-Server-ActiveSync/
+MicroStrategyWS/happyaxis.jsp
 Micros~1/
 mime
 mimosa-config.coffee
