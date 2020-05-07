@@ -2792,6 +2792,7 @@ dev
 dev.php
 dev/
 devel
+develop
 developer
 developers
 development-parts/
