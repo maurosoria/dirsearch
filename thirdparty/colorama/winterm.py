@@ -4,23 +4,24 @@ from . import win32
 
 # from wincon.h
 class WinColor(object):
-    BLACK   = 0
-    BLUE    = 1
-    GREEN   = 2
-    CYAN    = 3
-    RED     = 4
+    BLACK = 0
+    BLUE = 1
+    GREEN = 2
+    CYAN = 3
+    RED = 4
     MAGENTA = 5
-    YELLOW  = 6
-    GREY    = 7
+    YELLOW = 6
+    GREY = 7
+
 
 # from wincon.h
 class WinStyle(object):
-    NORMAL              = 0x00 # dim text, dim background
-    BRIGHT              = 0x08 # bright text, dim background
-    BRIGHT_BACKGROUND   = 0x80 # dim text, bright background
+    NORMAL = 0x00  # dim text, dim background
+    BRIGHT = 0x08  # bright text, dim background
+    BRIGHT_BACKGROUND = 0x80  # dim text, bright background
+
 
 class WinTerm(object):
-
     def __init__(self):
         self._default = win32.GetConsoleScreenBufferInfo(win32.STDOUT).wAttributes
         self.set_attrs(self._default)
@@ -118,7 +119,9 @@ class WinTerm(object):
         # get the number of character cells in the current buffer
         cells_in_screen = csbi.dwSize.X * csbi.dwSize.Y
         # get number of character cells before current cursor position
-        cells_before_cursor = csbi.dwSize.X * csbi.dwCursorPosition.Y + csbi.dwCursorPosition.X
+        cells_before_cursor = (
+            csbi.dwSize.X * csbi.dwCursorPosition.Y + csbi.dwCursorPosition.X
+        )
         if mode == 0:
             from_coord = csbi.dwCursorPosition
             cells_to_erase = cells_in_screen - cells_before_cursor
@@ -129,9 +132,11 @@ class WinTerm(object):
             from_coord = win32.COORD(0, 0)
             cells_to_erase = cells_in_screen
         # fill the entire screen with blanks
-        win32.FillConsoleOutputCharacter(handle, ' ', cells_to_erase, from_coord)
+        win32.FillConsoleOutputCharacter(handle, " ", cells_to_erase, from_coord)
         # now set the buffer's attributes accordingly
-        win32.FillConsoleOutputAttribute(handle, self.get_attrs(), cells_to_erase, from_coord)
+        win32.FillConsoleOutputAttribute(
+            handle, self.get_attrs(), cells_to_erase, from_coord
+        )
         if mode == 2:
             # put the cursor where needed
             win32.SetConsoleCursorPosition(handle, (1, 1))
@@ -154,9 +159,11 @@ class WinTerm(object):
             from_coord = win32.COORD(0, csbi.dwCursorPosition.Y)
             cells_to_erase = csbi.dwSize.X
         # fill the entire screen with blanks
-        win32.FillConsoleOutputCharacter(handle, ' ', cells_to_erase, from_coord)
+        win32.FillConsoleOutputCharacter(handle, " ", cells_to_erase, from_coord)
         # now set the buffer's attributes accordingly
-        win32.FillConsoleOutputAttribute(handle, self.get_attrs(), cells_to_erase, from_coord)
+        win32.FillConsoleOutputAttribute(
+            handle, self.get_attrs(), cells_to_erase, from_coord
+        )
 
     def set_title(self, title):
         win32.SetConsoleTitle(title)

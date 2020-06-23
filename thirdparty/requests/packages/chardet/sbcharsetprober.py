@@ -38,7 +38,7 @@ NEGATIVE_SHORTCUT_THRESHOLD = 0.05
 SYMBOL_CAT_ORDER = 250
 NUMBER_OF_SEQ_CAT = 4
 POSITIVE_CAT = NUMBER_OF_SEQ_CAT - 1
-#NEGATIVE_CAT = 0
+# NEGATIVE_CAT = 0
 
 
 class SingleByteCharSetProber(CharSetProber):
@@ -65,16 +65,16 @@ class SingleByteCharSetProber(CharSetProber):
         if self._mNameProber:
             return self._mNameProber.get_charset_name()
         else:
-            return self._mModel['charsetName']
+            return self._mModel["charsetName"]
 
     def feed(self, aBuf):
-        if not self._mModel['keepEnglishLetter']:
+        if not self._mModel["keepEnglishLetter"]:
             aBuf = self.filter_without_english_letters(aBuf)
         aLen = len(aBuf)
         if not aLen:
             return self.get_state()
         for c in aBuf:
-            order = self._mModel['charToOrderMap'][wrap_ord(c)]
+            order = self._mModel["charToOrderMap"][wrap_ord(c)]
             if order < SYMBOL_CAT_ORDER:
                 self._mTotalChar += 1
             if order < SAMPLE_SIZE:
@@ -83,10 +83,10 @@ class SingleByteCharSetProber(CharSetProber):
                     self._mTotalSeqs += 1
                     if not self._mReversed:
                         i = (self._mLastOrder * SAMPLE_SIZE) + order
-                        model = self._mModel['precedenceMatrix'][i]
+                        model = self._mModel["precedenceMatrix"][i]
                     else:  # reverse the order of the letters in the lookup
                         i = (order * SAMPLE_SIZE) + self._mLastOrder
-                        model = self._mModel['precedenceMatrix'][i]
+                        model = self._mModel["precedenceMatrix"][i]
                     self._mSeqCounters[model] += 1
             self._mLastOrder = order
 
@@ -95,16 +95,22 @@ class SingleByteCharSetProber(CharSetProber):
                 cf = self.get_confidence()
                 if cf > POSITIVE_SHORTCUT_THRESHOLD:
                     if constants._debug:
-                        sys.stderr.write('%s confidence = %s, we have a'
-                                         'winner\n' %
-                                         (self._mModel['charsetName'], cf))
+                        sys.stderr.write(
+                            "%s confidence = %s, we have a"
+                            "winner\n" % (self._mModel["charsetName"], cf)
+                        )
                     self._mState = constants.eFoundIt
                 elif cf < NEGATIVE_SHORTCUT_THRESHOLD:
                     if constants._debug:
-                        sys.stderr.write('%s confidence = %s, below negative'
-                                         'shortcut threshhold %s\n' %
-                                         (self._mModel['charsetName'], cf,
-                                          NEGATIVE_SHORTCUT_THRESHOLD))
+                        sys.stderr.write(
+                            "%s confidence = %s, below negative"
+                            "shortcut threshhold %s\n"
+                            % (
+                                self._mModel["charsetName"],
+                                cf,
+                                NEGATIVE_SHORTCUT_THRESHOLD,
+                            )
+                        )
                     self._mState = constants.eNotMe
 
         return self.get_state()
@@ -112,8 +118,11 @@ class SingleByteCharSetProber(CharSetProber):
     def get_confidence(self):
         r = 0.01
         if self._mTotalSeqs > 0:
-            r = ((1.0 * self._mSeqCounters[POSITIVE_CAT]) / self._mTotalSeqs
-                 / self._mModel['mTypicalPositiveRatio'])
+            r = (
+                (1.0 * self._mSeqCounters[POSITIVE_CAT])
+                / self._mTotalSeqs
+                / self._mModel["mTypicalPositiveRatio"]
+            )
             r = r * self._mFreqChar / self._mTotalChar
             if r >= 1.0:
                 r = 0.99

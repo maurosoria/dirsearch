@@ -3,12 +3,12 @@
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation; either version 2 of the License, or
 #  (at your option) any later version.
-#  
+#
 #  This program is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU General Public License for more details.
-#  
+#
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
@@ -57,13 +57,23 @@ class Scanner(object):
         secondPath = RandomUtils.randString(omit=self.testPath) + self.suffix
         secondResponse = self.requester.request(secondPath)
 
-        if firstResponse.status in self.redirectStatusCodes and firstResponse.redirect and secondResponse.redirect:
-            self.redirectRegExp = self.generateRedirectRegExp(firstResponse.redirect, secondResponse.redirect)
+        if (
+            firstResponse.status in self.redirectStatusCodes
+            and firstResponse.redirect
+            and secondResponse.redirect
+        ):
+            self.redirectRegExp = self.generateRedirectRegExp(
+                firstResponse.redirect, secondResponse.redirect
+            )
 
         # Analyze response bodies
-        self.dynamicParser = DynamicContentParser(self.requester, firstPath, firstResponse.body, secondResponse.body)
+        self.dynamicParser = DynamicContentParser(
+            self.requester, firstPath, firstResponse.body, secondResponse.body
+        )
 
-        baseRatio = float("{0:.2f}".format(self.dynamicParser.comparisonRatio))  # Rounding to 2 decimals
+        baseRatio = float(
+            "{0:.2f}".format(self.dynamicParser.comparisonRatio)
+        )  # Rounding to 2 decimals
 
         # If response length is small, adjust ratio
         if len(firstResponse) < 2000:
@@ -87,7 +97,7 @@ class Scanner(object):
             if n == 0:
                 continue
 
-            mark = firstLocation[i:i + n]
+            mark = firstLocation[i : i + n]
             marks.append(mark)
 
         regexp = "^.*{0}.*$".format(".*".join(map(re.escape, marks)))
@@ -103,7 +113,9 @@ class Scanner(object):
         redirectToInvalid = False
 
         if self.redirectRegExp is not None and response.redirect is not None:
-            redirectToInvalid = re.match(self.redirectRegExp, response.redirect) is not None
+            redirectToInvalid = (
+                re.match(self.redirectRegExp, response.redirect) is not None
+            )
             # If redirection doesn't match the rule, mark as found
 
             if not redirectToInvalid:

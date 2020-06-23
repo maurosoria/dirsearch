@@ -28,9 +28,14 @@
 
 from .charsetgroupprober import CharSetGroupProber
 from .sbcharsetprober import SingleByteCharSetProber
-from .langcyrillicmodel import (Win1251CyrillicModel, Koi8rModel,
-                                Latin5CyrillicModel, MacCyrillicModel,
-                                Ibm866Model, Ibm855Model)
+from .langcyrillicmodel import (
+    Win1251CyrillicModel,
+    Koi8rModel,
+    Latin5CyrillicModel,
+    MacCyrillicModel,
+    Ibm866Model,
+    Ibm855Model,
+)
 from .langgreekmodel import Latin7GreekModel, Win1253GreekModel
 from .langbulgarianmodel import Latin5BulgarianModel, Win1251BulgarianModel
 from .langhungarianmodel import Latin2HungarianModel, Win1250HungarianModel
@@ -58,12 +63,13 @@ class SBCSGroupProber(CharSetGroupProber):
             SingleByteCharSetProber(TIS620ThaiModel),
         ]
         hebrewProber = HebrewProber()
-        logicalHebrewProber = SingleByteCharSetProber(Win1255HebrewModel,
-                                                      False, hebrewProber)
-        visualHebrewProber = SingleByteCharSetProber(Win1255HebrewModel, True,
-                                                     hebrewProber)
+        logicalHebrewProber = SingleByteCharSetProber(
+            Win1255HebrewModel, False, hebrewProber
+        )
+        visualHebrewProber = SingleByteCharSetProber(
+            Win1255HebrewModel, True, hebrewProber
+        )
         hebrewProber.set_model_probers(logicalHebrewProber, visualHebrewProber)
-        self._mProbers.extend([hebrewProber, logicalHebrewProber,
-                               visualHebrewProber])
+        self._mProbers.extend([hebrewProber, logicalHebrewProber, visualHebrewProber])
 
         self.reset()

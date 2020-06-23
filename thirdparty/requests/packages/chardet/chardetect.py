@@ -23,7 +23,7 @@ from chardet import __version__
 from chardet.universaldetector import UniversalDetector
 
 
-def description_of(lines, name='stdin'):
+def description_of(lines, name="stdin"):
     """
     Return a string describing the probable encoding of a file or
     list of strings.
@@ -38,43 +38,52 @@ def description_of(lines, name='stdin'):
         u.feed(line)
     u.close()
     result = u.result
-    if result['encoding']:
-        return '{0}: {1} with confidence {2}'.format(name, result['encoding'],
-                                                     result['confidence'])
+    if result["encoding"]:
+        return "{0}: {1} with confidence {2}".format(
+            name, result["encoding"], result["confidence"]
+        )
     else:
-        return '{0}: no result'.format(name)
+        return "{0}: no result".format(name)
 
 
 def main(argv=None):
-    '''
+    """
     Handles command line arguments and gets things started.
 
     :param argv: List of arguments, as if specified on the command-line.
                  If None, ``sys.argv[1:]`` is used instead.
     :type argv: list of str
-    '''
+    """
     # Get command line arguments
     parser = argparse.ArgumentParser(
         description="Takes one or more file paths and reports their detected \
                      encodings",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        conflict_handler='resolve')
-    parser.add_argument('input',
-                        help='File whose encoding we would like to determine.',
-                        type=argparse.FileType('rb'), nargs='*',
-                        default=[sys.stdin])
-    parser.add_argument('--version', action='version',
-                        version='%(prog)s {0}'.format(__version__))
+        conflict_handler="resolve",
+    )
+    parser.add_argument(
+        "input",
+        help="File whose encoding we would like to determine.",
+        type=argparse.FileType("rb"),
+        nargs="*",
+        default=[sys.stdin],
+    )
+    parser.add_argument(
+        "--version", action="version", version="%(prog)s {0}".format(__version__)
+    )
     args = parser.parse_args(argv)
 
     for f in args.input:
         if f.isatty():
-            print("You are running chardetect interactively. Press " +
-                  "CTRL-D twice at the start of a blank line to signal the " +
-                  "end of your input. If you want help, run chardetect " +
-                  "--help\n", file=sys.stderr)
+            print(
+                "You are running chardetect interactively. Press "
+                + "CTRL-D twice at the start of a blank line to signal the "
+                + "end of your input. If you want help, run chardetect "
+                + "--help\n",
+                file=sys.stderr,
+            )
         print(description_of(f, f.name))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -10,15 +10,7 @@ from .ssl_ import (
     resolve_ssl_version,
     ssl_wrap_socket,
 )
-from .timeout import (
-    current_time,
-    Timeout,
-)
+from .timeout import current_time, Timeout
 
 from .retry import Retry
-from .url import (
-    get_host,
-    parse_url,
-    split_first,
-    Url,
-)
+from .url import get_host, parse_url, split_first, Url

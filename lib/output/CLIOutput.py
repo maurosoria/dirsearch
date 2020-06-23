@@ -3,12 +3,12 @@
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation; either version 2 of the License, or
 #  (at your option) any later version.
-#  
+#
 #  This program is distributed in the hope that it will be useful,
 #  but WITHOUT ANY WARRANTY; without even the implied warranty of
 #  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #  GNU General Public License for more details.
-#  
+#
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software
 #  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
@@ -27,7 +27,7 @@ from lib.utils.FileUtils import *
 from lib.utils.TerminalSize import get_terminal_size
 from thirdparty.colorama import *
 
-if platform.system() == 'Windows':
+if platform.system() == "Windows":
     from thirdparty.colorama.win32 import *
 
 
@@ -35,7 +35,7 @@ class CLIOutput(object):
     def __init__(self):
         init()
         self.lastLength = 0
-        self.lastOutput = ''
+        self.lastOutput = ""
         self.lastInLine = False
         self.mutex = threading.Lock()
         self.blacklists = {}
@@ -50,32 +50,32 @@ class CLIOutput(object):
         self.lastInLine = True
 
     def erase(self):
-        if platform.system() == 'Windows':
+        if platform.system() == "Windows":
             csbi = GetConsoleScreenBufferInfo()
             line = "\b" * int(csbi.dwCursorPosition.X)
             sys.stdout.write(line)
             width = csbi.dwCursorPosition.X
             csbi.dwCursorPosition.X = 0
-            FillConsoleOutputCharacter(STDOUT, ' ', width, csbi.dwCursorPosition)
+            FillConsoleOutputCharacter(STDOUT, " ", width, csbi.dwCursorPosition)
             sys.stdout.write(line)
             sys.stdout.flush()
 
         else:
-            sys.stdout.write('\033[1K')
-            sys.stdout.write('\033[0G')
+            sys.stdout.write("\033[1K")
+            sys.stdout.write("\033[0G")
 
     def newLine(self, string):
         if self.lastInLine == True:
             self.erase()
 
-        if platform.system() == 'Windows':
+        if platform.system() == "Windows":
             sys.stdout.write(string)
             sys.stdout.flush()
-            sys.stdout.write('\n')
+            sys.stdout.write("\n")
             sys.stdout.flush()
 
         else:
-            sys.stdout.write(string + '\n')
+            sys.stdout.write(string + "\n")
 
         sys.stdout.flush()
         self.lastInLine = False
@@ -92,7 +92,7 @@ class CLIOutput(object):
 
             # Format message
             try:
-                size = int(response.headers['content-length'])
+                size = int(response.headers["content-length"])
 
             except (KeyError, ValueError):
                 size = len(response.body)
@@ -106,11 +106,8 @@ class CLIOutput(object):
             else:
                 showPath = urllib.parse.urljoin("/", self.basePath)
                 showPath = urllib.parse.urljoin(showPath, path)
-            message = '[{0}] {1} - {2} - {3}'.format(
-                time.strftime('%H:%M:%S'),
-                status,
-                contentLength.rjust(6, ' '),
-                showPath
+            message = "[{0}] {1} - {2} - {3}".format(
+                time.strftime("%H:%M:%S"), status, contentLength.rjust(6, " "), showPath
             )
 
             if status == 200:
@@ -123,9 +120,11 @@ class CLIOutput(object):
                 message = Fore.YELLOW + message + Style.RESET_ALL
 
             # Check if redirect
-            elif status in [301, 302, 307] and 'location' in [h.lower() for h in response.headers]:
+            elif status in [301, 302, 307] and "location" in [
+                h.lower() for h in response.headers
+            ]:
                 message = Fore.CYAN + message + Style.RESET_ALL
-                message += '  ->  {0}'.format(response.headers['location'])
+                message += "  ->  {0}".format(response.headers["location"])
 
             self.newLine(message)
 
@@ -135,15 +134,15 @@ class CLIOutput(object):
 
             x, y = get_terminal_size()
 
-            message = '{0:.2f}% - '.format(percentage(index, length))
+            message = "{0:.2f}% - ".format(percentage(index, length))
 
             if self.errors > 0:
                 message += Style.BRIGHT + Fore.RED
-                message += 'Errors: {0}'.format(self.errors)
+                message += "Errors: {0}".format(self.errors)
                 message += Style.RESET_ALL
-                message += ' - '
+                message += " - "
 
-            message += 'Last request to: {0}'.format(path)
+            message += "Last request to: {0}".format(path)
 
             if len(message) > x:
                 message = message[:x]
@@ -173,23 +172,50 @@ class CLIOutput(object):
         message = Style.BRIGHT + Fore.MAGENTA + text + Style.RESET_ALL
         self.newLine(message)
 
-    def config(self, extensions, suffixes, threads, wordlist_size, method, recursive, recursion_level):
-        separator = Fore.MAGENTA + ' | ' + Fore.YELLOW
+
+    def config(
+        self,
+        extensions,
+        threads,
+        wordlist_size,
+        request_count,
+        method,
+        recursive,
+        recursion_level,
+    ):
+        separator = Fore.MAGENTA + " | " + Fore.YELLOW
+
         config = Style.BRIGHT + Fore.YELLOW
-        config += 'Extensions: {0}'.format(Fore.CYAN + extensions + Fore.YELLOW)
+        config += "Extensions: {0}".format(Fore.CYAN + extensions + Fore.YELLOW)
         config += separator
+
+        config += "HTTP method: {0}".format(Fore.CYAN + method + Fore.YELLOW)
+
         if suffixes != '':
             config += 'Suffixes: {0}'.format(Fore.CYAN + suffixes + Fore.YELLOW)
             config += separator
         config += 'HTTP method: {0}'.format(Fore.CYAN + method + Fore.YELLOW)
+
         config += separator
-        config += 'Threads: {0}'.format(Fore.CYAN + threads + Fore.YELLOW)
+        config += "Threads: {0}".format(Fore.CYAN + threads + Fore.YELLOW)
         config += separator
-        config += 'Wordlist size: {0}'.format(Fore.CYAN + wordlist_size + Fore.YELLOW)
+        config += "Wordlist size: {0}".format(Fore.CYAN + wordlist_size + Fore.YELLOW)
+        config += separator
+
+        if recursive == False:
+            config += "Request count: {0}".format(
+                Fore.CYAN + request_count + Fore.YELLOW
+            )
+        else:
+            config += "Request count: {0} (+recursive)".format(
+                Fore.CYAN + request_count + Fore.YELLOW
+            )
 
         if recursive == True:
             config += separator
-            config += 'Recursion level: {0}'.format(Fore.CYAN + recursion_level + Fore.YELLOW)
+            config += "Recursion level: {0}".format(
+                Fore.CYAN + recursion_level + Fore.YELLOW
+            )
 
         config += Style.RESET_ALL
 
@@ -197,11 +223,11 @@ class CLIOutput(object):
 
     def target(self, target):
         config = Style.BRIGHT + Fore.YELLOW
-        config += '\nTarget: {0}\n'.format(Fore.CYAN + target + Fore.YELLOW)
+        config += "\nTarget: {0}\n".format(Fore.CYAN + target + Fore.YELLOW)
         config += Style.RESET_ALL
 
         self.newLine(config)
 
     def debug(self, info):
-        line = "[{0}] - {1}".format(time.strftime('%H:%M:%S'), info)
+        line = "[{0}] - {1}".format(time.strftime("%H:%M:%S"), info)
         self.newLine(line)

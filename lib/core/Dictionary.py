@@ -29,6 +29,7 @@ from thirdparty.oset import *
 
 class Dictionary(object):
 
+
     def __init__(self, paths, extensions, suffixes=None, lowercase=False, forcedExtensions=False, noDotExtensions=False):
         self.entries = []
         self.currentIndex = 0
@@ -83,6 +84,7 @@ class Dictionary(object):
         reext = re.compile('\%ext\%', re.IGNORECASE)
         reextdot = re.compile('\.\%ext\%', re.IGNORECASE)
         result = []
+
         # Enable to use multiple dictionaries at once
         for dictFile in self.dictionaryFiles:
             for line in dictFile.getLines():
@@ -129,6 +131,7 @@ class Dictionary(object):
                     for suff in self._suffixes:
                         result.append(res + suff)
 
+
         # oset library provides inserted ordered and unique collection.
         if self.lowercase:
             self.entries = list(oset(map(lambda l: l.lower(), result)))
@@ -136,7 +139,7 @@ class Dictionary(object):
         else:
             self.entries = list(oset(result))
 
-        del (result)
+        del result
 
     def regenerate(self):
         self.generate(lowercase=self.lowercase)

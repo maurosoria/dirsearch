@@ -42,21 +42,22 @@ class ArgumentParser(object):
                         exit(0)
 
                     if not urlList.isValid():
-                        print('The wordlist is invalid')
+                        print("The wordlist is invalid")
                         exit(0)
 
                     if not urlList.canRead():
-                        print('The wordlist cannot be read')
+                        print("The wordlist cannot be read")
                         exit(0)
 
                     self.urlList = list(urlList.getLines())
 
             elif options.url == None:
-                print('URL target is missing, try using -u <url> ')
+                print("URL target is missing, try using -u <url> ")
                 exit(0)
 
         else:
             self.urlList = [options.url]
+
 
         if not options.extensions and not options.defaultExtensions:
             print('No extension specified. You must specify at least one extension or try using default extension list.')
@@ -80,28 +81,35 @@ class ArgumentParser(object):
                     print('The wordlist cannot be read')
                     exit(1)
 
+
         if options.httpProxy is not None:
 
-            if options.httpProxy.startswith('http://'):
+            if options.httpProxy.startswith("http://"):
                 self.proxy = options.httpProxy
             else:
-                self.proxy = 'http://{0}'.format(options.httpProxy)
+                self.proxy = "http://{0}".format(options.httpProxy)
 
         else:
             self.proxy = None
 
         if options.headers is not None:
             try:
-                self.headers = dict((key.strip(), value.strip()) for (key, value) in (header.split(':', 1)
-                                                                                      for header in options.headers))
+                self.headers = dict(
+                    (key.strip(), value.strip())
+                    for (key, value) in (
+                        header.split(":", 1) for header in options.headers
+                    )
+                )
             except Exception as e:
-                print('Invalid headers')
+                print("Invalid headers")
                 exit(0)
 
         else:
             self.headers = {}
 
-        self.extensions = list(oset([extension.strip() for extension in options.extensions.split(',')]))
+        self.extensions = list(
+            oset([extension.strip() for extension in options.extensions.split(",")])
+        )
         self.useragent = options.useragent
         self.useRandomAgents = options.useRandomAgents
         self.cookie = options.cookie
@@ -109,6 +117,7 @@ class ArgumentParser(object):
         if options.threadsCount < 1:
             print('Threads number must be a number greater than zero')
             exit(1)
+
 
         self.threadsCount = options.threadsCount
 
@@ -128,8 +137,17 @@ class ArgumentParser(object):
 
             try:
                 self.excludeStatusCodes = list(
-                    oset([int(excludeStatusCode.strip()) if excludeStatusCode else None for excludeStatusCode in
-                          options.excludeStatusCodes.split(',')]))
+                    oset(
+                        [
+                            int(excludeStatusCode.strip())
+                            if excludeStatusCode
+                            else None
+                            for excludeStatusCode in options.excludeStatusCodes.split(
+                                ","
+                            )
+                        ]
+                    )
+                )
             except ValueError:
                 self.excludeStatusCodes = []
 
@@ -139,8 +157,15 @@ class ArgumentParser(object):
         if options.excludeTexts is not None:
             try:
                 self.excludeTexts = list(
-                    oset([excludeTexts.strip() if excludeTexts else None for excludeTexts in
-                          options.excludeTexts.split(',')]))
+
+                    oset(
+                        [
+                            excludeTexts.strip() if excludeTexts else None
+                            for excludeTexts in options.excludeTexts.split(",")
+                        ]
+                    )
+                )
+
             except ValueError:
                 self.excludeTexts = []
         else:
@@ -150,15 +175,23 @@ class ArgumentParser(object):
         if options.excludeRegexps is not None:
             try:
                 self.excludeRegexps = list(
-                    oset([excludeRegexps.strip() if excludeRegexps else None for excludeRegexps in
-                          options.excludeRegexps.split(',')]))
+                    oset(
+                        [
+                            excludeRegexps.strip() if excludeRegexps else None
+                            for excludeRegexps in options.excludeRegexps.split(",")
+                        ]
+                    )
+                )
+
             except ValueError:
                 self.excludeRegexps = []
         else:
             self.excludeRegexps = []
 
+
         self.suffixes = [] if not options.suffixes else list(oset([suffix.strip() for suffix in options.suffixes.split(',')]))
         self.wordlist = list(oset([wordlist.strip() for wordlist in options.wordlist.split(',')]))
+
         self.lowercase = options.lowercase
         self.forceExtensions = options.forceExtensions
         self.noDotExtensions = options.noDotExtensions
@@ -177,7 +210,9 @@ class ArgumentParser(object):
 
 
         if options.scanSubdirs is not None:
-            self.scanSubdirs = list(oset([subdir.strip() for subdir in options.scanSubdirs.split(',')]))
+            self.scanSubdirs = list(
+                oset([subdir.strip() for subdir in options.scanSubdirs.split(",")])
+            )
 
             for i in range(len(self.scanSubdirs)):
 
@@ -193,11 +228,14 @@ class ArgumentParser(object):
             self.scanSubdirs = None
 
         if not self.recursive and options.excludeSubdirs is not None:
-            print('--exclude-subdir argument can only be used with -r|--recursive')
-            exit(1)
+            print("--exclude-subdir argument can only be used with -r|--recursive")
+            exit(0)
+
 
         elif options.excludeSubdirs is not None:
-            self.excludeSubdirs = list(oset([subdir.strip() for subdir in options.excludeSubdirs.split(',')]))
+            self.excludeSubdirs = list(
+                oset([subdir.strip() for subdir in options.excludeSubdirs.split(",")])
+            )
 
             for i in range(len(self.excludeSubdirs)):
 
@@ -223,12 +261,19 @@ class ArgumentParser(object):
         config.read(configPath)
 
         # General
-        self.threadsCount = config.safe_getint("general", "threads", 10, list(range(1, 50)))
+
+        self.threadsCount = config.safe_getint(
+            "general", "threads", 10, list(range(1, 200))
+        )
+
         self.includeStatusCodes = config.safe_get("general", "include-status", None)
+
         self.excludeStatusCodes = config.safe_get("general", "exclude-status", None)
         self.redirect = config.safe_getboolean("general", "follow-redirects", False)
         self.recursive = config.safe_getboolean("general", "recursive", False)
-        self.recursive_level_max = config.safe_getint("general", "recursive-level-max", 1)
+        self.recursive_level_max = config.safe_getint(
+            "general", "recursive-level-max", 1
+        )
         self.suppressEmpty = config.safe_getboolean("general", "suppress-empty", False)
         self.testFailPath = config.safe_get("general", "scanner-fail-path", "").strip()
         self.saveHome = config.safe_getboolean("general", "save-logs-home", False)
@@ -237,28 +282,40 @@ class ArgumentParser(object):
         # Reports
         self.quietMode = config.safe_get("reports", "quiet-mode", False)
         self.autoSave = config.safe_getboolean("reports", "autosave-report", False)
-        self.autoSaveFormat = config.safe_get("reports", "autosave-report-format", "plain", ["plain", "json", "simple"])
+        self.autoSaveFormat = config.safe_get(
+            "reports", "autosave-report-format", "plain", ["plain", "json", "simple"]
+        )
         # Dictionary
-        self.wordlist = config.safe_get("dictionary", "wordlist",
-                                        FileUtils.buildPath(self.script_path, "db", "dicc.txt"))
+        self.wordlist = config.safe_get(
+            "dictionary",
+            "wordlist",
+            FileUtils.buildPath(self.script_path, "db", "dicc.txt"),
+        )
         self.lowercase = config.safe_getboolean("dictionary", "lowercase", False)
         self.forceExtensions = config.safe_get("dictionary", "force-extensions", False)
         self.noDotExtensions = config.safe_get("dictionary", "no-dot-extensions", False)
 
         # Connection
-        self.useRandomAgents = config.safe_get("connection", "random-user-agents", False)
+        self.useRandomAgents = config.safe_get(
+            "connection", "random-user-agents", False
+        )
         self.useragent = config.safe_get("connection", "user-agent", None)
         self.delay = config.safe_get("connection", "delay", 0)
         self.timeout = config.safe_getint("connection", "timeout", 30)
         self.maxRetries = config.safe_getint("connection", "max-retries", 5)
         self.proxy = config.safe_get("connection", "http-proxy", None)
-        self.httpmethod = config.safe_get("connection", "httpmethod", "get", ["get", "head", "post"])
-        self.requestByHostname = config.safe_get("connection", "request-by-hostname", False)
+        self.httpmethod = config.safe_get(
+            "connection", "httpmethod", "get", ["get", "head", "post"]
+        )
+        self.requestByHostname = config.safe_get(
+            "connection", "request-by-hostname", False
+        )
 
     def parseArguments(self):
-        usage = 'Usage: %prog [-u|--url] target [-e|--extensions] extensions [options]'
+        usage = "Usage: %prog [-u|--url] target [-e|--extensions] extensions [options]"
         parser = OptionParser(usage)
         # Mandatory arguments
+
         mandatory = OptionGroup(parser, 'Mandatory')
         mandatory.add_option('-u', '--url', help='URL target', action='store', type='string', dest='url', default=None)
         mandatory.add_option('-L', '--url-list', help='URL list target', action='store', type='string', dest='urlList',
@@ -354,6 +411,7 @@ class ArgumentParser(object):
         reports.add_option('--json-report', action='store', dest='jsonOutputFile', default=None)
         reports.add_option('-q', '--quiet-mode', help='Disable output to console (only to reports)', action='store_true',
                            dest='quietMode', default=self.quietMode)
+
 
         parser.add_option_group(mandatory)
         parser.add_option_group(dictionary)

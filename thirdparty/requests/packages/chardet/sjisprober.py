@@ -55,9 +55,12 @@ class SJISProber(MultiByteCharSetProber):
             codingState = self._mCodingSM.next_state(aBuf[i])
             if codingState == constants.eError:
                 if constants._debug:
-                    sys.stderr.write(self.get_charset_name()
-                                     + ' prober hit error at byte ' + str(i)
-                                     + '\n')
+                    sys.stderr.write(
+                        self.get_charset_name()
+                        + " prober hit error at byte "
+                        + str(i)
+                        + "\n"
+                    )
                 self._mState = constants.eNotMe
                 break
             elif codingState == constants.eItsMe:
@@ -67,20 +70,20 @@ class SJISProber(MultiByteCharSetProber):
                 charLen = self._mCodingSM.get_current_charlen()
                 if i == 0:
                     self._mLastChar[1] = aBuf[0]
-                    self._mContextAnalyzer.feed(self._mLastChar[2 - charLen:],
-                                                charLen)
+                    self._mContextAnalyzer.feed(self._mLastChar[2 - charLen :], charLen)
                     self._mDistributionAnalyzer.feed(self._mLastChar, charLen)
                 else:
-                    self._mContextAnalyzer.feed(aBuf[i + 1 - charLen:i + 3
-                                                     - charLen], charLen)
-                    self._mDistributionAnalyzer.feed(aBuf[i - 1:i + 1],
-                                                     charLen)
+                    self._mContextAnalyzer.feed(
+                        aBuf[i + 1 - charLen : i + 3 - charLen], charLen
+                    )
+                    self._mDistributionAnalyzer.feed(aBuf[i - 1 : i + 1], charLen)
 
         self._mLastChar[0] = aBuf[aLen - 1]
 
         if self.get_state() == constants.eDetecting:
-            if (self._mContextAnalyzer.got_enough_data() and
-               (self.get_confidence() > constants.SHORTCUT_THRESHOLD)):
+            if self._mContextAnalyzer.got_enough_data() and (
+                self.get_confidence() > constants.SHORTCUT_THRESHOLD
+            ):
                 self._mState = constants.eFoundIt
 
         return self.get_state()

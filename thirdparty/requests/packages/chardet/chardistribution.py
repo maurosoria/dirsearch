@@ -25,16 +25,27 @@
 # 02110-1301  USA
 ######################### END LICENSE BLOCK #########################
 
-from .euctwfreq import (EUCTWCharToFreqOrder, EUCTW_TABLE_SIZE,
-                        EUCTW_TYPICAL_DISTRIBUTION_RATIO)
-from .euckrfreq import (EUCKRCharToFreqOrder, EUCKR_TABLE_SIZE,
-                        EUCKR_TYPICAL_DISTRIBUTION_RATIO)
-from .gb2312freq import (GB2312CharToFreqOrder, GB2312_TABLE_SIZE,
-                         GB2312_TYPICAL_DISTRIBUTION_RATIO)
-from .big5freq import (Big5CharToFreqOrder, BIG5_TABLE_SIZE,
-                       BIG5_TYPICAL_DISTRIBUTION_RATIO)
-from .jisfreq import (JISCharToFreqOrder, JIS_TABLE_SIZE,
-                      JIS_TYPICAL_DISTRIBUTION_RATIO)
+from .euctwfreq import (
+    EUCTWCharToFreqOrder,
+    EUCTW_TABLE_SIZE,
+    EUCTW_TYPICAL_DISTRIBUTION_RATIO,
+)
+from .euckrfreq import (
+    EUCKRCharToFreqOrder,
+    EUCKR_TABLE_SIZE,
+    EUCKR_TYPICAL_DISTRIBUTION_RATIO,
+)
+from .gb2312freq import (
+    GB2312CharToFreqOrder,
+    GB2312_TABLE_SIZE,
+    GB2312_TYPICAL_DISTRIBUTION_RATIO,
+)
+from .big5freq import (
+    Big5CharToFreqOrder,
+    BIG5_TABLE_SIZE,
+    BIG5_TYPICAL_DISTRIBUTION_RATIO,
+)
+from .jisfreq import JISCharToFreqOrder, JIS_TABLE_SIZE, JIS_TYPICAL_DISTRIBUTION_RATIO
 from .compat import wrap_ord
 
 ENOUGH_DATA_THRESHOLD = 1024
@@ -87,8 +98,9 @@ class CharDistributionAnalysis:
             return SURE_NO
 
         if self._mTotalChars != self._mFreqChars:
-            r = (self._mFreqChars / ((self._mTotalChars - self._mFreqChars)
-                 * self._mTypicalDistributionRatio))
+            r = self._mFreqChars / (
+                (self._mTotalChars - self._mFreqChars) * self._mTypicalDistributionRatio
+            )
             if r < SURE_YES:
                 return r
 
@@ -226,6 +238,6 @@ class EUCJPDistributionAnalysis(CharDistributionAnalysis):
         # no validation needed here. State machine has done that
         char = wrap_ord(aBuf[0])
         if char >= 0xA0:
-            return 94 * (char - 0xA1) + wrap_ord(aBuf[1]) - 0xa1
+            return 94 * (char - 0xA1) + wrap_ord(aBuf[1]) - 0xA1
         else:
             return -1
