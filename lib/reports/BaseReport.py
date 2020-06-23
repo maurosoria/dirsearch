@@ -17,13 +17,16 @@
 #  Author: Mauro Soria
 
 
+
 class BaseReport(object):
-    def __init__(self, host, port, protocol, basePath, output):
+  
+    def __init__(self, host, port, protocol, basePath, output, batch):
         self.output = output
         self.port = port
         self.host = host
         self.protocol = protocol
         self.basePath = basePath
+        self.batch = batch
 
         if self.basePath.endswith("/"):
             self.basePath = self.basePath[:-1]
@@ -57,14 +60,25 @@ class BaseReport(object):
 
             self.output = output
 
-        self.file = open(self.output, "w+")
+
+        if self.batch:
+            self.file = open(self.output, 'a+')
+
+        else:
+            self.file = open(self.output, 'w+')
 
     def save(self):
-        self.file.seek(0)
-        self.file.truncate(0)
-        self.file.flush()
-        self.file.writelines(self.generate())
-        self.file.flush()
+        if self.batch:
+            self.file.seek(0)
+            self.file.flush()
+            self.file.writelines(self.generate())
+            self.file.flush()
+        else:
+            self.file.seek(0)
+            self.file.truncate(0)
+            self.file.flush()
+            self.file.writelines(self.generate())
+            self.file.flush()
 
     def close(self):
         self.file.close()

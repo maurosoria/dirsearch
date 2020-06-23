@@ -1,5 +1,6 @@
 Changelog
 ---------
+- 0.3.9 - 2017.11.26 Added default extensions argument (-E). Added supress empty responses. Recursive level. Exclude responses with text and regexes. Multiple fixes.
 - 0.3.8 - 2017.07.25 Delay argument added. Request by hostname switch added. Suppress empty switch added. Added Force Extensions switch. Multiple fixes.
 - 0.3.7 - 2016.08.22 Force extensions switch added.
 - 0.3.6 - 2016.02.14 Bugfixes

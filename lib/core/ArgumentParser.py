@@ -58,22 +58,29 @@ class ArgumentParser(object):
         else:
             self.urlList = [options.url]
 
-        if options.extensions == None:
-            print("No extension specified. You must specify at least one extension")
+
+        if not options.extensions and not options.defaultExtensions:
+            print('No extension specified. You must specify at least one extension or try using default extension list.')
             exit(0)
 
-        with File(options.wordlist) as wordlist:
-            if not wordlist.exists():
-                print("The wordlist file does not exist")
-                exit(0)
+        if not options.extensions and options.defaultExtensions:
+            options.extensions = self.defaultExtensions
 
-            if not wordlist.isValid():
-                print("The wordlist is invalid")
-                exit(0)
+        # Enable to use multiple dictionaries at once
+        for dictFile in options.wordlist.split(','):
+            with File(dictFile) as wordlist:
+                if not wordlist.exists():
+                    print('The wordlist file does not exist')
+                    exit(1)
 
-            if not wordlist.canRead():
-                print("The wordlist cannot be read")
-                exit(0)
+                if not wordlist.isValid():
+                    print('The wordlist is invalid')
+                    exit(1)
+
+                if not wordlist.canRead():
+                    print('The wordlist cannot be read')
+                    exit(1)
+
 
         if options.httpProxy is not None:
 
@@ -108,10 +115,23 @@ class ArgumentParser(object):
         self.cookie = options.cookie
 
         if options.threadsCount < 1:
-            print("Threads number must be a number greater than zero")
-            exit(0)
+            print('Threads number must be a number greater than zero')
+            exit(1)
+
 
         self.threadsCount = options.threadsCount
+
+        if options.includeStatusCodes is not None:
+
+            try:
+                self.includeStatusCodes = list(
+                    oset([int(includeStatusCode.strip()) if includeStatusCode else None for includeStatusCode in
+                          options.includeStatusCodes.split(',')]))
+            except ValueError:
+                self.includeStatusCodes = []
+
+        else:
+            self.includeStatusCodes = []
 
         if options.excludeStatusCodes is not None:
 
@@ -137,6 +157,7 @@ class ArgumentParser(object):
         if options.excludeTexts is not None:
             try:
                 self.excludeTexts = list(
+
                     oset(
                         [
                             excludeTexts.strip() if excludeTexts else None
@@ -144,10 +165,12 @@ class ArgumentParser(object):
                         ]
                     )
                 )
+
             except ValueError:
                 self.excludeTexts = []
         else:
             self.excludeTexts = []
+
 
         if options.excludeRegexps is not None:
             try:
@@ -159,23 +182,32 @@ class ArgumentParser(object):
                         ]
                     )
                 )
+
             except ValueError:
                 self.excludeRegexps = []
         else:
             self.excludeRegexps = []
 
-        self.wordlist = options.wordlist
+
+        self.suffixes = [] if not options.suffixes else list(oset([suffix.strip() for suffix in options.suffixes.split(',')]))
+        self.wordlist = list(oset([wordlist.strip() for wordlist in options.wordlist.split(',')]))
+
         self.lowercase = options.lowercase
         self.forceExtensions = options.forceExtensions
+        self.noDotExtensions = options.noDotExtensions
         self.simpleOutputFile = options.simpleOutputFile
         self.plainTextOutputFile = options.plainTextOutputFile
         self.jsonOutputFile = options.jsonOutputFile
+        self.quietMode = options.quietMode
         self.delay = options.delay
         self.timeout = options.timeout
         self.ip = options.ip
         self.maxRetries = options.maxRetries
         self.recursive = options.recursive
         self.suppressEmpty = options.suppressEmpty
+        self.minimumResponseSize = options.minimumResponseSize
+        self.maximumResponseSize = options.maximumResponseSize
+
 
         if options.scanSubdirs is not None:
             self.scanSubdirs = list(
@@ -198,6 +230,7 @@ class ArgumentParser(object):
         if not self.recursive and options.excludeSubdirs is not None:
             print("--exclude-subdir argument can only be used with -r|--recursive")
             exit(0)
+
 
         elif options.excludeSubdirs is not None:
             self.excludeSubdirs = list(
@@ -228,9 +261,13 @@ class ArgumentParser(object):
         config.read(configPath)
 
         # General
+
         self.threadsCount = config.safe_getint(
-            "general", "threads", 10, list(range(1, 50))
+            "general", "threads", 10, list(range(1, 200))
         )
+
+        self.includeStatusCodes = config.safe_get("general", "include-status", None)
+
         self.excludeStatusCodes = config.safe_get("general", "exclude-status", None)
         self.redirect = config.safe_getboolean("general", "follow-redirects", False)
         self.recursive = config.safe_getboolean("general", "recursive", False)
@@ -240,8 +277,10 @@ class ArgumentParser(object):
         self.suppressEmpty = config.safe_getboolean("general", "suppress-empty", False)
         self.testFailPath = config.safe_get("general", "scanner-fail-path", "").strip()
         self.saveHome = config.safe_getboolean("general", "save-logs-home", False)
+        self.defaultExtensions = config.safe_get("general", "default-extensions", "php,asp,aspx,jsp,js,do,action,html,js,json,yml,yaml,xml,cfg,bak,txt,md,sql,zip,tar.gz,tgz")
 
         # Reports
+        self.quietMode = config.safe_get("reports", "quiet-mode", False)
         self.autoSave = config.safe_getboolean("reports", "autosave-report", False)
         self.autoSaveFormat = config.safe_get(
             "reports", "autosave-report-format", "plain", ["plain", "json", "simple"]
@@ -254,6 +293,7 @@ class ArgumentParser(object):
         )
         self.lowercase = config.safe_getboolean("dictionary", "lowercase", False)
         self.forceExtensions = config.safe_get("dictionary", "force-extensions", False)
+        self.noDotExtensions = config.safe_get("dictionary", "no-dot-extensions", False)
 
         # Connection
         self.useRandomAgents = config.safe_get(
@@ -275,240 +315,104 @@ class ArgumentParser(object):
         usage = "Usage: %prog [-u|--url] target [-e|--extensions] extensions [options]"
         parser = OptionParser(usage)
         # Mandatory arguments
-        mandatory = OptionGroup(parser, "Mandatory")
-        mandatory.add_option(
-            "-u",
-            "--url",
-            help="URL target",
-            action="store",
-            type="string",
-            dest="url",
-            default=None,
-        )
-        mandatory.add_option(
-            "-L",
-            "--url-list",
-            help="URL list target",
-            action="store",
-            type="string",
-            dest="urlList",
-            default=None,
-        )
-        mandatory.add_option(
-            "-e",
-            "--extensions",
-            help="Extension list separated by comma (Example: php,asp)",
-            action="store",
-            dest="extensions",
-            default=None,
-        )
 
-        connection = OptionGroup(parser, "Connection Settings")
-        connection.add_option(
-            "--timeout",
-            action="store",
-            dest="timeout",
-            type="int",
-            default=self.timeout,
-            help="Connection timeout",
-        )
-        connection.add_option(
-            "--ip",
-            action="store",
-            dest="ip",
-            default=None,
-            help="Resolve name to IP address",
-        )
-        connection.add_option(
-            "--proxy",
-            "--http-proxy",
-            action="store",
-            dest="httpProxy",
-            type="string",
-            default=self.proxy,
-            help="Http Proxy (example: localhost:8080",
-        )
-        connection.add_option(
-            "--http-method",
-            action="store",
-            dest="httpmethod",
-            type="string",
-            default=self.httpmethod,
-            help="Method to use, default: GET, possible also: HEAD;POST",
-        )
-        connection.add_option(
-            "--max-retries",
-            action="store",
-            dest="maxRetries",
-            type="int",
-            default=self.maxRetries,
-        )
-        connection.add_option(
-            "-b",
-            "--request-by-hostname",
-            help="By default dirsearch will request by IP for speed. This forces requests by hostname",
-            action="store_true",
-            dest="requestByHostname",
-            default=self.requestByHostname,
-        )
+        mandatory = OptionGroup(parser, 'Mandatory')
+        mandatory.add_option('-u', '--url', help='URL target', action='store', type='string', dest='url', default=None)
+        mandatory.add_option('-L', '--url-list', help='URL list target', action='store', type='string', dest='urlList',
+                             default=None)
+        mandatory.add_option('-e', '--extensions', help='Extension list separated by comma (Example: php,asp)',
+                             action='store', dest='extensions', default=None)
+        mandatory.add_option('-E', '--extensions-list', help='Use predefined list of common extensions',
+                             action='store_true', dest='defaultExtensions', default=False)
+
+        connection = OptionGroup(parser, 'Connection Settings')
+        connection.add_option('--timeout', action='store', dest='timeout', type='int',
+                              default=self.timeout,
+                              help='Connection timeout')
+        connection.add_option('--ip', action='store', dest='ip', default=None,
+                              help='Resolve name to IP address')
+        connection.add_option('--proxy', '--http-proxy', action='store', dest='httpProxy', type='string',
+                              default=self.proxy, help='Http Proxy (example: localhost:8080')
+        connection.add_option('--http-method', action='store', dest='httpmethod', type='string',
+                              default=self.httpmethod, help='Method to use, default: GET, possible also: HEAD;POST')
+        connection.add_option('--max-retries', action='store', dest='maxRetries', type='int',
+                              default=self.maxRetries)
+        connection.add_option('-b', '--request-by-hostname',
+                              help='By default dirsearch will request by IP for speed. This forces requests by hostname',
+                              action='store_true', dest='requestByHostname', default=self.requestByHostname)
 
         # Dictionary settings
-        dictionary = OptionGroup(parser, "Dictionary Settings")
-        dictionary.add_option(
-            "-w", "--wordlist", action="store", dest="wordlist", default=self.wordlist
-        )
-        dictionary.add_option(
-            "-l",
-            "--lowercase",
-            action="store_true",
-            dest="lowercase",
-            default=self.lowercase,
-        )
+        dictionary = OptionGroup(parser, 'Dictionary Settings')
+        dictionary.add_option('-w', '--wordlist', action='store', dest='wordlist',
+                              help='Customize wordlist (separated by comma)',
+                              default=self.wordlist)
+        dictionary.add_option('-l', '--lowercase', action='store_true', dest='lowercase', default=self.lowercase)
+        dictionary.add_option('--suff', '--suffixes',
+                             help='Add custom suffixes to all files, ignores directories (example.%EXT%%SUFFIX%)',
+                             action='store', dest='suffixes', default=None)
 
-        dictionary.add_option(
-            "-f",
-            "--force-extensions",
-            help="Force extensions for every wordlist entry (like in DirBuster)",
-            action="store_true",
-            dest="forceExtensions",
-            default=self.forceExtensions,
-        )
+        dictionary.add_option('-f', '--force-extensions',
+                              help='Force extensions for every wordlist entry (like in DirBuster)',
+                              action='store_true', dest='forceExtensions', default=self.forceExtensions)
+        dictionary.add_option('--nd', '--no-dot-extensions',
+                              help='Don\'t add a \'.\' character before extensions', action='store_true',
+                              dest='noDotExtensions', default=self.noDotExtensions)
 
         # Optional Settings
-        general = OptionGroup(parser, "General Settings")
-        general.add_option(
-            "-s",
-            "--delay",
-            help="Delay between requests (float number)",
-            action="store",
-            dest="delay",
-            type="float",
-            default=self.delay,
-        )
-        general.add_option(
-            "-r",
-            "--recursive",
-            help="Bruteforce recursively",
-            action="store_true",
-            dest="recursive",
-            default=self.recursive,
-        )
-        general.add_option(
-            "-R",
-            "--recursive-level-max",
-            help="Max recursion level (subdirs) (Default: 1 [only rootdir + 1 dir])",
-            action="store",
-            type="int",
-            dest="recursive_level_max",
-            default=self.recursive_level_max,
-        )
+        general = OptionGroup(parser, 'General Settings')
+        general.add_option('-s', '--delay', help='Delay between requests (float number)', action='store', dest='delay',
+                           type='float', default=self.delay)
+        general.add_option('-r', '--recursive', help='Bruteforce recursively', action='store_true', dest='recursive',
+                           default=self.recursive)
+        general.add_option('-R', '--recursive-level-max',
+                           help='Max recursion level (subdirs) (Default: 1 [only rootdir + 1 dir])', action='store', type="int",
+                           dest='recursive_level_max',
+                           default=self.recursive_level_max)
 
-        general.add_option(
-            "--suppress-empty",
-            "--suppress-empty",
-            action="store_true",
-            dest="suppressEmpty",
-        )
+        general.add_option('--suppress-empty', "--suppress-empty", action="store_true", dest='suppressEmpty')
+        general.add_option('--min', action='store', dest='minimumResponseSize', type='int', default=None,
+                           help='Minimal response length')
+        general.add_option('--max', action='store', dest='maximumResponseSize', type='int', default=None,
+                           help='Maximal response length')
 
-        general.add_option(
-            "--scan-subdir",
-            "--scan-subdirs",
-            help="Scan subdirectories of the given -u|--url (separated by comma)",
-            action="store",
-            dest="scanSubdirs",
-            default=None,
-        )
-        general.add_option(
-            "--exclude-subdir",
-            "--exclude-subdirs",
-            help="Exclude the following subdirectories during recursive scan (separated by comma)",
-            action="store",
-            dest="excludeSubdirs",
-            default=None,
-        )
-        general.add_option(
-            "-t",
-            "--threads",
-            help="Number of Threads",
-            action="store",
-            type="int",
-            dest="threadsCount",
-            default=self.threadsCount,
-        )
-        general.add_option(
-            "--exclude-texts",
-            help='Exclude responses by texts, separated by comma (example: "Not found", "Error")',
-            action="store",
-            dest="excludeTexts",
-            default=None,
-        )
-        general.add_option(
-            "--exclude-regexps",
-            help='Exclude responses by regexps, separated by comma (example: "Not foun[a-z]{1}", "^Error$")',
-            action="store",
-            dest="excludeRegexps",
-            default=None,
-        )
-        general.add_option(
-            "-x",
-            "--exclude-status",
-            help="Exclude status code, separated by comma (example: 301, 500)",
-            action="store",
-            dest="excludeStatusCodes",
-            default=self.excludeStatusCodes,
-        )
-        general.add_option(
-            "-c", "--cookie", action="store", type="string", dest="cookie", default=None
-        )
-        general.add_option(
-            "--ua",
-            "--user-agent",
-            action="store",
-            type="string",
-            dest="useragent",
-            default=self.useragent,
-        )
-        general.add_option(
-            "-F",
-            "--follow-redirects",
-            action="store_true",
-            dest="noFollowRedirects",
-            default=self.redirect,
-        )
-        general.add_option(
-            "-H",
-            "--header",
-            help='Headers to add (example: --header "Referer: example.com" --header "User-Agent: IE"',
-            action="append",
-            type="string",
-            dest="headers",
-            default=None,
-        )
-        general.add_option(
-            "--random-agents",
-            "--random-user-agents",
-            action="store_true",
-            dest="useRandomAgents",
-        )
+        general.add_option('--scan-subdir', '--scan-subdirs',
+                           help='Scan subdirectories of the given -u|--url (separated by comma)', action='store',
+                           dest='scanSubdirs',
+                           default=None)
+        general.add_option('--exclude-subdir', '--exclude-subdirs',
+                           help='Exclude the following subdirectories during recursive scan (separated by comma)',
+                           action='store', dest='excludeSubdirs',
+                           default=None)
+        general.add_option('-t', '--threads', help='Number of Threads', action='store', type='int', dest='threadsCount'
+                           , default=self.threadsCount)
+        general.add_option('-i', '--include-status', help='Show only included status codes, separated by comma (example: 301, 500)'
+                           , action='store', dest='includeStatusCodes', default=self.includeStatusCodes)
+        general.add_option('-x', '--exclude-status', help='Exclude status code, separated by comma (example: 301, 500)'
+                           , action='store', dest='excludeStatusCodes', default=self.excludeStatusCodes)
+        general.add_option('--exclude-texts', help='Exclude responses by texts, separated by comma (example: "Not found", "Error")'
+                           , action='store', dest='excludeTexts', default=None)
+        general.add_option('--exclude-regexps', help='Exclude responses by regexps, separated by comma (example: "Not foun[a-z]{1}", "^Error$")'
+                           , action='store', dest='excludeRegexps', default=None)
+        general.add_option('-c', '--cookie', action='store', type='string', dest='cookie', default=None)
+        general.add_option('--ua', '--user-agent', action='store', type='string', dest='useragent',
+                           default=self.useragent)
+        general.add_option('-F', '--follow-redirects', action='store_true', dest='noFollowRedirects'
+                           , default=self.redirect)
+        general.add_option('-H', '--header',
+                           help='Headers to add (example: --header "Referer: example.com" --header "User-Agent: IE"',
+                           action='append', type='string', dest='headers', default=None)
+        general.add_option('--random-agents', '--random-user-agents', action="store_true", dest='useRandomAgents')
 
-        reports = OptionGroup(parser, "Reports")
-        reports.add_option(
-            "--simple-report",
-            action="store",
-            help="Only found paths",
-            dest="simpleOutputFile",
-            default=None,
-        )
-        reports.add_option(
-            "--plain-text-report",
-            action="store",
-            help="Found paths with status codes",
-            dest="plainTextOutputFile",
-            default=None,
-        )
-        reports.add_option(
-            "--json-report", action="store", dest="jsonOutputFile", default=None
-        )
+        reports = OptionGroup(parser, 'Reports')
+        reports.add_option('--simple-report', action='store', help="Only found paths",
+                           dest='simpleOutputFile', default=None)
+        reports.add_option('--plain-text-report', action='store',
+                           help="Found paths with status codes", dest='plainTextOutputFile', default=None)
+        reports.add_option('--json-report', action='store', dest='jsonOutputFile', default=None)
+        reports.add_option('-q', '--quiet-mode', help='Disable output to console (only to reports)', action='store_true',
+                           dest='quietMode', default=self.quietMode)
+
+
         parser.add_option_group(mandatory)
         parser.add_option_group(dictionary)
         parser.add_option_group(general)

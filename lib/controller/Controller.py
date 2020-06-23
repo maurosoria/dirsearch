@@ -38,7 +38,7 @@ class SkipTargetInterrupt(Exception):
 
 MAYOR_VERSION = 0
 MINOR_VERSION = 3
-REVISION = 8
+REVISION = 9
 VERSION = {
     "MAYOR_VERSION": MAYOR_VERSION,
     "MINOR_VERSION": MINOR_VERSION,
@@ -101,24 +101,27 @@ class Controller(object):
             self.savePath = savePath
 
         self.reportsPath = FileUtils.buildPath(self.savePath, "logs")
+        self.quietMode = self.arguments.quietMode
         self.blacklists = self.getBlacklists()
         self.fuzzer = None
+        self.includeStatusCodes = self.arguments.includeStatusCodes
         self.excludeStatusCodes = self.arguments.excludeStatusCodes
         self.excludeTexts = self.arguments.excludeTexts
         self.excludeRegexps = self.arguments.excludeRegexps
         self.recursive = self.arguments.recursive
         self.suppressEmpty = self.arguments.suppressEmpty
+        self.minimumResponseSize = self.arguments.minimumResponseSize
+        self.maximumResponseSize = self.arguments.maximumResponseSize
         self.directories = Queue()
         self.excludeSubdirs = (
             arguments.excludeSubdirs if arguments.excludeSubdirs is not None else []
         )
         self.output.header(program_banner)
-        self.dictionary = Dictionary(
-            self.arguments.wordlist,
-            self.arguments.extensions,
-            self.arguments.lowercase,
-            self.arguments.forceExtensions,
-        )
+
+        self.dictionary = Dictionary(self.arguments.wordlist, self.arguments.extensions, self.arguments.suffixes,
+                                     self.arguments.lowercase, self.arguments.forceExtensions,
+                                     self.arguments.noDotExtensions)
+
         self.printConfig()
         self.errorLog = None
         self.errorLogPath = None
@@ -208,9 +211,6 @@ class Controller(object):
                 except SkipTargetInterrupt:
                     continue
 
-                finally:
-                    self.reportManager.save()
-
         except KeyboardInterrupt:
             self.output.error("\nCanceled by the user")
             exit(0)
@@ -231,7 +231,8 @@ class Controller(object):
             requestCount = requestCount * len(self.arguments.scanSubdirs)
 
         self.output.config(
-            ", ".join(self.arguments.extensions),
+            ', '.join(self.arguments.extensions),
+            ', '.join(self.arguments.suffixes),
             str(self.arguments.threadsCount),
             str(len(self.dictionary)),
             str(requestCount),
@@ -312,6 +313,7 @@ class Controller(object):
 
     def setupReports(self, requester):
         if self.arguments.autoSave:
+
             basePath = "/" if requester.basePath is "" else requester.basePath
             basePath = basePath.replace(os.path.sep, ".")[1:-1]
             fileName = None
@@ -322,13 +324,15 @@ class Controller(object):
                 directoryPath = self.batchDirectoryPath
 
             else:
-                fileName = "{}_".format(basePath) if basePath is not "" else ""
-                fileName += time.strftime("%y-%m-%d_%H-%M-%S")
-                directoryPath = FileUtils.buildPath(
-                    self.savePath, "reports", requester.host
-                )
+
+                fileName = ('{}_'.format(basePath) if basePath != '' else '')
+                fileName += time.strftime('%y-%m-%d_%H-%M-%S')
+                directoryPath = FileUtils.buildPath(self.savePath, 'reports', f'{requester.protocol}_{requester.host}_{requester.httpmethod}')
+
 
             outputFile = FileUtils.buildPath(directoryPath, fileName)
+
+            self.output.newLine("Output File: {0}\n".format(outputFile))
 
             if FileUtils.exists(outputFile):
                 i = 2
@@ -374,6 +378,7 @@ class Controller(object):
                         outputFile,
                     )
 
+
                 self.reportManager.addOutput(report)
 
             else:
@@ -381,56 +386,39 @@ class Controller(object):
                 sys.exit(1)
 
         if self.arguments.simpleOutputFile is not None:
-            self.reportManager.addOutput(
-                SimpleReport(
-                    requester.host,
-                    requester.port,
-                    requester.protocol,
-                    requester.basePath,
-                    self.arguments.simpleOutputFile,
-                )
-            )
+            self.reportManager.addOutput(SimpleReport(requester.host, requester.port, requester.protocol,
+                                                      requester.basePath, self.arguments.simpleOutputFile, self.batch))
 
         if self.arguments.plainTextOutputFile is not None:
-            self.reportManager.addOutput(
-                PlainTextReport(
-                    requester.host,
-                    requester.port,
-                    requester.protocol,
-                    requester.basePath,
-                    self.arguments.plainTextOutputFile,
-                )
-            )
+            self.reportManager.addOutput(PlainTextReport(requester.host, requester.port, requester.protocol,
+                                                         requester.basePath, self.arguments.plainTextOutputFile, self.batch))
 
         if self.arguments.jsonOutputFile is not None:
-            self.reportManager.addOutput(
-                JSONReport(
-                    requester.host,
-                    requester.port,
-                    requester.protocol,
-                    requester.basePath,
-                    self.arguments.jsonOutputFile,
-                )
-            )
+            self.reportManager.addOutput(JSONReport(requester.host, requester.port, requester.protocol,
+                                                    requester.basePath, self.arguments.jsonOutputFile, self.batch))
+
 
     def matchCallback(self, path):
         self.index += 1
 
         if path.status is not None:
-            if (
-                path.status not in self.excludeStatusCodes
-                and (
-                    self.blacklists.get(path.status) is None
-                    or path.path not in self.blacklists.get(path.status)
-                )
-                and not (self.suppressEmpty and (len(path.response.body) == 0))
-            ):
+
+            if path.status not in self.excludeStatusCodes and (
+                    not self.includeStatusCodes or path.status in self.includeStatusCodes) and (
+                    self.blacklists.get(path.status) is None or path.path not in self.blacklists.get(
+                path.status)) and not (
+                    self.suppressEmpty and (len(path.response.body) == 0)) and not ((
+                    self.minimumResponseSize and self.minimumResponseSize > len(path.response.body)) or (
+                    self.maximumResponseSize and self.maximumResponseSize < len(path.response.body))):
+
+
                 for excludeText in self.excludeTexts:
                     if excludeText in path.response.body.decode():
                         del path
                         return
 
                 for excludeRegexp in self.excludeRegexps:
+
                     if (
                         re.search(excludeRegexp, path.response.body.decode())
                         is not None
@@ -456,6 +444,7 @@ class Controller(object):
                 newPath = "{}{}".format(self.currentDirectory, path.path)
 
                 self.reportManager.addPath(newPath, path.status, path.response)
+
                 self.reportManager.save()
 
                 del path
