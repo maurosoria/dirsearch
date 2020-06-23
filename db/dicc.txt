@@ -1877,6 +1877,7 @@ api/
 api/error_log
 api/jsonws/invoke
 api/swagger.yml
+api/v2/helpdesk/discover
 apibuild.pyc
 app
 APP
