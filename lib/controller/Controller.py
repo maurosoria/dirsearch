@@ -94,18 +94,23 @@ class Controller(object):
             self.savePath = savePath
 
         self.reportsPath = FileUtils.buildPath(self.savePath, "logs")
+        self.quietMode = self.arguments.quietMode
         self.blacklists = self.getBlacklists()
         self.fuzzer = None
+        self.includeStatusCodes = self.arguments.includeStatusCodes
         self.excludeStatusCodes = self.arguments.excludeStatusCodes
         self.excludeTexts = self.arguments.excludeTexts
         self.excludeRegexps = self.arguments.excludeRegexps
         self.recursive = self.arguments.recursive
         self.suppressEmpty = self.arguments.suppressEmpty
+        self.minimumResponseSize = self.arguments.minimumResponseSize
+        self.maximumResponseSize = self.arguments.maximumResponseSize
         self.directories = Queue()
         self.excludeSubdirs = (arguments.excludeSubdirs if arguments.excludeSubdirs is not None else [])
         self.output.header(program_banner)
-        self.dictionary = Dictionary(self.arguments.wordlist, self.arguments.extensions,
-                                     self.arguments.lowercase, self.arguments.forceExtensions)
+        self.dictionary = Dictionary(self.arguments.wordlist, self.arguments.extensions, self.arguments.suffixes,
+                                     self.arguments.lowercase, self.arguments.forceExtensions,
+                                     self.arguments.noDotExtensions)
         self.printConfig()
         self.errorLog = None
         self.errorLogPath = None
@@ -196,6 +201,7 @@ class Controller(object):
     def printConfig(self):
         self.output.config(
             ', '.join(self.arguments.extensions),
+            ', '.join(self.arguments.suffixes),
             str(self.arguments.threadsCount),
             str(len(self.dictionary)),
             str(self.httpmethod),
@@ -277,9 +283,11 @@ class Controller(object):
             else:
                 fileName = ('{}_'.format(basePath) if basePath != '' else '')
                 fileName += time.strftime('%y-%m-%d_%H-%M-%S')
-                directoryPath = FileUtils.buildPath(self.savePath, 'reports', requester.host)
+                directoryPath = FileUtils.buildPath(self.savePath, 'reports', f'{requester.protocol}_{requester.host}_{requester.httpmethod}')
 
             outputFile = FileUtils.buildPath(directoryPath, fileName)
+
+            self.output.newLine("Output File: {0}\n".format(outputFile))
 
             if FileUtils.exists(outputFile):
                 i = 2
@@ -331,9 +339,12 @@ class Controller(object):
 
         if path.status is not None:
             if path.status not in self.excludeStatusCodes and (
+                    not self.includeStatusCodes or path.status in self.includeStatusCodes) and (
                     self.blacklists.get(path.status) is None or path.path not in self.blacklists.get(
                 path.status)) and not (
-                    self.suppressEmpty and (len(path.response.body) == 0)):
+                    self.suppressEmpty and (len(path.response.body) == 0)) and not ((
+                    self.minimumResponseSize and self.minimumResponseSize > len(path.response.body)) or (
+                    self.maximumResponseSize and self.maximumResponseSize < len(path.response.body))):
 
                 for excludeText in self.excludeTexts:
                     if excludeText in path.response.body.decode():
@@ -345,7 +356,9 @@ class Controller(object):
                         del path
                         return
 
-                self.output.statusReport(path.path, path.response)
+                if not self.quietMode:
+                    self.output.statusReport(path.path, path.response)
+
                 if path.response.redirect:
                     self.addRedirectDirectory(path)
                 else:

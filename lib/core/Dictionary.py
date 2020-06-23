@@ -16,6 +16,7 @@
 #
 #  Author: Mauro Soria
 
+import re
 import threading
 
 import urllib.error
@@ -28,13 +29,15 @@ from thirdparty.oset import *
 
 class Dictionary(object):
 
-    def __init__(self, paths, extensions, lowercase=False, forcedExtensions=False):
+    def __init__(self, paths, extensions, suffixes=None, lowercase=False, forcedExtensions=False, noDotExtensions=False):
         self.entries = []
         self.currentIndex = 0
         self.condition = threading.Lock()
         self._extensions = extensions
+        self._suffixes = suffixes
         self._paths = paths
         self._forcedExtensions = forcedExtensions
+        self._noDotExtensions = noDotExtensions
         self.lowercase = lowercase
         self.dictionaryFiles = [File(path) for path in self.paths]
         self.generate()
@@ -77,6 +80,8 @@ class Dictionary(object):
     """
 
     def generate(self):
+        reext = re.compile('\%ext\%', re.IGNORECASE)
+        reextdot = re.compile('\.\%ext\%', re.IGNORECASE)
         result = []
         # Enable to use multiple dictionaries at once
         for dictFile in self.dictionaryFiles:
@@ -89,13 +94,12 @@ class Dictionary(object):
                 # Classic dirsearch wordlist processing (with %EXT% keyword)
                 if '%EXT%' in line or '%ext%' in line:
                     for extension in self._extensions:
-                        if '%EXT%' in line:
-                            newline = line.replace('%EXT%', extension)
+                        if self._noDotExtensions:
+                            line = reextdot.sub(extension, line)
 
-                        if '%ext%' in line:
-                            newline = line.replace('%ext%', extension)
+                        line = reext.sub(extension, line)
 
-                        quote = self.quote(newline)
+                        quote = self.quote(line)
                         result.append(quote)
 
                 # If forced extensions is used and the path is not a directory ... (terminated by /)
@@ -108,14 +112,22 @@ class Dictionary(object):
                         if extension.strip() == '':
                             result.append(quoted)
                         else:
-                            result.append(quoted + '.' + extension)
+                            result.append(quoted + ('' if self._noDotExtensions else '.') + extension)
 
                     if quoted.strip() not in ['']:
+                        result.append(quoted)
                         result.append(quoted + "/")
 
                 # Append line unmodified.
                 else:
                     result.append(self.quote(line))
+
+        # Adding suffixes for finding backups etc
+        if self._suffixes:
+            for res in list(result):
+                if not res.rstrip().endswith("/"):
+                    for suff in self._suffixes:
+                        result.append(res + suff)
 
         # oset library provides inserted ordered and unique collection.
         if self.lowercase:

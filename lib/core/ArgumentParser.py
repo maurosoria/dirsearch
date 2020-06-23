@@ -112,6 +112,18 @@ class ArgumentParser(object):
 
         self.threadsCount = options.threadsCount
 
+        if options.includeStatusCodes is not None:
+
+            try:
+                self.includeStatusCodes = list(
+                    oset([int(includeStatusCode.strip()) if includeStatusCode else None for includeStatusCode in
+                          options.includeStatusCodes.split(',')]))
+            except ValueError:
+                self.includeStatusCodes = []
+
+        else:
+            self.includeStatusCodes = []
+
         if options.excludeStatusCodes is not None:
 
             try:
@@ -145,18 +157,24 @@ class ArgumentParser(object):
         else:
             self.excludeRegexps = []
 
+        self.suffixes = [] if not options.suffixes else list(oset([suffix.strip() for suffix in options.suffixes.split(',')]))
         self.wordlist = list(oset([wordlist.strip() for wordlist in options.wordlist.split(',')]))
         self.lowercase = options.lowercase
         self.forceExtensions = options.forceExtensions
+        self.noDotExtensions = options.noDotExtensions
         self.simpleOutputFile = options.simpleOutputFile
         self.plainTextOutputFile = options.plainTextOutputFile
         self.jsonOutputFile = options.jsonOutputFile
+        self.quietMode = options.quietMode
         self.delay = options.delay
         self.timeout = options.timeout
         self.ip = options.ip
         self.maxRetries = options.maxRetries
         self.recursive = options.recursive
         self.suppressEmpty = options.suppressEmpty
+        self.minimumResponseSize = options.minimumResponseSize
+        self.maximumResponseSize = options.maximumResponseSize
+
 
         if options.scanSubdirs is not None:
             self.scanSubdirs = list(oset([subdir.strip() for subdir in options.scanSubdirs.split(',')]))
@@ -206,6 +224,7 @@ class ArgumentParser(object):
 
         # General
         self.threadsCount = config.safe_getint("general", "threads", 10, list(range(1, 50)))
+        self.includeStatusCodes = config.safe_get("general", "include-status", None)
         self.excludeStatusCodes = config.safe_get("general", "exclude-status", None)
         self.redirect = config.safe_getboolean("general", "follow-redirects", False)
         self.recursive = config.safe_getboolean("general", "recursive", False)
@@ -213,9 +232,10 @@ class ArgumentParser(object):
         self.suppressEmpty = config.safe_getboolean("general", "suppress-empty", False)
         self.testFailPath = config.safe_get("general", "scanner-fail-path", "").strip()
         self.saveHome = config.safe_getboolean("general", "save-logs-home", False)
-        self.defaultExtensions = config.safe_get("general", "default-extensions", "php,asp,aspx,jsp,js,html,do,action")
+        self.defaultExtensions = config.safe_get("general", "default-extensions", "php,asp,aspx,jsp,js,do,action,html,js,json,yml,yaml,xml,cfg,bak,txt,md,sql,zip,tar.gz,tgz")
 
         # Reports
+        self.quietMode = config.safe_get("reports", "quiet-mode", False)
         self.autoSave = config.safe_getboolean("reports", "autosave-report", False)
         self.autoSaveFormat = config.safe_get("reports", "autosave-report-format", "plain", ["plain", "json", "simple"])
         # Dictionary
@@ -223,6 +243,7 @@ class ArgumentParser(object):
                                         FileUtils.buildPath(self.script_path, "db", "dicc.txt"))
         self.lowercase = config.safe_getboolean("dictionary", "lowercase", False)
         self.forceExtensions = config.safe_get("dictionary", "force-extensions", False)
+        self.noDotExtensions = config.safe_get("dictionary", "no-dot-extensions", False)
 
         # Connection
         self.useRandomAgents = config.safe_get("connection", "random-user-agents", False)
@@ -269,10 +290,16 @@ class ArgumentParser(object):
                               help='Customize wordlist (separated by comma)',
                               default=self.wordlist)
         dictionary.add_option('-l', '--lowercase', action='store_true', dest='lowercase', default=self.lowercase)
+        dictionary.add_option('--suff', '--suffixes',
+                             help='Add custom suffixes to all files, ignores directories (example.%EXT%%SUFFIX%)',
+                             action='store', dest='suffixes', default=None)
 
         dictionary.add_option('-f', '--force-extensions',
                               help='Force extensions for every wordlist entry (like in DirBuster)',
                               action='store_true', dest='forceExtensions', default=self.forceExtensions)
+        dictionary.add_option('--nd', '--no-dot-extensions',
+                              help='Don\'t add a \'.\' character before extensions', action='store_true',
+                              dest='noDotExtensions', default=self.noDotExtensions)
 
         # Optional Settings
         general = OptionGroup(parser, 'General Settings')
@@ -286,6 +313,10 @@ class ArgumentParser(object):
                            default=self.recursive_level_max)
 
         general.add_option('--suppress-empty', "--suppress-empty", action="store_true", dest='suppressEmpty')
+        general.add_option('--min', action='store', dest='minimumResponseSize', type='int', default=None,
+                           help='Minimal response length')
+        general.add_option('--max', action='store', dest='maximumResponseSize', type='int', default=None,
+                           help='Maximal response length')
 
         general.add_option('--scan-subdir', '--scan-subdirs',
                            help='Scan subdirectories of the given -u|--url (separated by comma)', action='store',
@@ -297,6 +328,8 @@ class ArgumentParser(object):
                            default=None)
         general.add_option('-t', '--threads', help='Number of Threads', action='store', type='int', dest='threadsCount'
                            , default=self.threadsCount)
+        general.add_option('-i', '--include-status', help='Show only included status codes, separated by comma (example: 301, 500)'
+                           , action='store', dest='includeStatusCodes', default=self.includeStatusCodes)
         general.add_option('-x', '--exclude-status', help='Exclude status code, separated by comma (example: 301, 500)'
                            , action='store', dest='excludeStatusCodes', default=self.excludeStatusCodes)
         general.add_option('--exclude-texts', help='Exclude responses by texts, separated by comma (example: "Not found", "Error")'
@@ -319,6 +352,9 @@ class ArgumentParser(object):
         reports.add_option('--plain-text-report', action='store',
                            help="Found paths with status codes", dest='plainTextOutputFile', default=None)
         reports.add_option('--json-report', action='store', dest='jsonOutputFile', default=None)
+        reports.add_option('-q', '--quiet-mode', help='Disable output to console (only to reports)', action='store_true',
+                           dest='quietMode', default=self.quietMode)
+
         parser.add_option_group(mandatory)
         parser.add_option_group(dictionary)
         parser.add_option_group(general)

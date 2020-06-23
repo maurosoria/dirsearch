@@ -118,6 +118,11 @@ Features
 - User agent randomization
 - Batch processing
 - Request delaying
+- Option to remove dot from extension when forcing (--nd, example%EXT% instead of example.%EXT%)
+- Options to display only items with response length from range (--min & --max)
+- Option to whitelist response codes (-i 200,500)
+- Option to remove output from console (-q, keeps output to files)
+- Option to add custom suffixes to filenames without dots (--suff .BAK,.old, example.%EXT%%SUFFIX%)
 
 About wordlists
 ---------------
@@ -177,3 +182,5 @@ Special thanks for these people.
 - k2l8m11n2
 - vlohacks
 - r0p0s3c
+- V-Rico
+- russtone
