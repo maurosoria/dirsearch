@@ -360,6 +360,7 @@ class Controller(object):
                         requester.protocol,
                         requester.basePath,
                         outputFile,
+                        self.batch 
                     )
                 if self.arguments.autoSaveFormat == "json":
                     report = JSONReport(
@@ -376,6 +377,7 @@ class Controller(object):
                         requester.protocol,
                         requester.basePath,
                         outputFile,
+                        self.batch
                     )
 
 
