@@ -158,7 +158,7 @@ class Requester(object):
                     headers["User-agent"] = random.choice(self.randomAgents)
 
                 headers["Host"] = self.host
-                print("\nScan: "+url)
+                # print("\nScan: "+url)
                 # include port in Host header if it's non-standard
                 if (self.protocol == "https" and self.port != 443) or (
                     self.protocol == "http" and self.port != 80
