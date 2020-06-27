@@ -327,7 +327,7 @@ class Controller(object):
 
                 fileName = ('{}_'.format(basePath) if basePath != '' else '')
                 fileName += time.strftime('%y-%m-%d_%H-%M-%S')
-                directoryPath = FileUtils.buildPath(self.savePath, 'reports', f'{requester.protocol}_{requester.host}_{requester.httpmethod}')
+                directoryPath = FileUtils.buildPath(self.savePath, 'reports', '{requester.protocol}_{requester.host}_{requester.httpmethod}')
 
 
             outputFile = FileUtils.buildPath(directoryPath, fileName)
