@@ -386,7 +386,8 @@ class Controller(object):
             else:
                 self.output.error("Can't write reports to {}".format(directoryPath))
                 sys.exit(1)
-
+        
+        # TODO: format, refactor code 
         if self.arguments.simpleOutputFile is not None:
             self.reportManager.addOutput(SimpleReport(requester.host, requester.port, requester.protocol,
                                                       requester.basePath, self.arguments.simpleOutputFile, self.batch))
@@ -399,7 +400,8 @@ class Controller(object):
             self.reportManager.addOutput(JSONReport(requester.host, requester.port, requester.protocol,
                                                     requester.basePath, self.arguments.jsonOutputFile, self.batch))
 
-
+            
+    # TODO: Refactor, this function should be a decorator for all the filters
     def matchCallback(self, path):
         self.index += 1
 
