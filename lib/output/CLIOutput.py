@@ -228,6 +228,12 @@ class CLIOutput(object):
         config += Style.RESET_ALL
 
         self.newLine(config)
+        
+    def outputFile(self, target):
+        self.newLine("Output File: {0}\n".format(target))
+        
+    def errorLogFile(self, target):
+        self.newLine("\nError Log: {0}".format(target))
 
     def debug(self, info):
         line = "[{0}] - {1}".format(time.strftime("%H:%M:%S"), info)

@@ -31,6 +31,9 @@ class ArgumentParser(object):
 
         options = self.parseArguments()
 
+        self.clean_view = options.clean_view
+            
+        
         if options.url == None:
 
             if options.urlList != None:
@@ -360,6 +363,7 @@ class ArgumentParser(object):
 
         # Optional Settings
         general = OptionGroup(parser, 'General Settings')
+        general.add_option('--clean-view', '--clean-view', action='store_true', dest='clean_view')
         general.add_option('-s', '--delay', help='Delay between requests (float number)', action='store', dest='delay',
                            type='float', default=self.delay)
         general.add_option('-r', '--recursive', help='Bruteforce recursively', action='store_true', dest='recursive',

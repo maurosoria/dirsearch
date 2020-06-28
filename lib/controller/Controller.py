@@ -129,7 +129,7 @@ class Controller(object):
         self.batch = False
         self.batchSession = None
         self.setupErrorLogs()
-        self.output.newLine("\nError Log: {0}".format(self.errorLogPath))
+        self.output.errorLogFile(self.errorLogPath)
 
         if self.arguments.autoSave and len(self.arguments.urlList) > 1:
             self.setupBatchReports()
@@ -332,7 +332,7 @@ class Controller(object):
 
             outputFile = FileUtils.buildPath(directoryPath, fileName)
 
-            self.output.newLine("Output File: {0}\n".format(outputFile))
+            self.output.outputFile(outputFile)
 
             if FileUtils.exists(outputFile):
                 i = 2
