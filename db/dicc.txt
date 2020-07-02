@@ -178,7 +178,9 @@ _www
 .badsegment.log
 .bak_0.log
 .bash_aliases
+.bash_history
 .bash_prompt
+.bashrc
 .binstar.yml
 .bithoundrc
 .blg
@@ -668,6 +670,7 @@ _www
 .mvn/timing.properties
 .mvn/wrapper/maven-wrapper.jar
 .mypy_cache/
+.mysql_history
 .nakignore
 .name
 .navigation/
@@ -777,6 +780,7 @@ _www
 .pryrc
 .psci
 .psci_modules
+.psql_history
 .publishrc
 .pullapprove.yml
 .puppet-lint.rc
@@ -863,15 +867,21 @@ _www
 .spyderproject
 .spyproject
 .sqlite
+.sqlite_history
 .sqlite3
 .SRCINFO
 .ssh/ansible_rsa
+.ssh/authorized_keys
 .ssh/config
 .ssh/google_compute_engine
 .ssh/google_compute_engine.pub
+.ssh/id_dsa
 .ssh/id_dsa.pub
+.ssh/id_rsa
+.ssh/id_rsa.pub
 .ssh/identity
 .ssh/identity.pub
+.ssh/known_hosts
 .stack-work/
 .stat/
 .stestr.conf
@@ -943,6 +953,8 @@ _www
 .versions
 .vim.custom
 .vim.netrwhist
+.viminfo
+.vimrc
 .vim/
 .vmware/
 .vs/
