@@ -191,6 +191,7 @@ class CLIOutput(object):
         config += separator
 
         config += "HTTP method: {0}".format(Fore.CYAN + method + Fore.YELLOW)
+        config += separator
 
         if suffixes != '':
             config += 'Suffixes: {0}'.format(Fore.CYAN + suffixes + Fore.YELLOW)
