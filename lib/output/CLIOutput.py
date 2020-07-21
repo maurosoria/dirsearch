@@ -175,8 +175,8 @@ class CLIOutput(object):
 
     def config(
         self,
-        suffixes,
         extensions,
+        suffixes,
         threads,
         wordlist_size,
         request_count,
@@ -189,8 +189,6 @@ class CLIOutput(object):
         config = Style.BRIGHT + Fore.YELLOW
         config += "Extensions: {0}".format(Fore.CYAN + extensions + Fore.YELLOW)
         config += separator
-
-        config += "HTTP method: {0}".format(Fore.CYAN + method + Fore.YELLOW)
 
         if suffixes != '':
             config += 'Suffixes: {0}'.format(Fore.CYAN + suffixes + Fore.YELLOW)
