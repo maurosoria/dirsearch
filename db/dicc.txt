@@ -3177,6 +3177,10 @@ debug.py
 debug.txt
 debug.xml
 debug/
+debug/pprof/profile
+debug/pprof/heap
+debug/pprof/goroutine?debug=1
+debug/pprof/trace
 default
 default2.%EXT%
 DefaultWebApp
