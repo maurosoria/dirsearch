@@ -5971,6 +5971,7 @@ tmp/whmcs.php
 tmp/xd.php
 tn
 TODO
+todo.txt
 tools
 tools/_backups/
 top
