@@ -51,11 +51,11 @@ class Requester(object):
         timeout=30,
         ip=None,
         proxy=None,
+        proxylist=None,
         redirect=False,
         requestByHostname=False,
         httpmethod="get",
     ):
-
         self.httpmethod = httpmethod
 
         # if no backslash, append one
@@ -107,6 +107,7 @@ class Requester(object):
         self.timeout = timeout
         self.pool = None
         self.proxy = proxy
+        self.proxylist = proxylist
         self.redirect = redirect
         self.randomAgents = None
         self.requestByHostname = requestByHostname
@@ -129,7 +130,9 @@ class Requester(object):
         while i <= self.maxRetries:
 
             try:
-                if self.proxy is not None:
+                if self.proxylist is not None:
+                    proxy = {"https": random.choice(self.proxylist), "http": random.choice(self.proxylist)}
+                elif self.proxy is not None:
                     proxy = {"https": self.proxy, "http": self.proxy}
 
                 if self.requestByHostname:

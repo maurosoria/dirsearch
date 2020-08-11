@@ -84,9 +84,24 @@ class ArgumentParser(object):
                     print('The wordlist cannot be read')
                     exit(1)
 
+        if options.proxyList is not None:
+            with File(options.proxyList) as plist:
+                if not plist.exists():
+                    print('The proxylist file does not exist')
+                    exit(1)
 
-        if options.httpProxy is not None:
+                if not plist.isValid():
+                    print('The proxylist is invalid')
+                    exit(1)
 
+                if not plist.canRead():
+                    print('The proxylist cannot be read')
+                    exit(1)
+
+            self.proxylist = open(options.proxyList).read().splitlines()
+
+
+        elif options.httpProxy is not None:
             if options.httpProxy.startswith("http://"):
                 self.proxy = options.httpProxy
             else:
@@ -307,6 +322,7 @@ class ArgumentParser(object):
         self.timeout = config.safe_getint("connection", "timeout", 30)
         self.maxRetries = config.safe_getint("connection", "max-retries", 5)
         self.proxy = config.safe_get("connection", "http-proxy", None)
+        self.proxylist = config.safe_get("connection", "http-proxy-list", None)
         self.httpmethod = config.safe_get(
             "connection", "httpmethod", "get", ["get", "head", "post"]
         )
@@ -336,6 +352,8 @@ class ArgumentParser(object):
                               help='Resolve name to IP address')
         connection.add_option('--proxy', '--http-proxy', action='store', dest='httpProxy', type='string',
                               default=self.proxy, help='Http Proxy (example: localhost:8080')
+        connection.add_option('--proxylist', '--http-proxy-list', action='store', dest='proxyList', type='string',
+                              default=self.proxylist, help='Path to file containg http proxy servers.' )
         connection.add_option('--http-method', action='store', dest='httpmethod', type='string',
                               default=self.httpmethod, help='Method to use, default: GET, possible also: HEAD;POST')
         connection.add_option('--max-retries', action='store', dest='maxRetries', type='int',
