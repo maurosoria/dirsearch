@@ -5856,6 +5856,7 @@ TechnologySamples/Taglib
 TechnologySamples/Taglib/
 teknoportal/readme.txt
 teleadmin
+telescope
 telephone
 telphin.log
 teluguadmin
