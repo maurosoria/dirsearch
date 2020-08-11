@@ -65,8 +65,9 @@ class Fuzzer(object):
         if len(self.scanners) != 0:
             self.scanners = {}
 
-        self.defaultScanner = Scanner(self.requester, self.testFailPath, "")
-        self.scanners["/"] = Scanner(self.requester, self.testFailPath, "/")
+        self.defaultScanner = Scanner(self.requester, self.testFailPath)
+        self.scanners["/"] = Scanner(self.requester, self.testFailPath, suffix="/")
+        self.scanners["dotfiles"] = Scanner(self.requester, self.testFailPath, preffix=".")
 
         for extension in self.dictionary.extensions:
             self.scanners[extension] = Scanner(
@@ -85,6 +86,9 @@ class Fuzzer(object):
     def getScannerFor(self, path):
         if path.endswith("/"):
             return self.scanners["/"]
+        
+        if path.startswith('.'):
+            return self.scanners['dotfiles']
 
         for extension in list(self.scanners.keys()):
             if path.endswith(extension):

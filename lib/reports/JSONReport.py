@@ -21,7 +21,8 @@ import json
 from lib.reports import *
 
 
-class JSONReport(BaseReport):
+class JSONReport(FileBaseReport):
+
     def addPath(self, path, status, response):
         contentLength = None
 
@@ -31,7 +32,8 @@ class JSONReport(BaseReport):
         except (KeyError, ValueError):
             contentLength = len(response.body)
 
-        self.pathList.append((path, status, contentLength, response.redirect))
+        self.storeData((path, status, contentLength, response.redirect))
+
 
     def generate(self):
         headerName = "{0}://{1}:{2}/{3}".format(

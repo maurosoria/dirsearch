@@ -28,13 +28,14 @@ class ScannerException(Exception):
 
 
 class Scanner(object):
-    def __init__(self, requester, testPath=None, suffix=None):
+    def __init__(self, requester, testPath=None, suffix=None, preffix=None):
         if testPath == None or testPath == "":
             self.testPath = RandomUtils.randString()
         else:
             self.testPath = testPath
 
         self.suffix = suffix if suffix is not None else ""
+        self.preffix = preffix if preffix is not None else ""
         self.requester = requester
         self.tester = None
         self.redirectRegExp = None
@@ -45,7 +46,7 @@ class Scanner(object):
         self.setup()
 
     def setup(self):
-        firstPath = self.testPath + self.suffix
+        firstPath = self.preffix + self.testPath + self.suffix
         firstResponse = self.requester.request(firstPath)
         self.invalidStatus = firstResponse.status
 
@@ -54,7 +55,7 @@ class Scanner(object):
             return
 
         # look for redirects
-        secondPath = RandomUtils.randString(omit=self.testPath) + self.suffix
+        secondPath = self.preffix + RandomUtils.randString(omit=self.testPath) + self.suffix
         secondResponse = self.requester.request(secondPath)
 
         if (

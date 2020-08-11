@@ -190,14 +190,14 @@ class CLIOutput(object):
         config += "Extensions: {0}".format(Fore.CYAN + extensions + Fore.YELLOW)
         config += separator
 
-        config += "HTTP method: {0}".format(Fore.CYAN + method + Fore.YELLOW)
+        config += "HTTP method: {0}".format(Fore.CYAN + method.upper() + Fore.YELLOW)
+        config += separator
+
 
         if suffixes != '':
             config += 'Suffixes: {0}'.format(Fore.CYAN + suffixes + Fore.YELLOW)
             config += separator
-        config += 'HTTP method: {0}'.format(Fore.CYAN + method + Fore.YELLOW)
-
-        config += separator
+        
         config += "Threads: {0}".format(Fore.CYAN + threads + Fore.YELLOW)
         config += separator
         config += "Wordlist size: {0}".format(Fore.CYAN + wordlist_size + Fore.YELLOW)
