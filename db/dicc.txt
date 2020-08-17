@@ -1002,6 +1002,7 @@ _www
 .well-known/posh
 .well-known/reload-config
 .well-known/repute-template
+.well-known/security.txt
 .well-known/stun-key
 .well-known/time
 .well-known/timezone
