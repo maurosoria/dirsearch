@@ -287,6 +287,7 @@ class ArgumentParser(object):
         self.includeStatusCodes = config.safe_get("general", "include-status", None)
 
         self.excludeStatusCodes = config.safe_get("general", "exclude-status", None)
+        self.excludeTexts = config.safe_get("general", "exclude-texts", None)
         self.redirect = config.safe_getboolean("general", "follow-redirects", False)
         self.recursive = config.safe_getboolean("general", "recursive", False)
         self.recursive_level_max = config.safe_getint(
