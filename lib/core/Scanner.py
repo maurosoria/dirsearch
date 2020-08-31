@@ -42,7 +42,7 @@ class Scanner(object):
         self.invalidStatus = None
         self.dynamicParser = None
         self.ratio = 0.98
-        self.redirectStatusCodes = [301, 302, 307]
+        self.redirectStatusCodes = [301, 302, 303, 307, 308]
         self.setup()
 
     def setup(self):
