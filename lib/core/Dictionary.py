@@ -94,7 +94,7 @@ class Dictionary(object):
                     continue
 
                 # Classic dirsearch wordlist processing (with %EXT% keyword)
-                if '%EXT%' in line or '%ext%' in line:
+                if '%ext%' in line.lower():
                     for extension in self._extensions:
                         if self._noDotExtensions:
                             line = reextdot.sub(extension, line)
