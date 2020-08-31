@@ -120,7 +120,7 @@ class CLIOutput(object):
                 message = Fore.YELLOW + message + Style.RESET_ALL
 
             # Check if redirect
-            elif status in [301, 302, 307] and "location" in [
+            elif status in [301, 302, 303, 307, 308] and "location" in [
                 h.lower() for h in response.headers
             ]:
                 message = Fore.CYAN + message + Style.RESET_ALL
