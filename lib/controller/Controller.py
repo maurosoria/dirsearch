@@ -255,6 +255,8 @@ class Controller(object):
         return FileUtils.buildPath(basePath, dirPath)
 
     def getBlacklists(self):
+        reext = re.compile('\%ext\%', re.IGNORECASE)
+        reextdot = re.compile('\.\%ext\%', re.IGNORECASE)
         blacklists = {}
 
         for status in [400, 403, 500]:
@@ -273,8 +275,22 @@ class Controller(object):
                 # Skip comments
                 if line.lstrip().startswith("#"):
                     continue
+                    
+                # Classic dirsearch blacklist processing (with %EXT% keyword)
+                if "%ext%" in line.lower():
+                    for extension in self.arguments.extensions:
+                        if self.arguments.noDotExtensions:
+                            line = reextdot.sub(extension, line)
 
-                blacklists[status].append(line)
+                        line = reext.sub(extension, line)
+                        
+                        blacklists[status].append(line)
+                        
+                # Forced extensions is not used here because -r is only used for wordlist (in documentation),
+                # applying in blacklist may create false negatives
+                        
+                else:
+                    blacklists[status].append(line)
 
         return blacklists
 
