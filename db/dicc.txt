@@ -3068,6 +3068,7 @@ csv
 cubecart
 culeadora.txt
 current
+custom.%EXT%
 custom/db.ini
 customer
 customer_login/
@@ -3188,6 +3189,7 @@ debug/pprof/heap
 debug/pprof/goroutine?debug=1
 debug/pprof/trace
 default
+default.%EXT%
 default2.%EXT%
 DefaultWebApp
 delete.php
@@ -3381,6 +3383,7 @@ err
 err.log
 err.txt
 error
+error.%EXT%
 error_import
 error_log
 error_log.gz
@@ -4745,6 +4748,7 @@ package
 package.json
 padmin
 page
+page.%EXT%
 pages
 pages/admin/
 pages/admin/admin-login
@@ -5883,6 +5887,7 @@ templates/rhuk_milkyway/index.php
 templets
 terms
 test
+test.%EXT%
 test_
 test_ip.php
 test.asp
