@@ -241,7 +241,7 @@ class Requester(object):
             raise RequestException(
                 {
                     "message": "CONNECTION TIMEOUT: There was a problem in the request to: {0}".format(
-                        path
+                        url
                     )
                 }
             )
