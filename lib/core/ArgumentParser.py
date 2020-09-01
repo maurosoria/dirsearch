@@ -59,7 +59,7 @@ class ArgumentParser(object):
                 exit(0)
 
         else:
-            self.urlList = [options.url]
+            self.urlList = options.url.split(",")
 
 
         if not options.extensions and not options.defaultExtensions:
