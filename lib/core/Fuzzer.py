@@ -124,6 +124,24 @@ class Fuzzer(object):
         for thread in self.threads:
             if thread.is_alive():
                 self.pausedSemaphore.acquire()
+           
+    def handleBlocked(self):
+        print("429 Too Many Requests detected: Server is blocking incoming requests now!")
+        self.pause()
+        
+        while True:
+            option = input("[s]top / [c]ontinue: ")
+        
+            if option.lower() == "s":
+                self.stop()
+                return
+            
+            elif option.lower() == "c":
+                self.play()
+                return
+            
+            else:
+                continue
 
     def stop(self):
         self.running = False
@@ -132,8 +150,12 @@ class Fuzzer(object):
     def scan(self, path):
         response = self.requester.request(path)
         result = None
-        if self.getScannerFor(path).scan(path, response):
-            result = None if response.status == 404 else response.status
+        if self.getScannerFor(path).scan(path, response):         
+            if response.status != 404:
+                result = response.status
+                # Detect 429 HTTP response status code
+                if response.status == 429:
+                    self.handleBlocked()
         return result, response
 
     def isRunning(self):
