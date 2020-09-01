@@ -35,6 +35,7 @@ class Requester(object):
         "User-agent": "Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/28.0.1468.0 Safari/537.36",
         "Accept-Language": "en-us",
         "Accept-Encoding": "identity",
+        "Accept": "*/*",
         "Keep-Alive": "300",
         "Connection": "keep-alive",
         "Cache-Control": "max-age=0",
@@ -241,7 +242,7 @@ class Requester(object):
             raise RequestException(
                 {
                     "message": "CONNECTION TIMEOUT: There was a problem in the request to: {0}".format(
-                        path
+                        url
                     )
                 }
             )
