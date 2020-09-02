@@ -352,7 +352,7 @@ class ArgumentParser(object):
         connection.add_option('--ip', action='store', dest='ip', default=None,
                               help='Resolve name to IP address')
         connection.add_option('--proxy', '--http-proxy', action='store', dest='httpProxy', type='string',
-                              default=self.proxy, help='Http Proxy (example: localhost:8080')
+                              default=self.proxy, help='Http Proxy (example: localhost:8080)')
         connection.add_option('--proxylist', '--http-proxy-list', action='store', dest='proxyList', type='string',
                               default=self.proxylist, help='Path to file containg http proxy servers.' )
         connection.add_option('--http-method', action='store', dest='httpmethod', type='string',
@@ -374,7 +374,7 @@ class ArgumentParser(object):
                              action='store', dest='suffixes', default=None)
 
         dictionary.add_option('-f', '--force-extensions',
-                              help='Force extensions for every wordlist entry (like in DirBuster)',
+                              help='Force extensions for every wordlist entry',
                               action='store_true', dest='forceExtensions', default=self.forceExtensions)
         dictionary.add_option('--nd', '--no-dot-extensions',
                               help='Don\'t add a \'.\' character before extensions', action='store_true',
@@ -422,7 +422,7 @@ class ArgumentParser(object):
         general.add_option('-F', '--follow-redirects', action='store_true', dest='noFollowRedirects'
                            , default=self.redirect)
         general.add_option('-H', '--header',
-                           help='Headers to add (example: --header "Referer: example.com" --header "User-Agent: IE"',
+                           help='Headers to add (example: --header "Referer: example.com" --header "User-Agent: IE")',
                            action='append', type='string', dest='headers', default=None)
         general.add_option('--random-agents', '--random-user-agents', action="store_true", dest='useRandomAgents')
 
