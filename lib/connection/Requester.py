@@ -22,7 +22,6 @@ import socket
 import time
 import urllib.error
 import urllib.parse
-import urllib.parse
 import urllib.request
 
 import thirdparty.requests as requests
