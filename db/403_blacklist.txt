@@ -8,4 +8,9 @@
 .htpa55wd
 .htpasswd/
 .htpasswrd
-
+.htaccess-dev
+.htaccess-local
+.htaccess-marco
+.htaccess.BAK
+.htaccess.old
+.htaccess.txt
