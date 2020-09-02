@@ -61,7 +61,7 @@ class Dictionary(object):
 
     @classmethod
     def quote(cls, string):
-        return urllib.parse.quote(string, safe=":/~?%&+-=$")
+        return urllib.parse.quote(string, safe=":/~?%&+-=$!@^*()[]{}<>;'\"|\\,._")
 
     """
     Dictionary.generate() behaviour
