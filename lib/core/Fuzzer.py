@@ -21,6 +21,7 @@ import threading
 from lib.connection.RequestException import RequestException
 from .Path import *
 from .Scanner import *
+from lib.output import *
 
 
 class Fuzzer(object):
@@ -51,6 +52,8 @@ class Fuzzer(object):
         self.errorCallbacks = errorCallbacks
         self.matches = []
         self.errors = []
+        self.output = CLIOutput()
+        self.accept429 = False
 
     def wait(self, timeout=None):
         for thread in self.threads:
@@ -128,12 +131,35 @@ class Fuzzer(object):
     def stop(self):
         self.running = False
         self.play()
+        
+    def handleBlocked(self):
+        self.output.warning("429 Too Many Requests detected: Server is blocking incoming requests now!")
+        self.pause()
+
+        while True:
+            self.output.inLine("[s]top / [c]ontinue: ")
+            option = input()
+
+            if option.lower() == "s":
+                self.stop()
+                return
+
+            elif option.lower() == "c":
+                self.accept429 = True
+                self.play()
+                return
+
+            else:
+                continue
 
     def scan(self, path):
         response = self.requester.request(path)
         result = None
         if self.getScannerFor(path).scan(path, response):
-            result = None if response.status == 404 else response.status
+            if response.status == 429:
+                if self.accept429 == False: self.handleBlocked()
+            elif response.status != 404:
+                result = response.status
         return result, response
 
     def isRunning(self):
