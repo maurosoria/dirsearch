@@ -60,19 +60,19 @@ class Requester(object):
 
         # if no backslash, append one
         if not url.endswith("/"):
-            url = url + "/"
+            url += "/"
 
         parsed = urllib.parse.urlparse(url)
         self.basePath = parsed.path
 
         # if not protocol specified, set http by default
-        if parsed.scheme != "http" and parsed.scheme != "https":
+        if parsed.scheme not in ["https", "http"]:
             parsed = urllib.parse.urlparse("http://" + url)
             self.basePath = parsed.path
 
         self.protocol = parsed.scheme
 
-        if self.protocol != "http" and self.protocol != "https":
+        if self.protocol not in ["https", "http"]:
             self.protocol = "http"
 
         self.host = parsed.netloc.split(":")[0]
@@ -135,14 +135,10 @@ class Requester(object):
                 elif self.proxy is not None:
                     proxy = {"https": self.proxy, "http": self.proxy}
 
-                if self.requestByHostname:
-                    url = "{0}://{1}:{2}".format(self.protocol, self.host, self.port)
-
-                else:
-                    url = "{0}://{1}:{2}".format(self.protocol, self.ip, self.port)
+                url = "{0}://{1}:{2}".format(self.protocol, self.host if self.requestByHostname else self.ip, self.port)
 
                 if self.basePath.startswith("/"):
-                    self.basePath = self.basePath[len("/") :]
+                    self.basePath = self.basePath[1:]
 
                 url = "{}/{}".format(url, self.basePath)
 
@@ -168,35 +164,15 @@ class Requester(object):
                 ):
                     headers["Host"] += ":{0}".format(self.port)
 
-                if self.httpmethod == "get":
-                    response = self.session.get(
-                        url,
-                        proxies=proxy,
-                        verify=False,
-                        allow_redirects=self.redirect,
-                        headers=headers,
-                        timeout=self.timeout,
-                    )
-
-                if self.httpmethod == "head":
-                    response = self.session.head(
-                        url,
-                        proxies=proxy,
-                        verify=False,
-                        allow_redirects=self.redirect,
-                        headers=headers,
-                        timeout=self.timeout,
-                    )
-
-                if self.httpmethod == "post":
-                    response = self.session.post(
-                        url,
-                        proxies=proxy,
-                        verify=False,
-                        allow_redirects=self.redirect,
-                        headers=headers,
-                        timeout=self.timeout,
-                    )
+                response = self.session.request(
+                    self.httpmethod,
+                    url,
+                    proxies=proxy,
+                    verify=False,
+                    allow_redirects=self.redirect,
+                    headers=headers,
+                    timeout=self.timeout,
+                )
 
                 result = Response(
                     response.status_code,
