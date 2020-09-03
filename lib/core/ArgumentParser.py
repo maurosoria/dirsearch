@@ -325,7 +325,7 @@ class ArgumentParser(object):
         self.proxy = config.safe_get("connection", "http-proxy", None)
         self.proxylist = config.safe_get("connection", "http-proxy-list", None)
         self.httpmethod = config.safe_get(
-            "connection", "httpmethod", "get", ["get", "head", "post"]
+            "connection", "httpmethod", "get", ["get", "head", "post", "put", "delete", "trace", "options"]
         )
         self.requestByHostname = config.safe_get(
             "connection", "request-by-hostname", False
@@ -356,7 +356,7 @@ class ArgumentParser(object):
         connection.add_option('--proxylist', '--http-proxy-list', action='store', dest='proxyList', type='string',
                               default=self.proxylist, help='Path to file containg http proxy servers.' )
         connection.add_option('--http-method', action='store', dest='httpmethod', type='string',
-                              default=self.httpmethod, help='Method to use, default: GET, possible also: HEAD;POST')
+                              default=self.httpmethod, help='Method to use, default: GET')
         connection.add_option('--max-retries', action='store', dest='maxRetries', type='int',
                               default=self.maxRetries)
         connection.add_option('-b', '--request-by-hostname',
