@@ -29,7 +29,7 @@ class SimpleReport(TailableFileBaseReport):
             result += "{0}://{1}:{2}/".format(self.protocol, self.host, self.port)
             result += (
                 "{0}\n".format(path)
-                if self.basePath is ""
+                if self.basePath == ""
                 else "{0}/{1}\n".format(self.basePath, path)
             )
 
