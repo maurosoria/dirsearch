@@ -331,7 +331,7 @@ class Controller(object):
     def setupReports(self, requester):
         if self.arguments.autoSave:
 
-            basePath = "/" if requester.basePath is "" else requester.basePath
+            basePath = "/" if requester.basePath == "" else requester.basePath
             basePath = basePath.replace(os.path.sep, ".")[1:-1]
             fileName = None
             directoryPath = None
