@@ -2174,7 +2174,6 @@ adminsales
 adminscripts
 adminserver
 adminSettings.%EXT%
-adminsFUCKYOU.%EXT%
 adminshop
 adminshout
 adminsite
