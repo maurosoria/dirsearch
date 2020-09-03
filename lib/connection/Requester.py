@@ -164,7 +164,8 @@ class Requester(object):
                 ):
                     headers["Host"] += ":{0}".format(self.port)
 
-                response = eval("self.session.{}".format(self.httpmethod))(
+                response = self.session.request(
+                    self.httpmethod,
                     url,
                     proxies=proxy,
                     verify=False,
