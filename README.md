@@ -6,7 +6,7 @@ Current Release: v0.3.9 (2019.11.26)
 
 Overview
 --------
-dirsearch is a simple command line tool designed to brute force directories and files in websites.
+dirsearch is an advanced command line tool designed to brute force directories and files in webservers.
 
 
 Installation & Usage
@@ -41,6 +41,7 @@ Options:
 
   Dictionary Settings:
     -w WORDLIST, --wordlist=WORDLIST
+                        Customize wordlist (separated by comma)
     -l, --lowercase
     -f, --force-extensions
                         Force extensions for every wordlist entry (like in
@@ -111,16 +112,24 @@ Features
 - Multithreaded
 - Keep alive connections
 - Support for multiple extensions (-e|--extensions asp,php)
+- Support for every HTTP method
 - Reporting (plain text, JSON)
 - Heuristically detects invalid web pages
 - Recursive brute forcing
+- Subdirectories brute forcing
+- Force extensions
 - HTTP proxy support
+- HTTP cookies and headers support
 - User agent randomization
 - Batch processing
 - Request delaying
+- Option to force requests by hostname
+- Option to exclude responses by texts
+- Option to exclude responses by regexps (example: "Not foun[a-z]{1}")
 - Option to remove dot from extension when forcing (--nd, example%EXT% instead of example.%EXT%)
 - Options to display only items with response length from range (--min & --max)
 - Option to whitelist response codes (-i 200,500)
+- Option to blacklist response codes (-x 404,403)
 - Option to remove output from console (-q, keeps output to files)
 - Option to add custom suffixes to filenames without dots (--suff .BAK,.old, example.%EXT%%SUFFIX%)
 
@@ -144,6 +153,10 @@ How to use
 ---------------
 
 Some examples how to use dirsearch - those are the most common arguments. If you need all, just use the "-h" argument.
+```
+python3 dirsearch.py -e php,txt,zip -u https://target
+```
+
 ```
 python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt
 ```
@@ -209,7 +222,7 @@ docker run -it --rm "dirsearch:v0.3.8" -u target -e php,html,png,js,jpg
 
 License
 -------
-Copyright (C) Mauro Soria (maurosoria at gmail dot com)
+Copyright (C) Mauro Soria (maurosoria@gmail.com)
 
 License: GNU General Public License, version 2
 
@@ -230,3 +243,4 @@ Special thanks for these people.
 - r0p0s3c
 - V-Rico
 - russtone
+- shelld3v
