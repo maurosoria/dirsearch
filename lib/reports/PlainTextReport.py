@@ -49,7 +49,7 @@ class PlainTextReport(TailableFileBaseReport):
             result += "{0}://{1}:{2}/".format(self.protocol, self.host, self.port)
             result += (
                 "{0}".format(path)
-                if self.basePath is ""
+                if self.basePath == ""
                 else "{0}/{1}".format(self.basePath, path)
             )
             if location:
