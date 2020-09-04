@@ -112,7 +112,7 @@ class CLIOutput(object):
 
             if status == 200:
                 if "index of" in str(response.body).lower():
-                    message = Fore.GREEN + message + Style.RESET_ALL + " OpenDir"
+                    message = Fore.GREEN + message + Style.RESET_ALL + " Directory listing"
                 else:
                     message = Fore.GREEN + message + Style.RESET_ALL
 
