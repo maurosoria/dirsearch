@@ -55,8 +55,10 @@ class Requester(object):
         redirect=False,
         requestByHostname=False,
         httpmethod="get",
+        data=None,
     ):
         self.httpmethod = httpmethod
+        self.data = data
 
         # if no backslash, append one
         if not url.endswith("/"):
@@ -167,6 +169,7 @@ class Requester(object):
                 response = self.session.request(
                     self.httpmethod,
                     url,
+                    data=self.data,
                     proxies=proxy,
                     verify=False,
                     allow_redirects=self.redirect,
