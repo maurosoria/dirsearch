@@ -210,7 +210,7 @@ class Requester(object):
                 continue
 
             finally:
-                i = i + 1
+                i += 1
 
         if i > self.maxRetries:
             raise RequestException(
