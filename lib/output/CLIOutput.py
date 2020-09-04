@@ -21,7 +21,6 @@ import sys
 import threading
 import time
 
-import urllib.parse
 from posixpath import join as urljoin
 
 from lib.utils.FileUtils import *
