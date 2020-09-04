@@ -125,7 +125,6 @@ class PrintOutput(object):
         extensions,
         threads,
         wordlist_size,
-        request_count,
         method,
         recursive,
         recursion_level,
