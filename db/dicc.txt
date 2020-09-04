@@ -2760,6 +2760,8 @@ api-doc
 api-docs
 api.log
 api/
+api/v1
+api/v2
 api/error_log
 api/jsonws/invoke
 api/swagger.yml
@@ -4350,7 +4352,6 @@ index~1
 info
 info.%EXT%
 info.json
-info.php
 info.txt
 infos.php
 ini
@@ -5355,7 +5356,6 @@ phpadmin/
 phpadminmy/
 phperrors.log
 phpinfo
-phpinfo.%EXT%
 phpinfo.php
 phpinfo.php3
 phpinfo.php4
@@ -5587,7 +5587,6 @@ redmine/
 regadmin
 register
 register.%EXT%
-register.php
 registration
 registration/
 release
@@ -6079,6 +6078,7 @@ suspended.page
 svn
 svn.revision
 svn/
+swagger
 swagger-ui.html
 swf
 swfobject.js
