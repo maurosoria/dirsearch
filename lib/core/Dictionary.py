@@ -30,7 +30,7 @@ from thirdparty.oset import *
 class Dictionary(object):
 
 
-    def __init__(self, paths, extensions, suffixes=None, lowercase=False, forcedExtensions=False, noDotExtensions=False):
+    def __init__(self, paths, extensions, suffixes=None, lowercase=False, uppercase=False, forcedExtensions=False, noDotExtensions=False):
         self.entries = []
         self.currentIndex = 0
         self.condition = threading.Lock()
@@ -40,6 +40,7 @@ class Dictionary(object):
         self._forcedExtensions = forcedExtensions
         self._noDotExtensions = noDotExtensions
         self.lowercase = lowercase
+        self.uppercase = uppercase
         self.dictionaryFiles = [File(path) for path in self.paths]
         self.generate()
 
@@ -135,6 +136,9 @@ class Dictionary(object):
         # oset library provides inserted ordered and unique collection.
         if self.lowercase:
             self.entries = list(oset(map(lambda l: l.lower(), result)))
+            
+        elif self.uppercase:
+            self.entries = list(oset(map(lambda l: l.upper(), result)))
 
         else:
             self.entries = list(oset(result))
@@ -142,7 +146,7 @@ class Dictionary(object):
         del result
 
     def regenerate(self):
-        self.generate(lowercase=self.lowercase)
+        self.generate()
         self.reset()
 
     def nextWithIndex(self, basePath=None):
