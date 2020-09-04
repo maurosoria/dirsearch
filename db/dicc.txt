@@ -206,6 +206,7 @@
 .dsk
 .dub
 .dummy
+.dump
 .dynamodb/
 .eggs/
 .elixir_ls/
@@ -5803,7 +5804,7 @@ share/
 shared
 sharedadmin
 shell
-shell.php
+shell.%EXT%
 shell.sh
 shell/
 shellz.php
@@ -6595,7 +6596,6 @@ wp-includes
 wp-includes/
 wp-includes/rss-functions.php
 wp-login
-wp-login.%EXT%
 wp-login.php
 wp-login/
 wp-register
