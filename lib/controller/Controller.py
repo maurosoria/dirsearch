@@ -163,6 +163,7 @@ class Controller(object):
                             redirect=self.arguments.redirect,
                             requestByHostname=self.arguments.requestByHostname,
                             httpmethod=self.httpmethod,
+                            data=self.arguments.data,
                         )
                         self.requester.request("/")
 
