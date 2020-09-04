@@ -231,6 +231,7 @@ Contributors
 ---------
 Special thanks for these people.
 
+- shelld3v
 - mzfr
 - Damian89
 - Bo0oM
@@ -243,4 +244,3 @@ Special thanks for these people.
 - r0p0s3c
 - V-Rico
 - russtone
-- shelld3v
