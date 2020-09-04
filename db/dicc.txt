@@ -6210,6 +6210,7 @@ thumbs.db
 tiki-admin
 tiki-admin.%EXT%
 tiki/doc/stable.version
+tikiwiki
 tiny_mce
 tiny_mce/
 tiny_mce/plugins/filemanager/examples.html
