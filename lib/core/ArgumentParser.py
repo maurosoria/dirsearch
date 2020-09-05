@@ -382,7 +382,6 @@ class ArgumentParser(object):
 
         # Optional Settings
         general = OptionGroup(parser, 'General Settings')
-        general.add_option('--clean-view', '--clean-view', action='store_true', dest='clean_view')
         general.add_option('-s', '--delay', help='Delay between requests (float number)', action='store', dest='delay',
                            type='float', default=self.delay)
         general.add_option('-r', '--recursive', help='Bruteforce recursively', action='store_true', dest='recursive',
@@ -424,6 +423,7 @@ class ArgumentParser(object):
         general.add_option('-H', '--header',
                            help='Headers to add (example: --header "Referer: example.com" --header "User-Agent: IE")',
                            action='append', type='string', dest='headers', default=None)
+        general.add_option('--clean-view', '--clean-view', action='store_true', dest='clean_view')
         general.add_option('--random-agents', '--random-user-agents', action="store_true", dest='useRandomAgents')
 
         reports = OptionGroup(parser, 'Reports')
