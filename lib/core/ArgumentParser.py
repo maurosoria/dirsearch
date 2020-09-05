@@ -296,7 +296,7 @@ class ArgumentParser(object):
         self.suppressEmpty = config.safe_getboolean("general", "suppress-empty", False)
         self.testFailPath = config.safe_get("general", "scanner-fail-path", "").strip()
         self.saveHome = config.safe_getboolean("general", "save-logs-home", False)
-        self.defaultExtensions = config.safe_get("general", "default-extensions", "php,asp,aspx,jsp,html,json,js,yml,txt,zip")
+        self.defaultExtensions = config.safe_get("general", "default-extensions", "php,asp,aspx,jsp,html,json,js,yml,txt,zip,sql")
 
         # Reports
         self.quietMode = config.safe_get("reports", "quiet-mode", False)
