@@ -5846,7 +5846,9 @@ signin.rb
 signin.shtml
 signin/
 signin/oauth/
+signout
 signout.%EXT%
+signout/
 signup
 signup.%EXT%
 signup.action
