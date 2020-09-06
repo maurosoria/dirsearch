@@ -209,6 +209,7 @@ class ArgumentParser(object):
 
         self.suffixes = [] if not options.suffixes else list(oset([suffix.strip() for suffix in options.suffixes.split(',')]))
         self.wordlist = list(oset([wordlist.strip() for wordlist in options.wordlist.split(',')]))
+        self.excludeExtensions = list(oset([extension.strip() for extension in options.excludeExtensions.split(',')])) if options.excludeExtensions is not None else None
 
         self.lowercase = options.lowercase
         self.forceExtensions = options.forceExtensions
@@ -376,6 +377,9 @@ class ArgumentParser(object):
         dictionary.add_option('-f', '--force-extensions',
                               help='Force extensions for every wordlist entry',
                               action='store_true', dest='forceExtensions', default=self.forceExtensions)
+        dictionary.add_option('-X', '--exclude-extensions',
+                              help='Exclude extensions list, separated by comma (Example: asp,jsp)',
+                              action='store', dest='excludeExtensions', default=None)
         dictionary.add_option('--nd', '--no-dot-extensions',
                               help='Don\'t add a \'.\' character before extensions', action='store_true',
                               dest='noDotExtensions', default=self.noDotExtensions)
