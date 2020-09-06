@@ -120,7 +120,7 @@ class Controller(object):
 
         self.dictionary = Dictionary(self.arguments.wordlist, self.arguments.extensions, self.arguments.suffixes,
                                      self.arguments.lowercase, self.arguments.forceExtensions,
-                                     self.arguments.noDotExtensions)
+                                     self.arguments.noDotExtensions, self.arguments.excludeExtensions)
 
         self.printConfig()
         self.errorLog = None
