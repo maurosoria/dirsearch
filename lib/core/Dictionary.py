@@ -30,7 +30,7 @@ from thirdparty.oset import *
 class Dictionary(object):
 
 
-    def __init__(self, paths, extensions, suffixes=None, lowercase=False, forcedExtensions=False, noDotExtensions=False):
+    def __init__(self, paths, extensions, suffixes=None, lowercase=False, forcedExtensions=False, noDotExtensions=False, excludeExtensions=None):
         self.entries = []
         self.currentIndex = 0
         self.condition = threading.Lock()
@@ -39,6 +39,7 @@ class Dictionary(object):
         self._paths = paths
         self._forcedExtensions = forcedExtensions
         self._noDotExtensions = noDotExtensions
+        self.excludeExtensions = excludeExtensions
         self.lowercase = lowercase
         self.dictionaryFiles = [File(path) for path in self.paths]
         self.generate()
@@ -130,8 +131,16 @@ class Dictionary(object):
                 if not res.rstrip().endswith("/"):
                     for suff in self._suffixes:
                         result.append(res + suff)
-
-
+                        
+        # Removing excluded extensions
+        if self.excludeExtensions:
+            for res in list(result):
+                for extension in self.excludeExtensions:
+                    if res.endswith(".{0}".format(extension)):
+                        result.remove(res)
+                        break
+        
+        
         # oset library provides inserted ordered and unique collection.
         if self.lowercase:
             self.entries = list(oset(map(lambda l: l.lower(), result)))
