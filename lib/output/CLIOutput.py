@@ -179,7 +179,7 @@ class CLIOutput(object):
     def config(
         self,
         extensions,
-        suffixes.
+        suffixes,
         threads,
         wordlist_size,
         method,
