@@ -213,6 +213,7 @@ class ArgumentParser(object):
         self.lowercase = options.lowercase
         self.uppercase = options.uppercase
         self.forceExtensions = options.forceExtensions
+        self.data = options.data
         self.noDotExtensions = options.noDotExtensions
         self.simpleOutputFile = options.simpleOutputFile
         self.plainTextOutputFile = options.plainTextOutputFile
@@ -385,13 +386,15 @@ class ArgumentParser(object):
 
         # Optional Settings
         general = OptionGroup(parser, 'General Settings')
+        general.add_option('-d', '--data', help='HTTP request data (POST, PUT, ... body)', action='store', dest='data',
+                           type='str', default=None)
         general.add_option('--clean-view', '--clean-view', action='store_true', dest='clean_view')
         general.add_option('-s', '--delay', help='Delay between requests (float number)', action='store', dest='delay',
                            type='float', default=self.delay)
         general.add_option('-r', '--recursive', help='Bruteforce recursively', action='store_true', dest='recursive',
                            default=self.recursive)
         general.add_option('-R', '--recursive-level-max',
-                           help='Max recursion level (subdirs) (Default: 1 [only rootdir + 1 dir])', action='store', type="int",
+                           help='Max recursion level (subdirs) (Default: 1 [only rootdir + 1 dir])', action='store', type='int',
                            dest='recursive_level_max',
                            default=self.recursive_level_max)
 
