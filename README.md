@@ -43,11 +43,16 @@ Options:
     -w WORDLIST, --wordlist=WORDLIST
                         Customize wordlist (separated by comma)
     -l, --lowercase
+    --suff=SUFFIXES, --suffixes=SUFFIXES
+                        Add custom suffixes to all files, ignores directories
+                        (example.%EXT%%SUFFIX%)
     -f, --force-extensions
-                        Force extensions for every wordlist entry (like in
-                        DirBuster)
+                        Force extensions for every wordlist entry
+    --nd, --no-dot-extensions
+                        Don't add a '.' character before extensions
 
   General Settings:
+    --clean-view, --clean-view
     -s DELAY, --delay=DELAY
                         Delay between requests (float number)
     -r, --recursive     Bruteforce recursively
@@ -55,6 +60,10 @@ Options:
                         Max recursion level (subdirs) (Default: 1 [only
                         rootdir + 1 dir])
     --suppress-empty, --suppress-empty
+    --min=MINIMUMRESPONSESIZE
+                        Minimal response length
+    --max=MAXIMUMRESPONSESIZE
+                        Maximal response length
     --scan-subdir=SCANSUBDIRS, --scan-subdirs=SCANSUBDIRS
                         Scan subdirectories of the given -u|--url (separated
                         by comma)
@@ -63,6 +72,9 @@ Options:
                         scan (separated by comma)
     -t THREADSCOUNT, --threads=THREADSCOUNT
                         Number of Threads
+    -i INCLUDESTATUSCODES, --include-status=INCLUDESTATUSCODES
+                        Show only included status codes, separated by comma
+                        (example: 301, 500)
     -x EXCLUDESTATUSCODES, --exclude-status=EXCLUDESTATUSCODES
                         Exclude status code, separated by comma (example: 301,
                         500)
@@ -77,16 +89,18 @@ Options:
     -F, --follow-redirects
     -H HEADERS, --header=HEADERS
                         Headers to add (example: --header "Referer:
-                        example.com" --header "User-Agent: IE"
+                        example.com" --header "User-Agent: IE")
     --random-agents, --random-user-agents
 
   Connection Settings:
     --timeout=TIMEOUT   Connection timeout
     --ip=IP             Resolve name to IP address
     --proxy=HTTPPROXY, --http-proxy=HTTPPROXY
-                        Http Proxy (example: localhost:8080
+                        Http Proxy (example: localhost:8080)
+    --proxylist=PROXYLIST, --http-proxy-list=PROXYLIST
+                        Path to file containg http proxy servers.
     --http-method=HTTPMETHOD
-                        Method to use, default: GET, possible also: HEAD;POST
+                        Method to use, default: GET
     --max-retries=MAXRETRIES
     -b, --request-by-hostname
                         By default dirsearch will request by IP for speed.
@@ -98,6 +112,7 @@ Options:
     --plain-text-report=PLAINTEXTOUTPUTFILE
                         Found paths with status codes
     --json-report=JSONOUTPUTFILE
+    -q, --quiet-mode    Disable output to console (only to reports)
 ```
 
 
@@ -123,6 +138,7 @@ Features
 - User agent randomization
 - Batch processing
 - Request delaying
+- Quiet mode
 - Option to force requests by hostname
 - Option to exclude responses by texts
 - Option to exclude responses by regexps (example: "Not foun[a-z]{1}")
