@@ -283,7 +283,7 @@ class ArgumentParser(object):
         # General
 
         self.threadsCount = config.safe_getint(
-            "general", "threads", 10, list(range(1, 200))
+            "general", "threads", 12, list(range(1, 200))
         )
 
         self.includeStatusCodes = config.safe_get("general", "include-status", None)
