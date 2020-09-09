@@ -120,9 +120,8 @@ class PrintOutput(object):
 
     def config(
         self,
-        
-        suffixes,
         extensions,
+        suffixes,
         threads,
         wordlist_size,
         request_count,
