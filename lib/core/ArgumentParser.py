@@ -296,7 +296,7 @@ class ArgumentParser(object):
         self.suppressEmpty = config.safe_getboolean("general", "suppress-empty", False)
         self.testFailPath = config.safe_get("general", "scanner-fail-path", "").strip()
         self.saveHome = config.safe_getboolean("general", "save-logs-home", False)
-        self.defaultExtensions = config.safe_get("general", "default-extensions", "php,asp,aspx,jsp,js,do,action,html,js,json,yml,yaml,xml,cfg,bak,txt,md,sql,zip,tar.gz,tgz")
+        self.defaultExtensions = config.safe_get("general", "default-extensions", "php,asp,aspx,jsp,html,htm,js,yml,txt,zip,sql")
 
         # Reports
         self.quietMode = config.safe_get("reports", "quiet-mode", False)
@@ -320,7 +320,7 @@ class ArgumentParser(object):
         )
         self.useragent = config.safe_get("connection", "user-agent", None)
         self.delay = config.safe_get("connection", "delay", 0)
-        self.timeout = config.safe_getint("connection", "timeout", 30)
+        self.timeout = config.safe_getint("connection", "timeout", 20)
         self.maxRetries = config.safe_getint("connection", "max-retries", 5)
         self.proxy = config.safe_get("connection", "http-proxy", None)
         self.proxylist = config.safe_get("connection", "http-proxy-list", None)
