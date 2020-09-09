@@ -30,7 +30,7 @@ from thirdparty.oset import *
 class Dictionary(object):
 
 
-    def __init__(self, paths, extensions, suffixes=None, lowercase=False, forcedExtensions=False, noDotExtensions=False, excludeExtensions=None):
+    def __init__(self, paths, extensions, suffixes=None, lowercase=False, forcedExtensions=False, noDotExtensions=False, excludeExtensions=[]):
         self.entries = []
         self.currentIndex = 0
         self.condition = threading.Lock()
@@ -133,7 +133,7 @@ class Dictionary(object):
                         result.append(res + suff)
                         
         # Removing excluded extensions
-        if self.excludeExtensions:
+        if len(self.excludeExtensions) > 0:
             for res in list(result):
                 for extension in self.excludeExtensions:
                     if res.endswith(".{0}".format(extension)):
