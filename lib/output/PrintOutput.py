@@ -87,11 +87,14 @@ class PrintOutput(object):
             if status == 200:
                 message = Fore.GREEN + message + Style.RESET_ALL
 
-            elif status == 403:
-                message = Fore.BLUE + message + Style.RESET_ALL
-
             elif status == 401:
                 message = Fore.YELLOW + message + Style.RESET_ALL
+                
+            elif status == 403:
+                message = Fore.BLUE + message + Style.RESET_ALL
+                
+            elif status == 500:
+                message = Fore.RED + message + Style.RESET_ALL
 
             # Check if redirect
             elif status in [301, 302, 307] and "location" in [
