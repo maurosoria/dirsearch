@@ -211,6 +211,7 @@ class ArgumentParser(object):
         self.wordlist = list(oset([wordlist.strip() for wordlist in options.wordlist.split(',')]))
 
         self.lowercase = options.lowercase
+        self.uppercase = options.uppercase
         self.forceExtensions = options.forceExtensions
         self.noDotExtensions = options.noDotExtensions
         self.simpleOutputFile = options.simpleOutputFile
@@ -311,6 +312,7 @@ class ArgumentParser(object):
             FileUtils.buildPath(self.script_path, "db", "dicc.txt"),
         )
         self.lowercase = config.safe_getboolean("dictionary", "lowercase", False)
+        self.uppercase = config.safe_getboolean("dictionary", "uppercase", False)
         self.forceExtensions = config.safe_get("dictionary", "force-extensions", False)
         self.noDotExtensions = config.safe_get("dictionary", "no-dot-extensions", False)
 
@@ -369,6 +371,7 @@ class ArgumentParser(object):
                               help='Customize wordlist (separated by comma)',
                               default=self.wordlist)
         dictionary.add_option('-l', '--lowercase', action='store_true', dest='lowercase', default=self.lowercase)
+        dictionary.add_option('-U', '--uppercase', action='store_true', dest='uppercase', default=self.uppercase)
         dictionary.add_option('--suff', '--suffixes',
                              help='Add custom suffixes to all files, ignores directories (example.%EXT%%SUFFIX%)',
                              action='store', dest='suffixes', default=None)
