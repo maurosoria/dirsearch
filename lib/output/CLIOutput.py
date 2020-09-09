@@ -179,7 +179,6 @@ class CLIOutput(object):
         suffixes.
         threads,
         wordlist_size,
-        request_count,
         method,
         recursive,
         recursion_level,
@@ -202,15 +201,6 @@ class CLIOutput(object):
         config += separator
         config += "Wordlist size: {0}".format(Fore.CYAN + wordlist_size + Fore.YELLOW)
         config += separator
-
-        if recursive == False:
-            config += "Request count: {0}".format(
-                Fore.CYAN + request_count + Fore.YELLOW
-            )
-        else:
-            config += "Request count: {0} (+recursive)".format(
-                Fore.CYAN + request_count + Fore.YELLOW
-            )
 
         if recursive == True:
             config += separator

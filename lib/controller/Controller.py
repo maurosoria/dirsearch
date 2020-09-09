@@ -226,17 +226,11 @@ class Controller(object):
 
     def printConfig(self):
 
-        requestCount = len(self.dictionary)
-
-        if self.arguments.scanSubdirs is not None:
-            requestCount = requestCount * len(self.arguments.scanSubdirs)
-
         self.output.config(
             ', '.join(self.arguments.extensions),
             ', '.join(self.arguments.suffixes),
             str(self.arguments.threadsCount),
             str(len(self.dictionary)),
-            str(requestCount),
             str(self.httpmethod),
             self.recursive,
             str(self.recursive_level_max),
