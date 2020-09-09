@@ -151,6 +151,27 @@ class ArgumentParser(object):
         else:
             self.includeStatusCodes = []
 
+        if options.excludeExtensions is not None:
+
+            try:
+                self.excludeExtensions = list(
+                    oset(
+                        [
+                            int(excludeExtensions.strip())
+                            if excludeExtensions
+                            else None
+                            for excludeExtension in options.excludeExtensions.split(
+                                ","
+                            )
+                        ]
+                    )
+                )
+            except ValueError:
+                self.excludeExtensions = []
+
+        else:
+            self.excludeExtensions = []
+
         if options.excludeStatusCodes is not None:
 
             try:
@@ -347,6 +368,9 @@ class ArgumentParser(object):
                              action='store', dest='extensions', default=None)
         mandatory.add_option('-E', '--extensions-list', help='Use predefined list of common extensions',
                              action='store_true', dest='defaultExtensions', default=False)
+        mandatory.add_option('-X', '--exclude-extensions',
+                              help='Exclude extensions list, separated by comma (Example: asp,jsp)',
+                              action='store', dest='excludeExtensions', default=None)
 
         connection = OptionGroup(parser, 'Connection Settings')
         connection.add_option('--timeout', action='store', dest='timeout', type='int',
