@@ -141,7 +141,7 @@ class Controller(object):
             )
 
         try:
-            for url in list(set(self.arguments.urlList)):
+            for url in list(dict.fromkeys(self.arguments.urlList)):
                 try:
                     gc.collect()
                     self.reportManager = ReportManager()
