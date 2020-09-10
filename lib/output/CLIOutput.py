@@ -203,7 +203,6 @@ class CLIOutput(object):
         config += "Threads: {0}".format(Fore.CYAN + threads + Fore.YELLOW)
         config += separator
         config += "Wordlist size: {0}".format(Fore.CYAN + wordlist_size + Fore.YELLOW)
-        config += separator
 
         if recursive == True:
             config += separator
