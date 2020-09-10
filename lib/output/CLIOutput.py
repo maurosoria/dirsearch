@@ -108,7 +108,8 @@ class CLIOutput(object):
                 showPath = urljoin(showPath, path)
                 
             message = "[{0}] {1} - {2} - {3}{4}".format(
-                time.strftime("%H:%M:%S"), status, 
+                time.strftime("%H:%M:%S"), 
+                status, 
                 contentLength.rjust(6, " "), 
                 requester.protocol + '://' + requester.host + ':' + str(requester.port) if requester is not None else "",
                 showPath,
