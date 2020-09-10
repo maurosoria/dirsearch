@@ -157,14 +157,10 @@ class CLIOutput(object):
 
     def error(self, reason):
         with self.mutex:
-            stripped = reason.strip()
-            start = reason.find(stripped[0])
-            end = reason.find(stripped[-1]) + 1
-            message = reason[0:start]
+            message = ""
             message += Style.BRIGHT + Fore.WHITE + Back.RED
-            message += reason[start:end]
+            message += reason
             message += Style.RESET_ALL
-            message += reason[end:]
             self.newLine(message)
 
     def warning(self, reason):
