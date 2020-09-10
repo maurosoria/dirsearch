@@ -45,11 +45,11 @@ class ArgumentParser(object):
                         exit(0)
 
                     if not urlList.isValid():
-                        print("The wordlist is invalid")
+                        print("The file with URLs is invalid")
                         exit(0)
 
                     if not urlList.canRead():
-                        print("The wordlist cannot be read")
+                        print("The file with URLs cannot be read")
                         exit(0)
 
                     self.urlList = list(urlList.getLines())
