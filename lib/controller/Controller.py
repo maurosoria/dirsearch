@@ -442,7 +442,7 @@ class Controller(object):
                         del path
                         return
 
-                self.output.statusReport(path.path, path.response, self.requester if self.arguments.full_url else None)
+                self.output.statusReport(path.path, path.response, self.arguments.full_url)
 
                 pathIsInScanSubdirs = False
 
