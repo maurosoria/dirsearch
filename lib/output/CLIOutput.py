@@ -21,7 +21,7 @@ import sys
 import threading
 import time
 
-import urllib.parse
+from posixpath import join as urljoin
 
 from lib.utils.FileUtils import *
 from lib.utils.TerminalSize import get_terminal_size
@@ -101,11 +101,11 @@ class CLIOutput(object):
                 contentLength = FileUtils.sizeHuman(size)
 
             if self.basePath is None:
-                showPath = urllib.parse.urljoin("/", path)
+                showPath = urljoin("/", path)
 
             else:
-                showPath = urllib.parse.urljoin("/", self.basePath)
-                showPath = urllib.parse.urljoin(showPath, path)
+                showPath = urljoin("/", self.basePath)
+                showPath = urljoin(showPath, path)
             message = "[{0}] {1} - {2} - {3}".format(
                 time.strftime("%H:%M:%S"), status, contentLength.rjust(6, " "), showPath
             )
