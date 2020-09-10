@@ -81,7 +81,7 @@ class CLIOutput(object):
         self.lastInLine = False
         sys.stdout.flush()
 
-    def statusReport(self, path, response, requester):
+    def statusReport(self, path, response, full_url):
         with self.mutex:
             contentLength = None
             status = response.status
@@ -106,12 +106,13 @@ class CLIOutput(object):
             else:
                 showPath = urljoin("/", self.basePath)
                 showPath = urljoin(showPath, path)
+                if full_url:
+                    showPath = self.target[:-1] if self.target.endswith("/") else self.target + showPath
                 
-            message = "[{0}] {1} - {2} - {3}{4}".format(
+            message = "[{0}] {1} - {2} - {3}".format(
                 time.strftime("%H:%M:%S"), 
                 status, 
                 contentLength.rjust(6, " "), 
-                requester.protocol + '://' + requester.host + ':' + str(requester.port) if requester is not None else "",
                 showPath,
             )
 
@@ -220,6 +221,8 @@ class CLIOutput(object):
         self.newLine(config)
 
     def target(self, target):
+        self.target = target
+
         config = Style.BRIGHT + Fore.YELLOW
         config += "\nTarget: {0}\n".format(Fore.CYAN + target + Fore.YELLOW)
         config += Style.RESET_ALL
