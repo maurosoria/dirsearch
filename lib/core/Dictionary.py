@@ -98,11 +98,11 @@ class Dictionary(object):
                 if '%ext%' in line.lower():
                     for extension in self._extensions:
                         if self._noDotExtensions:
-                            line = reextdot.sub(extension, line)
+                            entry = reextdot.sub(extension, line)
 
-                        line = reext.sub(extension, line)
+                        entry = reext.sub(extension, line)
 
-                        quote = self.quote(line)
+                        quote = self.quote(entry)
                         result.append(quote)
 
                 # If forced extensions is used and the path is not a directory ... (terminated by /)
