@@ -34,9 +34,9 @@ class ArgumentParser(object):
         self.clean_view = options.clean_view
             
         
-        if options.url == None:
+        if not options.url:
 
-            if options.urlList != None:
+            if options.urlList:
 
                 with File(options.urlList) as urlList:
 
@@ -54,7 +54,7 @@ class ArgumentParser(object):
 
                     self.urlList = list(urlList.getLines())
 
-            elif options.url == None:
+            elif not options.url:
                 print("URL target is missing, try using -u <url> ")
                 exit(0)
 
@@ -84,7 +84,7 @@ class ArgumentParser(object):
                     print('The wordlist cannot be read')
                     exit(1)
 
-        if options.proxyList is not None:
+        if options.proxyList:
             with File(options.proxyList) as plist:
                 if not plist.exists():
                     print('The proxylist file does not exist')
@@ -101,7 +101,7 @@ class ArgumentParser(object):
             self.proxylist = open(options.proxyList).read().splitlines()
 
 
-        elif options.httpProxy is not None:
+        elif options.httpProxy:
             if options.httpProxy.startswith("http://"):
                 self.proxy = options.httpProxy
             else:
@@ -110,7 +110,7 @@ class ArgumentParser(object):
         else:
             self.proxy = None
 
-        if options.headers is not None:
+        if options.headers:
             try:
                 self.headers = dict(
                     (key.strip(), value.strip())
@@ -139,7 +139,7 @@ class ArgumentParser(object):
 
         self.threadsCount = options.threadsCount
 
-        if options.includeStatusCodes is not None:
+        if options.includeStatusCodes:
 
             try:
                 self.includeStatusCodes = list(
@@ -151,7 +151,7 @@ class ArgumentParser(object):
         else:
             self.includeStatusCodes = []
 
-        if options.excludeStatusCodes is not None:
+        if options.excludeStatusCodes:
 
             try:
                 self.excludeStatusCodes = list(
@@ -172,7 +172,7 @@ class ArgumentParser(object):
         else:
             self.excludeStatusCodes = []
 
-        if options.excludeTexts is not None:
+        if options.excludeTexts:
             try:
                 self.excludeTexts = list(
 
@@ -190,7 +190,7 @@ class ArgumentParser(object):
             self.excludeTexts = []
 
 
-        if options.excludeRegexps is not None:
+        if options.excludeRegexps:
             try:
                 self.excludeRegexps = list(
                     oset(
@@ -229,7 +229,7 @@ class ArgumentParser(object):
         self.maximumResponseSize = options.maximumResponseSize
 
 
-        if options.scanSubdirs is not None:
+        if options.scanSubdirs:
             self.scanSubdirs = list(
                 oset([subdir.strip() for subdir in options.scanSubdirs.split(",")])
             )
@@ -247,12 +247,12 @@ class ArgumentParser(object):
         else:
             self.scanSubdirs = None
 
-        if not self.recursive and options.excludeSubdirs is not None:
+        if not self.recursive and options.excludeSubdirs:
             print("--exclude-subdir argument can only be used with -r|--recursive")
             exit(0)
 
 
-        elif options.excludeSubdirs is not None:
+        elif options.excludeSubdirs:
             self.excludeSubdirs = list(
                 oset([subdir.strip() for subdir in options.excludeSubdirs.split(",")])
             )
