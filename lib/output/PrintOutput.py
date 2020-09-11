@@ -16,7 +16,6 @@
 #
 #  Author: Mauro Soria
 
-import platform
 import sys
 import threading
 import time
@@ -27,7 +26,7 @@ from lib.utils.FileUtils import *
 from lib.utils.TerminalSize import get_terminal_size
 from thirdparty.colorama import *
 
-if platform.system() == "Windows":
+if sys.platform in ["win32", "cygwin", "msys"]:
     from thirdparty.colorama.win32 import *
 
 
