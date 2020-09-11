@@ -87,7 +87,7 @@ class Dictionary(object):
 
         # Enable to use multiple dictionaries at once
         for dictFile in self.dictionaryFiles:
-            for line in dictFile.getLines():
+            for line in list(dict.fromkeys(dictFile.getLines())):
 
                 # Skip comments
                 if line.lstrip().startswith("#"):
@@ -130,7 +130,6 @@ class Dictionary(object):
                 if not res.rstrip().endswith("/"):
                     for suff in self._suffixes:
                         result.append(res + suff)
-
 
 
         if self.lowercase:
