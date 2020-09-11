@@ -114,7 +114,7 @@ class Controller(object):
         self.maximumResponseSize = self.arguments.maximumResponseSize
         self.directories = Queue()
         self.excludeSubdirs = (
-            arguments.excludeSubdirs if arguments.excludeSubdirs is not None else []
+            arguments.excludeSubdirs if arguments.excludeSubdirs else []
         )
         self.output.header(program_banner)
 
@@ -180,7 +180,7 @@ class Controller(object):
                     # Initialize directories Queue with start Path
                     self.basePath = self.requester.basePath
 
-                    if self.arguments.scanSubdirs is not None:
+                    if self.arguments.scanSubdirs:
                         for subdir in self.arguments.scanSubdirs:
                             self.directories.put(subdir)
 
@@ -400,15 +400,15 @@ class Controller(object):
                 sys.exit(1)
         
         # TODO: format, refactor code 
-        if self.arguments.simpleOutputFile is not None:
+        if self.arguments.simpleOutputFile:
             self.reportManager.addOutput(SimpleReport(requester.host, requester.port, requester.protocol,
                                                       requester.basePath, self.arguments.simpleOutputFile, self.batch))
 
-        if self.arguments.plainTextOutputFile is not None:
+        if self.arguments.plainTextOutputFile:
             self.reportManager.addOutput(PlainTextReport(requester.host, requester.port, requester.protocol,
                                                          requester.basePath, self.arguments.plainTextOutputFile, self.batch))
 
-        if self.arguments.jsonOutputFile is not None:
+        if self.arguments.jsonOutputFile:
             self.reportManager.addOutput(JSONReport(requester.host, requester.port, requester.protocol,
                                                     requester.basePath, self.arguments.jsonOutputFile, self.batch))
 
@@ -417,7 +417,7 @@ class Controller(object):
     def matchCallback(self, path):
         self.index += 1
 
-        if path.status is not None:
+        if path.status:
 
             if path.status not in self.excludeStatusCodes and (
                     not self.includeStatusCodes or path.status in self.includeStatusCodes) and (
@@ -437,7 +437,6 @@ class Controller(object):
 
                     if (
                         re.search(excludeRegexp, path.response.body.decode())
-                        is not None
                     ):
                         del path
                         return
@@ -446,12 +445,12 @@ class Controller(object):
 
                 pathIsInScanSubdirs = False
 
-                if self.arguments.scanSubdirs is not None:
+                if self.arguments.scanSubdirs:
                     for subdir in self.arguments.scanSubdirs:
                         if subdir == path.path + "/":
                             pathIsInScanSubdirs = True
 
-                if pathIsInScanSubdirs == False:
+                if not pathIsInScanSubdirs:
                     if path.response.redirect:
                         self.addRedirectDirectory(path)
                     else:
