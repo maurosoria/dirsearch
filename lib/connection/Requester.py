@@ -79,7 +79,7 @@ class Requester(object):
         self.host = parsed.netloc.split(":")[0]
 
         # resolve DNS to decrease overhead
-        if ip is not None:
+        if ip:
             self.ip = ip
         else:
             try:
@@ -96,10 +96,10 @@ class Requester(object):
             self.port = 443 if self.protocol == "https" else 80
 
         # Set cookie and user-agent headers
-        if cookie is not None:
+        if cookie:
             self.setHeader("Cookie", cookie)
 
-        if useragent is not None:
+        if useragent:
             self.setHeader("User-agent", useragent)
 
         self.maxRetries = maxRetries
@@ -131,9 +131,9 @@ class Requester(object):
         while i <= self.maxRetries:
 
             try:
-                if self.proxylist is not None:
+                if self.proxylist:
                     proxy = {"https": random.choice(self.proxylist), "http": random.choice(self.proxylist)}
-                elif self.proxy is not None:
+                elif self.proxy:
                     proxy = {"https": self.proxy, "http": self.proxy}
 
                 url = "{0}://{1}:{2}".format(self.protocol, self.host if self.requestByHostname else self.ip, self.port)
@@ -154,7 +154,7 @@ class Requester(object):
                 url += path
 
                 headers = dict(self.headers)
-                if self.randomAgents is not None:
+                if self.randomAgents:
                     headers["User-agent"] = random.choice(self.randomAgents)
 
                 headers["Host"] = self.host
@@ -197,7 +197,7 @@ class Requester(object):
                 )
 
             except requests.exceptions.ConnectionError as e:
-                if self.proxy is not None:
+                if self.proxy:
                     raise RequestException(
                         {"message": "Error with the proxy: {0}".format(e)}
                     )
