@@ -29,7 +29,7 @@ class ScannerException(Exception):
 
 class Scanner(object):
     def __init__(self, requester, testPath=None, suffix=None, preffix=None):
-        if testPath == None or testPath == "":
+        if not testPath or testPath == "":
             self.testPath = RandomUtils.randString()
         else:
             self.testPath = testPath
@@ -84,7 +84,7 @@ class Scanner(object):
             self.ratio = baseRatio
 
     def generateRedirectRegExp(self, firstLocation, secondLocation):
-        if firstLocation is None or secondLocation is None:
+        if not firstLocation or not secondLocation:
             return None
 
         sm = SequenceMatcher(None, firstLocation, secondLocation)
@@ -113,9 +113,9 @@ class Scanner(object):
 
         redirectToInvalid = False
 
-        if self.redirectRegExp is not None and response.redirect is not None:
+        if self.redirectRegExp and response.redirect:
             redirectToInvalid = (
-                re.match(self.redirectRegExp, response.redirect) is not None
+                re.match(self.redirectRegExp, response.redirect)
             )
             # If redirection doesn't match the rule, mark as found
 
