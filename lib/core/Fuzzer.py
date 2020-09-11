@@ -56,7 +56,7 @@ class Fuzzer(object):
         for thread in self.threads:
             thread.join(timeout)
 
-            if timeout is not None and thread.is_alive():
+            if timeout and thread.is_alive():
                 return False
 
         return True
@@ -153,12 +153,12 @@ class Fuzzer(object):
         self.playEvent.wait()
         try:
             path = next(self.dictionary)
-            while path is not None:
+            while path:
                 try:
                     status, response = self.scan(path)
                     result = Path(path=path, status=status, response=response)
 
-                    if status is not None:
+                    if status:
                         self.matches.append(result)
                         for callback in self.matchCallbacks:
                             callback(result)
