@@ -100,7 +100,10 @@ class Dictionary(object):
                         if self._noDotExtensions:
                             entry = reextdot.sub(extension, line)
 
-                        entry = reext.sub(extension, line)
+                        else:
+                            entry = line
+                            
+                        entry = reext.sub(extension, entry)
 
                         quote = self.quote(entry)
                         result.append(quote)
