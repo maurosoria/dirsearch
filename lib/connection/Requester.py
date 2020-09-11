@@ -20,9 +20,7 @@ import http.client
 import random
 import socket
 import time
-import urllib.error
 import urllib.parse
-import urllib.request
 
 import thirdparty.requests as requests
 from .RequestException import *
