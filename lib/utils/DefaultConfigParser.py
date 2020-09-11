@@ -26,7 +26,7 @@ class DefaultConfigParser(configparser.ConfigParser):
     def safe_get(self, section, option, default, allowed=None):
         try:
             result = configparser.ConfigParser.get(self, section, option)
-            if allowed is not None:
+            if allowed:
                 return result if result in allowed else default
             else:
                 return result
@@ -36,7 +36,7 @@ class DefaultConfigParser(configparser.ConfigParser):
     def safe_getfloat(self, section, option, default, allowed=None):
         try:
             result = configparser.ConfigParser.getfloat(self, section, option)
-            if allowed is not None:
+            if allowed:
                 return result if result in allowed else default
             else:
                 return result
@@ -46,7 +46,7 @@ class DefaultConfigParser(configparser.ConfigParser):
     def safe_getboolean(self, section, option, default, allowed=None):
         try:
             result = configparser.ConfigParser.getboolean(self, section, option)
-            if allowed is not None:
+            if allowed:
                 return result if result in allowed else default
             else:
                 return result
@@ -56,7 +56,7 @@ class DefaultConfigParser(configparser.ConfigParser):
     def safe_getint(self, section, option, default, allowed=None):
         try:
             result = configparser.ConfigParser.getint(self, section, option)
-            if allowed is not None:
+            if allowed:
                 return result if result in allowed else default
             else:
                 return result
