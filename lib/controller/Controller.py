@@ -215,6 +215,7 @@ class Controller(object):
 
         except KeyboardInterrupt:
             self.output.error("\nCanceled by the user")
+            gc.collect()
             exit(0)
 
         finally:
@@ -224,6 +225,7 @@ class Controller(object):
             self.reportManager.close()
 
         self.output.warning("\nTask Completed")
+        gc.collect()
 
     def printConfig(self):
 
