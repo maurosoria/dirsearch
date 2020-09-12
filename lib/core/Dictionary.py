@@ -24,7 +24,6 @@ import urllib.parse
 import urllib.request
 
 from lib.utils.FileUtils import File
-from thirdparty.oset import *
 
 
 class Dictionary(object):
@@ -88,7 +87,7 @@ class Dictionary(object):
 
         # Enable to use multiple dictionaries at once
         for dictFile in self.dictionaryFiles:
-            for line in dictFile.getLines():
+            for line in list(dict.fromkeys(dictFile.getLines())):
 
                 # Skip comments
                 if line.lstrip().startswith("#"):
@@ -136,15 +135,14 @@ class Dictionary(object):
                         result.append(res + suff)
 
 
-        # oset library provides inserted ordered and unique collection.
         if self.lowercase:
-            self.entries = list(oset(map(lambda l: l.lower(), result)))
+            self.entries = list(dict.fromkeys(map(lambda l: l.lower(), result)))
             
         elif self.uppercase:
-            self.entries = list(oset(map(lambda l: l.upper(), result)))
+            self.entries = list(dict.fromkeys(map(lambda l: l.upper(), result)))
 
         else:
-            self.entries = list(oset(result))
+            self.entries = list(dict.fromkeys(result))
 
         del result
 
