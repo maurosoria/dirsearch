@@ -16,7 +16,6 @@
 #
 #  Author: Mauro Soria
 
-import platform
 import sys
 import threading
 import time
@@ -27,7 +26,7 @@ from lib.utils.FileUtils import *
 from lib.utils.TerminalSize import get_terminal_size
 from thirdparty.colorama import *
 
-if platform.system() == "Windows":
+if sys.platform in ["win32", "cygwin", "msys"]:
     from thirdparty.colorama.win32 import *
 
 
@@ -50,7 +49,7 @@ class CLIOutput(object):
         self.lastInLine = True
 
     def erase(self):
-        if platform.system() == "Windows":
+        if sys.platform in ["win32", "cygwin", "msys"]:
             csbi = GetConsoleScreenBufferInfo()
             line = "\b" * int(csbi.dwCursorPosition.X)
             sys.stdout.write(line)
@@ -68,7 +67,7 @@ class CLIOutput(object):
         if self.lastInLine == True:
             self.erase()
 
-        if platform.system() == "Windows":
+        if sys.platform in ["win32", "cygwin", "msys"]:
             sys.stdout.write(string)
             sys.stdout.flush()
             sys.stdout.write("\n")
