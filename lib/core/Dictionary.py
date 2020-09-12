@@ -98,11 +98,14 @@ class Dictionary(object):
                 if '%ext%' in line.lower():
                     for extension in self._extensions:
                         if self._noDotExtensions:
-                            entry = reextdot.sub(extension, line)
+                            newline = reextdot.sub(extension, line)
 
-                        entry = reext.sub(extension, line)
+                        else:
+                            newline = line
+                            
+                        newline = reext.sub(extension, newline)
 
-                        quote = self.quote(entry)
+                        quote = self.quote(newline)
                         result.append(quote)
 
                 # If forced extensions is used and the path is not a directory ... (terminated by /)
@@ -111,13 +114,13 @@ class Dictionary(object):
                     quoted = self.quote(line)
 
                     for extension in self._extensions:
-                        # Why? check https://github.com/maurosoria/dirsearch/issues/70
+                        # Why? Check https://github.com/maurosoria/dirsearch/issues/70
                         if extension.strip() == '':
                             result.append(quoted)
                         else:
                             result.append(quoted + ('' if self._noDotExtensions else '.') + extension)
 
-                    if quoted.strip() not in ['']:
+                    if quoted.strip() != '':
                         result.append(quoted)
                         result.append(quoted + "/")
 
