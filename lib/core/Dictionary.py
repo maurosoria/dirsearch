@@ -85,6 +85,7 @@ class Dictionary(object):
         reext = re.compile('\%ext\%', re.IGNORECASE)
         reextdot = re.compile('\.\%ext\%', re.IGNORECASE)
         result = []
+        append = result.append
 
         # Enable to use multiple dictionaries at once
         for dictFile in self.dictionaryFiles:
@@ -103,7 +104,7 @@ class Dictionary(object):
                         entry = reext.sub(extension, line)
 
                         quote = self.quote(entry)
-                        result.append(quote)
+                        append(quote)
 
                 # If forced extensions is used and the path is not a directory ... (terminated by /)
                 # process line like a forced extension.
@@ -113,24 +114,24 @@ class Dictionary(object):
                     for extension in self._extensions:
                         # Why? check https://github.com/maurosoria/dirsearch/issues/70
                         if extension.strip() == '':
-                            result.append(quoted)
+                            append(quoted)
                         else:
-                            result.append(quoted + ('' if self._noDotExtensions else '.') + extension)
+                            append(quoted + ('' if self._noDotExtensions else '.') + extension)
 
                     if quoted.strip() not in ['']:
-                        result.append(quoted)
-                        result.append(quoted + "/")
+                        append(quoted)
+                        append(quoted + "/")
 
                 # Append line unmodified.
                 else:
-                    result.append(self.quote(line))
+                    append(self.quote(line))
 
         # Adding suffixes for finding backups etc
         if self._suffixes:
             for res in list(result):
                 if not res.rstrip().endswith("/"):
                     for suff in self._suffixes:
-                        result.append(res + suff)
+                        append(res + suff)
 
 
         # oset library provides inserted ordered and unique collection.
