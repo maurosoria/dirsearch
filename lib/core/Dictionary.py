@@ -112,7 +112,7 @@ class Dictionary(object):
 
                     for extension in self._extensions:
                         # Why? check https://github.com/maurosoria/dirsearch/issues/70
-                        if extension.strip() == '':
+                        if extension.strip() == '' or ('.' in quoted and not quoted.startswith('.')):
                             result.append(quoted)
                         else:
                             result.append(quoted + ('' if self._noDotExtensions else '.') + extension)
