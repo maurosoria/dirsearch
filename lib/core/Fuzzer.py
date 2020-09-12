@@ -153,13 +153,17 @@ class Fuzzer(object):
         self.playEvent.wait()
         try:
             path = next(self.dictionary)
+            
+            scan = self.scan
+            append = self.matches.append
+            
             while path is not None:
                 try:
-                    status, response = self.scan(path)
+                    status, response = scan(path)
                     result = Path(path=path, status=status, response=response)
 
                     if status is not None:
-                        self.matches.append(result)
+                        append(result)
                         for callback in self.matchCallbacks:
                             callback(result)
                     else:
