@@ -275,11 +275,14 @@ class Controller(object):
                 if "%ext%" in line.lower():
                     for extension in self.arguments.extensions:
                         if self.arguments.noDotExtensions:
-                            line = reextdot.sub(extension, line)
+                            entry = reextdot.sub(extension, line)
+                            
+                        else:
+                            entry = line
 
-                        line = reext.sub(extension, line)
+                        entry = reext.sub(extension, entry)
                         
-                        blacklists[status].append(line)
+                        blacklists[status].append(entry)
                         
                 # Forced extensions is not used here because -r is only used for wordlist (in documentation),
                 # applying in blacklist may create false negatives
