@@ -215,7 +215,6 @@ class Controller(object):
 
         except KeyboardInterrupt:
             self.output.error("\nCanceled by the user")
-            gc.collect()
             exit(0)
 
         finally:
@@ -225,7 +224,6 @@ class Controller(object):
             self.reportManager.close()
 
         self.output.warning("\nTask Completed")
-        gc.collect()
 
     def printConfig(self):
 
@@ -539,6 +537,7 @@ class Controller(object):
 
     def wait(self):
         while not self.directories.empty():
+            gc.collect()
             self.index = 0
             self.currentDirectory = self.directories.get()
             self.output.warning(
