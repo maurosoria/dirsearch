@@ -548,6 +548,7 @@ class Controller(object):
                     self.currentDirectory, time.strftime("%H:%M:%S")
                 )
             )
+            gc.collect()
             self.fuzzer.requester.basePath = self.basePath + self.currentDirectory
             self.output.basePath = self.basePath + self.currentDirectory
             self.fuzzer.start()
