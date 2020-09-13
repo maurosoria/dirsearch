@@ -288,6 +288,12 @@ class ArgumentParser(object):
 
         else:
             self.excludeSubdirs = None
+            
+        
+        if len(set(self.extensions).intersection(self.excludeExtensions)):
+            print("Exclude extensions can not contain any extension that already in the extensions")
+            exit(0)
+            
 
         self.redirect = options.noFollowRedirects
         self.requestByHostname = options.requestByHostname
