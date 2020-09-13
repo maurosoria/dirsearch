@@ -34,8 +34,8 @@ class Scanner(object):
         else:
             self.testPath = testPath
 
-        self.suffix = suffix if suffix is not None else ""
-        self.preffix = preffix if preffix is not None else ""
+        self.suffix = suffix if suffix else ""
+        self.preffix = preffix if preffix else ""
         self.requester = requester
         self.tester = None
         self.redirectRegExp = None
@@ -49,16 +49,16 @@ class Scanner(object):
         firstPath = self.preffix + self.testPath + self.suffix
         firstResponse = self.requester.request(firstPath)
         self.invalidStatus = firstResponse.status
+        
+        secondPath = self.preffix + RandomUtils.randString(omit=self.testPath) + self.suffix
+        secondResponse = self.requester.request(secondPath)
 
         if self.invalidStatus == 404:
             # Using the response status code is enough :-}
             return
 
         # look for redirects
-        secondPath = self.preffix + RandomUtils.randString(omit=self.testPath) + self.suffix
-        secondResponse = self.requester.request(secondPath)
-
-        if (
+        elif (
             firstResponse.status in self.redirectStatusCodes
             and firstResponse.redirect
             and secondResponse.redirect
@@ -105,7 +105,7 @@ class Scanner(object):
         return regexp
 
     def scan(self, path, response):
-        if self.invalidStatus == 404 and response.status == 404:
+        if self.invalidStatus == response.status == 404:
             return False
 
         if self.invalidStatus != response.status:
@@ -113,7 +113,7 @@ class Scanner(object):
 
         redirectToInvalid = False
 
-        if self.redirectRegExp is not None and response.redirect is not None:
+        if self.redirectRegExp and response.redirect:
             redirectToInvalid = (
                 re.match(self.redirectRegExp, response.redirect) is not None
             )
