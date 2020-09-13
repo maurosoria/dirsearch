@@ -19,9 +19,7 @@
 import re
 import threading
 
-import urllib.error
 import urllib.parse
-import urllib.request
 
 from lib.utils.FileUtils import File
 
@@ -29,7 +27,7 @@ from lib.utils.FileUtils import File
 class Dictionary(object):
 
 
-    def __init__(self, paths, extensions, suffixes=None, lowercase=False, uppercase=False, forcedExtensions=False, noDotExtensions=False):
+    def __init__(self, paths, extensions, suffixes=None, lowercase=False, uppercase=False, forcedExtensions=False, noDotExtensions=False, excludeExtensions=[]):
         self.entries = []
         self.currentIndex = 0
         self.condition = threading.Lock()
@@ -38,6 +36,7 @@ class Dictionary(object):
         self._paths = paths
         self._forcedExtensions = forcedExtensions
         self._noDotExtensions = noDotExtensions
+        self.excludeExtensions = excludeExtensions
         self.lowercase = lowercase
         self.uppercase = uppercase
         self.dictionaryFiles = [File(path) for path in self.paths]
@@ -92,6 +91,17 @@ class Dictionary(object):
                 # Skip comments
                 if line.lstrip().startswith("#"):
                     continue
+
+                # Skip if the path is having excluded extensions
+                if len(self.excludeExtensions):
+                    matched = False
+                    
+                    for excludeExtension in self.excludeExtensions:
+                        if line.startswith(excludeExtension):
+                            matched = True
+                            break
+                            
+                    if matched: continue      
 
                 # Classic dirsearch wordlist processing (with %EXT% keyword)
                 if '%ext%' in line.lower():
