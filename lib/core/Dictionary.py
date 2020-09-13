@@ -92,7 +92,7 @@ class Dictionary(object):
                 if line.lstrip().startswith("#"):
                     continue
 
-                # Skip if the path is having excluded extensions
+                # Skip if the path is containing excluded extensions
                 if len(self.excludeExtensions):
                     matched = False
                     
