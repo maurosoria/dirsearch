@@ -394,8 +394,6 @@ class ArgumentParser(object):
         dictionary.add_option('-w', '--wordlist', action='store', dest='wordlist',
                               help='Customize wordlist (separated by comma)',
                               default=self.wordlist)
-        dictionary.add_option('-l', '--lowercase', action='store_true', dest='lowercase', default=self.lowercase)
-        dictionary.add_option('-U', '--uppercase', action='store_true', dest='uppercase', default=self.uppercase)
         dictionary.add_option('--suff', '--suffixes',
                              help='Add custom suffixes to all files, ignores directories (example.%EXT%%SUFFIX%)',
                              action='store', dest='suffixes', default=None)
@@ -406,6 +404,8 @@ class ArgumentParser(object):
         dictionary.add_option('--nd', '--no-dot-extensions',
                               help='Don\'t add a \'.\' character before extensions', action='store_true',
                               dest='noDotExtensions', default=self.noDotExtensions)
+        dictionary.add_option('-l', '--lowercase', action='store_true', dest='lowercase', default=self.lowercase)
+        dictionary.add_option('-U', '--uppercase', action='store_true', dest='uppercase', default=self.uppercase)
 
         # Optional Settings
         general = OptionGroup(parser, 'General Settings')
