@@ -53,7 +53,7 @@ class PrintOutput(object):
         sys.stdout.flush()
         
 
-    def statusReport(self, path, response):
+    def statusReport(self, path, response, full_url):
         with self.mutex:
             contentLength = None
             status = response.status
@@ -78,7 +78,7 @@ class PrintOutput(object):
             else:
                 showPath = urljoin("/", self.basePath)
                 showPath = urljoin(showPath, path)
-                showPath = self.target + showPath
+                showPath = self.target[:-1] if self.target.endswith("/") else self.target + showPath
             message = "{0} - {1} - {2}".format(
                 status, contentLength.rjust(6, " "), showPath
             )

@@ -32,7 +32,7 @@ class ArgumentParser(object):
         options = self.parseArguments()
 
         self.clean_view = options.clean_view
-            
+        self.full_url = options.full_url
         
         if options.url == None:
 
@@ -411,7 +411,6 @@ class ArgumentParser(object):
         general = OptionGroup(parser, 'General Settings')
         general.add_option('-d', '--data', help='HTTP request data (POST, PUT, ... body)', action='store', dest='data',
                            type='str', default=None)
-        general.add_option('--clean-view', '--clean-view', action='store_true', dest='clean_view')
         general.add_option('-s', '--delay', help='Delay between requests (float number)', action='store', dest='delay',
                            type='float', default=self.delay)
         general.add_option('-r', '--recursive', help='Bruteforce recursively', action='store_true', dest='recursive',
@@ -454,6 +453,8 @@ class ArgumentParser(object):
                            help='Headers to add (example: --header "Referer: example.com" --header "User-Agent: IE")',
                            action='append', type='string', dest='headers', default=None)
         general.add_option('--random-agents', '--random-user-agents', action="store_true", dest='useRandomAgents')
+        general.add_option('--clean-view', '--clean-view', action='store_true', dest='clean_view')
+        general.add_option('--full-url', '--full-url', action='store_true', dest='full_url')
 
         reports = OptionGroup(parser, 'Reports')
         reports.add_option('--simple-report', action='store', help="Only found paths",
