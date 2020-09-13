@@ -56,7 +56,7 @@ class Fuzzer(object):
         for thread in self.threads:
             thread.join(timeout)
 
-            if timeout is not None and thread.is_alive():
+            if timeout and thread.is_alive():
                 return False
 
         return True
@@ -165,6 +165,7 @@ class Fuzzer(object):
                     else:
                         for callback in self.notFoundCallbacks:
                             callback(result)
+
                     del status
                     del response
 
