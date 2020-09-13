@@ -62,7 +62,7 @@ class Fuzzer(object):
         return True
 
     def setupScanners(self):
-        if len(self.scanners) != 0:
+        if len(self.scanners):
             self.scanners = {}
 
         self.defaultScanner = Scanner(self.requester, self.testFailPath)
@@ -75,7 +75,7 @@ class Fuzzer(object):
             )
 
     def setupThreads(self):
-        if len(self.threads) != 0:
+        if len(self.threads):
             self.threads = []
 
         for thread in range(self.threadsCount):
