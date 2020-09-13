@@ -157,7 +157,7 @@ class Fuzzer(object):
         result = None
         if self.getScannerFor(path).scan(path, response):
             if response.status == 429:
-                if self.accept429 == False: self.handleBlocked()
+                if not self.accept429: self.handleBlocked()
             elif response.status != 404:
                 result = response.status
         return result, response
