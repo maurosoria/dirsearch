@@ -157,7 +157,7 @@ class CLIOutput(object):
     def error(self, reason):
         with self.mutex:
             stripped = reason.strip()
-            message = "\n"
+            message = "\n" if "\n" in reason else ""
             message += Style.BRIGHT + Fore.WHITE + Back.RED
             message += stripped
             message += Style.RESET_ALL
