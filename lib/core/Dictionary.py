@@ -80,8 +80,9 @@ class Dictionary(object):
     """
 
     def generate(self):
-        reext = re.compile('\%ext\%', re.IGNORECASE)
-        reextdot = re.compile('\.\%ext\%', re.IGNORECASE)
+        reext = re.compile('\%ext\%', re.IGNORECASE).sub
+        reextdot = re.compile('\.\%ext\%', re.IGNORECASE).sub
+        renoforce = re.compile('\%noforce\%', re.IGNORECASE).sub
         result = []
 
         # Enable to use multiple dictionaries at once
@@ -104,22 +105,24 @@ class Dictionary(object):
                     if matched: continue      
 
                 # Classic dirsearch wordlist processing (with %EXT% keyword)
-                if '%ext%' in line.lower():
+                if "%ext%" in line.lower():
+                    line = renoforce("", line)
+                    
                     for extension in self._extensions:
                         if self._noDotExtensions:
-                            newline = reextdot.sub(extension, line)
+                            newline = reextdot(extension, line)
 
                         else:
                             newline = line
                             
-                        newline = reext.sub(extension, newline)
+                        newline = reext(extension, newline)
 
                         quote = self.quote(newline)
                         result.append(quote)
 
                 # If forced extensions is used and the path is not a directory ... (terminated by /)
                 # process line like a forced extension.
-                elif self._forcedExtensions and not line.rstrip().endswith("/"):
+                elif self._forcedExtensions and not line.rstrip().endswith("/") and not "%noforce%" in line.lower():
                     quoted = self.quote(line)
 
                     for extension in self._extensions:
@@ -133,8 +136,10 @@ class Dictionary(object):
                         result.append(quoted)
                         result.append(quoted + "/")
 
-                # Append line unmodified.
+                # Append line unmodified. Also if the line is having the %NOFORCE% keyword
                 else:
+                    line = renoforce("", line)
+                    
                     result.append(self.quote(line))
 
         # Adding suffixes for finding backups etc
