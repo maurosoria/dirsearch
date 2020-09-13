@@ -139,7 +139,7 @@ class ArgumentParser(object):
 
         self.threadsCount = options.threadsCount
 
-        if options.includeStatusCodes is not None:
+        if options.includeStatusCodes:
 
             try:
                 self.includeStatusCodes = list(
@@ -150,8 +150,29 @@ class ArgumentParser(object):
 
         else:
             self.includeStatusCodes = []
+            
+        if options.excludeExtensions:
 
-        if options.excludeStatusCodes is not None:
+            try:
+                self.excludeExtensions = list(
+                    oset(
+                        [
+                            int(excludeExtensions.strip())
+                            if excludeExtensions
+                            else None
+                            for excludeExtension in options.excludeExtensions.split(
+                                ","
+                            )
+                        ]
+                    )
+                )
+            except ValueError:
+                self.excludeExtensions = []
+
+        else:
+            self.excludeExtensions = []
+
+        if options.excludeStatusCodes:
 
             try:
                 self.excludeStatusCodes = list(
@@ -172,7 +193,7 @@ class ArgumentParser(object):
         else:
             self.excludeStatusCodes = []
 
-        if options.excludeTexts is not None:
+        if options.excludeTexts:
             try:
                 self.excludeTexts = list(
 
@@ -190,7 +211,7 @@ class ArgumentParser(object):
             self.excludeTexts = []
 
 
-        if options.excludeRegexps is not None:
+        if options.excludeRegexps:
             try:
                 self.excludeRegexps = list(
                     oset(
@@ -347,6 +368,9 @@ class ArgumentParser(object):
                              action='store', dest='extensions', default=None)
         mandatory.add_option('-E', '--extensions-list', help='Use predefined list of common extensions',
                              action='store_true', dest='defaultExtensions', default=False)
+        mandatory.add_option('-X', '--exclude-extensions',
+                              help='Exclude extensions list, separated by comma (Example: asp,jsp)',
+                              action='store', dest='excludeExtensions', default=None)
 
         connection = OptionGroup(parser, 'Connection Settings')
         connection.add_option('--timeout', action='store', dest='timeout', type='int',
