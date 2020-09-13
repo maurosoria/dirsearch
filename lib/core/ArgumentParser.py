@@ -378,7 +378,7 @@ class ArgumentParser(object):
                              action='store', dest='suffixes', default=None)
 
         dictionary.add_option('-f', '--force-extensions',
-                              help='Force extensions for every wordlist entry',
+                              help='Force extensions for every wordlist entry. Add %NOFORCE% at the end of the endpoint that you do not want to force in the wordlist',
                               action='store_true', dest='forceExtensions', default=self.forceExtensions)
         dictionary.add_option('--nd', '--no-dot-extensions',
                               help='Don\'t add a \'.\' character before extensions', action='store_true',
