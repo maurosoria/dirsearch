@@ -437,13 +437,11 @@ class Controller(object):
                     if excludeText in path.response.body.decode():
                         del path
                         return
-                    
-                excludeRegex = re.compile(excludeRegexp)
 
                 for excludeRegexp in self.excludeRegexps:
 
                     if (
-                        excludeRegex.search(path.response.body.decode())
+                        re.search(excludeRegexp, path.response.body.decode())
                         is not None
                     ):
                         del path
