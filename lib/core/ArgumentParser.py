@@ -145,6 +145,7 @@ class ArgumentParser(object):
                 self.includeStatusCodes = list(
                     oset([int(includeStatusCode.strip()) if includeStatusCode else None for includeStatusCode in
                           options.includeStatusCodes.split(',')]))
+                
             except ValueError:
                 self.includeStatusCodes = []
 
@@ -157,15 +158,12 @@ class ArgumentParser(object):
                 self.excludeExtensions = list(
                     oset(
                         [
-                            int(excludeExtensions.strip())
-                            if excludeExtensions
-                            else None
-                            for excludeExtension in options.excludeExtensions.split(
-                                ","
-                            )
+                            excludeExtension.strip() if excludeExtension else None
+                            for excludeExtension in options.excludeExtensions.split(",")
                         ]
                     )
                 )
+                
             except ValueError:
                 self.excludeExtensions = []
 
@@ -187,6 +185,7 @@ class ArgumentParser(object):
                         ]
                     )
                 )
+                
             except ValueError:
                 self.excludeStatusCodes = []
 
