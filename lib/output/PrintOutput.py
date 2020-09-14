@@ -123,6 +123,7 @@ class PrintOutput(object):
     def config(
         self,
         extensions,
+        prefixes,
         suffixes,
         threads,
         wordlist_size,
