@@ -25,7 +25,7 @@ from posixpath import join as urljoin
 from lib.utils.FileUtils import *
 from thirdparty.colorama import *
 
-if sys.platform in ["win32", "cygwin", "msys"]:
+if sys.platform in ["win32", "msys"]:
     from thirdparty.colorama.win32 import *
 
 
