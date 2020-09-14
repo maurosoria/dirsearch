@@ -353,7 +353,7 @@ class ArgumentParser(object):
         self.proxy = config.safe_get("connection", "http-proxy", None)
         self.proxylist = config.safe_get("connection", "http-proxy-list", None)
         self.httpmethod = config.safe_get(
-            "connection", "httpmethod", "get", ["get", "head", "post", "put", "delete", "trace", "options"]
+            "connection", "httpmethod", "get", ["get", "head", "post", "put", "patch", "delete", "trace", "options"]
         )
         self.requestByHostname = config.safe_get(
             "connection", "request-by-hostname", False
