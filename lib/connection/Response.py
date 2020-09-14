@@ -56,8 +56,10 @@ class Response(object):
     @property
     def pretty(self):
         try:
-            from BeautifulSoup import BeautifulSoup
+            # Python 3 is only able to download BeautifulSoup4
+            from bs4 import BeautifulSoup
         except ImportError:
-            raise Exception("BeautifulSoup must be installed to get pretty HTML =(")
+            raise Exception("BeautifulSoup pip package must be installed")
+            
         html = BeautifulSoup(self.body)
         return html.prettify()
