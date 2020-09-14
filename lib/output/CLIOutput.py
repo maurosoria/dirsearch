@@ -153,7 +153,7 @@ class CLIOutput(object):
             message += "Last request to: {0}".format(path)
 
             if len(message) > x:
-                message = message[:x]
+                message = message[:x-1]
 
             self.inLine(message)
 
