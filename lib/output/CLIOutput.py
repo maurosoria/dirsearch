@@ -26,7 +26,7 @@ from lib.utils.FileUtils import *
 from lib.utils.TerminalSize import get_terminal_size
 from thirdparty.colorama import *
 
-if sys.platform in ["win32", "cygwin", "msys"]:
+if sys.platform in ["win32", "msys"]:
     from thirdparty.colorama.win32 import *
 
 
@@ -49,7 +49,7 @@ class CLIOutput(object):
         self.lastInLine = True
 
     def erase(self):
-        if sys.platform in ["win32", "cygwin", "msys"]:
+        if sys.platform in ["win32", "msys"]:
             csbi = GetConsoleScreenBufferInfo()
             line = "\b" * int(csbi.dwCursorPosition.X)
             sys.stdout.write(line)
@@ -67,7 +67,7 @@ class CLIOutput(object):
         if self.lastInLine == True:
             self.erase()
 
-        if sys.platform in ["win32", "cygwin", "msys"]:
+        if sys.platform in ["win32", "msys"]:
             sys.stdout.write(string)
             sys.stdout.flush()
             sys.stdout.write("\n")
