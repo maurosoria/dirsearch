@@ -329,7 +329,7 @@ class Controller(object):
     def setupReports(self, requester):
         if self.arguments.autoSave:
 
-            basePath = "/" if requester.basePath == "" else requester.basePath
+            basePath = "/" if not(len(requester.basePath)) else requester.basePath
             basePath = basePath.replace(os.path.sep, ".")[1:-1]
             fileName = None
             directoryPath = None
@@ -340,8 +340,8 @@ class Controller(object):
 
             else:
 
-                fileName = ('{}_'.format(basePath) if basePath != '' else '')
-                fileName += time.strftime('%y-%m-%d_%H-%M-%S')
+                fileName = ('{}_'.format(basePath))
+                fileName += time.strftime('%y-%m-%d_%H-%M-%S.txt')
                 directoryPath = FileUtils.buildPath(self.savePath, 'reports', requester.host)
 
 
