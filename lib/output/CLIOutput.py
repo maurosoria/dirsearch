@@ -181,6 +181,7 @@ class CLIOutput(object):
     def config(
         self,
         extensions,
+        prefixes,
         suffixes,
         threads,
         wordlist_size,
@@ -198,10 +199,14 @@ class CLIOutput(object):
         config += separator
 
 
+        if prefixes != '':
+            config += 'Prefixes: {0}'.format(Fore.CYAN + prefixes + Fore.YELLOW)
+            config += separator
+
         if suffixes != '':
             config += 'Suffixes: {0}'.format(Fore.CYAN + suffixes + Fore.YELLOW)
             config += separator
-        
+
         config += "Threads: {0}".format(Fore.CYAN + threads + Fore.YELLOW)
         config += separator
         config += "Wordlist size: {0}".format(Fore.CYAN + wordlist_size + Fore.YELLOW)
