@@ -43,10 +43,24 @@ class PrintOutput(object):
         pass
 
     def inLine(self, string):
-        pass
+        self.erase()
+        sys.stdout.write(string)
+        sys.stdout.flush()
 
     def erase(self):
-        pass
+        if sys.platform in ["win32", "cygwin", "msys"]:
+            csbi = GetConsoleScreenBufferInfo()
+            line = "\b" * int(csbi.dwCursorPosition.X)
+            sys.stdout.write(line)
+            width = csbi.dwCursorPosition.X
+            csbi.dwCursorPosition.X = 0
+            FillConsoleOutputCharacter(STDOUT, " ", width, csbi.dwCursorPosition)
+            sys.stdout.write(line)
+            sys.stdout.flush()
+
+        else:
+            sys.stdout.write("\033[1K")
+            sys.stdout.write("\033[0G")
 
     def newLine(self, string):
         sys.stdout.write(string + "\n")
