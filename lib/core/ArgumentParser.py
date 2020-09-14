@@ -291,7 +291,7 @@ class ArgumentParser(object):
             
         
         if len(set(self.extensions).intersection(self.excludeExtensions)):
-            print("Exclude extensions can not contain any extension that already in the extensions")
+            print("Exclude extensions can not contain any extension that has already in the extensions")
             exit(0)
             
 
