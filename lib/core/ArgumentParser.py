@@ -198,8 +198,8 @@ class ArgumentParser(object):
 
                     oset(
                         [
-                            excludeTexts.strip() if excludeTexts else None
-                            for excludeTexts in options.excludeTexts.split(",")
+                            excludeText.strip() if excludeText else None
+                            for excludeText in options.excludeTexts.split(",")
                         ]
                     )
                 )
@@ -215,8 +215,8 @@ class ArgumentParser(object):
                 self.excludeRegexps = list(
                     oset(
                         [
-                            excludeRegexps.strip() if excludeRegexps else None
-                            for excludeRegexps in options.excludeRegexps.split(",")
+                            excludeRegexp.strip() if excludeRegexp else None
+                            for excludeRegexp in options.excludeRegexps.split(",")
                         ]
                     )
                 )
@@ -227,6 +227,7 @@ class ArgumentParser(object):
             self.excludeRegexps = []
 
 
+        self.prefixes = [] if not options.prefixes else list(oset([prefix.strip() for prefix in options.prefixes.split(',')]))
         self.suffixes = [] if not options.suffixes else list(oset([suffix.strip() for suffix in options.suffixes.split(',')]))
         self.wordlist = list(oset([wordlist.strip() for wordlist in options.wordlist.split(',')]))
 
@@ -400,12 +401,15 @@ class ArgumentParser(object):
         dictionary.add_option('-w', '--wordlist', action='store', dest='wordlist',
                               help='Customize wordlist (separated by comma)',
                               default=self.wordlist)
+        dictionary.add_option('--pref', '--prefixes',
+                             help='Add custom prefixes to all entries, ignores directories (separated by comma)
+                             action='store', dest='prefixes', default=None)
         dictionary.add_option('--suff', '--suffixes',
-                             help='Add custom suffixes to all files, ignores directories (example.%EXT%%SUFFIX%)',
+                             help='Add custom suffixes to all entries, ignores directories (separated by comma)',
                              action='store', dest='suffixes', default=None)
 
         dictionary.add_option('-f', '--force-extensions',
-                              help='Force extensions for every wordlist entry. Add %NOFORCE% at the end of the endpoint that you do not want to force in the wordlist',
+                              help='Force extensions for every wordlist entry. Add %NOFORCE% at the end of the entry that you do not want to force in the wordlist',
                               action='store_true', dest='forceExtensions', default=self.forceExtensions)
         dictionary.add_option('--nd', '--no-dot-extensions',
                               help='Don\'t add a \'.\' character before extensions', action='store_true',
