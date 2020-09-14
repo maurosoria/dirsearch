@@ -83,12 +83,17 @@ class Dictionary(object):
     def generate(self):
         reext = re.compile('\%ext\%', re.IGNORECASE).sub
         reextdot = re.compile('\.\%ext\%', re.IGNORECASE).sub
-        renoforce = re.compile('\%noforce\%', re.IGNORECASE).sub
         result = []
 
         # Enable to use multiple dictionaries at once
         for dictFile in self.dictionaryFiles:
             for line in list(dict.fromkeys(dictFile.getLines())):
+                
+                # Check if the line is having the %NOFORCE% keyword
+                if "%noforce%" in line.lower():
+                    noforce = True
+                else:
+                    noforce = False
 
                 # Skip comments
                 if line.lstrip().startswith("#"):
@@ -107,8 +112,6 @@ class Dictionary(object):
 
                 # Classic dirsearch wordlist processing (with %EXT% keyword)
                 if "%ext%" in line.lower():
-                    line = renoforce("", line)
-                    
                     for extension in self._extensions:
                         if self._noDotExtensions:
                             newline = reextdot(extension, line)
@@ -123,7 +126,7 @@ class Dictionary(object):
 
                 # If forced extensions is used and the path is not a directory ... (terminated by /)
                 # process line like a forced extension.
-                elif self._forcedExtensions and not line.rstrip().endswith("/") and not "%noforce%" in line.lower():
+                elif self._forcedExtensions and not line.rstrip().endswith("/") and not noforce:
                     quoted = self.quote(line)
 
                     for extension in self._extensions:
@@ -137,10 +140,8 @@ class Dictionary(object):
                         result.append(quoted)
                         result.append(quoted + "/")
 
-                # Append line unmodified. Also if the line is having the %NOFORCE% keyword
+                # Append line unmodified.
                 else:
-                    line = renoforce("", line)
-                    
                     result.append(self.quote(line))
                     
         # Adding prefixes for finding private pages etc
