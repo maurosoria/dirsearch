@@ -34,9 +34,9 @@ class ArgumentParser(object):
         self.clean_view = options.clean_view
         self.full_url = options.full_url
         
-        if options.url == None:
+        if not options.url:
 
-            if options.urlList != None:
+            if options.urlList:
 
                 with File(options.urlList) as urlList:
 
@@ -54,7 +54,7 @@ class ArgumentParser(object):
 
                     self.urlList = list(urlList.getLines())
 
-            elif options.url == None:
+            elif not options.url:
                 print("URL target is missing, try using -u <url> ")
                 exit(0)
 
@@ -84,7 +84,7 @@ class ArgumentParser(object):
                     print('The wordlist cannot be read')
                     exit(1)
 
-        if options.proxyList is not None:
+        if options.proxyList:
             with File(options.proxyList) as plist:
                 if not plist.exists():
                     print('The proxylist file does not exist')
@@ -101,7 +101,7 @@ class ArgumentParser(object):
             self.proxylist = open(options.proxyList).read().splitlines()
 
 
-        elif options.httpProxy is not None:
+        elif options.httpProxy:
             if options.httpProxy.startswith("http://"):
                 self.proxy = options.httpProxy
             else:
@@ -110,7 +110,7 @@ class ArgumentParser(object):
         else:
             self.proxy = None
 
-        if options.headers is not None:
+        if options.headers:
             try:
                 self.headers = dict(
                     (key.strip(), value.strip())
@@ -118,7 +118,7 @@ class ArgumentParser(object):
                         header.split(":", 1) for header in options.headers
                     )
                 )
-            except Exception as e:
+            except Exception:
                 print("Invalid headers")
                 exit(0)
 
@@ -239,7 +239,6 @@ class ArgumentParser(object):
         self.simpleOutputFile = options.simpleOutputFile
         self.plainTextOutputFile = options.plainTextOutputFile
         self.jsonOutputFile = options.jsonOutputFile
-        self.quietMode = options.quietMode
         self.delay = options.delay
         self.timeout = options.timeout
         self.ip = options.ip
@@ -250,7 +249,7 @@ class ArgumentParser(object):
         self.maximumResponseSize = options.maximumResponseSize
 
 
-        if options.scanSubdirs is not None:
+        if options.scanSubdirs:
             self.scanSubdirs = list(
                 oset([subdir.strip() for subdir in options.scanSubdirs.split(",")])
             )
@@ -268,12 +267,12 @@ class ArgumentParser(object):
         else:
             self.scanSubdirs = None
 
-        if not self.recursive and options.excludeSubdirs is not None:
+        if not self.recursive and options.excludeSubdirs:
             print("--exclude-subdir argument can only be used with -r|--recursive")
             exit(0)
 
 
-        elif options.excludeSubdirs is not None:
+        elif options.excludeSubdirs:
             self.excludeSubdirs = list(
                 oset([subdir.strip() for subdir in options.excludeSubdirs.split(",")])
             )
@@ -328,7 +327,6 @@ class ArgumentParser(object):
         self.defaultExtensions = config.safe_get("general", "default-extensions", "php,asp,aspx,jsp,jspx,html,htm,js,txt")
 
         # Reports
-        self.quietMode = config.safe_get("reports", "quiet-mode", False)
         self.autoSave = config.safe_getboolean("reports", "autosave-report", False)
         self.autoSaveFormat = config.safe_get(
             "reports", "autosave-report-format", "plain", ["plain", "json", "simple"]
@@ -472,8 +470,6 @@ class ArgumentParser(object):
         reports.add_option('--plain-text-report', action='store',
                            help="Found paths with status codes", dest='plainTextOutputFile', default=None)
         reports.add_option('--json-report', action='store', dest='jsonOutputFile', default=None)
-        reports.add_option('-q', '--quiet-mode', help='Disable output to console (only to reports)', action='store_true',
-                           dest='quietMode', default=self.quietMode)
 
 
         parser.add_option_group(mandatory)

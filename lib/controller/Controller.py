@@ -101,7 +101,6 @@ class Controller(object):
             self.savePath = savePath
 
         self.reportsPath = FileUtils.buildPath(self.savePath, "logs")
-        self.quietMode = self.arguments.quietMode
         self.blacklists = self.getBlacklists()
         self.fuzzer = None
         self.includeStatusCodes = self.arguments.includeStatusCodes
