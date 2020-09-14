@@ -402,7 +402,7 @@ class ArgumentParser(object):
                               help='Customize wordlist (separated by comma)',
                               default=self.wordlist)
         dictionary.add_option('--pref', '--prefixes',
-                             help='Add custom prefixes to all entries, ignores directories (separated by comma)
+                             help='Add custom prefixes to all entries (separated by comma)',
                              action='store', dest='prefixes', default=None)
         dictionary.add_option('--suff', '--suffixes',
                              help='Add custom suffixes to all entries, ignores directories (separated by comma)',
