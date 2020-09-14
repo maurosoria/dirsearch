@@ -118,9 +118,10 @@ class Controller(object):
         )
         self.output.header(program_banner)
 
-        self.dictionary = Dictionary(self.arguments.wordlist, self.arguments.extensions, self.arguments.suffixes,
-                                     self.arguments.lowercase, self.arguments.uppercase, self.arguments.forceExtensions,
-                                     self.arguments.noDotExtensions, self.arguments.excludeExtensions)
+        self.dictionary = Dictionary(self.arguments.wordlist, self.arguments.extensions, self.arguments.suffixes, 
+                                     self.arguments.prefixes, self.arguments.lowercase, self.arguments.uppercase, 
+                                     self.arguments.forceExtensions, self.arguments.noDotExtensions, 
+                                     self.arguments.excludeExtensions)
 
         self.printConfig()
         self.errorLog = None
@@ -229,6 +230,7 @@ class Controller(object):
 
         self.output.config(
             ', '.join(self.arguments.extensions),
+            ', '.join(self.arguments.prefixes),
             ', '.join(self.arguments.suffixes),
             str(self.arguments.threadsCount),
             str(len(self.dictionary)),

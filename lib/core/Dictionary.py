@@ -27,16 +27,17 @@ from lib.utils.FileUtils import File
 class Dictionary(object):
 
 
-    def __init__(self, paths, extensions, suffixes=None, lowercase=False, uppercase=False, forcedExtensions=False, noDotExtensions=False, excludeExtensions=[]):
+    def __init__(self, paths, extensions, suffixes=None, prefixes=None, lowercase=False, uppercase=False, forcedExtensions=False, noDotExtensions=False, excludeExtensions=[]):
         self.entries = []
         self.currentIndex = 0
         self.condition = threading.Lock()
         self._extensions = extensions
+        self._prefixes = prefixes
         self._suffixes = suffixes
         self._paths = paths
         self._forcedExtensions = forcedExtensions
         self._noDotExtensions = noDotExtensions
-        self.excludeExtensions = excludeExtensions
+        self._excludeExtensions = excludeExtensions
         self.lowercase = lowercase
         self.uppercase = uppercase
         self.dictionaryFiles = [File(path) for path in self.paths]
@@ -94,10 +95,10 @@ class Dictionary(object):
                     continue
 
                 # Skip if the path is containing excluded extensions
-                if len(self.excludeExtensions):
+                if len(self._excludeExtensions):
                     matched = False
                     
-                    for excludeExtension in self.excludeExtensions:
+                    for excludeExtension in self._excludeExtensions:
                         if line.startswith(excludeExtension):
                             matched = True
                             break
@@ -141,6 +142,12 @@ class Dictionary(object):
                     line = renoforce("", line)
                     
                     result.append(self.quote(line))
+                    
+        # Adding prefixes for finding private pages etc
+        if self._prefixes:
+            for res in list(result):
+                for pref in self._prefixes:
+                    result.append(pref + res)
 
         # Adding suffixes for finding backups etc
         if self._suffixes:
