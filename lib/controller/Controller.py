@@ -353,8 +353,7 @@ class Controller(object):
             if FileUtils.exists(outputFile):
                 i = 2
 
-                while FileUtils.exists(outputFile + "_" + str(i)):
-                    i += 1
+                while FileUtils.exists(outputFile + "_" + str(i)): i += 1
 
                 outputFile += "_" + str(i)
 
@@ -404,15 +403,15 @@ class Controller(object):
                 sys.exit(1)
         
         # TODO: format, refactor code 
-        if self.arguments.simpleOutputFile is not None:
+        if self.arguments.simpleOutputFile:
             self.reportManager.addOutput(SimpleReport(requester.host, requester.port, requester.protocol,
                                                       requester.basePath, self.arguments.simpleOutputFile, self.batch))
 
-        if self.arguments.plainTextOutputFile is not None:
+        if self.arguments.plainTextOutputFile:
             self.reportManager.addOutput(PlainTextReport(requester.host, requester.port, requester.protocol,
                                                          requester.basePath, self.arguments.plainTextOutputFile, self.batch))
 
-        if self.arguments.jsonOutputFile is not None:
+        if self.arguments.jsonOutputFile:
             self.reportManager.addOutput(JSONReport(requester.host, requester.port, requester.protocol,
                                                     requester.basePath, self.arguments.jsonOutputFile, self.batch))
 
@@ -421,13 +420,13 @@ class Controller(object):
     def matchCallback(self, path):
         self.index += 1
 
-        if path.status is not None:
+        if path.status:
 
             if path.status not in self.excludeStatusCodes and (
                     not self.includeStatusCodes or path.status in self.includeStatusCodes) and (
-                    self.blacklists.get(path.status) is None or path.path not in self.blacklists.get(
+                    not(self.blacklists.get(path.status)) or path.path not in self.blacklists.get(
                 path.status)) and not (
-                    self.suppressEmpty and (len(path.response.body) == 0)) and not ((
+                    self.suppressEmpty and (not(len(path.response.body)))) and not ((
                     self.minimumResponseSize and self.minimumResponseSize > len(path.response.body)) or (
                     self.maximumResponseSize and self.maximumResponseSize < len(path.response.body))):
 
@@ -450,13 +449,15 @@ class Controller(object):
 
                 pathIsInScanSubdirs = False
 
-                if self.arguments.scanSubdirs is not None:
+                if self.arguments.scanSubdirs:
                     for subdir in self.arguments.scanSubdirs:
                         if subdir == path.path + "/":
                             pathIsInScanSubdirs = True
 
-                if pathIsInScanSubdirs == False:
-                    if path.response.redirect:
+                if not pathIsInScanSubdirs:
+                    if not self.recursive:
+                        pass
+                    elif path.response.redirect:
                         self.addRedirectDirectory(path)
                     else:
                         self.addDirectory(path.path)
@@ -554,9 +555,6 @@ class Controller(object):
         return
 
     def addDirectory(self, path):
-        if not self.recursive:
-            return False
-
         if path.endswith("/"):
             if path in [directory + "/" for directory in self.excludeSubdirs]:
                 return False
@@ -581,9 +579,6 @@ class Controller(object):
     def addRedirectDirectory(self, path):
         """Resolve the redirect header relative to the current URL and add the
         path to self.directories if it is a subdirectory of the current URL."""
-        if not self.recursive:
-            return False
-
         baseUrl = self.currentUrl.rstrip("/") + "/" + self.currentDirectory
 
         baseUrl = baseUrl.rstrip("/") + "/"
