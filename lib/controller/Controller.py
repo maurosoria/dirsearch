@@ -180,7 +180,7 @@ class Controller(object):
                     # Initialize directories Queue with start Path
                     self.basePath = self.requester.basePath
 
-                    if self.arguments.scanSubdirs is not None:
+                    if self.arguments.scanSubdirs:
                         for subdir in self.arguments.scanSubdirs:
                             self.directories.put(subdir)
 
@@ -445,9 +445,9 @@ class Controller(object):
                         del path
                         return
 
-                self.output.statusReport(path.path, path.response, self.arguments.full_url)
 
                 pathIsInScanSubdirs = False
+                addedToQueue = False
 
                 if self.arguments.scanSubdirs:
                     for subdir in self.arguments.scanSubdirs:
@@ -459,8 +459,12 @@ class Controller(object):
                         pass
                     elif path.response.redirect:
                         self.addRedirectDirectory(path)
+                        addedToQueue = True
                     else:
                         self.addDirectory(path.path)
+                        addedToQueue = True
+                        
+                self.output.statusReport(path.path, path.response, self.arguments.full_url, addedToQueue)
 
                 newPath = "{}{}".format(self.currentDirectory, path.path)
 
