@@ -148,7 +148,7 @@ class Dictionary(object):
         if self._prefixes:
             for res in list(result):
                 for pref in self._prefixes:
-                    result.append(pref + res)
+                    if not res.startswith(pref): result.append(pref + res)
 
         # Adding suffixes for finding backups etc
         if self._suffixes:
