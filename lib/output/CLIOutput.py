@@ -80,7 +80,7 @@ class CLIOutput(object):
         self.lastInLine = False
         sys.stdout.flush()
 
-    def statusReport(self, path, response, full_url):
+    def statusReport(self, path, response, full_url, addedToQueue):
         with self.mutex:
             contentLength = None
             status = response.status
@@ -133,6 +133,9 @@ class CLIOutput(object):
             ]:
                 message = Fore.CYAN + message + Style.RESET_ALL
                 message += "  ->  {0}".format(response.headers["location"])
+                
+            if addedToQueue:
+                message += "   (Added to the Queue)"
 
             self.newLine(message)
 
