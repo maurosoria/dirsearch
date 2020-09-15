@@ -32,27 +32,37 @@ Options:
 
   Mandatory:
     -u URL, --url=URL   URL target
-    -L URLLIST, --url-list=URLLIST
+    -l URLLIST, --url-list=URLLIST
                         URL list target
     -e EXTENSIONS, --extensions=EXTENSIONS
-                        Extension list separated by comma (Example: php,asp)
+                        Extensions list separated by comma (Example: php,asp)
     -E, --extensions-list
                         Use predefined list of common extensions
+    -X EXCLUDEEXTENSIONS, --exclude-extensions=EXCLUDEEXTENSIONS
+                        Exclude extensions list, separated by comma (Example:
+                        asp,jsp)
 
   Dictionary Settings:
     -w WORDLIST, --wordlist=WORDLIST
                         Customize wordlist (separated by comma)
-    -l, --lowercase
+    --pref=PREFIXES, --prefixes=PREFIXES
+                        Add custom prefixes to all entries (separated by
+                        comma)
     --suff=SUFFIXES, --suffixes=SUFFIXES
-                        Add custom suffixes to all files, ignores directories
-                        (example.%EXT%%SUFFIX%)
+                        Add custom suffixes to all entries, ignores
+                        directories (separated by comma)
     -f, --force-extensions
-                        Force extensions for every wordlist entry
+                        Force extensions for every wordlist entry. Add
+                        %NOFORCE% at the end of the entry that you do not want
+                        to force in the wordlist
     --nd, --no-dot-extensions
                         Don't add a '.' character before extensions
+    -L, --lowercase
+    -U, --uppercase
 
   General Settings:
-    --clean-view, --clean-view
+    -d DATA, --data=DATA
+                        HTTP request data (POST, PUT, ... body)
     -s DELAY, --delay=DELAY
                         Delay between requests (float number)
     -r, --recursive     Bruteforce recursively
@@ -91,6 +101,8 @@ Options:
                         Headers to add (example: --header "Referer:
                         example.com" --header "User-Agent: IE")
     --random-agents, --random-user-agents
+    --clean-view, --clean-view
+    --full-url, --full-url
 
   Connection Settings:
     --timeout=TIMEOUT   Connection timeout
@@ -99,7 +111,7 @@ Options:
                         Http Proxy (example: localhost:8080)
     --proxylist=PROXYLIST, --http-proxy-list=PROXYLIST
                         Path to file containg http proxy servers.
-    --http-method=HTTPMETHOD
+    -m HTTPMETHOD, --http-method=HTTPMETHOD
                         Method to use, default: GET
     --max-retries=MAXRETRIES
     -b, --request-by-hostname
@@ -112,7 +124,6 @@ Options:
     --plain-text-report=PLAINTEXTOUTPUTFILE
                         Found paths with status codes
     --json-report=JSONOUTPUTFILE
-    -q, --quiet-mode    Disable output to console (only to reports)
 ```
 
 
@@ -170,15 +181,15 @@ How to use
 
 Some examples how to use dirsearch - those are the most common arguments. If you need all, just use the "-h" argument.
 ```
-python3 dirsearch.py -e php,txt,zip -u https://target
+python3 dirsearch.py -E -u https://target
 ```
 
 ```
-python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt
+python3 dirsearch.py -E -u https://target -w db/dicc.txt
 ```
 
 ```
-python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --recursive -R 2
+python3 dirsearch.py -E -u https://target --recursive -R 2
 ```
 
 ```
