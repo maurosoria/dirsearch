@@ -366,9 +366,9 @@ class ArgumentParser(object):
 
         mandatory = OptionGroup(parser, 'Mandatory')
         mandatory.add_option('-u', '--url', help='URL target', action='store', type='string', dest='url', default=None)
-        mandatory.add_option('-L', '--url-list', help='URL list target', action='store', type='string', dest='urlList',
+        mandatory.add_option('-l', '--url-list', help='URL list target', action='store', type='string', dest='urlList',
                              default=None)
-        mandatory.add_option('-e', '--extensions', help='Extension list separated by comma (Example: php,asp)',
+        mandatory.add_option('-e', '--extensions', help='Extensions list separated by comma (Example: php,asp)',
                              action='store', dest='extensions', default=None)
         mandatory.add_option('-E', '--extensions-list', help='Use predefined list of common extensions',
                              action='store_true', dest='defaultExtensions', default=False)
@@ -412,7 +412,7 @@ class ArgumentParser(object):
         dictionary.add_option('--nd', '--no-dot-extensions',
                               help='Don\'t add a \'.\' character before extensions', action='store_true',
                               dest='noDotExtensions', default=self.noDotExtensions)
-        dictionary.add_option('-l', '--lowercase', action='store_true', dest='lowercase', default=self.lowercase)
+        dictionary.add_option('-L', '--lowercase', action='store_true', dest='lowercase', default=self.lowercase)
         dictionary.add_option('-U', '--uppercase', action='store_true', dest='uppercase', default=self.uppercase)
 
         # Optional Settings
