@@ -335,7 +335,7 @@ class Controller(object):
         if self.arguments.autoSave:
 
             basePath = "/" if not(len(requester.basePath)) else requester.basePath
-            basePath = basePath.replace(os.path.sep, ".")[1:-1]
+            basePath = basePath.replace(os.path.sep, ".")[0:-1]
             fileName = None
             directoryPath = None
 
