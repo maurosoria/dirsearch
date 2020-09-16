@@ -6,8 +6,10 @@
 %3f/
 %EXT%
 %ext%.bak
+%ext%.old
 %ext%.php
 %ext%.tar
+%ext%.tgz
 %ext%.txt
 %ext%.zip
 %ff
@@ -1259,6 +1261,7 @@ IBMDefaultErrorReporter
 IBMWebAS
 INSTALL.mysql.txt
 INSTALL.pgsql.txt
+INSTALL.txt
 INSTALL_admin
 Indy_admin/
 Install_dotCMS_Release.txt
@@ -1821,6 +1824,8 @@ account/login.rb
 account/login.shtml
 account/logon
 account/signin
+account_edit.%EXT%
+account_history.%EXT%
 accounts
 accounts.%EXT%
 accounts.cgi
@@ -1896,6 +1901,7 @@ actuator/threaddump
 actuator/trace
 ad
 ad_admin.%EXT%
+ad_js.js
 ad_login
 ad_manage
 adadmin
@@ -1908,6 +1914,7 @@ add_admin
 add_link.%EXT%
 addadmin.%EXT%
 addons
+address_book.%EXT%
 adm
 adm-bin/
 adm.%EXT%
@@ -2715,6 +2722,8 @@ ads
 adsamples/
 adv.%EXT%
 advadmin
+advanced_search.%EXT%
+advancedsearch.%EXT%
 advertise
 advertising
 adview
@@ -2734,6 +2743,7 @@ agent_admin
 aiadmin
 ainstall
 ajax
+ajax.php
 ajfhasdfgsagfakjhgd
 akeeba.backend.log
 albums
@@ -2761,11 +2771,11 @@ api-doc
 api-docs
 api.log
 api/
-api/v1
-api/v2
 api/error_log
 api/jsonws/invoke
 api/swagger.yml
+api/v1
+api/v2
 api/v2/helpdesk/discover
 apibuild.pyc
 app
@@ -3147,8 +3157,10 @@ camadmin
 camunda
 camunda-welcome
 cancel.html
+car
 careers
 cart
+cart.%EXT%
 cartadmin
 catalog
 catalog.wci
@@ -3495,6 +3507,7 @@ controlpanel.shtml
 controlpanel/
 cookie
 cookie.php
+cookie_usage.php
 cookies
 coppermine
 copyright
@@ -3524,10 +3537,12 @@ cpg
 cpn.php
 cpsadmin
 crack
+create_account
 credentials
 creo_admin
 crm
 crm/
+cron.%EXT%
 cron.log
 cron.php
 cron.sh
@@ -3820,6 +3835,7 @@ editor/tiny_mce/
 editor/tinymce
 editor/tinymce/
 editors/FCKeditor
+editpost.%EXT%
 editsiteadmin.%EXT%
 editsiteadmins.%EXT%
 education
@@ -3965,6 +3981,7 @@ features
 feed
 feedback
 feedback.%EXT%
+feedback_js.js
 feeds
 file
 file.php
@@ -4081,6 +4098,7 @@ global.asax.old
 global.asax.orig
 global.asax.temp
 global.asax.tmp
+global.php
 globaladmin
 globaladminv2
 globals
@@ -4090,6 +4108,7 @@ glossary
 glpi
 glpi/
 go
+go.%EXT%
 google
 grabbed.html
 graffiti-admin
@@ -4104,6 +4123,7 @@ grappelli/
 group
 groupadmin
 groupadmin.%EXT%
+groupcp.%EXT%
 gs/admin
 gs/plugins/editors/fckeditor
 gsadmin
@@ -4356,6 +4376,7 @@ info.json
 info.txt
 infos.php
 ini
+inlinemod.php
 instadmin/
 install
 install.asp
@@ -4665,6 +4686,7 @@ loginsuper/
 logo
 logo.gif
 logo_sysadmin/
+logoff
 logoff.%EXT%
 logon
 logon.%EXT%
@@ -4794,7 +4816,7 @@ media_admin
 memadmin
 member
 member-login
-member.php
+member.%EXT%
 member/
 member/admin.asp
 member/login
@@ -4853,6 +4875,7 @@ mime
 mimosa-config.coffee
 mimosa-config.js
 misc
+misc.php
 mliveadmin
 mmadmin
 moadmin.php
@@ -4860,6 +4883,7 @@ mobile
 mobile.%EXT%
 mock/
 modcp
+modcp.%EXT%
 modelsearch/admin.%EXT%
 modelsearch/admin.html
 modelsearch/admin.php
@@ -4960,6 +4984,7 @@ mysqladmin/scripts/setup.php
 mysqldumper/
 mysqlitedb.db
 mysqlmanager/
+mytag_js.js
 n
 nadmin
 nagios
@@ -4988,7 +5013,9 @@ new
 new.php
 new_admin
 newadmin
+newattachment.%EXT%
 newbbs/login
+newreply.%EXT%
 news
 news-admin
 news.%EXT%
@@ -5001,6 +5028,7 @@ newsletter-admin
 newsletter/
 newsletteradmin
 newsletters
+newthread.%EXT%
 nextcloud
 nextcloud/
 nginx-access.log
@@ -5050,6 +5078,7 @@ oldadmin
 oldfiles
 oneadmin
 online
+online.%EXT%
 onlineadmin
 opadmin
 opc/
@@ -5069,6 +5098,7 @@ opt
 oracle
 orasso
 order
+order.%EXT%
 order.htm
 order.log
 order.txt
@@ -5166,6 +5196,7 @@ path/dataTables/extras/TableTools/media/swf/ZeroClipboard.swf
 patient/login.do
 patient/register.do
 payment.%EXT%
+payments
 payments.%EXT%
 pb-admin
 pbadmin
@@ -5456,11 +5487,13 @@ policies
 policy
 politics
 poll
+poll.%EXT%
 pollbooth.%EXT%
 pom.xml
 pop_profile.%EXT%
 popup.htm
 popup.html
+popup_image.php
 popup_songs.%EXT%
 portal
 portal/
@@ -5492,10 +5525,12 @@ private
 private.key
 private.mdb
 private.sqlite
+privmsg.%EXT%
 processlogin
 processlogin.php
 procmail
 product
+product_reviews.%EXT%
 productcockpit
 productcockpit/
 production.log
@@ -5580,9 +5615,11 @@ recaptcha
 receiver.%EXT%
 recentservers.xml
 recherche.html
+recommend.%EXT%
 recover
 redadmin
 redirect
+redirect.%EXT%
 redmine
 redmine/
 regadmin
@@ -5606,6 +5643,7 @@ report
 report.%EXT%
 reports
 reports/Webalizer/
+reputation.%EXT%
 request.log
 research
 reseller
@@ -5638,6 +5676,7 @@ rootadmin
 rpc.%EXT%
 rpc_admin
 rss
+rss.%EXT%
 rst.php
 rubrique.%EXT%
 runtime_messages.jsp
@@ -5725,6 +5764,7 @@ security.xml
 security/
 sem/
 sendmail
+sendmessage.%EXT%
 sentemails.log
 seoadmin
 serial
@@ -5808,6 +5848,7 @@ shell.%EXT%
 shell.sh
 shell/
 shellz.php
+shipping.%EXT%
 shop
 shop-admin
 shop_admin
@@ -5818,12 +5859,15 @@ shopadmin7963
 shopaffadmin.%EXT%
 shopcustadmin.%EXT%
 shopping
+shopping_cart.%EXT%
 show
 showCfg
 showadmin
 showallsites
 showcode.asp
+showgroups.%EXT%
 showlogin/
+showpost.%EXT%
 showthread
 shradmin
 shtml.exe
@@ -6010,6 +6054,7 @@ store_admin
 storeadmin
 stories
 story
+stow.%EXT%
 strona_1
 strona_10
 strona_11
@@ -6043,6 +6088,7 @@ submit
 submit_article.%EXT%
 subscribe
 subscribe.html
+subscription.%EXT%
 sugarcrm
 sugarcrm.log
 sunvalleyadmin
@@ -6205,6 +6251,7 @@ themes
 themes/default/htdocs/flash/ZeroClipboard.swf
 thirdparty/fckeditor
 thread
+threadrate.php
 threads
 thumb
 thumb.%EXT%
@@ -6294,6 +6341,7 @@ uadmin
 uber/phpMemcachedAdmin/
 uber/phpMyAdmin/
 uber/phpMyAdminBackup/
+ucp.%EXT%
 uddi
 uddi/uddilistener
 uddiexplorer
@@ -6378,11 +6426,13 @@ user_uploads
 useradmin
 useradmin/
 usercp
+usercp.%EXT%
 userfiles
 userinfo.%EXT%
 userlogin
 userlogin.php
 usernames.txt
+usernote.%EXT%
 users
 users.csv
 users.db
@@ -6466,6 +6516,9 @@ version.txt
 version/
 view-source
 view.php
+viewforum.%EXT%
+viewonline.%EXT%
+viewtopic.%EXT%
 vmailadmin/
 vorod
 vorod.php
@@ -6645,6 +6698,7 @@ xlogin/
 xls/
 xml/_common.xml
 xml/common.xml
+xmlrpc.%EXT%
 xmlrpc.php
 xmlrpc_server.php
 xphpMyAdmin/
