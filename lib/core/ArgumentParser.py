@@ -348,7 +348,7 @@ class ArgumentParser(object):
         )
         self.useragent = config.safe_get("connection", "user-agent", None)
         self.delay = config.safe_get("connection", "delay", 0)
-        self.timeout = config.safe_getint("connection", "timeout", 20)
+        self.timeout = config.safe_getint("connection", "timeout", 10)
         self.maxRetries = config.safe_getint("connection", "max-retries", 3)
         self.proxy = config.safe_get("connection", "http-proxy", None)
         self.proxylist = config.safe_get("connection", "http-proxy-list", None)
