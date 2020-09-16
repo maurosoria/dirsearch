@@ -125,7 +125,7 @@ class Controller(object):
         self.printConfig()
         self.errorLog = None
         self.errorLogPath = None
-        self.errorLogLock = Lock()
+        self.threadsLock = Lock()
         self.batch = False
         self.batchSession = None
         self.setupErrorLogs()
@@ -480,52 +480,53 @@ class Controller(object):
         del path
 
     def appendErrorLog(self, path, errorMsg):
-        with self.errorLogLock:
+        with self.threadsLock:
             line = time.strftime("[%y-%m-%d %H:%M:%S] - ")
             line += self.currentUrl + " - " + path + " - " + errorMsg
             self.errorLog.write(os.linesep + line)
             self.errorLog.flush()
 
     def handleInterrupt(self):
-        self.output.warning("CTRL+C detected: Pausing threads, please wait...")
-        self.fuzzer.pause()
+        with self.threadsLock:
+            self.output.warning("CTRL+C detected: Pausing threads, please wait...")
+            self.fuzzer.pause()
 
-        try:
-            while True:
-                msg = "[e]xit / [c]ontinue"
+            try:
+                while True:
+                    msg = "[e]xit / [c]ontinue"
 
-                if not self.directories.empty():
-                    msg += " / [n]ext"
+                    if not self.directories.empty():
+                        msg += " / [n]ext"
 
-                if len(self.arguments.urlList) > 1:
-                    msg += " / [s]kip target"
+                    if len(self.arguments.urlList) > 1:
+                        msg += " / [s]kip target"
 
-                self.output.inLine(msg + ": ")
+                    self.output.inLine(msg + ": ")
 
-                option = input()
+                    option = input()
 
-                if option.lower() == "e":
-                    self.exit = True
-                    self.fuzzer.stop()
-                    raise KeyboardInterrupt
+                    if option.lower() == "e":
+                        self.exit = True
+                        self.fuzzer.stop()
+                        raise KeyboardInterrupt
 
-                elif option.lower() == "c":
-                    self.fuzzer.play()
-                    return
+                    elif option.lower() == "c":
+                        self.fuzzer.play()
+                        return
 
-                elif not self.directories.empty() and option.lower() == "n":
-                    self.fuzzer.stop()
-                    return
+                    elif not self.directories.empty() and option.lower() == "n":
+                        self.fuzzer.stop()
+                        return
 
-                elif len(self.arguments.urlList) > 1 and option.lower() == "s":
-                    raise SkipTargetInterrupt
+                    elif len(self.arguments.urlList) > 1 and option.lower() == "s":
+                        raise SkipTargetInterrupt
 
-                else:
-                    continue
+                    else:
+                        continue
 
-        except KeyboardInterrupt as SystemExit:
-            self.exit = True
-            raise KeyboardInterrupt
+            except KeyboardInterrupt as SystemExit:
+                self.exit = True
+                raise KeyboardInterrupt
 
     def processPaths(self):
         while True:
