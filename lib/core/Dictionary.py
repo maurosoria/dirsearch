@@ -88,6 +88,8 @@ class Dictionary(object):
         # Enable to use multiple dictionaries at once
         for dictFile in self.dictionaryFiles:
             for line in list(dict.fromkeys(dictFile.getLines())):
+                if line.startswith("/"):
+                    line = line[1:]
                 
                 # Check if the line is having the %NOFORCE% keyword
                 if "%noforce%" in line.lower():
@@ -108,7 +110,8 @@ class Dictionary(object):
                             matched = True
                             break
                             
-                    if matched: continue      
+                    if matched:
+                        continue
 
                 # Classic dirsearch wordlist processing (with %EXT% keyword)
                 if "%ext%" in line.lower():
@@ -148,7 +151,8 @@ class Dictionary(object):
         if self._prefixes:
             for res in list(dict.fromkeys(result)):
                 for pref in self._prefixes:
-                    if not res.startswith(pref): result.append(pref + res)
+                    if not res.startswith(pref): 
+                        result.append(pref + res)
 
         # Adding suffixes for finding backups etc
         if self._suffixes:
