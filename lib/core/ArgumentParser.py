@@ -361,7 +361,9 @@ class ArgumentParser(object):
 
     def parseArguments(self):
         usage = "Usage: %prog [-u|--url] target [-e|--extensions] extensions [options]"
-        parser = OptionParser(usage)
+        parser = OptionParser(usage, epilog='''
+You can change the dirsearch default configurations (default extensions, timeout, wordlist location, ...) by editing the default.conf file. More information at https://github.com/maurosoria/dirsearch.                          
+''')
         # Mandatory arguments
 
         mandatory = OptionGroup(parser, 'Mandatory')
@@ -391,7 +393,7 @@ class ArgumentParser(object):
         connection.add_option('--max-retries', action='store', dest='maxRetries', type='int',
                               default=self.maxRetries)
         connection.add_option('-b', '--request-by-hostname',
-                              help='By default dirsearch will request by IP for speed. This forces requests by hostname',
+                              help='By default dirsearch will request by IP for speed. This will force requests by hostname',
                               action='store_true', dest='requestByHostname', default=self.requestByHostname)
 
         # Dictionary settings
