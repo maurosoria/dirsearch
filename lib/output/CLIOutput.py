@@ -136,19 +136,19 @@ class CLIOutput(object):
 
             self.newLine(message)
 
-    def lastPath(self, path, index, length):
+    def lastPath(self, path, index, length, currentJob, allJobs):
         with self.mutex:
             percentage = lambda x, y: float(x) / float(y) * 100
 
             x, y = get_terminal_size()
 
             message = "{0:.2f}% - ".format(percentage(index, length))
+            
+            if len(allJobs) > 1:
+                message += "Job: {1}/{2} - ".format(currentJob, allJobs)
 
             if self.errors > 0:
-                message += Style.BRIGHT + Fore.RED
-                message += "Errors: {0}".format(self.errors)
-                message += Style.RESET_ALL
-                message += " - "
+                message += "Errors: {0} - ".format(self.errors)
 
             message += "Last request to: {0}".format(path)
 

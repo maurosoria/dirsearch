@@ -130,6 +130,8 @@ class Controller(object):
         self.batchSession = None
         self.setupErrorLogs()
         self.output.errorLogFile(self.errorLogPath)
+        self.currentJob = 0
+        self.allJobs = 0
 
         if self.arguments.autoSave and len(self.arguments.urlList) > 1:
             self.setupBatchReports()
@@ -183,9 +185,11 @@ class Controller(object):
                     if self.arguments.scanSubdirs is not None:
                         for subdir in self.arguments.scanSubdirs:
                             self.directories.put(subdir)
+                            self.allJobs += 1
 
                     else:
                         self.directories.put("")
+                        self.allJobs += 1
 
                     self.setupReports(self.requester)
 
@@ -472,7 +476,7 @@ class Controller(object):
 
     def notFoundCallback(self, path):
         self.index += 1
-        self.output.lastPath(path, self.index, len(self.dictionary))
+        self.output.lastPath(path, self.index, len(self.dictionary), self.currentJob, self.allJobs)
         del path
 
     def errorCallback(self, path, errorMsg):
@@ -539,6 +543,7 @@ class Controller(object):
 
     def wait(self):
         while not self.directories.empty():
+            self.currentJob += 1
             gc.collect()
             self.index = 0
             self.currentDirectory = self.directories.get()
@@ -568,6 +573,7 @@ class Controller(object):
                 return False
 
             self.directories.put(dir)
+            self.allJobs += 1
 
             self.doneDirs.append(dir)
 
@@ -599,6 +605,7 @@ class Controller(object):
                 return False
 
             self.directories.put(dir)
+            self.allJobs += 1
 
             self.doneDirs.append(dir)
 

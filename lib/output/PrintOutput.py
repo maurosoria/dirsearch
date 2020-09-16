@@ -117,7 +117,7 @@ class PrintOutput(object):
 
             self.newLine(message)
 
-    def lastPath(self, path, index, length):
+    def lastPath(self, path, index, length, currentJob, allJobs):
         pass
 
     def addConnectionError(self):
