@@ -150,8 +150,9 @@ class CLIOutput(object):
 
             message = "{0:.2f}% - ".format(percentage(index, length))
             
-            if allJobs > 1:
-                message += "Job: {1}/{2} - ".format(currentJob, allJobs)
+
+            if len(allJobs) > 1:
+                message += "Job: {0}/{1} - ".format(currentJob, allJobs)
 
             if self.errors > 0:
                 message += "Errors: {0} - ".format(self.errors)
