@@ -116,7 +116,7 @@ class PrintOutput(object):
                 message += "  ->  {0}".format(response.headers["location"])
                 
             if addedToQueue:
-                message += "   (Added to the Queue)"
+                message += "    (Added to the Queue)"
 
             self.newLine(message)
 
