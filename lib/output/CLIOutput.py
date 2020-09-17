@@ -117,6 +117,9 @@ class CLIOutput(object):
 
             if status == 200:
                 message = Fore.GREEN + message + Style.RESET_ALL
+                
+            elif status == 400:
+                message = Fore.MAGENTA + message + Style.RESET_ALL
 
             elif status == 401:
                 message = Fore.YELLOW + message + Style.RESET_ALL
@@ -147,6 +150,7 @@ class CLIOutput(object):
 
             message = "{0:.2f}% - ".format(percentage(index, length))
             
+
             if len(allJobs) > 1:
                 message += "Job: {0}/{1} - ".format(currentJob, allJobs)
 
