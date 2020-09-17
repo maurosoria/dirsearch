@@ -64,7 +64,7 @@ class Controller(object):
 
         self.recursive_level_max = self.arguments.recursive_level_max
 
-        if self.arguments.httpmethod.lower() not in ["get", "head", "post", "put", "patch", "options", "delete", "trace"]:
+        if self.arguments.httpmethod.lower() not in ["get", "head", "post", "put", "patch", "options", "delete", "trace", "debug"]:
             self.output.error("Invalid http method!")
             exit(1)
 
