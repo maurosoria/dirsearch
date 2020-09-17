@@ -117,6 +117,9 @@ class CLIOutput(object):
 
             if status == 200:
                 message = Fore.GREEN + message + Style.RESET_ALL
+                
+            elif status == 400:
+                message = Fore.MAGENTA + message + Style.RESET_ALL
 
             elif status == 401:
                 message = Fore.YELLOW + message + Style.RESET_ALL
