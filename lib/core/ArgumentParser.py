@@ -339,8 +339,8 @@ class ArgumentParser(object):
         )
         self.lowercase = config.safe_getboolean("dictionary", "lowercase", False)
         self.uppercase = config.safe_getboolean("dictionary", "uppercase", False)
-        self.forceExtensions = config.safe_get("dictionary", "force-extensions", False)
-        self.noDotExtensions = config.safe_get("dictionary", "no-dot-extensions", False)
+        self.forceExtensions = config.safe_getboolean("dictionary", "force-extensions", False)
+        self.noDotExtensions = config.safe_getboolean("dictionary", "no-dot-extensions", False)
 
         # Connection
         self.useRandomAgents = config.safe_get(
@@ -355,7 +355,7 @@ class ArgumentParser(object):
         self.httpmethod = config.safe_get(
             "connection", "httpmethod", "get", ["get", "head", "post", "put", "patch", "delete", "trace", "options", "debug"]
         )
-        self.requestByHostname = config.safe_get(
+        self.requestByHostname = config.safe_getboolean(
             "connection", "request-by-hostname", False
         )
 
