@@ -153,7 +153,7 @@ class PrintOutput(object):
         pass
 
 
-    def target(self, target):
+    def setTarget(self, target):
         self.target = target
 
     def outputFile(self, target):
