@@ -325,6 +325,7 @@ class ArgumentParser(object):
         self.testFailPath = config.safe_get("general", "scanner-fail-path", "").strip()
         self.saveHome = config.safe_getboolean("general", "save-logs-home", False)
         self.defaultExtensions = config.safe_get("general", "default-extensions", "php,asp,aspx,jsp,jspx,html,htm,js")
+        self.excludeSubdirs = config.safe_get("general", "exclude-subdirs", None)
 
         # Reports
         self.autoSave = config.safe_getboolean("reports", "autosave-report", False)
@@ -443,7 +444,7 @@ You can change the dirsearch default configurations (default extensions, timeout
         general.add_option('--exclude-subdir', '--exclude-subdirs',
                            help='Exclude the following subdirectories during recursive scan (separated by comma)',
                            action='store', dest='excludeSubdirs',
-                           default=None)
+                           default=self.excludeSubdirs)
         general.add_option('-t', '--threads', help='Number of Threads', action='store', type='int', dest='threadsCount'
                            , default=self.threadsCount)
         general.add_option('-i', '--include-status', help='Show only included status codes, separated by comma (example: 301, 500)'
