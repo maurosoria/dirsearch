@@ -177,8 +177,9 @@ class CLIOutput(object):
             self.newLine(message)
 
     def warning(self, reason):
-        message = Style.BRIGHT + Fore.YELLOW + reason + Style.RESET_ALL
-        self.newLine(message)
+        with self.mutex:
+            message = Style.BRIGHT + Fore.YELLOW + reason + Style.RESET_ALL
+            self.newLine(message)
 
     def header(self, text):
         message = Style.BRIGHT + Fore.MAGENTA + text + Style.RESET_ALL
