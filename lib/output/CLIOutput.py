@@ -138,7 +138,7 @@ class CLIOutput(object):
                 message += "  ->  {0}".format(response.headers["location"])
                 
             if addedToQueue:
-                message += "    (Added to the Queue)"
+                message += "     (Added to queue)"
 
             self.newLine(message)
 
