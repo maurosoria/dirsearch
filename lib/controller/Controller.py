@@ -148,7 +148,7 @@ class Controller(object):
                     gc.collect()
                     self.reportManager = ReportManager()
                     self.currentUrl = url
-                    self.output.target(self.currentUrl)
+                    self.output.setTarget(self.currentUrl)
 
                     try:
                         self.requester = Requester(

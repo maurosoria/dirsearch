@@ -228,7 +228,7 @@ class CLIOutput(object):
 
         self.newLine(config)
 
-    def target(self, target):
+    def setTarget(self, target):
         self.target = target
 
         config = Style.BRIGHT + Fore.YELLOW
