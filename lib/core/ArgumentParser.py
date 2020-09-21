@@ -437,7 +437,7 @@ You can change the dirsearch default configurations (default extensions, timeout
                            help='Maximal response length')
 
         general.add_option('--scan-subdir', '--scan-subdirs',
-                           help='Scan subdirectories of the given -u|--url (separated by comma)', action='store',
+                           help='Scan subdirectories of the given URL (separated by comma)', action='store',
                            dest='scanSubdirs',
                            default=None)
         general.add_option('--exclude-subdir', '--exclude-subdirs',
