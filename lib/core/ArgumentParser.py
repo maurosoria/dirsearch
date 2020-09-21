@@ -437,7 +437,7 @@ You can change the dirsearch default configurations (default extensions, timeout
                            help='Maximal response length')
 
         general.add_option('--scan-subdir', '--scan-subdirs',
-                           help='Scan subdirectories of the given -u|--url (separated by comma)', action='store',
+                           help='Scan subdirectories of the given URL (separated by comma)', action='store',
                            dest='scanSubdirs',
                            default=None)
         general.add_option('--exclude-subdir', '--exclude-subdirs',
@@ -448,7 +448,7 @@ You can change the dirsearch default configurations (default extensions, timeout
                            , default=self.threadsCount)
         general.add_option('-i', '--include-status', help='Show only included status codes, separated by comma (example: 301, 500)'
                            , action='store', dest='includeStatusCodes', default=self.includeStatusCodes)
-        general.add_option('-x', '--exclude-status', help='Exclude status code, separated by comma (example: 301, 500)'
+        general.add_option('-x', '--exclude-status', help='Exclude status codes, separated by comma (example: 301, 500)'
                            , action='store', dest='excludeStatusCodes', default=self.excludeStatusCodes)
         general.add_option('--exclude-texts', help='Exclude responses by texts, separated by comma (example: "Not found", "Error")'
                            , action='store', dest='excludeTexts', default=None)
