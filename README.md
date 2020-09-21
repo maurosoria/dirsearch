@@ -258,16 +258,19 @@ Contributors
 ---------
 Special thanks for these people.
 
-- shelld3v
-- mzfr
-- Damian89
-- Bo0oM
-- liamosaur
-- redshark1802
-- SUHAR1K
-- FireFart
-- k2l8m11n2
-- vlohacks
-- r0p0s3c
-- V-Rico
-- russtone
+- @shelld3v
+- @mzfr
+- @V-Rico
+- @Damian89
+- @Bo0oM
+- @liamosaur
+- @redshark1802
+- @SUHAR1K
+- @FireFart
+- @k2l8m11n2
+- @vlohacks
+- @r0p0s3c
+- @russtone
+- @jsav0
+- @serhattsnmz
+- @ColdFusionX
