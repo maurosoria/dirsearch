@@ -266,11 +266,10 @@ class ArgumentParser(object):
 
         else:
             self.scanSubdirs = None
+            
 
         if not self.recursive and options.excludeSubdirs:
-            print("--exclude-subdir argument can only be used with -r|--recursive")
-            exit(0)
-
+            self.excludeSubdirs = None
 
         elif options.excludeSubdirs:
             self.excludeSubdirs = list(
