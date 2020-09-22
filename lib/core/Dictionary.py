@@ -83,7 +83,9 @@ class Dictionary(object):
     def generate(self):
         reext = re.compile('\%ext\%', re.IGNORECASE).sub
         reextdot = re.compile('\.\%ext\%', re.IGNORECASE).sub
+        exclude = re.match
         result = []
+
 
         # Enable to use multiple dictionaries at once
         for dictFile in self.dictionaryFiles:
@@ -106,7 +108,7 @@ class Dictionary(object):
                     matched = False
                     
                     for excludeExtension in self._excludeExtensions:
-                        if line.endswith("." + excludeExtension):
+                        if exclude("." + excludeExtension, line):
                             matched = True
                             break
                             
