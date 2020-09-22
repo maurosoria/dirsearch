@@ -83,7 +83,7 @@ class Dictionary(object):
     def generate(self):
         reext = re.compile('\%ext\%', re.IGNORECASE).sub
         reextdot = re.compile('\.\%ext\%', re.IGNORECASE).sub
-        exclude = re.match
+        exclude = re.findall
         result = []
 
 
@@ -108,7 +108,7 @@ class Dictionary(object):
                     matched = False
                     
                     for excludeExtension in self._excludeExtensions:
-                        if exclude("." + excludeExtension, line):
+                        if len(exclude("." + excludeExtension, line)):
                             matched = True
                             break
                             
