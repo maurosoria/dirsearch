@@ -473,8 +473,8 @@ You can change the dirsearch default configurations (default extensions, timeout
                            default=self.useragent)
         general.add_option('-F', '--follow-redirects', action='store_true', dest='noFollowRedirects'
                            , default=self.redirect)
-        general.add_option('-H', '--headers',
-                           help='Headers to add (example: --header "Referer: example.com" --header "User-Agent: IE")',
+        general.add_option('-H', '--header',
+                           help='HTTP request headers, support multiple flags (example: --header "Referer: example.com" --header "User-Agent: IE")',
                            action='append', type='string', dest='headers', default=None)
 
         general.add_option('--full-url', '--full-url', action='store_true', dest='full_url',
