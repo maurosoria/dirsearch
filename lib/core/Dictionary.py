@@ -124,7 +124,7 @@ class Dictionary(object):
 
                         else:
                             newline = line
-                            
+
                         newline = reext(extension, newline)
 
                         quote = self.quote(newline)
@@ -149,15 +149,14 @@ class Dictionary(object):
                 # Append line unmodified.
                 else:
                     result.append(self.quote(line))
-                    
+
+
         # Adding prefixes for finding private pages etc
         if self._prefixes:
             for res in list(dict.fromkeys(result)):
                 for pref in self._prefixes:
                     if not res.startswith(pref): 
                         custom.append(pref + res)
-                        
-            result = custom
 
         # Adding suffixes for finding backups etc
         if self._suffixes:
@@ -166,7 +165,7 @@ class Dictionary(object):
                     for suff in self._suffixes:
                         custom.append(res + suff)
            
-            result = custom
+        result = custom if custom else result
 
 
         if self.lowercase:
