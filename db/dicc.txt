@@ -5,13 +5,13 @@
 %2e%2e//google.com
 %3f/
 %EXT%
-%ext%.bak
-%ext%.old
-%ext%.php
-%ext%.tar
-%ext%.tgz
-%ext%.txt
-%ext%.zip
+%EXT%.bak
+%EXT%.old
+%EXT%.php
+%EXT%.tar
+%EXT%.tgz
+%EXT%.txt
+%EXT%.zip
 %ff
 ..;/
 .0
@@ -1030,6 +1030,7 @@
 2008
 2009
 2010
+2010.%EXT%
 2011
 2012
 2012.sql
@@ -1119,6 +1120,7 @@
 401
 403
 404
+404.%EXT%
 41
 42
 43
@@ -1166,7 +1168,7 @@
 A
 ADMIN
 ADMIN.%EXT%
-ASPSamp/AdvWorks/equipment/catalog_type.%EXT%
+ASPSamp/AdvWorks/equipment/catalog_type.asp
 AT-admin.cgi
 About
 AboutUs
@@ -1200,7 +1202,6 @@ AdminRealm
 AdminThreads
 AdminTools/
 AdminVersion
-AdvWorks/equipment/catalog_type.%EXT%
 AdvWorks/equipment/catalog_type.asp
 AlbumCatalogWeb
 AlbumCatalogWeb/
@@ -1744,6 +1745,7 @@ _administracion
 _administration
 _awstats/
 _baks
+_baks.%EXT%
 _cm_admin
 _common.xsl
 _config.inc
@@ -1788,8 +1790,8 @@ _logs/error-log
 _logs/error.log
 _logs/error_log
 _mem_bin/
-_mem_bin/autoconfig.%EXT%
-_mem_bin/formslogin.%EXT%
+_mem_bin/autoconfig.asp
+_mem_bin/formslogin.asp
 _mm
 _mmServerScripts/MMHTTPDB.asp
 _mmServerScripts/MMHTTPDB.php
@@ -1858,7 +1860,6 @@ _wpeprivate/
 _wpeprivate/config.json
 _www
 a
-a%5c.%EXT%
 a%5c.aspx
 a2e2gp2r2/x.jsp
 a4j/g/3_3_1.GAorg.richfaces.renderkit.html.Paint2DResource/DATA/
@@ -2058,11 +2059,8 @@ adm.rb
 adm.shtml
 adm/
 adm/admloginuser.%EXT%
-adm/admloginuser.php
 adm/fckeditor
 adm/index.%EXT%
-adm/index.html
-adm/index.php
 adm/style/admin.css
 adm_auth
 adm_auth.php
@@ -2071,8 +2069,7 @@ admin%20/
 admin%EXT%
 admin-ANTIGO
 admin-admin
-admin-ajax.%EXT%
-admin-ajax.php?
+admin-ajax.php
 admin-area
 admin-authz.xml
 admin-bin
@@ -2158,30 +2155,20 @@ admin/account.php
 admin/admin
 admin/admin-login
 admin/admin-login.%EXT%
-admin/admin-login.html
-admin/admin-login.php
 admin/admin.%EXT%
-admin/admin.html
-admin/admin.php
 admin/admin.shtml
 admin/admin/login
 admin/adminLogin
 admin/adminLogin.%EXT%
 admin/adminLogin.htm
-admin/adminLogin.html
-admin/adminLogin.php
 admin/admin_login
 admin/admin_login.%EXT%
-admin/admin_login.html
-admin/admin_login.php
 admin/backup/
 admin/backups/
 admin/config.php
 admin/controlpanel
 admin/controlpanel.%EXT%
 admin/controlpanel.htm
-admin/controlpanel.html
-admin/controlpanel.php
 admin/cp
 admin/cp.%EXT%
 admin/cp.html
@@ -2287,7 +2274,7 @@ admin2.%EXT%
 admin2.asp
 admin2.cfm
 admin2.html
-admin2.old/
+admin2.old
 admin2.php
 admin2/
 admin2/index.%EXT%
@@ -2907,9 +2894,10 @@ api/
 api/error_log
 api/jsonws/invoke
 api/swagger.yml
-api/v1/
-api/v2/
+api/v1
+api/v2
 api/v2/helpdesk/discover
+api/v3
 apibuild.pyc
 app
 app-admin
@@ -2958,6 +2946,10 @@ app/unschedule.bat
 app/vendor
 app/vendor-src
 app_admin
+app_code
+app_code.%EXT%
+app_data
+app_data.%EXT%
 app_dev.php
 appadmin
 appcache.manifest
@@ -2972,6 +2964,7 @@ apps
 apps/frontend/config/app.yml
 apps/frontend/config/databases.yml
 archive
+archive.%EXT%
 archive.rar
 archive.sql
 archive.tar
@@ -3060,6 +3053,7 @@ autologin.php
 autologin/
 awards
 awstats
+awstats.%EXT%
 awstats.conf
 awstats.pl
 awstats/
@@ -3215,6 +3209,7 @@ black/template.xml
 blacklist.dat
 blank
 blocks
+blocks.%EXT%
 blog
 blog/error_log
 blog/fckeditor
@@ -3304,6 +3299,7 @@ catalog_admin
 catalog_admin.%EXT%
 catalogadmin
 catalogsearch
+catalogsearch.%EXT%
 categories
 category
 cb-admin
@@ -3351,6 +3347,7 @@ cgi-shl/
 cgi-sys
 cgi-sys/
 cgi-win/
+cgi.%EXT%
 cgi.pl/
 cgi/
 cgi/account/
@@ -3405,6 +3402,7 @@ ckfinder/ckfinder.html
 class
 classadmin.%EXT%
 classes
+classes.%EXT%
 classes/
 classes/cookie.txt
 classes/gladius/README.TXT
@@ -3436,6 +3434,7 @@ cmdasp.aspx
 cmdjsp.jsp
 cms
 cms-admin
+cms.%EXT%
 cms.csproj
 cms/
 cms/Web.config
@@ -3477,6 +3476,7 @@ company
 compass/logon.jsp
 compat
 component
+component.%EXT%
 components
 components/login.ascx
 composer.json
@@ -3609,6 +3609,8 @@ confluence/spaces/viewmailaccounts.action
 conf~
 conn.asp
 connect.inc
+connections
+connections.%EXT%
 console
 console/
 console/base/config.json
@@ -3631,6 +3633,7 @@ contentadmin
 contents
 contributing.md
 contributor
+contributor.%EXT%
 contributors.txt
 control
 control.php
@@ -3676,14 +3679,12 @@ cpg
 cpn.php
 cpsadmin
 crack
-create_account
 create_account.%EXT%
 credentials
 creo_admin
 crm
 crm/
 cron
-cron.%EXT%
 cron.log
 cron.php
 cron.sh
@@ -3707,6 +3708,7 @@ culeadora.txt
 current
 custom.%EXT%
 custom/db.ini
+customavatars
 customer
 customer_login/
 customers
@@ -3772,6 +3774,7 @@ davmail.log
 db
 db-admin
 db-full.mysql
+db.%EXT%
 db.csv
 db.inc
 db.ini
@@ -3805,6 +3808,7 @@ dbbackup/
 dbfix/
 dcadmin.cgi
 de
+de.%EXT%
 dead.letter
 dealer_admin
 dealeradmin
@@ -3828,6 +3832,7 @@ default.htm
 default2.%EXT%
 delete.php
 demo
+demo.%EXT%
 demo.php
 demo/ejb/index.html
 demo/sql/index.jsp
@@ -3841,6 +3846,7 @@ desktop/index_framed.htm
 detail
 details
 dev
+dev.%EXT%
 dev.php
 dev/
 devel
@@ -3869,6 +3875,7 @@ disclaimer
 discus_admin
 discus_admin_40
 display
+display.%EXT%
 dist/
 django_lfc.egg-info/vPKG-INFO
 dl
@@ -3915,6 +3922,7 @@ download.%EXT%
 download/history.csv
 download/users.csv
 downloader
+downloader.%EXT%
 downloader/cache.cfg
 downloader/connect.cfg
 downloads
@@ -3987,6 +3995,7 @@ ekw_admin
 elfinder/elfinder.php
 elmah.axd
 email
+email.%EXT%
 email.htm
 email/
 email_admin
@@ -4086,6 +4095,7 @@ exchange/logon.%EXT%
 exchange/root.%EXT%
 expadmin
 export
+export.%EXT%
 export/
 expressInstall.swf
 extjs/resources//charts.swf
@@ -4172,6 +4182,7 @@ forgot_pass.%EXT%
 formadmin
 formmail
 forms
+forms.%EXT%
 formsadmin
 formslogin/
 forum
@@ -4214,6 +4225,7 @@ galeria
 galeria/
 galerias
 gallery
+gallery.%EXT%
 gallery_admin
 games
 gaza.php
@@ -4258,6 +4270,7 @@ google
 grabbed.html
 graffiti-admin
 graphics
+graphics.%EXT%
 graphiql.php
 graphiql/
 graphql
@@ -4312,6 +4325,7 @@ hitcount
 hmc
 hmc/
 home
+home.%EXT%
 home.html
 home.php
 home.rar
@@ -4337,6 +4351,7 @@ htadmin
 htdocs
 htgroup
 html
+html.%EXT%
 html/
 html/cgi-bin/
 html/config.rb
@@ -4676,9 +4691,11 @@ labels.rdf
 ladmin
 lander.logs
 lang
+lang.%EXT%
 lang/web.config
 language
 languages
+languages.%EXT%
 latest
 lbadmin
 ldap.prop
@@ -4717,6 +4734,7 @@ libraries/tiny_mce/
 libraries/tinymce
 libraries/tinymce/
 library
+library.%EXT%
 libs
 license.php
 license.txt
@@ -4731,6 +4749,7 @@ linkadmin
 linkadmin.%EXT%
 linkhub/linkhub.log
 links
+links.%EXT%
 linksadmin
 linktous.html
 linusadmin-phpinfo.php
@@ -4897,6 +4916,7 @@ magazine
 magic.default
 magmi/conf/magmi.ini
 mail
+mail.%EXT%
 mail.html
 mail.log
 mail/
@@ -4935,6 +4955,7 @@ management
 management.php
 management/
 manager
+manager.%EXT%
 manager.php
 manager/
 manager/VERSION
@@ -5039,6 +5060,8 @@ misc
 misc.php
 mliveadmin
 mmadmin
+mmwip
+mmwip.%EXT%
 moadmin.php
 mobile
 mobile.%EXT%
@@ -5172,6 +5195,7 @@ netadmin.jsp
 netadmin.shtml
 network
 new
+new.%EXT%
 new.php
 new_admin
 newadmin
@@ -5230,6 +5254,7 @@ ojspdemos
 oladmin
 olap/
 old
+old.%EXT%
 old.htaccess
 old.htpasswd
 old/
@@ -5304,6 +5329,7 @@ padmin
 page
 page.%EXT%
 pages
+pages.%EXT%
 pages/admin/
 pages/admin/admin-login
 pages/admin/admin-login.%EXT%
@@ -5389,6 +5415,7 @@ phone
 photo
 photoadmin
 photos
+photos.%EXT%
 php
 php-backdoor.php
 php-bin/
@@ -5410,6 +5437,7 @@ php-myadmin
 php-myadmin/
 php-reverse-shell.php
 php-tiny-shell.php
+php.%EXT%
 php.core
 php.ini
 php.ini-orig.txt
@@ -5679,6 +5707,7 @@ pl
 platz_login/
 player.swf
 plesk-stat
+plesk-stat.%EXT%
 pls
 pls/dad/null
 plugins
@@ -5741,6 +5770,7 @@ pr
 pradmin
 press
 print
+print.%EXT%
 printenv
 printenv.tmp
 printer
@@ -5765,6 +5795,7 @@ productcockpit
 productcockpit/
 production.log
 products
+products.%EXT%
 profile
 profile.%EXT%
 profiles
@@ -5847,6 +5878,8 @@ recentservers.xml
 recherche.html
 recommend.%EXT%
 recover
+recoverpassword
+recoverpassword.%EXT%
 redadmin
 redirect
 redirect.%EXT%
@@ -5880,6 +5913,7 @@ reseller
 reset
 reset.html
 resources
+resources.%EXT%
 resources.xml
 resources/fckeditor
 rest-api/
@@ -5892,6 +5926,7 @@ restricted_access/
 result.%EXT%
 results
 review
+review.%EXT%
 reviewhelpful.%EXT%
 reviews
 reviews.%EXT%
@@ -5908,6 +5943,7 @@ rpc_admin
 rss
 rss.%EXT%
 rst.php
+ru
 rubrique.%EXT%
 runtime_messages.jsp
 s
@@ -6166,9 +6202,11 @@ sites/all/libraries/fckeditor
 sites/all/modules/fckeditor
 siteserver/publishing/viewcode.%EXT%
 skin
+skin.%EXT%
 skin1_admin.css
 skin_admin
 skins
+skins.%EXT%
 slanadmin
 slapd.conf
 sloth_admin.%EXT%
@@ -6269,6 +6307,7 @@ start.html
 startServer.log
 stat/
 static
+static.%EXT%
 statistics
 statistics.jsp
 statistics/
@@ -6284,6 +6323,7 @@ storage
 storage/logs/laravel.log
 store
 store-admin
+store.%EXT%
 store_admin
 storeadmin
 stories
@@ -6350,6 +6390,7 @@ supervise/Logi.php
 supervise/Login
 supervisor/
 support
+support.%EXT%
 support_admin
 support_login/
 surgemail/
@@ -6364,6 +6405,7 @@ svn/
 swagger
 swagger-ui.html
 swf
+swf.%EXT%
 swfobject.js
 swfupload
 sxd/
@@ -6393,6 +6435,7 @@ syslog/
 sysstat/
 system
 system-administration/
+system.%EXT%
 system.log
 system/
 system/cron/cron.txt
@@ -6407,6 +6450,7 @@ tadmin
 tag
 taglib-uri
 tags
+tags.%EXT%
 tar
 tar.bz2
 tar.gz
@@ -6435,8 +6479,10 @@ templates/ja-helio-farsi/index.php
 templates/rhuk_milkyway/index.php
 templates_admin
 templates_c
+templates_c.%EXT%
 templates_c/
 templets
+templets.%EXT%
 terms
 test
 test.%EXT%
@@ -6480,6 +6526,7 @@ text
 text-base/etc/passwd
 thank-you.%EXT%
 thanks.%EXT%
+thankyou.%EXT%
 theme
 themes
 themes/default/htdocs/flash/ZeroClipboard.swf
@@ -6593,6 +6640,7 @@ up.php
 update
 update.%EXT%
 updates
+updates.%EXT%
 upfile.php
 upgrade
 upgrade.php
@@ -6670,6 +6718,7 @@ userlogin.php
 usernames.txt
 usernote.%EXT%
 users
+users.%EXT%
 users.csv
 users.db
 users.ini
@@ -6703,7 +6752,9 @@ v1/
 v1/public/yql
 v1/test/js/console.html
 v1/test/js/console_ajax.js
+v2
 v2/
+v3
 v3/
 v4/
 vadmin
@@ -6712,6 +6763,7 @@ vadmind/
 vagrant-spec.config.rb
 validator.php
 var
+var.%EXT%
 var/backups/
 var/cache/
 var/lib/cloud/instance/boot-finished
@@ -6729,6 +6781,8 @@ var/log/
 var/logs/
 var/sessions/
 variables.%EXT%
+vb
+vb.%EXT%
 vb.rar
 vb.sql
 vb.zip
@@ -6750,6 +6804,8 @@ vendor/phpunit/phpunit/src/Util/PHP/eval-stdin.php
 vendor/phpunit/src/Util/PHP/eval-stdin.php
 version.txt
 version/
+video
+video.%EXT%
 view-source
 view.php
 viewforum.%EXT%
@@ -6803,6 +6859,8 @@ webadmin/index.html
 webadmin/index.php
 webadmin/login.html
 webadmin/login.php
+webalizer
+webalizer.%EXT%
 webdav/
 webdav/index.html
 webdav/servlet/webdav/
@@ -6829,6 +6887,8 @@ whmcs.php
 whmcs/downloads/dz.php
 wiki
 wiki/
+wishlist
+wishlist.%EXT%
 wizmysqladmin/
 wp
 wp-admin
@@ -6894,6 +6954,7 @@ wp-login
 wp-login.php
 wp-login/
 wp-register
+wp-register.%EXT%
 wp-register.php
 wp-rss2
 wp-signup.php
@@ -6936,6 +6997,7 @@ xd.php
 xferlog
 xlogin/
 xls/
+xml
 xml/_common.xml
 xml/common.xml
 xmlrpc
