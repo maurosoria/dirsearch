@@ -19,9 +19,9 @@
 import sys
 import threading
 import time
+import urllib.parse
 
 from posixpath import join as urljoin
-import urllib.parse
 
 from lib.utils.FileUtils import *
 from lib.utils.TerminalSize import get_terminal_size
