@@ -1,7 +1,7 @@
 dirsearch
 =========
 
-Current Release: v0.3.9 (2019.11.26)
+Current Release: v0.4.0 (2020.9.25)
 
 
 Overview
