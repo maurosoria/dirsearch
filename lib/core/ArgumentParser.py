@@ -102,7 +102,7 @@ class ArgumentParser(object):
 
 
         elif options.httpProxy:
-            if options.httpProxy.startswith("http://"):
+            if options.httpProxy.startswith("http://") or options.httpProxy.startswith("https://"):
                 self.proxy = options.httpProxy
             else:
                 self.proxy = "http://{0}".format(options.httpProxy)
