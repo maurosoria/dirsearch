@@ -27,7 +27,20 @@ from lib.utils.FileUtils import File
 class Dictionary(object):
 
 
-    def __init__(self, paths, extensions, suffixes=None, prefixes=None, lowercase=False, uppercase=False, forcedExtensions=False, noDotExtensions=False, excludeExtensions=[]):
+    def __init__(
+        self,
+        paths,
+        extensions,
+        suffixes=None,
+        prefixes=None,
+        lowercase=False,
+        uppercase=False,
+        capitalization=False,
+        forcedExtensions=False,
+        noDotExtensions=False,
+        excludeExtensions=[],
+    ):
+        
         self.entries = []
         self.currentIndex = 0
         self.condition = threading.Lock()
@@ -40,6 +53,7 @@ class Dictionary(object):
         self._excludeExtensions = excludeExtensions
         self.lowercase = lowercase
         self.uppercase = uppercase
+        self.capitalization = capitalization
         self.dictionaryFiles = [File(path) for path in self.paths]
         self.generate()
 
@@ -169,6 +183,9 @@ class Dictionary(object):
             
         elif self.uppercase:
             self.entries = list(dict.fromkeys(map(lambda l: l.upper(), result)))
+            
+        elif self.capitalization:
+            self.entries = list(dict.fromkeys(map(lambda l: l.capitalize(), result)))
 
         else:
             self.entries = list(dict.fromkeys(result))
