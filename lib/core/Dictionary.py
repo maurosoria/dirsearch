@@ -18,7 +18,6 @@
 
 import re
 import threading
-
 import urllib.parse
 
 from lib.utils.FileUtils import File
