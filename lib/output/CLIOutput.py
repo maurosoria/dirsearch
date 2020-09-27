@@ -21,6 +21,7 @@ import threading
 import time
 
 from posixpath import join as urljoin
+import urllib.parse
 
 from lib.utils.FileUtils import *
 from lib.utils.TerminalSize import get_terminal_size
@@ -231,6 +232,18 @@ class CLIOutput(object):
 
     def setTarget(self, target):
         self.target = target
+
+        username = urllib.parse.urlparse(target).username
+        password = urllib.parse.urlparse(target).password
+
+        # Print the HTTP authentication credentials
+        if username and password:
+            credentials = "{0}:{1}".format(username, password)
+            target = target.replace("{}@".format(credentials), "")
+            target += "\n"
+            target += Style.BRIGHT + Fore.YELLOW
+            target += "\nCredentials: {0}\n".format(Fore.CYAN + credentials + Fore.YELLOW)
+            target += Style.RESET_ALL
 
         config = Style.BRIGHT + Fore.YELLOW
         config += "\nTarget: {0}\n".format(Fore.CYAN + target + Fore.YELLOW)
