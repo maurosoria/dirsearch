@@ -388,12 +388,12 @@ You can change the dirsearch default configurations (default extensions, timeout
         connection.add_option('--ip', action='store', dest='ip', default=None,
                               help='Resolve name to IP address')
         connection.add_option('--proxy', '--http-proxy', action='store', dest='httpProxy', type='string',
-                              default=self.proxy, help='Http Proxy (example: localhost:8080)')
+                              default=self.proxy, help='HTTP Proxy (example: localhost:8080)')
 
         connection.add_option('--proxylist', '--http-proxy-list', action='store', dest='proxyList', type='string',
-                              default=self.proxylist, help='Path to file containg http proxy servers.' )
+                              default=self.proxylist, help='File containg HTTP proxy servers' )
         connection.add_option('-m', '--http-method', action='store', dest='httpmethod', type='string',
-                              default=self.httpmethod, help='Method to use, default: GET')
+                              default=self.httpmethod, help='HTTP method, default: GET')
         connection.add_option('--max-retries', action='store', dest='maxRetries', type='int',
                               default=self.maxRetries)
 
@@ -419,13 +419,13 @@ You can change the dirsearch default configurations (default extensions, timeout
         dictionary.add_option('--nd', '--no-dot-extensions',
                               help='Don\'t add a \'.\' character before extensions', action='store_true',
                               dest='noDotExtensions', default=self.noDotExtensions)
-        dictionary.add_option('-L', '--lowercase', action='store_true', dest='lowercase', default=self.lowercase,
-                             help='Lowercase wordlist')
+        dictionary.add_option('-C', '--capitalization', action='store_true', dest='capitalization', default=self.capitalization,
+                             help='Capital wordlist')
 
         dictionary.add_option('-U', '--uppercase', action='store_true', dest='uppercase', default=self.uppercase,
                              help='Uppercase wordlist')
-        dictionary.add_option('-C', '--capitalization', action='store_true', dest='capitalization', default=self.capitalization,
-                             help='Capital wordlist')
+        dictionary.add_option('-L', '--lowercase', action='store_true', dest='lowercase', default=self.lowercase,
+                             help='Lowercase wordlist')
 
         # Optional Settings
         general = OptionGroup(parser, 'General Settings')
@@ -477,11 +477,10 @@ You can change the dirsearch default configurations (default extensions, timeout
                            help='Headers to add (example: --header "Referer: example.com" --header "User-Agent: IE")',
                            action='append', type='string', dest='headers', default=None)
 
-        general.add_option('--clean-view', '--clean-view', action='store_true', dest='clean_view',
-                          help='Clean view mode')
         general.add_option('--full-url', '--full-url', action='store_true', dest='full_url',
                           help='Print the full URL in the output')
         general.add_option('--random-agents', '--random-user-agents', action='store_true', dest='useRandomAgents')
+        general.add_option('-q', '--quite-mode', action='store_true', dest='clean_view')
 
         # Report Settings
         reports = OptionGroup(parser, 'Reports')
