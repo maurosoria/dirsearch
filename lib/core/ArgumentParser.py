@@ -406,19 +406,15 @@ You can change the dirsearch default configurations (default extensions, timeout
         dictionary.add_option('-w', '--wordlist', action='store', dest='wordlist',
                               help='Customize wordlist (separated by comma)',
                               default=self.wordlist)
-        dictionary.add_option('--pref', '--prefixes',
-                             help='Add custom prefixes to all entries (separated by comma)',
-                             action='store', dest='prefixes', default=None)
-        dictionary.add_option('--suff', '--suffixes',
-                             help='Add custom suffixes to all entries, ignores directories (separated by comma)',
-                             action='store', dest='suffixes', default=None)
+        dictionary.add_option('--prefixes', action='store', dest='prefixes', default=None,
+                             help='Add custom prefixes to all entries (separated by comma)')
+        dictionary.add_option('--suffixes', action='store', dest='suffixes', default=None,
+                             help='Add custom suffixes to all entries, ignores directories (separated by comma)')
 
-        dictionary.add_option('-f', '--force-extensions',
-                              help='Force extensions for every wordlist entry. Add %NOFORCE% at the end of the entry in the wordlist that you do not want to force',
-                              action='store_true', dest='forceExtensions', default=self.forceExtensions)
-        dictionary.add_option('--nd', '--no-dot-extensions',
-                              help='Don\'t add a \'.\' character before extensions', action='store_true',
-                              dest='noDotExtensions', default=self.noDotExtensions)
+        dictionary.add_option('-f', '--force-extensions', action='store_true', dest='forceExtensions', default=self.forceExtensions,
+                              help='Force extensions for every wordlist entry. Add %NOFORCE% at the end of the entry in the wordlist that you do not want to force')
+        dictionary.add_option('--no-dot-extensions', dest='noDotExtensions', default=self.noDotExtensions,
+                              help='Don\'t add a \'.\' character before extensions', action='store_true')
         dictionary.add_option('-U', '--uppercase', action='store_true', dest='uppercase', default=self.uppercase,
                              help='Uppercase wordlist')
 
@@ -442,10 +438,10 @@ You can change the dirsearch default configurations (default extensions, timeout
                            default=self.recursive_level_max)
         general.add_option('--suppress-empty', action='store_true', dest='suppressEmpty',
                            help='Suppress empty responses')
-        general.add_option('--min', '--minimal', action='store', dest='minimumResponseSize', type='int', default=None,
+        general.add_option('--minimal', action='store', dest='minimumResponseSize', type='int', default=None,
                            help='Minimal response length')
 
-        general.add_option('--max', '--maximal', action='store', dest='maximumResponseSize', type='int', default=None,
+        general.add_option('--maximal', action='store', dest='maximumResponseSize', type='int', default=None,
                            help='Maximal response length')
         general.add_option('--scan-subdir', '--scan-subdirs',
                            help='Scan subdirectories of the given URL (separated by comma)', action='store',
@@ -469,7 +465,7 @@ You can change the dirsearch default configurations (default extensions, timeout
                            , action='store', dest='excludeRegexps', default=None)
         general.add_option('-c', '--cookie', action='store', type='string', dest='cookie', default=None)
 
-        general.add_option('--ua', '--user-agent', action='store', type='string', dest='useragent',
+        general.add_option('--user-agent', action='store', type='string', dest='useragent',
                            default=self.useragent)
         general.add_option('-F', '--follow-redirects', action='store_true', dest='noFollowRedirects'
                            , default=self.redirect)
