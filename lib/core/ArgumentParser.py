@@ -419,13 +419,13 @@ You can change the dirsearch default configurations (default extensions, timeout
         dictionary.add_option('--nd', '--no-dot-extensions',
                               help='Don\'t add a \'.\' character before extensions', action='store_true',
                               dest='noDotExtensions', default=self.noDotExtensions)
-        dictionary.add_option('-C', '--capitalization', action='store_true', dest='capitalization', default=self.capitalization,
-                             help='Capital wordlist')
-
         dictionary.add_option('-U', '--uppercase', action='store_true', dest='uppercase', default=self.uppercase,
                              help='Uppercase wordlist')
+
         dictionary.add_option('-L', '--lowercase', action='store_true', dest='lowercase', default=self.lowercase,
                              help='Lowercase wordlist')
+        dictionary.add_option('-C', '--capitalization', action='store_true', dest='capitalization', default=self.capitalization,
+                             help='Capital wordlist')
 
         # Optional Settings
         general = OptionGroup(parser, 'General Settings')
@@ -440,7 +440,7 @@ You can change the dirsearch default configurations (default extensions, timeout
                            help='Max recursion level (subdirs) (Default: 1 [only rootdir + 1 dir])', action='store', type='int',
                            dest='recursive_level_max',
                            default=self.recursive_level_max)
-        general.add_option('--suppress-empty', '--suppress-empty', action='store_true', dest='suppressEmpty',
+        general.add_option('--suppress-empty', action='store_true', dest='suppressEmpty',
                            help='Suppress empty responses')
         general.add_option('--min', '--minimal', action='store', dest='minimumResponseSize', type='int', default=None,
                            help='Minimal response length')
@@ -477,7 +477,7 @@ You can change the dirsearch default configurations (default extensions, timeout
                            help='HTTP request headers, support multiple flags (example: --header "Referer: example.com" --header "User-Agent: IE")',
                            action='append', type='string', dest='headers', default=None)
 
-        general.add_option('--full-url', '--full-url', action='store_true', dest='full_url',
+        general.add_option('--full-url', action='store_true', dest='full_url',
                           help='Print the full URL in the output')
         general.add_option('--random-agents', '--random-user-agents', action='store_true', dest='useRandomAgents')
         general.add_option('-q', '--quite-mode', action='store_true', dest='clean_view')
