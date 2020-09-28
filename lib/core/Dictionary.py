@@ -107,17 +107,17 @@ class Dictionary(object):
 
                 # If forced extensions is used and the path is not a directory ... (terminated by /)
                 # process line like a forced extension.
-                elif self._forcedExtensions and not line.rstrip().endswith("/"):
+                elif self._forcedExtensions and not line.rstrip().endswith("/") and not "." in line.rstrip()[1:]:
                     quoted = self.quote(line)
 
                     for extension in self._extensions:
                         # Why? check https://github.com/maurosoria/dirsearch/issues/70
-                        if extension.strip() == '' or ('.' in quoted and not quoted.startswith('.')):
+                        if extension.strip() == "":
                             result.append(quoted)
                         else:
-                            result.append(quoted + ('' if self._noDotExtensions else '.') + extension)
+                            result.append(quoted + ("" if self._noDotExtensions else ".") + extension)
 
-                    if quoted.strip() not in ['']:
+                    if len(quoted.strip()):
                         result.append(quoted)
                         result.append(quoted + "/")
 
