@@ -248,6 +248,7 @@ class ArgumentParser(object):
         self.suppressEmpty = options.suppressEmpty
         self.minimumResponseSize = options.minimumResponseSize
         self.maximumResponseSize = options.maximumResponseSize
+        self.noExtension = options.noExtension
 
 
         if options.scanSubdirs:
@@ -413,11 +414,13 @@ You can change the dirsearch default configurations (default extensions, timeout
 
         dictionary.add_option('-f', '--force-extensions', action='store_true', dest='forceExtensions', default=self.forceExtensions,
                               help='Force extensions for every wordlist entry. Add %NOFORCE% at the end of the entry in the wordlist that you do not want to force')
+        dictionary.add_option('--no-extension', dest='noExtension', action='store_true',
+                              help='Remove extensions in all entries (Example: admin.php -> admin)')
         dictionary.add_option('--no-dot-extensions', dest='noDotExtensions', default=self.noDotExtensions,
-                              help='Don\'t add a \'.\' character before extensions', action='store_true')
+                              help='Remove the "." character before extensions', action='store_true')
+
         dictionary.add_option('-U', '--uppercase', action='store_true', dest='uppercase', default=self.uppercase,
                              help='Uppercase wordlist')
-
         dictionary.add_option('-L', '--lowercase', action='store_true', dest='lowercase', default=self.lowercase,
                              help='Lowercase wordlist')
         dictionary.add_option('-C', '--capitalization', action='store_true', dest='capitalization', default=self.capitalization,
