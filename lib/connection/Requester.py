@@ -121,7 +121,7 @@ class Requester(object):
     def unsetRandomAgents(self):
         self.randomAgents = None
 
-    def request(self, path):
+    def request(self, path, nodelay=False):
         i = 0
         proxy = None
         result = None
@@ -177,7 +177,10 @@ class Requester(object):
                     response.headers,
                     response.content,
                 )
-                time.sleep(self.delay)
+
+                if not nodelay:
+                    time.sleep(self.delay)
+
                 del headers
                 break
 
