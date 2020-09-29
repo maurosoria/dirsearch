@@ -256,9 +256,10 @@ License: GNU General Public License, version 2
 
 Contributors
 ---------
+Main: @maurosoria and @shelld3v
+
 Special thanks for these people.
 
-- @shelld3v
 - @mzfr
 - @V-Rico
 - @Damian89
@@ -274,4 +275,5 @@ Special thanks for these people.
 - @jsav0
 - @serhattsnmz
 - @ricardojba
+- @Anon-Exploiter
 - @ColdFusionX
