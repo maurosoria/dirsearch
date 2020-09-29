@@ -18,7 +18,6 @@
 
 import re
 import threading
-
 import urllib.parse
 
 from lib.utils.FileUtils import File
@@ -98,6 +97,7 @@ class Dictionary(object):
         reext = re.compile('\%ext\%', re.IGNORECASE).sub
         reextdot = re.compile('\.\%ext\%', re.IGNORECASE).sub
         exclude = re.findall
+        custom = []
         result = []
 
 
@@ -137,7 +137,7 @@ class Dictionary(object):
 
                         else:
                             newline = line
-                            
+
                         newline = reext(extension, newline)
 
                         quote = self.quote(newline)
@@ -162,20 +162,23 @@ class Dictionary(object):
                 # Append line unmodified.
                 else:
                     result.append(self.quote(line))
-                    
+
+
         # Adding prefixes for finding private pages etc
         if self._prefixes:
             for res in list(dict.fromkeys(result)):
                 for pref in self._prefixes:
                     if not res.startswith(pref): 
-                        result.append(pref + res)
+                        custom.append(pref + res)
 
         # Adding suffixes for finding backups etc
         if self._suffixes:
             for res in list(dict.fromkeys(result)):
-                if not res.rstrip().endswith("/"):
+                if not res.rstrip().endswith("/") and not res.rstrip().endswith(suff):
                     for suff in self._suffixes:
-                        result.append(res + suff)
+                        custom.append(res + suff)
+           
+        result = custom if custom else result
 
 
         if self.lowercase:
@@ -190,6 +193,7 @@ class Dictionary(object):
         else:
             self.entries = list(dict.fromkeys(result))
 
+        del custom
         del result
 
     def regenerate(self):
