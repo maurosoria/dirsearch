@@ -96,7 +96,8 @@ class Dictionary(object):
     def generate(self):
         reext = re.compile('\%ext\%', re.IGNORECASE).sub
         reextdot = re.compile('\.\%ext\%', re.IGNORECASE).sub
-        exclude = re.findall
+        reexclude = re.findall
+        renoforce = re.compile('\%noforce\%', re.IGNORECASE).sub
         custom = []
         result = []
 
@@ -110,6 +111,7 @@ class Dictionary(object):
                 # Check if the line is having the %NOFORCE% keyword
                 if "%noforce%" in line.lower():
                     noforce = True
+                    line = renoforce("", line)
                 else:
                     noforce = False
 
@@ -122,7 +124,7 @@ class Dictionary(object):
                     matched = False
                     
                     for excludeExtension in self._excludeExtensions:
-                        if len(exclude("." + excludeExtension, line)):
+                        if len(reexclude("." + excludeExtension, line)):
                             matched = True
                             break
                             
