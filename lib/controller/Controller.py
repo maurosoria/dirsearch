@@ -585,8 +585,9 @@ class Controller(object):
             return False
 
     def addRedirectDirectory(self, path):
-        """Resolve the redirect header relative to the current URL and add the
-        path to self.directories if it is a subdirectory of the current URL."""
+        # Resolve the redirect header relative to the current URL and add the
+        # path to self.directories if it is a subdirectory of the current URL
+
         baseUrl = self.currentUrl.rstrip("/") + "/" + self.currentDirectory
 
         baseUrl = baseUrl.rstrip("/") + "/"
@@ -598,7 +599,7 @@ class Controller(object):
             and absoluteUrl != baseUrl
             and absoluteUrl.endswith("/")
         ):
-            dir = absoluteUrl[len(baseUrl) :]
+            dir = absoluteUrl[len(self.currentUrl.rstrip("/")) + 1 :]
 
             if dir in self.doneDirs:
                 return False
