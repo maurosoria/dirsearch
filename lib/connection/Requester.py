@@ -129,9 +129,9 @@ class Requester(object):
         while i <= self.maxRetries:
 
             try:
-                if self.proxylist is not None:
+                if self.proxylist:
                     proxy = {"https": random.choice(self.proxylist), "http": random.choice(self.proxylist)}
-                elif self.proxy is not None:
+                elif self.proxy:
                     proxy = {"https": self.proxy, "http": self.proxy}
 
                 url = "{0}://{1}:{2}".format(self.protocol, self.host if self.requestByHostname else self.ip, self.port)
@@ -145,9 +145,6 @@ class Requester(object):
 
                 if not url.endswith("/"):
                     url += "/"
-
-                if path.startswith("/"):
-                    path = path[1:]
 
                 url += path
 

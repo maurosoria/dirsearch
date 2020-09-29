@@ -272,6 +272,10 @@ class Controller(object):
             blacklists[status] = []
 
             for line in FileUtils.getLines(blacklistFileName):
+                # The same with Dictionary.py
+                if line.startswith("/"):
+                    line = line[1:]
+
                 # Skip comments
                 if line.lstrip().startswith("#"):
                     continue
