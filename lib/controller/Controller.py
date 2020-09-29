@@ -65,7 +65,7 @@ class Controller(object):
         self.recursive_level_max = self.arguments.recursive_level_max
 
         if self.arguments.httpmethod.lower() not in ["get", "head", "post", "put", "patch", "options", "delete", "trace", "debug"]:
-            self.output.error("Invalid http method!")
+            self.output.error("Invalid HTTP method!")
             exit(1)
 
         self.httpmethod = self.arguments.httpmethod.lower()
@@ -113,14 +113,14 @@ class Controller(object):
         self.maximumResponseSize = self.arguments.maximumResponseSize
         self.directories = Queue()
         self.excludeSubdirs = (
-            arguments.excludeSubdirs if arguments.excludeSubdirs is not None else []
+            arguments.excludeSubdirs if arguments.excludeSubdirs else []
         )
         self.output.header(program_banner)
 
-        self.dictionary = Dictionary(self.arguments.wordlist, self.arguments.extensions, self.arguments.suffixes, 
-                                     self.arguments.prefixes, self.arguments.lowercase, self.arguments.uppercase, 
-                                     self.arguments.forceExtensions, self.arguments.noDotExtensions, 
-                                     self.arguments.excludeExtensions)
+        self.dictionary = Dictionary(self.arguments.wordlist, self.arguments.extensions, self.arguments.suffixes,
+                                     self.arguments.prefixes, self.arguments.lowercase, self.arguments.uppercase,
+                                     self.arguments.capitalization, self.arguments.forceExtensions,
+                                     self.arguments.noDotExtensions, self.arguments.excludeExtensions)
 
         self.printConfig()
         self.errorLog = None
