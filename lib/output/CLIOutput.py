@@ -106,7 +106,7 @@ class CLIOutput(object):
                 showPath = urljoin("/", self.basePath)
                 showPath = urljoin(showPath, path)
                 if full_url:
-                    showPath = (self.target[:-1] if self.target.endswith("/") else self.target) + showPath
+                    showPath = (self.target if self.target.endswith("/") else self.target + "/") + path
                 
             message = "[{0}] {1} - {2} - {3}".format(
                 time.strftime("%H:%M:%S"), 
