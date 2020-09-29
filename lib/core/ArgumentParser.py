@@ -62,7 +62,7 @@ class ArgumentParser(object):
             self.urlList = [options.url]
 
 
-        if not options.extensions and not options.defaultExtensions:
+        if not options.extensions and not options.defaultExtensions and not options.noExtension:
             print('No extension specified. You must specify at least one extension or try using default extension list.')
             exit(0)
 
