@@ -68,7 +68,7 @@ class ArgumentParser(object):
 
         if not options.extensions and options.defaultExtensions:
             options.extensions = self.defaultExtensions
-        elif options.noExtension:
+        if options.noExtension:
             options.extensions = ""
 
         # Enable to use multiple dictionaries at once
