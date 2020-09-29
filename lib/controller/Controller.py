@@ -167,7 +167,8 @@ class Controller(object):
                             httpmethod=self.httpmethod,
                             data=self.arguments.data,
                         )
-                        self.requester.request("/")
+
+                        self.requester.request("")
 
                     except RequestException as e:
                         self.output.error(e.args[0]["message"])
