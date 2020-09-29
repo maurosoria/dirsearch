@@ -32,7 +32,9 @@ class DynamicContentParser:
                 self.dynamicMarks += self.findDynamicContent(firstPage, secondPage)
             self.cleanPage = self.removeDynamicContent(firstPage, self.dynamicMarks)
             self.seqMatcher.set_seq1(self.cleanPage)
-            self.seqMatcher.set_seq2(self.removeDynamicContent(secondPage, self.dynamicMarks))
+            self.seqMatcher.set_seq2(
+                self.removeDynamicContent(secondPage, self.dynamicMarks)
+            )
             ratio = self.seqMatcher.quick_ratio()
         else:
             self.cleanPage = firstPage
@@ -48,7 +50,9 @@ class DynamicContentParser:
     def findDynamicContent(self, firstPage, secondPage):
         dynamicMarks = []
 
-        blocks = list(SequenceMatcher(None, firstPage, secondPage).get_matching_blocks())
+        blocks = list(
+            SequenceMatcher(None, firstPage, secondPage).get_matching_blocks()
+        )
 
         # Removing too small matching blocks
         for block in blocks[:]:
@@ -63,8 +67,16 @@ class DynamicContentParser:
             blocks.append(None)
 
             for i in range(len(blocks) - 1):
-                prefix = firstPage[blocks[i][0]:blocks[i][0] + blocks[i][2]] if blocks[i] else None
-                suffix = firstPage[blocks[i + 1][0]:blocks[i + 1][0] + blocks[i + 1][2]] if blocks[i + 1] else None
+                prefix = (
+                    firstPage[blocks[i][0] : blocks[i][0] + blocks[i][2]]
+                    if blocks[i]
+                    else None
+                )
+                suffix = (
+                    firstPage[blocks[i + 1][0] : blocks[i + 1][0] + blocks[i + 1][2]]
+                    if blocks[i + 1]
+                    else None
+                )
 
                 if prefix is None and blocks[i + 1][0] == 0:
                     continue
@@ -72,8 +84,16 @@ class DynamicContentParser:
                 if suffix is None and (blocks[i][0] + blocks[i][2] >= len(firstPage)):
                     continue
 
-                dynamicMarks.append((re.escape(prefix[int(-self.DYNAMICITY_MARK_LENGTH / 2):]) if prefix else None,
-                                     re.escape(suffix[:int(self.DYNAMICITY_MARK_LENGTH / 2)]) if suffix else None))
+                dynamicMarks.append(
+                    (
+                        re.escape(prefix[int(-self.DYNAMICITY_MARK_LENGTH / 2) :])
+                        if prefix
+                        else None,
+                        re.escape(suffix[: int(self.DYNAMICITY_MARK_LENGTH / 2)])
+                        if suffix
+                        else None,
+                    )
+                )
 
         return dynamicMarks
 
@@ -83,23 +103,37 @@ class DynamicContentParser:
         precalculated dynamic markings
         """
         if page and len(dynamicMarks) > 0:
-            encoding = chardet.detect(page)['encoding']
-            page = page.decode(encoding, errors='replace')
+            encoding = chardet.detect(page)["encoding"]
+            page = page.decode(encoding, errors="replace")
             for item in dynamicMarks:
                 prefix, suffix = item
                 if prefix is not None:
-                    prefix = prefix.decode(encoding, errors='replace')
+                    prefix = prefix.decode(encoding, errors="replace")
                 if suffix is not None:
-                    suffix = suffix.decode(encoding, errors='replace')
+                    suffix = suffix.decode(encoding, errors="replace")
 
                 if prefix is None and suffix is None:
                     continue
                 elif prefix is None:
-                    page = re.sub(r'(?s)^.+{0}'.format(re.escape(suffix)), suffix.replace('\\', r'\\'), page)
+                    page = re.sub(
+                        r"(?s)^.+{0}".format(re.escape(suffix)),
+                        suffix.replace("\\", r"\\"),
+                        page,
+                    )
                 elif suffix is None:
-                    page = re.sub(r'(?s){0}.+$'.format(re.escape(prefix)), prefix.replace('\\', r'\\'), page)
+                    page = re.sub(
+                        r"(?s){0}.+$".format(re.escape(prefix)),
+                        prefix.replace("\\", r"\\"),
+                        page,
+                    )
                 else:
-                    page = re.sub(r'(?s){0}.+{1}'.format(re.escape(prefix), re.escape(suffix)), "{0}{1}".format(prefix.replace('\\', r'\\'), suffix.replace('\\', r'\\')), page)
+                    page = re.sub(
+                        r"(?s){0}.+{1}".format(re.escape(prefix), re.escape(suffix)),
+                        "{0}{1}".format(
+                            prefix.replace("\\", r"\\"), suffix.replace("\\", r"\\")
+                        ),
+                        page,
+                    )
 
             page = page.encode()
 

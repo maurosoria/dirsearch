@@ -60,7 +60,7 @@ class CharSetProber(object):
 
     @staticmethod
     def filter_high_byte_only(buf):
-        buf = re.sub(b'([\x00-\x7F])+', b' ', buf)
+        buf = re.sub(b"([\x00-\x7F])+", b" ", buf)
         return buf
 
     @staticmethod
@@ -83,8 +83,7 @@ class CharSetProber(object):
         # This regex expression filters out only words that have at-least one
         # international character. The word may include one marker character at
         # the end.
-        words = re.findall(b'[a-zA-Z]*[\x80-\xFF]+[a-zA-Z]*[^a-zA-Z\x80-\xFF]?',
-                           buf)
+        words = re.findall(b"[a-zA-Z]*[\x80-\xFF]+[a-zA-Z]*[^a-zA-Z\x80-\xFF]?", buf)
 
         for word in words:
             filtered.extend(word[:-1])
@@ -94,8 +93,8 @@ class CharSetProber(object):
             # similarly across all languages and may thus have similar
             # frequencies).
             last_char = word[-1:]
-            if not last_char.isalpha() and last_char < b'\x80':
-                last_char = b' '
+            if not last_char.isalpha() and last_char < b"\x80":
+                last_char = b" "
             filtered.extend(last_char)
 
         return filtered
@@ -118,22 +117,22 @@ class CharSetProber(object):
 
         for curr in range(len(buf)):
             # Slice here to get bytes instead of an int with Python 3
-            buf_char = buf[curr:curr + 1]
+            buf_char = buf[curr : curr + 1]
             # Check if we're coming out of or entering an HTML tag
-            if buf_char == b'>':
+            if buf_char == b">":
                 in_tag = False
-            elif buf_char == b'<':
+            elif buf_char == b"<":
                 in_tag = True
 
             # If current character is not extended-ASCII and not alphabetic...
-            if buf_char < b'\x80' and not buf_char.isalpha():
+            if buf_char < b"\x80" and not buf_char.isalpha():
                 # ...and we're not in a tag
                 if curr > prev and not in_tag:
                     # Keep everything after last non-extended-ASCII,
                     # non-alphabetic character
                     filtered.extend(buf[prev:curr])
                     # Output a space to delimit stretch we kept
-                    filtered.extend(b' ')
+                    filtered.extend(b" ")
                 prev = curr + 1
 
         # If we're not in a tag...

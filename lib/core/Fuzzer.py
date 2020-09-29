@@ -24,15 +24,25 @@ from .Scanner import *
 
 
 class Fuzzer(object):
-    def __init__(self, requester, dictionary, testFailPath=None, threads=1, matchCallbacks=[], notFoundCallbacks=[],
-                 errorCallbacks=[]):
+    def __init__(
+        self,
+        requester,
+        dictionary,
+        testFailPath=None,
+        threads=1,
+        matchCallbacks=[],
+        notFoundCallbacks=[],
+        errorCallbacks=[],
+    ):
 
         self.requester = requester
         self.dictionary = dictionary
         self.testFailPath = testFailPath
         self.basePath = self.requester.basePath
         self.threads = []
-        self.threadsCount = threads if len(self.dictionary) >= threads else len(self.dictionary)
+        self.threadsCount = (
+            threads if len(self.dictionary) >= threads else len(self.dictionary)
+        )
         self.running = False
         self.scanners = {}
         self.defaultScanner = None
@@ -46,23 +56,26 @@ class Fuzzer(object):
         for thread in self.threads:
             thread.join(timeout)
 
-            if timeout is not None and thread.is_alive():
+            if timeout and thread.is_alive():
                 return False
 
         return True
 
     def setupScanners(self):
-        if len(self.scanners) != 0:
+        if len(self.scanners):
             self.scanners = {}
 
-        self.defaultScanner = Scanner(self.requester, self.testFailPath, "")
-        self.scanners['/'] = Scanner(self.requester, self.testFailPath, "/")
+        self.defaultScanner = Scanner(self.requester, self.testFailPath)
+        self.scanners["/"] = Scanner(self.requester, self.testFailPath, suffix="/")
+        self.scanners["dotfiles"] = Scanner(self.requester, self.testFailPath, preffix=".")
 
         for extension in self.dictionary.extensions:
-            self.scanners[extension] = Scanner(self.requester, self.testFailPath, "." + extension)
+            self.scanners[extension] = Scanner(
+                self.requester, self.testFailPath, "." + extension
+            )
 
     def setupThreads(self):
-        if len(self.threads) != 0:
+        if len(self.threads):
             self.threads = []
 
         for thread in range(self.threadsCount):
@@ -71,8 +84,11 @@ class Fuzzer(object):
             self.threads.append(newThread)
 
     def getScannerFor(self, path):
-        if path.endswith('/'):
-            return self.scanners['/']
+        if path.endswith("/"):
+            return self.scanners["/"]
+        
+        if path.startswith('.'):
+            return self.scanners['dotfiles']
 
         for extension in list(self.scanners.keys()):
             if path.endswith(extension):
@@ -117,7 +133,7 @@ class Fuzzer(object):
         response = self.requester.request(path)
         result = None
         if self.getScannerFor(path).scan(path, response):
-            result = (None if response.status == 404 else response.status)
+            result = None if response.status == 404 else response.status
         return result, response
 
     def isRunning(self):
@@ -135,27 +151,27 @@ class Fuzzer(object):
 
     def thread_proc(self):
         self.playEvent.wait()
+        
         try:
             path = next(self.dictionary)
-            while path is not None:
+            
+            while path:
                 try:
                     status, response = self.scan(path)
                     result = Path(path=path, status=status, response=response)
 
-                    if status is not None:
+                    if status:
                         self.matches.append(result)
                         for callback in self.matchCallbacks:
                             callback(result)
                     else:
                         for callback in self.notFoundCallbacks:
                             callback(result)
-                    del status
-                    del response
 
                 except RequestException as e:
 
                     for callback in self.errorCallbacks:
-                        callback(path, e.args[0]['message'])
+                        callback(path, e.args[0]["message"])
 
                     continue
 

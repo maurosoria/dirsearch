@@ -10,4 +10,4 @@ except ImportError:
         from ._implementation import CertificateError, match_hostname
 
 # Not needed, but documenting what we provide.
-__all__ = ('CertificateError', 'match_hostname')
+__all__ = ("CertificateError", "match_hostname")

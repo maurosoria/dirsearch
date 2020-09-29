@@ -1,10 +1,10 @@
-FROM python:3
-MAINTAINER greenmind.sec@gmail.com
-RUN apt-get update -y
-RUN apt-get install python3-pip -y
+
+FROM python:3-alpine
+LABEL maintainer="wfnintr@null.net"
 WORKDIR /root
-ADD . .
-WORKDIR /root/
-RUN chmod +x dirsearch.py
-ENTRYPOINT ["/root/dirsearch.py"]
+RUN apk add --no-cache --virtual .depends git 
+RUN git clone https://github.com/maurosoria/dirsearch.git
+RUN apk del .depends
+WORKDIR /root/dirsearch
+ENTRYPOINT ["./dirsearch.py"]
 CMD ["--help"]

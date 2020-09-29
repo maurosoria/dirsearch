@@ -4,17 +4,14 @@
 """Partially backported python ABC classes"""
 
 
-
 import doctest
 import unittest
 
-optionflags = doctest.NORMALIZE_WHITESPACE | \
-              doctest.ELLIPSIS | \
-              doctest.REPORT_ONLY_FIRST_FAILURE
+optionflags = (
+    doctest.NORMALIZE_WHITESPACE | doctest.ELLIPSIS | doctest.REPORT_ONLY_FIRST_FAILURE
+)
 
-TESTFILES = [
-    'pyoset.txt',
-]
+TESTFILES = ["pyoset.txt"]
 
 
 def test_suite():
@@ -23,22 +20,24 @@ def test_suite():
     globs = {}
     try:
         from pprint import pprint
-        globs['pprint'] = pprint
+
+        globs["pprint"] = pprint
     except Exception:
         pass
     try:
         from interlude import interact
-        globs['interact'] = interact
+
+        globs["interact"] = interact
     except Exception:
         pass
 
-    return unittest.TestSuite([
-        doctest.DocFileSuite(
-            file,
-            optionflags=optionflags,
-            globs=globs,
-        ) for file in TESTFILES
-    ])
+    return unittest.TestSuite(
+        [
+            doctest.DocFileSuite(file, optionflags=optionflags, globs=globs)
+            for file in TESTFILES
+        ]
+    )
 
-if __name__ == '__main__':
-    unittest.main(defaultTest='test_suite')
+
+if __name__ == "__main__":
+    unittest.main(defaultTest="test_suite")

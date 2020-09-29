@@ -49,6 +49,6 @@ class MBCSGroupProber(CharSetGroupProber):
             EUCKRProber(),
             CP949Prober(),
             Big5Prober(),
-            EUCTWProber()
+            EUCTWProber(),
         ]
         self.reset()

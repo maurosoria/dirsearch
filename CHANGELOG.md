@@ -1,5 +1,19 @@
 Changelog
 ---------
+
+0.4.0 - 2020.09.26 
+* Exclude extensions argument added
+* Added custom prefixes and suffixes
+* No dot extensions option
+* Support HTTP request data
+* Added minimal response length and maximal response length arguments
+* Added include status codes and exclude status codes arguments
+* Added --clean-view option
+* Added option to print the full URL in the output
+* Added Prefix and Suffix arguments
+* Multiple bugfixes
+
+---------
 - 0.3.9 - 2017.11.26 Added default extensions argument (-E). Added supress empty responses. Recursive level. Exclude responses with text and regexes. Multiple fixes.
 - 0.3.8 - 2017.07.25 Delay argument added. Request by hostname switch added. Suppress empty switch added. Added Force Extensions switch. Multiple fixes.
 - 0.3.7 - 2016.08.22 Force extensions switch added.
