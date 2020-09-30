@@ -275,7 +275,7 @@ Special thanks for these people:
 
 - @V-Rico
 - @mzfr
-- @Damian89
+- @DustinTheGreat
 - @danritter
 - @Bo0oM
 - @liamosaur
