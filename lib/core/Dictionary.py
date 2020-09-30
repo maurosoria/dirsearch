@@ -170,8 +170,9 @@ class Dictionary(object):
 
         # Adding suffixes for finding backups etc
         if self._suffixes:
+            suff = None
             for res in list(dict.fromkeys(result)):
-                if not res.rstrip().endswith("/") and not res.rstrip().endswith(suff):
+                if not res.rstrip().endswith("/") and not (suff and res.rstrip().endswith(suff)):
                     for suff in self._suffixes:
                         custom.append(res + suff)
 

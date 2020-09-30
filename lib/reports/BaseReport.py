@@ -102,7 +102,7 @@ class FileBaseReport(BaseReport):
         self.file.close()
 
     def generate(self):
-        raise NotImplementedErrorError
+        raise NotImplementedError
 
 
 class TailableFileBaseReport(FileBaseReport):
