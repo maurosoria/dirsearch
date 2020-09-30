@@ -45,38 +45,42 @@ Options:
   Dictionary Settings:
     -w WORDLIST, --wordlist=WORDLIST
                         Customize wordlist (separated by comma)
-    --pref=PREFIXES, --prefixes=PREFIXES
+    --prefixes=PREFIXES
                         Add custom prefixes to all entries (separated by
                         comma)
-    --suff=SUFFIXES, --suffixes=SUFFIXES
+    --suffixes=SUFFIXES
                         Add custom suffixes to all entries, ignores
                         directories (separated by comma)
     -f, --force-extensions
                         Force extensions for every wordlist entry. Add
-                        %NOFORCE% at the end of the entry that you do not want
-                        to force in the wordlist
-    --nd, --no-dot-extensions
-                        Don't add a '.' character before extensions
-    -L, --lowercase
-    -U, --uppercase
+                        %NOFORCE% at the end of the entry in the wordlist that
+                        you do not want to force
+    --no-extension      Remove extensions in all entries (Example: admin.php
+                        -> admin)
+    --no-dot-extensions
+                        Remove the "." character before extensions
+    -U, --uppercase     Uppercase wordlist
+    -L, --lowercase     Lowercase wordlist
+    -C, --capitalization
+                        Capital wordlist
 
   General Settings:
     -d DATA, --data=DATA
                         HTTP request data (POST, PUT, ... body)
     -s DELAY, --delay=DELAY
-                        Delay between requests (float number)
+                        Delay between requests (support float number)
     -r, --recursive     Bruteforce recursively
     -R RECURSIVE_LEVEL_MAX, --recursive-level-max=RECURSIVE_LEVEL_MAX
                         Max recursion level (subdirs) (Default: 1 [only
                         rootdir + 1 dir])
-    --suppress-empty, --suppress-empty
-    --min=MINIMUMRESPONSESIZE
+    --suppress-empty    Suppress empty responses
+    --minimal=MINIMUMRESPONSESIZE
                         Minimal response length
-    --max=MAXIMUMRESPONSESIZE
+    --maximal=MAXIMUMRESPONSESIZE
                         Maximal response length
     --scan-subdir=SCANSUBDIRS, --scan-subdirs=SCANSUBDIRS
-                        Scan subdirectories of the given -u|--url (separated
-                        by comma)
+                        Scan subdirectories of the given URL (separated by
+                        comma)
     --exclude-subdir=EXCLUDESUBDIRS, --exclude-subdirs=EXCLUDESUBDIRS
                         Exclude the following subdirectories during recursive
                         scan (separated by comma)
@@ -86,8 +90,8 @@ Options:
                         Show only included status codes, separated by comma
                         (example: 301, 500)
     -x EXCLUDESTATUSCODES, --exclude-status=EXCLUDESTATUSCODES
-                        Exclude status code, separated by comma (example: 301,
-                        500)
+                        Do not show excluded status codes, separated by comma
+                        (example: 301, 500)
     --exclude-texts=EXCLUDETEXTS
                         Exclude responses by texts, separated by comma
                         (example: "Not found", "Error")
@@ -95,28 +99,29 @@ Options:
                         Exclude responses by regexps, separated by comma
                         (example: "Not foun[a-z]{1}", "^Error$")
     -c COOKIE, --cookie=COOKIE
-    --ua=USERAGENT, --user-agent=USERAGENT
+    --user-agent=USERAGENT
     -F, --follow-redirects
     -H HEADERS, --header=HEADERS
-                        Headers to add (example: --header "Referer:
-                        example.com" --header "User-Agent: IE")
+                        HTTP request headers, support multiple flags (example:
+                        --header "Referer: example.com" --header "User-Agent:
+                        IE")
+    --full-url          Print the full URL in the output
     --random-agents, --random-user-agents
-    --clean-view, --clean-view
-    --full-url, --full-url
+    -q, --quite-mode
 
   Connection Settings:
     --timeout=TIMEOUT   Connection timeout
     --ip=IP             Resolve name to IP address
     --proxy=HTTPPROXY, --http-proxy=HTTPPROXY
-                        Http Proxy (example: localhost:8080)
+                        HTTP Proxy (example: localhost:8080)
     --proxylist=PROXYLIST, --http-proxy-list=PROXYLIST
-                        Path to file containg http proxy servers.
+                        File containg HTTP proxy servers
     -m HTTPMETHOD, --http-method=HTTPMETHOD
-                        Method to use, default: GET
+                        HTTP method, default: GET
     --max-retries=MAXRETRIES
     -b, --request-by-hostname
                         By default dirsearch will request by IP for speed.
-                        This forces requests by hostname
+                        This will force requests by hostname
 
   Reports:
     --simple-report=SIMPLEOUTPUTFILE
@@ -126,6 +131,8 @@ Options:
     --json-report=JSONOUTPUTFILE
 ```
 
+ NOTE: 
+ You can change the dirsearch default configurations (default extensions, timeout, wordlist location, ...) by editing the "default.conf" file.
 
 Operating Systems supported
 ---------------------------
@@ -139,6 +146,8 @@ Features
 - Keep alive connections
 - Support for multiple extensions (-e|--extensions asp,php)
 - Support for every HTTP method
+- Support for HTTP request data
+- Extensions excluding
 - Reporting (plain text, JSON)
 - Heuristically detects invalid web pages
 - Recursive brute forcing
@@ -149,16 +158,18 @@ Features
 - User agent randomization
 - Batch processing
 - Request delaying
+- Multiple wordlist formats (lowercase, uppercase, capitalization)
 - Quiet mode
 - Option to force requests by hostname
 - Option to exclude responses by texts
 - Option to exclude responses by regexps (example: "Not foun[a-z]{1}")
-- Option to remove dot from extension when forcing (--nd, example%EXT% instead of example.%EXT%)
-- Options to display only items with response length from range (--min & --max)
+- Option to remove dot from extension when forcing
+- Options to display only items with response length from range
 - Option to whitelist response codes (-i 200,500)
 - Option to blacklist response codes (-x 404,403)
-- Option to remove output from console (-q, keeps output to files)
-- Option to add custom suffixes to filenames without dots (--suff .BAK,.old, example.%EXT%%SUFFIX%)
+- Option to add custom suffixes and prefixes
+- ...
+
 
 About wordlists
 ---------------
@@ -185,27 +196,23 @@ python3 dirsearch.py -E -u https://target
 ```
 
 ```
-python3 dirsearch.py -E -u https://target -w db/dicc.txt
-```
-
-```
 python3 dirsearch.py -E -u https://target --recursive -R 2
 ```
 
 ```
-python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --recursive -R 4 --scan-subdirs=/,/wp-content/,/wp-admin/
+python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --recursive -R 4 --scan-subdirs=/,/wp-content/
 ```
 
 ```
-python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --exclude-texts=This,AndThat
+python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --exclude-texts="404 Not Found"
 ```
 
 ```
-python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt -H "User-Agent: IE"
+python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt -H "User-Agent: IE" -f
 ```
 
 ```
-python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt -t 20
+python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt -t 40 -f
 ```
 
 ```
@@ -221,8 +228,14 @@ python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --simple-re
 ```
 
 ```
-python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --plain-text-report=reports/target-paths-and-status.json
+python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --json-report=reports/report.json
 ```
+
+Tips
+---------------
+- Want to run dirsearch with a rate of requests per second? Try `-t <rate> -s 1`
+- Want to findout config files or backups? Try `--suffixes ~` and `--prefixes .`
+- Don't want to force extensions on some endpoints? Add `%NOFORCE` at the end of them so dirsearch won't do that
 
 ## Support Docker
 ### Install Docker Linux
