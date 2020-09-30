@@ -129,5 +129,5 @@ class TailableFileBaseReport(FileBaseReport):
         while True:
             try:
                 yield self.writeQueue.get(False)
-            except queue.Empty as e:
+            except queue.Empty:
                 break

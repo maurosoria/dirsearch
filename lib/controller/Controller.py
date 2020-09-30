@@ -528,7 +528,7 @@ class Controller(object):
                 else:
                     continue
 
-        except KeyboardInterrupt as SystemExit:
+        except KeyboardInterrupt:
             self.exit = True
             raise KeyboardInterrupt
 
@@ -539,7 +539,7 @@ class Controller(object):
                     continue
                 break
 
-            except (KeyboardInterrupt, SystemExit) as e:
+            except (KeyboardInterrupt, SystemExit):
                 self.handleInterrupt()
 
     def wait(self):
