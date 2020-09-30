@@ -273,9 +273,10 @@ Main: @maurosoria and @shelld3v
 
 Special thanks for these people.
 
-- @mzfr
 - @V-Rico
+- @mzfr
 - @Damian89
+- @danritter
 - @Bo0oM
 - @liamosaur
 - @redshark1802
