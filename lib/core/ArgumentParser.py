@@ -417,7 +417,7 @@ You can change the dirsearch default configurations (default extensions, timeout
         dictionary.add_option('-f', '--force-extensions', action='store_true', dest='forceExtensions', default=self.forceExtensions,
                               help='Force extensions for every wordlist entry. Add %NOFORCE% at the end of the entry in the wordlist that you do not want to force')
         dictionary.add_option('--no-extension', dest='noExtension', action='store_true',
-                              help='Remove extensions in all entries (Example: admin.php -> admin)')
+                              help='Remove extensions in all wordlist entries (Example: admin.php -> admin)')
         dictionary.add_option('--no-dot-extensions', dest='noDotExtensions', default=self.noDotExtensions,
                               help='Remove the "." character before extensions', action='store_true')
 
