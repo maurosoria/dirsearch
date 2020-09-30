@@ -279,23 +279,23 @@ class Controller(object):
                 # Skip comments
                 if line.lstrip().startswith("#"):
                     continue
-                    
+
                 # Classic dirsearch blacklist processing (with %EXT% keyword)
                 if "%ext%" in line.lower():
                     for extension in self.arguments.extensions:
                         if self.arguments.noDotExtensions:
                             entry = reextdot.sub(extension, line)
-                            
+
                         else:
                             entry = line
 
                         entry = reext.sub(extension, entry)
-                        
+
                         blacklists[status].append(entry)
-                        
+
                 # Forced extensions is not used here because -r is only used for wordlist (in documentation),
                 # applying in blacklist may create false negatives
-                        
+
                 else:
                     blacklists[status].append(line)
 
@@ -409,7 +409,7 @@ class Controller(object):
             else:
                 self.output.error("Can't write reports to {}".format(directoryPath))
                 sys.exit(1)
-        
+
         # TODO: format, refactor code 
         if self.arguments.simpleOutputFile:
             self.reportManager.addOutput(SimpleReport(requester.host, requester.port, requester.protocol,
@@ -423,7 +423,7 @@ class Controller(object):
             self.reportManager.addOutput(JSONReport(requester.host, requester.port, requester.protocol,
                                                     requester.basePath, self.arguments.jsonOutputFile, self.batch))
 
-            
+
     # TODO: Refactor, this function should be a decorator for all the filters
     def matchCallback(self, path):
         self.index += 1
@@ -469,7 +469,7 @@ class Controller(object):
                         addedToQueue = self.addRedirectDirectory(path)
                     else:
                         addedToQueue = self.addDirectory(path.path)
-                        
+
                 self.output.statusReport(path.path, path.response, self.arguments.full_url, addedToQueue)
 
                 newPath = "{}{}".format(self.currentDirectory, path.path)

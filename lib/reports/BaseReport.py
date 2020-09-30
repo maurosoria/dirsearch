@@ -38,7 +38,7 @@ class BaseReport(object):
 
 
 class FileBaseReport(BaseReport):
-  
+
     def __init__(self, host, port, protocol, basePath, output, batch):
         self.output = output
         self.port = port
@@ -120,7 +120,7 @@ class TailableFileBaseReport(FileBaseReport):
         super().__init__(host, port, protocol, basePath, output, batch)
         self.writeQueue = Queue()
         self.saveMutex = Lock()
-        
+
 
     def save(self):
         data = self.generate()

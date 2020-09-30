@@ -107,7 +107,7 @@ class CLIOutput(object):
                 showPath = urljoin(showPath, path)
                 if full_url:
                     showPath = (self.target[:-1] if self.target.endswith("/") else self.target) + showPath
-                
+
             message = "[{0}] {1} - {2} - {3}".format(
                 time.strftime("%H:%M:%S"), 
                 status, 
@@ -117,16 +117,16 @@ class CLIOutput(object):
 
             if status == 200:
                 message = Fore.GREEN + message + Style.RESET_ALL
-                
+
             elif status == 400:
                 message = Fore.MAGENTA + message + Style.RESET_ALL
 
             elif status == 401:
                 message = Fore.YELLOW + message + Style.RESET_ALL
-                
+
             elif status == 403:
                 message = Fore.BLUE + message + Style.RESET_ALL
-                
+
             elif status == 500:
                 message = Fore.RED + message + Style.RESET_ALL
 
@@ -136,7 +136,7 @@ class CLIOutput(object):
             ]:
                 message = Fore.CYAN + message + Style.RESET_ALL
                 message += "  ->  {0}".format(response.headers["location"])
-                
+
             if addedToQueue:
                 message += "     (Added to queue)"
 
@@ -149,7 +149,7 @@ class CLIOutput(object):
             x, y = get_terminal_size()
 
             message = "{0:.2f}% - ".format(percentage(index, length))
-            
+
 
             if allJobs > 1:
                 message += "Job: {0}/{1} - ".format(currentJob, allJobs)
@@ -237,10 +237,10 @@ class CLIOutput(object):
         config += Style.RESET_ALL
 
         self.newLine(config)
-        
+
     def outputFile(self, target):
         self.newLine("Output File: {0}\n".format(target))
-        
+
     def errorLogFile(self, target):
         self.newLine("\nError Log: {0}".format(target))
 

@@ -39,7 +39,7 @@ class Dictionary(object):
         noDotExtensions=False,
         excludeExtensions=[],
     ):
-        
+
         self.entries = []
         self.currentIndex = 0
         self.condition = threading.Lock()
@@ -106,7 +106,7 @@ class Dictionary(object):
             for line in list(dict.fromkeys(dictFile.getLines())):
                 if line.startswith("/"):
                     line = line[1:]
-                
+
                 # Check if the line is having the %NOFORCE% keyword
                 if "%noforce%" in line.lower():
                     noforce = True
@@ -120,12 +120,12 @@ class Dictionary(object):
                 # Skip if the path is containing excluded extensions
                 if len(self._excludeExtensions):
                     matched = False
-                    
+
                     for excludeExtension in self._excludeExtensions:
                         if len(exclude("." + excludeExtension, line)):
                             matched = True
                             break
-                            
+
                     if matched:
                         continue
 
@@ -177,16 +177,16 @@ class Dictionary(object):
                 if not res.rstrip().endswith("/") and not res.rstrip().endswith(suff):
                     for suff in self._suffixes:
                         custom.append(res + suff)
-           
+
         result = custom if custom else result
 
 
         if self.lowercase:
             self.entries = list(dict.fromkeys(map(lambda l: l.lower(), result)))
-            
+
         elif self.uppercase:
             self.entries = list(dict.fromkeys(map(lambda l: l.upper(), result)))
-            
+
         elif self.capitalization:
             self.entries = list(dict.fromkeys(map(lambda l: l.capitalize(), result)))
 

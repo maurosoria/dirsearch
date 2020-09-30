@@ -37,7 +37,7 @@ class PrintOutput(object):
         self.mutexCheckedPaths = threading.Lock()
         self.basePath = None
         self.errors = 0
-        
+
     def header(self, s):
         pass
 
@@ -64,7 +64,7 @@ class PrintOutput(object):
     def newLine(self, string):
         sys.stdout.write(string + "\n")
         sys.stdout.flush()
-        
+
 
     def statusReport(self, path, response, full_url, addedToQueue):
         with self.mutex:
@@ -104,10 +104,10 @@ class PrintOutput(object):
 
             elif status == 401:
                 message = Fore.YELLOW + message + Style.RESET_ALL
-                
+
             elif status == 403:
                 message = Fore.BLUE + message + Style.RESET_ALL
-                
+
             elif status == 500:
                 message = Fore.RED + message + Style.RESET_ALL
 
@@ -117,7 +117,7 @@ class PrintOutput(object):
             ]:
                 message = Fore.CYAN + message + Style.RESET_ALL
                 message += "  ->  {0}".format(response.headers["location"])
-                
+
             if addedToQueue:
                 message += "     (Added to queue)"
 
@@ -158,7 +158,7 @@ class PrintOutput(object):
 
     def outputFile(self, target):
         pass
-    
+
     def errorLogFile(self, target):
         pass
 

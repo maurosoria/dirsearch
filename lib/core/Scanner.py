@@ -49,7 +49,7 @@ class Scanner(object):
         firstPath = self.preffix + self.testPath + self.suffix
         firstResponse = self.requester.request(firstPath)
         self.invalidStatus = firstResponse.status
-        
+
         secondPath = self.preffix + RandomUtils.randString(omit=self.testPath) + self.suffix
         secondResponse = self.requester.request(secondPath)
 
