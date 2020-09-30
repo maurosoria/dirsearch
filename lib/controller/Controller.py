@@ -598,7 +598,7 @@ class Controller(object):
             and absoluteUrl != baseUrl
             and absoluteUrl.endswith("/")
         ):
-            dir = absoluteUrl[len(self.currentUrl.rstrip("/")) + 1 :]
+            dir = absoluteUrl[len(self.currentUrl.rstrip("/")) + 1:]
 
             if dir in self.doneDirs:
                 return False

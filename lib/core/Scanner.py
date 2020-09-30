@@ -98,7 +98,7 @@ class Scanner(object):
             if n == 0:
                 continue
 
-            mark = firstLocation[i : i + n]
+            mark = firstLocation[i:i + n]
             marks.append(mark)
 
         regexp = "^.*{0}.*$".format(".*".join(map(re.escape, marks)))

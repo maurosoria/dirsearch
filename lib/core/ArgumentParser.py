@@ -442,23 +442,23 @@ You can change the dirsearch default configurations (default extensions, timeout
                            action='store', dest='excludeSubdirs',
                            default=self.excludeSubdirs)
 
-        general.add_option('-t', '--threads', help='Number of Threads', action='store', type='int', dest='threadsCount'
-                           , default=self.threadsCount)
-        general.add_option('-i', '--include-status', help='Show only included status codes, separated by comma (example: 301, 500)'
-                           , action='store', dest='includeStatusCodes', default=self.includeStatusCodes)
-        general.add_option('-x', '--exclude-status', help='Do not show excluded status codes, separated by comma (example: 301, 500)'
-                           , action='store', dest='excludeStatusCodes', default=self.excludeStatusCodes)
+        general.add_option('-t', '--threads', help='Number of Threads', action='store', type='int', dest='threadsCount',
+                           default=self.threadsCount)
+        general.add_option('-i', '--include-status', help='Show only included status codes, separated by comma (example: 301, 500)',
+                           action='store', dest='includeStatusCodes', default=self.includeStatusCodes)
+        general.add_option('-x', '--exclude-status', help='Do not show excluded status codes, separated by comma (example: 301, 500)',
+                           action='store', dest='excludeStatusCodes', default=self.excludeStatusCodes)
 
-        general.add_option('--exclude-texts', help='Exclude responses by texts, separated by comma (example: "Not found", "Error")'
-                           , action='store', dest='excludeTexts', default=None)
-        general.add_option('--exclude-regexps', help='Exclude responses by regexps, separated by comma (example: "Not foun[a-z]{1}", "^Error$")'
-                           , action='store', dest='excludeRegexps', default=None)
+        general.add_option('--exclude-texts', help='Exclude responses by texts, separated by comma (example: "Not found", "Error")',
+                           action='store', dest='excludeTexts', default=None)
+        general.add_option('--exclude-regexps', help='Exclude responses by regexps, separated by comma (example: "Not foun[a-z]{1}", "^Error$")',
+                           action='store', dest='excludeRegexps', default=None)
         general.add_option('-c', '--cookie', action='store', type='string', dest='cookie', default=None)
 
         general.add_option('--user-agent', action='store', type='string', dest='useragent',
                            default=self.useragent)
-        general.add_option('-F', '--follow-redirects', action='store_true', dest='noFollowRedirects'
-                           , default=self.redirect)
+        general.add_option('-F', '--follow-redirects', action='store_true', dest='noFollowRedirects',
+                           default=self.redirect)
         general.add_option('-H', '--header',
                            help='HTTP request headers, support multiple flags (example: --header "Referer: example.com" --header "User-Agent: IE")',
                            action='append', type='string', dest='headers', default=None)

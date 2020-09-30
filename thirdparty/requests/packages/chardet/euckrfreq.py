@@ -42,7 +42,7 @@ EUCKR_TYPICAL_DISTRIBUTION_RATIO = 6.0
 
 EUCKR_TABLE_SIZE = 2352
 
-# Char to FreqOrder table ,
+# Char to FreqOrder table,
 EUCKRCharToFreqOrder = (
     13,
     130,

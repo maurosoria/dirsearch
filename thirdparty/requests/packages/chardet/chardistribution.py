@@ -187,7 +187,7 @@ class Big5DistributionAnalysis(CharDistributionAnalysis):
     def get_order(self, aBuf):
         # for big5 encoding, we are interested
         #   first  byte range: 0xa4 -- 0xfe
-        #   second byte range: 0x40 -- 0x7e , 0xa1 -- 0xfe
+        #   second byte range: 0x40 -- 0x7e, 0xa1 -- 0xfe
         # no validation needed here. State machine has done that
         first_char, second_char = wrap_ord(aBuf[0]), wrap_ord(aBuf[1])
         if first_char >= 0xA4:
@@ -208,7 +208,7 @@ class SJISDistributionAnalysis(CharDistributionAnalysis):
 
     def get_order(self, aBuf):
         # for sjis encoding, we are interested
-        #   first  byte range: 0x81 -- 0x9f , 0xe0 -- 0xfe
+        #   first  byte range: 0x81 -- 0x9f, 0xe0 -- 0xfe
         #   second byte range: 0x40 -- 0x7e,  0x81 -- oxfe
         # no validation needed here. State machine has done that
         first_char, second_char = wrap_ord(aBuf[0]), wrap_ord(aBuf[1])
