@@ -17,7 +17,7 @@
 #  Author: Mauro Soria
 
 from lib.reports import *
-from lib.utils.FileUtils import FileUtils 
+from lib.utils.FileUtils import FileUtils
 
 
 class PlainTextReport(TailableFileBaseReport):

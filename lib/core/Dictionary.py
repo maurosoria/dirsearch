@@ -165,7 +165,7 @@ class Dictionary(object):
         if self._prefixes:
             for res in list(dict.fromkeys(result)):
                 for pref in self._prefixes:
-                    if not res.startswith(pref): 
+                    if not res.startswith(pref):
                         custom.append(pref + res)
 
         # Adding suffixes for finding backups etc

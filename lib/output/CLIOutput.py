@@ -109,9 +109,9 @@ class CLIOutput(object):
                     showPath = (self.target[:-1] if self.target.endswith("/") else self.target) + showPath
 
             message = "[{0}] {1} - {2} - {3}".format(
-                time.strftime("%H:%M:%S"), 
-                status, 
-                contentLength.rjust(6, " "), 
+                time.strftime("%H:%M:%S"),
+                status,
+                contentLength.rjust(6, " "),
                 showPath,
             )
 

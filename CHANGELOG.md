@@ -1,7 +1,7 @@
 Changelog
 ---------
 
-0.4.0 - 2020.09.26 
+0.4.0 - 2020.09.26
 * Exclude extensions argument added
 * Added custom prefixes and suffixes
 * No dot extensions option

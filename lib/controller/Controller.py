@@ -382,7 +382,7 @@ class Controller(object):
                         requester.protocol,
                         requester.basePath,
                         outputFile,
-                        self.batch 
+                        self.batch
                     )
                 if self.arguments.autoSaveFormat == "json":
                     report = JSONReport(
@@ -408,7 +408,7 @@ class Controller(object):
                 self.output.error("Can't write reports to {}".format(directoryPath))
                 sys.exit(1)
 
-        # TODO: format, refactor code 
+        # TODO: format, refactor code
         if self.arguments.simpleOutputFile:
             self.reportManager.addOutput(SimpleReport(requester.host, requester.port, requester.protocol,
                                                       requester.basePath, self.arguments.simpleOutputFile, self.batch))
