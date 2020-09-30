@@ -22,16 +22,16 @@ import queue
 class BaseReport(object):
 
     def addPath(selg, path, status, response):
-        raise NotImplemented
+        raise NotImplementedError
 
     def addPath(selg, path, status, response):
-        raise NotImplemented
+        raise NotImplementedError
 
     def save(self):
-        raise NotImplemented
+        raise NotImplementedError
 
     def close(self):
-        raise NotImplemented
+        raise NotImplementedError
 
 
 class FileBaseReport(BaseReport):
@@ -102,7 +102,7 @@ class FileBaseReport(BaseReport):
         self.file.close()
 
     def generate(self):
-        raise NotImplementedError
+        raise NotImplementedErrorError
 
 
 class TailableFileBaseReport(FileBaseReport):

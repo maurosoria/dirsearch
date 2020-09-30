@@ -31,7 +31,7 @@ class File(object):
 
     @path.setter
     def path(self, value):
-        raise NotImplemented
+        raise NotImplementedError
 
     def isValid(self):
         return FileUtils.isFile(self.path)
@@ -62,7 +62,7 @@ class File(object):
 
     def __cmp__(self, other):
         if not isinstance(other, File):
-            raise NotImplemented
+            raise NotImplementedError
         return cmp(self.content(), other.content())
 
     def __enter__(self):
