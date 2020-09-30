@@ -85,19 +85,21 @@ class Requester(object):
             except socket.gaierror:
                 raise RequestException({"message": "Couldn't resolve DNS"})
 
-        self.headers["Host"] = self.host
+        # Pass if the host header has already been set (VHost)
+        if not "Host" in self.headers:
+            self.headers["Host"] = self.host
 
-        # If no port specified, set default (80, 443)
-        try:
-            self.port = parsed.netloc.split(":")[1]
-        except IndexError:
-            self.port = 443 if self.protocol == "https" else 80
+            # If no port specified, set default (80, 443)
+            try:
+                self.port = parsed.netloc.split(":")[1]
+            except IndexError:
+                self.port = 443 if self.protocol == "https" else 80
 
         # Set cookie and user-agent headers
-        if cookie is not None:
+        if cookie:
             self.setHeader("Cookie", cookie)
 
-        if useragent is not None:
+        if useragent:
             self.setHeader("User-agent", useragent)
 
         self.maxRetries = maxRetries
