@@ -271,7 +271,7 @@ Contributors
 ---------
 Main: @maurosoria and @shelld3v
 
-Special thanks for these people.
+Special thanks for these people:
 
 - @V-Rico
 - @mzfr
