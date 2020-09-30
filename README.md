@@ -204,7 +204,7 @@ python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --recursive
 ```
 
 ```
-python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --exclude-texts="404 Not Found"
+python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --exclude-texts="403 Forbidden"
 ```
 
 ```
