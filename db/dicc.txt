@@ -322,7 +322,6 @@
 .git/FETCH_HEAD
 .git/branches/
 .git/config
-.git/configf
 .git/description
 .git/head
 .git/hooks/
