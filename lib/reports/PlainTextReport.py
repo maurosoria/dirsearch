@@ -34,7 +34,7 @@ class PlainTextReport(TailableFileBaseReport):
 
         try:
             location = response.headers["location"]
-        except(KeyError,ValueError):
+        except(KeyError, ValueError):
             pass
 
         self.storeData((path, status, contentLength, location, ))
