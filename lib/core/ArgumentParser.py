@@ -61,7 +61,6 @@ class ArgumentParser(object):
         else:
             self.urlList = [options.url]
 
-
         if not options.extensions and not options.defaultExtensions:
             print('No extension specified. You must specify at least one extension or try using default extension list.')
             exit(0)
@@ -100,7 +99,6 @@ class ArgumentParser(object):
 
             self.proxylist = open(options.proxyList).read().splitlines()
 
-
         elif options.httpProxy:
             if options.httpProxy.startswith("http://") or options.httpProxy.startswith("https://"):
                 self.proxy = options.httpProxy
@@ -135,7 +133,6 @@ class ArgumentParser(object):
         if options.threadsCount < 1:
             print('Threads number must be a number greater than zero')
             exit(1)
-
 
         self.threadsCount = options.threadsCount
 
@@ -209,7 +206,6 @@ class ArgumentParser(object):
         else:
             self.excludeTexts = []
 
-
         if options.excludeRegexps:
             try:
                 self.excludeRegexps = list(
@@ -225,7 +221,6 @@ class ArgumentParser(object):
                 self.excludeRegexps = []
         else:
             self.excludeRegexps = []
-
 
         self.prefixes = [] if not options.prefixes else list(oset([prefix.strip() for prefix in options.prefixes.split(',')]))
         self.suffixes = [] if not options.suffixes else list(oset([suffix.strip() for suffix in options.suffixes.split(',')]))
@@ -249,7 +244,6 @@ class ArgumentParser(object):
         self.minimumResponseSize = options.minimumResponseSize
         self.maximumResponseSize = options.maximumResponseSize
 
-
         if options.scanSubdirs:
             self.scanSubdirs = list(
                 oset([subdir.strip() for subdir in options.scanSubdirs.split(",")])
@@ -267,7 +261,6 @@ class ArgumentParser(object):
 
         else:
             self.scanSubdirs = None
-
 
         if not self.recursive and options.excludeSubdirs:
             self.excludeSubdirs = None
@@ -289,11 +282,9 @@ class ArgumentParser(object):
         else:
             self.excludeSubdirs = None
 
-
         if len(set(self.extensions).intersection(self.excludeExtensions)):
             print("Exclude extensions can not contain any extension that has already in the extensions")
             exit(0)
-
 
         self.redirect = options.noFollowRedirects
         self.requestByHostname = options.requestByHostname
@@ -307,7 +298,6 @@ class ArgumentParser(object):
         config.read(configPath)
 
         # General
-
         self.threadsCount = config.safe_getint(
             "general", "threads", 20, list(range(1, 200))
         )
@@ -485,7 +475,6 @@ You can change the dirsearch default configurations (default extensions, timeout
         reports.add_option('--plain-text-report', action='store',
                            help='Found paths with status codes', dest='plainTextOutputFile', default=None)
         reports.add_option('--json-report', action='store', dest='jsonOutputFile', default=None)
-
 
         parser.add_option_group(mandatory)
         parser.add_option_group(dictionary)

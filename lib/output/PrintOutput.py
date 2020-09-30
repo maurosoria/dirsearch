@@ -65,7 +65,6 @@ class PrintOutput(object):
         sys.stdout.write(string + "\n")
         sys.stdout.flush()
 
-
     def statusReport(self, path, response, full_url, addedToQueue):
         with self.mutex:
             contentLength = None
@@ -138,7 +137,6 @@ class PrintOutput(object):
     def header(self, text):
         pass
 
-
     def config(
         self,
         extensions,
@@ -151,7 +149,6 @@ class PrintOutput(object):
         recursion_level,
     ):
         pass
-
 
     def setTarget(self, target):
         self.target = target

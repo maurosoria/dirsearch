@@ -353,7 +353,6 @@ class Controller(object):
                 fileName += time.strftime('%y-%m-%d_%H-%M-%S.txt')
                 directoryPath = FileUtils.buildPath(self.savePath, 'reports', requester.host)
 
-
             outputFile = FileUtils.buildPath(directoryPath, fileName)
 
             self.output.outputFile(outputFile)
@@ -403,7 +402,6 @@ class Controller(object):
                         self.batch
                     )
 
-
                 self.reportManager.addOutput(report)
 
             else:
@@ -423,7 +421,6 @@ class Controller(object):
             self.reportManager.addOutput(JSONReport(requester.host, requester.port, requester.protocol,
                                                     requester.basePath, self.arguments.jsonOutputFile, self.batch))
 
-
     # TODO: Refactor, this function should be a decorator for all the filters
     def matchCallback(self, path):
         self.index += 1
@@ -438,7 +435,6 @@ class Controller(object):
                     self.minimumResponseSize and self.minimumResponseSize > len(path.response.body)) or (
                     self.maximumResponseSize and self.maximumResponseSize < len(path.response.body))):
 
-
                 for excludeText in self.excludeTexts:
                     if excludeText in path.response.body.decode():
                         del path
@@ -452,7 +448,6 @@ class Controller(object):
                     ):
                         del path
                         return
-
 
                 pathIsInScanSubdirs = False
                 addedToQueue = False

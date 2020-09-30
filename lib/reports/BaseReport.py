@@ -24,14 +24,11 @@ class BaseReport(object):
     def addPath(selg, path, status, response):
         raise NotImplemented
 
-
     def addPath(selg, path, status, response):
         raise NotImplemented
 
-
     def save(self):
         raise NotImplemented
-
 
     def close(self):
         raise NotImplemented
@@ -56,7 +53,6 @@ class FileBaseReport(BaseReport):
         self.pathList = []
         self.open()
 
-
     def addPath(self, path, status, response):
         contentLength = None
 
@@ -68,10 +64,8 @@ class FileBaseReport(BaseReport):
 
         self.storeData((path, status, contentLength,))
 
-
     def storeData(self, data):
         self.pathList.append(data)
-
 
     def open(self):
         from os import name as os_name
@@ -85,13 +79,11 @@ class FileBaseReport(BaseReport):
 
             self.output = output
 
-
         if self.batch:
             self.file = open(self.output, 'a+')
 
         else:
             self.file = open(self.output, 'w+')
-
 
     def save(self):
         if self.batch:
@@ -106,10 +98,8 @@ class FileBaseReport(BaseReport):
             self.file.writelines(self.generate())
             self.file.flush()
 
-
     def close(self):
         self.file.close()
-
 
     def generate(self):
         raise NotImplementedError
@@ -121,7 +111,6 @@ class TailableFileBaseReport(FileBaseReport):
         self.writeQueue = Queue()
         self.saveMutex = Lock()
 
-
     def save(self):
         data = self.generate()
         self.file.write(data)
@@ -131,12 +120,10 @@ class TailableFileBaseReport(FileBaseReport):
         data = self.generate()
         self.file.write(data)
         self.file.flush()
-
 
     def storeData(self, data):
         self.writeQueue.put(data)
         self.save()
-
 
     def getPathIterator(self):
         while True:

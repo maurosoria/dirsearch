@@ -25,7 +25,6 @@ from lib.utils.FileUtils import File
 
 class Dictionary(object):
 
-
     def __init__(
         self,
         paths,
@@ -100,7 +99,6 @@ class Dictionary(object):
         custom = []
         result = []
 
-
         # Enable to use multiple dictionaries at once
         for dictFile in self.dictionaryFiles:
             for line in list(dict.fromkeys(dictFile.getLines())):
@@ -163,7 +161,6 @@ class Dictionary(object):
                 else:
                     result.append(self.quote(line))
 
-
         # Adding prefixes for finding private pages etc
         if self._prefixes:
             for res in list(dict.fromkeys(result)):
@@ -179,7 +176,6 @@ class Dictionary(object):
                         custom.append(res + suff)
 
         result = custom if custom else result
-
 
         if self.lowercase:
             self.entries = list(dict.fromkeys(map(lambda l: l.lower(), result)))

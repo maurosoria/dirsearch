@@ -39,7 +39,6 @@ class PlainTextReport(TailableFileBaseReport):
 
         self.storeData((path, status, contentLength, location, ))
 
-
     def generate(self):
         result = ""
 

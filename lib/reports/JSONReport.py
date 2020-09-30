@@ -34,7 +34,6 @@ class JSONReport(FileBaseReport):
 
         self.storeData((path, status, contentLength, response.redirect))
 
-
     def generate(self):
         headerName = "{0}://{1}:{2}/{3}".format(
             self.protocol, self.host, self.port, self.basePath

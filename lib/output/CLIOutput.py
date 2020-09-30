@@ -150,7 +150,6 @@ class CLIOutput(object):
 
             message = "{0:.2f}% - ".format(percentage(index, length))
 
-
             if allJobs > 1:
                 message += "Job: {0}/{1} - ".format(currentJob, allJobs)
 
@@ -185,7 +184,6 @@ class CLIOutput(object):
         message = Style.BRIGHT + Fore.MAGENTA + text + Style.RESET_ALL
         self.newLine(message)
 
-
     def config(
         self,
         extensions,
@@ -205,7 +203,6 @@ class CLIOutput(object):
 
         config += "HTTP method: {0}".format(Fore.CYAN + method.upper() + Fore.YELLOW)
         config += separator
-
 
         if prefixes != '':
             config += 'Prefixes: {0}'.format(Fore.CYAN + prefixes + Fore.YELLOW)
