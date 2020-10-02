@@ -368,8 +368,8 @@ You can change the dirsearch default configurations (default extensions, timeout
         mandatory.add_option('-E', '--extensions-list', help='Use predefined list of common extensions',
                              action='store_true', dest='defaultExtensions', default=False)
         mandatory.add_option('-X', '--exclude-extensions',
-                              help='Exclude extensions list, separated by comma (Example: asp,jsp)',
-                              action='store', dest='excludeExtensions', default=None)
+                             help='Exclude extensions list, separated by comma (Example: asp,jsp)',
+                             action='store', dest='excludeExtensions', default=None)
 
         connection = OptionGroup(parser, 'Connection Settings')
         connection.add_option('--timeout', action='store', dest='timeout', type='int',
