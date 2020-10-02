@@ -397,21 +397,21 @@ You can change the dirsearch default configurations (default extensions, timeout
                               help='Customize wordlist (separated by comma)',
                               default=self.wordlist)
         dictionary.add_option('--prefixes', action='store', dest='prefixes', default=None,
-                             help='Add custom prefixes to all entries (separated by comma)')
+                              help='Add custom prefixes to all entries (separated by comma)')
         dictionary.add_option('--suffixes', action='store', dest='suffixes', default=None,
-                             help='Add custom suffixes to all entries, ignores directories (separated by comma)')
+                              help='Add custom suffixes to all entries, ignores directories (separated by comma)')
 
         dictionary.add_option('-f', '--force-extensions', action='store_true', dest='forceExtensions', default=self.forceExtensions,
                               help='Force extensions for every wordlist entry. Add %NOFORCE% at the end of the entry in the wordlist that you do not want to force')
         dictionary.add_option('--no-dot-extensions', dest='noDotExtensions', default=self.noDotExtensions,
                               help='Don\'t add a \'.\' character before extensions', action='store_true')
         dictionary.add_option('-U', '--uppercase', action='store_true', dest='uppercase', default=self.uppercase,
-                             help='Uppercase wordlist')
+                              help='Uppercase wordlist')
 
         dictionary.add_option('-L', '--lowercase', action='store_true', dest='lowercase', default=self.lowercase,
-                             help='Lowercase wordlist')
+                              help='Lowercase wordlist')
         dictionary.add_option('-C', '--capitalization', action='store_true', dest='capitalization', default=self.capitalization,
-                             help='Capital wordlist')
+                              help='Capital wordlist')
 
         # Optional Settings
         general = OptionGroup(parser, 'General Settings')
@@ -464,7 +464,7 @@ You can change the dirsearch default configurations (default extensions, timeout
                            action='append', type='string', dest='headers', default=None)
 
         general.add_option('--full-url', action='store_true', dest='full_url',
-                          help='Print the full URL in the output')
+                           help='Print the full URL in the output')
         general.add_option('--random-agents', '--random-user-agents', action='store_true', dest='useRandomAgents')
         general.add_option('-q', '--quite-mode', action='store_true', dest='clean_view')
 
