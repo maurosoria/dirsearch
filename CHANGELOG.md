@@ -3,15 +3,15 @@
 
 0.4.0 - 2020.09.26
 ---------
-* Exclude extensions argument added
-* No dot extensions option
-* Support HTTP request data
-* Added minimal response length and maximal response length arguments
-* Added include status codes and exclude status codes arguments
-* Added --clean-view option
-* Added option to print the full URL in the output
-* Added Prefixes and Suffixes arguments
-* Multiple bugfixes
+- Exclude extensions argument added
+- No dot extensions option
+- Support HTTP request data
+- Added minimal response length and maximal response length arguments
+- Added include status codes and exclude status codes arguments
+- Added --clean-view option
+- Added option to print the full URL in the output
+- Added Prefixes and Suffixes arguments
+- Multiple bugfixes
 
 ---------
 
