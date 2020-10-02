@@ -430,11 +430,12 @@ class Controller(object):
 
             if path.status not in self.excludeStatusCodes and (
                     not self.includeStatusCodes or path.status in self.includeStatusCodes) and (
-                    not(self.blacklists.get(path.status)) or path.path not in self.blacklists.get(
-                path.status)) and not (
+                    not(self.blacklists.get(path.status)) or path.path not in self.blacklists.get(path.status)
+            ) and not (
                     self.suppressEmpty and (not(len(path.response.body)))) and not ((
                     self.minimumResponseSize and self.minimumResponseSize > len(path.response.body)) or (
-                    self.maximumResponseSize and self.maximumResponseSize < len(path.response.body))):
+                    self.maximumResponseSize and self.maximumResponseSize < len(path.response.body))
+            ):
 
                 for excludeText in self.excludeTexts:
                     if excludeText in path.response.body.decode():
