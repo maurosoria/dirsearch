@@ -93,8 +93,8 @@ class Dictionary(object):
     """
 
     def generate(self):
-        reext = re.compile('\%ext\%', re.IGNORECASE).sub
-        reextdot = re.compile('\.\%ext\%', re.IGNORECASE).sub
+        reext = re.compile(r'\%ext\%', re.IGNORECASE).sub
+        reextdot = re.compile(r'\.\%ext\%', re.IGNORECASE).sub
         exclude = re.findall
         custom = []
         result = []

@@ -255,8 +255,8 @@ class Controller(object):
         return FileUtils.buildPath(basePath, dirPath)
 
     def getBlacklists(self):
-        reext = re.compile('\%ext\%', re.IGNORECASE)
-        reextdot = re.compile('\.\%ext\%', re.IGNORECASE)
+        reext = re.compile(r'\%ext\%', re.IGNORECASE)
+        reextdot = re.compile(r'\.\%ext\%', re.IGNORECASE)
         blacklists = {}
 
         for status in [400, 403, 500]:
