@@ -142,13 +142,15 @@ class CLIOutput(object):
 
             self.newLine(message)
 
+    @staticmethod
+    def percentage(x, y):
+        return float(x) / float(y) * 100
+
     def lastPath(self, path, index, length, currentJob, allJobs):
         with self.mutex:
-            percentage = lambda x, y: float(x) / float(y) * 100
-
             x, y = get_terminal_size()
 
-            message = "{0:.2f}% - ".format(percentage(index, length))
+            message = "{0:.2f}% - ".format(CLIOutput.percentage(index, length))
 
             if allJobs > 1:
                 message += "Job: {0}/{1} - ".format(currentJob, allJobs)
