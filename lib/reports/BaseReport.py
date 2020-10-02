@@ -19,6 +19,7 @@
 from multiprocessing import Queue, Lock
 import queue
 
+
 class BaseReport(object):
 
     def addPath(selg, path, status, response):
