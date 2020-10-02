@@ -134,9 +134,6 @@ class PrintOutput(object):
     def warning(self, reason):
         pass
 
-    def header(self, text):
-        pass
-
     def config(
         self,
         extensions,

@@ -24,9 +24,6 @@ class BaseReport(object):
     def addPath(selg, path, status, response):
         raise NotImplementedError
 
-    def addPath(selg, path, status, response):
-        raise NotImplementedError
-
     def save(self):
         raise NotImplementedError
 
@@ -110,11 +107,6 @@ class TailableFileBaseReport(FileBaseReport):
         super().__init__(host, port, protocol, basePath, output, batch)
         self.writeQueue = Queue()
         self.saveMutex = Lock()
-
-    def save(self):
-        data = self.generate()
-        self.file.write(data)
-        self.file.flush()
 
     def save(self):
         data = self.generate()
