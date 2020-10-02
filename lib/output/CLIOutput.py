@@ -64,7 +64,7 @@ class CLIOutput(object):
             sys.stdout.write("\033[0G")
 
     def newLine(self, string):
-        if self.lastInLine == True:
+        if self.lastInLine is True:
             self.erase()
 
         if sys.platform in ["win32", "msys"]:
@@ -216,7 +216,7 @@ class CLIOutput(object):
         config += separator
         config += "Wordlist size: {0}".format(Fore.CYAN + wordlist_size + Fore.YELLOW)
 
-        if recursive == True:
+        if recursive is True:
             config += separator
             config += "Recursion level: {0}".format(
                 Fore.CYAN + recursion_level + Fore.YELLOW
