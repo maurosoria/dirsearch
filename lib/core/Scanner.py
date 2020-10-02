@@ -58,11 +58,7 @@ class Scanner(object):
             return
 
         # look for redirects
-        elif (
-            firstResponse.status in self.redirectStatusCodes
-            and firstResponse.redirect
-            and secondResponse.redirect
-        ):
+        elif firstResponse.status in self.redirectStatusCodes and firstResponse.redirect and secondResponse.redirect:
             self.redirectRegExp = self.generateRedirectRegExp(
                 firstResponse.redirect, secondResponse.redirect
             )

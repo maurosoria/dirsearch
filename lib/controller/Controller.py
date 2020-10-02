@@ -593,11 +593,7 @@ class Controller(object):
 
         absoluteUrl = urllib.parse.urljoin(baseUrl, path.response.redirect)
 
-        if (
-            absoluteUrl.startswith(baseUrl)
-            and absoluteUrl != baseUrl
-            and absoluteUrl.endswith("/")
-        ):
+        if absoluteUrl.startswith(baseUrl) and absoluteUrl != baseUrl and absoluteUrl.endswith("/"):
             dir = absoluteUrl[len(self.currentUrl.rstrip("/")) + 1:]
 
             if dir in self.doneDirs:
