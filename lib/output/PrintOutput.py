@@ -18,7 +18,6 @@
 
 import sys
 import threading
-import time
 
 from posixpath import join as urljoin
 

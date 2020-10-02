@@ -1,4 +1,2 @@
-from .CLIOutput import *
-from .PrintOutput import *
-
-pass
+from .CLIOutput import *  # noqa: F401
+from .PrintOutput import *  # noqa: F401
