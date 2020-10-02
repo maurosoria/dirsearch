@@ -172,8 +172,8 @@ class Dictionary(object):
         if self._suffixes:
             suff = None
             for res in list(dict.fromkeys(result)):
-                if not res.rstrip().endswith("/") and not (suff and res.rstrip().endswith(suff)):
-                    for suff in self._suffixes:
+                for suff in self._suffixes:
+                    if not res.rstrip().endswith("/") and not res.rstrip().endswith(suff):
                         custom.append(res + suff)
 
         result = custom if custom else result
