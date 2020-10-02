@@ -360,7 +360,8 @@ class Controller(object):
             if FileUtils.exists(outputFile):
                 i = 2
 
-                while FileUtils.exists(outputFile + "_" + str(i)): i += 1
+                while FileUtils.exists(outputFile + "_" + str(i)):
+                    i += 1
 
                 outputFile += "_" + str(i)
 
