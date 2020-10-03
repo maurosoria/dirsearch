@@ -17,6 +17,12 @@ git clone https://github.com/maurosoria/dirsearch.git
 cd dirsearch
 python3 dirsearch.py -u <URL> -e <EXTENSION>
 ```
+If Unix system:
+
+```
+chmod +x dirsearch.py
+./dirsearch.py -u <URL> -e <EXTENSION>
+```
 - If you are using Windows, you can install the ZIP file, extract and run
 
 **Dirsearch only supports python 3 or greater**
