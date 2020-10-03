@@ -19,7 +19,7 @@ python3 dirsearch.py -u <URL> -e <EXTENSION>
 ```
 - If you are using Windows, you can install the ZIP file, extract and run
 
-Dirsearch only supports python 3 or greater
+**Dirsearch only supports python 3 or greater**
 
 
 Options
@@ -173,7 +173,7 @@ Features
 
 About wordlists
 ---------------
-Dictionaries must be text files. Each line will be processed as such, except that the special word %EXT% is used, which will generate one entry for each extension (-e | --extension) passed as an argument.
+Dictionaries must be text files. Each line will be processed as such, except that the special keyword %EXT% is used, which will generate one entry for each extension (-e | --extension) passed as an argument.
 
 Example:
 - sample
@@ -277,7 +277,7 @@ admin
 index.html
 test
 ```
-
+---------
 ```
 python3 dirsearch.py -e html -u https://target --uppercase
 ```
@@ -286,8 +286,7 @@ ADMIN
 INDEX.HTML
 TEST
 ```
-
-
+---------
 ```
 python3 dirsearch.py -e html -u https://target --capitalization
 ```
@@ -315,16 +314,16 @@ python3 dirsearch.py -e php,html,js -u https://target --exclude-regexps "^Error$
 ```
 
 ### Scan sub-directories
-From an URL, you can scan sub-dirsearctories of it with "--scan-subdirs".
+From an URL, you can scan sub-dirsearctories with "--scan-subdirs".
 
 ```
 python3 dirsearch.py -e php,html,js -u https://target --scan-subdirs admin/,folder/,/
 ```
 
-A reverse version of this feature is "--exclude-subdir | --exclude-subdirs", to prevent dirsearch from brute-forcing dirctories that should not be brute-forced when doing a recursive scan.
+A reverse version of this feature is "--exclude-subdir | --exclude-subdirs", which to prevent dirsearch from brute-forcing directories that should not be brute-forced when doing a recursive scan.
 
 ```
-python3 dirsearch.py -e php,html,js -u https://target --recursive -R 2 --exclude-subdirs server-status/,%3f/
+python3 dirsearch.py -e php,html,js -u https://target --recursive -R 2 --exclude-subdirs "server-status/,%3f/"
 ```
 
 ### Some others commands
