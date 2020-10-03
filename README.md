@@ -179,13 +179,13 @@ Features
 
 About wordlists
 ---------------
-Dictionaries must be text files. Each line will be processed as such, except that the special keyword %EXT% is used, which will generate one entry for each extension (-e | --extension) passed as an argument.
+Wordlist must be a text file. Each line will be processed as such, except when the special keyword %EXT% is used, it will generate one entry for each extension (-e | --extension) passed as an argument.
 
 Example:
 - sample
 - example.%EXT%
 
-Passing the extensions "asp" and "aspx" will generate the following dictionary:
+Passing the extensions "asp" and "aspx" will generate the following dictionaries:
 - sample
 - example
 - example.asp
@@ -198,7 +198,7 @@ You can also use -f | --force-extensions switch to append extensions to every wo
 How to use
 ---------------
 
-Some examples how to use dirsearch - those are the most common arguments. If you need all, just use the "-h" argument.
+Some examples for how to use dirsearch - those are the most common arguments. If you need all, just use the "-h" argument.
 
 ### Simple usage
 ```
@@ -330,6 +330,17 @@ A reverse version of this feature is "--exclude-subdir | --exclude-subdirs", whi
 
 ```
 python3 dirsearch.py -e php,html,js -u https://target --recursive -R 2 --exclude-subdirs "server-status/,%3f/"
+```
+
+### Proxies
+dirsearch supports HTTP proxy, with two options: a proxy server or a list of proxy servers.
+
+```
+python3 dirsearch.py -e php,html,js -u https://target --proxy 127.0.0.1:8080
+```
+
+```
+python3 dirsearch.py -e php,html,js -u https://target --proxylist proxyservers.txt
 ```
 
 ### Some others commands
