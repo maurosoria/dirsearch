@@ -203,22 +203,102 @@ python3 dirsearch.py -E -u https://target
 python3 dirsearch.py -e php,html,js -u https://target
 ```
 
+```
+python3 dirsearch.py -e php,html,js -u https://target -w /path/to/wordlist
+```
+
 ### Recursive scan
-By adding the "-r" argument, dirsearch will automatically brute-force the after of directories it found.
+By adding "-r | --recursive" argument, dirsearch will automatically brute-force the after of directories that it found.
 
 ```
 python3 dirsearch.py -e php,html,js -u https://target -r
 ```
-You can set the recursion depth with -R
+You can set the max recursion depth with "-R" or "--recursive-level-max"
 
 ```
-python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --recursive -R 4 --scan-subdirs=/,/wp-content/
+python3 dirsearch.py -e php,html,js -u https://target -r -R 3
+```
+
+### Exclude extensions
+Sometimes your wordlist may contains many extensions, for many cases like `.asp`, `.aspx`, `.php`, `.jsp`, ... But if you found the core application behind it, ASP.NET for example, many of those endpoints will be useless right? Don't worry, try "-X <exclude-extensions>" and all endpoints with extensions you selected will be removed.
+
+```
+python3 dirsearch.py -e asp,aspx,html,htm,js -u https://target -X php,jsp,jspx
+```
+
+### Prefixes / Suffixes
+- "--prefixes": Adding custom prefixes to all entries
+
+```
+python3 dirsearch.py -e php -u https://target --prefixes .,admin,_,~
+```
+Base wordlist:
+
+```
+tools
+```
+Generated with prefixes:
+
+```
+.tools
+admintools
+_tools
+~tools
+```
+
+- "--suffixes": Adding custom suffixes to all entries
+
+```
+python3 dirsearch.py -e php -u https://target --suffixes ~,/
+```
+Base wordlist:
+
+```
+index.php
+internal
+```
+Generated with suffixes:
+
+```
+index.php~
+index.php/
+internal~
+internal/
+```
+
+### Wordlist formats
+Supported wordlist formats: uppercase, lowercase, capitalization
+
+```
+python3 dirsearch.py -e html -u https://target --lowercase
+```
+```
+admin
+index.html
+test
 ```
 
 ```
-python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --exclude-texts="403 Forbidden"
+python3 dirsearch.py -e html -u https://target --uppercase
+```
+```
+ADMIN
+INDEX.HTML
+TEST
 ```
 
+
+```
+python3 dirsearch.py -e html -u https://target --capitalization
+```
+```
+Admin
+Index.html
+Test
+```
+
+### Filters
+Use "-i | --include-status" and "-x | --exclude-status" to select allowed and not allowed response status codes
 ```
 python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt -H "User-Agent: IE" -f
 ```
@@ -249,6 +329,8 @@ Tips
 - Want to findout config files or backups? Try `--suffixes ~` and `--prefixes .`
 - Don't want to force extensions on some endpoints? Add `%NOFORCE` at the end of them so dirsearch won't do that
 
+Keep updating ...
+
 ## Support Docker
 ### Install Docker Linux
 Install Docker
@@ -260,14 +342,14 @@ curl -fsSL https://get.docker.com | bash
 ### Build Image dirsearch
 To create image
 ```sh
-docker build -t "dirsearch:v0.3.8" .
+docker build -t "dirsearch:v0.4.0" .
 ```
 > **dirsearch** this is name the image and **v0.3.8** is version
 
 ### Using dirsearch
 For using
 ```sh
-docker run -it --rm "dirsearch:v0.3.8" -u target -e php,html,png,js,jpg
+docker run -it --rm "dirsearch:v0.4.0" -u target -e php,html,js,zip
 ```
 > target is the site or IP
 
