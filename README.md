@@ -1,4 +1,4 @@
-dirsearch
+Dirsearch
 =========
 
 Current Release: v0.4.0 (2020.9.25)
@@ -17,9 +17,9 @@ git clone https://github.com/maurosoria/dirsearch.git
 cd dirsearch
 python3 dirsearch.py -u <URL> -e <EXTENSION>
 ```
+- If you are using Windows, you can install the ZIP file, thenact and run
 
-you can also use this alias to send directly to proxy
-`python3 /path/to/dirsearch/dirsearch.py --http-proxy=localhost:8080`
+Dirsearch only supports python 3 or greater
 
 
 Options
@@ -131,7 +131,7 @@ Options:
     --json-report=JSONOUTPUTFILE
 ```
 
- NOTE: 
+ **NOTE**: 
  You can change the dirsearch default configurations (default extensions, timeout, wordlist location, ...) by editing the "default.conf" file.
 
 Operating Systems supported
@@ -176,28 +176,40 @@ About wordlists
 Dictionaries must be text files. Each line will be processed as such, except that the special word %EXT% is used, which will generate one entry for each extension (-e | --extension) passed as an argument.
 
 Example:
-- example/
+- sample
 - example.%EXT%
 
 Passing the extensions "asp" and "aspx" will generate the following dictionary:
-- example/
+- sample
+- example
 - example.asp
 - example.aspx
+- example/
 
-You can also use -f | --force-extensions switch to append extensions to every word in the wordlists (like DirBuster).
+You can also use -f | --force-extensions switch to append extensions to every word in the wordlists.
 
 
 How to use
 ---------------
 
 Some examples how to use dirsearch - those are the most common arguments. If you need all, just use the "-h" argument.
+
+### Simple usage
 ```
 python3 dirsearch.py -E -u https://target
 ```
 
 ```
-python3 dirsearch.py -E -u https://target --recursive -R 2
+python3 dirsearch.py -e php,html,js -u https://target
 ```
+
+### Recursive scan
+By adding the "-r" argument, dirsearch will automatically brute-force the after of directories it found.
+
+```
+python3 dirsearch.py -e php,html,js -u https://target -r
+```
+You can set the recursion depth with -R
 
 ```
 python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --recursive -R 4 --scan-subdirs=/,/wp-content/
