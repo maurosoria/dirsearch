@@ -299,6 +299,35 @@ Test
 
 ### Filters
 Use "-i | --include-status" and "-x | --exclude-status" to select allowed and not allowed response status codes
+
+```
+python3 dirsearch.py -E -u https://target -i 200,204,400,403 -x 500,502,429
+```
+
+"--exclude-texts" and "--exclude-regexps" are also supported for more advanced filter
+
+```
+python3 dirsearch.py -e php,html,js -u https://target --exclude-texts "403 Forbidden"
+```
+
+```
+python3 dirsearch.py -e php,html,js -u https://target --exclude-regexps "^Error$"
+```
+
+### Scan sub-directories
+From an URL, you can scan sub-dirsearctories of it with "--scan-subdirs".
+
+```
+python3 dirsearch.py -e php,html,js -u https://target --scan-subdirs admin/,folder/,/
+```
+
+A reverse version of this feature is "--exclude-subdir | --exclude-subdirs", to prevent dirsearch from brute-forcing dirctories that should not be brute-forced when doing a recursive scan.
+
+```
+python3 dirsearch.py -e php,html,js -u https://target --recursive -R 2 --exclude-subdirs server-status/,%3f/
+```
+
+### Some others commands
 ```
 python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt -H "User-Agent: IE" -f
 ```
@@ -322,6 +351,8 @@ python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --simple-re
 ```
 python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --json-report=reports/report.json
 ```
+
+**There are still a lot more features but you will need to discover it by your self**
 
 Tips
 ---------------
