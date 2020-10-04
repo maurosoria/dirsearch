@@ -378,7 +378,8 @@ Tips
 
 Keep updating ...
 
-## Support Docker
+Support Docker
+---------------
 ### Install Docker Linux
 Install Docker
 ```sh
@@ -402,14 +403,14 @@ docker run -it --rm "dirsearch:v0.4.0" -u target -e php,html,js,zip
 
 
 License
--------
+---------------
 Copyright (C) Mauro Soria (maurosoria@gmail.com)
 
 License: GNU General Public License, version 2
 
 
 Contributors
----------
+---------------
 Main: @maurosoria and @shelld3v
 
 Special thanks for these people:
