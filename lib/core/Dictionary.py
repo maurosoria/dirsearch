@@ -106,7 +106,7 @@ class Dictionary(object):
         for dictFile in self.dictionaryFiles:
             for line in list(dict.fromkeys(dictFile.getLines())):
                 # Skip comments or empty lines
-                if line.lstrip().startswith("#") or line.strip() == "":
+                if line.lstrip().startswith("#"):
                     continue
 
                 if line.startswith("/"):
