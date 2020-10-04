@@ -179,18 +179,17 @@ Features
 
 About wordlists
 ---------------
-Wordlist must be a text file. Each line will be processed as such, except when the special keyword %EXT% is used, it will generate one entry for each extension (-e | --extension) passed as an argument.
+Wordlist must be a text file, you can use many wordlists at the same time, by using "-w" with your wordlists, each wordlist is seperated by comma. Each line will be processed as such, except when the special keyword %EXT% is used, it will generate one entry for each extension (-e | --extension) passed as an argument.
 
 Example:
 - sample
 - example.%EXT%
 
-Passing the extensions "asp" and "aspx" will generate the following dictionaries:
+Passing the extensions "asp" and "aspx" will generate the following entries:
 - sample
 - example
 - example.asp
 - example.aspx
-- example/
 
 You can also use -f | --force-extensions switch to append extensions to every word in the wordlists.
 
