@@ -179,7 +179,7 @@ Features
 
 About wordlists
 ---------------
-Wordlist must be a text file, you can also use many wordlists at the same time by using "-w" with your wordlists, each wordlist is seperated by comma. Each line will be processed as such, except when the special keyword %EXT% is used, it will generate one entry for each extension (-e | --extension) passed as an argument.
+Wordlist must be a text file. Each line will be processed as such, except when the special keyword %EXT% is used, it will generate one entry for each extension (-e | --extension) passed as an argument.
 
 Example:
 - sample
@@ -193,6 +193,7 @@ Passing the extensions "asp" and "aspx" will generate the following dictionary:
 
 You can also use -f | --force-extensions switch to append extensions to every word in the wordlists.
 
+To use multiple wordlists, you can seperate your wordlists with comma. Example: -w wordlist1.txt,wordlist2.txt
 
 How to use
 ---------------
@@ -367,13 +368,13 @@ python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --simple-re
 python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --json-report=reports/report.json
 ```
 
-**There are still a lot more features but you will need to discover it by your self**
+**There are more features and you will need to discover it by your self**
 
 Tips
 ---------------
 - Want to run dirsearch with a rate of requests per second? Try `-t <rate> -s 1`
-- Want to findout config files or backups? Try `--suffixes ~` and `--prefixes .`
-- Don't want to force extensions on some endpoints? Add `%NOFORCE` at the end of them so dirsearch won't do that
+- Want to findout config files or backups? Try out `--suffixes ~` and `--prefixes .`
+- Don't want to force extensions on some endpoints? Add `%NOFORCE%` at the end of them so dirsearch won't do that
 
 Keep updating ...
 
@@ -431,3 +432,5 @@ Special thanks for these people:
 - @ricardojba
 - @Anon-Exploiter
 - @ColdFusionX
+
+#### Feeling excited? Just [tweet](https://twitter.com/intent/tweet?text=I%20just%20installed%20dirsearch%20v0.4.0%20-%20A%20web%20path%20scanner%20https%3A%2F%2Fgithub.com%2Fmaurosoria%2Fdirsearch%20%23fuzzer%20%23bugbounty%20%23dirsearch%20%23pentesting) about it!
