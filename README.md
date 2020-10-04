@@ -182,11 +182,11 @@ About wordlists
 Wordlist must be a text file. Each line will be processed as such, except when the special keyword %EXT% is used, it will generate one entry for each extension (-e | --extension) passed as an argument.
 
 Example:
-- sample
+- sample/
 - example.%EXT%
 
 Passing the extensions "asp" and "aspx" will generate the following dictionary:
-- sample
+- sample/
 - example
 - example.asp
 - example.aspx
@@ -391,7 +391,7 @@ To create image
 ```sh
 docker build -t "dirsearch:v0.4.0" .
 ```
-> **dirsearch** this is name the image and **v0.3.8** is version
+> **dirsearch** this is name the image and **v0.4.0** is version
 
 ### Using dirsearch
 For using
