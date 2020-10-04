@@ -415,22 +415,32 @@ Main: @maurosoria and @shelld3v
 Special thanks for these people:
 
 - @V-Rico
+- @random-robbie
 - @mzfr
 - @DustinTheGreat
-- @danritter
-- @Bo0oM
 - @liamosaur
-- @redshark1802
+- @Anon-Exploiter
+- @tkisason
+- @ricardojba
+- @Sjord
+- @danritter
+- @shahril96
+- @drego85
+- @Bo0oM
+- @exploide
+- @redshark180
+- @zrquan
 - @SUHAR1K
+- @eur0pa
 - @FireFart
+- @telnet22
+- @sysevil
+- @mazen160
 - @k2l8m11n2
 - @vlohacks
-- @r0p0s3c
 - @russtone
 - @jsav0
 - @serhattsnmz
-- @ricardojba
-- @Anon-Exploiter
 - @ColdFusionX
 
 #### Feeling excited? Just [tweet](https://twitter.com/intent/tweet?text=I%20just%20installed%20dirsearch%20v0.4.0%20-%20A%20Web%20Path%20Scanner%20https%3A%2F%2Fgithub.com%2Fmaurosoria%2Fdirsearch%20%23fuzzer%20%23bugbounty%20%23dirsearch%20%23pentesting%20%23security) about it!
