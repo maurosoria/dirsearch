@@ -102,7 +102,6 @@ class Controller(object):
 
         self.reportsPath = FileUtils.buildPath(self.savePath, "logs")
         self.blacklists = self.getBlacklists()
-        self.fuzzer = None
         self.includeStatusCodes = self.arguments.includeStatusCodes
         self.excludeStatusCodes = self.arguments.excludeStatusCodes
         self.excludeTexts = self.arguments.excludeTexts
@@ -273,14 +272,14 @@ class Controller(object):
             blacklists[status] = []
 
             for line in FileUtils.getLines(blacklistFileName):
+                # Skip comments
+                if line.lstrip().startswith("#"):
+                    continue
+
                 # The same with Dictionary.py
                 if line.startswith("/"):
                     line = line[1:]
 
-                # Skip comments
-                if line.lstrip().startswith("#"):
-                    continue
-                    
                 # Classic dirsearch blacklist processing (with %EXT% keyword)
                 if "%ext%" in line.lower():
                     for extension in self.arguments.extensions:
