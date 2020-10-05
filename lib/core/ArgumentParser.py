@@ -469,7 +469,7 @@ You can change the dirsearch default configurations (default extensions, timeout
         connection.add_option('--ip', action='store', dest='ip', default=None,
                               help='Resolve name to IP address')
         connection.add_option('-s', '--delay', help='Delay between requests (support float number)', action='store', dest='delay',
-                           type='float', default=self.delay)
+                              type='float', default=self.delay)
 
         connection.add_option('--proxy', '--http-proxy', action='store', dest='httpProxy', type='string',
                               default=self.proxy, help='HTTP Proxy (example: localhost:8080)')
