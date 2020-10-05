@@ -381,26 +381,6 @@ You can change the dirsearch default configurations (default extensions, timeout
                               help='Exclude extensions list, separated by comma (Example: asp,jsp)',
                               action='store', dest='excludeExtensions', default=None)
 
-        connection = OptionGroup(parser, 'Connection Settings')
-        connection.add_option('--timeout', action='store', dest='timeout', type='int',
-                              default=self.timeout,
-                              help='Connection timeout')
-        connection.add_option('--ip', action='store', dest='ip', default=None,
-                              help='Resolve name to IP address')
-        connection.add_option('--proxy', '--http-proxy', action='store', dest='httpProxy', type='string',
-                              default=self.proxy, help='HTTP Proxy (example: localhost:8080)')
-
-        connection.add_option('--proxylist', '--http-proxy-list', action='store', dest='proxyList', type='string',
-                              default=self.proxylist, help='File containg HTTP proxy servers' )
-        connection.add_option('-m', '--http-method', action='store', dest='httpmethod', type='string',
-                              default=self.httpmethod, help='HTTP method, default: GET')
-        connection.add_option('--max-retries', action='store', dest='maxRetries', type='int',
-                              default=self.maxRetries)
-
-        connection.add_option('-b', '--request-by-hostname',
-                              help='By default dirsearch will request by IP for speed. This will force requests by hostname',
-                              action='store_true', dest='requestByHostname', default=self.requestByHostname)
-
         # Dictionary Settings
         dictionary = OptionGroup(parser, 'Dictionary Settings')
         dictionary.add_option('-w', '--wordlist', action='store', dest='wordlist',
@@ -470,13 +450,34 @@ You can change the dirsearch default configurations (default extensions, timeout
         general.add_option('-F', '--follow-redirects', action='store_true', dest='noFollowRedirects'
                            , default=self.redirect)
         general.add_option('-H', '--header',
-                           help='HTTP request headers, support multiple flags (example: --header "Referer: example.com" --header "User-Agent: IE")',
+                           help='HTTP request headers, support multiple flags (example: --header "Referer: example.com")',
                            action='append', type='string', dest='headers', default=None)
 
         general.add_option('--full-url', action='store_true', dest='full_url',
                           help='Print the full URL in the output')
         general.add_option('--random-agents', '--random-user-agents', action='store_true', dest='useRandomAgents')
         general.add_option('-q', '--quite-mode', action='store_true', dest='clean_view')
+
+        # Connection Settings
+        connection = OptionGroup(parser, 'Connection Settings')
+        connection.add_option('--timeout', action='store', dest='timeout', type='int',
+                              default=self.timeout,
+                              help='Connection timeout')
+        connection.add_option('--ip', action='store', dest='ip', default=None,
+                              help='Resolve name to IP address')
+        connection.add_option('--proxy', '--http-proxy', action='store', dest='httpProxy', type='string',
+                              default=self.proxy, help='HTTP Proxy (example: localhost:8080)')
+
+        connection.add_option('--proxylist', '--http-proxy-list', action='store', dest='proxyList', type='string',
+                              default=self.proxylist, help='File containg HTTP proxy servers' )
+        connection.add_option('-m', '--http-method', action='store', dest='httpmethod', type='string',
+                              default=self.httpmethod, help='HTTP method, default: GET')
+        connection.add_option('--max-retries', action='store', dest='maxRetries', type='int',
+                              default=self.maxRetries)
+
+        connection.add_option('-b', '--request-by-hostname',
+                              help='By default dirsearch will request by IP for speed. This will force requests by hostname',
+                              action='store_true', dest='requestByHostname', default=self.requestByHostname)
 
         # Report Settings
         reports = OptionGroup(parser, 'Reports')
