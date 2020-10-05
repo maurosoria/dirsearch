@@ -48,6 +48,7 @@ VERSION = {
 
 class Controller(object):
     def __init__(self, script_path, arguments, output):
+        global VERSION
         program_banner = (
             open(FileUtils.buildPath(script_path, "lib", "controller", "banner.txt"))
             .read()
