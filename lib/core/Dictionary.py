@@ -94,38 +94,40 @@ class Dictionary(object):
     """
 
     def generate(self):
-        reext = re.compile('\%ext\%', re.IGNORECASE).sub
-        reextdot = re.compile('\.\%ext\%', re.IGNORECASE).sub
-        exclude = re.findall
+        reext = re.compile("\%ext\%", re.IGNORECASE).sub
+        reextdot = re.compile("\.\%ext\%", re.IGNORECASE).sub
+        reexclude = re.findall
+        renoforce = re.compile("\%noforce\%", re.IGNORECASE).sub
         custom = []
         result = []
 
 
         # Enable to use multiple dictionaries at once
         for dictFile in self.dictionaryFiles:
-            for line in list(dict.fromkeys(dictFile.getLines())):
+            for line in list(filter(None, dict.fromkeys(dictFile.getLines()))):
+                # Skip comments or empty lines
+                if line.lstrip().startswith("#"):
+                    continue
+
                 if line.startswith("/"):
                     line = line[1:]
-                
+
                 # Check if the line is having the %NOFORCE% keyword
                 if "%noforce%" in line.lower():
                     noforce = True
+                    line = renoforce("", line)
                 else:
                     noforce = False
-
-                # Skip comments
-                if line.lstrip().startswith("#"):
-                    continue
 
                 # Skip if the path is containing excluded extensions
                 if len(self._excludeExtensions):
                     matched = False
-                    
+
                     for excludeExtension in self._excludeExtensions:
-                        if len(exclude("." + excludeExtension, line)):
+                        if len(reexclude("." + excludeExtension, line)):
                             matched = True
                             break
-                            
+
                     if matched:
                         continue
 
@@ -140,8 +142,8 @@ class Dictionary(object):
 
                         newline = reext(extension, newline)
 
-                        quote = self.quote(newline)
-                        result.append(quote)
+                        quoted = self.quote(newline)
+                        result.append(quoted)
 
                 # If forced extensions is used and the path is not a directory ... (terminated by /)
                 # process line like a forced extension.
@@ -155,13 +157,13 @@ class Dictionary(object):
                         else:
                             result.append(quoted + ('' if self._noDotExtensions else '.') + extension)
 
-                    if quoted.strip() != '':
-                        result.append(quoted)
-                        result.append(quoted + "/")
+                    result.append(quoted)
+                    result.append(quoted + "/")
 
                 # Append line unmodified.
                 else:
-                    result.append(self.quote(line))
+                    quoted = self.quote(line)
+                    result.append(quoted)
 
 
         # Adding prefixes for finding private pages etc
