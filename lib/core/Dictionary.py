@@ -105,7 +105,7 @@ class Dictionary(object):
         # Enable to use multiple dictionaries at once
         for dictFile in self.dictionaryFiles:
             for line in list(filter(None, dict.fromkeys(dictFile.getLines()))):
-                # Skip comments or empty lines
+                # Skip comments
                 if line.lstrip().startswith("#"):
                     continue
 
@@ -166,7 +166,7 @@ class Dictionary(object):
                     result.append(quoted)
 
 
-        # Adding prefixes for finding private pages etc
+        # Adding prefixes for finding config files etc
         if self._prefixes:
             for res in list(dict.fromkeys(result)):
                 for pref in self._prefixes:
@@ -176,9 +176,10 @@ class Dictionary(object):
         # Adding suffixes for finding backups etc
         if self._suffixes:
             for res in list(dict.fromkeys(result)):
-                if not res.rstrip().endswith("/") and not res.rstrip().endswith(suff):
+                if not res.rstrip().endswith("/"):
                     for suff in self._suffixes:
-                        custom.append(res + suff)
+                        if not res.rstrip().endswith(suff):
+                            custom.append(res + suff)
            
         result = custom if custom else result
 
