@@ -1,6 +1,6 @@
 
 FROM python:3-alpine
-LABEL maintainer="wfnintr@null.net"
+LABEL maintainer="maurosoria@protonmail.com"
 WORKDIR /root
 RUN apk add --no-cache --virtual .depends git
 RUN git clone https://github.com/maurosoria/dirsearch.git

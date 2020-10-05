@@ -37,18 +37,20 @@ class Dictionary(object):
         forcedExtensions=False,
         noDotExtensions=False,
         excludeExtensions=[],
+        noExtension=False,
     ):
 
         self.entries = []
         self.currentIndex = 0
         self.condition = threading.Lock()
         self._extensions = extensions
+        self._excludeExtensions = excludeExtensions
         self._prefixes = prefixes
         self._suffixes = suffixes
         self._paths = paths
         self._forcedExtensions = forcedExtensions
         self._noDotExtensions = noDotExtensions
-        self._excludeExtensions = excludeExtensions
+        self._noExtension = noExtension
         self.lowercase = lowercase
         self.uppercase = uppercase
         self.capitalization = capitalization
@@ -93,34 +95,39 @@ class Dictionary(object):
     """
 
     def generate(self):
-        reext = re.compile(r'\%ext\%', re.IGNORECASE).sub
-        reextdot = re.compile(r'\.\%ext\%', re.IGNORECASE).sub
-        exclude = re.findall
+        reext = re.compile(r"\%ext\%", re.IGNORECASE).sub
+        reextdot = re.compile(r"\.\%ext\%", re.IGNORECASE).sub
+        reexclude = re.findall
+        renoforce = re.compile(r"\%noforce\%", re.IGNORECASE).sub
         custom = []
         result = []
 
         # Enable to use multiple dictionaries at once
         for dictFile in self.dictionaryFiles:
-            for line in list(dict.fromkeys(dictFile.getLines())):
+            for line in list(filter(None, dict.fromkeys(dictFile.getLines()))):
+                # Skip comments
+                if line.lstrip().startswith("#"):
+                    continue
+
                 if line.startswith("/"):
                     line = line[1:]
+
+                if self._noExtension:
+                    line = line[0] + line[1:].split(".")[0]
 
                 # Check if the line is having the %NOFORCE% keyword
                 if "%noforce%" in line.lower():
                     noforce = True
+                    line = renoforce("", line)
                 else:
                     noforce = False
-
-                # Skip comments
-                if line.lstrip().startswith("#"):
-                    continue
 
                 # Skip if the path is containing excluded extensions
                 if len(self._excludeExtensions):
                     matched = False
 
                     for excludeExtension in self._excludeExtensions:
-                        if len(exclude("." + excludeExtension, line)):
+                        if len(reexclude("." + excludeExtension, line)):
                             matched = True
                             break
 
@@ -138,8 +145,8 @@ class Dictionary(object):
 
                         newline = reext(extension, newline)
 
-                        quote = self.quote(newline)
-                        result.append(quote)
+                        quoted = self.quote(newline)
+                        result.append(quoted)
 
                 # If forced extensions is used and the path is not a directory ... (terminated by /)
                 # process line like a forced extension.
@@ -153,15 +160,20 @@ class Dictionary(object):
                         else:
                             result.append(quoted + ('' if self._noDotExtensions else '.') + extension)
 
-                    if quoted.strip() != '':
-                        result.append(quoted)
-                        result.append(quoted + "/")
+                    result.append(quoted)
+                    result.append(quoted + "/")
 
                 # Append line unmodified.
                 else:
-                    result.append(self.quote(line))
+                    quoted = self.quote(line)
+                    result.append(quoted)
 
+<<<<<<< HEAD
         # Adding prefixes for finding private pages etc
+=======
+
+        # Adding prefixes for finding config files etc
+>>>>>>> master
         if self._prefixes:
             for res in list(dict.fromkeys(result)):
                 for pref in self._prefixes:
@@ -172,9 +184,18 @@ class Dictionary(object):
         if self._suffixes:
             suff = None
             for res in list(dict.fromkeys(result)):
+<<<<<<< HEAD
                 for suff in self._suffixes:
                     if not res.rstrip().endswith("/") and not res.rstrip().endswith(suff):
                         custom.append(res + suff)
+=======
+                if not res.rstrip().endswith("/"):
+                    for suff in self._suffixes:
+                        if not res.rstrip().endswith(suff):
+                            custom.append(res + suff)
+           
+        result = custom if custom else result
+>>>>>>> master
 
         result = custom if custom else result
 

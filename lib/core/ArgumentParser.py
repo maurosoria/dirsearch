@@ -61,12 +61,15 @@ class ArgumentParser(object):
         else:
             self.urlList = [options.url]
 
-        if not options.extensions and not options.defaultExtensions:
+
+        if not options.extensions and not options.defaultExtensions and not options.noExtension:
             print('No extension specified. You must specify at least one extension or try using default extension list.')
             exit(0)
 
         if not options.extensions and options.defaultExtensions:
             options.extensions = self.defaultExtensions
+        if options.noExtension:
+            options.extensions = ""
 
         # Enable to use multiple dictionaries at once
         for dictFile in options.wordlist.split(','):
@@ -243,6 +246,7 @@ class ArgumentParser(object):
         self.suppressEmpty = options.suppressEmpty
         self.minimumResponseSize = options.minimumResponseSize
         self.maximumResponseSize = options.maximumResponseSize
+        self.noExtension = options.noExtension
 
         if options.scanSubdirs:
             self.scanSubdirs = list(
@@ -371,6 +375,7 @@ You can change the dirsearch default configurations (default extensions, timeout
                              help='Exclude extensions list, separated by comma (Example: asp,jsp)',
                              action='store', dest='excludeExtensions', default=None)
 
+<<<<<<< HEAD
         connection = OptionGroup(parser, 'Connection Settings')
         connection.add_option('--timeout', action='store', dest='timeout', type='int',
                               default=self.timeout,
@@ -391,6 +396,8 @@ You can change the dirsearch default configurations (default extensions, timeout
                               help='By default dirsearch will request by IP for speed. This will force requests by hostname',
                               action='store_true', dest='requestByHostname', default=self.requestByHostname)
 
+=======
+>>>>>>> master
         # Dictionary Settings
         dictionary = OptionGroup(parser, 'Dictionary Settings')
         dictionary.add_option('-w', '--wordlist', action='store', dest='wordlist',
@@ -403,11 +410,18 @@ You can change the dirsearch default configurations (default extensions, timeout
 
         dictionary.add_option('-f', '--force-extensions', action='store_true', dest='forceExtensions', default=self.forceExtensions,
                               help='Force extensions for every wordlist entry. Add %NOFORCE% at the end of the entry in the wordlist that you do not want to force')
+        dictionary.add_option('--no-extension', dest='noExtension', action='store_true',
+                              help='Remove extensions in all wordlist entries (Example: admin.php -> admin)')
         dictionary.add_option('--no-dot-extensions', dest='noDotExtensions', default=self.noDotExtensions,
-                              help='Don\'t add a \'.\' character before extensions', action='store_true')
+                              help='Remove the "." character before extensions', action='store_true')
+
         dictionary.add_option('-U', '--uppercase', action='store_true', dest='uppercase', default=self.uppercase,
+<<<<<<< HEAD
                               help='Uppercase wordlist')
 
+=======
+                             help='Uppercase wordlist')
+>>>>>>> master
         dictionary.add_option('-L', '--lowercase', action='store_true', dest='lowercase', default=self.lowercase,
                               help='Lowercase wordlist')
         dictionary.add_option('-C', '--capitalization', action='store_true', dest='capitalization', default=self.capitalization,
@@ -460,13 +474,34 @@ You can change the dirsearch default configurations (default extensions, timeout
         general.add_option('-F', '--follow-redirects', action='store_true', dest='noFollowRedirects',
                            default=self.redirect)
         general.add_option('-H', '--header',
-                           help='HTTP request headers, support multiple flags (example: --header "Referer: example.com" --header "User-Agent: IE")',
+                           help='HTTP request headers, support multiple flags (example: --header "Referer: example.com")',
                            action='append', type='string', dest='headers', default=None)
 
         general.add_option('--full-url', action='store_true', dest='full_url',
                            help='Print the full URL in the output')
         general.add_option('--random-agents', '--random-user-agents', action='store_true', dest='useRandomAgents')
         general.add_option('-q', '--quite-mode', action='store_true', dest='clean_view')
+
+        # Connection Settings
+        connection = OptionGroup(parser, 'Connection Settings')
+        connection.add_option('--timeout', action='store', dest='timeout', type='int',
+                              default=self.timeout,
+                              help='Connection timeout')
+        connection.add_option('--ip', action='store', dest='ip', default=None,
+                              help='Resolve name to IP address')
+        connection.add_option('--proxy', '--http-proxy', action='store', dest='httpProxy', type='string',
+                              default=self.proxy, help='HTTP Proxy (example: localhost:8080)')
+
+        connection.add_option('--proxylist', '--http-proxy-list', action='store', dest='proxyList', type='string',
+                              default=self.proxylist, help='File containg HTTP proxy servers' )
+        connection.add_option('-m', '--http-method', action='store', dest='httpmethod', type='string',
+                              default=self.httpmethod, help='HTTP method, default: GET')
+        connection.add_option('--max-retries', action='store', dest='maxRetries', type='int',
+                              default=self.maxRetries)
+
+        connection.add_option('-b', '--request-by-hostname',
+                              help='By default dirsearch will request by IP for speed. This will force requests by hostname',
+                              action='store_true', dest='requestByHostname', default=self.requestByHostname)
 
         # Report Settings
         reports = OptionGroup(parser, 'Reports')

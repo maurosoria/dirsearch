@@ -102,7 +102,6 @@ class Controller(object):
 
         self.reportsPath = FileUtils.buildPath(self.savePath, "logs")
         self.blacklists = self.getBlacklists()
-        self.fuzzer = None
         self.includeStatusCodes = self.arguments.includeStatusCodes
         self.excludeStatusCodes = self.arguments.excludeStatusCodes
         self.excludeTexts = self.arguments.excludeTexts
@@ -120,7 +119,8 @@ class Controller(object):
         self.dictionary = Dictionary(self.arguments.wordlist, self.arguments.extensions, self.arguments.suffixes,
                                      self.arguments.prefixes, self.arguments.lowercase, self.arguments.uppercase,
                                      self.arguments.capitalization, self.arguments.forceExtensions,
-                                     self.arguments.noDotExtensions, self.arguments.excludeExtensions)
+                                     self.arguments.noDotExtensions, self.arguments.excludeExtensions,
+                                     self.arguments.noExtension)
 
         self.printConfig()
         self.errorLog = None
@@ -167,7 +167,8 @@ class Controller(object):
                             httpmethod=self.httpmethod,
                             data=self.arguments.data,
                         )
-                        self.requester.request("/")
+
+                        self.requester.request("")
 
                     except RequestException as e:
                         self.output.error(e.args[0]["message"])
@@ -272,13 +273,13 @@ class Controller(object):
             blacklists[status] = []
 
             for line in FileUtils.getLines(blacklistFileName):
-                # The same with Dictionary.py
-                if line.startswith("/"):
-                    line = line[1:]
-
                 # Skip comments
                 if line.lstrip().startswith("#"):
                     continue
+
+                # The same with Dictionary.py
+                if line.startswith("/"):
+                    line = line[1:]
 
                 # Classic dirsearch blacklist processing (with %EXT% keyword)
                 if "%ext%" in line.lower():

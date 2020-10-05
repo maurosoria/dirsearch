@@ -77,7 +77,7 @@ class Requester(object):
         self.host = parsed.netloc.split(":")[0]
 
         # resolve DNS to decrease overhead
-        if ip is not None:
+        if ip:
             self.ip = ip
         else:
             try:
@@ -85,19 +85,27 @@ class Requester(object):
             except socket.gaierror:
                 raise RequestException({"message": "Couldn't resolve DNS"})
 
-        self.headers["Host"] = self.host
-
         # If no port specified, set default (80, 443)
         try:
             self.port = parsed.netloc.split(":")[1]
         except IndexError:
             self.port = 443 if self.protocol == "https" else 80
 
+        # Pass if the host header has already been set (VHost)
+        if not "Host" in self.headers:
+            self.headers["Host"] = self.host
+
+            # Include port in Host header if it's non-standard
+            if (self.protocol == "https" and self.port != 443) or (
+                self.protocol == "http" and self.port != 80
+            ):
+                headers["Host"] += ":{0}".format(self.port)
+
         # Set cookie and user-agent headers
-        if cookie is not None:
+        if cookie:
             self.setHeader("Cookie", cookie)
 
-        if useragent is not None:
+        if useragent:
             self.setHeader("User-agent", useragent)
 
         self.maxRetries = maxRetries
@@ -121,7 +129,7 @@ class Requester(object):
     def unsetRandomAgents(self):
         self.randomAgents = None
 
-    def request(self, path):
+    def request(self, path, nodelay=False):
         i = 0
         proxy = None
         result = None
@@ -139,9 +147,7 @@ class Requester(object):
                 if self.basePath.startswith("/"):
                     self.basePath = self.basePath[1:]
 
-                url = "{}/{}".format(url, self.basePath)
-
-                url = url.rstrip("/")
+                url = "{}/{}".format(url, self.basePath).rstrip("/")
 
                 if not url.endswith("/"):
                     url += "/"
@@ -151,14 +157,6 @@ class Requester(object):
                 headers = dict(self.headers)
                 if self.randomAgents is not None:
                     headers["User-agent"] = random.choice(self.randomAgents)
-
-                headers["Host"] = self.host
-                # print("\nScan: "+url)
-                # include port in Host header if it's non-standard
-                if (self.protocol == "https" and self.port != 443) or (
-                    self.protocol == "http" and self.port != 80
-                ):
-                    headers["Host"] += ":{0}".format(self.port)
 
                 response = self.session.request(
                     self.httpmethod,
@@ -177,7 +175,10 @@ class Requester(object):
                     response.headers,
                     response.content,
                 )
-                time.sleep(self.delay)
+
+                if not nodelay:
+                    time.sleep(self.delay)
+
                 del headers
                 break
 
