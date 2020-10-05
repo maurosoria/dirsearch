@@ -147,15 +147,11 @@ class Requester(object):
                 if self.basePath.startswith("/"):
                     self.basePath = self.basePath[1:]
 
-                url = "{}/{}".format(url, self.basePath).rstrip("/")
-
-                if not url.endswith("/"):
-                    url += "/"
-
-                url += path
+                url = "{0}/{1}/{2}".format(url, self.basePath.rstrip("/"), path)
 
                 headers = dict(self.headers)
-                if self.randomAgents is not None:
+
+                if self.randomAgents:
                     headers["User-agent"] = random.choice(self.randomAgents)
 
                 response = self.session.request(
