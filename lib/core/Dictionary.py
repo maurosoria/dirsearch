@@ -38,18 +38,20 @@ class Dictionary(object):
         forcedExtensions=False,
         noDotExtensions=False,
         excludeExtensions=[],
+        noExtension=False,
     ):
         
         self.entries = []
         self.currentIndex = 0
         self.condition = threading.Lock()
         self._extensions = extensions
+        self._excludeExtensions = excludeExtensions
         self._prefixes = prefixes
         self._suffixes = suffixes
         self._paths = paths
         self._forcedExtensions = forcedExtensions
         self._noDotExtensions = noDotExtensions
-        self._excludeExtensions = excludeExtensions
+        self._noExtension = noExtension
         self.lowercase = lowercase
         self.uppercase = uppercase
         self.capitalization = capitalization
@@ -111,6 +113,9 @@ class Dictionary(object):
 
                 if line.startswith("/"):
                     line = line[1:]
+
+                if self._noExtension:
+                    line = line[0] + line[1:].split(".")[0]
 
                 # Check if the line is having the %NOFORCE% keyword
                 if "%noforce%" in line.lower():
