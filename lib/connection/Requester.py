@@ -99,7 +99,7 @@ class Requester(object):
             if (self.protocol == "https" and self.port != 443) or (
                 self.protocol == "http" and self.port != 80
             ):
-                headers["Host"] += ":{0}".format(self.port)
+                self.headers["Host"] += ":{0}".format(self.port)
 
         # Set cookie and user-agent headers
         if cookie:
