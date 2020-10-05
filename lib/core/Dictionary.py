@@ -183,7 +183,7 @@ class Dictionary(object):
                     for suff in self._suffixes:
                         if not res.rstrip().endswith(suff):
                             custom.append(res + suff)
-           
+
         result = custom if custom else result
 
         if self.lowercase:

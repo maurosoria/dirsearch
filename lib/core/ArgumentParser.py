@@ -61,7 +61,6 @@ class ArgumentParser(object):
         else:
             self.urlList = [options.url]
 
-
         if not options.extensions and not options.defaultExtensions and not options.noExtension:
             print('No extension specified. You must specify at least one extension or try using default extension list.')
             exit(0)
@@ -466,7 +465,7 @@ You can change the dirsearch default configurations (default extensions, timeout
                               default=self.proxy, help='HTTP Proxy (example: localhost:8080)')
 
         connection.add_option('--proxylist', '--http-proxy-list', action='store', dest='proxyList', type='string',
-                              default=self.proxylist, help='File containg HTTP proxy servers' )
+                              default=self.proxylist, help='File containg HTTP proxy servers')
         connection.add_option('-m', '--http-method', action='store', dest='httpmethod', type='string',
                               default=self.httpmethod, help='HTTP method, default: GET')
         connection.add_option('--max-retries', action='store', dest='maxRetries', type='int',

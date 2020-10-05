@@ -92,7 +92,7 @@ class Requester(object):
             self.port = 443 if self.protocol == "https" else 80
 
         # Pass if the host header has already been set (VHost)
-        if not "Host" in self.headers:
+        if "Host" not in self.headers:
             self.headers["Host"] = self.host
 
             # Include port in Host header if it's non-standard
