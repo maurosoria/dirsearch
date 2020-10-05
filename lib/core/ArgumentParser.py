@@ -401,12 +401,12 @@ You can change the dirsearch default configurations (default extensions, timeout
         dictionary.add_option('--no-dot-extensions', dest='noDotExtensions', default=self.noDotExtensions,
                               help='Remove the "." character before extensions', action='store_true')
 
+        dictionary.add_option('-C', '--capitalization', action='store_true', dest='capitalization', default=self.capitalization,
+                             help='Capital wordlist')
         dictionary.add_option('-U', '--uppercase', action='store_true', dest='uppercase', default=self.uppercase,
                              help='Uppercase wordlist')
         dictionary.add_option('-L', '--lowercase', action='store_true', dest='lowercase', default=self.lowercase,
                              help='Lowercase wordlist')
-        dictionary.add_option('-C', '--capitalization', action='store_true', dest='capitalization', default=self.capitalization,
-                             help='Capital wordlist')
 
         # Optional Settings
         general = OptionGroup(parser, 'General Settings')
