@@ -168,7 +168,7 @@ class Controller(object):
                             data=self.arguments.data,
                         )
 
-                        self.requester.request("")
+                        self.requester.request("", nodelay=True)
 
                     except RequestException as e:
                         self.output.error(e.args[0]["message"])
