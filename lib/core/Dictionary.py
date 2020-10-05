@@ -168,12 +168,7 @@ class Dictionary(object):
                     quoted = self.quote(line)
                     result.append(quoted)
 
-<<<<<<< HEAD
-        # Adding prefixes for finding private pages etc
-=======
-
         # Adding prefixes for finding config files etc
->>>>>>> master
         if self._prefixes:
             for res in list(dict.fromkeys(result)):
                 for pref in self._prefixes:
@@ -184,19 +179,11 @@ class Dictionary(object):
         if self._suffixes:
             suff = None
             for res in list(dict.fromkeys(result)):
-<<<<<<< HEAD
-                for suff in self._suffixes:
-                    if not res.rstrip().endswith("/") and not res.rstrip().endswith(suff):
-                        custom.append(res + suff)
-=======
                 if not res.rstrip().endswith("/"):
                     for suff in self._suffixes:
                         if not res.rstrip().endswith(suff):
                             custom.append(res + suff)
            
-        result = custom if custom else result
->>>>>>> master
-
         result = custom if custom else result
 
         if self.lowercase:

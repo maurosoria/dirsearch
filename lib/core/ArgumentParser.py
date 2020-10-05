@@ -375,29 +375,6 @@ You can change the dirsearch default configurations (default extensions, timeout
                              help='Exclude extensions list, separated by comma (Example: asp,jsp)',
                              action='store', dest='excludeExtensions', default=None)
 
-<<<<<<< HEAD
-        connection = OptionGroup(parser, 'Connection Settings')
-        connection.add_option('--timeout', action='store', dest='timeout', type='int',
-                              default=self.timeout,
-                              help='Connection timeout')
-        connection.add_option('--ip', action='store', dest='ip', default=None,
-                              help='Resolve name to IP address')
-        connection.add_option('--proxy', '--http-proxy', action='store', dest='httpProxy', type='string',
-                              default=self.proxy, help='HTTP Proxy (example: localhost:8080)')
-
-        connection.add_option('--proxylist', '--http-proxy-list', action='store', dest='proxyList', type='string',
-                              default=self.proxylist, help='File containg HTTP proxy servers')
-        connection.add_option('-m', '--http-method', action='store', dest='httpmethod', type='string',
-                              default=self.httpmethod, help='HTTP method, default: GET')
-        connection.add_option('--max-retries', action='store', dest='maxRetries', type='int',
-                              default=self.maxRetries)
-
-        connection.add_option('-b', '--request-by-hostname',
-                              help='By default dirsearch will request by IP for speed. This will force requests by hostname',
-                              action='store_true', dest='requestByHostname', default=self.requestByHostname)
-
-=======
->>>>>>> master
         # Dictionary Settings
         dictionary = OptionGroup(parser, 'Dictionary Settings')
         dictionary.add_option('-w', '--wordlist', action='store', dest='wordlist',
@@ -416,12 +393,8 @@ You can change the dirsearch default configurations (default extensions, timeout
                               help='Remove the "." character before extensions', action='store_true')
 
         dictionary.add_option('-U', '--uppercase', action='store_true', dest='uppercase', default=self.uppercase,
-<<<<<<< HEAD
                               help='Uppercase wordlist')
 
-=======
-                             help='Uppercase wordlist')
->>>>>>> master
         dictionary.add_option('-L', '--lowercase', action='store_true', dest='lowercase', default=self.lowercase,
                               help='Lowercase wordlist')
         dictionary.add_option('-C', '--capitalization', action='store_true', dest='capitalization', default=self.capitalization,
