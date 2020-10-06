@@ -352,7 +352,7 @@ class ArgumentParser(object):
             "connection", "random-user-agents", False
         )
         self.useragent = config.safe_get("connection", "user-agent", None)
-        self.delay = config.safe_get("connection", "delay", 0)
+        self.delay = config.safe_getfloat("connection", "delay", 0)
         self.timeout = config.safe_getint("connection", "timeout", 10)
         self.maxRetries = config.safe_getint("connection", "max-retries", 3)
         self.proxy = config.safe_get("connection", "http-proxy", None)
@@ -401,33 +401,31 @@ You can change the dirsearch default configurations (default extensions, timeout
         dictionary.add_option('--no-dot-extensions', dest='noDotExtensions', default=self.noDotExtensions,
                               help='Remove the "." character before extensions', action='store_true')
 
+        dictionary.add_option('-C', '--capitalization', action='store_true', dest='capitalization', default=self.capitalization,
+                             help='Capital wordlist')
         dictionary.add_option('-U', '--uppercase', action='store_true', dest='uppercase', default=self.uppercase,
                              help='Uppercase wordlist')
         dictionary.add_option('-L', '--lowercase', action='store_true', dest='lowercase', default=self.lowercase,
                              help='Lowercase wordlist')
-        dictionary.add_option('-C', '--capitalization', action='store_true', dest='capitalization', default=self.capitalization,
-                             help='Capital wordlist')
 
         # Optional Settings
         general = OptionGroup(parser, 'General Settings')
         general.add_option('-d', '--data', help='HTTP request data (POST, PUT, ... body)', action='store', dest='data',
                            type='str', default=None)
-        general.add_option('-s', '--delay', help='Delay between requests (support float number)', action='store', dest='delay',
-                           type='float', default=self.delay)
         general.add_option('-r', '--recursive', help='Bruteforce recursively', action='store_true', dest='recursive',
                            default=self.recursive)
-
         general.add_option('-R', '--recursive-level-max',
                            help='Max recursion level (subdirs) (Default: 1 [only rootdir + 1 dir])', action='store', type='int',
                            dest='recursive_level_max',
                            default=self.recursive_level_max)
+
         general.add_option('--suppress-empty', action='store_true', dest='suppressEmpty',
                            help='Suppress empty responses')
         general.add_option('--minimal', action='store', dest='minimumResponseSize', type='int', default=None,
                            help='Minimal response length')
-
         general.add_option('--maximal', action='store', dest='maximumResponseSize', type='int', default=None,
                            help='Maximal response length')
+
         general.add_option('--scan-subdir', '--scan-subdirs',
                            help='Scan subdirectories of the given URL (separated by comma)', action='store',
                            dest='scanSubdirs',
@@ -436,30 +434,30 @@ You can change the dirsearch default configurations (default extensions, timeout
                            help='Exclude the following subdirectories during recursive scan (separated by comma)',
                            action='store', dest='excludeSubdirs',
                            default=self.excludeSubdirs)
-
         general.add_option('-t', '--threads', help='Number of Threads', action='store', type='int', dest='threadsCount'
                            , default=self.threadsCount)
+
         general.add_option('-i', '--include-status', help='Show only included status codes, separated by comma (example: 301, 500)'
                            , action='store', dest='includeStatusCodes', default=self.includeStatusCodes)
         general.add_option('-x', '--exclude-status', help='Do not show excluded status codes, separated by comma (example: 301, 500)'
                            , action='store', dest='excludeStatusCodes', default=self.excludeStatusCodes)
-
         general.add_option('--exclude-texts', help='Exclude responses by texts, separated by comma (example: "Not found", "Error")'
                            , action='store', dest='excludeTexts', default=None)
+
         general.add_option('--exclude-regexps', help='Exclude responses by regexps, separated by comma (example: "Not foun[a-z]{1}", "^Error$")'
                            , action='store', dest='excludeRegexps', default=None)
         general.add_option('-c', '--cookie', action='store', type='string', dest='cookie', default=None)
-
         general.add_option('--user-agent', action='store', type='string', dest='useragent',
                            default=self.useragent)
+
         general.add_option('-F', '--follow-redirects', action='store_true', dest='noFollowRedirects'
                            , default=self.redirect)
         general.add_option('-H', '--header',
                            help='HTTP request headers, support multiple flags (example: --header "Referer: example.com")',
                            action='append', type='string', dest='headers', default=None)
-
         general.add_option('--full-url', action='store_true', dest='full_url',
                           help='Print the full URL in the output')
+
         general.add_option('--random-agents', '--random-user-agents', action='store_true', dest='useRandomAgents')
         general.add_option('-q', '--quite-mode', action='store_true', dest='clean_view')
 
@@ -470,16 +468,18 @@ You can change the dirsearch default configurations (default extensions, timeout
                               help='Connection timeout')
         connection.add_option('--ip', action='store', dest='ip', default=None,
                               help='Resolve name to IP address')
+        connection.add_option('-s', '--delay', help='Delay between requests (support float number)', action='store', dest='delay',
+                              type='float', default=self.delay)
+
         connection.add_option('--proxy', '--http-proxy', action='store', dest='httpProxy', type='string',
                               default=self.proxy, help='HTTP Proxy (example: localhost:8080)')
-
         connection.add_option('--proxylist', '--http-proxy-list', action='store', dest='proxyList', type='string',
                               default=self.proxylist, help='File containg HTTP proxy servers' )
         connection.add_option('-m', '--http-method', action='store', dest='httpmethod', type='string',
                               default=self.httpmethod, help='HTTP method, default: GET')
+
         connection.add_option('--max-retries', action='store', dest='maxRetries', type='int',
                               default=self.maxRetries)
-
         connection.add_option('-b', '--request-by-hostname',
                               help='By default dirsearch will request by IP for speed. This will force requests by hostname',
                               action='store_true', dest='requestByHostname', default=self.requestByHostname)
