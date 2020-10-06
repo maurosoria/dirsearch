@@ -43,7 +43,7 @@
 
 JIS_TYPICAL_DISTRIBUTION_RATIO = 3.0
 
-# Char to FreqOrder table,
+# Char to FreqOrder table ,
 JIS_TABLE_SIZE = 4368
 
 JISCharToFreqOrder = (

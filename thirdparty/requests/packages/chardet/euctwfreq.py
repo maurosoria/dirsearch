@@ -43,7 +43,7 @@
 
 EUCTW_TYPICAL_DISTRIBUTION_RATIO = 0.75
 
-# Char to FreqOrder table,
+# Char to FreqOrder table ,
 EUCTW_TABLE_SIZE = 8102
 
 EUCTWCharToFreqOrder = (

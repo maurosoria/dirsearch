@@ -27,7 +27,7 @@
 
 # GB2312 most frequently used character table
 #
-# Char to FreqOrder table, from hz6763
+# Char to FreqOrder table , from hz6763
 
 # 512  --> 0.79  -- 0.79
 # 1024 --> 0.92  -- 0.13
