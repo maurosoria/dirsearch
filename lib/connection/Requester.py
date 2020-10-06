@@ -87,7 +87,7 @@ class Requester(object):
 
         # If no port specified, set default (80, 443)
         try:
-            self.port = parsed.netloc.split(":")[1]
+            self.port = int(parsed.netloc.split(":")[1])
         except IndexError:
             self.port = 443 if self.protocol == "https" else 80
 
@@ -99,7 +99,7 @@ class Requester(object):
             if (self.protocol == "https" and self.port != 443) or (
                 self.protocol == "http" and self.port != 80
             ):
-                headers["Host"] += ":{0}".format(self.port)
+                self.headers["Host"] += ":{0}".format(self.port)
 
         # Set cookie and user-agent headers
         if cookie:
