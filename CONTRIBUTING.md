@@ -1,9 +1,16 @@
 # Contributors
 
+- [maurosoria](https://twitter.com/_maurosoria)
+- [shelld3v](https://github.com/shelld3v)
 - [V-Rico](https://github.com/V-Rico)
 - [mzfr](https://twitter.com/0xmzfr)
-- [Bo0om](https://twitter.com/i_bo0om)
+- [random-robbie](https://twitter.com/Random_Robbie)
+- [Sjord](https://github.com/Sjord)
 - [liamosaur](https://github.com/liamosaur)
+- [tkisason](https://github.com/tkisason)
+- [DustinTheGreat](https://github.com/DustinTheGreat)
+- [zrquan](https://github.com/zrquan)
+- [Bo0om](https://twitter.com/i_bo0om)
 - [redshark1802](https://twitter.com/redshark1802)
 - [SUHAR1K](https://github.com/SUHAR1K)
 - [FireFart](https://twitter.com/firefart)
