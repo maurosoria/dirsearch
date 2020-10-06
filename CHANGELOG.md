@@ -1,6 +1,15 @@
 # Changelog
 
 
+0.4.1 - Updating ...
+---------
+- Added no extension option
+- Removed the delay between test requests when using -s
+- Multiple bugfixes
+- Faster than ever
+
+---------
+
 0.4.0 - 2020.09.26
 ---------
 - Exclude extensions argument added
