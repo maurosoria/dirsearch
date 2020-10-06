@@ -114,7 +114,6 @@ class Controller(object):
         self.excludeSubdirs = (
             arguments.excludeSubdirs if arguments.excludeSubdirs else []
         )
-        self.output.header(program_banner)
 
         self.dictionary = Dictionary(self.arguments.wordlist, self.arguments.extensions, self.arguments.suffixes,
                                      self.arguments.prefixes, self.arguments.lowercase, self.arguments.uppercase,
@@ -122,16 +121,18 @@ class Controller(object):
                                      self.arguments.noDotExtensions, self.arguments.excludeExtensions,
                                      self.arguments.noExtension)
 
-        self.printConfig()
         self.errorLog = None
         self.errorLogPath = None
         self.threadsLock = Lock()
         self.batch = False
         self.batchSession = None
-        self.setupErrorLogs()
-        self.output.errorLogFile(self.errorLogPath)
         self.currentJob = 0
         self.allJobs = 0
+
+        self.output.header(program_banner)
+        self.printConfig()
+        self.setupErrorLogs()
+        self.output.errorLogFile(self.errorLogPath)
 
         if self.arguments.autoSave and len(self.arguments.urlList) > 1:
             self.setupBatchReports()
