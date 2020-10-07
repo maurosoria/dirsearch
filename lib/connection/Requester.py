@@ -147,7 +147,12 @@ class Requester(object):
                 if self.basePath.startswith("/"):
                     self.basePath = self.basePath[1:]
 
-                url = "{0}/{1}/{2}".format(url, self.basePath.rstrip("/"), path)
+                url = "{0}/{1}".format(url, self.basePath).rstrip("/")
+
+                if not url.endswith("/"):
+                    url += "/"
+
+                url += path
 
                 headers = dict(self.headers)
 
