@@ -145,22 +145,22 @@ class CLIOutput(object):
     def lastPath(self, path, index, length, currentJob, allJobs):
         x, y = get_terminal_size()
 
+        percentage = lambda x, y: float(x) / float(y) * 100
+
+        message = "{0:.2f}% - ".format(percentage(index, length))
+
+        if allJobs > 1:
+            message += "Job: {0}/{1} - ".format(currentJob, allJobs)
+
+        if self.errors > 0:
+            message += "Errors: {0} - ".format(self.errors)
+
+        message += "Last request to: {0}".format(path)
+
+        if len(message) >= x:
+            message = message[:x-1]
+
         with self.mutex:
-            percentage = lambda x, y: float(x) / float(y) * 100
-
-            message = "{0:.2f}% - ".format(percentage(index, length))
-
-            if allJobs > 1:
-                message += "Job: {0}/{1} - ".format(currentJob, allJobs)
-
-            if self.errors > 0:
-                message += "Errors: {0} - ".format(self.errors)
-
-            message += "Last request to: {0}".format(path)
-
-            if len(message) >= x:
-                message = message[:x-1]
-
             self.inLine(message)
 
     def addConnectionError(self):
