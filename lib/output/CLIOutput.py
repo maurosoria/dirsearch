@@ -103,7 +103,7 @@ class CLIOutput(object):
             else:
                 if not self.basePath.startswith("/"):
                     self.basePath = "/" + self.basePath
- 
+
                 showPath = self.basePath.rstrip("/") + "/" + path
 
                 if full_url:
