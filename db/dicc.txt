@@ -1385,7 +1385,7 @@ META-INF/spring/application-context.xml
 META-INF/weblogic-application.xml
 META-INF/weblogic-ejb-jar.xml
 MMWIP
-Mail/smtp/Admin/smadv.%EXT%
+Mail/smtp/Admin/smadv.asp
 Makefile
 MessageDrivenBeans/docs/
 MessageDrivenBeans/docsservlet/
@@ -4378,19 +4378,13 @@ iisadmpwd/anot.htr
 iisadmpwd/anot3.htr
 iishelp
 iishelp/
-iishelp/iis/misc/default.%EXT%
 iishelp/iis/misc/default.asp
 iissamples/
-iissamples/exair/howitworks/Code.%EXT%
 iissamples/exair/howitworks/Code.asp
-iissamples/exair/howitworks/Codebrw1.%EXT%
 iissamples/exair/howitworks/Codebrw1.asp
-iissamples/exair/howitworks/Codebrws.%EXT%
 iissamples/exair/howitworks/Codebrws.asp
 iissamples/sdk/asp/docs/CodeBrws.asp
-iissamples/sdk/asp/docs/codebrw2.%EXT%
 iissamples/sdk/asp/docs/codebrw2.asp
-iissamples/sdk/asp/docs/codebrws.%EXT%
 iissamples/sdk/asp/docs/codebrws.asp
 image
 image.%EXT%
@@ -5062,7 +5056,7 @@ moderator/login.php
 module/tiny_mce
 module/tinymce
 modules
-modules/TinyMCE/TinyMCEModuleInfo.%EXT%
+modules/TinyMCE/TinyMCEModuleInfo.js
 modules/admin/
 modules/web.config
 modules_admin
@@ -5078,7 +5072,7 @@ mp_admin
 mrtg.cfg
 ms-admin
 msadc/
-msadc/Samples/selector/showcode.%EXT%
+msadc/Samples/selector/showcode.asp
 msdac/root.exe?/c+dir
 mspress30
 msql
@@ -6163,7 +6157,7 @@ sites.ini
 sites.xml
 sites/all/libraries/fckeditor
 sites/all/modules/fckeditor
-siteserver/publishing/viewcode.%EXT%
+siteserver/publishing/viewcode.asp
 skin
 skin.%EXT%
 skin1_admin.css
@@ -6496,7 +6490,6 @@ themes/default/htdocs/flash/ZeroClipboard.swf
 thirdparty/fckeditor
 thread
 threadrate.%EXT%
-threadrate.php
 threads
 thumb
 thumb.%EXT%
@@ -6858,7 +6851,7 @@ wp-admin/c99.php
 wp-admin/install.php
 wp-admin/setup-config.php
 wp-app.log
-wp-config.%EXT%
+wp-config.php
 wp-config.inc
 wp-config.old
 wp-config.php.bak
@@ -6915,7 +6908,6 @@ wp-login
 wp-login.php
 wp-login/
 wp-register
-wp-register.%EXT%
 wp-register.php
 wp-rss2
 wp-signup.php
@@ -6962,7 +6954,6 @@ xml
 xml/_common.xml
 xml/common.xml
 xmlrpc
-xmlrpc.%EXT%
 xmlrpc.php
 xmlrpc_server.php
 xphpMyAdmin/
