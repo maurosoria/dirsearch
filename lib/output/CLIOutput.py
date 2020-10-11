@@ -98,7 +98,7 @@ class CLIOutput(object):
             finally:
                 contentLength = FileUtils.sizeHuman(size)
 
-            if not self.basePath:
+            if self.basePath is None:
                 showPath = urljoin("/", path)
 
             else:
