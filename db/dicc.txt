@@ -6847,9 +6847,11 @@ wizmysqladmin/
 wp
 wp-admin
 wp-admin/
+wp-admin/admin-ajax.php
 wp-admin/c99.php
 wp-admin/install.php
 wp-admin/setup-config.php
+wp-admin/
 wp-app.log
 wp-config.php
 wp-config.inc
@@ -6901,6 +6903,7 @@ wp-content/uploads/wp_all_backup/
 wp-content/uploads/wpbackitup_backups/
 wp-content/wfcache/
 wp-content/wishlist-backup/
+wp-cron.php
 wp-includes
 wp-includes/
 wp-includes/rss-functions.php
