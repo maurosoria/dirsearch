@@ -33,7 +33,6 @@ class Requester(object):
         "Accept-Language": "en-us",
         "Accept-Encoding": "identity",
         "Keep-Alive": "300",
-        "Connection": "keep-alive",
         "Cache-Control": "max-age=0",
     }
 
@@ -154,7 +153,7 @@ class Requester(object):
                 url += path
 
                 if self.randomAgents:
-                    headers["User-agent"] = random.choice(self.randomAgents)
+                    self.headers["User-agent"] = random.choice(self.randomAgents)
 
                 response = self.session.request(
                     self.httpmethod,
@@ -177,7 +176,6 @@ class Requester(object):
                 if not nodelay:
                     time.sleep(self.delay)
 
-                del headers
                 break
 
             except requests.exceptions.TooManyRedirects as e:
