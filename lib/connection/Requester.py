@@ -153,6 +153,8 @@ class Requester(object):
 
                 url += path
 
+                headers = dict(self.headers)
+
                 if self.randomAgents:
                     headers["User-agent"] = random.choice(self.randomAgents)
 
@@ -163,7 +165,7 @@ class Requester(object):
                     proxies=proxy,
                     verify=False,
                     allow_redirects=self.redirect,
-                    headers=dict(self.headers),
+                    headers=headers,
                     timeout=self.timeout,
                 )
 
