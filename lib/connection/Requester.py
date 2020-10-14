@@ -33,7 +33,6 @@ class Requester(object):
         "Accept-Language": "en-us",
         "Accept-Encoding": "identity",
         "Keep-Alive": "300",
-        "Connection": "keep-alive",
         "Cache-Control": "max-age=0",
     }
 
