@@ -91,8 +91,8 @@ class Requester(object):
         except IndexError:
             self.port = 443 if self.protocol == "https" else 80
 
-        # Pass if the host header has already been set (VHost)
-        if not "Host" in self.headers:
+        # Pass if the host header has already been set
+        if "host" not in [l.lower() for l in self.headers]:
             self.headers["Host"] = self.host
 
             # Include port in Host header if it's non-standard
@@ -119,6 +119,7 @@ class Requester(object):
         self.randomAgents = None
         self.requestByHostname = requestByHostname
         self.session = requests.Session()
+        self.url = "{0}://{1}:{2}".format(self.protocol, self.host if self.requestByHostname else self.ip, self.port)
 
     def setHeader(self, header, content):
         self.headers[header] = content
@@ -142,19 +143,15 @@ class Requester(object):
                 elif self.proxy:
                     proxy = {"https": self.proxy, "http": self.proxy}
 
-                url = "{0}://{1}:{2}".format(self.protocol, self.host if self.requestByHostname else self.ip, self.port)
-
                 if self.basePath.startswith("/"):
                     self.basePath = self.basePath[1:]
 
-                url = "{0}/{1}".format(url, self.basePath).rstrip("/")
+                url = "{0}/{1}".format(self.url, self.basePath).rstrip("/")
 
                 if not url.endswith("/"):
                     url += "/"
 
                 url += path
-
-                headers = dict(self.headers)
 
                 if self.randomAgents:
                     headers["User-agent"] = random.choice(self.randomAgents)
@@ -166,7 +163,7 @@ class Requester(object):
                     proxies=proxy,
                     verify=False,
                     allow_redirects=self.redirect,
-                    headers=headers,
+                    headers=dict(self.headers),
                     timeout=self.timeout,
                 )
 
