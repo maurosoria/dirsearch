@@ -153,10 +153,8 @@ class Requester(object):
 
                 url += path
 
-                headers = dict(self.headers)
-
                 if self.randomAgents:
-                    headers["User-agent"] = random.choice(self.randomAgents)
+                    self.headers["User-agent"] = random.choice(self.randomAgents)
 
                 response = self.session.request(
                     self.httpmethod,
@@ -165,7 +163,7 @@ class Requester(object):
                     proxies=proxy,
                     verify=False,
                     allow_redirects=self.redirect,
-                    headers=headers,
+                    headers=dict(self.headers),
                     timeout=self.timeout,
                 )
 
@@ -179,7 +177,6 @@ class Requester(object):
                 if not nodelay:
                     time.sleep(self.delay)
 
-                del headers
                 break
 
             except requests.exceptions.TooManyRedirects as e:
