@@ -375,8 +375,12 @@ Tips
 - Want to run dirsearch with a rate of requests per second? Try `-t <rate> -s 1`
 - Want to findout config files or backups? Try out `--suffixes ~` and `--prefixes .`
 - Don't want to force extensions on some endpoints? Add `%NOFORCE%` at the end of them so dirsearch won't do that
+- Want to find only folders/directories? Combine `--no-extension` and `--suffixes /` then done!
 
 Keep updating ...
+
+#### Alerts
+- Don't use `-e *`, it won't replace `*` with all extensions as what you are thinking
 
 Support Docker
 ---------------
