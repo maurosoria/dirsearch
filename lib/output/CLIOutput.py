@@ -20,8 +20,6 @@ import sys
 import threading
 import time
 
-from posixpath import join as urljoin
-
 from lib.utils.FileUtils import *
 from lib.utils.TerminalSize import get_terminal_size
 from thirdparty.colorama import *
@@ -99,12 +97,14 @@ class CLIOutput(object):
             finally:
                 contentLength = FileUtils.sizeHuman(size)
 
-            if self.basePath is None:
+            if not self.basePath:
                 showPath = "/" + path
 
             else:
-                showPath = urljoin("/", self.basePath)
-                showPath = showPath.rstrip("/") + path
+                if not self.basePath.startswith("/"):
+                    self.basePath = "/" + self.basePath
+
+                showPath = self.basePath.rstrip("/") + "/" + path
 
                 if full_url:
                     showPath = (self.target[:-1] if self.target.endswith("/") else self.target) + showPath
