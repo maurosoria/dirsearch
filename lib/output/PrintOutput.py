@@ -19,8 +19,6 @@
 import sys
 import threading
 
-from posixpath import join as urljoin
-
 from lib.utils.FileUtils import *
 from thirdparty.colorama import *
 
@@ -83,12 +81,14 @@ class PrintOutput(object):
             finally:
                 contentLength = FileUtils.sizeHuman(size)
 
-            if self.basePath is None:
+            if not self.basePath:
                 showPath = urljoin("/", path)
 
             else:
-                showPath = urljoin("/", self.basePath)
-                showPath = urljoin(showPath, path)
+                if not self.basePath.startswith("/"):
+                    self.basePath = "/" + self.basePath
+
+                showPath = self.basePath.rstrip("/") + "/" + path
                 showPath = (self.target[:-1] if self.target.endswith("/") else self.target) + showPath
             message = "{0} - {1} - {2}".format(
                 status, contentLength.rjust(6, " "), showPath
