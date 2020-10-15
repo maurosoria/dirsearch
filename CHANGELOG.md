@@ -5,8 +5,8 @@
 ---------
 - Added no extension option
 - Removed the delay between test requests when using -s
+- Support wordlist formats
 - Multiple bugfixes
-- Faster than ever
 
 ---------
 
