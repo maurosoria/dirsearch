@@ -36,7 +36,6 @@ class CLIOutput(object):
         self.lastInLine = False
         self.mutex = threading.Lock()
         self.blacklists = {}
-        self.mutexCheckedPaths = threading.Lock()
         self.basePath = None
         self.errors = 0
 
@@ -150,7 +149,6 @@ class CLIOutput(object):
             x, y = get_terminal_size()
 
             message = "{0:.2f}% - ".format(percentage(index, length))
-            
 
             if allJobs > 1:
                 message += "Job: {0}/{1} - ".format(currentJob, allJobs)
