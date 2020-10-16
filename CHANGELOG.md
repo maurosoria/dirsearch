@@ -3,6 +3,7 @@
 
 0.4.1 - Updating ...
 ---------
+- Faster
 - Added no extension option
 - Removed the delay between test requests when using -s
 - Support wordlist formats
