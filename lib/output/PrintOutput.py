@@ -35,7 +35,7 @@ class PrintOutput(object):
         self.basePath = None
         self.errors = 0
 
-    def header(self, s):
+    def header(self, text):
         pass
 
     def inLine(self, string):
