@@ -319,6 +319,7 @@ class ArgumentParser(object):
         self.saveHome = config.safe_getboolean("general", "save-logs-home", False)
         self.defaultExtensions = config.safe_get("general", "default-extensions", "php,asp,aspx,jsp,jspx,html,htm,js")
         self.excludeSubdirs = config.safe_get("general", "exclude-subdirs", None)
+        self.full_url = config.safe_getboolean("general", "full_url", False)
 
         # Reports
         self.autoSave = config.safe_getboolean("reports", "autosave-report", False)
@@ -331,6 +332,8 @@ class ArgumentParser(object):
             "wordlist",
             FileUtils.buildPath(self.script_path, "db", "dicc.txt"),
         )
+        self.prefixes = config.safe_get("dictionary", "prefixes", False)
+        self.suffixes = config.safe_get("dictionary", "suffixes", False)
         self.lowercase = config.safe_getboolean("dictionary", "lowercase", False)
         self.uppercase = config.safe_getboolean("dictionary", "uppercase", False)
         self.capitalization = config.safe_getboolean("dictionary", "capitalization", False)
@@ -379,9 +382,9 @@ You can change the dirsearch default configurations (default extensions, timeout
         dictionary.add_option('-w', '--wordlist', action='store', dest='wordlist',
                               help='Customize wordlist (separated by commas)',
                               default=self.wordlist)
-        dictionary.add_option('--prefixes', action='store', dest='prefixes', default=None,
+        dictionary.add_option('--prefixes', action='store', dest='prefixes', default=self.prefixes,
                               help='Add custom prefixes to all entries (separated by commas)')
-        dictionary.add_option('--suffixes', action='store', dest='suffixes', default=None,
+        dictionary.add_option('--suffixes', action='store', dest='suffixes', default=self.suffixes,
                               help='Add custom suffixes to all entries, ignores directories (separated by commas)')
 
         dictionary.add_option('-f', '--force-extensions', action='store_true', dest='forceExtensions', default=self.forceExtensions,
@@ -411,7 +414,7 @@ You can change the dirsearch default configurations (default extensions, timeout
                            default=self.recursive_level_max)
 
         general.add_option('--suppress-empty', action='store_true', dest='suppressEmpty',
-                           help='Suppress empty responses')
+                           help='Suppress empty responses', default=self.suppressEmpty)
         general.add_option('--minimal', action='store', dest='minimumResponseSize', type='int', default=None,
                            help='Minimal response length')
         general.add_option('--maximal', action='store', dest='maximumResponseSize', type='int', default=None,
@@ -446,7 +449,7 @@ You can change the dirsearch default configurations (default extensions, timeout
                            help='HTTP request headers, support multiple flags (example: --header "Referer: example.com")',
                            action='append', type='string', dest='headers', default=None)
         general.add_option('--full-url', action='store_true', dest='full_url',
-                           help='Print the full URL in the output')
+                           help='Print the full URL in the output', default=self.full_url)
 
         general.add_option('--random-agents', '--random-user-agents', action='store_true', dest='useRandomAgents')
         general.add_option('-q', '--quite-mode', action='store_true', dest='clean_view')
@@ -454,8 +457,7 @@ You can change the dirsearch default configurations (default extensions, timeout
         # Connection Settings
         connection = OptionGroup(parser, 'Connection Settings')
         connection.add_option('--timeout', action='store', dest='timeout', type='int',
-                              default=self.timeout,
-                              help='Connection timeout')
+                              default=self.timeout, help='Connection timeout')
         connection.add_option('--ip', action='store', dest='ip', default=None,
                               help='Resolve name to IP address')
         connection.add_option('-s', '--delay', help='Delay between requests (support float number)', action='store', dest='delay',
