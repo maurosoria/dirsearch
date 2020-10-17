@@ -7,6 +7,7 @@
 - Removed the delay between test requests when using -s
 - Multiple bugfixes
 - Faster than ever
+- Support SOCKS proxy
 
 ---------
 
