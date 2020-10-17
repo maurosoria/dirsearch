@@ -365,24 +365,24 @@ You can change the dirsearch default configurations (default extensions, timeout
         mandatory.add_option('-u', '--url', help='URL target', action='store', type='string', dest='url', default=None)
         mandatory.add_option('-l', '--url-list', help='URL list target', action='store', type='string', dest='urlList',
                              default=None)
-        mandatory.add_option('-e', '--extensions', help='Extensions list separated by comma (Example: php,asp)',
+        mandatory.add_option('-e', '--extensions', help='Extensions list separated by commas (Example: php,asp)',
                              action='store', dest='extensions', default=None)
 
         mandatory.add_option('-E', '--extensions-list', help='Use predefined list of common extensions',
                              action='store_true', dest='defaultExtensions', default=False)
         mandatory.add_option('-X', '--exclude-extensions',
-                             help='Exclude extensions list, separated by comma (Example: asp,jsp)',
+                             help='Exclude extensions list separated by commas (Example: asp,jsp)',
                              action='store', dest='excludeExtensions', default=None)
 
         # Dictionary Settings
         dictionary = OptionGroup(parser, 'Dictionary Settings')
         dictionary.add_option('-w', '--wordlist', action='store', dest='wordlist',
-                              help='Customize wordlist (separated by comma)',
+                              help='Customize wordlist (separated by commas)',
                               default=self.wordlist)
         dictionary.add_option('--prefixes', action='store', dest='prefixes', default=None,
-                              help='Add custom prefixes to all entries (separated by comma)')
+                              help='Add custom prefixes to all entries (separated by commas)')
         dictionary.add_option('--suffixes', action='store', dest='suffixes', default=None,
-                              help='Add custom suffixes to all entries, ignores directories (separated by comma)')
+                              help='Add custom suffixes to all entries, ignores directories (separated by commas)')
 
         dictionary.add_option('-f', '--force-extensions', action='store_true', dest='forceExtensions', default=self.forceExtensions,
                               help='Force extensions for every wordlist entry. Add %NOFORCE% at the end of the entry in the wordlist that you do not want to force')
@@ -401,7 +401,7 @@ You can change the dirsearch default configurations (default extensions, timeout
 
         # Optional Settings
         general = OptionGroup(parser, 'General Settings')
-        general.add_option('-d', '--data', help='HTTP request data (POST, PUT, ... body)', action='store', dest='data',
+        general.add_option('-d', '--data', help='HTTP request data', action='store', dest='data',
                            type='str', default=None)
         general.add_option('-r', '--recursive', help='Bruteforce recursively', action='store_true', dest='recursive',
                            default=self.recursive)
@@ -418,24 +418,24 @@ You can change the dirsearch default configurations (default extensions, timeout
                            help='Maximal response length')
 
         general.add_option('--scan-subdir', '--scan-subdirs',
-                           help='Scan subdirectories of the given URL (separated by comma)', action='store',
+                           help='Scan subdirectories of the given URL (separated by commas)', action='store',
                            dest='scanSubdirs',
                            default=None)
         general.add_option('--exclude-subdir', '--exclude-subdirs',
-                           help='Exclude the following subdirectories during recursive scan (separated by comma)',
+                           help='Exclude the following subdirectories during recursive scan (separated by commas)',
                            action='store', dest='excludeSubdirs',
                            default=self.excludeSubdirs)
         general.add_option('-t', '--threads', help='Number of Threads', action='store', type='int', dest='threadsCount',
                            default=self.threadsCount)
 
-        general.add_option('-i', '--include-status', help='Show only included status codes, separated by comma (example: 301, 500)',
+        general.add_option('-i', '--include-status', help='Show only included status codes, separated by commas (example: 301, 500)',
                            action='store', dest='includeStatusCodes', default=self.includeStatusCodes)
-        general.add_option('-x', '--exclude-status', help='Do not show excluded status codes, separated by comma (example: 301, 500)',
+        general.add_option('-x', '--exclude-status', help='Do not show excluded status codes, separated by commas (example: 301, 500)',
                            action='store', dest='excludeStatusCodes', default=self.excludeStatusCodes)
-        general.add_option('--exclude-texts', help='Exclude responses by texts, separated by comma (example: "Not found", "Error")',
+        general.add_option('--exclude-texts', help='Exclude responses by texts, separated by commas (example: "Not found", "Error")',
                            action='store', dest='excludeTexts', default=None)
 
-        general.add_option('--exclude-regexps', help='Exclude responses by regexps, separated by comma (example: "Not foun[a-z]{1}", "^Error$")',
+        general.add_option('--exclude-regexps', help='Exclude responses by regexps, separated by commas (example: "Not foun[a-z]{1}", "^Error$")',
                            action='store', dest='excludeRegexps', default=None)
         general.add_option('-c', '--cookie', action='store', type='string', dest='cookie', default=None)
         general.add_option('--user-agent', action='store', type='string', dest='useragent',
