@@ -50,7 +50,7 @@ class Controller(object):
     def __init__(self, script_path, arguments, output):
         global VERSION
         program_banner = (
-            open(FileUtils.buildPath(script_path, "lib", "controller", "banner.txt"))
+            open(FileUtils.build_path(script_path, "lib", "controller", "banner.txt"))
             .read()
             .format(**VERSION)
         )
@@ -74,9 +74,9 @@ class Controller(object):
             savePath = self.getSavePath()
 
             if not FileUtils.exists(savePath):
-                FileUtils.createDirectory(savePath)
+                FileUtils.create_directory(savePath)
 
-            if FileUtils.exists(savePath) and not FileUtils.isDir(savePath):
+            if FileUtils.exists(savePath) and not FileUtils.is_dir(savePath):
                 self.output.error(
                     "Cannot use {} because is a file. Should be a directory".format(
                         savePath
@@ -84,23 +84,23 @@ class Controller(object):
                 )
                 exit(1)
 
-            if not FileUtils.canWrite(savePath):
+            if not FileUtils.can_write(savePath):
                 self.output.error("Directory {} is not writable".format(savePath))
                 exit(1)
 
-            logs = FileUtils.buildPath(savePath, "logs")
+            logs = FileUtils.build_path(savePath, "logs")
 
             if not FileUtils.exists(logs):
-                FileUtils.createDirectory(logs)
+                FileUtils.create_directory(logs)
 
-            reports = FileUtils.buildPath(savePath, "reports")
+            reports = FileUtils.build_path(savePath, "reports")
 
             if not FileUtils.exists(reports):
-                FileUtils.createDirectory(reports)
+                FileUtils.create_directory(reports)
 
             self.savePath = savePath
 
-        self.reportsPath = FileUtils.buildPath(self.savePath, "logs")
+        self.reportsPath = FileUtils.build_path(self.savePath, "logs")
         self.blacklists = self.getBlacklists()
         self.includeStatusCodes = self.arguments.includeStatusCodes
         self.excludeStatusCodes = self.arguments.excludeStatusCodes
@@ -139,8 +139,8 @@ class Controller(object):
             self.output.newLine("\nAutoSave path: {0}".format(self.batchDirectoryPath))
 
         if self.arguments.useRandomAgents:
-            self.randomAgents = FileUtils.getLines(
-                FileUtils.buildPath(script_path, "db", "user-agents.txt")
+            self.randomAgents = FileUtils.get_lines(
+                FileUtils.build_path(script_path, "db", "user-agents.txt")
             )
 
         try:
@@ -254,7 +254,7 @@ class Controller(object):
         else:
             dirPath = ".dirsearch"
 
-        return FileUtils.buildPath(basePath, dirPath)
+        return FileUtils.build_path(basePath, dirPath)
 
     def getBlacklists(self):
         reext = re.compile(r'\%ext\%', re.IGNORECASE)
@@ -262,18 +262,18 @@ class Controller(object):
         blacklists = {}
 
         for status in [400, 403, 500]:
-            blacklistFileName = FileUtils.buildPath(self.script_path, "db")
-            blacklistFileName = FileUtils.buildPath(
+            blacklistFileName = FileUtils.build_path(self.script_path, "db")
+            blacklistFileName = FileUtils.build_path(
                 blacklistFileName, "{}_blacklist.txt".format(status)
             )
 
-            if not FileUtils.canRead(blacklistFileName):
+            if not FileUtils.can_read(blacklistFileName):
                 # Skip if cannot read file
                 continue
 
             blacklists[status] = []
 
-            for line in FileUtils.getLines(blacklistFileName):
+            for line in FileUtils.get_lines(blacklistFileName):
                 # Skip comments
                 if line.lstrip().startswith("#"):
                     continue
@@ -305,20 +305,20 @@ class Controller(object):
 
     def setupErrorLogs(self):
         fileName = "errors-{0}.log".format(time.strftime("%y-%m-%d_%H-%M-%S"))
-        self.errorLogPath = FileUtils.buildPath(
-            FileUtils.buildPath(self.savePath, "logs", fileName)
+        self.errorLogPath = FileUtils.build_path(
+            FileUtils.build_path(self.savePath, "logs", fileName)
         )
         self.errorLog = open(self.errorLogPath, "w")
 
     def setupBatchReports(self):
         self.batch = True
         self.batchSession = "BATCH-{0}".format(time.strftime("%y-%m-%d_%H-%M-%S"))
-        self.batchDirectoryPath = FileUtils.buildPath(
+        self.batchDirectoryPath = FileUtils.build_path(
             self.savePath, "reports", self.batchSession
         )
 
         if not FileUtils.exists(self.batchDirectoryPath):
-            FileUtils.createDirectory(self.batchDirectoryPath)
+            FileUtils.create_directory(self.batchDirectoryPath)
 
             if not FileUtils.exists(self.batchDirectoryPath):
                 self.output.error(
@@ -326,10 +326,10 @@ class Controller(object):
                 )
                 sys.exit(1)
 
-        if FileUtils.canWrite(self.batchDirectoryPath):
-            FileUtils.createDirectory(self.batchDirectoryPath)
-            targetsFile = FileUtils.buildPath(self.batchDirectoryPath, "TARGETS.txt")
-            FileUtils.writeLines(targetsFile, self.arguments.urlList)
+        if FileUtils.can_write(self.batchDirectoryPath):
+            FileUtils.create_directory(self.batchDirectoryPath)
+            targetsFile = FileUtils.build_path(self.batchDirectoryPath, "TARGETS.txt")
+            FileUtils.write_lines(targetsFile, self.arguments.urlList)
 
         else:
             self.output.error(
@@ -353,9 +353,9 @@ class Controller(object):
 
                 fileName = ('{}_'.format(basePath))
                 fileName += time.strftime('%y-%m-%d_%H-%M-%S.txt')
-                directoryPath = FileUtils.buildPath(self.savePath, 'reports', requester.host)
+                directoryPath = FileUtils.build_path(self.savePath, 'reports', requester.host)
 
-            outputFile = FileUtils.buildPath(directoryPath, fileName)
+            outputFile = FileUtils.build_path(directoryPath, fileName)
 
             self.output.outputFile(outputFile)
 
@@ -368,14 +368,14 @@ class Controller(object):
                 outputFile += "_" + str(i)
 
             if not FileUtils.exists(directoryPath):
-                FileUtils.createDirectory(directoryPath)
+                FileUtils.create_directory(directoryPath)
 
                 if not FileUtils.exists(directoryPath):
                     self.output.error(
                         "Couldn't create reports folder {}".format(directoryPath)
                     )
                     sys.exit(1)
-            if FileUtils.canWrite(directoryPath):
+            if FileUtils.can_write(directoryPath):
                 report = None
 
                 if self.arguments.autoSaveFormat == "simple":

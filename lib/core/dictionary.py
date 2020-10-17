@@ -104,7 +104,7 @@ class Dictionary(object):
 
         # Enable to use multiple dictionaries at once
         for dictFile in self.dictionaryFiles:
-            for line in list(filter(None, dict.fromkeys(dictFile.getLines()))):
+            for line in list(filter(None, dict.fromkeys(dictFile.get_lines()))):
                 # Skip comments
                 if line.lstrip().startswith("#"):
                     continue

@@ -44,7 +44,7 @@ class PlainTextReport(TailableFileBaseReport):
 
         for path, status, contentLength, location in self.getPathIterator():
             result += "{0}  ".format(status)
-            result += "{0}  ".format(FileUtils.sizeHuman(contentLength).rjust(6, " "))
+            result += "{0}  ".format(FileUtils.size_human(contentLength).rjust(6, " "))
             result += "{0}://{1}:{2}/".format(self.protocol, self.host, self.port)
             result += (
                 "{0}".format(path)

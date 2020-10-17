@@ -94,7 +94,7 @@ class CLIOutput(object):
                 size = len(response.body)
 
             finally:
-                contentLength = FileUtils.sizeHuman(size)
+                contentLength = FileUtils.size_human(size)
 
             if not self.basePath:
                 showPath = "/" + path
