@@ -317,7 +317,9 @@ class ArgumentParser(object):
         self.suppressEmpty = config.safe_getboolean("general", "suppress-empty", False)
         self.testFailPath = config.safe_get("general", "scanner-fail-path", "").strip()
         self.saveHome = config.safe_getboolean("general", "save-logs-home", False)
-        self.defaultExtensions = config.safe_get("general", "default-extensions", "php,asp,aspx,jsp,jspx,html,htm,js")
+        self.defaultExtensions = config.safe_get(
+            "general", "default-extensions", "php,asp,aspx,jsp,html,htm,js"
+        )
         self.excludeSubdirs = config.safe_get("general", "exclude-subdirs", None)
         self.full_url = config.safe_getboolean("general", "full_url", False)
 
@@ -332,8 +334,8 @@ class ArgumentParser(object):
             "wordlist",
             FileUtils.buildPath(self.script_path, "db", "dicc.txt"),
         )
-        self.prefixes = config.safe_get("dictionary", "prefixes", False)
-        self.suffixes = config.safe_get("dictionary", "suffixes", False)
+        self.prefixes = config.safe_get("dictionary", "prefixes", None)
+        self.suffixes = config.safe_get("dictionary", "suffixes", None)
         self.lowercase = config.safe_getboolean("dictionary", "lowercase", False)
         self.uppercase = config.safe_getboolean("dictionary", "uppercase", False)
         self.capitalization = config.safe_getboolean("dictionary", "capitalization", False)
