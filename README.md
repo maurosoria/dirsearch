@@ -148,6 +148,7 @@ Operating Systems supported
 
 Features
 --------
+- Fast
 - Multithreaded
 - Keep alive connections
 - Support for multiple extensions (-e|--extensions asp,php)
@@ -162,6 +163,7 @@ Features
 - HTTP proxy support
 - HTTP cookies and headers support
 - User agent randomization
+- Proxy host randomization
 - Batch processing
 - Request delaying
 - Multiple wordlist formats (lowercase, uppercase, capitalization)
