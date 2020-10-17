@@ -102,7 +102,7 @@ class ArgumentParser(object):
             self.proxylist = open(options.proxyList).read().splitlines()
 
         elif options.httpProxy:
-            if options.httpProxy.startswith("http://") or options.httpProxy.startswith("https://"):
+            if options.httpProxy.startswith("http://") or options.httpProxy.startswith("https://") or options.httpProxy.startswith("socks5://"):
                 self.proxy = options.httpProxy
             else:
                 self.proxy = "http://{0}".format(options.httpProxy)
@@ -466,7 +466,7 @@ You can change the dirsearch default configurations (default extensions, timeout
                               type='float', default=self.delay)
 
         connection.add_option('--proxy', '--http-proxy', action='store', dest='httpProxy', type='string',
-                              default=self.proxy, help='HTTP Proxy (example: localhost:8080)')
+                              default=self.proxy, help='Proxy URL, support HTTP and SOCKS proxy (example: localhost:8080, socks5://localhost:8088)')
         connection.add_option('--proxylist', '--http-proxy-list', action='store', dest='proxyList', type='string',
                               default=self.proxylist, help='File containg HTTP proxy servers')
         connection.add_option('-m', '--http-method', action='store', dest='httpmethod', type='string',
