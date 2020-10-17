@@ -20,7 +20,7 @@ import re
 import threading
 import urllib.parse
 
-from lib.utils.FileUtils import File
+from lib.utils.file_utils import File
 
 
 class Dictionary(object):

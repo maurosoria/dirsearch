@@ -278,7 +278,7 @@ class Controller(object):
                 if line.lstrip().startswith("#"):
                     continue
 
-                # The same with Dictionary.py
+                # The same with dictionary.py
                 if line.startswith("/"):
                     line = line[1:]
 

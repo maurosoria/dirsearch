@@ -1,4 +1,4 @@
-from .BaseReport import *  # noqa: F401
-from .JSONReport import *  # noqa: F401
-from .PlainTextReport import *  # noqa: F401
-from .SimpleReport import *  # noqa: F401
+from .base_report import *  # noqa: F401
+from .json_report import *  # noqa: F401
+from .plain_text_report import *  # noqa: F401
+from .simple_report import *  # noqa: F401

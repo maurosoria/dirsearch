@@ -18,33 +18,35 @@
 
 import sys
 import threading
+import time
 
-from lib.utils.FileUtils import *
+from lib.utils.file_utils import *
+from lib.utils.terminal_size import get_terminal_size
 from thirdparty.colorama import *
 
 if sys.platform in ["win32", "msys"]:
     from thirdparty.colorama.win32 import *
 
 
-class PrintOutput(object):
+class CLIOutput(object):
     def __init__(self):
         init()
+        self.lastLength = 0
+        self.lastOutput = ""
+        self.lastInLine = False
         self.mutex = threading.Lock()
         self.blacklists = {}
-        self.mutexCheckedPaths = threading.Lock()
         self.basePath = None
         self.errors = 0
-
-    def header(self, text):
-        pass
 
     def inLine(self, string):
         self.erase()
         sys.stdout.write(string)
         sys.stdout.flush()
+        self.lastInLine = True
 
     def erase(self):
-        if sys.platform in ["win32", "cygwin", "msys"]:
+        if sys.platform in ["win32", "msys"]:
             csbi = GetConsoleScreenBufferInfo()
             line = "\b" * int(csbi.dwCursorPosition.X)
             sys.stdout.write(line)
@@ -59,7 +61,20 @@ class PrintOutput(object):
             sys.stdout.write("\033[0G")
 
     def newLine(self, string):
-        sys.stdout.write(string + "\n")
+        if self.lastInLine is True:
+            self.erase()
+
+        if sys.platform in ["win32", "msys"]:
+            sys.stdout.write(string)
+            sys.stdout.flush()
+            sys.stdout.write("\n")
+            sys.stdout.flush()
+
+        else:
+            sys.stdout.write(string + "\n")
+
+        sys.stdout.flush()
+        self.lastInLine = False
         sys.stdout.flush()
 
     def statusReport(self, path, response, full_url, addedToQueue):
@@ -82,16 +97,22 @@ class PrintOutput(object):
                 contentLength = FileUtils.sizeHuman(size)
 
             if not self.basePath:
-                showPath = urljoin("/", path)
+                showPath = "/" + path
 
             else:
                 if not self.basePath.startswith("/"):
                     self.basePath = "/" + self.basePath
 
                 showPath = self.basePath.rstrip("/") + "/" + path
-                showPath = (self.target[:-1] if self.target.endswith("/") else self.target) + showPath
-            message = "{0} - {1} - {2}".format(
-                status, contentLength.rjust(6, " "), showPath
+
+                if full_url:
+                    showPath = (self.target[:-1] if self.target.endswith("/") else self.target) + showPath
+
+            message = "[{0}] {1} - {2} - {3}".format(
+                time.strftime("%H:%M:%S"),
+                status,
+                contentLength.rjust(6, " "),
+                showPath,
             )
 
             if status == 200:
@@ -110,7 +131,7 @@ class PrintOutput(object):
                 message = Fore.RED + message + Style.RESET_ALL
 
             # Check if redirect
-            elif status in [301, 302, 307] and "location" in [
+            elif status in [301, 302, 303, 307, 308] and "location" in [
                 h.lower() for h in response.headers
             ]:
                 message = Fore.CYAN + message + Style.RESET_ALL
@@ -121,17 +142,49 @@ class PrintOutput(object):
 
             self.newLine(message)
 
+    @staticmethod
+    def percentage(x, y):
+        return float(x) / float(y) * 100
+
     def lastPath(self, path, index, length, currentJob, allJobs):
-        pass
+        x, y = get_terminal_size()
+
+        message = "{0:.2f}% - ".format(self.percentage(index, length))
+
+        if allJobs > 1:
+            message += "Job: {0}/{1} - ".format(currentJob, allJobs)
+
+        if self.errors > 0:
+            message += "Errors: {0} - ".format(self.errors)
+
+        message += "Last request to: {0}".format(path)
+
+        if len(message) >= x:
+            message = message[:x - 1]
+
+        with self.mutex:
+            self.inLine(message)
 
     def addConnectionError(self):
         self.errors += 1
 
     def error(self, reason):
-        pass
+        with self.mutex:
+            stripped = reason.strip()
+            message = "\n" if reason.startswith("\n") else ""
+            message += Style.BRIGHT + Fore.WHITE + Back.RED
+            message += stripped
+            message += Style.RESET_ALL
+            self.newLine(message)
 
     def warning(self, reason):
-        pass
+        with self.mutex:
+            message = Style.BRIGHT + Fore.YELLOW + reason + Style.RESET_ALL
+            self.newLine(message)
+
+    def header(self, text):
+        message = Style.BRIGHT + Fore.MAGENTA + text + Style.RESET_ALL
+        self.newLine(message)
 
     def config(
         self,
@@ -144,16 +197,52 @@ class PrintOutput(object):
         recursive,
         recursion_level,
     ):
-        pass
+        separator = Fore.MAGENTA + " | " + Fore.YELLOW
+
+        config = Style.BRIGHT + Fore.YELLOW
+        config += "Extensions: {0}".format(Fore.CYAN + extensions + Fore.YELLOW)
+        config += separator
+
+        config += "HTTP method: {0}".format(Fore.CYAN + method.upper() + Fore.YELLOW)
+        config += separator
+
+        if prefixes != '':
+            config += 'Prefixes: {0}'.format(Fore.CYAN + prefixes + Fore.YELLOW)
+            config += separator
+
+        if suffixes != '':
+            config += 'Suffixes: {0}'.format(Fore.CYAN + suffixes + Fore.YELLOW)
+            config += separator
+
+        config += "Threads: {0}".format(Fore.CYAN + threads + Fore.YELLOW)
+        config += separator
+        config += "Wordlist size: {0}".format(Fore.CYAN + wordlist_size + Fore.YELLOW)
+
+        if recursive is True:
+            config += separator
+            config += "Recursion level: {0}".format(
+                Fore.CYAN + recursion_level + Fore.YELLOW
+            )
+
+        config += Style.RESET_ALL
+
+        self.newLine(config)
 
     def setTarget(self, target):
         self.target = target
 
+        config = Style.BRIGHT + Fore.YELLOW
+        config += "\nTarget: {0}\n".format(Fore.CYAN + target + Fore.YELLOW)
+        config += Style.RESET_ALL
+
+        self.newLine(config)
+
     def outputFile(self, target):
-        pass
+        self.newLine("Output File: {0}\n".format(target))
 
     def errorLogFile(self, target):
-        pass
+        self.newLine("\nError Log: {0}".format(target))
 
     def debug(self, info):
-        pass
+        line = "[{0}] - {1}".format(time.strftime("%H:%M:%S"), info)
+        self.newLine(line)
