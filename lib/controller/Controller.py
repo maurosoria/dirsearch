@@ -257,8 +257,8 @@ class Controller(object):
         return FileUtils.buildPath(basePath, dirPath)
 
     def getBlacklists(self):
-        reext = re.compile('\%ext\%', re.IGNORECASE)
-        reextdot = re.compile('\.\%ext\%', re.IGNORECASE)
+        reext = re.compile(r'\%ext\%', re.IGNORECASE)
+        reextdot = re.compile(r'\.\%ext\%', re.IGNORECASE)
         blacklists = {}
 
         for status in [400, 403, 500]:
@@ -287,17 +287,17 @@ class Controller(object):
                     for extension in self.arguments.extensions:
                         if self.arguments.noDotExtensions:
                             entry = reextdot.sub(extension, line)
-                            
+
                         else:
                             entry = line
 
                         entry = reext.sub(extension, entry)
-                        
+
                         blacklists[status].append(entry)
-                        
+
                 # Forced extensions is not used here because -r is only used for wordlist (in documentation),
                 # applying in blacklist may create false negatives
-                        
+
                 else:
                     blacklists[status].append(line)
 
@@ -355,7 +355,6 @@ class Controller(object):
                 fileName += time.strftime('%y-%m-%d_%H-%M-%S.txt')
                 directoryPath = FileUtils.buildPath(self.savePath, 'reports', requester.host)
 
-
             outputFile = FileUtils.buildPath(directoryPath, fileName)
 
             self.output.outputFile(outputFile)
@@ -363,7 +362,8 @@ class Controller(object):
             if FileUtils.exists(outputFile):
                 i = 2
 
-                while FileUtils.exists(outputFile + "_" + str(i)): i += 1
+                while FileUtils.exists(outputFile + "_" + str(i)):
+                    i += 1
 
                 outputFile += "_" + str(i)
 
@@ -385,7 +385,7 @@ class Controller(object):
                         requester.protocol,
                         requester.basePath,
                         outputFile,
-                        self.batch 
+                        self.batch
                     )
                 if self.arguments.autoSaveFormat == "json":
                     report = JSONReport(
@@ -405,14 +405,13 @@ class Controller(object):
                         self.batch
                     )
 
-
                 self.reportManager.addOutput(report)
 
             else:
                 self.output.error("Can't write reports to {}".format(directoryPath))
                 sys.exit(1)
-        
-        # TODO: format, refactor code 
+
+        # TODO: format, refactor code
         if self.arguments.simpleOutputFile:
             self.reportManager.addOutput(SimpleReport(requester.host, requester.port, requester.protocol,
                                                       requester.basePath, self.arguments.simpleOutputFile, self.batch))
@@ -425,7 +424,6 @@ class Controller(object):
             self.reportManager.addOutput(JSONReport(requester.host, requester.port, requester.protocol,
                                                     requester.basePath, self.arguments.jsonOutputFile, self.batch))
 
-            
     # TODO: Refactor, this function should be a decorator for all the filters
     def matchCallback(self, path):
         self.index += 1
@@ -434,12 +432,12 @@ class Controller(object):
 
             if path.status not in self.excludeStatusCodes and (
                     not self.includeStatusCodes or path.status in self.includeStatusCodes) and (
-                    not(self.blacklists.get(path.status)) or path.path not in self.blacklists.get(
-                path.status)) and not (
+                    not(self.blacklists.get(path.status)) or path.path not in self.blacklists.get(path.status)
+            ) and not (
                     self.suppressEmpty and (not(len(path.response.body)))) and not ((
                     self.minimumResponseSize and self.minimumResponseSize > len(path.response.body)) or (
-                    self.maximumResponseSize and self.maximumResponseSize < len(path.response.body))):
-
+                    self.maximumResponseSize and self.maximumResponseSize < len(path.response.body))
+            ):
 
                 for excludeText in self.excludeTexts:
                     if excludeText in path.response.body.decode():
@@ -454,7 +452,6 @@ class Controller(object):
                     ):
                         del path
                         return
-
 
                 pathIsInScanSubdirs = False
                 addedToQueue = False
@@ -471,7 +468,7 @@ class Controller(object):
                         addedToQueue = self.addRedirectDirectory(path)
                     else:
                         addedToQueue = self.addDirectory(path.path)
-                        
+
                 self.output.statusReport(path.path, path.response, self.arguments.full_url, addedToQueue)
 
                 newPath = "{}{}".format(self.currentDirectory, path.path)
@@ -535,7 +532,7 @@ class Controller(object):
                 else:
                     continue
 
-        except KeyboardInterrupt as SystemExit:
+        except KeyboardInterrupt:
             self.exit = True
             raise KeyboardInterrupt
 
@@ -546,7 +543,7 @@ class Controller(object):
                     continue
                 break
 
-            except (KeyboardInterrupt, SystemExit) as e:
+            except (KeyboardInterrupt, SystemExit):
                 self.handleInterrupt()
 
     def wait(self):
@@ -600,12 +597,8 @@ class Controller(object):
 
         absoluteUrl = urllib.parse.urljoin(baseUrl, path.response.redirect)
 
-        if (
-            absoluteUrl.startswith(baseUrl)
-            and absoluteUrl != baseUrl
-            and absoluteUrl.endswith("/")
-        ):
-            dir = absoluteUrl[len(self.currentUrl.rstrip("/")) + 1 :]
+        if absoluteUrl.startswith(baseUrl) and absoluteUrl != baseUrl and absoluteUrl.endswith("/"):
+            dir = absoluteUrl[len(self.currentUrl.rstrip("/")) + 1:]
 
             if dir in self.doneDirs:
                 return False

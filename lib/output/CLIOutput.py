@@ -61,7 +61,7 @@ class CLIOutput(object):
             sys.stdout.write("\033[0G")
 
     def newLine(self, string):
-        if self.lastInLine == True:
+        if self.lastInLine is True:
             self.erase()
 
         if sys.platform in ["win32", "msys"]:
@@ -107,26 +107,26 @@ class CLIOutput(object):
 
                 if full_url:
                     showPath = (self.target[:-1] if self.target.endswith("/") else self.target) + showPath
-                
+
             message = "[{0}] {1} - {2} - {3}".format(
-                time.strftime("%H:%M:%S"), 
-                status, 
-                contentLength.rjust(6, " "), 
+                time.strftime("%H:%M:%S"),
+                status,
+                contentLength.rjust(6, " "),
                 showPath,
             )
 
             if status == 200:
                 message = Fore.GREEN + message + Style.RESET_ALL
-                
+
             elif status == 400:
                 message = Fore.MAGENTA + message + Style.RESET_ALL
 
             elif status == 401:
                 message = Fore.YELLOW + message + Style.RESET_ALL
-                
+
             elif status == 403:
                 message = Fore.BLUE + message + Style.RESET_ALL
-                
+
             elif status == 500:
                 message = Fore.RED + message + Style.RESET_ALL
 
@@ -136,31 +136,33 @@ class CLIOutput(object):
             ]:
                 message = Fore.CYAN + message + Style.RESET_ALL
                 message += "  ->  {0}".format(response.headers["location"])
-                
+
             if addedToQueue:
                 message += "     (Added to queue)"
 
             self.newLine(message)
 
+    @staticmethod
+    def percentage(x, y):
+        return float(x) / float(y) * 100
+
     def lastPath(self, path, index, length, currentJob, allJobs):
+        x, y = get_terminal_size()
+
+        message = "{0:.2f}% - ".format(self.percentage(index, length))
+
+        if allJobs > 1:
+            message += "Job: {0}/{1} - ".format(currentJob, allJobs)
+
+        if self.errors > 0:
+            message += "Errors: {0} - ".format(self.errors)
+
+        message += "Last request to: {0}".format(path)
+
+        if len(message) >= x:
+            message = message[:x - 1]
+
         with self.mutex:
-            percentage = lambda x, y: float(x) / float(y) * 100
-
-            x, y = get_terminal_size()
-
-            message = "{0:.2f}% - ".format(percentage(index, length))
-
-            if allJobs > 1:
-                message += "Job: {0}/{1} - ".format(currentJob, allJobs)
-
-            if self.errors > 0:
-                message += "Errors: {0} - ".format(self.errors)
-
-            message += "Last request to: {0}".format(path)
-
-            if len(message) >= x:
-                message = message[:x-1]
-
             self.inLine(message)
 
     def addConnectionError(self):
@@ -184,7 +186,6 @@ class CLIOutput(object):
         message = Style.BRIGHT + Fore.MAGENTA + text + Style.RESET_ALL
         self.newLine(message)
 
-
     def config(
         self,
         extensions,
@@ -205,7 +206,6 @@ class CLIOutput(object):
         config += "HTTP method: {0}".format(Fore.CYAN + method.upper() + Fore.YELLOW)
         config += separator
 
-
         if prefixes != '':
             config += 'Prefixes: {0}'.format(Fore.CYAN + prefixes + Fore.YELLOW)
             config += separator
@@ -218,7 +218,7 @@ class CLIOutput(object):
         config += separator
         config += "Wordlist size: {0}".format(Fore.CYAN + wordlist_size + Fore.YELLOW)
 
-        if recursive == True:
+        if recursive is True:
             config += separator
             config += "Recursion level: {0}".format(
                 Fore.CYAN + recursion_level + Fore.YELLOW
@@ -236,10 +236,10 @@ class CLIOutput(object):
         config += Style.RESET_ALL
 
         self.newLine(config)
-        
+
     def outputFile(self, target):
         self.newLine("Output File: {0}\n".format(target))
-        
+
     def errorLogFile(self, target):
         self.newLine("\nError Log: {0}".format(target))
 

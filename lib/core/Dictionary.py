@@ -25,7 +25,6 @@ from lib.utils.FileUtils import File
 
 class Dictionary(object):
 
-
     def __init__(
         self,
         paths,
@@ -40,7 +39,7 @@ class Dictionary(object):
         excludeExtensions=[],
         noExtension=False,
     ):
-        
+
         self.entries = []
         self.currentIndex = 0
         self.condition = threading.Lock()
@@ -96,13 +95,12 @@ class Dictionary(object):
     """
 
     def generate(self):
-        reext = re.compile("\%ext\%", re.IGNORECASE).sub
-        reextdot = re.compile("\.\%ext\%", re.IGNORECASE).sub
+        reext = re.compile(r"\%ext\%", re.IGNORECASE).sub
+        reextdot = re.compile(r"\.\%ext\%", re.IGNORECASE).sub
         reexclude = re.findall
-        renoforce = re.compile("\%noforce\%", re.IGNORECASE).sub
+        renoforce = re.compile(r"\%noforce\%", re.IGNORECASE).sub
         custom = []
         result = []
-
 
         # Enable to use multiple dictionaries at once
         for dictFile in self.dictionaryFiles:
@@ -170,31 +168,30 @@ class Dictionary(object):
                     quoted = self.quote(line)
                     result.append(quoted)
 
-
         # Adding prefixes for finding config files etc
         if self._prefixes:
             for res in list(dict.fromkeys(result)):
                 for pref in self._prefixes:
-                    if not res.startswith(pref): 
+                    if not res.startswith(pref):
                         custom.append(pref + res)
 
         # Adding suffixes for finding backups etc
         if self._suffixes:
+            suff = None
             for res in list(dict.fromkeys(result)):
                 if not res.rstrip().endswith("/"):
                     for suff in self._suffixes:
                         if not res.rstrip().endswith(suff):
                             custom.append(res + suff)
-           
-        result = custom if custom else result
 
+        result = custom if custom else result
 
         if self.lowercase:
             self.entries = list(dict.fromkeys(map(lambda l: l.lower(), result)))
-            
+
         elif self.uppercase:
             self.entries = list(dict.fromkeys(map(lambda l: l.upper(), result)))
-            
+
         elif self.capitalization:
             self.entries = list(dict.fromkeys(map(lambda l: l.capitalize(), result)))
 

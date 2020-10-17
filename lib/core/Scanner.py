@@ -29,7 +29,7 @@ class ScannerException(Exception):
 
 class Scanner(object):
     def __init__(self, requester, testPath=None, suffix=None, preffix=None):
-        if testPath == None or testPath == "":
+        if testPath is None or testPath == "":
             self.testPath = RandomUtils.randString()
         else:
             self.testPath = testPath
@@ -49,7 +49,7 @@ class Scanner(object):
         firstPath = self.preffix + self.testPath + self.suffix
         firstResponse = self.requester.request(firstPath, nodelay=True)
         self.invalidStatus = firstResponse.status
-        
+
         secondPath = self.preffix + RandomUtils.randString(omit=self.testPath) + self.suffix
         secondResponse = self.requester.request(secondPath, nodelay=True)
 
@@ -58,11 +58,7 @@ class Scanner(object):
             return
 
         # look for redirects
-        elif (
-            firstResponse.status in self.redirectStatusCodes
-            and firstResponse.redirect
-            and secondResponse.redirect
-        ):
+        elif firstResponse.status in self.redirectStatusCodes and firstResponse.redirect and secondResponse.redirect:
             self.redirectRegExp = self.generateRedirectRegExp(
                 firstResponse.redirect, secondResponse.redirect
             )
@@ -98,7 +94,7 @@ class Scanner(object):
             if n == 0:
                 continue
 
-            mark = firstLocation[i : i + n]
+            mark = firstLocation[i:i + n]
             marks.append(mark)
 
         regexp = "^.*{0}.*$".format(".*".join(map(re.escape, marks)))

@@ -33,7 +33,7 @@ class ArgumentParser(object):
 
         self.clean_view = options.clean_view
         self.full_url = options.full_url
-        
+
         if not options.url:
 
             if options.urlList:
@@ -60,7 +60,6 @@ class ArgumentParser(object):
 
         else:
             self.urlList = [options.url]
-
 
         if not options.extensions and not options.defaultExtensions and not options.noExtension:
             print('No extension specified. You must specify at least one extension or try using default extension list.')
@@ -102,7 +101,6 @@ class ArgumentParser(object):
 
             self.proxylist = open(options.proxyList).read().splitlines()
 
-
         elif options.httpProxy:
             if options.httpProxy.startswith("http://") or options.httpProxy.startswith("https://"):
                 self.proxy = options.httpProxy
@@ -138,7 +136,6 @@ class ArgumentParser(object):
             print('Threads number must be a number greater than zero')
             exit(1)
 
-
         self.threadsCount = options.threadsCount
 
         if options.includeStatusCodes:
@@ -147,13 +144,13 @@ class ArgumentParser(object):
                 self.includeStatusCodes = list(
                     oset([int(includeStatusCode.strip()) if includeStatusCode else None for includeStatusCode in
                           options.includeStatusCodes.split(',')]))
-                
+
             except ValueError:
                 self.includeStatusCodes = []
 
         else:
             self.includeStatusCodes = []
-            
+
         if options.excludeExtensions:
 
             try:
@@ -165,7 +162,7 @@ class ArgumentParser(object):
                         ]
                     )
                 )
-                
+
             except ValueError:
                 self.excludeExtensions = []
 
@@ -187,7 +184,7 @@ class ArgumentParser(object):
                         ]
                     )
                 )
-                
+
             except ValueError:
                 self.excludeStatusCodes = []
 
@@ -211,7 +208,6 @@ class ArgumentParser(object):
         else:
             self.excludeTexts = []
 
-
         if options.excludeRegexps:
             try:
                 self.excludeRegexps = list(
@@ -227,7 +223,6 @@ class ArgumentParser(object):
                 self.excludeRegexps = []
         else:
             self.excludeRegexps = []
-
 
         self.prefixes = [] if not options.prefixes else list(oset([prefix.strip() for prefix in options.prefixes.split(',')]))
         self.suffixes = [] if not options.suffixes else list(oset([suffix.strip() for suffix in options.suffixes.split(',')]))
@@ -252,7 +247,6 @@ class ArgumentParser(object):
         self.maximumResponseSize = options.maximumResponseSize
         self.noExtension = options.noExtension
 
-
         if options.scanSubdirs:
             self.scanSubdirs = list(
                 oset([subdir.strip() for subdir in options.scanSubdirs.split(",")])
@@ -270,7 +264,6 @@ class ArgumentParser(object):
 
         else:
             self.scanSubdirs = None
-            
 
         if not self.recursive and options.excludeSubdirs:
             self.excludeSubdirs = None
@@ -291,12 +284,10 @@ class ArgumentParser(object):
 
         else:
             self.excludeSubdirs = None
-            
-        
+
         if len(set(self.extensions).intersection(self.excludeExtensions)):
             print("Exclude extensions can not contain any extension that has already in the extensions")
             exit(0)
-            
 
         self.redirect = options.noFollowRedirects
         self.requestByHostname = options.requestByHostname
@@ -310,7 +301,6 @@ class ArgumentParser(object):
         config.read(configPath)
 
         # General
-
         self.threadsCount = config.safe_getint(
             "general", "threads", 20, list(range(1, 200))
         )
@@ -327,8 +317,11 @@ class ArgumentParser(object):
         self.suppressEmpty = config.safe_getboolean("general", "suppress-empty", False)
         self.testFailPath = config.safe_get("general", "scanner-fail-path", "").strip()
         self.saveHome = config.safe_getboolean("general", "save-logs-home", False)
-        self.defaultExtensions = config.safe_get("general", "default-extensions", "php,asp,aspx,jsp,jspx,html,htm,js")
+        self.defaultExtensions = config.safe_get(
+            "general", "default-extensions", "php,asp,aspx,jsp,html,htm,js"
+        )
         self.excludeSubdirs = config.safe_get("general", "exclude-subdirs", None)
+        self.full_url = config.safe_getboolean("general", "full_url", False)
 
         # Reports
         self.autoSave = config.safe_getboolean("reports", "autosave-report", False)
@@ -341,6 +334,8 @@ class ArgumentParser(object):
             "wordlist",
             FileUtils.buildPath(self.script_path, "db", "dicc.txt"),
         )
+        self.prefixes = config.safe_get("dictionary", "prefixes", None)
+        self.suffixes = config.safe_get("dictionary", "suffixes", None)
         self.lowercase = config.safe_getboolean("dictionary", "lowercase", False)
         self.uppercase = config.safe_getboolean("dictionary", "uppercase", False)
         self.capitalization = config.safe_getboolean("dictionary", "capitalization", False)
@@ -367,7 +362,7 @@ class ArgumentParser(object):
     def parseArguments(self):
         usage = "Usage: %prog [-u|--url] target [-e|--extensions] extensions [options]"
         parser = OptionParser(usage, epilog='''
-You can change the dirsearch default configurations (default extensions, timeout, wordlist location, ...) by editing the "default.conf" file. More information at https://github.com/maurosoria/dirsearch.                          
+You can change the dirsearch default configurations (default extensions, timeout, wordlist location, ...) by editing the "default.conf" file. More information at https://github.com/maurosoria/dirsearch.
 ''')
 
         # Mandatory arguments
@@ -375,24 +370,24 @@ You can change the dirsearch default configurations (default extensions, timeout
         mandatory.add_option('-u', '--url', help='URL target', action='store', type='string', dest='url', default=None)
         mandatory.add_option('-l', '--url-list', help='URL list target', action='store', type='string', dest='urlList',
                              default=None)
-        mandatory.add_option('-e', '--extensions', help='Extensions list separated by comma (Example: php,asp)',
+        mandatory.add_option('-e', '--extensions', help='Extensions list separated by commas (Example: php,asp)',
                              action='store', dest='extensions', default=None)
 
         mandatory.add_option('-E', '--extensions-list', help='Use predefined list of common extensions',
                              action='store_true', dest='defaultExtensions', default=False)
         mandatory.add_option('-X', '--exclude-extensions',
-                              help='Exclude extensions list, separated by comma (Example: asp,jsp)',
-                              action='store', dest='excludeExtensions', default=None)
+                             help='Exclude extensions list separated by commas (Example: asp,jsp)',
+                             action='store', dest='excludeExtensions', default=None)
 
         # Dictionary Settings
         dictionary = OptionGroup(parser, 'Dictionary Settings')
         dictionary.add_option('-w', '--wordlist', action='store', dest='wordlist',
-                              help='Customize wordlist (separated by comma)',
+                              help='Customize wordlist (separated by commas)',
                               default=self.wordlist)
-        dictionary.add_option('--prefixes', action='store', dest='prefixes', default=None,
-                             help='Add custom prefixes to all entries (separated by comma)')
-        dictionary.add_option('--suffixes', action='store', dest='suffixes', default=None,
-                             help='Add custom suffixes to all entries, ignores directories (separated by comma)')
+        dictionary.add_option('--prefixes', action='store', dest='prefixes', default=self.prefixes,
+                              help='Add custom prefixes to all entries (separated by commas)')
+        dictionary.add_option('--suffixes', action='store', dest='suffixes', default=self.suffixes,
+                              help='Add custom suffixes to all entries, ignores directories (separated by commas)')
 
         dictionary.add_option('-f', '--force-extensions', action='store_true', dest='forceExtensions', default=self.forceExtensions,
                               help='Force extensions for every wordlist entry. Add %NOFORCE% at the end of the entry in the wordlist that you do not want to force')
@@ -402,15 +397,16 @@ You can change the dirsearch default configurations (default extensions, timeout
                               help='Remove the "." character before extensions', action='store_true')
 
         dictionary.add_option('-C', '--capitalization', action='store_true', dest='capitalization', default=self.capitalization,
-                             help='Capital wordlist')
+                              help='Capital wordlist')
         dictionary.add_option('-U', '--uppercase', action='store_true', dest='uppercase', default=self.uppercase,
-                             help='Uppercase wordlist')
+                              help='Uppercase wordlist')
+
         dictionary.add_option('-L', '--lowercase', action='store_true', dest='lowercase', default=self.lowercase,
-                             help='Lowercase wordlist')
+                              help='Lowercase wordlist')
 
         # Optional Settings
         general = OptionGroup(parser, 'General Settings')
-        general.add_option('-d', '--data', help='HTTP request data (POST, PUT, ... body)', action='store', dest='data',
+        general.add_option('-d', '--data', help='HTTP request data', action='store', dest='data',
                            type='str', default=None)
         general.add_option('-r', '--recursive', help='Bruteforce recursively', action='store_true', dest='recursive',
                            default=self.recursive)
@@ -420,43 +416,42 @@ You can change the dirsearch default configurations (default extensions, timeout
                            default=self.recursive_level_max)
 
         general.add_option('--suppress-empty', action='store_true', dest='suppressEmpty',
-                           help='Suppress empty responses')
+                           help='Suppress empty responses', default=self.suppressEmpty)
         general.add_option('--minimal', action='store', dest='minimumResponseSize', type='int', default=None,
                            help='Minimal response length')
         general.add_option('--maximal', action='store', dest='maximumResponseSize', type='int', default=None,
                            help='Maximal response length')
 
         general.add_option('--scan-subdir', '--scan-subdirs',
-                           help='Scan subdirectories of the given URL (separated by comma)', action='store',
+                           help='Scan subdirectories of the given URL (separated by commas)', action='store',
                            dest='scanSubdirs',
                            default=None)
         general.add_option('--exclude-subdir', '--exclude-subdirs',
-                           help='Exclude the following subdirectories during recursive scan (separated by comma)',
+                           help='Exclude the following subdirectories during recursive scan (separated by commas)',
                            action='store', dest='excludeSubdirs',
                            default=self.excludeSubdirs)
-        general.add_option('-t', '--threads', help='Number of Threads', action='store', type='int', dest='threadsCount'
-                           , default=self.threadsCount)
+        general.add_option('-t', '--threads', help='Number of Threads', action='store', type='int', dest='threadsCount',
+                           default=self.threadsCount)
 
-        general.add_option('-i', '--include-status', help='Show only included status codes, separated by comma (example: 301, 500)'
-                           , action='store', dest='includeStatusCodes', default=self.includeStatusCodes)
-        general.add_option('-x', '--exclude-status', help='Do not show excluded status codes, separated by comma (example: 301, 500)'
-                           , action='store', dest='excludeStatusCodes', default=self.excludeStatusCodes)
-        general.add_option('--exclude-texts', help='Exclude responses by texts, separated by comma (example: "Not found", "Error")'
-                           , action='store', dest='excludeTexts', default=None)
+        general.add_option('-i', '--include-status', help='Show only included status codes, separated by commas (example: 301, 500)',
+                           action='store', dest='includeStatusCodes', default=self.includeStatusCodes)
+        general.add_option('-x', '--exclude-status', help='Do not show excluded status codes, separated by commas (example: 301, 500)',
+                           action='store', dest='excludeStatusCodes', default=self.excludeStatusCodes)
+        general.add_option('--exclude-texts', help='Exclude responses by texts, separated by commas (example: "Not found", "Error")',
+                           action='store', dest='excludeTexts', default=None)
 
-        general.add_option('--exclude-regexps', help='Exclude responses by regexps, separated by comma (example: "Not foun[a-z]{1}", "^Error$")'
-                           , action='store', dest='excludeRegexps', default=None)
+        general.add_option('--exclude-regexps', help='Exclude responses by regexps, separated by commas (example: "Not foun[a-z]{1}", "^Error$")',
+                           action='store', dest='excludeRegexps', default=None)
         general.add_option('-c', '--cookie', action='store', type='string', dest='cookie', default=None)
         general.add_option('--user-agent', action='store', type='string', dest='useragent',
                            default=self.useragent)
-
-        general.add_option('-F', '--follow-redirects', action='store_true', dest='noFollowRedirects'
-                           , default=self.redirect)
+        general.add_option('-F', '--follow-redirects', action='store_true', dest='noFollowRedirects',
+                           default=self.redirect)
         general.add_option('-H', '--header',
                            help='HTTP request headers, support multiple flags (example: --header "Referer: example.com")',
                            action='append', type='string', dest='headers', default=None)
         general.add_option('--full-url', action='store_true', dest='full_url',
-                          help='Print the full URL in the output')
+                           help='Print the full URL in the output', default=self.full_url)
 
         general.add_option('--random-agents', '--random-user-agents', action='store_true', dest='useRandomAgents')
         general.add_option('-q', '--quite-mode', action='store_true', dest='clean_view')
@@ -464,8 +459,7 @@ You can change the dirsearch default configurations (default extensions, timeout
         # Connection Settings
         connection = OptionGroup(parser, 'Connection Settings')
         connection.add_option('--timeout', action='store', dest='timeout', type='int',
-                              default=self.timeout,
-                              help='Connection timeout')
+                              default=self.timeout, help='Connection timeout')
         connection.add_option('--ip', action='store', dest='ip', default=None,
                               help='Resolve name to IP address')
         connection.add_option('-s', '--delay', help='Delay between requests (support float number)', action='store', dest='delay',
@@ -474,7 +468,7 @@ You can change the dirsearch default configurations (default extensions, timeout
         connection.add_option('--proxy', '--http-proxy', action='store', dest='httpProxy', type='string',
                               default=self.proxy, help='HTTP Proxy (example: localhost:8080)')
         connection.add_option('--proxylist', '--http-proxy-list', action='store', dest='proxyList', type='string',
-                              default=self.proxylist, help='File containg HTTP proxy servers' )
+                              default=self.proxylist, help='File containg HTTP proxy servers')
         connection.add_option('-m', '--http-method', action='store', dest='httpmethod', type='string',
                               default=self.httpmethod, help='HTTP method, default: GET')
 
@@ -491,7 +485,6 @@ You can change the dirsearch default configurations (default extensions, timeout
         reports.add_option('--plain-text-report', action='store',
                            help='Found paths with status codes', dest='plainTextOutputFile', default=None)
         reports.add_option('--json-report', action='store', dest='jsonOutputFile', default=None)
-
 
         parser.add_option_group(mandatory)
         parser.add_option_group(dictionary)

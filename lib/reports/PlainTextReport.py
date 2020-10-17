@@ -17,11 +17,11 @@
 #  Author: Mauro Soria
 
 from lib.reports import *
-from lib.utils.FileUtils import FileUtils 
+from lib.utils.FileUtils import FileUtils
 
 
 class PlainTextReport(TailableFileBaseReport):
-            
+
     def addPath(self, path, status, response):
         contentLength = None
         location = None
@@ -31,14 +31,13 @@ class PlainTextReport(TailableFileBaseReport):
 
         except (KeyError, ValueError):
             contentLength = len(response.body)
-            
+
         try:
             location = response.headers["location"]
-        except(KeyError,ValueError):
+        except(KeyError, ValueError):
             pass
 
         self.storeData((path, status, contentLength, location, ))
-
 
     def generate(self):
         result = ""
@@ -54,7 +53,7 @@ class PlainTextReport(TailableFileBaseReport):
             )
             if location:
                 result += "    -> REDIRECTS TO: {0}".format(location)
-            
+
             result += "\n"
 
         return result

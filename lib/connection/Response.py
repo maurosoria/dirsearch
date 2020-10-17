@@ -60,6 +60,6 @@ class Response(object):
             from bs4 import BeautifulSoup
         except ImportError:
             raise Exception("BeautifulSoup pip package must be installed")
-            
+
         html = BeautifulSoup(self.body)
         return html.prettify()

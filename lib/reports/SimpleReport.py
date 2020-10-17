@@ -33,5 +33,4 @@ class SimpleReport(TailableFileBaseReport):
                 else "{0}/{1}\n".format(self.basePath, path)
             )
 
-
         return result

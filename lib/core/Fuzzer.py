@@ -86,7 +86,7 @@ class Fuzzer(object):
     def getScannerFor(self, path):
         if path.endswith("/"):
             return self.scanners["/"]
-        
+
         if path.startswith('.'):
             return self.scanners['dotfiles']
 
@@ -151,10 +151,10 @@ class Fuzzer(object):
 
     def thread_proc(self):
         self.playEvent.wait()
-        
+
         try:
             path = next(self.dictionary)
-            
+
             while path:
                 try:
                     status, response = self.scan(path)
