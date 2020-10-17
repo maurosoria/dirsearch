@@ -5,23 +5,22 @@ requests.exceptions
 ~~~~~~~~~~~~~~~~~~~
 
 This module contains the set of Requests' exceptions.
-
 """
-from .packages.urllib3.exceptions import HTTPError as BaseHTTPError
+from urllib3.exceptions import HTTPError as BaseHTTPError
 
 
 class RequestException(IOError):
     """There was an ambiguous exception that occurred while handling your
-    request."""
+    request.
+    """
 
     def __init__(self, *args, **kwargs):
-        """
-        Initialize RequestException with `request` and `response` objects.
-        """
-        response = kwargs.pop("response", None)
+        """Initialize RequestException with `request` and `response` objects."""
+        response = kwargs.pop('response', None)
         self.response = response
-        self.request = kwargs.pop("request", None)
-        if response is not None and not self.request and hasattr(response, "request"):
+        self.request = kwargs.pop('request', None)
+        if (response is not None and not self.request and
+                hasattr(response, 'request')):
             self.request = self.response.request
         super(RequestException, self).__init__(*args, **kwargs)
 
@@ -79,7 +78,15 @@ class InvalidSchema(RequestException, ValueError):
 
 
 class InvalidURL(RequestException, ValueError):
-    """ The URL provided was somehow invalid. """
+    """The URL provided was somehow invalid."""
+
+
+class InvalidHeader(RequestException, ValueError):
+    """The header value provided was somehow invalid."""
+
+
+class InvalidProxyURL(InvalidURL):
+    """The proxy URL provided is invalid."""
 
 
 class ChunkedEncodingError(RequestException):
@@ -87,12 +94,30 @@ class ChunkedEncodingError(RequestException):
 
 
 class ContentDecodingError(RequestException, BaseHTTPError):
-    """Failed to decode response content"""
+    """Failed to decode response content."""
 
 
 class StreamConsumedError(RequestException, TypeError):
-    """The content for this response was already consumed"""
+    """The content for this response was already consumed."""
 
 
 class RetryError(RequestException):
     """Custom retries logic failed"""
+
+
+class UnrewindableBodyError(RequestException):
+    """Requests encountered an error when trying to rewind a body."""
+
+# Warnings
+
+
+class RequestsWarning(Warning):
+    """Base warning for Requests."""
+
+
+class FileModeWarning(RequestsWarning, DeprecationWarning):
+    """A file was opened in text mode, but Requests determined its binary length."""
+
+
+class RequestsDependencyWarning(RequestsWarning):
+    """An imported dependency doesn't match the expected version range."""
