@@ -6,7 +6,7 @@ Current Release: v0.4.0 (2020.9.25)
 
 Overview
 --------
-dirsearch is an advanced command line tool designed to brute force directories and files in webservers.
+Dirsearch is an advanced command line tool designed to brute force directories and files in webservers.
 
 
 Installation & Usage
