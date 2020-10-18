@@ -19,6 +19,7 @@
 import sys
 import threading
 import time
+import urllib.parse
 
 from lib.utils.file_utils import *
 from lib.utils.terminal_size import get_terminal_size
@@ -78,68 +79,66 @@ class CLIOutput(object):
         sys.stdout.flush()
 
     def statusReport(self, path, response, full_url, addedToQueue):
+        contentLength = None
+        status = response.status
+
+        # Check blacklist
+        if status in self.blacklists and path in self.blacklists[status]:
+            return
+
+        # Format message
+        try:
+            size = int(response.headers["content-length"])
+
+        except (KeyError, ValueError):
+            size = len(response.body)
+
+        finally:
+            contentLength = FileUtils.size_human(size)
+
+        if not self.basePath:
+            showPath = "/" + path
+
+        else:
+            if not self.basePath.startswith("/"):
+                self.basePath = "/" + self.basePath
+
+            showPath = self.basePath.rstrip("/") + "/" + path
+
+        if full_url:
+            parsed = urllib.parse.urlparse(self.target)
+            showPath = "{0}://{1}{2}".format(parsed.scheme, parsed.netloc, showPath)
+
+        message = "[{0}] {1} - {2} - {3}".format(
+            time.strftime("%H:%M:%S"),
+            status,
+            contentLength.rjust(6, " "),
+            showPath,
+        )
+
+        if status == 200:
+            message = Fore.GREEN + message + Style.RESET_ALL
+
+        elif status == 401:
+            message = Fore.YELLOW + message + Style.RESET_ALL
+
+        elif status == 403:
+            message = Fore.BLUE + message + Style.RESET_ALL
+
+        elif status == 500:
+            message = Fore.RED + message + Style.RESET_ALL
+
+        # Check if redirect
+        elif status in [301, 302, 303, 307, 308] and "location" in [
+            h.lower() for h in response.headers
+        ]:
+            message = Fore.CYAN + message + Style.RESET_ALL
+            message += "  ->  {0}".format(response.headers["location"])
+
+        if addedToQueue:
+            message += "     (Added to queue)"
+
         with self.mutex:
-            contentLength = None
-            status = response.status
-
-            # Check blacklist
-            if status in self.blacklists and path in self.blacklists[status]:
-                return
-
-            # Format message
-            try:
-                size = int(response.headers["content-length"])
-
-            except (KeyError, ValueError):
-                size = len(response.body)
-
-            finally:
-                contentLength = FileUtils.size_human(size)
-
-            if not self.basePath:
-                showPath = "/" + path
-
-            else:
-                if not self.basePath.startswith("/"):
-                    self.basePath = "/" + self.basePath
-
-                showPath = self.basePath.rstrip("/") + "/" + path
-
-                if full_url:
-                    showPath = (self.target[:-1] if self.target.endswith("/") else self.target) + showPath
-
-            message = "[{0}] {1} - {2} - {3}".format(
-                time.strftime("%H:%M:%S"),
-                status,
-                contentLength.rjust(6, " "),
-                showPath,
-            )
-
-            if status == 200:
-                message = Fore.GREEN + message + Style.RESET_ALL
-
-            elif status == 400:
-                message = Fore.MAGENTA + message + Style.RESET_ALL
-
-            elif status == 401:
-                message = Fore.YELLOW + message + Style.RESET_ALL
-
-            elif status == 403:
-                message = Fore.BLUE + message + Style.RESET_ALL
-
-            elif status == 500:
-                message = Fore.RED + message + Style.RESET_ALL
-
-            # Check if redirect
-            elif status in [301, 302, 303, 307, 308] and "location" in [
-                h.lower() for h in response.headers
-            ]:
-                message = Fore.CYAN + message + Style.RESET_ALL
-                message += "  ->  {0}".format(response.headers["location"])
-
-            if addedToQueue:
-                message += "     (Added to queue)"
-
             self.newLine(message)
 
     @staticmethod
