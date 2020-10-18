@@ -63,13 +63,9 @@ class Requester(object):
         parsed = urllib.parse.urlparse(url)
         self.basePath = parsed.path
 
-        # if not protocol specified, set http by default
-        if parsed.scheme not in ["https", "http"]:
-            parsed = urllib.parse.urlparse("http://" + url)
-            self.basePath = parsed.path
-
         self.protocol = parsed.scheme
 
+        # if not protocol specified, set http by default
         if self.protocol not in ["https", "http"]:
             self.protocol = "http"
 
