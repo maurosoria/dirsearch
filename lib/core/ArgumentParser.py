@@ -291,6 +291,7 @@ class ArgumentParser(object):
 
         self.redirect = options.noFollowRedirects
         self.requestByHostname = options.requestByHostname
+        self.stop = options.stop
         self.httpmethod = options.httpmethod
 
         self.recursive_level_max = options.recursive_level_max
@@ -358,6 +359,7 @@ class ArgumentParser(object):
         self.requestByHostname = config.safe_getboolean(
             "connection", "request-by-hostname", False
         )
+        self.stop = config.safe_getboolean("connection", "stop-on-error", False)
 
     def parseArguments(self):
         usage = "Usage: %prog [-u|--url] target [-e|--extensions] extensions [options]"
@@ -477,6 +479,8 @@ You can change the dirsearch default configurations (default extensions, timeout
         connection.add_option('-b', '--request-by-hostname',
                               help='By default dirsearch will request by IP for speed. This will force requests by hostname',
                               action='store_true', dest='requestByHostname', default=self.requestByHostname)
+        connection.add_option('-S', action='store_true', dest='stop', default=self.stop,
+                              help='Stop whenever an error occurs')
 
         # Report Settings
         reports = OptionGroup(parser, 'Reports')
