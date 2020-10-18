@@ -477,7 +477,7 @@ You can change the dirsearch default configurations (default extensions, timeout
                            help='HTTP request headers, support multiple flags (Example: --header "Referer: example.com")',
                            action='append', type='string', dest='headers', default=None)
         general.add_option('--header-list',
-                           help="HTTP request headers list file", type='string',
+                           help="File contains HTTP request headers", type='string',
                            dest='headerList', default=None)
         general.add_option('--full-url', action='store_true', dest='full_url',
                            help='Print the full URL in the output', default=self.full_url)

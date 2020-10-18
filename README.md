@@ -112,7 +112,7 @@ Options:
                         --header "Referer: example.com" --header "User-Agent:
                         IE")
     --header-list=FILENAME
-                        HTTP request headers list from file. The format of the file is as below
+                        File contains HTTP request headers. The format of the file is as below
                         
                         Referer:Example.com
                         Host: Abc.com
