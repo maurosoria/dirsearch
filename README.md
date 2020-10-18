@@ -459,5 +459,6 @@ Special thanks for these people:
 - @serhattsnmz
 - @ColdFusionX
 - @gdattacker
+- @chowmean
 
 #### Feeling excited? Just [tweet](https://twitter.com/intent/tweet?text=I%20just%20installed%20dirsearch%20v0.4.0%20-%20A%20Web%20Path%20Scanner%20https%3A%2F%2Fgithub.com%2Fmaurosoria%2Fdirsearch%20%23fuzzer%20%23bugbounty%20%23dirsearch%20%23pentesting%20%23security) about it!
