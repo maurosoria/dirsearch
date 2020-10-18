@@ -127,15 +127,24 @@ class ArgumentParser(object):
 
         if options.headersFromFile:
             try:
-                with open(options.headersFromFile, 'r') as header_file:
-                    while True:
-                        line = header_file.readline()
-                        if not line:
-                            break
-                        else:
-                            line = line.strip()
-                            key, value = line.split(":")[0].strip(),line.split(":")[1].strip()
-                            self.headers[key] = value
+                with File(options.headersFromFile) as headerList:
+                    if not headerList.exists():
+                        print('The header list file does not exist')
+                        exit(1)
+
+                    if not headerList.is_valid():
+                        print('The header list file is invalid')
+                        exit(1)
+
+                    if not headerList.can_read():
+                        print('The header list cannot be read')
+                        exit(1)
+
+                    lines = headerList.get_lines()
+                    for line in lines:
+                        line = line.strip()
+                        key, value = line.split(":")[0].strip(),line.split(":")[1].strip()
+                        self.headers[key] = value
             except Exception as e:
                 print("Error in headers file: " + str(e))
                 exit(0)
@@ -467,8 +476,8 @@ You can change the dirsearch default configurations (default extensions, timeout
         general.add_option('-H', '--header',
                            help='HTTP request headers, support multiple flags (Example: --header "Referer: example.com")',
                            action='append', type='string', dest='headers', default=None)
-        general.add_option('--headersFromFile',
-                           help='HTTP request headers, accepts a file with headers list as input. The format of the file is in the example  "Referer:example.com\nhost:abc.com"', type='string',
+        general.add_option('--headers-list',
+                           help="HTTP request headers list file", type='string',
                            dest='headersFromFile', default=None)
         general.add_option('--full-url', action='store_true', dest='full_url',
                            help='Print the full URL in the output', default=self.full_url)
