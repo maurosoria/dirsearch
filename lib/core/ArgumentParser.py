@@ -291,6 +291,7 @@ class ArgumentParser(object):
 
         self.redirect = options.noFollowRedirects
         self.requestByHostname = options.requestByHostname
+        self.stop = options.stop
         self.httpmethod = options.httpmethod
 
         self.recursive_level_max = options.recursive_level_max
@@ -358,6 +359,7 @@ class ArgumentParser(object):
         self.requestByHostname = config.safe_getboolean(
             "connection", "request-by-hostname", False
         )
+        self.stop = config.safe_getboolean("connection", "stop-on-error", False)
 
     def parseArguments(self):
         usage = "Usage: %prog [-u|--url] target [-e|--extensions] extensions [options]"
@@ -462,16 +464,18 @@ You can change the dirsearch default configurations (default extensions, timeout
                               default=self.timeout, help='Connection timeout')
         connection.add_option('--ip', action='store', dest='ip', default=None,
                               help='Resolve name to IP address')
+        connection.add_option('-S', action='store_true', dest='stop', default=self.stop,
+                              help='Stop whenever an error occurs')
+
         connection.add_option('-s', '--delay', help='Delay between requests (support float number)', action='store', dest='delay',
                               type='float', default=self.delay)
-
         connection.add_option('--proxy', '--http-proxy', action='store', dest='httpProxy', type='string',
                               default=self.proxy, help='Proxy URL, support HTTP and SOCKS proxy (Example: localhost:8080, socks5://localhost:8088)')
         connection.add_option('--proxylist', '--http-proxy-list', action='store', dest='proxyList', type='string',
                               default=self.proxylist, help='File containg HTTP proxy servers')
+
         connection.add_option('-m', '--http-method', action='store', dest='httpmethod', type='string',
                               default=self.httpmethod, help='HTTP method, default: GET')
-
         connection.add_option('--max-retries', action='store', dest='maxRetries', type='int',
                               default=self.maxRetries)
         connection.add_option('-b', '--request-by-hostname',
