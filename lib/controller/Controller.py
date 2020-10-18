@@ -485,8 +485,13 @@ class Controller(object):
         del path
 
     def errorCallback(self, path, errorMsg):
-        self.output.addConnectionError()
-        del path
+        if self.arguments.stop:
+            self.exit = True
+            self.fuzzer.stop()
+            self.output.error("\nCanceled due to an error")
+            exit(0)
+        else:
+            self.output.addConnectionError()
 
     def appendErrorLog(self, path, errorMsg):
         with self.threadsLock:
