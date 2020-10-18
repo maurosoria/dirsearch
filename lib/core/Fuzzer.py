@@ -50,7 +50,6 @@ class Fuzzer(object):
         self.notFoundCallbacks = notFoundCallbacks
         self.errorCallbacks = errorCallbacks
         self.matches = []
-        self.errors = []
 
     def wait(self, timeout=None):
         for thread in self.threads:
