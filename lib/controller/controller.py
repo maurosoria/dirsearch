@@ -497,7 +497,7 @@ class Controller(object):
         with self.threadsLock:
             line = time.strftime("[%y-%m-%d %H:%M:%S] - ")
             line += self.currentUrl + " - " + path + " - " + errorMsg
-            self.errorLog.write(os.linesep + line)
+            self.errorLog.write(line + "\n")
             self.errorLog.flush()
 
     def handleInterrupt(self):
