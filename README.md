@@ -111,6 +111,14 @@ Options:
                         HTTP request headers, support multiple flags (example:
                         --header "Referer: example.com" --header "User-Agent:
                         IE")
+    --headersFromFile=FILENAME
+                        HTTP request headers list from file. The format of the file is as below
+                        
+                        Referer:Example.com
+                        Host: Abc.com
+                        Token: 123dh2dsds=sd2wd1
+                        OtherHeaders: OtherValues        
+                
     --full-url          Print the full URL in the output
     --random-agents, --random-user-agents
     -q, --quite-mode
