@@ -147,6 +147,9 @@ class PrintOutput(object):
         pass
 
     def setTarget(self, target):
+        if not target.startswith("http://") and not target.startswith("https://"):
+            target = "http://" + target
+
         self.target = target
 
     def outputFile(self, target):
