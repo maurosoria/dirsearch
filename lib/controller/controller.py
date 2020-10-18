@@ -128,6 +128,7 @@ class Controller(object):
         self.batchSession = None
         self.currentJob = 0
         self.allJobs = 0
+        self.accept429 = False
 
         self.output.header(program_banner)
         self.printConfig()
@@ -430,11 +431,14 @@ class Controller(object):
 
         if path.status:
 
+            if path.status == 429 and not self.accept429:
+                self.handle429()
+
             if path.status not in self.excludeStatusCodes and (
                     not self.includeStatusCodes or path.status in self.includeStatusCodes) and (
                     not(self.blacklists.get(path.status)) or path.path not in self.blacklists.get(path.status)
             ) and not (
-                    self.suppressEmpty and (not(len(path.response.body)))) and not ((
+                    (self.suppressEmpty and not len(path.response.body)) and not ((
                     self.minimumResponseSize and self.minimumResponseSize > len(path.response.body)) or (
                     self.maximumResponseSize and self.maximumResponseSize < len(path.response.body))
             ):
@@ -529,6 +533,41 @@ class Controller(object):
 
                 elif not self.directories.empty() and option.lower() == "n":
                     self.fuzzer.stop()
+                    return
+
+                elif len(self.arguments.urlList) > 1 and option.lower() == "s":
+                    raise SkipTargetInterrupt
+
+                else:
+                    continue
+
+        except KeyboardInterrupt:
+            self.exit = True
+            raise KeyboardInterrupt
+
+    def handle429(self):
+        self.output.warning("429 Too Many Requests detected: Server is blocking requests")
+        self.fuzzer.pause()
+
+        try:
+            while True:
+                msg = "[e]xit / [c]ontinue"
+
+                if len(self.arguments.urlList) > 1:
+                    msg += " / [s]kip target"
+
+                self.output.inLine(msg + ": ")
+
+                option = input()
+
+                if option.lower() == "e":
+                    self.exit = True
+                    self.fuzzer.stop()
+                    raise KeyboardInterrupt
+
+                elif option.lower() == "c":
+                    self.accept429 = True
+                    self.fuzzer.play()
                     return
 
                 elif len(self.arguments.urlList) > 1 and option.lower() == "s":
