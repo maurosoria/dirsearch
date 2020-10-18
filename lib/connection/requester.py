@@ -21,10 +21,13 @@ import random
 import socket
 import time
 import urllib.parse
-
 import thirdparty.requests as requests
+
 from .request_exception import *
 from .response import *
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 
 class Requester(object):
