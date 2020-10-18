@@ -229,6 +229,11 @@ class CLIOutput(object):
         self.newLine(config)
 
     def setTarget(self, target):
+        if not target.endswith("/"):
+            target += "/"
+        if not target.startswith("http://") and not target.startswith("https://"):
+            target = "http://" + target
+
         self.target = target
 
         config = Style.BRIGHT + Fore.YELLOW
