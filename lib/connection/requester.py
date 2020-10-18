@@ -23,8 +23,8 @@ import time
 import urllib.parse
 
 import thirdparty.requests as requests
-from .RequestException import *
-from .Response import *
+from .request_exception import *
+from .response import *
 
 
 class Requester(object):

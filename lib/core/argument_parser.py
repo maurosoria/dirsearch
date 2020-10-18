@@ -18,9 +18,9 @@
 
 from optparse import OptionParser, OptionGroup
 
-from lib.utils.DefaultConfigParser import DefaultConfigParser
-from lib.utils.FileUtils import File
-from lib.utils.FileUtils import FileUtils
+from lib.utils.default_config_parser import DefaultConfigParser
+from lib.utils.file_utils import File
+from lib.utils.file_utils import FileUtils
 from thirdparty.oset import *
 
 
@@ -44,15 +44,15 @@ class ArgumentParser(object):
                         print("The file with URLs does not exist")
                         exit(0)
 
-                    if not urlList.isValid():
+                    if not urlList.is_valid():
                         print("The file with URLs is invalid")
                         exit(0)
 
-                    if not urlList.canRead():
+                    if not urlList.can_read():
                         print("The file with URLs cannot be read")
                         exit(0)
 
-                    self.urlList = list(urlList.getLines())
+                    self.urlList = list(urlList.get_lines())
 
             elif not options.url:
                 print("URL target is missing, try using -u <url> ")
@@ -77,11 +77,11 @@ class ArgumentParser(object):
                     print('The wordlist file does not exist')
                     exit(1)
 
-                if not wordlist.isValid():
+                if not wordlist.is_valid():
                     print('The wordlist is invalid')
                     exit(1)
 
-                if not wordlist.canRead():
+                if not wordlist.can_read():
                     print('The wordlist cannot be read')
                     exit(1)
 
@@ -91,11 +91,11 @@ class ArgumentParser(object):
                     print('The proxylist file does not exist')
                     exit(1)
 
-                if not plist.isValid():
+                if not plist.is_valid():
                     print('The proxylist is invalid')
                     exit(1)
 
-                if not plist.canRead():
+                if not plist.can_read():
                     print('The proxylist cannot be read')
                     exit(1)
 
@@ -298,7 +298,7 @@ class ArgumentParser(object):
 
     def parseConfig(self):
         config = DefaultConfigParser()
-        configPath = FileUtils.buildPath(self.script_path, "default.conf")
+        configPath = FileUtils.build_path(self.script_path, "default.conf")
         config.read(configPath)
 
         # General
@@ -333,7 +333,7 @@ class ArgumentParser(object):
         self.wordlist = config.safe_get(
             "dictionary",
             "wordlist",
-            FileUtils.buildPath(self.script_path, "db", "dicc.txt"),
+            FileUtils.build_path(self.script_path, "db", "dicc.txt"),
         )
         self.prefixes = config.safe_get("dictionary", "prefixes", None)
         self.suffixes = config.safe_get("dictionary", "suffixes", None)

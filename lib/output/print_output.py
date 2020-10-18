@@ -19,7 +19,7 @@
 import sys
 import threading
 
-from lib.utils.FileUtils import *
+from lib.utils.file_utils import *
 from thirdparty.colorama import *
 
 if sys.platform in ["win32", "msys"]:
@@ -79,7 +79,7 @@ class PrintOutput(object):
                 size = len(response.body)
 
             finally:
-                contentLength = FileUtils.sizeHuman(size)
+                contentLength = FileUtils.size_human(size)
 
             if not self.basePath:
                 showPath = urljoin("/", path)

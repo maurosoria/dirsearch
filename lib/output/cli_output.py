@@ -20,8 +20,8 @@ import sys
 import threading
 import time
 
-from lib.utils.FileUtils import *
-from lib.utils.TerminalSize import get_terminal_size
+from lib.utils.file_utils import *
+from lib.utils.terminal_size import get_terminal_size
 from thirdparty.colorama import *
 
 if sys.platform in ["win32", "msys"]:
@@ -94,7 +94,7 @@ class CLIOutput(object):
                 size = len(response.body)
 
             finally:
-                contentLength = FileUtils.sizeHuman(size)
+                contentLength = FileUtils.size_human(size)
 
             if not self.basePath:
                 showPath = "/" + path
