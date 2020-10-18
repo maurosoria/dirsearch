@@ -102,7 +102,7 @@ class ArgumentParser(object):
             self.proxylist = open(options.proxyList).read().splitlines()
 
         elif options.httpProxy:
-            if options.httpProxy.startswith("http://") or options.httpProxy.startswith("https://"):
+            if options.httpProxy.startswith("http://") or options.httpProxy.startswith("https://") or options.httpProxy.startswith("socks5://"):
                 self.proxy = options.httpProxy
             else:
                 self.proxy = "http://{0}".format(options.httpProxy)
@@ -291,6 +291,7 @@ class ArgumentParser(object):
 
         self.redirect = options.noFollowRedirects
         self.requestByHostname = options.requestByHostname
+        self.stop = options.stop
         self.httpmethod = options.httpmethod
 
         self.recursive_level_max = options.recursive_level_max
@@ -358,6 +359,7 @@ class ArgumentParser(object):
         self.requestByHostname = config.safe_getboolean(
             "connection", "request-by-hostname", False
         )
+        self.stop = config.safe_getboolean("connection", "stop-on-error", False)
 
     def parseArguments(self):
         usage = "Usage: %prog [-u|--url] target [-e|--extensions] extensions [options]"
@@ -433,14 +435,14 @@ You can change the dirsearch default configurations (default extensions, timeout
         general.add_option('-t', '--threads', help='Number of Threads', action='store', type='int', dest='threadsCount',
                            default=self.threadsCount)
 
-        general.add_option('-i', '--include-status', help='Show only included status codes, separated by commas (example: 301, 500)',
+        general.add_option('-i', '--include-status', help='Show only included status codes, separated by commas (Example: 301, 500)',
                            action='store', dest='includeStatusCodes', default=self.includeStatusCodes)
-        general.add_option('-x', '--exclude-status', help='Do not show excluded status codes, separated by commas (example: 301, 500)',
+        general.add_option('-x', '--exclude-status', help='Do not show excluded status codes, separated by commas (Example: 301, 500)',
                            action='store', dest='excludeStatusCodes', default=self.excludeStatusCodes)
-        general.add_option('--exclude-texts', help='Exclude responses by texts, separated by commas (example: "Not found", "Error")',
+        general.add_option('--exclude-texts', help='Exclude responses by texts, separated by commas (Example: "Not found", "Error")',
                            action='store', dest='excludeTexts', default=None)
 
-        general.add_option('--exclude-regexps', help='Exclude responses by regexps, separated by commas (example: "Not foun[a-z]{1}", "^Error$")',
+        general.add_option('--exclude-regexps', help='Exclude responses by regexps, separated by commas (Example: "Not foun[a-z]{1}", "^Error$")',
                            action='store', dest='excludeRegexps', default=None)
         general.add_option('-c', '--cookie', action='store', type='string', dest='cookie', default=None)
         general.add_option('--user-agent', action='store', type='string', dest='useragent',
@@ -448,7 +450,7 @@ You can change the dirsearch default configurations (default extensions, timeout
         general.add_option('-F', '--follow-redirects', action='store_true', dest='noFollowRedirects',
                            default=self.redirect)
         general.add_option('-H', '--header',
-                           help='HTTP request headers, support multiple flags (example: --header "Referer: example.com")',
+                           help='HTTP request headers, support multiple flags (Example: --header "Referer: example.com")',
                            action='append', type='string', dest='headers', default=None)
         general.add_option('--full-url', action='store_true', dest='full_url',
                            help='Print the full URL in the output', default=self.full_url)
@@ -462,16 +464,18 @@ You can change the dirsearch default configurations (default extensions, timeout
                               default=self.timeout, help='Connection timeout')
         connection.add_option('--ip', action='store', dest='ip', default=None,
                               help='Resolve name to IP address')
+        connection.add_option('-S', action='store_true', dest='stop', default=self.stop,
+                              help='Stop whenever an error occurs')
+
         connection.add_option('-s', '--delay', help='Delay between requests (support float number)', action='store', dest='delay',
                               type='float', default=self.delay)
-
         connection.add_option('--proxy', '--http-proxy', action='store', dest='httpProxy', type='string',
-                              default=self.proxy, help='HTTP Proxy (example: localhost:8080)')
+                              default=self.proxy, help='Proxy URL, support HTTP and SOCKS proxy (Example: localhost:8080, socks5://localhost:8088)')
         connection.add_option('--proxylist', '--http-proxy-list', action='store', dest='proxyList', type='string',
                               default=self.proxylist, help='File containg HTTP proxy servers')
+
         connection.add_option('-m', '--http-method', action='store', dest='httpmethod', type='string',
                               default=self.httpmethod, help='HTTP method, default: GET')
-
         connection.add_option('--max-retries', action='store', dest='maxRetries', type='int',
                               default=self.maxRetries)
         connection.add_option('-b', '--request-by-hostname',

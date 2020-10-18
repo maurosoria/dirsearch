@@ -149,7 +149,7 @@ class CLIOutput(object):
     def lastPath(self, path, index, length, currentJob, allJobs):
         x, y = get_terminal_size()
 
-        message = "{0:.2f}% - ".format(self.percentage(index, length))
+        message = "{0:.2f}% ({1}/{2}) - ".format(self.percentage(index, length), index, length)
 
         if allJobs > 1:
             message += "Job: {0}/{1} - ".format(currentJob, allJobs)
@@ -229,6 +229,11 @@ class CLIOutput(object):
         self.newLine(config)
 
     def setTarget(self, target):
+        if not target.endswith("/"):
+            target += "/"
+        if not target.startswith("http://") and not target.startswith("https://"):
+            target = "http://" + target
+
         self.target = target
 
         config = Style.BRIGHT + Fore.YELLOW

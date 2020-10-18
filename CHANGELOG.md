@@ -3,10 +3,13 @@
 
 0.4.1 - Updating ...
 ---------
+- Faster
 - Added no extension option
 - Removed the delay between test requests when using -s
+- Support wordlist formats (2 from v0.4.0)
 - Multiple bugfixes
-- Faster than ever
+- Support SOCKS proxy
+- Option to stop whenever an error occurs
 
 ---------
 
