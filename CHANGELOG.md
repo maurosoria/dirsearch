@@ -10,6 +10,7 @@
 - Multiple bugfixes
 - Support SOCKS proxy
 - Option to stop whenever an error occurs
+- Option to provide headers using file as input
 
 ---------
 
