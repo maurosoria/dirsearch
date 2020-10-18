@@ -370,15 +370,15 @@ You can change the dirsearch default configurations (default extensions, timeout
         # Mandatory arguments
         mandatory = OptionGroup(parser, 'Mandatory')
         mandatory.add_option('-u', '--url', help='URL target', action='store', type='string', dest='url', default=None)
-        mandatory.add_option('-l', '--url-list', help='URL list target', action='store', type='string', dest='urlList',
+        mandatory.add_option('-l', '--url-list', help='URL list file', action='store', type='string', dest='urlList',
                              default=None)
-        mandatory.add_option('-e', '--extensions', help='Extensions list separated by commas (Example: php,asp)',
+        mandatory.add_option('-e', '--extensions', help='Extension list separated by commas (Example: php,asp)',
                              action='store', dest='extensions', default=None)
 
         mandatory.add_option('-E', '--extensions-list', help='Use predefined list of common extensions',
                              action='store_true', dest='defaultExtensions', default=False)
         mandatory.add_option('-X', '--exclude-extensions',
-                             help='Exclude extensions list separated by commas (Example: asp,jsp)',
+                             help='Exclude extension list separated by commas (Example: asp,jsp)',
                              action='store', dest='excludeExtensions', default=None)
 
         # Dictionary Settings
@@ -432,7 +432,7 @@ You can change the dirsearch default configurations (default extensions, timeout
                            help='Exclude the following subdirectories during recursive scan (separated by commas)',
                            action='store', dest='excludeSubdirs',
                            default=self.excludeSubdirs)
-        general.add_option('-t', '--threads', help='Number of Threads', action='store', type='int', dest='threadsCount',
+        general.add_option('-t', '--threads', help='Number of threads', action='store', type='int', dest='threadsCount',
                            default=self.threadsCount)
 
         general.add_option('-i', '--include-status', help='Show only included status codes, separated by commas (Example: 301, 500)',
@@ -450,7 +450,7 @@ You can change the dirsearch default configurations (default extensions, timeout
         general.add_option('-F', '--follow-redirects', action='store_true', dest='noFollowRedirects',
                            default=self.redirect)
         general.add_option('-H', '--header',
-                           help='HTTP request headers, support multiple flags (Example: --header "Referer: example.com")',
+                           help='HTTP request header, support multiple flags (Example: -H "Referer: example.com" -H "Accept: */*")',
                            action='append', type='string', dest='headers', default=None)
         general.add_option('--full-url', action='store_true', dest='full_url',
                            help='Print the full URL in the output', default=self.full_url)
@@ -463,7 +463,7 @@ You can change the dirsearch default configurations (default extensions, timeout
         connection.add_option('--timeout', action='store', dest='timeout', type='int',
                               default=self.timeout, help='Connection timeout')
         connection.add_option('--ip', action='store', dest='ip', default=None,
-                              help='Resolve name to IP address')
+                              help='Server IP address')
         connection.add_option('--stop-on-error', action='store_true', dest='stop', default=self.stop,
                               help='Stop whenever an error occurs')
 
