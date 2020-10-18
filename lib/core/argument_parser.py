@@ -125,22 +125,22 @@ class ArgumentParser(object):
         else:
             self.headers = {}
 
-        if options.headersFromFile:
+        if options.headerList:
             try:
-                with File(options.headersFromFile) as headerList:
-                    if not headerList.exists():
+                with File(options.headerList) as hlist:
+                    if not hlist.exists():
                         print('The header list file does not exist')
                         exit(1)
 
-                    if not headerList.is_valid():
+                    if not hlist.is_valid():
                         print('The header list file is invalid')
                         exit(1)
 
-                    if not headerList.can_read():
+                    if not hlist.can_read():
                         print('The header list cannot be read')
                         exit(1)
 
-                    lines = headerList.get_lines()
+                    lines = hlist.get_lines()
                     for line in lines:
                         line = line.strip()
                         key, value = line.split(":")[0].strip(),line.split(":")[1].strip()
@@ -476,9 +476,9 @@ You can change the dirsearch default configurations (default extensions, timeout
         general.add_option('-H', '--header',
                            help='HTTP request headers, support multiple flags (Example: --header "Referer: example.com")',
                            action='append', type='string', dest='headers', default=None)
-        general.add_option('--headers-list',
+        general.add_option('--header-list',
                            help="HTTP request headers list file", type='string',
-                           dest='headersFromFile', default=None)
+                           dest='headerList', default=None)
         general.add_option('--full-url', action='store_true', dest='full_url',
                            help='Print the full URL in the output', default=self.full_url)
 

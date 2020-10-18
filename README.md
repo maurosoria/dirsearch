@@ -111,7 +111,7 @@ Options:
                         HTTP request headers, support multiple flags (example:
                         --header "Referer: example.com" --header "User-Agent:
                         IE")
-    --headers-list=FILENAME
+    --header-list=FILENAME
                         HTTP request headers list from file. The format of the file is as below
                         
                         Referer:Example.com
