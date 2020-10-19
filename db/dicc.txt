@@ -957,6 +957,9 @@
 .zshrc
 .zuul.yaml
 .zuul.yml
+_fragment
+_internal
+_proxy
 0
 0.htpasswd
 0.php
