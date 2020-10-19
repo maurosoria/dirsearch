@@ -961,7 +961,6 @@
 .zshrc
 .zuul.yaml
 .zuul.yml
-/show_image_NpAdvCatPG.php?cache=false&cat=1&filename=
 0
 0.htpasswd
 0.php
@@ -6160,6 +6159,7 @@ shopping
 shopping_cart.%EXT%
 show
 showCfg
+show_image_NpAdvCatPG.php?cache=false&cat=1&filename=
 show_image_NpAdvFeaThumb.php?cache=false&cat=1&filename=
 show_image_NpAdvHover.php?cache=false&cat=0&filename=
 show_image_NpAdvInnerSmall.php?cache=false&cat=1&filename=
