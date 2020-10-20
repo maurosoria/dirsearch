@@ -65,9 +65,12 @@ class Requester(object):
 
         self.protocol = parsed.scheme
 
-        # if not protocol specified, set http by default
-        if self.protocol not in ["https", "http"]:
+        # If no protocol specified, set http by default
+        if not self.protocol:
             self.protocol = "http"
+        # If protocol is not supported
+        elif self.protocol not in ["https", "http"]:
+            raise RequestException({"message": "Not supported scheme: {0}".format(self.protocol)})
 
         self.host = parsed.netloc.split(":")[0]
 
