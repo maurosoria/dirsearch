@@ -143,7 +143,7 @@ class ArgumentParser(object):
                     lines = hlist.get_lines()
                     for line in lines:
                         line = line.strip()
-                        key, value = line.split(":")[0].strip(),line.split(":")[1].strip()
+                        key, value = line.split(":")[0].strip(), line.split(":")[1].strip()
                         self.headers[key] = value
             except Exception as e:
                 print("Error in headers file: " + str(e))
