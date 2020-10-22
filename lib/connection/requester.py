@@ -182,11 +182,8 @@ class Requester(object):
                 raise RequestException({"message": "Too many redirects: {0}".format(e)})
 
             except requests.exceptions.SSLError:
-                raise RequestException(
-                    {
-                        "message": "SSL Error connecting to server. Try the -b flag to connect by hostname"
-                    }
-                )
+                self.url = "{0}://{1}:{2}".format(self.protocol, self.host, self.port)
+                continue
 
             except requests.exceptions.ConnectionError as e:
                 if self.proxy is not None:
