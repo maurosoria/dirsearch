@@ -464,23 +464,23 @@ You can change the dirsearch default configurations (default extensions, timeout
                               default=self.timeout, help='Connection timeout')
         connection.add_option('--ip', action='store', dest='ip', default=None,
                               help='Server IP address')
-        connection.add_option('--stop-on-error', action='store_true', dest='stop', default=self.stop,
-                              help='Stop whenever an error occurs')
-
         connection.add_option('-s', '--delay', help='Delay between requests (support float number)', action='store', dest='delay',
                               type='float', default=self.delay)
+
         connection.add_option('--proxy', action='store', dest='httpProxy', type='string',
                               default=self.proxy, help='Proxy URL, support HTTP and SOCKS proxy (Example: localhost:8080, socks5://localhost:8088)')
         connection.add_option('--proxy-list', action='store', dest='proxyList', type='string',
                               default=self.proxylist, help='File contains proxy servers')
-
         connection.add_option('-m', '--http-method', action='store', dest='httpmethod', type='string',
                               default=self.httpmethod, help='HTTP method, default: GET')
+
         connection.add_option('--max-retries', action='store', dest='maxRetries', type='int',
                               default=self.maxRetries)
         connection.add_option('-b', '--request-by-hostname',
                               help='By default dirsearch will request by IP for speed. This will force requests by hostname',
                               action='store_true', dest='requestByHostname', default=self.requestByHostname)
+        connection.add_option('--stop-on-error', action='store_true', dest='stop', default=self.stop,
+                              help='Stop whenever an error occurs')
 
         # Report Settings
         reports = OptionGroup(parser, 'Reports')
