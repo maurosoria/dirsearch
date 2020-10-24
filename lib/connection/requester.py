@@ -61,17 +61,16 @@ class Requester(object):
             url += "/"
 
         parsed = urllib.parse.urlparse(url)
-        self.basePath = parsed.path
-
-        self.protocol = parsed.scheme
 
         # If no protocol specified, set http by default
-        if not self.protocol:
-            self.protocol = "http"
+        if not parsed.scheme:
+            parsed = urllib.parse.urlparse("http://" + url)
         # If protocol is not supported
-        elif self.protocol not in ["https", "http"]:
-            raise RequestException({"message": "Not supported scheme: {0}".format(self.protocol)})
+        elif parsed.scheme not in ["https", "http"]:
+            raise RequestException({"message": "Not supported scheme: {0}".format(parsed.scheme)})
 
+        self.basePath = parsed.path
+        self.protocol = parsed.scheme
         self.host = parsed.netloc.split(":")[0]
 
         # resolve DNS to decrease overhead
