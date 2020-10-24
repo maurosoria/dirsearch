@@ -142,8 +142,6 @@ class PrintOutput(object):
         threads,
         wordlist_size,
         method,
-        recursive,
-        recursion_level,
     ):
         pass
 
