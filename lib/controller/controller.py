@@ -184,6 +184,8 @@ class Controller(object):
                     # Initialize directories Queue with start Path
                     self.basePath = self.requester.basePath
 
+                    self.baseDepth = self.basePath.count("/") - 1
+
                     if self.arguments.scanSubdirs:
                         for subdir in self.arguments.scanSubdirs:
                             self.directories.put(subdir)
@@ -488,6 +490,7 @@ class Controller(object):
             self.fuzzer.stop()
             self.output.error("\nCanceled due to an error")
             exit(0)
+
         else:
             self.output.addConnectionError()
 
@@ -577,7 +580,7 @@ class Controller(object):
             if dir in self.doneDirs:
                 return False
 
-            if self.recursive_level_max and dir.count("/") > self.recursive_level_max:
+            if self.recursive_level_max and dir.count("/") - self.baseDepth > self.recursive_level_max:
                 return False
 
             self.directories.put(dir)
@@ -606,7 +609,7 @@ class Controller(object):
             if dir in self.doneDirs:
                 return False
 
-            if self.recursive_level_max and dir.count("/") > self.recursive_level_max:
+            if self.recursive_level_max and dir.count("/") - self.baseDepth > self.recursive_level_max:
                 return False
 
             self.directories.put(dir)
