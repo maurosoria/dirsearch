@@ -133,7 +133,7 @@ class ArgumentParser(object):
         self.cookie = options.cookie
 
         if options.threadsCount < 1:
-            print('Threads number must be a number greater than zero')
+            print('Threads number must be greater than zero')
             exit(1)
 
         self.threadsCount = options.threadsCount
@@ -313,7 +313,7 @@ class ArgumentParser(object):
         self.redirect = config.safe_getboolean("general", "follow-redirects", False)
         self.recursive = config.safe_getboolean("general", "recursive", False)
         self.recursive_level_max = config.safe_getint(
-            "general", "recursive-level-max", 1
+            "general", "recursive-level-max", 0
         )
         self.suppressEmpty = config.safe_getboolean("general", "suppress-empty", False)
         self.testFailPath = config.safe_get("general", "scanner-fail-path", "").strip()
@@ -413,7 +413,7 @@ You can change the dirsearch default configurations (default extensions, timeout
         general.add_option('-r', '--recursive', help='Bruteforce recursively', action='store_true', dest='recursive',
                            default=self.recursive)
         general.add_option('-R', '--recursive-level-max',
-                           help='Max recursion level (subdirs) (Default: 1 [only rootdir + 1 dir])', action='store', type='int',
+                           help='Max recursion level (subdirs) (Default: 0 [infinity])', action='store', type='int',
                            dest='recursive_level_max',
                            default=self.recursive_level_max)
 
