@@ -193,8 +193,6 @@ class CLIOutput(object):
         threads,
         wordlist_size,
         method,
-        recursive,
-        recursion_level,
     ):
         separator = Fore.MAGENTA + " | " + Fore.YELLOW
 
@@ -216,12 +214,6 @@ class CLIOutput(object):
         config += "Threads: {0}".format(Fore.CYAN + threads + Fore.YELLOW)
         config += separator
         config += "Wordlist size: {0}".format(Fore.CYAN + wordlist_size + Fore.YELLOW)
-
-        if recursive is True:
-            config += separator
-            config += "Recursion level: {0}".format(
-                Fore.CYAN + recursion_level + Fore.YELLOW
-            )
 
         config += Style.RESET_ALL
 
