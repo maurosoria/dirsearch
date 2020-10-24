@@ -96,14 +96,7 @@ class CLIOutput(object):
         finally:
             contentLength = FileUtils.size_human(size)
 
-        if not self.basePath:
-            showPath = "/" + path
-
-        else:
-            if not self.basePath.startswith("/"):
-                self.basePath = "/" + self.basePath
-
-            showPath = self.basePath.rstrip("/") + "/" + path
+        showPath = self.basePath.rstrip("/") + "/" + path
 
         if full_url:
             parsed = urllib.parse.urlparse(self.target)
