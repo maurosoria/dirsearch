@@ -27,7 +27,7 @@
 
 ---------
 
-0.3.9 - 2017.11.26
+0.3.9 - 2019.11.26
 ---------
 - Added default extensions argument (-E).
 - Added suppress empty responses.
