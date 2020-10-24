@@ -35,7 +35,7 @@ class Program(object):
 
         self.arguments = ArgumentParser(self.script_path)
 
-        if self.arguments.clean_view:
+        if self.arguments.quiet:
             self.output = PrintOutput()
         else:
             self.output = CLIOutput()

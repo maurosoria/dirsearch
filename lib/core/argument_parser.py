@@ -31,7 +31,7 @@ class ArgumentParser(object):
 
         options = self.parseArguments()
 
-        self.clean_view = options.clean_view
+        self.quiet = options.quiet
         self.full_url = options.full_url
 
         if not options.url:
@@ -322,7 +322,8 @@ class ArgumentParser(object):
             "general", "default-extensions", "php,asp,aspx,jsp,html,htm,js"
         )
         self.excludeSubdirs = config.safe_get("general", "exclude-subdirs", None)
-        self.full_url = config.safe_getboolean("general", "full_url", False)
+        self.full_url = config.safe_getboolean("general", "full-url", False)
+        self.quiet = config.safe_getboolean("general", "quiet-mode", False)
 
         # Reports
         self.autoSave = config.safe_getboolean("reports", "autosave-report", False)
@@ -374,7 +375,6 @@ You can change the dirsearch default configurations (default extensions, timeout
                              default=None)
         mandatory.add_option('-e', '--extensions', help='Extension list separated by commas (Example: php,asp)',
                              action='store', dest='extensions', default=None)
-
         mandatory.add_option('-E', '--extensions-list', help='Use predefined list of common extensions',
                              action='store_true', dest='defaultExtensions', default=False)
         mandatory.add_option('-X', '--exclude-extensions',
@@ -390,19 +390,16 @@ You can change the dirsearch default configurations (default extensions, timeout
                               help='Add custom prefixes to all entries (separated by commas)')
         dictionary.add_option('--suffixes', action='store', dest='suffixes', default=self.suffixes,
                               help='Add custom suffixes to all entries, ignores directories (separated by commas)')
-
         dictionary.add_option('-f', '--force-extensions', action='store_true', dest='forceExtensions', default=self.forceExtensions,
                               help='Force extensions for every wordlist entry. Add %NOFORCE% at the end of the entry in the wordlist that you do not want to force')
         dictionary.add_option('--no-extension', dest='noExtension', action='store_true',
                               help='Remove extensions in all wordlist entries (Example: admin.php -> admin)')
         dictionary.add_option('--no-dot-extensions', dest='noDotExtensions', default=self.noDotExtensions,
                               help='Remove the "." character before extensions', action='store_true')
-
         dictionary.add_option('-C', '--capitalization', action='store_true', dest='capitalization', default=self.capitalization,
                               help='Capital wordlist')
         dictionary.add_option('-U', '--uppercase', action='store_true', dest='uppercase', default=self.uppercase,
                               help='Uppercase wordlist')
-
         dictionary.add_option('-L', '--lowercase', action='store_true', dest='lowercase', default=self.lowercase,
                               help='Lowercase wordlist')
 
@@ -416,14 +413,12 @@ You can change the dirsearch default configurations (default extensions, timeout
                            help='Max recursion level (subdirs) (Default: 1 [only rootdir + 1 dir])', action='store', type='int',
                            dest='recursive_level_max',
                            default=self.recursive_level_max)
-
         general.add_option('--suppress-empty', action='store_true', dest='suppressEmpty',
                            help='Suppress empty responses', default=self.suppressEmpty)
         general.add_option('--minimal', action='store', dest='minimumResponseSize', type='int', default=None,
                            help='Minimal response length')
         general.add_option('--maximal', action='store', dest='maximumResponseSize', type='int', default=None,
                            help='Maximal response length')
-
         general.add_option('--scan-subdir', '--scan-subdirs',
                            help='Scan subdirectories of the given URL (separated by commas)', action='store',
                            dest='scanSubdirs',
@@ -434,14 +429,12 @@ You can change the dirsearch default configurations (default extensions, timeout
                            default=self.excludeSubdirs)
         general.add_option('-t', '--threads', help='Number of threads', action='store', type='int', dest='threadsCount',
                            default=self.threadsCount)
-
         general.add_option('-i', '--include-status', help='Show only included status codes, separated by commas (Example: 301, 500)',
                            action='store', dest='includeStatusCodes', default=self.includeStatusCodes)
         general.add_option('-x', '--exclude-status', help='Do not show excluded status codes, separated by commas (Example: 301, 500)',
                            action='store', dest='excludeStatusCodes', default=self.excludeStatusCodes)
         general.add_option('--exclude-texts', help='Exclude responses by texts, separated by commas (Example: "Not found", "Error")',
                            action='store', dest='excludeTexts', default=None)
-
         general.add_option('--exclude-regexps', help='Exclude responses by regexps, separated by commas (Example: "Not foun[a-z]{1}", "^Error$")',
                            action='store', dest='excludeRegexps', default=None)
         general.add_option('-c', '--cookie', action='store', type='string', dest='cookie', default=None)
@@ -454,9 +447,8 @@ You can change the dirsearch default configurations (default extensions, timeout
                            action='append', type='string', dest='headers', default=None)
         general.add_option('--full-url', action='store_true', dest='full_url',
                            help='Print the full URL in the output', default=self.full_url)
-
         general.add_option('--random-agents', '--random-user-agents', action='store_true', dest='useRandomAgents')
-        general.add_option('-q', '--quite-mode', action='store_true', dest='clean_view')
+        general.add_option('-q', '--quiet-mode', action='store_true', dest='quiet', default=self.quiet)
 
         # Connection Settings
         connection = OptionGroup(parser, 'Connection Settings')
@@ -466,14 +458,12 @@ You can change the dirsearch default configurations (default extensions, timeout
                               help='Server IP address')
         connection.add_option('-s', '--delay', help='Delay between requests (support float number)', action='store', dest='delay',
                               type='float', default=self.delay)
-
         connection.add_option('--proxy', action='store', dest='httpProxy', type='string',
                               default=self.proxy, help='Proxy URL, support HTTP and SOCKS proxy (Example: localhost:8080, socks5://localhost:8088)')
         connection.add_option('--proxy-list', action='store', dest='proxyList', type='string',
                               default=self.proxylist, help='File contains proxy servers')
         connection.add_option('-m', '--http-method', action='store', dest='httpmethod', type='string',
                               default=self.httpmethod, help='HTTP method, default: GET')
-
         connection.add_option('--max-retries', action='store', dest='maxRetries', type='int',
                               default=self.maxRetries)
         connection.add_option('-b', '--request-by-hostname',
