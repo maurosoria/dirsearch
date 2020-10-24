@@ -184,7 +184,7 @@ class Controller(object):
                     # Initialize directories Queue with start Path
                     self.basePath = self.requester.basePath
 
-                    self.baseDepth = self.basePath.count("/") - 1
+                    self.baseDepth = self.basePath.count("/")
 
                     if self.arguments.scanSubdirs:
                         for subdir in self.arguments.scanSubdirs:
