@@ -322,8 +322,8 @@ class ArgumentParser(object):
             "general", "default-extensions", "php,asp,aspx,jsp,html,htm,js"
         )
         self.excludeSubdirs = config.safe_get("general", "exclude-subdirs", None)
-        self.full_url = config.safe_getboolean("general", "full_url", False)
-        self.quiet = config.safe_getboolean("general", "quiet_mode", False)
+        self.full_url = config.safe_getboolean("general", "full-url", False)
+        self.quiet = config.safe_getboolean("general", "quiet-mode", False)
 
         # Reports
         self.autoSave = config.safe_getboolean("reports", "autosave-report", False)
