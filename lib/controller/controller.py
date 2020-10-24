@@ -278,9 +278,7 @@ class Controller(object):
                 if line.lstrip().startswith("#"):
                     continue
 
-                # The same with dictionary.py
-                if line.startswith("/"):
-                    line = line[1:]
+                line = line.lstrip("/")
 
                 # Classic dirsearch blacklist processing (with %EXT% keyword)
                 if "%ext%" in line.lower():
@@ -340,7 +338,7 @@ class Controller(object):
     def setupReports(self, requester):
         if self.arguments.autoSave:
 
-            basePath = "/" if not(len(requester.basePath)) else requester.basePath
+            basePath = requester.basePath
             basePath = basePath.replace(os.path.sep, ".")[:-1]
             fileName = None
             directoryPath = None
@@ -554,8 +552,8 @@ class Controller(object):
 
     def wait(self):
         while not self.directories.empty():
-            self.currentJob += 1
             gc.collect()
+            self.currentJob += 1
             self.index = 0
             self.currentDirectory = self.directories.get()
             self.output.warning(
