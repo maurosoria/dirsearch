@@ -111,6 +111,14 @@ Options:
                         HTTP request headers, support multiple flags (example:
                         --header "Referer: example.com" --header "User-Agent:
                         IE")
+    --header-list=FILENAME
+                        File contains HTTP request headers. The format of the file is as below
+                        
+                        Referer:Example.com
+                        Host: Abc.com
+                        Token: 123dh2dsds=sd2wd1
+                        OtherHeaders: OtherValues        
+                
     --full-url          Print the full URL in the output
     --random-agents, --random-user-agents
     -q, --quite-mode
@@ -451,5 +459,6 @@ Special thanks for these people:
 - @serhattsnmz
 - @ColdFusionX
 - @gdattacker
+- @chowmean
 
 #### Feeling excited? Just [tweet](https://twitter.com/intent/tweet?text=I%20just%20installed%20dirsearch%20v0.4.0%20-%20A%20Web%20Path%20Scanner%20https%3A%2F%2Fgithub.com%2Fmaurosoria%2Fdirsearch%20%23fuzzer%20%23bugbounty%20%23dirsearch%20%23pentesting%20%23security) about it!

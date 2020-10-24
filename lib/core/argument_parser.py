@@ -125,6 +125,30 @@ class ArgumentParser(object):
         else:
             self.headers = {}
 
+        if options.headerList:
+            try:
+                with File(options.headerList) as hlist:
+                    if not hlist.exists():
+                        print('The header list file does not exist')
+                        exit(1)
+
+                    if not hlist.is_valid():
+                        print('The header list file is invalid')
+                        exit(1)
+
+                    if not hlist.can_read():
+                        print('The header list cannot be read')
+                        exit(1)
+
+                    lines = hlist.get_lines()
+                    for line in lines:
+                        line = line.strip()
+                        key, value = line.split(":")[0].strip(), line.split(":")[1].strip()
+                        self.headers[key] = value
+            except Exception as e:
+                print("Error in headers file: " + str(e))
+                exit(0)
+
         self.extensions = list(
             oset([extension.strip() for extension in options.extensions.split(",")])
         )
@@ -445,6 +469,9 @@ You can change the dirsearch default configurations (default extensions, timeout
         general.add_option('-H', '--header',
                            help='HTTP request header, support multiple flags (Example: -H "Referer: example.com" -H "Accept: */*")',
                            action='append', type='string', dest='headers', default=None)
+        general.add_option('--header-list',
+                           help="File contains HTTP request headers", type='string',
+                           dest='headerList', default=None)
         general.add_option('--full-url', action='store_true', dest='full_url',
                            help='Print the full URL in the output', default=self.full_url)
         general.add_option('--random-agents', '--random-user-agents', action='store_true', dest='useRandomAgents')
