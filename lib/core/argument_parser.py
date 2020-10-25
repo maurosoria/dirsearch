@@ -221,7 +221,7 @@ class ArgumentParser(object):
 
                     oset(
                         [
-                            excludeSize.strip() if excludeSize else None
+                            excludeSize.strip().upper() if excludeSize else None
                             for excludeSize in options.excludeSizes.split(",")
                         ]
                     )
