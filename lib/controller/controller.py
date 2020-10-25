@@ -184,8 +184,6 @@ class Controller(object):
                     # Initialize directories Queue with start Path
                     self.basePath = self.requester.basePath
 
-                    self.baseDepth = self.basePath.count("/")
-
                     if self.arguments.scanSubdirs:
                         for subdir in self.arguments.scanSubdirs:
                             self.directories.put(subdir)
@@ -578,7 +576,7 @@ class Controller(object):
             if dir in self.doneDirs:
                 return False
 
-            if self.recursive_level_max and dir.count("/") - self.baseDepth >= self.recursive_level_max:
+            if self.recursive_level_max and dir.count("/") > self.recursive_level_max:
                 return False
 
             self.directories.put(dir)
@@ -607,7 +605,7 @@ class Controller(object):
             if dir in self.doneDirs:
                 return False
 
-            if self.recursive_level_max and dir.count("/") - self.baseDepth >= self.recursive_level_max:
+            if self.recursive_level_max and dir.count("/") > self.recursive_level_max:
                 return False
 
             self.directories.put(dir)
