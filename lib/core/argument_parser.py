@@ -215,6 +215,23 @@ class ArgumentParser(object):
         else:
             self.excludeStatusCodes = []
 
+        if options.excludeSizes:
+            try:
+                self.excludeSizes = list(
+
+                    oset(
+                        [
+                            excludeSize.strip() if excludeSize else None
+                            for excludeSize in options.excludeSizes.split(",")
+                        ]
+                    )
+                )
+
+            except ValueError:
+                self.excludeSizes = []
+        else:
+            self.excludeSizes = []
+
         if options.excludeTexts:
             try:
                 self.excludeTexts = list(
@@ -457,6 +474,8 @@ You can change the dirsearch default configurations (default extensions, timeout
                            action='store', dest='includeStatusCodes', default=self.includeStatusCodes)
         general.add_option('-x', '--exclude-status', help='Do not show excluded status codes, separated by commas (Example: 301, 500)',
                            action='store', dest='excludeStatusCodes', default=self.excludeStatusCodes)
+        general.add_option('--exclude-sizes', help='Exclude responses by sizes, separated by commas (Example: 123B,4KB)',
+                           action='store', dest='excludeSizes', default=None)
         general.add_option('--exclude-texts', help='Exclude responses by texts, separated by commas (Example: "Not found", "Error")',
                            action='store', dest='excludeTexts', default=None)
         general.add_option('--exclude-regexps', help='Exclude responses by regexps, separated by commas (Example: "Not foun[a-z]{1}", "^Error$")',
