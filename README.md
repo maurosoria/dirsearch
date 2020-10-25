@@ -177,7 +177,6 @@ Features
 - Batch processing
 - Request delaying
 - Multiple wordlist formats (lowercase, uppercase, capitalization)
-- Extensions removing in wordlist
 - Quiet mode
 - Option to force requests by hostname
 - Option to whitelist response codes (-i 200,500)
