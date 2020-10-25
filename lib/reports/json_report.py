@@ -43,7 +43,7 @@ class JSONReport(FileBaseReport):
         for path, status, contentLength, redirect in self.pathList:
             entry = {
                 "status": status,
-                "path": path,
+                "path": "/" + path,
                 "content-length": contentLength,
                 "redirect": redirect,
             }
