@@ -480,14 +480,14 @@ You can change the dirsearch default configurations (default extensions, timeout
                            action='append', type='string', dest='headers', default=None)
         general.add_option('--header-list', help="File contains HTTP request headers", type='string',
                            dest='headerList', default=None)
-        general.add_option('-F', '--follow-redirects', action='store_true', dest='noFollowRedirects',
-                           default=self.redirect)
         general.add_option('--user-agent', action='store', type='string', dest='useragent',
                            default=self.useragent)
+        general.add_option('--random-agent', '--random-user-agent', action='store_true', dest='useRandomAgents')
         general.add_option('--cookie', action='store', type='string', dest='cookie', default=None)
+        general.add_option('-F', '--follow-redirects', action='store_true', dest='noFollowRedirects',
+                           default=self.redirect)
         general.add_option('--full-url', action='store_true', dest='full_url',
                            help='Print the full URL in the output', default=self.full_url)
-        general.add_option('--random-agents', '--random-user-agents', action='store_true', dest='useRandomAgents')
         general.add_option('-q', '--quiet-mode', action='store_true', dest='quiet', default=self.quiet)
 
         # Connection Settings
