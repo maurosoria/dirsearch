@@ -356,6 +356,7 @@ class ArgumentParser(object):
         self.recursive_level_max = config.safe_getint(
             "general", "recursive-level-max", 1
         )
+        self.headerList = config.safe_get("general", "headers-file", None)
         self.suppressEmpty = config.safe_getboolean("general", "suppress-empty", False)
         self.testFailPath = config.safe_get("general", "scanner-fail-path", "").strip()
         self.saveHome = config.safe_getboolean("general", "save-logs-home", False)
@@ -479,7 +480,7 @@ You can change the dirsearch default configurations (default extensions, timeout
         general.add_option('-H', '--header', help='HTTP request header, support multiple flags (Example: -H "Referer: example.com" -H "Accept: */*")',
                            action='append', type='string', dest='headers', default=None)
         general.add_option('--header-list', help="File contains HTTP request headers", type='string',
-                           dest='headerList', default=None)
+                           dest='headerList', default=self.headerList)
         general.add_option('--user-agent', action='store', type='string', dest='useragent',
                            default=self.useragent)
         general.add_option('--random-agent', '--random-user-agent', action='store_true', dest='useRandomAgents')
