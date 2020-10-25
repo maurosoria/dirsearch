@@ -37,7 +37,7 @@ class PlainTextReport(TailableFileBaseReport):
         except(KeyError, ValueError):
             pass
 
-        self.storeData((path, status, contentLength, location, ))
+        self.storeData((path, status, contentLength, location))
 
     def generate(self):
         result = ""
