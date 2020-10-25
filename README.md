@@ -6,7 +6,11 @@ Current Release: v0.4.0 (2020.9.25)
 
 Overview
 --------
-dirsearch is an advanced command line tool designed to brute force directories and files in webservers.
+Dirsearch is a mature command-line tool designed to brute force directories and files in webservers. 
+
+With 6 years of growing, dirsearch has become the most popular web content scanner ever. As a feature-rich tool, dirsearch allows the user to perform a complex web content discovering, with many vectors for the wordlist, high accuracy, impressive performance, advanced connection/request settings, modern brute-force techniques and nice output.
+
+Although there are now many awesome fuzzers like [wfuzz](https://github.com/xmendez/wfuzz), [gobuster](https://github.com/OJ/gobuster) or [ffuf](https://github.com/ffuf/ffuf), dirsearch is still showing it's own unique in features and detections when doing web content brute-force. Instead of supporting parameters fuzzing like in *ffuf* or *wfuzz*, dirsearch still keeps it as a traditional files brute forcer. This allows dirsearch to much more focusing on the accuracy of the output and supporting more features for its purpose.
 
 
 Installation & Usage
@@ -39,42 +43,40 @@ Options:
   Mandatory:
     -u URL, --url=URL   URL target
     -l URLLIST, --url-list=URLLIST
-                        URL list target
+                        URL list file
     -e EXTENSIONS, --extensions=EXTENSIONS
-                        Extensions list separated by comma (Example: php,asp)
+                        Extension list separated by commas (Example: php,asp)
     -E, --extensions-list
                         Use predefined list of common extensions
     -X EXCLUDEEXTENSIONS, --exclude-extensions=EXCLUDEEXTENSIONS
-                        Exclude extensions list, separated by comma (Example:
+                        Exclude extension list separated by commas (Example:
                         asp,jsp)
 
   Dictionary Settings:
     -w WORDLIST, --wordlist=WORDLIST
-                        Customize wordlist (separated by comma)
+                        Customize wordlist (separated by commas)
     --prefixes=PREFIXES
                         Add custom prefixes to all entries (separated by
-                        comma)
+                        commas)
     --suffixes=SUFFIXES
                         Add custom suffixes to all entries, ignores
-                        directories (separated by comma)
+                        directories (separated by commas)
     -f, --force-extensions
                         Force extensions for every wordlist entry. Add
                         %NOFORCE% at the end of the entry in the wordlist that
                         you do not want to force
-    --no-extension      Remove extensions in all entries (Example: admin.php
-                        -> admin)
+    --no-extension      Remove extensions in all wordlist entries (Example:
+                        admin.php -> admin)
     --no-dot-extensions
                         Remove the "." character before extensions
-    -U, --uppercase     Uppercase wordlist
-    -L, --lowercase     Lowercase wordlist
     -C, --capitalization
                         Capital wordlist
+    -U, --uppercase     Uppercase wordlist
+    -L, --lowercase     Lowercase wordlist
 
   General Settings:
     -d DATA, --data=DATA
-                        HTTP request data (POST, PUT, ... body)
-    -s DELAY, --delay=DELAY
-                        Delay between requests (support float number)
+                        HTTP request data
     -r, --recursive     Bruteforce recursively
     -R RECURSIVE_LEVEL_MAX, --recursive-level-max=RECURSIVE_LEVEL_MAX
                         Max recursion level (subdirs) (Default: 1 [only
@@ -86,56 +88,55 @@ Options:
                         Maximal response length
     --scan-subdir=SCANSUBDIRS, --scan-subdirs=SCANSUBDIRS
                         Scan subdirectories of the given URL (separated by
-                        comma)
+                        commas)
     --exclude-subdir=EXCLUDESUBDIRS, --exclude-subdirs=EXCLUDESUBDIRS
                         Exclude the following subdirectories during recursive
-                        scan (separated by comma)
+                        scan (separated by commas)
     -t THREADSCOUNT, --threads=THREADSCOUNT
-                        Number of Threads
+                        Number of threads
     -i INCLUDESTATUSCODES, --include-status=INCLUDESTATUSCODES
-                        Show only included status codes, separated by comma
-                        (example: 301, 500)
+                        Show only included status codes, separated by commas
+                        (Example: 301, 500)
     -x EXCLUDESTATUSCODES, --exclude-status=EXCLUDESTATUSCODES
-                        Do not show excluded status codes, separated by comma
-                        (example: 301, 500)
+                        Do not show excluded status codes, separated by commas
+                        (Example: 301, 500)
+    --exclude-sizes=EXCLUDESIZES
+                        Exclude responses by sizes, separated by commas
+                        (Example: 123B,4KB)
     --exclude-texts=EXCLUDETEXTS
-                        Exclude responses by texts, separated by comma
-                        (example: "Not found", "Error")
+                        Exclude responses by texts, separated by commas
+                        (Example: "Not found", "Error")
     --exclude-regexps=EXCLUDEREGEXPS
-                        Exclude responses by regexps, separated by comma
-                        (example: "Not foun[a-z]{1}", "^Error$")
-    -c COOKIE, --cookie=COOKIE
-    --user-agent=USERAGENT
-    -F, --follow-redirects
+                        Exclude responses by regexps, separated by commas
+                        (Example: "Not foun[a-z]{1}", "^Error$")
     -H HEADERS, --header=HEADERS
-                        HTTP request headers, support multiple flags (example:
-                        --header "Referer: example.com" --header "User-Agent:
-                        IE")
-    --header-list=FILENAME
-                        File contains HTTP request headers. The format of the file is as below
-                        
-                        Referer:Example.com
-                        Host: Abc.com
-                        Token: 123dh2dsds=sd2wd1
-                        OtherHeaders: OtherValues        
-                
+                        HTTP request header, support multiple flags (Example:
+                        -H "Referer: example.com" -H "Accept: */*")
+    --header-list=HEADERLIST
+                        File contains HTTP request headers
+    --user-agent=USERAGENT
+    --random-agent, --random-user-agent
+    --cookie=COOKIE
+    -F, --follow-redirects
     --full-url          Print the full URL in the output
-    --random-agents, --random-user-agents
-    -q, --quite-mode
+    -q, --quiet-mode
 
   Connection Settings:
     --timeout=TIMEOUT   Connection timeout
-    --ip=IP             Resolve name to IP address
-    --proxy=HTTPPROXY, --http-proxy=HTTPPROXY
-                        HTTP Proxy (example: localhost:8080)
-    --proxylist=PROXYLIST, --http-proxy-list=PROXYLIST
-                        File containg HTTP proxy servers
+    --ip=IP             Server IP address
+    -s DELAY, --delay=DELAY
+                        Delay between requests (support float number)
+    --proxy=HTTPPROXY   Proxy URL, support HTTP and SOCKS proxy (Example:
+                        localhost:8080, socks5://localhost:8088)
+    --proxy-list=PROXYLIST
+                        File contains proxy servers
     -m HTTPMETHOD, --http-method=HTTPMETHOD
                         HTTP method, default: GET
     --max-retries=MAXRETRIES
     -b, --request-by-hostname
                         By default dirsearch will request by IP for speed.
                         This will force requests by hostname
+    --stop-on-error     Stop whenever an error occurs
 
   Reports:
     --simple-report=SIMPLEOUTPUTFILE
@@ -170,19 +171,22 @@ Features
 - Force extensions
 - HTTP proxy support
 - HTTP cookies and headers support
+- HTTP headers from file
 - User agent randomization
 - Proxy host randomization
 - Batch processing
 - Request delaying
 - Multiple wordlist formats (lowercase, uppercase, capitalization)
+- Extensions removing in wordlist
 - Quiet mode
 - Option to force requests by hostname
+- Option to whitelist response codes (-i 200,500)
+- Option to blacklist response codes (-x 404,403)
+- Option to exclude responses by sizes
 - Option to exclude responses by texts
 - Option to exclude responses by regexps (example: "Not foun[a-z]{1}")
 - Option to remove dot from extension when forcing
 - Options to display only items with response length from range
-- Option to whitelist response codes (-i 200,500)
-- Option to blacklist response codes (-x 404,403)
 - Option to add custom suffixes and prefixes
 - ...
 
@@ -319,7 +323,11 @@ Use "-i | --include-status" and "-x | --exclude-status" to select allowed and no
 python3 dirsearch.py -E -u https://target -i 200,204,400,403 -x 500,502,429
 ```
 
-"--exclude-texts" and "--exclude-regexps" are also supported for more advanced filter
+"--exclude-sizes", "--exclude-texts" and "--exclude-regexps" are also supported for a more advanced filter
+
+```
+python3 dirsearch.py -e php,html,js -u https://target --exclude-sizes 1B,243KB
+```
 
 ```
 python3 dirsearch.py -e php,html,js -u https://target --exclude-texts "403 Forbidden"
@@ -343,39 +351,70 @@ python3 dirsearch.py -e php,html,js -u https://target --recursive -R 2 --exclude
 ```
 
 ### Proxies
-dirsearch supports HTTP proxy, with two options: a proxy server or a list of proxy servers.
+Dirsearch supports SOCKS and HTTP proxy, with two options: a proxy server or a list of proxy servers.
 
 ```
 python3 dirsearch.py -e php,html,js -u https://target --proxy 127.0.0.1:8080
 ```
 
 ```
+python3 dirsearch.py -e php,html,js -u https://target --proxy socks5://10.10.0.1:8080
+```
+
+```
 python3 dirsearch.py -e php,html,js -u https://target --proxylist proxyservers.txt
+```
+
+### Reports
+Dirsearch allows the user to save the output into a file. It supports several output formats like text or json, and we are keep updating for new formats
+
+```
+python3 dirsearch.py -e php -l URLs.txt --plain-text-report report.txt
+```
+
+```
+python3 dirsearch.py -e php -u https://target --json-report target.json
+```
+
+```
+python3 dirsearch.py -e php -u https://target --simple-report target.txt
 ```
 
 ### Some others commands
 ```
-python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt -H "User-Agent: IE" -f
+python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt -H "X-Forwarded-Host: 127.0.0.1" -f
 ```
 
 ```
-python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt -t 40 -f
+python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt -t 100 -m POST --data "username=admin"
 ```
 
 ```
-python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --random-agents
+python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --random-agent --cookie "PHPSESSID=el4ukv0kqbvoirg7nkp4dncpk3"
 ```
 
 ```
-python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --json-report=reports/target.json
+python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --json-report=reports/target.json --suppress-empty
 ```
 
 ```
-python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --simple-report=reports/target-paths.txt
+python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --minimal 1
 ```
 
 ```
-python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --json-report=reports/report.json
+python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --header-list rate-limit-bypasses.txt
+```
+
+```
+python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt -q --stop-on-error
+```
+
+```
+python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --full-url
+```
+
+```
+python3 dirsearch.py -u https://target -w db/dicc.txt --no-extension
 ```
 
 **There are more features and you will need to discover it by your self**
@@ -461,4 +500,6 @@ Special thanks for these people:
 - @gdattacker
 - @chowmean
 
-#### Feeling excited? Just [tweet](https://twitter.com/intent/tweet?text=I%20just%20installed%20dirsearch%20v0.4.0%20-%20A%20Web%20Path%20Scanner%20https%3A%2F%2Fgithub.com%2Fmaurosoria%2Fdirsearch%20%23fuzzer%20%23bugbounty%20%23dirsearch%20%23pentesting%20%23security) about it!
+#### Want to join the team? Feel free to submit any pull request that you can. If you don't know how to code, you can support us by updating the wordlist or the documentation. Giving feedback or a new feature suggestion is also the good way to help us improve this tool
+
+##### Feeling excited? Just [tweet](https://twitter.com/intent/tweet?text=I%20just%20installed%20dirsearch%20v0.4.0%20-%20A%20Web%20Path%20Scanner%20https%3A%2F%2Fgithub.com%2Fmaurosoria%2Fdirsearch%20%23fuzzer%20%23bugbounty%20%23dirsearch%20%23pentesting%20%23security) about it!
