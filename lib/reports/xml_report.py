@@ -41,7 +41,7 @@ class XMLReport(FileBaseReport):
         result += "<target url=\"{0}\">\n".format(headerName)
 
         for path, status, contentLength, redirect in self.pathList:
-            result += " <info path=\"{0}\">\n".format(path)
+            result += " <info path=\"/{0}\">\n".format(path)
             result += "  <status>{0}</status>\n".format(status)
             result += "  <contentLength>{0}</contentLength>\n".format(contentLength)
             result += "  <redirect>{0}</redirect>\n".format(redirect)
