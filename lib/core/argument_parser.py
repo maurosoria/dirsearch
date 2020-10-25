@@ -476,17 +476,15 @@ You can change the dirsearch default configurations (default extensions, timeout
                            action='store', dest='excludeTexts', default=None)
         general.add_option('--exclude-regexps', help='Exclude responses by regexps, separated by commas (Example: "Not foun[a-z]{1}", "^Error$")',
                            action='store', dest='excludeRegexps', default=None)
-        general.add_option('--cookie', action='store', type='string', dest='cookie', default=None)
-        general.add_option('--user-agent', action='store', type='string', dest='useragent',
-                           default=self.useragent)
+        general.add_option('-H', '--header', help='HTTP request header, support multiple flags (Example: -H "Referer: example.com" -H "Accept: */*")',
+                           action='append', type='string', dest='headers', default=None)
+        general.add_option('--header-list', help="File contains HTTP request headers", type='string',
+                           dest='headerList', default=None)
         general.add_option('-F', '--follow-redirects', action='store_true', dest='noFollowRedirects',
                            default=self.redirect)
-        general.add_option('-H', '--header',
-                           help='HTTP request header, support multiple flags (Example: -H "Referer: example.com" -H "Accept: */*")',
-                           action='append', type='string', dest='headers', default=None)
-        general.add_option('--header-list',
-                           help="File contains HTTP request headers", type='string',
-                           dest='headerList', default=None)
+        general.add_option('--user-agent', action='store', type='string', dest='useragent',
+                           default=self.useragent)
+        general.add_option('--cookie', action='store', type='string', dest='cookie', default=None)
         general.add_option('--full-url', action='store_true', dest='full_url',
                            help='Print the full URL in the output', default=self.full_url)
         general.add_option('--random-agents', '--random-user-agents', action='store_true', dest='useRandomAgents')
