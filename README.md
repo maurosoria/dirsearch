@@ -8,7 +8,7 @@ Overview
 --------
 Dirsearch is a mature command-line tool designed to brute force directories and files in webservers. 
 
-With 6 years of growing, dirsearch has become the most popular web content scanner ever. As a feature-rich tool, dirsearch allows the user to perform a complex web content discovering, with many vectors for the wordlist, high accuracy, impressive performance, advanced connection/request settings, modern brute-force techniques and nice output.
+With 6 years of growing, dirsearch has become the most popular web content scanner. As a feature-rich tool, dirsearch allows the user to perform a complex web content discovering, with many vectors for the wordlist, high accuracy, impressive performance, advanced connection/request settings, modern brute-force techniques and nice output.
 
 Although there are now many awesome fuzzers like [wfuzz](https://github.com/xmendez/wfuzz), [gobuster](https://github.com/OJ/gobuster) or [ffuf](https://github.com/ffuf/ffuf), dirsearch is still showing it's own unique in features and detections when doing web content brute-force. Instead of supporting parameters fuzzing like in *ffuf* or *wfuzz*, dirsearch still keeps it as a traditional web path brute forcer. This allows dirsearch to much more focusing on the accuracy of the output and supporting more features for its purpose.
 
@@ -158,7 +158,7 @@ Operating Systems supported
 Features
 --------
 - Fast
-- Multithreaded
+- Multithreading
 - Keep alive connections
 - Support for multiple extensions (-e|--extensions asp,php)
 - Support for every HTTP method
@@ -169,7 +169,7 @@ Features
 - Recursive brute forcing
 - Subdirectories brute forcing
 - Force extensions
-- HTTP proxy support
+- HTTP and SOCKS proxy support
 - HTTP cookies and headers support
 - HTTP headers from file
 - User agent randomization
