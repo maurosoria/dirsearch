@@ -10,7 +10,8 @@
 - Support SOCKS proxy
 - Option to stop whenever an error occurs
 - Option to provide headers using file as input
-- Option to exclude responses by human readable sizes 
+- Option to exclude responses by human readable sizes
+- Several updates
 - Multiple bugfixes
 
 ---------
