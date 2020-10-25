@@ -19,7 +19,7 @@
 from lib.reports import *
 
 
-class XmlReport(TailableFileBaseReport):
+class XMLReport(FileBaseReport):
 
     def addPath(self, path, status, response):
         contentLength = None
