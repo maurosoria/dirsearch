@@ -460,14 +460,10 @@ You can change the dirsearch default configurations (default extensions, timeout
                            help='Minimal response length')
         general.add_option('--maximal', action='store', dest='maximumResponseSize', type='int', default=None,
                            help='Maximal response length')
-        general.add_option('--scan-subdir', '--scan-subdirs',
-                           help='Scan subdirectories of the given URL (separated by commas)', action='store',
-                           dest='scanSubdirs',
-                           default=None)
-        general.add_option('--exclude-subdir', '--exclude-subdirs',
-                           help='Exclude the following subdirectories during recursive scan (separated by commas)',
-                           action='store', dest='excludeSubdirs',
-                           default=self.excludeSubdirs)
+        general.add_option('--scan-subdirs', help='Scan subdirectories of the given URL (separated by commas)', action='store',
+                           dest='scanSubdirs', default=None)
+        general.add_option('--exclude-subdirs', help='Exclude the following subdirectories during recursive scan (separated by commas)',
+                           action='store', dest='excludeSubdirs', default=self.excludeSubdirs)
         general.add_option('-t', '--threads', help='Number of threads', action='store', type='int', dest='threadsCount',
                            default=self.threadsCount)
         general.add_option('-i', '--include-status', help='Show only included status codes, separated by commas (Example: 301, 500)',
@@ -480,7 +476,7 @@ You can change the dirsearch default configurations (default extensions, timeout
                            action='store', dest='excludeTexts', default=None)
         general.add_option('--exclude-regexps', help='Exclude responses by regexps, separated by commas (Example: "Not foun[a-z]{1}", "^Error$")',
                            action='store', dest='excludeRegexps', default=None)
-        general.add_option('-c', '--cookie', action='store', type='string', dest='cookie', default=None)
+        general.add_option('--cookie', action='store', type='string', dest='cookie', default=None)
         general.add_option('--user-agent', action='store', type='string', dest='useragent',
                            default=self.useragent)
         general.add_option('-F', '--follow-redirects', action='store_true', dest='noFollowRedirects',
