@@ -438,7 +438,7 @@ class Controller(object):
             ) and (
                     not self.blacklists.get(path.status) or path.path not in self.blacklists.get(path.status)
             ) and (
-                    FileUtils.size_human(len(path.response.body)).strip() not in self.excludeSizes
+                    not self.excludeSizes or FileUtils.size_human(len(path.response.body)).strip() not in self.excludeSizes
             ) and not ((
                     self.minimumResponseSize and self.minimumResponseSize > len(path.response.body)) or (
                     self.maximumResponseSize and self.maximumResponseSize < len(path.response.body))
