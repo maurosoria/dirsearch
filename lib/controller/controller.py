@@ -128,13 +128,13 @@ class Controller(object):
                                      self.arguments.noDotExtensions, self.arguments.excludeExtensions,
                                      self.arguments.noExtension)
 
+        self.allJobs = len(self.urlList) * (len(self.scanSubdirs) if self.scanSubdirs else 1)
+        self.currentJob = 0
         self.errorLog = None
         self.errorLogPath = None
         self.threadsLock = Lock()
         self.batch = False
         self.batchSession = None
-        self.currentJob = 0
-        self.allJobs = 0
 
         self.output.header(program_banner)
         self.printConfig()
@@ -151,8 +151,6 @@ class Controller(object):
             )
 
         try:
-            allJobs = len(self.urlList) * (len(self.scanSubdirs) if self.scanSubdirs else 1)
-
             for url in self.urlList:
                 try:
                     gc.collect()
