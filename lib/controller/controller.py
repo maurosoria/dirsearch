@@ -115,7 +115,9 @@ class Controller(object):
         self.suppressEmpty = self.arguments.suppressEmpty
         self.minimumResponseSize = self.arguments.minimumResponseSize
         self.maximumResponseSize = self.arguments.maximumResponseSize
-        self.scanSubdirs = list(dict.fromkeys(self.arguments.scanSubdirs))
+        self.scanSubdirs = (
+            list(dict.fromkeys(arguments.scanSubdirs)) if arguments.scanSubdirs else []
+        )
         self.excludeSubdirs = (
             arguments.excludeSubdirs if arguments.excludeSubdirs else []
         )
