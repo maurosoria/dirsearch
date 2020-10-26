@@ -119,7 +119,7 @@ class Requester(object):
         self.url = "{0}://{1}:{2}".format(self.protocol, self.host if self.requestByHostname else self.ip, self.port)
 
     def setHeader(self, header, content):
-        self.headers[header] = content
+        self.headers[header.strip()] = content.strip()
 
     def setRandomAgents(self, agents):
         self.randomAgents = list(agents)
