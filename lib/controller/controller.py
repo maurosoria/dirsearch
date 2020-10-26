@@ -55,6 +55,7 @@ class Controller(object):
             .format(**VERSION)
         )
 
+        self.directories = Queue()
         self.script_path = script_path
         self.exit = False
         self.arguments = arguments
@@ -62,9 +63,13 @@ class Controller(object):
         self.savePath = self.script_path
         self.doneDirs = []
 
+        self.urlList = list(dict.fromkeys(self.arguments.urlList)).remove("")
+
         self.recursive_level_max = self.arguments.recursive_level_max
 
-        if self.arguments.httpmethod.lower() not in ["get", "head", "post", "put", "patch", "options", "delete", "trace", "debug"]:
+        if self.arguments.httpmethod.lower() not in [
+            "get", "head", "post", "put", "patch", "options", "delete", "trace", "debug"
+        ]:
             self.output.error("Invalid HTTP method!")
             exit(1)
 
@@ -110,7 +115,7 @@ class Controller(object):
         self.suppressEmpty = self.arguments.suppressEmpty
         self.minimumResponseSize = self.arguments.minimumResponseSize
         self.maximumResponseSize = self.arguments.maximumResponseSize
-        self.directories = Queue()
+        self.scanSubdirs = list(dict.fromkeys(self.arguments.scanSubdirs))
         self.excludeSubdirs = (
             arguments.excludeSubdirs if arguments.excludeSubdirs else []
         )
@@ -134,7 +139,7 @@ class Controller(object):
         self.setupErrorLogs()
         self.output.errorLogFile(self.errorLogPath)
 
-        if self.arguments.autoSave and len(self.arguments.urlList) > 1:
+        if self.arguments.autoSave and len(self.urlList) > 1:
             self.setupBatchReports()
             self.output.newLine("\nAutoSave path: {0}".format(self.batchDirectoryPath))
 
@@ -144,7 +149,9 @@ class Controller(object):
             )
 
         try:
-            for url in list(dict.fromkeys(self.arguments.urlList)):
+            allJobs = len(self.urlList) * (len(self.scanSubdirs) if self.scanSubdirs else 1)
+
+            for url in self.urlList:
                 try:
                     gc.collect()
                     self.reportManager = ReportManager()
@@ -184,14 +191,12 @@ class Controller(object):
                     # Initialize directories Queue with start Path
                     self.basePath = self.requester.basePath
 
-                    if self.arguments.scanSubdirs:
-                        for subdir in self.arguments.scanSubdirs:
+                    if self.scanSubdirs:
+                        for subdir in self.scanSubdirs:
                             self.directories.put(subdir)
-                            self.allJobs += 1
 
                     else:
                         self.directories.put("")
-                        self.allJobs += 1
 
                     self.setupReports(self.requester)
 
@@ -295,7 +300,7 @@ class Controller(object):
 
                         blacklists[status].append(entry)
 
-                # Forced extensions is not used here because -r is only used for wordlist (in documentation),
+                # Forced extensions is not used here because -r is only used for wordlist,
                 # applying in blacklist may create false negatives
 
                 else:
@@ -329,7 +334,7 @@ class Controller(object):
         if FileUtils.can_write(self.batchDirectoryPath):
             FileUtils.create_directory(self.batchDirectoryPath)
             targetsFile = FileUtils.build_path(self.batchDirectoryPath, "TARGETS.txt")
-            FileUtils.write_lines(targetsFile, self.arguments.urlList)
+            FileUtils.write_lines(targetsFile, self.urlList)
 
         else:
             self.output.error(
@@ -456,8 +461,8 @@ class Controller(object):
                 pathIsInScanSubdirs = False
                 addedToQueue = False
 
-                if self.arguments.scanSubdirs:
-                    for subdir in self.arguments.scanSubdirs:
+                if self.scanSubdirs:
+                    for subdir in self.scanSubdirs:
                         if subdir == path.path + "/":
                             pathIsInScanSubdirs = True
 
@@ -469,7 +474,9 @@ class Controller(object):
                     else:
                         addedToQueue = self.addDirectory(path.path)
 
-                self.output.statusReport(path.path, path.response, self.arguments.full_url, addedToQueue)
+                self.output.statusReport(
+                    path.path, path.response, self.arguments.full_url, addedToQueue
+                )
 
                 newPath = "{}{}".format(self.currentDirectory, path.path)
 
@@ -511,7 +518,7 @@ class Controller(object):
                 if not self.directories.empty():
                     msg += " / [n]ext"
 
-                if len(self.arguments.urlList) > 1:
+                if len(self.urlList) > 1:
                     msg += " / [s]kip target"
 
                 self.output.inLine(msg + ": ")
@@ -531,7 +538,7 @@ class Controller(object):
                     self.fuzzer.stop()
                     return
 
-                elif len(self.arguments.urlList) > 1 and option.lower() == "s":
+                elif len(self.urlList) > 1 and option.lower() == "s":
                     raise SkipTargetInterrupt
 
                 else:
