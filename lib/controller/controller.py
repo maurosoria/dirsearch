@@ -63,7 +63,7 @@ class Controller(object):
         self.savePath = self.script_path
         self.doneDirs = []
 
-        self.urlList = list(dict.fromkeys(self.arguments.urlList)).remove("")
+        self.urlList = list(filter(None, dict.fromkeys(self.arguments.urlList)))
 
         self.recursive_level_max = self.arguments.recursive_level_max
 
