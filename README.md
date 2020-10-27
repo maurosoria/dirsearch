@@ -38,65 +38,98 @@ Options:
 
   Mandatory:
     -u URL, --url=URL   URL target
-    -L URLLIST, --url-list=URLLIST
-                        URL list target
+    -l URLLIST, --url-list=URLLIST
+                        URL list file
     -e EXTENSIONS, --extensions=EXTENSIONS
-                        Extension list separated by comma (Example: php,asp)
+                        Extension list separated by commas (Example: php,asp)
     -E, --extensions-list
                         Use predefined list of common extensions
+    -X EXCLUDEEXTENSIONS, --exclude-extensions=EXCLUDEEXTENSIONS
+                        Exclude extension list separated by commas (Example:
+                        asp,jsp)
 
   Dictionary Settings:
     -w WORDLIST, --wordlist=WORDLIST
-                        Customize wordlist (separated by comma)
-    -l, --lowercase     
+                        Customize wordlist (separated by commas)
+    --prefixes=PREFIXES
+                        Add custom prefixes to all entries (separated by
+                        commas)
+    --suffixes=SUFFIXES
+                        Add custom suffixes to all entries, ignores
+                        directories (separated by commas)
     -f, --force-extensions
-                        Force extensions for every wordlist entry (like in
-                        DirBuster)
+                        Force extensions for every wordlist entry. Add
+                        %NOFORCE% at the end of the entry in the wordlist that
+                        you do not want to force
+    --no-extension      Remove extensions in all wordlist entries (Example:
+                        admin.php -> admin)
+    --no-dot-extensions
+                        Remove the "." character before extensions
+    -C, --capitalization
+                        Capital wordlist
+    -U, --uppercase     Uppercase wordlist
+    -L, --lowercase     Lowercase wordlist
 
   General Settings:
-    -s DELAY, --delay=DELAY
-                        Delay between requests (float number)
+    -d DATA, --data=DATA
+                        HTTP request data
     -r, --recursive     Bruteforce recursively
     -R RECURSIVE_LEVEL_MAX, --recursive-level-max=RECURSIVE_LEVEL_MAX
                         Max recursion level (subdirs) (Default: 1 [only
                         rootdir + 1 dir])
-    --suppress-empty, --suppress-empty
+    --suppress-empty    Suppress empty responses
+    --minimal=MINIMUMRESPONSESIZE
+                        Minimal response length
+    --maximal=MAXIMUMRESPONSESIZE
+                        Maximal response length
     --scan-subdir=SCANSUBDIRS, --scan-subdirs=SCANSUBDIRS
-                        Scan subdirectories of the given -u|--url (separated
-                        by comma)
+                        Scan subdirectories of the given URL (separated by
+                        commas)
     --exclude-subdir=EXCLUDESUBDIRS, --exclude-subdirs=EXCLUDESUBDIRS
                         Exclude the following subdirectories during recursive
-                        scan (separated by comma)
+                        scan (separated by commas)
     -t THREADSCOUNT, --threads=THREADSCOUNT
-                        Number of Threads
+                        Number of threads
+    -i INCLUDESTATUSCODES, --include-status=INCLUDESTATUSCODES
+                        Show only included status codes, separated by commas
+                        (Example: 301, 500)
     -x EXCLUDESTATUSCODES, --exclude-status=EXCLUDESTATUSCODES
-                        Exclude status code, separated by comma (example: 301,
-                        500)
+                        Do not show excluded status codes, separated by commas
+                        (Example: 301, 500)
     --exclude-texts=EXCLUDETEXTS
-                        Exclude responses by texts, separated by comma
-                        (example: "Not found", "Error")
+                        Exclude responses by texts, separated by commas
+                        (Example: "Not found", "Error")
     --exclude-regexps=EXCLUDEREGEXPS
-                        Exclude responses by regexps, separated by comma
-                        (example: "Not foun[a-z]{1}", "^Error$")
+                        Exclude responses by regexps, separated by commas
+                        (Example: "Not foun[a-z]{1}", "^Error$")
     -c COOKIE, --cookie=COOKIE
-    --ua=USERAGENT, --user-agent=USERAGENT
+    --user-agent=USERAGENT
     -F, --follow-redirects
     -H HEADERS, --header=HEADERS
-                        Headers to add (example: --header "Referer:
-                        example.com" --header "User-Agent: IE"
+                        HTTP request header, support multiple flags (Example:
+                        -H "Referer: example.com" -H "Accept: */*")
+    --header-list=HEADERLIST
+                        File contains HTTP request headers
+    --full-url          Print the full URL in the output
     --random-agents, --random-user-agents
+    -q, --quiet-mode    
 
   Connection Settings:
     --timeout=TIMEOUT   Connection timeout
-    --ip=IP             Resolve name to IP address
-    --proxy=HTTPPROXY, --http-proxy=HTTPPROXY
-                        Http Proxy (example: localhost:8080
-    --http-method=HTTPMETHOD
-                        Method to use, default: GET, possible also: HEAD;POST
+    --ip=IP             Server IP address
+    -s DELAY, --delay=DELAY
+                        Delay between requests (support float number)
+    --proxy=HTTPPROXY   Proxy URL, support HTTP and SOCKS proxy (Example:
+                        localhost:8080, socks5://localhost:8088)
+    --proxy-list=PROXYLIST
+                        File contains proxy servers
+    -m HTTPMETHOD, --http-method=HTTPMETHOD
+                        HTTP method, default: GET
     --max-retries=MAXRETRIES
     -b, --request-by-hostname
                         By default dirsearch will request by IP for speed.
-                        This forces requests by hostname
+                        This will force requests by hostname
+    --stop-on-error     Stop whenever an error occurs
 
   Reports:
     --simple-report=SIMPLEOUTPUTFILE
