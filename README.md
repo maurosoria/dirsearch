@@ -38,66 +38,40 @@ Options:
 
   Mandatory:
     -u URL, --url=URL   URL target
-    -l URLLIST, --url-list=URLLIST
+    -L URLLIST, --url-list=URLLIST
                         URL list target
     -e EXTENSIONS, --extensions=EXTENSIONS
-                        Extensions list separated by comma (Example: php,asp)
+                        Extension list separated by comma (Example: php,asp)
     -E, --extensions-list
                         Use predefined list of common extensions
-    -X EXCLUDEEXTENSIONS, --exclude-extensions=EXCLUDEEXTENSIONS
-                        Exclude extensions list, separated by comma (Example:
-                        asp,jsp)
 
   Dictionary Settings:
     -w WORDLIST, --wordlist=WORDLIST
                         Customize wordlist (separated by comma)
-    --prefixes=PREFIXES
-                        Add custom prefixes to all entries (separated by
-                        comma)
-    --suffixes=SUFFIXES
-                        Add custom suffixes to all entries, ignores
-                        directories (separated by comma)
+    -l, --lowercase     
     -f, --force-extensions
-                        Force extensions for every wordlist entry. Add
-                        %NOFORCE% at the end of the entry in the wordlist that
-                        you do not want to force
-    --no-extension      Remove extensions in all entries (Example: admin.php
-                        -> admin)
-    --no-dot-extensions
-                        Remove the "." character before extensions
-    -U, --uppercase     Uppercase wordlist
-    -L, --lowercase     Lowercase wordlist
-    -C, --capitalization
-                        Capital wordlist
+                        Force extensions for every wordlist entry (like in
+                        DirBuster)
 
   General Settings:
-    -d DATA, --data=DATA
-                        HTTP request data (POST, PUT, ... body)
     -s DELAY, --delay=DELAY
-                        Delay between requests (support float number)
+                        Delay between requests (float number)
     -r, --recursive     Bruteforce recursively
     -R RECURSIVE_LEVEL_MAX, --recursive-level-max=RECURSIVE_LEVEL_MAX
                         Max recursion level (subdirs) (Default: 1 [only
                         rootdir + 1 dir])
-    --suppress-empty    Suppress empty responses
-    --minimal=MINIMUMRESPONSESIZE
-                        Minimal response length
-    --maximal=MAXIMUMRESPONSESIZE
-                        Maximal response length
+    --suppress-empty, --suppress-empty
     --scan-subdir=SCANSUBDIRS, --scan-subdirs=SCANSUBDIRS
-                        Scan subdirectories of the given URL (separated by
-                        comma)
+                        Scan subdirectories of the given -u|--url (separated
+                        by comma)
     --exclude-subdir=EXCLUDESUBDIRS, --exclude-subdirs=EXCLUDESUBDIRS
                         Exclude the following subdirectories during recursive
                         scan (separated by comma)
     -t THREADSCOUNT, --threads=THREADSCOUNT
                         Number of Threads
-    -i INCLUDESTATUSCODES, --include-status=INCLUDESTATUSCODES
-                        Show only included status codes, separated by comma
-                        (example: 301, 500)
     -x EXCLUDESTATUSCODES, --exclude-status=EXCLUDESTATUSCODES
-                        Do not show excluded status codes, separated by comma
-                        (example: 301, 500)
+                        Exclude status code, separated by comma (example: 301,
+                        500)
     --exclude-texts=EXCLUDETEXTS
                         Exclude responses by texts, separated by comma
                         (example: "Not found", "Error")
@@ -105,37 +79,24 @@ Options:
                         Exclude responses by regexps, separated by comma
                         (example: "Not foun[a-z]{1}", "^Error$")
     -c COOKIE, --cookie=COOKIE
-    --user-agent=USERAGENT
+    --ua=USERAGENT, --user-agent=USERAGENT
     -F, --follow-redirects
     -H HEADERS, --header=HEADERS
-                        HTTP request headers, support multiple flags (example:
-                        --header "Referer: example.com" --header "User-Agent:
-                        IE")
-    --header-list=FILENAME
-                        File contains HTTP request headers. The format of the file is as below
-                        
-                        Referer:Example.com
-                        Host: Abc.com
-                        Token: 123dh2dsds=sd2wd1
-                        OtherHeaders: OtherValues        
-                
-    --full-url          Print the full URL in the output
+                        Headers to add (example: --header "Referer:
+                        example.com" --header "User-Agent: IE"
     --random-agents, --random-user-agents
-    -q, --quite-mode
 
   Connection Settings:
     --timeout=TIMEOUT   Connection timeout
     --ip=IP             Resolve name to IP address
     --proxy=HTTPPROXY, --http-proxy=HTTPPROXY
-                        HTTP Proxy (example: localhost:8080)
-    --proxylist=PROXYLIST, --http-proxy-list=PROXYLIST
-                        File containg HTTP proxy servers
-    -m HTTPMETHOD, --http-method=HTTPMETHOD
-                        HTTP method, default: GET
+                        Http Proxy (example: localhost:8080
+    --http-method=HTTPMETHOD
+                        Method to use, default: GET, possible also: HEAD;POST
     --max-retries=MAXRETRIES
     -b, --request-by-hostname
                         By default dirsearch will request by IP for speed.
-                        This will force requests by hostname
+                        This forces requests by hostname
 
   Reports:
     --simple-report=SIMPLEOUTPUTFILE
@@ -143,6 +104,7 @@ Options:
     --plain-text-report=PLAINTEXTOUTPUTFILE
                         Found paths with status codes
     --json-report=JSONOUTPUTFILE
+
 ```
 
  **NOTE**: 
