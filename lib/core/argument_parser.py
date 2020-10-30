@@ -474,8 +474,9 @@ You can change the dirsearch default configurations (default extensions, timeout
                            dest='headerList', default=None)
         general.add_option('--full-url', action='store_true', dest='full_url',
                            help='Print the full URL in the output', default=self.full_url)
-        general.add_option('--random-agents', '--random-user-agents', action='store_true', dest='useRandomAgents')
         general.add_option('-q', '--quiet-mode', action='store_true', dest='quiet', default=self.quiet)
+        general.add_option('--random-agents', '--random-user-agents', action='store_true', dest='useRandomAgents')
+        
 
         # Connection Settings
         connection = OptionGroup(parser, 'Connection Settings')
