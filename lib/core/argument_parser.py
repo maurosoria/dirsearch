@@ -214,6 +214,23 @@ class ArgumentParser(object):
         else:
             self.excludeStatusCodes = []
 
+        if options.excludeSizes:
+            try:
+                self.excludeSizes = list(
+
+                    oset(
+                        [
+                            excludeSize.strip().upper() if excludeSize else None
+                            for excludeSize in options.excludeSizes.split(",")
+                        ]
+                    )
+                )
+
+            except ValueError:
+                self.excludeSizes = []
+        else:
+            self.excludeSizes = []
+
         if options.excludeTexts:
             try:
                 self.excludeTexts = list(
@@ -339,6 +356,7 @@ class ArgumentParser(object):
         self.recursive_level_max = config.safe_getint(
             "general", "recursive-level-max", 0
         )
+        self.headerList = config.safe_get("general", "headers-file", None)
         self.suppressEmpty = config.safe_getboolean("general", "suppress-empty", False)
         self.testFailPath = config.safe_get("general", "scanner-fail-path", "").strip()
         self.saveHome = config.safe_getboolean("general", "save-logs-home", False)
@@ -444,38 +462,34 @@ You can change the dirsearch default configurations (default extensions, timeout
                            help='Minimal response length')
         general.add_option('--maximal', action='store', dest='maximumResponseSize', type='int', default=None,
                            help='Maximal response length')
-        general.add_option('--scan-subdir', '--scan-subdirs',
-                           help='Scan subdirectories of the given URL (separated by commas)', action='store',
-                           dest='scanSubdirs',
-                           default=None)
-        general.add_option('--exclude-subdir', '--exclude-subdirs',
-                           help='Exclude the following subdirectories during recursive scan (separated by commas)',
-                           action='store', dest='excludeSubdirs',
-                           default=self.excludeSubdirs)
+        general.add_option('--scan-subdirs', help='Scan subdirectories of the given URL (separated by commas)', action='store',
+                           dest='scanSubdirs', default=None)
+        general.add_option('--exclude-subdirs', help='Exclude the following subdirectories during recursive scan (separated by commas)',
+                           action='store', dest='excludeSubdirs', default=self.excludeSubdirs)
         general.add_option('-t', '--threads', help='Number of threads', action='store', type='int', dest='threadsCount',
                            default=self.threadsCount)
         general.add_option('-i', '--include-status', help='Show only included status codes, separated by commas (Example: 301, 500)',
                            action='store', dest='includeStatusCodes', default=self.includeStatusCodes)
         general.add_option('-x', '--exclude-status', help='Do not show excluded status codes, separated by commas (Example: 301, 500)',
                            action='store', dest='excludeStatusCodes', default=self.excludeStatusCodes)
+        general.add_option('--exclude-sizes', help='Exclude responses by sizes, separated by commas (Example: 123B,4KB)',
+                           action='store', dest='excludeSizes', default=None)
         general.add_option('--exclude-texts', help='Exclude responses by texts, separated by commas (Example: "Not found", "Error")',
                            action='store', dest='excludeTexts', default=None)
         general.add_option('--exclude-regexps', help='Exclude responses by regexps, separated by commas (Example: "Not foun[a-z]{1}", "^Error$")',
                            action='store', dest='excludeRegexps', default=None)
-        general.add_option('-c', '--cookie', action='store', type='string', dest='cookie', default=None)
+        general.add_option('-H', '--header', help='HTTP request header, support multiple flags (Example: -H "Referer: example.com" -H "Accept: */*")',
+                           action='append', type='string', dest='headers', default=None)
+        general.add_option('--header-list', help="File contains HTTP request headers", type='string',
+                           dest='headerList', default=self.headerList)
         general.add_option('--user-agent', action='store', type='string', dest='useragent',
                            default=self.useragent)
+        general.add_option('--random-agent', '--random-user-agent', action='store_true', dest='useRandomAgents')
+        general.add_option('--cookie', action='store', type='string', dest='cookie', default=None)
         general.add_option('-F', '--follow-redirects', action='store_true', dest='noFollowRedirects',
                            default=self.redirect)
-        general.add_option('-H', '--header',
-                           help='HTTP request header, support multiple flags (Example: -H "Referer: example.com" -H "Accept: */*")',
-                           action='append', type='string', dest='headers', default=None)
-        general.add_option('--header-list',
-                           help="File contains HTTP request headers", type='string',
-                           dest='headerList', default=None)
         general.add_option('--full-url', action='store_true', dest='full_url',
                            help='Print the full URL in the output', default=self.full_url)
-        general.add_option('--random-agents', '--random-user-agents', action='store_true', dest='useRandomAgents')
         general.add_option('-q', '--quiet-mode', action='store_true', dest='quiet', default=self.quiet)
 
         # Connection Settings

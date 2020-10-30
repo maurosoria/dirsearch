@@ -109,10 +109,10 @@ class Controller(object):
         self.blacklists = self.getBlacklists()
         self.includeStatusCodes = self.arguments.includeStatusCodes
         self.excludeStatusCodes = self.arguments.excludeStatusCodes
+        self.excludeSizes = self.arguments.excludeSizes
         self.excludeTexts = self.arguments.excludeTexts
         self.excludeRegexps = self.arguments.excludeRegexps
         self.recursive = self.arguments.recursive
-        self.suppressEmpty = self.arguments.suppressEmpty
         self.minimumResponseSize = self.arguments.minimumResponseSize
         self.maximumResponseSize = self.arguments.maximumResponseSize
         self.scanSubdirs = (
@@ -140,6 +140,9 @@ class Controller(object):
         self.printConfig()
         self.setupErrorLogs()
         self.output.errorLogFile(self.errorLogPath)
+        
+        if self.arguments.suppressEmpty:
+            self.excludeSizes.append("0B")
 
         if self.arguments.autoSave and len(self.urlList) > 1:
             self.setupBatchReports()
@@ -444,10 +447,12 @@ class Controller(object):
         if path.status:
 
             if path.status not in self.excludeStatusCodes and (
-                    not self.includeStatusCodes or path.status in self.includeStatusCodes) and (
-                    not(self.blacklists.get(path.status)) or path.path not in self.blacklists.get(path.status)
-            ) and not (
-                    self.suppressEmpty and (not(len(path.response.body)))) and not ((
+                    not self.includeStatusCodes or path.status in self.includeStatusCodes
+            ) and (
+                    not self.blacklists.get(path.status) or path.path not in self.blacklists.get(path.status)
+            ) and (
+                    not self.excludeSizes or FileUtils.size_human(len(path.response.body)).strip() not in self.excludeSizes
+            ) and not ((
                     self.minimumResponseSize and self.minimumResponseSize > len(path.response.body)) or (
                     self.maximumResponseSize and self.maximumResponseSize < len(path.response.body))
             ):
@@ -458,7 +463,6 @@ class Controller(object):
                         return
 
                 for excludeRegexp in self.excludeRegexps:
-
                     if (
                         re.search(excludeRegexp, path.response.body.decode())
                         is not None
@@ -477,8 +481,10 @@ class Controller(object):
                 if not pathIsInScanSubdirs:
                     if not self.recursive:
                         pass
+
                     elif path.response.redirect:
                         addedToQueue = self.addRedirectDirectory(path)
+
                     else:
                         addedToQueue = self.addDirectory(path.path)
 

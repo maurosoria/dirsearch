@@ -6,10 +6,13 @@
 - Faster
 - Added no extension option
 - Removed the delay between test requests when using -s
-- Support wordlist formats (2 from v0.4.0)
+- Support capital wordlist format
 - Support SOCKS proxy
 - Option to stop whenever an error occurs
 - Option to provide headers using file as input
+- Option to exclude responses by human readable sizes
+- XML report format
+- Several updates
 - Multiple bugfixes
 
 ---------

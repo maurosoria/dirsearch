@@ -67,10 +67,6 @@ class PrintOutput(object):
         contentLength = None
         status = response.status
 
-        # Check blacklist
-        if status in self.blacklists and path in self.blacklists[status]:
-            return
-
         # Format message
         try:
             size = int(response.headers["content-length"])
