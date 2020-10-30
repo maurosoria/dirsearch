@@ -240,8 +240,6 @@ class Controller(object):
             str(self.arguments.threadsCount),
             str(len(self.dictionary)),
             str(self.httpmethod),
-            self.recursive,
-            str(self.recursive_level_max),
         )
 
     def getSavePath(self):
@@ -278,9 +276,7 @@ class Controller(object):
                 if line.lstrip().startswith("#"):
                     continue
 
-                # The same with dictionary.py
-                if line.startswith("/"):
-                    line = line[1:]
+                line = line.lstrip("/")
 
                 # Classic dirsearch blacklist processing (with %EXT% keyword)
                 if "%ext%" in line.lower():
@@ -340,7 +336,7 @@ class Controller(object):
     def setupReports(self, requester):
         if self.arguments.autoSave:
 
-            basePath = "/" if not(len(requester.basePath)) else requester.basePath
+            basePath = requester.basePath
             basePath = basePath.replace(os.path.sep, ".")[:-1]
             fileName = None
             directoryPath = None
@@ -490,6 +486,7 @@ class Controller(object):
             self.fuzzer.stop()
             self.output.error("\nCanceled due to an error")
             exit(0)
+
         else:
             self.output.addConnectionError()
 
@@ -553,8 +550,8 @@ class Controller(object):
 
     def wait(self):
         while not self.directories.empty():
-            self.currentJob += 1
             gc.collect()
+            self.currentJob += 1
             self.index = 0
             self.currentDirectory = self.directories.get()
             self.output.warning(
@@ -579,7 +576,7 @@ class Controller(object):
             if dir in self.doneDirs:
                 return False
 
-            if dir.count("/") > self.recursive_level_max:
+            if self.recursive_level_max and dir.count("/") > self.recursive_level_max:
                 return False
 
             self.directories.put(dir)
@@ -608,7 +605,7 @@ class Controller(object):
             if dir in self.doneDirs:
                 return False
 
-            if dir.count("/") > self.recursive_level_max:
+            if self.recursive_level_max and dir.count("/") > self.recursive_level_max:
                 return False
 
             self.directories.put(dir)

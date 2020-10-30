@@ -62,6 +62,9 @@ class Requester(object):
 
         parsed = urllib.parse.urlparse(url)
 
+        self.basePath = parsed.path.lstrip("/")
+
+
         # If no protocol specified, set http by default
         if not parsed.scheme:
             parsed = urllib.parse.urlparse("http://" + url)
@@ -139,9 +142,6 @@ class Requester(object):
                     proxy = {"https": random.choice(self.proxylist), "http": random.choice(self.proxylist)}
                 elif self.proxy:
                     proxy = {"https": self.proxy, "http": self.proxy}
-
-                if self.basePath.startswith("/"):
-                    self.basePath = self.basePath[1:]
 
                 url = "{0}/{1}".format(self.url, self.basePath).rstrip("/")
 
