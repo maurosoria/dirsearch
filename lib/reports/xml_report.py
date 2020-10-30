@@ -46,7 +46,7 @@ class XMLReport(FileBaseReport):
             result += "  <contentLength>{0}</contentLength>\n".format(contentLength)
             result += "  <redirect>{0}</redirect>\n".format(redirect)
             result += " </info>\n"
- 
+
         result += "</target>\n"
 
         return result
