@@ -7,9 +7,10 @@
 - Added no extension option
 - Removed the delay between test requests when using -s
 - Support wordlist formats (2 from v0.4.0)
-- Multiple bugfixes
 - Support SOCKS proxy
 - Option to stop whenever an error occurs
+- Option to provide headers using file as input
+- Multiple bugfixes
 
 ---------
 
@@ -27,7 +28,7 @@
 
 ---------
 
-0.3.9 - 2017.11.26
+0.3.9 - 2019.11.26
 ---------
 - Added default extensions argument (-E).
 - Added suppress empty responses.

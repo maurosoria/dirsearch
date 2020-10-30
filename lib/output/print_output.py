@@ -139,7 +139,7 @@ class PrintOutput(object):
         pass
 
     def setTarget(self, target):
-        if not target.startswith("http://") and not target.startswith("https://"):
+        if not target.startswith("http://") and not target.startswith("https://") and "://" not in target:
             target = "http://" + target
 
         self.target = target
