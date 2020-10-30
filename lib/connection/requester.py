@@ -64,7 +64,6 @@ class Requester(object):
 
         self.basePath = parsed.path.lstrip("/")
 
-
         # If no protocol specified, set http by default
         if not parsed.scheme:
             parsed = urllib.parse.urlparse("http://" + url)
