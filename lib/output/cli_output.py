@@ -92,14 +92,7 @@ class CLIOutput(object):
         finally:
             contentLength = FileUtils.size_human(size)
 
-        if not self.basePath:
-            showPath = "/" + path
-
-        else:
-            if not self.basePath.startswith("/"):
-                self.basePath = "/" + self.basePath
-
-            showPath = self.basePath.rstrip("/") + "/" + path
+        showPath = "/" + self.basePath + path
 
         if full_url:
             parsed = urllib.parse.urlparse(self.target)
@@ -189,8 +182,6 @@ class CLIOutput(object):
         threads,
         wordlist_size,
         method,
-        recursive,
-        recursion_level,
     ):
         separator = Fore.MAGENTA + " | " + Fore.YELLOW
 
@@ -212,12 +203,6 @@ class CLIOutput(object):
         config += "Threads: {0}".format(Fore.CYAN + threads + Fore.YELLOW)
         config += separator
         config += "Wordlist size: {0}".format(Fore.CYAN + wordlist_size + Fore.YELLOW)
-
-        if recursive is True:
-            config += separator
-            config += "Recursion level: {0}".format(
-                Fore.CYAN + recursion_level + Fore.YELLOW
-            )
 
         config += Style.RESET_ALL
 

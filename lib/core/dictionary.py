@@ -109,8 +109,7 @@ class Dictionary(object):
                 if line.lstrip().startswith("#"):
                     continue
 
-                if line.startswith("/"):
-                    line = line[1:]
+                line = line.lstrip("/")
 
                 if self._noExtension:
                     line = line[0] + line[1:].split(".")[0]

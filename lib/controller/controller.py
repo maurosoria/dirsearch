@@ -28,7 +28,7 @@ from queue import Queue
 
 from lib.connection import Requester, RequestException
 from lib.core import Dictionary, Fuzzer, ReportManager
-from lib.reports import JSONReport, PlainTextReport, SimpleReport
+from lib.reports import JSONReport, XMLReport, PlainTextReport, SimpleReport
 from lib.utils import FileUtils
 
 
@@ -55,6 +55,7 @@ class Controller(object):
             .format(**VERSION)
         )
 
+        self.directories = Queue()
         self.script_path = script_path
         self.exit = False
         self.arguments = arguments
@@ -62,9 +63,13 @@ class Controller(object):
         self.savePath = self.script_path
         self.doneDirs = []
 
+        self.urlList = list(filter(None, dict.fromkeys(self.arguments.urlList)))
+
         self.recursive_level_max = self.arguments.recursive_level_max
 
-        if self.arguments.httpmethod.lower() not in ["get", "head", "post", "put", "patch", "options", "delete", "trace", "debug"]:
+        if self.arguments.httpmethod.lower() not in [
+            "get", "head", "post", "put", "patch", "options", "delete", "trace", "debug"
+        ]:
             self.output.error("Invalid HTTP method!")
             exit(1)
 
@@ -110,7 +115,9 @@ class Controller(object):
         self.recursive = self.arguments.recursive
         self.minimumResponseSize = self.arguments.minimumResponseSize
         self.maximumResponseSize = self.arguments.maximumResponseSize
-        self.directories = Queue()
+        self.scanSubdirs = (
+            list(dict.fromkeys(arguments.scanSubdirs)) if arguments.scanSubdirs else []
+        )
         self.excludeSubdirs = (
             arguments.excludeSubdirs if arguments.excludeSubdirs else []
         )
@@ -121,13 +128,13 @@ class Controller(object):
                                      self.arguments.noDotExtensions, self.arguments.excludeExtensions,
                                      self.arguments.noExtension)
 
+        self.allJobs = len(self.urlList) * (len(self.scanSubdirs) if self.scanSubdirs else 1)
+        self.currentJob = 0
         self.errorLog = None
         self.errorLogPath = None
         self.threadsLock = Lock()
         self.batch = False
         self.batchSession = None
-        self.currentJob = 0
-        self.allJobs = 0
 
         self.output.header(program_banner)
         self.printConfig()
@@ -137,7 +144,7 @@ class Controller(object):
         if self.arguments.suppressEmpty:
             self.excludeSizes.append("0B")
 
-        if self.arguments.autoSave and len(self.arguments.urlList) > 1:
+        if self.arguments.autoSave and len(self.urlList) > 1:
             self.setupBatchReports()
             self.output.newLine("\nAutoSave path: {0}".format(self.batchDirectoryPath))
 
@@ -147,7 +154,7 @@ class Controller(object):
             )
 
         try:
-            for url in list(dict.fromkeys(self.arguments.urlList)):
+            for url in self.urlList:
                 try:
                     gc.collect()
                     self.reportManager = ReportManager()
@@ -187,14 +194,12 @@ class Controller(object):
                     # Initialize directories Queue with start Path
                     self.basePath = self.requester.basePath
 
-                    if self.arguments.scanSubdirs:
-                        for subdir in self.arguments.scanSubdirs:
+                    if self.scanSubdirs:
+                        for subdir in self.scanSubdirs:
                             self.directories.put(subdir)
-                            self.allJobs += 1
 
                     else:
                         self.directories.put("")
-                        self.allJobs += 1
 
                     self.setupReports(self.requester)
 
@@ -243,8 +248,6 @@ class Controller(object):
             str(self.arguments.threadsCount),
             str(len(self.dictionary)),
             str(self.httpmethod),
-            self.recursive,
-            str(self.recursive_level_max),
         )
 
     def getSavePath(self):
@@ -281,9 +284,7 @@ class Controller(object):
                 if line.lstrip().startswith("#"):
                     continue
 
-                # The same with dictionary.py
-                if line.startswith("/"):
-                    line = line[1:]
+                line = line.lstrip("/")
 
                 # Classic dirsearch blacklist processing (with %EXT% keyword)
                 if "%ext%" in line.lower():
@@ -298,7 +299,7 @@ class Controller(object):
 
                         blacklists[status].append(entry)
 
-                # Forced extensions is not used here because -r is only used for wordlist (in documentation),
+                # Forced extensions is not used here because -r is only used for wordlist,
                 # applying in blacklist may create false negatives
 
                 else:
@@ -332,7 +333,7 @@ class Controller(object):
         if FileUtils.can_write(self.batchDirectoryPath):
             FileUtils.create_directory(self.batchDirectoryPath)
             targetsFile = FileUtils.build_path(self.batchDirectoryPath, "TARGETS.txt")
-            FileUtils.write_lines(targetsFile, self.arguments.urlList)
+            FileUtils.write_lines(targetsFile, self.urlList)
 
         else:
             self.output.error(
@@ -343,7 +344,7 @@ class Controller(object):
     def setupReports(self, requester):
         if self.arguments.autoSave:
 
-            basePath = "/" if not(len(requester.basePath)) else requester.basePath
+            basePath = requester.basePath
             basePath = basePath.replace(os.path.sep, ".")[:-1]
             fileName = None
             directoryPath = None
@@ -390,8 +391,16 @@ class Controller(object):
                         outputFile,
                         self.batch
                     )
-                if self.arguments.autoSaveFormat == "json":
+                elif self.arguments.autoSaveFormat == "json":
                     report = JSONReport(
+                        requester.host,
+                        requester.port,
+                        requester.protocol,
+                        requester.basePath,
+                        outputFile,
+                    )
+                elif self.arguments.autoSaveFormat == "xml":
+                    report = XMLReport(
                         requester.host,
                         requester.port,
                         requester.protocol,
@@ -427,6 +436,10 @@ class Controller(object):
             self.reportManager.addOutput(JSONReport(requester.host, requester.port, requester.protocol,
                                                     requester.basePath, self.arguments.jsonOutputFile, self.batch))
 
+        if self.arguments.xmlOutputFile:
+            self.reportManager.addOutput(XMLReport(requester.host, requester.port, requester.protocol,
+                                                    requester.basePath, self.arguments.xmlOutputFile, self.batch))
+
     # TODO: Refactor, this function should be a decorator for all the filters
     def matchCallback(self, path):
         self.index += 1
@@ -460,8 +473,8 @@ class Controller(object):
                 pathIsInScanSubdirs = False
                 addedToQueue = False
 
-                if self.arguments.scanSubdirs:
-                    for subdir in self.arguments.scanSubdirs:
+                if self.scanSubdirs:
+                    for subdir in self.scanSubdirs:
                         if subdir == path.path + "/":
                             pathIsInScanSubdirs = True
 
@@ -475,7 +488,9 @@ class Controller(object):
                     else:
                         addedToQueue = self.addDirectory(path.path)
 
-                self.output.statusReport(path.path, path.response, self.arguments.full_url, addedToQueue)
+                self.output.statusReport(
+                    path.path, path.response, self.arguments.full_url, addedToQueue
+                )
 
                 newPath = "{}{}".format(self.currentDirectory, path.path)
 
@@ -496,6 +511,7 @@ class Controller(object):
             self.fuzzer.stop()
             self.output.error("\nCanceled due to an error")
             exit(0)
+
         else:
             self.output.addConnectionError()
 
@@ -517,7 +533,7 @@ class Controller(object):
                 if not self.directories.empty():
                     msg += " / [n]ext"
 
-                if len(self.arguments.urlList) > 1:
+                if len(self.urlList) > 1:
                     msg += " / [s]kip target"
 
                 self.output.inLine(msg + ": ")
@@ -537,7 +553,7 @@ class Controller(object):
                     self.fuzzer.stop()
                     return
 
-                elif len(self.arguments.urlList) > 1 and option.lower() == "s":
+                elif len(self.urlList) > 1 and option.lower() == "s":
                     raise SkipTargetInterrupt
 
                 else:
@@ -559,8 +575,8 @@ class Controller(object):
 
     def wait(self):
         while not self.directories.empty():
-            self.currentJob += 1
             gc.collect()
+            self.currentJob += 1
             self.index = 0
             self.currentDirectory = self.directories.get()
             self.output.warning(
@@ -585,7 +601,7 @@ class Controller(object):
             if dir in self.doneDirs:
                 return False
 
-            if dir.count("/") > self.recursive_level_max:
+            if self.recursive_level_max and dir.count("/") > self.recursive_level_max:
                 return False
 
             self.directories.put(dir)
@@ -614,7 +630,7 @@ class Controller(object):
             if dir in self.doneDirs:
                 return False
 
-            if dir.count("/") > self.recursive_level_max:
+            if self.recursive_level_max and dir.count("/") > self.recursive_level_max:
                 return False
 
             self.directories.put(dir)

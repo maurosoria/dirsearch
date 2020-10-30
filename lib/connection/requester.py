@@ -62,6 +62,9 @@ class Requester(object):
 
         parsed = urllib.parse.urlparse(url)
 
+        self.basePath = parsed.path.lstrip("/")
+
+
         # If no protocol specified, set http by default
         if not parsed.scheme:
             parsed = urllib.parse.urlparse("http://" + url)
@@ -119,7 +122,7 @@ class Requester(object):
         self.url = "{0}://{1}:{2}".format(self.protocol, self.host if self.requestByHostname else self.ip, self.port)
 
     def setHeader(self, header, content):
-        self.headers[header] = content
+        self.headers[header.strip()] = content.strip()
 
     def setRandomAgents(self, agents):
         self.randomAgents = list(agents)
@@ -139,9 +142,6 @@ class Requester(object):
                     proxy = {"https": random.choice(self.proxylist), "http": random.choice(self.proxylist)}
                 elif self.proxy:
                     proxy = {"https": self.proxy, "http": self.proxy}
-
-                if self.basePath.startswith("/"):
-                    self.basePath = self.basePath[1:]
 
                 url = "{0}/{1}".format(self.url, self.basePath).rstrip("/")
 

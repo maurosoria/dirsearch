@@ -17,7 +17,7 @@
 
 ---------
 
-0.4.0 - 2020.09.26
+0.4.0 - 2020.09.27
 ---------
 - Exclude extensions argument added
 - No dot extensions option

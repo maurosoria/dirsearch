@@ -113,7 +113,7 @@ class ArgumentParser(object):
         if options.headers:
             try:
                 self.headers = dict(
-                    (key.strip(), value.strip())
+                    (key, value)
                     for (key, value) in (
                         header.split(":", 1) for header in options.headers
                     )
@@ -142,8 +142,7 @@ class ArgumentParser(object):
 
                     lines = hlist.get_lines()
                     for line in lines:
-                        line = line.strip()
-                        key, value = line.split(":")[0].strip(), line.split(":")[1].strip()
+                        key, value = line.split(":")[0], line.split(":")[1]
                         self.headers[key] = value
             except Exception as e:
                 print("Error in headers file: " + str(e))
@@ -157,7 +156,7 @@ class ArgumentParser(object):
         self.cookie = options.cookie
 
         if options.threadsCount < 1:
-            print('Threads number must be a number greater than zero')
+            print('Threads number must be greater than zero')
             exit(1)
 
         self.threadsCount = options.threadsCount
@@ -278,6 +277,7 @@ class ArgumentParser(object):
         self.simpleOutputFile = options.simpleOutputFile
         self.plainTextOutputFile = options.plainTextOutputFile
         self.jsonOutputFile = options.jsonOutputFile
+        self.xmlOutputFile = options.xmlOutputFile
         self.delay = options.delay
         self.timeout = options.timeout
         self.ip = options.ip
@@ -354,7 +354,7 @@ class ArgumentParser(object):
         self.redirect = config.safe_getboolean("general", "follow-redirects", False)
         self.recursive = config.safe_getboolean("general", "recursive", False)
         self.recursive_level_max = config.safe_getint(
-            "general", "recursive-level-max", 1
+            "general", "recursive-level-max", 0
         )
         self.headerList = config.safe_get("general", "headers-file", None)
         self.suppressEmpty = config.safe_getboolean("general", "suppress-empty", False)
@@ -370,8 +370,9 @@ class ArgumentParser(object):
         # Reports
         self.autoSave = config.safe_getboolean("reports", "autosave-report", False)
         self.autoSaveFormat = config.safe_get(
-            "reports", "autosave-report-format", "plain", ["plain", "json", "simple"]
+            "reports", "autosave-report-format", "plain", ["plain", "simple", "json", "xml"]
         )
+
         # Dictionary
         self.wordlist = config.safe_get(
             "dictionary",
@@ -452,7 +453,7 @@ You can change the dirsearch default configurations (default extensions, timeout
         general.add_option('-r', '--recursive', help='Bruteforce recursively', action='store_true', dest='recursive',
                            default=self.recursive)
         general.add_option('-R', '--recursive-level-max',
-                           help='Max recursion level (subdirs) (Default: 1 [only rootdir + 1 dir])', action='store', type='int',
+                           help='Max recursion level (subdirs) (Default: 0 [infinity])', action='store', type='int',
                            dest='recursive_level_max',
                            default=self.recursive_level_max)
         general.add_option('--suppress-empty', action='store_true', dest='suppressEmpty',
@@ -520,6 +521,7 @@ You can change the dirsearch default configurations (default extensions, timeout
         reports.add_option('--plain-text-report', action='store',
                            help='Found paths with status codes', dest='plainTextOutputFile', default=None)
         reports.add_option('--json-report', action='store', dest='jsonOutputFile', default=None)
+        reports.add_option('--xml-report', action='store', dest='xmlOutputFile', default=None)
 
         parser.add_option_group(mandatory)
         parser.add_option_group(dictionary)
