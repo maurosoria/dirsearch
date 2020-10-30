@@ -122,8 +122,9 @@ class Controller(object):
             arguments.excludeSubdirs if arguments.excludeSubdirs else []
         )
 
-        self.dictionary = Dictionary(self.arguments.wordlist, self.arguments.extensions, self.arguments.suffixes,
-                                     self.arguments.prefixes, self.arguments.lowercase, self.arguments.uppercase,
+        self.dictionary = Dictionary(self.arguments.wordlist, self.arguments.extensions,
+                                     self.arguments.suffixes, self.arguments.prefixes,
+                                     self.arguments.lowercase, self.arguments.uppercase,
                                      self.arguments.capitalization, self.arguments.forceExtensions,
                                      self.arguments.noDotExtensions, self.arguments.excludeExtensions,
                                      self.arguments.noExtension)
@@ -422,20 +423,36 @@ class Controller(object):
 
         # TODO: format, refactor code
         if self.arguments.simpleOutputFile:
-            self.reportManager.addOutput(SimpleReport(requester.host, requester.port, requester.protocol,
-                                                      requester.basePath, self.arguments.simpleOutputFile, self.batch))
+            self.reportManager.addOutput(
+                SimpleReport(
+                    requester.host, requester.port, requester.protocol,
+                    requester.basePath, self.arguments.simpleOutputFile, self.batch
+                )
+            )
 
         if self.arguments.plainTextOutputFile:
-            self.reportManager.addOutput(PlainTextReport(requester.host, requester.port, requester.protocol,
-                                                         requester.basePath, self.arguments.plainTextOutputFile, self.batch))
+            self.reportManager.addOutput(
+                PlainTextReport(
+                    requester.host, requester.port, requester.protocol,
+                    requester.basePath, self.arguments.plainTextOutputFile, self.batch
+                )
+            )
 
         if self.arguments.jsonOutputFile:
-            self.reportManager.addOutput(JSONReport(requester.host, requester.port, requester.protocol,
-                                                    requester.basePath, self.arguments.jsonOutputFile, self.batch))
+            self.reportManager.addOutput(
+                JSONReport(
+                    requester.host, requester.port, requester.protocol,
+                    requester.basePath, self.arguments.jsonOutputFile, self.batch
+                )
+            )
 
         if self.arguments.xmlOutputFile:
-            self.reportManager.addOutput(XMLReport(requester.host, requester.port, requester.protocol,
-                                                    requester.basePath, self.arguments.xmlOutputFile, self.batch))
+            self.reportManager.addOutput(
+                XMLReport(
+                    requester.host, requester.port, requester.protocol,
+                    requester.basePath, self.arguments.xmlOutputFile, self.batch
+                )
+            )
 
     # TODO: Refactor, this function should be a decorator for all the filters
     def matchCallback(self, path):
