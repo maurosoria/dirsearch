@@ -28,7 +28,7 @@ from queue import Queue
 
 from lib.connection import Requester, RequestException
 from lib.core import Dictionary, Fuzzer, ReportManager
-from lib.reports import JSONReport, PlainTextReport, SimpleReport
+from lib.reports import JSONReport, XMLReport, PlainTextReport, SimpleReport
 from lib.utils import FileUtils
 
 
@@ -383,8 +383,16 @@ class Controller(object):
                         outputFile,
                         self.batch
                     )
-                if self.arguments.autoSaveFormat == "json":
+                elif self.arguments.autoSaveFormat == "json":
                     report = JSONReport(
+                        requester.host,
+                        requester.port,
+                        requester.protocol,
+                        requester.basePath,
+                        outputFile,
+                    )
+                elif self.arguments.autoSaveFormat == "xml":
+                    report = XMLReport(
                         requester.host,
                         requester.port,
                         requester.protocol,
@@ -419,6 +427,10 @@ class Controller(object):
         if self.arguments.jsonOutputFile:
             self.reportManager.addOutput(JSONReport(requester.host, requester.port, requester.protocol,
                                                     requester.basePath, self.arguments.jsonOutputFile, self.batch))
+
+        if self.arguments.xmlOutputFile:
+            self.reportManager.addOutput(XMLReport(requester.host, requester.port, requester.protocol,
+                                                    requester.basePath, self.arguments.xmlOutputFile, self.batch))
 
     # TODO: Refactor, this function should be a decorator for all the filters
     def matchCallback(self, path):

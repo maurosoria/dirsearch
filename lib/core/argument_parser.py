@@ -261,6 +261,7 @@ class ArgumentParser(object):
         self.simpleOutputFile = options.simpleOutputFile
         self.plainTextOutputFile = options.plainTextOutputFile
         self.jsonOutputFile = options.jsonOutputFile
+        self.xmlOutputFile = options.xmlOutputFile
         self.delay = options.delay
         self.timeout = options.timeout
         self.ip = options.ip
@@ -352,8 +353,9 @@ class ArgumentParser(object):
         # Reports
         self.autoSave = config.safe_getboolean("reports", "autosave-report", False)
         self.autoSaveFormat = config.safe_get(
-            "reports", "autosave-report-format", "plain", ["plain", "json", "simple"]
+            "reports", "autosave-report-format", "plain", ["plain", "simple", "json", "xml"]
         )
+
         # Dictionary
         self.wordlist = config.safe_get(
             "dictionary",
@@ -506,6 +508,7 @@ You can change the dirsearch default configurations (default extensions, timeout
         reports.add_option('--plain-text-report', action='store',
                            help='Found paths with status codes', dest='plainTextOutputFile', default=None)
         reports.add_option('--json-report', action='store', dest='jsonOutputFile', default=None)
+        reports.add_option('--xml-report', action='store', dest='xmlOutputFile', default=None)
 
         parser.add_option_group(mandatory)
         parser.add_option_group(dictionary)

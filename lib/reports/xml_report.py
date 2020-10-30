@@ -17,14 +17,12 @@
 #  Author: Mauro Soria
 
 from lib.reports import *
-from lib.utils.file_utils import FileUtils
 
 
-class PlainTextReport(TailableFileBaseReport):
+class XMLReport(FileBaseReport):
 
     def addPath(self, path, status, response):
         contentLength = None
-        location = None
 
         try:
             contentLength = int(response.headers["content-length"])
@@ -32,28 +30,23 @@ class PlainTextReport(TailableFileBaseReport):
         except (KeyError, ValueError):
             contentLength = len(response.body)
 
-        try:
-            location = response.headers["location"]
-        except(KeyError, ValueError):
-            pass
-
-        self.storeData((path, status, contentLength, location))
+        self.storeData((path, status, contentLength, response.redirect))
 
     def generate(self):
-        result = ""
+        result = "<?xml version=\"1.0\"?>\n"
 
-        for path, status, contentLength, location in self.getPathIterator():
-            result += "{0}  ".format(status)
-            result += "{0}  ".format(FileUtils.size_human(contentLength).rjust(6, " "))
-            result += "{0}://{1}:{2}/".format(self.protocol, self.host, self.port)
-            result += (
-                "{0}".format(path)
-                if self.basePath == ""
-                else "{0}/{1}".format(self.basePath, path)
-            )
-            if location:
-                result += "    -> REDIRECTS TO: {0}".format(location)
+        headerName = "{0}://{1}:{2}/{3}".format(
+            self.protocol, self.host, self.port, self.basePath
+        )
+        result += "<target url=\"{0}\">\n".format(headerName)
 
-            result += "\n"
+        for path, status, contentLength, redirect in self.pathList:
+            result += " <info path=\"/{0}\">\n".format(path)
+            result += "  <status>{0}</status>\n".format(status)
+            result += "  <contentLength>{0}</contentLength>\n".format(contentLength)
+            result += "  <redirect>{0}</redirect>\n".format(redirect)
+            result += " </info>\n"
+ 
+        result += "</target>\n"
 
         return result
