@@ -527,9 +527,12 @@ class Controller(object):
             self.exit = True
             self.fuzzer.stop()
             self.output.error("\nCanceled due to an error")
-            exit(0)
+            exit(1)
 
         else:
+            if self.arguments.debug:
+                self.output.debug(errorMsg)
+
             self.output.addConnectionError()
 
     def appendErrorLog(self, path, errorMsg):
