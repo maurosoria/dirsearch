@@ -11,7 +11,8 @@
 - Option to stop whenever an error occurs
 - Option to provide headers using file as input
 - Option to exclude responses by human readable sizes
-- XML report format
+- Support XML report format
+- Debug mode
 - Several updates
 - Multiple bugfixes
 
