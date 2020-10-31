@@ -330,10 +330,11 @@ class ArgumentParser(object):
             print("Exclude extensions can not contain any extension that has already in the extensions")
             exit(0)
 
+        self.httpmethod = options.httpmethod
         self.redirect = options.noFollowRedirects
         self.requestByHostname = options.requestByHostname
         self.stop = options.stop
-        self.httpmethod = options.httpmethod
+        self.debug = options.debug
 
         self.recursive_level_max = options.recursive_level_max
 
@@ -404,6 +405,7 @@ class ArgumentParser(object):
             "connection", "request-by-hostname", False
         )
         self.stop = config.safe_getboolean("connection", "stop-on-error", False)
+        self.debug = config.safe_getboolean("connection", "debug", False)
 
     def parseArguments(self):
         usage = "Usage: %prog [-u|--url] target [-e|--extensions] extensions [options]"
@@ -480,11 +482,12 @@ You can change the dirsearch default configurations (default extensions, timeout
                            action='store', dest='excludeRegexps', default=None)
         general.add_option('-H', '--header', help='HTTP request header, support multiple flags (Example: -H "Referer: example.com" -H "Accept: */*")',
                            action='append', type='string', dest='headers', default=None)
-        general.add_option('--header-list', help="File contains HTTP request headers", type='string',
+        general.add_option('--header-list', help='File contains HTTP request headers', type='string',
                            dest='headerList', default=self.headerList)
+        general.add_option('--random-agent', '--random-user-agent', help='Choose a random User-Agent for each request',
+                           action='store_true', dest='useRandomAgents')
         general.add_option('--user-agent', action='store', type='string', dest='useragent',
                            default=self.useragent)
-        general.add_option('--random-agent', '--random-user-agent', action='store_true', dest='useRandomAgents')
         general.add_option('--cookie', action='store', type='string', dest='cookie', default=None)
         general.add_option('-F', '--follow-redirects', action='store_true', dest='noFollowRedirects',
                            default=self.redirect)
@@ -513,6 +516,7 @@ You can change the dirsearch default configurations (default extensions, timeout
                               action='store_true', dest='requestByHostname', default=self.requestByHostname)
         connection.add_option('--stop-on-error', action='store_true', dest='stop', default=self.stop,
                               help='Stop whenever an error occurs')
+        connection.add_option('--debug', action='store_true', dest='debug', default=self.debug)
 
         # Report Settings
         reports = OptionGroup(parser, 'Reports')
