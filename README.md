@@ -10,7 +10,7 @@ Dirsearch is a mature command-line tool designed to brute force directories and 
 
 With 6 years of growing, dirsearch has become the most popular web content scanner. As a feature-rich tool, dirsearch allows the user to perform a complex web content discovering, with many vectors for the wordlist, high accuracy, impressive performance, advanced connection/request settings, modern brute-force techniques and nice output.
 
-Although there are now many awesome fuzzers like [wfuzz](https://github.com/xmendez/wfuzz), [gobuster](https://github.com/OJ/gobuster) or [ffuf](https://github.com/ffuf/ffuf), dirsearch is still showing it's own unique in features and detections when doing web content brute-force. Instead of supporting parameters fuzzing like in *ffuf* or *wfuzz*, dirsearch still keeps it as a traditional web path brute forcer. This allows dirsearch to much more focusing on the accuracy of the output and supporting more features for its purpose.
+Although there are now many awesome fuzzers like [wfuzz](https://github.com/xmendez/wfuzz), [gobuster](https://github.com/OJ/gobuster) or [ffuf](https://github.com/ffuf/ffuf), dirsearch is still showing it's own unique in features and detections when doing web content brute-force. Instead of supporting parameters fuzzing like in *ffuf* or *wfuzz*, dirsearch still keeps it as a traditional web path brute forcer. This allows dirsearch to much more focus on the accuracy of the output and support more features for its purpose.
 
 
 Installation & Usage
@@ -164,10 +164,10 @@ Features
 - Support for every HTTP method
 - Support for HTTP request data
 - Extensions excluding
-- Reporting (plain text, JSON)
+- Reporting (Plain text, JSON, XML)
 - Heuristically detects invalid web pages
 - Recursive brute forcing
-- Subdirectories brute forcing
+- Sub-directories brute forcing
 - Force extensions
 - HTTP and SOCKS proxy support
 - HTTP cookies and headers support
@@ -178,15 +178,17 @@ Features
 - Request delaying
 - Multiple wordlist formats (lowercase, uppercase, capitalization)
 - Quiet mode
+- Debug mode
 - Option to force requests by hostname
 - Option to whitelist response codes (-i 200,500)
 - Option to blacklist response codes (-x 404,403)
 - Option to exclude responses by sizes
 - Option to exclude responses by texts
 - Option to exclude responses by regexps (example: "Not foun[a-z]{1}")
-- Option to remove dot from extension when forcing
 - Options to display only items with response length from range
 - Option to add custom suffixes and prefixes
+- Option to remove all extensions on every wordlist entries
+- Option to remove dot from extension when forcing
 - ...
 
 
@@ -206,7 +208,7 @@ Passing the extensions "asp" and "aspx" will generate the following dictionary:
 
 You can also use -f | --force-extensions switch to append extensions to every word in the wordlists.
 
-To use multiple wordlists, you can seperate your wordlists with comma. Example: -w wordlist1.txt,wordlist2.txt
+To use multiple wordlists, you can seperate your wordlists with commas. Example: -w wordlist1.txt,wordlist2.txt
 
 How to use
 ---------------
@@ -236,6 +238,15 @@ You can set the max recursion depth with "-R" or "--recursive-level-max"
 
 ```
 python3 dirsearch.py -e php,html,js -u https://target -r -R 3
+```
+
+### Threads
+The threads number (-t | --threads) reflects the number of separate brute force processes, that each process will perform path brute-forcing against the target. And so the bigger the threads number is, the more fast dirsearch runs. By default, the number of threads is 20, but you can increase it if you want to speed up the progress.
+
+In spite of that, the speed is actually still uncontrollable since it a lot depends on the response time of the server. And as a warning, we advise you to keep the threads number not too big because of the impact from too much automation requests, this will depend on the power of the system that you're scanning against.
+
+```
+python3 dirsearch.py -e php,htm,js,bak,zip,tgz,txt -u https://target -t 30
 ```
 
 ### Exclude extensions
@@ -393,7 +404,7 @@ python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --random-ag
 ```
 
 ```
-python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --json-report=reports/target.json --suppress-empty
+python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --json-report=target.json
 ```
 
 ```
