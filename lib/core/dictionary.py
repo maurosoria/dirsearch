@@ -38,6 +38,7 @@ class Dictionary(object):
         noDotExtensions=False,
         excludeExtensions=[],
         noExtension=False,
+        onlySelected=False,
     ):
 
         self.entries = []
@@ -51,6 +52,7 @@ class Dictionary(object):
         self._forcedExtensions = forcedExtensions
         self._noDotExtensions = noDotExtensions
         self._noExtension = noExtension
+        self._onlySelected = onlySelected
         self.lowercase = lowercase
         self.uppercase = uppercase
         self.capitalization = capitalization
@@ -165,7 +167,15 @@ class Dictionary(object):
                 # Append line unmodified.
                 else:
                     quoted = self.quote(line)
-                    result.append(quoted)
+
+                    if self._onlySelected and not line.rstrip().endswith("/") and "." in line:
+                        for extension in self._extensions:
+                            if line.endswith("." + extension):
+                                result.append(quoted)
+                                continue
+
+                    else:
+                        result.append(quoted)
 
         # Adding prefixes for finding config files etc
         if self._prefixes:
