@@ -465,10 +465,10 @@ You can change the dirsearch default configurations (default extensions, timeout
         general.add_option('--exclude-subdirs', help='Exclude the following subdirectories during recursive scan (separated by commas)',
                            action='store', dest='excludeSubdirs', default=self.excludeSubdirs, metavar='SUBDIRS')
         general.add_option('-t', '--threads', help='Number of threads', action='store', type='int', dest='threadsCount',
-                           default=self.threadsCount, metavat='THREADS')
-        general.add_option('-i', '--include-status', help='Show only included status codes, separated by commas (Example: 301, 500)',
+                           default=self.threadsCount, metavar='THREADS')
+        general.add_option('-i', '--include-status', help='Show only included status codes, separated by commas (Example: 301,500)',
                            action='store', dest='includeStatusCodes', default=self.includeStatusCodes, metavar='STATUS')
-        general.add_option('-x', '--exclude-status', help='Do not show excluded status codes, separated by commas (Example: 301, 500)',
+        general.add_option('-x', '--exclude-status', help='Do not show excluded status codes, separated by commas (Example: 301,500)',
                            action='store', dest='excludeStatusCodes', default=self.excludeStatusCodes, metavar='STATUS')
         general.add_option('--exclude-sizes', help='Exclude responses by sizes, separated by commas (Example: 123B,4KB)',
                            action='store', dest='excludeSizes', default=None, metavar='SIZES')
@@ -503,7 +503,7 @@ You can change the dirsearch default configurations (default extensions, timeout
         connection.add_option('--proxy-list', action='store', dest='proxyList', type='string',
                               default=self.proxylist, help='File contains proxy servers', metavar='FILE')
         connection.add_option('-m', '--http-method', action='store', dest='httpmethod', type='string',
-                              default=self.httpmethod, help='HTTP method, default: GET', metavat='METHOD')
+                              default=self.httpmethod, help='HTTP method, default: GET', metavar='METHOD')
         connection.add_option('--max-retries', action='store', dest='maxRetries', type='int',
                               default=self.maxRetries, metavar='RETRIES')
         connection.add_option('-b', '--request-by-hostname',
