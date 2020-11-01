@@ -172,7 +172,7 @@ class Dictionary(object):
                         for extension in self._extensions:
                             if line.endswith("." + extension):
                                 result.append(quoted)
-                                continue
+                                break
 
                     else:
                         result.append(quoted)
