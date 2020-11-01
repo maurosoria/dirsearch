@@ -101,11 +101,11 @@ class ArgumentParser(object):
 
             self.proxylist = open(options.proxyList).read().splitlines()
 
-        elif options.httpProxy:
-            if options.httpProxy.startswith("http://") or options.httpProxy.startswith("https://") or options.httpProxy.startswith("socks5://"):
-                self.proxy = options.httpProxy
+        elif options.proxy:
+            if options.proxy.startswith("http://") or options.proxy.startswith("https://") or options.proxy.startswith("socks5://"):
+                self.proxy = options.proxy
             else:
-                self.proxy = "http://{0}".format(options.httpProxy)
+                self.proxy = "http://{0}".format(options.proxy)
 
         else:
             self.proxy = None
@@ -439,12 +439,12 @@ You can change the dirsearch default configurations (default extensions, timeout
                               help='Remove extensions in all wordlist entries (Example: admin.php -> admin)')
         dictionary.add_option('--no-dot-extensions', dest='noDotExtensions', default=self.noDotExtensions,
                               help='Remove the "." character before extensions', action='store_true')
-        dictionary.add_option('-C', '--capitalization', action='store_true', dest='capitalization', default=self.capitalization,
-                              help='Capital wordlist')
         dictionary.add_option('-U', '--uppercase', action='store_true', dest='uppercase', default=self.uppercase,
                               help='Uppercase wordlist')
         dictionary.add_option('-L', '--lowercase', action='store_true', dest='lowercase', default=self.lowercase,
                               help='Lowercase wordlist')
+        dictionary.add_option('-C', '--capital', action='store_true', dest='capitalization', default=self.capitalization,
+                              help='Capital wordlist')
 
         # Optional Settings
         general = OptionGroup(parser, 'General Settings')
@@ -498,7 +498,7 @@ You can change the dirsearch default configurations (default extensions, timeout
                               help='Server IP address')
         connection.add_option('-s', '--delay', help='Delay between requests (support float number)', action='store', dest='delay',
                               type='float', default=self.delay)
-        connection.add_option('--proxy', action='store', dest='httpProxy', type='string', default=self.proxy,
+        connection.add_option('--proxy', action='store', dest='proxy', type='string', default=self.proxy,
                               help='Proxy URL, support HTTP and SOCKS proxy (Example: localhost:8080, socks5://localhost:8088)', metavar='PROXY')
         connection.add_option('--proxy-list', action='store', dest='proxyList', type='string',
                               default=self.proxylist, help='File contains proxy servers', metavar='FILE')
