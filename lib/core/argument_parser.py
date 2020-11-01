@@ -434,7 +434,7 @@ You can change the dirsearch default configurations (default extensions, timeout
         dictionary.add_option('--suffixes', action='store', dest='suffixes', default=self.suffixes,
                               help='Add custom suffixes to all entries, ignores directories (separated by commas)')
         dictionary.add_option('-f', '--force-extensions', action='store_true', dest='forceExtensions', default=self.forceExtensions,
-                              help='Force extensions for every wordlist entry. Add %NOFORCE% at the end of the entry in the wordlist that you do not want to force')
+                              help='Force extensions for every wordlist entry')
         dictionary.add_option('--no-extension', dest='noExtension', action='store_true',
                               help='Remove extensions in all wordlist entries (Example: admin.php -> admin)')
         dictionary.add_option('--no-dot-extensions', dest='noDotExtensions', default=self.noDotExtensions,
@@ -454,6 +454,8 @@ You can change the dirsearch default configurations (default extensions, timeout
                            default=self.recursive)
         general.add_option('-R', '--recursion-depth', help='Max recursion depth (subdirs) (Default: 0 [infinity])', action='store', type='int',
                            dest='recursive_level_max', default=self.recursive_level_max, metavar='DEPTH')
+        general.add_option('-t', '--threads', help='Number of threads', action='store', type='int', dest='threadsCount',
+                           default=self.threadsCount, metavar='THREADS')
         general.add_option('--suppress-empty', action='store_true', dest='suppressEmpty',
                            help='Suppress empty responses', default=self.suppressEmpty)
         general.add_option('--minimal', action='store', dest='minimumResponseSize', type='int', default=None,
@@ -464,8 +466,6 @@ You can change the dirsearch default configurations (default extensions, timeout
                            dest='scanSubdirs', default=None, metavar='SUBDIRS')
         general.add_option('--exclude-subdirs', help='Exclude the following subdirectories during recursive scan (separated by commas)',
                            action='store', dest='excludeSubdirs', default=self.excludeSubdirs, metavar='SUBDIRS')
-        general.add_option('-t', '--threads', help='Number of threads', action='store', type='int', dest='threadsCount',
-                           default=self.threadsCount, metavar='THREADS')
         general.add_option('-i', '--include-status', help='Show only included status codes, separated by commas (Example: 301,500)',
                            action='store', dest='includeStatusCodes', default=self.includeStatusCodes, metavar='STATUS')
         general.add_option('-x', '--exclude-status', help='Do not show excluded status codes, separated by commas (Example: 301,500)',
