@@ -415,14 +415,14 @@ You can change the dirsearch default configurations (default extensions, timeout
         mandatory = OptionGroup(parser, 'Mandatory')
         mandatory.add_option('-u', '--url', help='URL target', action='store', type='string', dest='url', default=None)
         mandatory.add_option('-l', '--url-list', help='URL list file', action='store', type='string', dest='urlList',
-                             default=None)
+                             default=None, metavar='FILE')
         mandatory.add_option('-e', '--extensions', help='Extension list separated by commas (Example: php,asp)',
                              action='store', dest='extensions', default=None)
-        mandatory.add_option('-E', '--extensions-list', help='Use predefined list of common extensions',
+        mandatory.add_option('-E', '--extension-list', help='Use predefined list of common extensions',
                              action='store_true', dest='defaultExtensions', default=False)
         mandatory.add_option('-X', '--exclude-extensions',
                              help='Exclude extension list separated by commas (Example: asp,jsp)',
-                             action='store', dest='excludeExtensions', default=None)
+                             action='store', dest='excludeExtensions', default=None, metavar='EXTENSIONS')
 
         # Dictionary Settings
         dictionary = OptionGroup(parser, 'Dictionary Settings')
@@ -452,36 +452,34 @@ You can change the dirsearch default configurations (default extensions, timeout
                            type='str', default=None)
         general.add_option('-r', '--recursive', help='Bruteforce recursively', action='store_true', dest='recursive',
                            default=self.recursive)
-        general.add_option('-R', '--recursive-level-max',
-                           help='Max recursion level (subdirs) (Default: 0 [infinity])', action='store', type='int',
-                           dest='recursive_level_max',
-                           default=self.recursive_level_max)
+        general.add_option('-R', '--recursion-depth', help='Max recursion depth (subdirs) (Default: 0 [infinity])', action='store', type='int',
+                           dest='recursive_level_max', default=self.recursive_level_max, metavar='DEPTH')
         general.add_option('--suppress-empty', action='store_true', dest='suppressEmpty',
                            help='Suppress empty responses', default=self.suppressEmpty)
         general.add_option('--minimal', action='store', dest='minimumResponseSize', type='int', default=None,
-                           help='Minimal response length')
+                           help='Minimal response length', metavar='LENGTH')
         general.add_option('--maximal', action='store', dest='maximumResponseSize', type='int', default=None,
-                           help='Maximal response length')
+                           help='Maximal response length', metavar='LENGTH')
         general.add_option('--scan-subdirs', help='Scan subdirectories of the given URL (separated by commas)', action='store',
-                           dest='scanSubdirs', default=None)
+                           dest='scanSubdirs', default=None, metavar='SUBDIRS')
         general.add_option('--exclude-subdirs', help='Exclude the following subdirectories during recursive scan (separated by commas)',
-                           action='store', dest='excludeSubdirs', default=self.excludeSubdirs)
+                           action='store', dest='excludeSubdirs', default=self.excludeSubdirs, metavar='SUBDIRS')
         general.add_option('-t', '--threads', help='Number of threads', action='store', type='int', dest='threadsCount',
-                           default=self.threadsCount)
+                           default=self.threadsCount, metavat='THREADS')
         general.add_option('-i', '--include-status', help='Show only included status codes, separated by commas (Example: 301, 500)',
-                           action='store', dest='includeStatusCodes', default=self.includeStatusCodes)
+                           action='store', dest='includeStatusCodes', default=self.includeStatusCodes, metavar='STATUS')
         general.add_option('-x', '--exclude-status', help='Do not show excluded status codes, separated by commas (Example: 301, 500)',
-                           action='store', dest='excludeStatusCodes', default=self.excludeStatusCodes)
+                           action='store', dest='excludeStatusCodes', default=self.excludeStatusCodes, metavar='STATUS')
         general.add_option('--exclude-sizes', help='Exclude responses by sizes, separated by commas (Example: 123B,4KB)',
-                           action='store', dest='excludeSizes', default=None)
+                           action='store', dest='excludeSizes', default=None, metavar='SIZES')
         general.add_option('--exclude-texts', help='Exclude responses by texts, separated by commas (Example: "Not found", "Error")',
-                           action='store', dest='excludeTexts', default=None)
+                           action='store', dest='excludeTexts', default=None, metavar='TEXTS')
         general.add_option('--exclude-regexps', help='Exclude responses by regexps, separated by commas (Example: "Not foun[a-z]{1}", "^Error$")',
-                           action='store', dest='excludeRegexps', default=None)
+                           action='store', dest='excludeRegexps', default=None, metavar='REGEXPS')
         general.add_option('-H', '--header', help='HTTP request header, support multiple flags (Example: -H "Referer: example.com" -H "Accept: */*")',
                            action='append', type='string', dest='headers', default=None)
         general.add_option('--header-list', help="File contains HTTP request headers", type='string',
-                           dest='headerList', default=self.headerList)
+                           dest='headerList', default=self.headerList, metavar='FILE')
         general.add_option('--user-agent', action='store', type='string', dest='useragent',
                            default=self.useragent)
         general.add_option('--random-agent', '--random-user-agent', action='store_true', dest='useRandomAgents')
@@ -500,14 +498,14 @@ You can change the dirsearch default configurations (default extensions, timeout
                               help='Server IP address')
         connection.add_option('-s', '--delay', help='Delay between requests (support float number)', action='store', dest='delay',
                               type='float', default=self.delay)
-        connection.add_option('--proxy', action='store', dest='httpProxy', type='string',
-                              default=self.proxy, help='Proxy URL, support HTTP and SOCKS proxy (Example: localhost:8080, socks5://localhost:8088)')
+        connection.add_option('--proxy', action='store', dest='httpProxy', type='string', default=self.proxy,
+                              help='Proxy URL, support HTTP and SOCKS proxy (Example: localhost:8080, socks5://localhost:8088)', metavar='PROXY')
         connection.add_option('--proxy-list', action='store', dest='proxyList', type='string',
-                              default=self.proxylist, help='File contains proxy servers')
+                              default=self.proxylist, help='File contains proxy servers', metavar='FILE')
         connection.add_option('-m', '--http-method', action='store', dest='httpmethod', type='string',
-                              default=self.httpmethod, help='HTTP method, default: GET')
+                              default=self.httpmethod, help='HTTP method, default: GET', metavat='METHOD')
         connection.add_option('--max-retries', action='store', dest='maxRetries', type='int',
-                              default=self.maxRetries)
+                              default=self.maxRetries, metavar='RETRIES')
         connection.add_option('-b', '--request-by-hostname',
                               help='By default dirsearch will request by IP for speed. This will force requests by hostname',
                               action='store_true', dest='requestByHostname', default=self.requestByHostname)
@@ -516,12 +514,10 @@ You can change the dirsearch default configurations (default extensions, timeout
 
         # Report Settings
         reports = OptionGroup(parser, 'Reports')
-        reports.add_option('--simple-report', action='store', help='Only found paths',
-                           dest='simpleOutputFile', default=None)
-        reports.add_option('--plain-text-report', action='store',
-                           help='Found paths with status codes', dest='plainTextOutputFile', default=None)
-        reports.add_option('--json-report', action='store', dest='jsonOutputFile', default=None)
-        reports.add_option('--xml-report', action='store', dest='xmlOutputFile', default=None)
+        reports.add_option('--simple-report', action='store', dest='simpleOutputFile', default=None, metavar='OUTPUTFILE')
+        reports.add_option('--plain-text-report', action='store', dest='plainTextOutputFile', default=None, metavar='OUTPUTFILE')
+        reports.add_option('--json-report', action='store', dest='jsonOutputFile', default=None, metavar='OUTPUTFILE')
+        reports.add_option('--xml-report', action='store', dest='xmlOutputFile', default=None, metavar='OUTPUTFILE')
 
         parser.add_option_group(mandatory)
         parser.add_option_group(dictionary)
