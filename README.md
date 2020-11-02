@@ -243,7 +243,7 @@ python3 dirsearch.py -e php,html,js -u https://target -r -R 3
 ### Threads
 The threads number (-t | --threads) reflects the number of separate brute force processes, that each process will perform path brute-forcing against the target. And so the bigger the threads number is, the more fast dirsearch runs. By default, the number of threads is 20, but you can increase it if you want to speed up the progress.
 
-In spite of that, the speed is actually still uncontrollable since it a lot depends on the response time of the server. And as a warning, we advise you to keep the threads number not too big because of the impact from too much automation requests, this will depend on the power of the system that you're scanning against.
+In spite of that, the speed is actually still uncontrollable since it depends a lot on the response time of the server. And as a warning, we advise you to keep the threads number not too big because of the impact from too much automation requests, this should be adjusted to fit the power of the system that you're scanning against.
 
 ```
 python3 dirsearch.py -e php,htm,js,bak,zip,tgz,txt -u https://target -t 30
