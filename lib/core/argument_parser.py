@@ -27,47 +27,47 @@ from thirdparty.oset import *
 class ArgumentParser(object):
     def __init__(self, script_path):
         self.script_path = script_path
-        self.parseConfig()
+        self.parse_config()
 
-        options = self.parseArguments()
+        options = self.parse_arguments()
 
         self.quiet = options.quiet
         self.full_url = options.full_url
 
         if not options.url:
 
-            if options.urlList:
+            if options.url_list:
 
-                with File(options.urlList) as urlList:
+                with File(options.url_list) as url_list:
 
-                    if not urlList.exists():
+                    if not url_list.exists():
                         print("The file with URLs does not exist")
                         exit(0)
 
-                    if not urlList.is_valid():
+                    if not url_list.is_valid():
                         print("The file with URLs is invalid")
                         exit(0)
 
-                    if not urlList.can_read():
+                    if not url_list.can_read():
                         print("The file with URLs cannot be read")
                         exit(0)
 
-                    self.urlList = list(urlList.get_lines())
+                    self.url_list = list(url_list.get_lines())
 
             elif not options.url:
                 print("URL target is missing, try using -u <url> ")
                 exit(0)
 
         else:
-            self.urlList = [options.url]
+            self.url_list = [options.url]
 
-        if not options.extensions and not options.defaultExtensions and not options.noExtension:
+        if not options.extensions and not options.default_extensions and not options.no_extension:
             print('No extension specified. You must specify at least one extension or try using default extension list.')
             exit(0)
 
-        if not options.extensions and options.defaultExtensions:
-            options.extensions = self.defaultExtensions
-        if options.noExtension:
+        if not options.extensions and options.default_extensions:
+            options.extensions = self.default_extensions
+        if options.no_extension:
             options.extensions = ""
 
         # Enable to use multiple dictionaries at once
@@ -85,8 +85,8 @@ class ArgumentParser(object):
                     print('The wordlist cannot be read')
                     exit(1)
 
-        if options.proxyList:
-            with File(options.proxyList) as plist:
+        if options.proxy_list:
+            with File(options.proxy_list) as plist:
                 if not plist.exists():
                     print('The proxylist file does not exist')
                     exit(1)
@@ -99,13 +99,13 @@ class ArgumentParser(object):
                     print('The proxylist cannot be read')
                     exit(1)
 
-            self.proxylist = open(options.proxyList).read().splitlines()
+            self.proxylist = open(options.proxy_list).read().splitlines()
 
-        elif options.httpProxy:
-            if options.httpProxy.startswith("http://") or options.httpProxy.startswith("https://") or options.httpProxy.startswith("socks5://"):
-                self.proxy = options.httpProxy
+        elif options.http_proxy:
+            if options.http_proxy.startswith("http://") or options.http_proxy.startswith("https://") or options.http_proxy.startswith("socks5://"):
+                self.proxy = options.http_proxy
             else:
-                self.proxy = "http://{0}".format(options.httpProxy)
+                self.proxy = "http://{0}".format(options.http_proxy)
 
         else:
             self.proxy = None
@@ -125,9 +125,9 @@ class ArgumentParser(object):
         else:
             self.headers = {}
 
-        if options.headerList:
+        if options.header_list:
             try:
-                with File(options.headerList) as hlist:
+                with File(options.header_list) as hlist:
                     if not hlist.exists():
                         print('The header list file does not exist')
                         exit(1)
@@ -152,56 +152,56 @@ class ArgumentParser(object):
             oset([extension.strip() for extension in options.extensions.split(",")])
         )
         self.useragent = options.useragent
-        self.useRandomAgents = options.useRandomAgents
+        self.use_random_agents = options.use_random_agents
         self.cookie = options.cookie
 
-        if options.threadsCount < 1:
+        if options.thread_count < 1:
             print('Threads number must be greater than zero')
             exit(1)
 
-        self.threadsCount = options.threadsCount
+        self.thread_count = options.thread_count
 
-        if options.includeStatusCodes:
+        if options.include_status_codes:
 
             try:
-                self.includeStatusCodes = list(
-                    oset([int(includeStatusCode.strip()) if includeStatusCode else None for includeStatusCode in
-                          options.includeStatusCodes.split(',')]))
+                self.include_status_codes = list(
+                    oset([int(include_status_code.strip()) if include_status_code else None for include_status_code in
+                          options.include_status_codes.split(',')]))
 
             except ValueError:
-                self.includeStatusCodes = []
+                self.include_status_codes = []
 
         else:
-            self.includeStatusCodes = []
+            self.include_status_codes = []
 
-        if options.excludeExtensions:
+        if options.exclude_extensions:
 
             try:
-                self.excludeExtensions = list(
+                self.exclude_extensions = list(
                     oset(
                         [
-                            excludeExtension.strip() if excludeExtension else None
-                            for excludeExtension in options.excludeExtensions.split(",")
+                            exclude_extension.strip() if exclude_extension else None
+                            for exclude_extension in options.exclude_extensions.split(",")
                         ]
                     )
                 )
 
             except ValueError:
-                self.excludeExtensions = []
+                self.exclude_extensions = []
 
         else:
-            self.excludeExtensions = []
+            self.exclude_extensions = []
 
-        if options.excludeStatusCodes:
+        if options.exclude_status_codes:
 
             try:
-                self.excludeStatusCodes = list(
+                self.exclude_status_codes = list(
                     oset(
                         [
-                            int(excludeStatusCode.strip())
-                            if excludeStatusCode
+                            int(exclude_status_code.strip())
+                            if exclude_status_code
                             else None
-                            for excludeStatusCode in options.excludeStatusCodes.split(
+                            for exclude_status_code in options.exclude_status_codes.split(
                                 ","
                             )
                         ]
@@ -209,60 +209,60 @@ class ArgumentParser(object):
                 )
 
             except ValueError:
-                self.excludeStatusCodes = []
+                self.exclude_status_codes = []
 
         else:
-            self.excludeStatusCodes = []
+            self.exclude_status_codes = []
 
-        if options.excludeSizes:
+        if options.exclude_sizes:
             try:
-                self.excludeSizes = list(
+                self.exclude_sizes = list(
 
                     oset(
                         [
-                            excludeSize.strip().upper() if excludeSize else None
-                            for excludeSize in options.excludeSizes.split(",")
+                            exclude_size.strip().upper() if exclude_size else None
+                            for exclude_size in options.exclude_sizes.split(",")
                         ]
                     )
                 )
 
             except ValueError:
-                self.excludeSizes = []
+                self.exclude_sizes = []
         else:
-            self.excludeSizes = []
+            self.exclude_sizes = []
 
-        if options.excludeTexts:
+        if options.exclude_strings:
             try:
-                self.excludeTexts = list(
+                self.exclude_strings = list(
 
                     oset(
                         [
-                            excludeText.strip() if excludeText else None
-                            for excludeText in options.excludeTexts.split(",")
+                            exclude_strings.strip() if exclude_strings else None
+                            for exclude_strings in options.exclude_strings.split(",")
                         ]
                     )
                 )
 
             except ValueError:
-                self.excludeTexts = []
+                self.exclude_strings = []
         else:
-            self.excludeTexts = []
+            self.exclude_strings = []
 
-        if options.excludeRegexps:
+        if options.exclude_regexps:
             try:
-                self.excludeRegexps = list(
+                self.exclude_regexps = list(
                     oset(
                         [
-                            excludeRegexp.strip() if excludeRegexp else None
-                            for excludeRegexp in options.excludeRegexps.split(",")
+                            exclude_regexp.strip() if exclude_regexp else None
+                            for exclude_regexp in options.exclude_regexps.split(",")
                         ]
                     )
                 )
 
             except ValueError:
-                self.excludeRegexps = []
+                self.exclude_regexps = []
         else:
-            self.excludeRegexps = []
+            self.exclude_regexps = []
 
         self.prefixes = [] if not options.prefixes else list(oset([prefix.strip() for prefix in options.prefixes.split(',')]))
         self.suffixes = [] if not options.suffixes else list(oset([suffix.strip() for suffix in options.suffixes.split(',')]))
@@ -271,104 +271,104 @@ class ArgumentParser(object):
         self.lowercase = options.lowercase
         self.uppercase = options.uppercase
         self.capitalization = options.capitalization
-        self.forceExtensions = options.forceExtensions
+        self.force_extensions = options.force_extensions
         self.data = options.data
-        self.noDotExtensions = options.noDotExtensions
-        self.simpleOutputFile = options.simpleOutputFile
-        self.plainTextOutputFile = options.plainTextOutputFile
-        self.jsonOutputFile = options.jsonOutputFile
-        self.xmlOutputFile = options.xmlOutputFile
+        self.no_dot_extensions = options.no_dot_extensions
+        self.simple_output_file = options.simple_output_file
+        self.plain_text_output_file = options.plain_text_output_file
+        self.json_output_file = options.json_output_file
+        self.xml_output_file = options.xml_output_file
         self.delay = options.delay
         self.timeout = options.timeout
         self.ip = options.ip
-        self.maxRetries = options.maxRetries
+        self.max_retries = options.max_retries
         self.recursive = options.recursive
-        self.suppressEmpty = options.suppressEmpty
-        self.minimumResponseSize = options.minimumResponseSize
-        self.maximumResponseSize = options.maximumResponseSize
-        self.noExtension = options.noExtension
+        self.suppress_empty = options.suppress_empty
+        self.minimum_response_size = options.minimum_response_size
+        self.maximum_response_size = options.maximum_response_size
+        self.no_extension = options.no_extension
 
         if options.scanSubdirs:
-            self.scanSubdirs = list(
+            self.scan_subdirs = list(
                 oset([subdir.strip() for subdir in options.scanSubdirs.split(",")])
             )
 
-            for i in range(len(self.scanSubdirs)):
+            for i in range(len(self.scan_subdirs)):
 
-                while self.scanSubdirs[i].startswith("/"):
-                    self.scanSubdirs[i] = self.scanSubdirs[i][1:]
+                while self.scan_subdirs[i].startswith("/"):
+                    self.scan_subdirs[i] = self.scan_subdirs[i][1:]
 
-                while self.scanSubdirs[i].endswith("/"):
-                    self.scanSubdirs[i] = self.scanSubdirs[i][:-1]
+                while self.scan_subdirs[i].endswith("/"):
+                    self.scan_subdirs[i] = self.scan_subdirs[i][:-1]
 
-            self.scanSubdirs = list(oset([subdir + "/" for subdir in self.scanSubdirs]))
+            self.scan_subdirs = list(oset([subdir + "/" for subdir in self.scan_subdirs]))
 
         else:
-            self.scanSubdirs = None
+            self.scan_subdirs = None
 
-        if not self.recursive and options.excludeSubdirs:
-            self.excludeSubdirs = None
+        if not self.recursive and options.exclude_subdirs:
+            self.exclude_subdirs = None
 
-        elif options.excludeSubdirs:
-            self.excludeSubdirs = list(
-                oset([subdir.strip() for subdir in options.excludeSubdirs.split(",")])
+        elif options.exclude_subdirs:
+            self.exclude_subdirs = list(
+                oset([subdir.strip() for subdir in options.exclude_subdirs.split(",")])
             )
 
-            for i in range(len(self.excludeSubdirs)):
+            for i in range(len(self.exclude_subdirs)):
 
-                while self.excludeSubdirs[i].startswith("/"):
-                    self.excludeSubdirs[i] = self.excludeSubdirs[i][1:]
+                while self.exclude_subdirs[i].startswith("/"):
+                    self.exclude_subdirs[i] = self.exclude_subdirs[i][1:]
 
-                while self.excludeSubdirs[i].endswith("/"):
-                    self.excludeSubdirs[i] = self.excludeSubdirs[i][:-1]
-            self.excludeSubdirs = list(oset(self.excludeSubdirs))
+                while self.exclude_subdirs[i].endswith("/"):
+                    self.exclude_subdirs[i] = self.exclude_subdirs[i][:-1]
+            self.exclude_subdirs = list(oset(self.exclude_subdirs))
 
         else:
-            self.excludeSubdirs = None
+            self.exclude_subdirs = None
 
-        if len(set(self.extensions).intersection(self.excludeExtensions)):
+        if len(set(self.extensions).intersection(self.exclude_extensions)):
             print("Exclude extensions can not contain any extension that has already in the extensions")
             exit(0)
 
-        self.redirect = options.noFollowRedirects
-        self.requestByHostname = options.requestByHostname
+        self.redirect = options.no_follow_redirects
+        self.request_by_hostname = options.request_by_hostname
         self.stop = options.stop
         self.httpmethod = options.httpmethod
 
         self.recursive_level_max = options.recursive_level_max
 
-    def parseConfig(self):
+    def parse_config(self):
         config = DefaultConfigParser()
-        configPath = FileUtils.build_path(self.script_path, "default.conf")
-        config.read(configPath)
+        config_path = FileUtils.build_path(self.script_path, "default.conf")
+        config.read(config_path)
 
         # General
-        self.threadsCount = config.safe_getint(
+        self.thread_count = config.safe_getint(
             "general", "threads", 20, list(range(1, 200))
         )
 
-        self.includeStatusCodes = config.safe_get("general", "include-status", None)
+        self.include_status_codes = config.safe_get("general", "include-status", None)
 
-        self.excludeStatusCodes = config.safe_get("general", "exclude-status", None)
-        self.excludeTexts = config.safe_get("general", "exclude-texts", None)
+        self.exclude_status_codes = config.safe_get("general", "exclude-status", None)
+        self.exclude_strings = config.safe_get("general", "exclude-texts", None)
         self.redirect = config.safe_getboolean("general", "follow-redirects", False)
         self.recursive = config.safe_getboolean("general", "recursive", False)
         self.recursive_level_max = config.safe_getint(
             "general", "recursive-level-max", 0
         )
-        self.headerList = config.safe_get("general", "headers-file", None)
-        self.suppressEmpty = config.safe_getboolean("general", "suppress-empty", False)
+        self.header_list = config.safe_get("general", "headers-file", None)
+        self.suppress_empty = config.safe_getboolean("general", "suppress-empty", False)
         self.testFailPath = config.safe_get("general", "scanner-fail-path", "").strip()
         self.saveHome = config.safe_getboolean("general", "save-logs-home", False)
-        self.defaultExtensions = config.safe_get(
+        self.default_extensions = config.safe_get(
             "general", "default-extensions", "php,asp,aspx,jsp,html,htm,js"
         )
-        self.excludeSubdirs = config.safe_get("general", "exclude-subdirs", None)
+        self.exclude_subdirs = config.safe_get("general", "exclude-subdirs", None)
         self.full_url = config.safe_getboolean("general", "full-url", False)
         self.quiet = config.safe_getboolean("general", "quiet-mode", False)
 
         # Reports
-        self.autoSave = config.safe_getboolean("reports", "autosave-report", False)
+        self.auto_save = config.safe_getboolean("reports", "autosave-report", False)
         self.autoSaveFormat = config.safe_get(
             "reports", "autosave-report-format", "plain", ["plain", "simple", "json", "xml"]
         )
@@ -384,28 +384,28 @@ class ArgumentParser(object):
         self.lowercase = config.safe_getboolean("dictionary", "lowercase", False)
         self.uppercase = config.safe_getboolean("dictionary", "uppercase", False)
         self.capitalization = config.safe_getboolean("dictionary", "capitalization", False)
-        self.forceExtensions = config.safe_getboolean("dictionary", "force-extensions", False)
-        self.noDotExtensions = config.safe_getboolean("dictionary", "no-dot-extensions", False)
+        self.force_extensions = config.safe_getboolean("dictionary", "force-extensions", False)
+        self.no_dot_extensions = config.safe_getboolean("dictionary", "no-dot-extensions", False)
 
         # Connection
-        self.useRandomAgents = config.safe_get(
+        self.use_random_agents = config.safe_get(
             "connection", "random-user-agents", False
         )
         self.useragent = config.safe_get("connection", "user-agent", None)
         self.delay = config.safe_getfloat("connection", "delay", 0)
         self.timeout = config.safe_getint("connection", "timeout", 10)
-        self.maxRetries = config.safe_getint("connection", "max-retries", 3)
+        self.max_retries = config.safe_getint("connection", "max-retries", 3)
         self.proxy = config.safe_get("connection", "http-proxy", None)
         self.proxylist = config.safe_get("connection", "http-proxy-list", None)
         self.httpmethod = config.safe_get(
             "connection", "httpmethod", "get", ["get", "head", "post", "put", "patch", "delete", "trace", "options", "debug"]
         )
-        self.requestByHostname = config.safe_getboolean(
+        self.request_by_hostname = config.safe_getboolean(
             "connection", "request-by-hostname", False
         )
         self.stop = config.safe_getboolean("connection", "stop-on-error", False)
 
-    def parseArguments(self):
+    def parse_arguments(self):
         usage = "Usage: %prog [-u|--url] target [-e|--extensions] extensions [options]"
         parser = OptionParser(usage, epilog='''
 You can change the dirsearch default configurations (default extensions, timeout, wordlist location, ...) by editing the "default.conf" file. More information at https://github.com/maurosoria/dirsearch.
@@ -414,15 +414,15 @@ You can change the dirsearch default configurations (default extensions, timeout
         # Mandatory arguments
         mandatory = OptionGroup(parser, 'Mandatory')
         mandatory.add_option('-u', '--url', help='URL target', action='store', type='string', dest='url', default=None)
-        mandatory.add_option('-l', '--url-list', help='URL list file', action='store', type='string', dest='urlList',
+        mandatory.add_option('-l', '--url-list', help='URL list file', action='store', type='string', dest='url_list',
                              default=None)
         mandatory.add_option('-e', '--extensions', help='Extension list separated by commas (Example: php,asp)',
                              action='store', dest='extensions', default=None)
         mandatory.add_option('-E', '--extensions-list', help='Use predefined list of common extensions',
-                             action='store_true', dest='defaultExtensions', default=False)
+                             action='store_true', dest='default_extensions', default=False)
         mandatory.add_option('-X', '--exclude-extensions',
                              help='Exclude extension list separated by commas (Example: asp,jsp)',
-                             action='store', dest='excludeExtensions', default=None)
+                             action='store', dest='exclude_extensions', default=None)
 
         # Dictionary Settings
         dictionary = OptionGroup(parser, 'Dictionary Settings')
@@ -433,11 +433,11 @@ You can change the dirsearch default configurations (default extensions, timeout
                               help='Add custom prefixes to all entries (separated by commas)')
         dictionary.add_option('--suffixes', action='store', dest='suffixes', default=self.suffixes,
                               help='Add custom suffixes to all entries, ignores directories (separated by commas)')
-        dictionary.add_option('-f', '--force-extensions', action='store_true', dest='forceExtensions', default=self.forceExtensions,
+        dictionary.add_option('-f', '--force-extensions', action='store_true', dest='force_extensions', default=self.force_extensions,
                               help='Force extensions for every wordlist entry. Add %NOFORCE% at the end of the entry in the wordlist that you do not want to force')
-        dictionary.add_option('--no-extension', dest='noExtension', action='store_true',
+        dictionary.add_option('--no-extension', dest='no_extension', action='store_true',
                               help='Remove extensions in all wordlist entries (Example: admin.php -> admin)')
-        dictionary.add_option('--no-dot-extensions', dest='noDotExtensions', default=self.noDotExtensions,
+        dictionary.add_option('--no-dot-extensions', dest='no_dot_extensions', default=self.no_dot_extensions,
                               help='Remove the "." character before extensions', action='store_true')
         dictionary.add_option('-C', '--capitalization', action='store_true', dest='capitalization', default=self.capitalization,
                               help='Capital wordlist')
@@ -456,37 +456,37 @@ You can change the dirsearch default configurations (default extensions, timeout
                            help='Max recursion level (subdirs) (Default: 0 [infinity])', action='store', type='int',
                            dest='recursive_level_max',
                            default=self.recursive_level_max)
-        general.add_option('--suppress-empty', action='store_true', dest='suppressEmpty',
-                           help='Suppress empty responses', default=self.suppressEmpty)
-        general.add_option('--minimal', action='store', dest='minimumResponseSize', type='int', default=None,
+        general.add_option('--suppress-empty', action='store_true', dest='suppress_empty',
+                           help='Suppress empty responses', default=self.suppress_empty)
+        general.add_option('--minimal', action='store', dest='minimum_response_size', type='int', default=None,
                            help='Minimal response length')
-        general.add_option('--maximal', action='store', dest='maximumResponseSize', type='int', default=None,
+        general.add_option('--maximal', action='store', dest='maximum_response_size', type='int', default=None,
                            help='Maximal response length')
         general.add_option('--scan-subdirs', help='Scan subdirectories of the given URL (separated by commas)', action='store',
                            dest='scanSubdirs', default=None)
         general.add_option('--exclude-subdirs', help='Exclude the following subdirectories during recursive scan (separated by commas)',
-                           action='store', dest='excludeSubdirs', default=self.excludeSubdirs)
-        general.add_option('-t', '--threads', help='Number of threads', action='store', type='int', dest='threadsCount',
-                           default=self.threadsCount)
+                           action='store', dest='exclude_subdirs', default=self.exclude_subdirs)
+        general.add_option('-t', '--threads', help='Number of threads', action='store', type='int', dest='thread_count',
+                           default=self.thread_count)
         general.add_option('-i', '--include-status', help='Show only included status codes, separated by commas (Example: 301, 500)',
-                           action='store', dest='includeStatusCodes', default=self.includeStatusCodes)
+                           action='store', dest='include_status_codes', default=self.include_status_codes)
         general.add_option('-x', '--exclude-status', help='Do not show excluded status codes, separated by commas (Example: 301, 500)',
-                           action='store', dest='excludeStatusCodes', default=self.excludeStatusCodes)
+                           action='store', dest='exclude_status_codes', default=self.exclude_status_codes)
         general.add_option('--exclude-sizes', help='Exclude responses by sizes, separated by commas (Example: 123B,4KB)',
-                           action='store', dest='excludeSizes', default=None)
-        general.add_option('--exclude-texts', help='Exclude responses by texts, separated by commas (Example: "Not found", "Error")',
-                           action='store', dest='excludeTexts', default=None)
+                           action='store', dest='exclude_sizes', default=None)
+        general.add_option('--exclude-texts', help='Exclude responses based on contained strings, separated by commas (Example: "Not found", "Error")',
+                           action='store', dest='exclude_strings', default=None)
         general.add_option('--exclude-regexps', help='Exclude responses by regexps, separated by commas (Example: "Not foun[a-z]{1}", "^Error$")',
-                           action='store', dest='excludeRegexps', default=None)
+                           action='store', dest='exclude_regexps', default=None)
         general.add_option('-H', '--header', help='HTTP request header, support multiple flags (Example: -H "Referer: example.com" -H "Accept: */*")',
                            action='append', type='string', dest='headers', default=None)
         general.add_option('--header-list', help="File contains HTTP request headers", type='string',
-                           dest='headerList', default=self.headerList)
+                           dest='header_list', default=self.header_list)
         general.add_option('--user-agent', action='store', type='string', dest='useragent',
                            default=self.useragent)
-        general.add_option('--random-agent', '--random-user-agent', action='store_true', dest='useRandomAgents')
+        general.add_option('--random-agent', '--random-user-agent', action='store_true', dest='use_random_agents')
         general.add_option('--cookie', action='store', type='string', dest='cookie', default=None)
-        general.add_option('-F', '--follow-redirects', action='store_true', dest='noFollowRedirects',
+        general.add_option('-F', '--follow-redirects', action='store_true', dest='no_follow_redirects',
                            default=self.redirect)
         general.add_option('--full-url', action='store_true', dest='full_url',
                            help='Print the full URL in the output', default=self.full_url)
@@ -500,28 +500,28 @@ You can change the dirsearch default configurations (default extensions, timeout
                               help='Server IP address')
         connection.add_option('-s', '--delay', help='Delay between requests (support float number)', action='store', dest='delay',
                               type='float', default=self.delay)
-        connection.add_option('--proxy', action='store', dest='httpProxy', type='string',
+        connection.add_option('--proxy', action='store', dest='http_proxy', type='string',
                               default=self.proxy, help='Proxy URL, support HTTP and SOCKS proxy (Example: localhost:8080, socks5://localhost:8088)')
-        connection.add_option('--proxy-list', action='store', dest='proxyList', type='string',
+        connection.add_option('--proxy-list', action='store', dest='proxy_list', type='string',
                               default=self.proxylist, help='File contains proxy servers')
         connection.add_option('-m', '--http-method', action='store', dest='httpmethod', type='string',
                               default=self.httpmethod, help='HTTP method, default: GET')
-        connection.add_option('--max-retries', action='store', dest='maxRetries', type='int',
-                              default=self.maxRetries)
+        connection.add_option('--max-retries', action='store', dest='max_retries', type='int',
+                              default=self.max_retries)
         connection.add_option('-b', '--request-by-hostname',
                               help='By default dirsearch will request by IP for speed. This will force requests by hostname',
-                              action='store_true', dest='requestByHostname', default=self.requestByHostname)
+                              action='store_true', dest='request_by_hostname', default=self.request_by_hostname)
         connection.add_option('--stop-on-error', action='store_true', dest='stop', default=self.stop,
                               help='Stop whenever an error occurs')
 
         # Report Settings
         reports = OptionGroup(parser, 'Reports')
         reports.add_option('--simple-report', action='store', help='Only found paths',
-                           dest='simpleOutputFile', default=None)
+                           dest='simple_output_file', default=None)
         reports.add_option('--plain-text-report', action='store',
-                           help='Found paths with status codes', dest='plainTextOutputFile', default=None)
-        reports.add_option('--json-report', action='store', dest='jsonOutputFile', default=None)
-        reports.add_option('--xml-report', action='store', dest='xmlOutputFile', default=None)
+                           help='Found paths with status codes', dest='plain_text_output_file', default=None)
+        reports.add_option('--json-report', action='store', dest='json_output_file', default=None)
+        reports.add_option('--xml-report', action='store', dest='xml_output_file', default=None)
 
         parser.add_option_group(mandatory)
         parser.add_option_group(dictionary)

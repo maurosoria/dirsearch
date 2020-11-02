@@ -42,14 +42,14 @@ class Requester(object):
         cookie=None,
         useragent=None,
         maxPool=1,
-        maxRetries=5,
+        max_retries=5,
         delay=0,
         timeout=20,
         ip=None,
         proxy=None,
         proxylist=None,
         redirect=False,
-        requestByHostname=False,
+        request_by_hostname=False,
         httpmethod="get",
         data=None,
     ):
@@ -107,7 +107,7 @@ class Requester(object):
         if useragent:
             self.setHeader("User-agent", useragent)
 
-        self.maxRetries = maxRetries
+        self.max_retries = max_retries
         self.maxPool = maxPool
         self.delay = delay
         self.timeout = timeout
@@ -116,9 +116,9 @@ class Requester(object):
         self.proxylist = proxylist
         self.redirect = redirect
         self.randomAgents = None
-        self.requestByHostname = requestByHostname
+        self.request_by_hostname = request_by_hostname
         self.session = requests.Session()
-        self.url = "{0}://{1}:{2}".format(self.protocol, self.host if self.requestByHostname else self.ip, self.port)
+        self.url = "{0}://{1}:{2}".format(self.protocol, self.host if self.request_by_hostname else self.ip, self.port)
 
     def setHeader(self, header, content):
         self.headers[header.strip()] = content.strip()
@@ -134,7 +134,7 @@ class Requester(object):
         proxy = None
         result = None
 
-        while i <= self.maxRetries:
+        while i <= self.max_retries:
 
             try:
                 if self.proxylist:
@@ -201,7 +201,7 @@ class Requester(object):
             finally:
                 i += 1
 
-        if i > self.maxRetries:
+        if i > self.max_retries:
             raise RequestException(
                 {
                     "message": "CONNECTION TIMEOUT: There was a problem in the request to: {0}".format(

@@ -40,7 +40,7 @@ class Fuzzer(object):
         self.testFailPath = testFailPath
         self.basePath = self.requester.basePath
         self.threads = []
-        self.threadsCount = (
+        self.thread_count = (
             threads if len(self.dictionary) >= threads else len(self.dictionary)
         )
         self.running = False
@@ -77,7 +77,7 @@ class Fuzzer(object):
         if len(self.threads):
             self.threads = []
 
-        for thread in range(self.threadsCount):
+        for thread in range(self.thread_count):
             newThread = threading.Thread(target=self.thread_proc)
             newThread.daemon = True
             self.threads.append(newThread)
