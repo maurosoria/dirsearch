@@ -476,14 +476,15 @@ You can change the dirsearch default configurations (default extensions, timeout
                            action='append', type='string', dest='headers', default=None)
         general.add_option('--header-list', help="File contains HTTP request headers", type='string',
                            dest='headerList', default=self.headerList, metavar='FILE')
+        general.add_option('--random-user-agent', help='Choose a random User-Agent for each request',
+                           action='store_true', dest='useRandomAgents',)
+        general.add_option('-F', '--follow-redirects', help='Follow HTTP redirects',
+                           action='store_true', dest='noFollowRedirects', default=self.redirect)
+        general.add_option('--full-url', action='store_true', dest='full_url',
+                           help='Print full URLs in the output', default=self.full_url)
         general.add_option('--user-agent', action='store', type='string', dest='useragent',
                            default=self.useragent)
-        general.add_option('--random-agent', '--random-user-agent', action='store_true', dest='useRandomAgents')
         general.add_option('--cookie', action='store', type='string', dest='cookie', default=None)
-        general.add_option('-F', '--follow-redirects', action='store_true', dest='noFollowRedirects',
-                           default=self.redirect)
-        general.add_option('--full-url', action='store_true', dest='full_url',
-                           help='Print the full URL in the output', default=self.full_url)
         general.add_option('-q', '--quiet-mode', action='store_true', dest='quiet', default=self.quiet)
 
         # Connection Settings
@@ -499,11 +500,11 @@ You can change the dirsearch default configurations (default extensions, timeout
         connection.add_option('--proxy-list', action='store', dest='proxyList', type='string',
                               default=self.proxylist, help='File contains proxy servers', metavar='FILE')
         connection.add_option('-m', '--http-method', action='store', dest='httpmethod', type='string',
-                              default=self.httpmethod, help='HTTP method, default: GET', metavar='METHOD')
+                              default=self.httpmethod, help='HTTP method (default: GET)', metavar='METHOD')
         connection.add_option('--max-retries', action='store', dest='maxRetries', type='int',
                               default=self.maxRetries, metavar='RETRIES')
         connection.add_option('-b', '--request-by-hostname',
-                              help='By default dirsearch will request by IP for speed. This will force requests by hostname',
+                              help='By default dirsearch requests by IP for speed. This will force requests by hostname',
                               action='store_true', dest='requestByHostname', default=self.requestByHostname)
         connection.add_option('--stop-on-error', action='store_true', dest='stop', default=self.stop,
                               help='Stop whenever an error occurs')
