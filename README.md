@@ -194,7 +194,7 @@ Features
 
 About wordlists
 ---------------
-Wordlist must be a text file. Each line will be processed as such, except when the special keyword %EXT% is used, it will generate one entry for each extension (-e | --extension) passed as an argument.
+Wordlist must be a text file. Each line will be processed as such, except when the special keyword *%EXT%* is used, it will generate one entry for each extension (-e | --extension) passed as an argument.
 
 Example:
 - sample/
@@ -206,7 +206,7 @@ Passing the extensions "asp" and "aspx" will generate the following dictionary:
 - example.asp
 - example.aspx
 
-You can also use -f | --force-extensions switch to append extensions to every word in the wordlists.
+You can also use -f | --force-extensions switch to append extensions to every word in the wordlists. For entries in the wordlist that you do not want to force, you can add *%NOFORCE%* at the end of them so dirsearch won't append any extension.
 
 To use multiple wordlists, you can seperate your wordlists with commas. Example: -w wordlist1.txt,wordlist2.txt
 
