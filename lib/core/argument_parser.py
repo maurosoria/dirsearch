@@ -329,7 +329,7 @@ class ArgumentParser(object):
             print("Exclude extensions can not contain any extension that has already in the extensions")
             exit(0)
 
-        self.redirect = options.noFollowRedirects
+        self.redirect = options.followRedirects
         self.requestByHostname = options.requestByHostname
         self.stop = options.stop
         self.httpmethod = options.httpmethod
@@ -479,7 +479,7 @@ You can change the dirsearch default configurations (default extensions, timeout
         general.add_option('--random-user-agent', help='Choose a random User-Agent for each request',
                            action='store_true', dest='useRandomAgents',)
         general.add_option('-F', '--follow-redirects', help='Follow HTTP redirects',
-                           action='store_true', dest='noFollowRedirects', default=self.redirect)
+                           action='store_true', dest='followRedirects', default=self.redirect)
         general.add_option('--full-url', action='store_true', dest='full_url',
                            help='Print full URLs in the output', default=self.full_url)
         general.add_option('--user-agent', action='store', type='string', dest='useragent',
