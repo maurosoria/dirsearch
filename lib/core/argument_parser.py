@@ -283,7 +283,6 @@ class ArgumentParser(object):
         self.ip = options.ip
         self.maxRetries = options.maxRetries
         self.recursive = options.recursive
-        self.suppressEmpty = options.suppressEmpty
         self.minimumResponseSize = options.minimumResponseSize
         self.maximumResponseSize = options.maximumResponseSize
         self.noExtension = options.noExtension
@@ -357,7 +356,6 @@ class ArgumentParser(object):
             "general", "recursive-level-max", 0
         )
         self.headerList = config.safe_get("general", "headers-file", None)
-        self.suppressEmpty = config.safe_getboolean("general", "suppress-empty", False)
         self.testFailPath = config.safe_get("general", "scanner-fail-path", "").strip()
         self.saveHome = config.safe_getboolean("general", "save-logs-home", False)
         self.defaultExtensions = config.safe_get(
@@ -456,8 +454,6 @@ You can change the dirsearch default configurations (default extensions, timeout
                            dest='recursive_level_max', default=self.recursive_level_max, metavar='DEPTH')
         general.add_option('-t', '--threads', help='Number of threads', action='store', type='int', dest='threadsCount',
                            default=self.threadsCount, metavar='THREADS')
-        general.add_option('--suppress-empty', action='store_true', dest='suppressEmpty',
-                           help='Suppress empty responses', default=self.suppressEmpty)
         general.add_option('--minimal', action='store', dest='minimumResponseSize', type='int', default=None,
                            help='Minimal response length', metavar='LENGTH')
         general.add_option('--maximal', action='store', dest='maximumResponseSize', type='int', default=None,
