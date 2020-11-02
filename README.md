@@ -160,7 +160,7 @@ Features
 - Fast
 - Multithreading
 - Keep alive connections
-- Support for multiple extensions (-e|--extensions asp,php)
+- Support for multiple extensions
 - Support for every HTTP method
 - Support for HTTP request data
 - Extensions excluding
@@ -187,8 +187,8 @@ Features
 - Option to exclude responses by regexps (example: "Not foun[a-z]{1}")
 - Options to display only items with response length from range
 - Option to add custom suffixes and prefixes
-- Option to remove all extensions on every wordlist entries
-- Option to remove dot from extension when forcing
+- Option to remove all extensions from every wordlist entry
+- Option to remove the dot before extensions
 - ...
 
 
@@ -234,7 +234,7 @@ By adding "-r | --recursive" argument, dirsearch will automatically brute-force 
 ```
 python3 dirsearch.py -e php,html,js -u https://target -r
 ```
-You can set the max recursion depth with "-R" or "--recursive-level-max"
+You can set the max recursion depth with "-R" or "--recursion-depth"
 
 ```
 python3 dirsearch.py -e php,html,js -u https://target -r -R 3
@@ -250,7 +250,7 @@ python3 dirsearch.py -e php,htm,js,bak,zip,tgz,txt -u https://target -t 30
 ```
 
 ### Exclude extensions
-Sometimes your wordlist may contains many extensions, for many cases like `.asp`, `.aspx`, `.php`, `.jsp`, ... But if you found the core application behind it, ASP.NET for example, many of those endpoints will be useless right? Don't worry, try "-X <exclude-extensions>" and all endpoints with extensions you selected will be removed.
+Sometimes your wordlist may contains many extensions, for many cases like `.asp`, `.aspx`, `.php`, `.jsp`, ... But if you found the core application behind it, many of those endpoints will be useless right? Don't worry, try "-X <extensions>" and all endpoints have given extensions will be removed.
 
 ```
 python3 dirsearch.py -e asp,aspx,html,htm,js -u https://target -X php,jsp,jspx
