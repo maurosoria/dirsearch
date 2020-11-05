@@ -19,6 +19,8 @@
 from lib.reports import *
 from lib.utils.file_utils import FileUtils
 
+import time
+
 
 class PlainTextReport(TailableFileBaseReport):
 
@@ -40,7 +42,7 @@ class PlainTextReport(TailableFileBaseReport):
         self.storeData((path, status, contentLength, location))
 
     def generate(self):
-        result = ""
+        result = "Time: {0}".format(time.strftime("%H:%M:%S"))
 
         for path, status, contentLength, location in self.getPathIterator():
             result += "{0}  ".format(status)
