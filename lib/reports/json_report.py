@@ -39,7 +39,7 @@ class JSONReport(FileBaseReport):
         headerName = "{0}://{1}:{2}/{3}".format(
             self.protocol, self.host, self.port, self.basePath
         )
-        result = {"Time": time.strftime("%H:%M:%S"), headerName: []}
+        result = {"time": time.strftime("%H:%M:%S"), headerName: []}
 
         for path, status, contentLength, redirect in self.pathList:
             entry = {
