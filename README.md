@@ -8,7 +8,7 @@ Overview
 --------
 Dirsearch is a mature command-line tool designed to brute force directories and files in webservers. 
 
-With 6 years of growing, dirsearch has become the most popular web content scanner. As a feature-rich tool, dirsearch allows the user to perform a complex web content discovering, with many vectors for the wordlist, high accuracy, impressive performance, advanced connection/request settings, modern brute-force techniques and nice output.
+With 6 years of growing, dirsearch now has become the top web content scanner. As a feature-rich tool, dirsearch allows the user to perform a complex web content discovering, with many vectors for the wordlist, high accuracy, impressive performance, advanced connection/request settings, modern brute-force techniques and nice output.
 
 Although there are now many awesome fuzzers like [wfuzz](https://github.com/xmendez/wfuzz), [gobuster](https://github.com/OJ/gobuster) or [ffuf](https://github.com/ffuf/ffuf), dirsearch is still showing it's own unique in features and detections when doing web content brute-force. Instead of supporting parameters fuzzing like in *ffuf* or *wfuzz*, dirsearch still keeps it as a traditional web path brute forcer. This allows dirsearch to much more focus on the accuracy of the output and support more features for its purpose.
 
@@ -158,14 +158,15 @@ Operating Systems supported
 Features
 --------
 - Fast
+- Easy and simple to use
 - Multithreading
+- Filtering wildcard responses (invalid webpages)
 - Keep alive connections
 - Support for multiple extensions
 - Support for every HTTP method
 - Support for HTTP request data
 - Extensions excluding
 - Reporting (Plain text, JSON, XML)
-- Heuristically detects invalid web pages
 - Recursive brute forcing
 - Sub-directories brute forcing
 - Force extensions
@@ -177,16 +178,17 @@ Features
 - Batch processing
 - Request delaying
 - Multiple wordlist formats (lowercase, uppercase, capitalization)
+- Default configuration from file
 - Quiet mode
 - Debug mode
 - Option to force requests by hostname
+- Option to add custom suffixes and prefixes
 - Option to whitelist response codes (-i 200,500)
 - Option to blacklist response codes (-x 404,403)
 - Option to exclude responses by sizes
 - Option to exclude responses by texts
 - Option to exclude responses by regexps (example: "Not foun[a-z]{1}")
 - Options to display only items with response length from range
-- Option to add custom suffixes and prefixes
 - Option to remove all extensions from every wordlist entry
 - Option to remove the dot before extensions
 - ...
@@ -511,5 +513,3 @@ Special thanks for these people:
 - @chowmean
 
 #### Want to join the team? Feel free to submit any pull request that you can. If you don't know how to code, you can support us by updating the wordlist or the documentation. Giving feedback or a new feature suggestion is also the good way to help us improve this tool
-
-##### Feeling excited? Just [tweet](https://twitter.com/intent/tweet?text=I%20just%20installed%20dirsearch%20v0.4.0%20-%20A%20Web%20Path%20Scanner%20https%3A%2F%2Fgithub.com%2Fmaurosoria%2Fdirsearch%20%23fuzzer%20%23bugbounty%20%23dirsearch%20%23pentesting%20%23security) about it!
