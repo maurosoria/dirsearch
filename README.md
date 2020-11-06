@@ -19,13 +19,13 @@ Installation & Usage
 ```
 git clone https://github.com/maurosoria/dirsearch.git
 cd dirsearch
-python3 dirsearch.py -u <URL> -e <EXTENSION>
+python3 dirsearch.py -u <URL> -e <EXTENSIONS>
 ```
 - For shorter command (Unix):
 
 ```
 chmod +x dirsearch.py
-./dirsearch.py -u <URL> -e <EXTENSION>
+./dirsearch.py -u <URL> -e <EXTENSIONS>
 ```
 If you are using Windows and don't have git, you can install the ZIP file [here](https://github.com/maurosoria/dirsearch/archive/master.zip), then extract and run
 
@@ -196,7 +196,7 @@ Features
 
 About wordlists
 ---------------
-Wordlist must be a text file. Each line will be processed as such, except when the special keyword *%EXT%* is used, it will generate one entry for each extension (-e | --extension) passed as an argument.
+Wordlist must be a text file. Each line will be processed as such, except when the special keyword *%EXT%* is used, it will generate one entry for each extension (-e | --extensions) passed as an argument.
 
 Example:
 - sample/
