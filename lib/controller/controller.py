@@ -141,7 +141,7 @@ class Controller(object):
         self.printConfig()
         self.setupErrorLogs()
         self.output.errorLogFile(self.errorLogPath)
-        
+
         if self.arguments.suppressEmpty:
             self.excludeSizes.append("0B")
 
