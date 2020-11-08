@@ -101,11 +101,11 @@ class ArgumentParser(object):
 
             self.proxylist = open(options.proxy_list).read().splitlines()
 
-        elif options.http_proxy:
-            if options.http_proxy.startswith("http://") or options.http_proxy.startswith("https://") or options.http_proxy.startswith("socks5://"):
-                self.proxy = options.http_proxy
+        elif options.proxy:
+            if options.proxy.startswith("http://") or options.proxy.startswith("https://") or options.proxy.startswith("socks5://"):
+                self.proxy = options.proxy
             else:
-                self.proxy = "http://{0}".format(options.http_proxy)
+                self.proxy = "http://{0}".format(options.proxy)
 
         else:
             self.proxy = None
@@ -278,6 +278,7 @@ class ArgumentParser(object):
         self.plain_text_output_file = options.plain_text_output_file
         self.json_output_file = options.json_output_file
         self.xml_output_file = options.xml_output_file
+        self.markdown_output_file = options.markdown_output_file
         self.delay = options.delay
         self.timeout = options.timeout
         self.ip = options.ip
@@ -287,6 +288,7 @@ class ArgumentParser(object):
         self.minimum_response_size = options.minimum_response_size
         self.maximum_response_size = options.maximum_response_size
         self.no_extension = options.no_extension
+        self.only_selected = options.only_selected
 
         if options.scanSubdirs:
             self.scan_subdirs = list(
@@ -332,8 +334,9 @@ class ArgumentParser(object):
 
         self.redirect = options.no_follow_redirects
         self.request_by_hostname = options.request_by_hostname
-        self.stop = options.stop
         self.httpmethod = options.httpmethod
+        self.stop = options.stop
+        self.debug = options.debug
 
         self.recursive_level_max = options.recursive_level_max
 
@@ -350,7 +353,9 @@ class ArgumentParser(object):
         self.include_status_codes = config.safe_get("general", "include-status", None)
 
         self.exclude_status_codes = config.safe_get("general", "exclude-status", None)
+        self.exclude_sizes = config.safe_get("general", "exclude-sizes", None)
         self.exclude_strings = config.safe_get("general", "exclude-texts", None)
+        self.exclude_regexps = config.safe_get("general", "exclude-regexps", None)
         self.redirect = config.safe_getboolean("general", "follow-redirects", False)
         self.recursive = config.safe_getboolean("general", "recursive", False)
         self.recursive_level_max = config.safe_getint(
@@ -404,10 +409,11 @@ class ArgumentParser(object):
             "connection", "request-by-hostname", False
         )
         self.stop = config.safe_getboolean("connection", "stop-on-error", False)
+        self.debug = config.safe_getboolean("connection", "debug", False)
 
     def parse_arguments(self):
         usage = "Usage: %prog [-u|--url] target [-e|--extensions] extensions [options]"
-        parser = OptionParser(usage, epilog='''
+        parser = OptionParser(usage, version='dirsearch v0.4.0', epilog='''
 You can change the dirsearch default configurations (default extensions, timeout, wordlist location, ...) by editing the "default.conf" file. More information at https://github.com/maurosoria/dirsearch.
 ''')
 
@@ -437,14 +443,16 @@ You can change the dirsearch default configurations (default extensions, timeout
                               help='Force extensions for every wordlist entry. Add %NOFORCE% at the end of the entry in the wordlist that you do not want to force')
         dictionary.add_option('--no-extension', dest='no_extension', action='store_true',
                               help='Remove extensions in all wordlist entries (Example: admin.php -> admin)')
+        dictionary.add_option('--only-selected', dest='only_selected', action='store_true',
+                              help='Only entries with selected extensions or no extension + directories')
         dictionary.add_option('--no-dot-extensions', dest='no_dot_extensions', default=self.no_dot_extensions,
                               help='Remove the "." character before extensions', action='store_true')
-        dictionary.add_option('-C', '--capitalization', action='store_true', dest='capitalization', default=self.capitalization,
-                              help='Capital wordlist')
         dictionary.add_option('-U', '--uppercase', action='store_true', dest='uppercase', default=self.uppercase,
                               help='Uppercase wordlist')
         dictionary.add_option('-L', '--lowercase', action='store_true', dest='lowercase', default=self.lowercase,
                               help='Lowercase wordlist')
+        dictionary.add_option('-C', '--capital', action='store_true', dest='capitalization', default=self.capitalization,
+                              help='Capital wordlist')
 
         # Optional Settings
         general = OptionGroup(parser, 'General Settings')
@@ -452,44 +460,45 @@ You can change the dirsearch default configurations (default extensions, timeout
                            type='str', default=None)
         general.add_option('-r', '--recursive', help='Bruteforce recursively', action='store_true', dest='recursive',
                            default=self.recursive)
-        general.add_option('-R', '--recursive-level-max',
-                           help='Max recursion level (subdirs) (Default: 0 [infinity])', action='store', type='int',
-                           dest='recursive_level_max',
-                           default=self.recursive_level_max)
+        general.add_option('-R', '--recursion-depth', help='Max recursion depth (subdirs) (Default: 0 [infinity])', action='store', type='int',
+                           dest='recursive_level_max', default=self.recursive_level_max, metavar='DEPTH')
         general.add_option('--suppress-empty', action='store_true', dest='suppress_empty',
                            help='Suppress empty responses', default=self.suppress_empty)
         general.add_option('--minimal', action='store', dest='minimum_response_size', type='int', default=None,
                            help='Minimal response length')
         general.add_option('--maximal', action='store', dest='maximum_response_size', type='int', default=None,
                            help='Maximal response length')
+        general.add_option('--minimal', action='store', dest='minimum_response_size', type='int', default=None,
+                           help='Minimal response length', metavar='LENGTH')
+        general.add_option('--maximal', action='store', dest='maximum_response_size', type='int', default=None,
+                           help='Maximal response length', metavar='LENGTH')
         general.add_option('--scan-subdirs', help='Scan subdirectories of the given URL (separated by commas)', action='store',
-                           dest='scanSubdirs', default=None)
+                           dest='scanSubdirs', default=None, metavar='SUBDIRS')
         general.add_option('--exclude-subdirs', help='Exclude the following subdirectories during recursive scan (separated by commas)',
-                           action='store', dest='exclude_subdirs', default=self.exclude_subdirs)
-        general.add_option('-t', '--threads', help='Number of threads', action='store', type='int', dest='thread_count',
-                           default=self.thread_count)
-        general.add_option('-i', '--include-status', help='Show only included status codes, separated by commas (Example: 301, 500)',
-                           action='store', dest='include_status_codes', default=self.include_status_codes)
-        general.add_option('-x', '--exclude-status', help='Do not show excluded status codes, separated by commas (Example: 301, 500)',
-                           action='store', dest='exclude_status_codes', default=self.exclude_status_codes)
+                           action='store', dest='exclude_subdirs', default=self.excludeSubdirs, metavar='SUBDIRS')
+        general.add_option('-i', '--include-status', help='Show only included status codes, separated by commas (Example: 301,500)',
+                           action='store', dest='include_status_codes', default=self.includeStatusCodes, metavar='STATUS')
+        general.add_option('-x', '--exclude-status', help='Do not show excluded status codes, separated by commas (Example: 301,500)',
+                           action='store', dest='exclude_status_codes', default=self.excludeStatusCodes, metavar='STATUS')
         general.add_option('--exclude-sizes', help='Exclude responses by sizes, separated by commas (Example: 123B,4KB)',
-                           action='store', dest='exclude_sizes', default=None)
+                           action='store', dest='exclude_sizes', default=self.excludeSizes, metavar='SIZES')
         general.add_option('--exclude-texts', help='Exclude responses based on contained strings, separated by commas (Example: "Not found", "Error")',
-                           action='store', dest='exclude_strings', default=None)
+                           action='store', dest='exclude_texts', default=self.excludeTexts, metavar='TEXTS')
         general.add_option('--exclude-regexps', help='Exclude responses by regexps, separated by commas (Example: "Not foun[a-z]{1}", "^Error$")',
-                           action='store', dest='exclude_regexps', default=None)
+                           action='store', dest='exclude_regexps', default=self.excludeRegexps, metavar='REGEXPS')
         general.add_option('-H', '--header', help='HTTP request header, support multiple flags (Example: -H "Referer: example.com" -H "Accept: */*")',
                            action='append', type='string', dest='headers', default=None)
         general.add_option('--header-list', help="File contains HTTP request headers", type='string',
-                           dest='header_list', default=self.header_list)
+                           dest='header_list', default=self.headerList, metavar='FILE')
+        general.add_option('--random-user-agent', help='Choose a random User-Agent for each request',
+                           action='store_true', dest='use_random_agents',)
+        general.add_option('-F', '--follow-redirects', help='Follow HTTP redirects',
+                           action='store_true', dest='followRedirects', default=self.redirect)
+        general.add_option('--full-url', action='store_true', dest='full_url',
+                           help='Print full URLs in the output', default=self.full_url)
         general.add_option('--user-agent', action='store', type='string', dest='useragent',
                            default=self.useragent)
-        general.add_option('--random-agent', '--random-user-agent', action='store_true', dest='use_random_agents')
         general.add_option('--cookie', action='store', type='string', dest='cookie', default=None)
-        general.add_option('-F', '--follow-redirects', action='store_true', dest='no_follow_redirects',
-                           default=self.redirect)
-        general.add_option('--full-url', action='store_true', dest='full_url',
-                           help='Print the full URL in the output', default=self.full_url)
         general.add_option('-q', '--quiet-mode', action='store_true', dest='quiet', default=self.quiet)
 
         # Connection Settings
@@ -500,28 +509,28 @@ You can change the dirsearch default configurations (default extensions, timeout
                               help='Server IP address')
         connection.add_option('-s', '--delay', help='Delay between requests (support float number)', action='store', dest='delay',
                               type='float', default=self.delay)
-        connection.add_option('--proxy', action='store', dest='http_proxy', type='string',
-                              default=self.proxy, help='Proxy URL, support HTTP and SOCKS proxy (Example: localhost:8080, socks5://localhost:8088)')
-        connection.add_option('--proxy-list', action='store', dest='proxy_list', type='string',
-                              default=self.proxylist, help='File contains proxy servers')
+        connection.add_option('--proxy', action='store', dest='proxy', type='string', default=self.proxy,
+                              help='Proxy URL, support HTTP and SOCKS proxy (Example: localhost:8080, socks5://localhost:8088)', metavar='PROXY')
+        connection.add_option('--proxy-list', action='store', dest='proxyList', type='string',
+                              default=self.proxy_list, help='File contains proxy servers', metavar='FILE')
         connection.add_option('-m', '--http-method', action='store', dest='httpmethod', type='string',
-                              default=self.httpmethod, help='HTTP method, default: GET')
-        connection.add_option('--max-retries', action='store', dest='max_retries', type='int',
-                              default=self.max_retries)
+                              default=self.httpmethod, help='HTTP method (default: GET)', metavar='METHOD')
+        connection.add_option('--max-retries', action='store', dest='maxRetries', type='int',
+                              default=self.max_retries, metavar='RETRIES')
         connection.add_option('-b', '--request-by-hostname',
-                              help='By default dirsearch will request by IP for speed. This will force requests by hostname',
-                              action='store_true', dest='request_by_hostname', default=self.request_by_hostname)
+                              help='By default dirsearch requests by IP for speed. This will force requests by hostname',
+                              action='store_true', dest='requestByHostname', default=self.request_by_hostname)
         connection.add_option('--stop-on-error', action='store_true', dest='stop', default=self.stop,
                               help='Stop whenever an error occurs')
+        connection.add_option('--debug', action='store_true', dest='debug', default=self.debug)
 
         # Report Settings
         reports = OptionGroup(parser, 'Reports')
-        reports.add_option('--simple-report', action='store', help='Only found paths',
-                           dest='simple_output_file', default=None)
-        reports.add_option('--plain-text-report', action='store',
-                           help='Found paths with status codes', dest='plain_text_output_file', default=None)
-        reports.add_option('--json-report', action='store', dest='json_output_file', default=None)
-        reports.add_option('--xml-report', action='store', dest='xml_output_file', default=None)
+        reports.add_option('--simple-report', action='store', dest='simple_output_file', default=None, metavar='OUTPUTFILE')
+        reports.add_option('--plain-text-report', action='store', dest='plain_text_output_file', default=None, metavar='OUTPUTFILE')
+        reports.add_option('--json-report', action='store', dest='json_output_file', default=None, metavar='OUTPUTFILE')
+        reports.add_option('--xml-report', action='store', dest='xml_output_file', default=None, metavar='OUTPUTFILE')
+        reports.add_option('--markdown-report', action='store', dest='markdown_output_file', default=None, metavar='OUTPUTFILE')
 
         parser.add_option_group(mandatory)
         parser.add_option_group(dictionary)

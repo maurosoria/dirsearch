@@ -182,12 +182,25 @@ class Requester(object):
                 self.url = "{0}://{1}:{2}".format(self.protocol, self.host, self.port)
                 continue
 
+            except requests.exceptions.ProxyError as e:
+                raise RequestException(
+                    {"message": "Error with the proxy: {0}".format(e)}
+                )
+
             except requests.exceptions.ConnectionError as e:
-                if self.proxy is not None:
-                    raise RequestException(
-                        {"message": "Error with the proxy: {0}".format(e)}
-                    )
-                continue
+                raise RequestException(
+                    {"message": "Cannot connect to: {0}".format(self.host)}
+                )
+
+            except requests.exceptions.InvalidURL as e:
+                raise RequestException(
+                    {"message": "Invalid URL: {0}".format(url)}
+                )
+
+            except requests.exceptions.InvalidProxyURL as e:
+                raise RequestException(
+                    {"message": "Invalid proxy URL: {0}".format(proxy["http"])}
+                )
 
             except (
                 requests.exceptions.ConnectTimeout,
@@ -204,7 +217,7 @@ class Requester(object):
         if i > self.max_retries:
             raise RequestException(
                 {
-                    "message": "CONNECTION TIMEOUT: There was a problem in the request to: {0}".format(
+                    "message": "There was a problem in the request to: {0}".format(
                         url
                     )
                 }

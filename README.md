@@ -8,9 +8,9 @@ Overview
 --------
 Dirsearch is a mature command-line tool designed to brute force directories and files in webservers. 
 
-With 6 years of growing, dirsearch has become the most popular web content scanner. As a feature-rich tool, dirsearch allows the user to perform a complex web content discovering, with many vectors for the wordlist, high accuracy, impressive performance, advanced connection/request settings, modern brute-force techniques and nice output.
+With 6 years of growing, dirsearch now has become the top web content scanner. As a feature-rich tool, dirsearch allows the user to perform a complex web content discovering, with many vectors for the wordlist, high accuracy, impressive performance, advanced connection/request settings, modern brute-force techniques and nice output.
 
-Although there are now many awesome fuzzers like [wfuzz](https://github.com/xmendez/wfuzz), [gobuster](https://github.com/OJ/gobuster) or [ffuf](https://github.com/ffuf/ffuf), dirsearch is still showing it's own unique in features and detections when doing web content brute-force. Instead of supporting parameters fuzzing like in *ffuf* or *wfuzz*, dirsearch still keeps it as a traditional web path brute forcer. This allows dirsearch to much more focusing on the accuracy of the output and supporting more features for its purpose.
+Although there are now many awesome fuzzers like [wfuzz](https://github.com/xmendez/wfuzz), [gobuster](https://github.com/OJ/gobuster) or [ffuf](https://github.com/ffuf/ffuf), dirsearch is still showing it's own unique in features and detections when doing web content brute-force. Instead of supporting parameters fuzzing like in *ffuf* or *wfuzz*, dirsearch still keeps it as a traditional web path brute forcer. This allows dirsearch to much more focus on the accuracy of the output and support more features for its purpose.
 
 
 Installation & Usage
@@ -19,13 +19,13 @@ Installation & Usage
 ```
 git clone https://github.com/maurosoria/dirsearch.git
 cd dirsearch
-python3 dirsearch.py -u <URL> -e <EXTENSION>
+python3 dirsearch.py -u <URL> -e <EXTENSIONS>
 ```
 - For shorter command (Unix):
 
 ```
 chmod +x dirsearch.py
-./dirsearch.py -u <URL> -e <EXTENSION>
+./dirsearch.py -u <URL> -e <EXTENSIONS>
 ```
 If you are using Windows and don't have git, you can install the ZIP file [here](https://github.com/maurosoria/dirsearch/archive/master.zip), then extract and run
 
@@ -158,16 +158,17 @@ Operating Systems supported
 Features
 --------
 - Fast
+- Easy and simple to use
 - Multithreading
+- Filtering wildcard responses (invalid webpages)
 - Keep alive connections
-- Support for multiple extensions (-e|--extensions asp,php)
+- Support for multiple extensions
 - Support for every HTTP method
 - Support for HTTP request data
 - Extensions excluding
-- Reporting (plain text, JSON)
-- Heuristically detects invalid web pages
+- Reporting (Plain text, JSON, XML)
 - Recursive brute forcing
-- Subdirectories brute forcing
+- Sub-directories brute forcing
 - Force extensions
 - HTTP and SOCKS proxy support
 - HTTP cookies and headers support
@@ -177,22 +178,25 @@ Features
 - Batch processing
 - Request delaying
 - Multiple wordlist formats (lowercase, uppercase, capitalization)
+- Default configuration from file
 - Quiet mode
+- Debug mode
 - Option to force requests by hostname
+- Option to add custom suffixes and prefixes
 - Option to whitelist response codes (-i 200,500)
 - Option to blacklist response codes (-x 404,403)
 - Option to exclude responses by sizes
 - Option to exclude responses by texts
 - Option to exclude responses by regexps (example: "Not foun[a-z]{1}")
-- Option to remove dot from extension when forcing
 - Options to display only items with response length from range
-- Option to add custom suffixes and prefixes
+- Option to remove all extensions from every wordlist entry
+- Option to remove the dot before extensions
 - ...
 
 
 About wordlists
 ---------------
-Wordlist must be a text file. Each line will be processed as such, except when the special keyword %EXT% is used, it will generate one entry for each extension (-e | --extension) passed as an argument.
+Wordlist must be a text file. Each line will be processed as such, except when the special keyword *%EXT%* is used, it will generate one entry for each extension (-e | --extensions) passed as an argument.
 
 Example:
 - sample/
@@ -204,9 +208,9 @@ Passing the extensions "asp" and "aspx" will generate the following dictionary:
 - example.asp
 - example.aspx
 
-You can also use -f | --force-extensions switch to append extensions to every word in the wordlists.
+You can also use -f | --force-extensions switch to append extensions to every word in the wordlists. For entries in the wordlist that you do not want to force, you can add *%NOFORCE%* at the end of them so dirsearch won't append any extension.
 
-To use multiple wordlists, you can seperate your wordlists with comma. Example: -w wordlist1.txt,wordlist2.txt
+To use multiple wordlists, you can seperate your wordlists with commas. Example: -w wordlist1.txt,wordlist2.txt
 
 How to use
 ---------------
@@ -232,14 +236,23 @@ By adding "-r | --recursive" argument, dirsearch will automatically brute-force 
 ```
 python3 dirsearch.py -e php,html,js -u https://target -r
 ```
-You can set the max recursion depth with "-R" or "--recursive-level-max"
+You can set the max recursion depth with "-R" or "--recursion-depth"
 
 ```
 python3 dirsearch.py -e php,html,js -u https://target -r -R 3
 ```
 
+### Threads
+The threads number (-t | --threads) reflects the number of separate brute force processes, that each process will perform path brute-forcing against the target. And so the bigger the threads number is, the more fast dirsearch runs. By default, the number of threads is 20, but you can increase it if you want to speed up the progress.
+
+In spite of that, the speed is actually still uncontrollable since it depends a lot on the response time of the server. And as a warning, we advise you to keep the threads number not too big because of the impact from too much automation requests, this should be adjusted to fit the power of the system that you're scanning against.
+
+```
+python3 dirsearch.py -e php,htm,js,bak,zip,tgz,txt -u https://target -t 30
+```
+
 ### Exclude extensions
-Sometimes your wordlist may contains many extensions, for many cases like `.asp`, `.aspx`, `.php`, `.jsp`, ... But if you found the core application behind it, ASP.NET for example, many of those endpoints will be useless right? Don't worry, try "-X <exclude-extensions>" and all endpoints with extensions you selected will be removed.
+Sometimes your wordlist may contains many extensions, for many cases like `.asp`, `.aspx`, `.php`, `.jsp`, ... But if you found the core application behind it, many of those endpoints will be useless right? Don't worry, try "-X <extensions>" and all endpoints have given extensions will be removed.
 
 ```
 python3 dirsearch.py -e asp,aspx,html,htm,js -u https://target -X php,jsp,jspx
@@ -393,7 +406,7 @@ python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --random-ag
 ```
 
 ```
-python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --json-report=reports/target.json --suppress-empty
+python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --json-report=target.json
 ```
 
 ```
@@ -500,5 +513,3 @@ Special thanks for these people:
 - @chowmean
 
 #### Want to join the team? Feel free to submit any pull request that you can. If you don't know how to code, you can support us by updating the wordlist or the documentation. Giving feedback or a new feature suggestion is also the good way to help us improve this tool
-
-##### Feeling excited? Just [tweet](https://twitter.com/intent/tweet?text=I%20just%20installed%20dirsearch%20v0.4.0%20-%20A%20Web%20Path%20Scanner%20https%3A%2F%2Fgithub.com%2Fmaurosoria%2Fdirsearch%20%23fuzzer%20%23bugbounty%20%23dirsearch%20%23pentesting%20%23security) about it!

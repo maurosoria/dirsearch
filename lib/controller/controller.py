@@ -28,7 +28,7 @@ from queue import Queue
 
 from lib.connection import Requester, RequestException
 from lib.core import Dictionary, Fuzzer, ReportManager
-from lib.reports import JSONReport, XMLReport, PlainTextReport, SimpleReport
+from lib.reports import JSONReport, XMLReport, PlainTextReport, SimpleReport, MarkdownReport
 from lib.utils import FileUtils
 
 
@@ -122,12 +122,13 @@ class Controller(object):
             arguments.exclude_subdirs if arguments.exclude_subdirs else []
         )
 
-        self.dictionary = Dictionary(self.arguments.wordlist, self.arguments.extensions,
-                                     self.arguments.suffixes, self.arguments.prefixes,
-                                     self.arguments.lowercase, self.arguments.uppercase,
-                                     self.arguments.capitalization, self.arguments.force_extensions,
-                                     self.arguments.no_dot_extensions, self.arguments.exclude_extensions,
-                                     self.arguments.no_extension)
+        self.dictionary = Dictionary(
+            self.arguments.wordlist, self.arguments.extensions,
+            self.arguments.suffixes, self.arguments.prefixes,
+            self.arguments.lowercase, self.arguments.uppercase,
+            self.arguments.capitalization, self.arguments.force_extensions,
+            self.arguments.no_dot_extensions, self.arguments.exclude_extensions,
+            self.arguments.no_extension, self.arguments.only_selected)
 
         self.allJobs = len(self.urlList) * (len(self.scanSubdirs) if self.scanSubdirs else 1)
         self.currentJob = 0
@@ -408,6 +409,14 @@ class Controller(object):
                         requester.basePath,
                         outputFile,
                     )
+                elif self.arguments.autoSaveFormat == "markdown":
+                    report = MarkdownReport(
+                        requester.host,
+                        requester.port,
+                        requester.protocol,
+                        requester.basePath,
+                        outputFile,
+                    )
                 else:
                     report = PlainTextReport(
                         requester.host,
@@ -457,6 +466,14 @@ class Controller(object):
                 )
             )
 
+        if self.arguments.markdown_output_file:
+            self.reportManager.addOutput(
+                MarkdownReport(
+                    requester.host, requester.port, requester.protocol,
+                    requester.basePath, self.arguments.markdown_output_file, self.batch
+                )
+            )
+
     # TODO: Refactor, this function should be a decorator for all the filters
     def matchCallback(self, path):
         self.index += 1
@@ -469,9 +486,10 @@ class Controller(object):
                     not self.blacklists.get(path.status) or path.path not in self.blacklists.get(path.status)
             ) and (
                     not self.exclude_sizes or FileUtils.size_human(len(path.response.body)).strip() not in self.exclude_sizes
-            ) and not ((
-                    self.minimum_response_size and self.minimum_response_size > len(path.response.body)) or (
-                    self.maximum_response_size and self.maximum_response_size < len(path.response.body))
+            ) and not (
+                    self.minimum_response_size and self.minimum_response_size > len(path.response.body)
+            ) and not (
+                    self.maximum_response_size and self.maximum_response_size < len(path.response.body)
             ):
 
                 for excludeText in self.exclude_strings:
@@ -527,9 +545,12 @@ class Controller(object):
             self.exit = True
             self.fuzzer.stop()
             self.output.error("\nCanceled due to an error")
-            exit(0)
+            exit(1)
 
         else:
+            if self.arguments.debug:
+                self.output.debug(errorMsg)
+
             self.output.addConnectionError()
 
     def appendErrorLog(self, path, errorMsg):
