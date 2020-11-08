@@ -42,7 +42,7 @@ class PlainTextReport(TailableFileBaseReport):
         self.storeData((path, status, contentLength, location))
 
     def generate(self):
-        result = "Time: {0}\n".format(time.strftime("%H:%M:%S"))
+        result = "Time: {0}\n\n".format(time.ctime())
 
         for path, status, contentLength, location in self.getPathIterator():
             result += "{0}  ".format(status)
