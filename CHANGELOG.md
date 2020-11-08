@@ -7,7 +7,7 @@ Updating ...
 - No extension option added
 - Support capital wordlist format
 - Support SOCKS proxy
-- Option to stop whenever an error occurs
+- Option to exit whenever an error occurs
 - Provide headers using file as input
 - Exclude responses by human readable sizes
 - Support XML and Markdown report formats
