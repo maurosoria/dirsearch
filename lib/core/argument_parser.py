@@ -281,7 +281,6 @@ class ArgumentParser(object):
         self.markdownOutputFile = options.markdownOutputFile
         self.delay = options.delay
         self.timeout = options.timeout
-        self.ip = options.ip
         self.maxRetries = options.maxRetries
         self.recursive = options.recursive
         self.minimumResponseSize = options.minimumResponseSize
@@ -499,8 +498,6 @@ You can change the dirsearch default configurations (default extensions, timeout
         connection = OptionGroup(parser, 'Connection Settings')
         connection.add_option('--timeout', action='store', dest='timeout', type='int',
                               default=self.timeout, help='Connection timeout')
-        connection.add_option('--ip', action='store', dest='ip', default=None,
-                              help='Server IP address')
         connection.add_option('-s', '--delay', help='Delay between requests (support float number)', action='store', dest='delay',
                               type='float', default=self.delay)
         connection.add_option('--proxy', action='store', dest='proxy', type='string', default=self.proxy,
