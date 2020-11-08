@@ -45,7 +45,6 @@ class Requester(object):
         maxRetries=5,
         delay=0,
         timeout=20,
-        ip=None,
         proxy=None,
         proxylist=None,
         redirect=False,
@@ -76,9 +75,7 @@ class Requester(object):
         self.host = parsed.netloc.split(":")[0]
 
         # resolve DNS to decrease overhead
-        if ip:
-            self.ip = ip
-        else:
+        if not self.requestByHostname:
             try:
                 self.ip = socket.gethostbyname(self.host)
             except socket.gaierror:
