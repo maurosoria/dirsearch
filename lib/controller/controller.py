@@ -122,12 +122,14 @@ class Controller(object):
             arguments.excludeSubdirs if arguments.excludeSubdirs else []
         )
 
-        self.dictionary = Dictionary(self.arguments.wordlist, self.arguments.extensions,
-                                     self.arguments.suffixes, self.arguments.prefixes,
-                                     self.arguments.lowercase, self.arguments.uppercase,
-                                     self.arguments.capitalization, self.arguments.forceExtensions,
-                                     self.arguments.noDotExtensions, self.arguments.excludeExtensions,
-                                     self.arguments.noExtension)
+        self.dictionary = Dictionary(
+            self.arguments.wordlist, self.arguments.extensions,
+            self.arguments.suffixes, self.arguments.prefixes,
+            self.arguments.lowercase, self.arguments.uppercase,
+            self.arguments.capitalization, self.arguments.forceExtensions,
+            self.arguments.noDotExtensions, self.arguments.excludeExtensions,
+            self.arguments.noExtension, self.arguments.onlySelected
+        )
 
         self.allJobs = len(self.urlList) * (len(self.scanSubdirs) if self.scanSubdirs else 1)
         self.currentJob = 0

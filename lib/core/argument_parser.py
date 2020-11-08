@@ -287,6 +287,7 @@ class ArgumentParser(object):
         self.minimumResponseSize = options.minimumResponseSize
         self.maximumResponseSize = options.maximumResponseSize
         self.noExtension = options.noExtension
+        self.onlySelected = options.onlySelected
 
         if options.scanSubdirs:
             self.scanSubdirs = list(
@@ -437,6 +438,8 @@ You can change the dirsearch default configurations (default extensions, timeout
                               help='Add custom suffixes to all entries, ignores directories (separated by commas)')
         dictionary.add_option('-f', '--force-extensions', action='store_true', dest='forceExtensions', default=self.forceExtensions,
                               help='Force extensions for every wordlist entry. Add %NOFORCE% at the end of the entry in the wordlist that you do not want to force')
+        dictionary.add_option('--only-selected', dest='onlySelected', action='store_true',
+                              help='Only entries with selected extensions or no extension + directories')
         dictionary.add_option('--no-extension', dest='noExtension', action='store_true',
                               help='Remove extensions in all wordlist entries (Example: admin.php -> admin)')
         dictionary.add_option('--no-dot-extensions', dest='noDotExtensions', default=self.noDotExtensions,
