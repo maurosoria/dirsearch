@@ -47,7 +47,7 @@ class Requester(object):
         timeout=20,
         ip=None,
         proxy=None,
-        proxylist=None,
+        proxy_list=None,
         redirect=False,
         request_by_hostname=False,
         httpmethod="get",
@@ -113,7 +113,7 @@ class Requester(object):
         self.timeout = timeout
         self.pool = None
         self.proxy = proxy
-        self.proxylist = proxylist
+        self.proxy_list = proxy_list
         self.redirect = redirect
         self.randomAgents = None
         self.request_by_hostname = request_by_hostname
@@ -137,8 +137,8 @@ class Requester(object):
         while i <= self.max_retries:
 
             try:
-                if self.proxylist:
-                    proxy = {"https": random.choice(self.proxylist), "http": random.choice(self.proxylist)}
+                if self.proxy_list:
+                    proxy = {"https": random.choice(self.proxy_list), "http": random.choice(self.proxy_list)}
                 elif self.proxy:
                     proxy = {"https": self.proxy, "http": self.proxy}
 

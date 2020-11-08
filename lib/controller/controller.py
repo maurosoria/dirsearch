@@ -174,7 +174,7 @@ class Controller(object):
                             timeout=self.arguments.timeout,
                             ip=self.arguments.ip,
                             proxy=self.arguments.proxy,
-                            proxylist=self.arguments.proxylist,
+                            proxy_list=self.arguments.proxy_list,
                             redirect=self.arguments.redirect,
                             request_by_hostname=self.arguments.request_by_hostname,
                             httpmethod=self.httpmethod,
