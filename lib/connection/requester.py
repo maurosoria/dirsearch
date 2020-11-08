@@ -89,6 +89,10 @@ class Requester(object):
             self.port = int(parsed.netloc.split(":")[1])
         except IndexError:
             self.port = 443 if self.protocol == "https" else 80
+        except ValueError:
+            raise RequestException(
+                {"message": "Invalid port number: {0}".format(parsed.netloc.split(":")[1])}
+            )
 
         # Pass if the host header has already been set
         if "host" not in [hd.lower() for hd in self.headers]:
