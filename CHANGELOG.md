@@ -4,14 +4,14 @@
 0.4.1 - Updating ...
 ---------
 - Faster
-- Added no extension option
-- Removed the delay between test requests when using -s
+- No extension option added
 - Support capital wordlist format
 - Support SOCKS proxy
 - Option to stop whenever an error occurs
-- Option to provide headers using file as input
-- Option to exclude responses by human readable sizes
-- XML report format
+- Provide headers using file as input
+- Exclude responses by human readable sizes
+- Support XML report format
+- Debug mode
 - Several updates
 - Multiple bugfixes
 

@@ -286,6 +286,7 @@ class ArgumentParser(object):
         self.minimumResponseSize = options.minimumResponseSize
         self.maximumResponseSize = options.maximumResponseSize
         self.noExtension = options.noExtension
+        self.onlySelected = options.onlySelected
 
         if options.scanSubdirs:
             self.scanSubdirs = list(
@@ -330,9 +331,10 @@ class ArgumentParser(object):
             exit(0)
 
         self.redirect = options.followRedirects
+        self.httpmethod = options.httpmethod
         self.requestByHostname = options.requestByHostname
         self.stop = options.stop
-        self.httpmethod = options.httpmethod
+        self.debug = options.debug
 
         self.recursive_level_max = options.recursive_level_max
 
@@ -402,6 +404,7 @@ class ArgumentParser(object):
             "connection", "request-by-hostname", False
         )
         self.stop = config.safe_getboolean("connection", "stop-on-error", False)
+        self.debug = config.safe_getboolean("connection", "debug", False)
 
     def parseArguments(self):
         usage = "Usage: %prog [-u|--url] target [-e|--extensions] extensions [options]"
@@ -433,6 +436,8 @@ You can change the dirsearch default configurations (default extensions, timeout
                               help='Add custom suffixes to all entries, ignores directories (separated by commas)')
         dictionary.add_option('-f', '--force-extensions', action='store_true', dest='forceExtensions', default=self.forceExtensions,
                               help='Force extensions for every wordlist entry')
+        dictionary.add_option('--only-selected', dest='onlySelected', action='store_true',
+                              help='Only entries with selected extensions or no extension + directories')
         dictionary.add_option('--no-extension', dest='noExtension', action='store_true',
                               help='Remove extensions in all wordlist entries (Example: admin.php -> admin)')
         dictionary.add_option('--no-dot-extensions', dest='noDotExtensions', default=self.noDotExtensions,
@@ -508,6 +513,7 @@ You can change the dirsearch default configurations (default extensions, timeout
                               action='store_true', dest='requestByHostname', default=self.requestByHostname)
         connection.add_option('--stop-on-error', action='store_true', dest='stop', default=self.stop,
                               help='Stop whenever an error occurs')
+        connection.add_option('--debug', action='store_true', dest='debug', default=self.debug)
 
         # Report Settings
         reports = OptionGroup(parser, 'Reports')

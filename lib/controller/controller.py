@@ -122,12 +122,14 @@ class Controller(object):
             arguments.excludeSubdirs if arguments.excludeSubdirs else []
         )
 
-        self.dictionary = Dictionary(self.arguments.wordlist, self.arguments.extensions,
-                                     self.arguments.suffixes, self.arguments.prefixes,
-                                     self.arguments.lowercase, self.arguments.uppercase,
-                                     self.arguments.capitalization, self.arguments.forceExtensions,
-                                     self.arguments.noDotExtensions, self.arguments.excludeExtensions,
-                                     self.arguments.noExtension)
+        self.dictionary = Dictionary(
+            self.arguments.wordlist, self.arguments.extensions,
+            self.arguments.suffixes, self.arguments.prefixes,
+            self.arguments.lowercase, self.arguments.uppercase,
+            self.arguments.capitalization, self.arguments.forceExtensions,
+            self.arguments.noDotExtensions, self.arguments.excludeExtensions,
+            self.arguments.noExtension, self.arguments.onlySelected
+        )
 
         self.allJobs = len(self.urlList) * (len(self.scanSubdirs) if self.scanSubdirs else 1)
         self.currentJob = 0
@@ -524,9 +526,12 @@ class Controller(object):
             self.exit = True
             self.fuzzer.stop()
             self.output.error("\nCanceled due to an error")
-            exit(0)
+            exit(1)
 
         else:
+            if self.arguments.debug:
+                self.output.debug(errorMsg)
+
             self.output.addConnectionError()
 
     def appendErrorLog(self, path, errorMsg):
