@@ -352,7 +352,9 @@ class ArgumentParser(object):
         self.includeStatusCodes = config.safe_get("general", "include-status", None)
 
         self.excludeStatusCodes = config.safe_get("general", "exclude-status", None)
+        self.excludeSizes = config.safe_get("general", "exclude-sizes", None)
         self.excludeTexts = config.safe_get("general", "exclude-texts", None)
+        self.excludeRegexps = config.safe_get("general", "exclude-regexps", None)
         self.redirect = config.safe_getboolean("general", "follow-redirects", False)
         self.recursive = config.safe_getboolean("general", "recursive", False)
         self.recursive_level_max = config.safe_getint(
@@ -473,11 +475,11 @@ You can change the dirsearch default configurations (default extensions, timeout
         general.add_option('-x', '--exclude-status', help='Do not show excluded status codes, separated by commas (Example: 301,500)',
                            action='store', dest='excludeStatusCodes', default=self.excludeStatusCodes, metavar='STATUS')
         general.add_option('--exclude-sizes', help='Exclude responses by sizes, separated by commas (Example: 123B,4KB)',
-                           action='store', dest='excludeSizes', default=None, metavar='SIZES')
+                           action='store', dest='excludeSizes', default=self.excludeSizes, metavar='SIZES')
         general.add_option('--exclude-texts', help='Exclude responses by texts, separated by commas (Example: "Not found", "Error")',
-                           action='store', dest='excludeTexts', default=None, metavar='TEXTS')
+                           action='store', dest='excludeTexts', default=self.excludeTexts, metavar='TEXTS')
         general.add_option('--exclude-regexps', help='Exclude responses by regexps, separated by commas (Example: "Not foun[a-z]{1}", "^Error$")',
-                           action='store', dest='excludeRegexps', default=None, metavar='REGEXPS')
+                           action='store', dest='excludeRegexps', default=self.excludeRegexps, metavar='REGEXPS')
         general.add_option('-H', '--header', help='HTTP request header, support multiple flags (Example: -H "Referer: example.com" -H "Accept: */*")',
                            action='append', type='string', dest='headers', default=None)
         general.add_option('--header-list', help="File contains HTTP request headers", type='string',
