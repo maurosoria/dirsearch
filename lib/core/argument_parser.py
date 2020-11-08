@@ -278,6 +278,7 @@ class ArgumentParser(object):
         self.plainTextOutputFile = options.plainTextOutputFile
         self.jsonOutputFile = options.jsonOutputFile
         self.xmlOutputFile = options.xmlOutputFile
+        self.markdownOutputFile = options.markdownOutputFile
         self.delay = options.delay
         self.timeout = options.timeout
         self.ip = options.ip
@@ -521,6 +522,7 @@ You can change the dirsearch default configurations (default extensions, timeout
         reports.add_option('--plain-text-report', action='store', dest='plainTextOutputFile', default=None, metavar='OUTPUTFILE')
         reports.add_option('--json-report', action='store', dest='jsonOutputFile', default=None, metavar='OUTPUTFILE')
         reports.add_option('--xml-report', action='store', dest='xmlOutputFile', default=None, metavar='OUTPUTFILE')
+        reports.add_option('--markdown-report', action='store', dest='markdownOutputFile', default=None, metavar='OUTPUTFILE')
 
         parser.add_option_group(mandatory)
         parser.add_option_group(dictionary)
