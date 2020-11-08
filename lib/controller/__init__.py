@@ -1,1 +1,1 @@
-from .Controller import *
+from .controller import *  # noqa: F401

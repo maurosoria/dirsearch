@@ -17,44 +17,36 @@
 #  Author: Mauro Soria
 
 from lib.reports import *
-from lib.utils.FileUtils import FileUtils 
+import time
 
 
-class PlainTextReport(TailableFileBaseReport):
-            
+class MarkdownReport(FileBaseReport):
+
     def addPath(self, path, status, response):
         contentLength = None
-        location = None
 
         try:
             contentLength = int(response.headers["content-length"])
 
         except (KeyError, ValueError):
             contentLength = len(response.body)
-            
-        try:
-            location = response.headers["location"]
-        except(KeyError,ValueError):
-            pass
 
-        self.storeData((path, status, contentLength, location, ))
-
+        self.storeData((path, status, contentLength, response.redirect))
 
     def generate(self):
-        result = ""
+        headerName = "{0}://{1}:{2}/{3}".format(
+            self.protocol, self.host, self.port, self.basePath
+        )
 
-        for path, status, contentLength, location in self.getPathIterator():
-            result += "{0}  ".format(status)
-            result += "{0}  ".format(FileUtils.sizeHuman(contentLength).rjust(6, " "))
-            result += "{0}://{1}:{2}/".format(self.protocol, self.host, self.port)
-            result += (
-                "{0}".format(path)
-                if self.basePath is ""
-                else "{0}/{1}".format(self.basePath, path)
-            )
-            if location:
-                result += "    -> REDIRECTS TO: {0}".format(location)
-            
-            result += "\n"
+        result = "### Time: {0}\n".format(time.ctime())
+        result += "### Target: {0}\n\n".format(headerName)
+        result += "Path | Status | Size | Redirection\n"
+        result += "-----|--------|------|------------\n"
+
+        for path, status, contentLength, redirect in self.pathList:
+            result += "[/{0}]({1}) | ".format(path, headerName + path)
+            result += "{0} | ".format(status)
+            result += "{0} | ".format(contentLength)
+            result += "{0}\n".format(redirect)
 
         return result

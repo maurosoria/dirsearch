@@ -16,18 +16,16 @@
 #
 #  Author: Mauro Soria
 
-import platform
 import sys
 import threading
 import time
-
 import urllib.parse
 
-from lib.utils.FileUtils import *
-from lib.utils.TerminalSize import get_terminal_size
+from lib.utils.file_utils import *
+from lib.utils.terminal_size import get_terminal_size
 from thirdparty.colorama import *
 
-if platform.system() == "Windows":
+if sys.platform in ["win32", "msys"]:
     from thirdparty.colorama.win32 import *
 
 
@@ -39,7 +37,6 @@ class CLIOutput(object):
         self.lastInLine = False
         self.mutex = threading.Lock()
         self.blacklists = {}
-        self.mutexCheckedPaths = threading.Lock()
         self.basePath = None
         self.errors = 0
 
@@ -50,7 +47,7 @@ class CLIOutput(object):
         self.lastInLine = True
 
     def erase(self):
-        if platform.system() == "Windows":
+        if sys.platform in ["win32", "msys"]:
             csbi = GetConsoleScreenBufferInfo()
             line = "\b" * int(csbi.dwCursorPosition.X)
             sys.stdout.write(line)
@@ -65,10 +62,10 @@ class CLIOutput(object):
             sys.stdout.write("\033[0G")
 
     def newLine(self, string):
-        if self.lastInLine == True:
+        if self.lastInLine is True:
             self.erase()
 
-        if platform.system() == "Windows":
+        if sys.platform in ["win32", "msys"]:
             sys.stdout.write(string)
             sys.stdout.flush()
             sys.stdout.write("\n")
@@ -81,72 +78,79 @@ class CLIOutput(object):
         self.lastInLine = False
         sys.stdout.flush()
 
-    def statusReport(self, path, response):
+    def statusReport(self, path, response, full_url, addedToQueue):
+        contentLength = None
+        status = response.status
+
+        # Format message
+        try:
+            size = int(response.headers["content-length"])
+
+        except (KeyError, ValueError):
+            size = len(response.body)
+
+        finally:
+            contentLength = FileUtils.size_human(size)
+
+        showPath = "/" + self.basePath.lstrip("/") + path
+
+        if full_url:
+            parsed = urllib.parse.urlparse(self.target)
+            showPath = "{0}://{1}{2}".format(parsed.scheme, parsed.netloc, showPath)
+
+        message = "[{0}] {1} - {2} - {3}".format(
+            time.strftime("%H:%M:%S"),
+            status,
+            contentLength.rjust(6, " "),
+            showPath,
+        )
+
+        if status == 200:
+            message = Fore.GREEN + message + Style.RESET_ALL
+
+        elif status == 401:
+            message = Fore.YELLOW + message + Style.RESET_ALL
+
+        elif status == 403:
+            message = Fore.BLUE + message + Style.RESET_ALL
+
+        elif status == 500:
+            message = Fore.RED + message + Style.RESET_ALL
+
+        # Check if redirect
+        elif status in [301, 302, 303, 307, 308] and "location" in [
+            h.lower() for h in response.headers
+        ]:
+            message = Fore.CYAN + message + Style.RESET_ALL
+            message += "  ->  {0}".format(response.headers["location"])
+
+        if addedToQueue:
+            message += "     (Added to queue)"
+
         with self.mutex:
-            contentLength = None
-            status = response.status
-
-            # Check blacklist
-            if status in self.blacklists and path in self.blacklists[status]:
-                return
-
-            # Format message
-            try:
-                size = int(response.headers["content-length"])
-
-            except (KeyError, ValueError):
-                size = len(response.body)
-
-            finally:
-                contentLength = FileUtils.sizeHuman(size)
-
-            if self.basePath is None:
-                showPath = urllib.parse.urljoin("/", path)
-
-            else:
-                showPath = urllib.parse.urljoin("/", self.basePath)
-                showPath = urllib.parse.urljoin(showPath, path)
-            message = "[{0}] {1} - {2} - {3}".format(
-                time.strftime("%H:%M:%S"), status, contentLength.rjust(6, " "), showPath
-            )
-
-            if status == 200:
-                message = Fore.GREEN + message + Style.RESET_ALL
-
-            elif status == 403:
-                message = Fore.BLUE + message + Style.RESET_ALL
-
-            elif status == 401:
-                message = Fore.YELLOW + message + Style.RESET_ALL
-
-            # Check if redirect
-            elif status in [301, 302, 307] and "location" in [
-                h.lower() for h in response.headers
-            ]:
-                message = Fore.CYAN + message + Style.RESET_ALL
-                message += "  ->  {0}".format(response.headers["location"])
-
             self.newLine(message)
 
-    def lastPath(self, path, index, length):
+    @staticmethod
+    def percentage(x, y):
+        return float(x) / float(y) * 100
+
+    def lastPath(self, path, index, length, currentJob, allJobs):
+        x, y = get_terminal_size()
+
+        message = "{0:.2f}% - ".format(self.percentage(index, length))
+
+        if allJobs > 1:
+            message += "Job: {0}/{1} - ".format(currentJob, allJobs)
+
+        if self.errors > 0:
+            message += "Errors: {0} - ".format(self.errors)
+
+        message += "Last request to: {0}".format(path)
+
+        if len(message) >= x:
+            message = message[:x - 1]
+
         with self.mutex:
-            percentage = lambda x, y: float(x) / float(y) * 100
-
-            x, y = get_terminal_size()
-
-            message = "{0:.2f}% - ".format(percentage(index, length))
-
-            if self.errors > 0:
-                message += Style.BRIGHT + Fore.RED
-                message += "Errors: {0}".format(self.errors)
-                message += Style.RESET_ALL
-                message += " - "
-
-            message += "Last request to: {0}".format(path)
-
-            if len(message) > x:
-                message = message[:x]
-
             self.inLine(message)
 
     def addConnectionError(self):
@@ -155,34 +159,29 @@ class CLIOutput(object):
     def error(self, reason):
         with self.mutex:
             stripped = reason.strip()
-            start = reason.find(stripped[0])
-            end = reason.find(stripped[-1]) + 1
-            message = reason[0:start]
+            message = "\n" if reason.startswith("\n") else ""
             message += Style.BRIGHT + Fore.WHITE + Back.RED
-            message += reason[start:end]
+            message += stripped
             message += Style.RESET_ALL
-            message += reason[end:]
             self.newLine(message)
 
     def warning(self, reason):
-        message = Style.BRIGHT + Fore.YELLOW + reason + Style.RESET_ALL
-        self.newLine(message)
+        with self.mutex:
+            message = Style.BRIGHT + Fore.YELLOW + reason + Style.RESET_ALL
+            self.newLine(message)
 
     def header(self, text):
         message = Style.BRIGHT + Fore.MAGENTA + text + Style.RESET_ALL
         self.newLine(message)
 
-
     def config(
         self,
-        suffixes,
         extensions,
+        prefixes,
+        suffixes,
         threads,
         wordlist_size,
-        request_count,
         method,
-        recursive,
-        recursion_level,
     ):
         separator = Fore.MAGENTA + " | " + Fore.YELLOW
 
@@ -193,45 +192,39 @@ class CLIOutput(object):
         config += "HTTP method: {0}".format(Fore.CYAN + method.upper() + Fore.YELLOW)
         config += separator
 
+        if prefixes != '':
+            config += 'Prefixes: {0}'.format(Fore.CYAN + prefixes + Fore.YELLOW)
+            config += separator
 
         if suffixes != '':
             config += 'Suffixes: {0}'.format(Fore.CYAN + suffixes + Fore.YELLOW)
             config += separator
-        
+
         config += "Threads: {0}".format(Fore.CYAN + threads + Fore.YELLOW)
         config += separator
         config += "Wordlist size: {0}".format(Fore.CYAN + wordlist_size + Fore.YELLOW)
-        config += separator
-
-        if recursive == False:
-            config += "Request count: {0}".format(
-                Fore.CYAN + request_count + Fore.YELLOW
-            )
-        else:
-            config += "Request count: {0} (+recursive)".format(
-                Fore.CYAN + request_count + Fore.YELLOW
-            )
-
-        if recursive == True:
-            config += separator
-            config += "Recursion level: {0}".format(
-                Fore.CYAN + recursion_level + Fore.YELLOW
-            )
 
         config += Style.RESET_ALL
 
         self.newLine(config)
 
-    def target(self, target):
+    def setTarget(self, target):
+        if not target.endswith("/"):
+            target += "/"
+        if not target.startswith("http://") and not target.startswith("https://") and "://" not in target:
+            target = "http://" + target
+
+        self.target = target
+
         config = Style.BRIGHT + Fore.YELLOW
         config += "\nTarget: {0}\n".format(Fore.CYAN + target + Fore.YELLOW)
         config += Style.RESET_ALL
 
         self.newLine(config)
-        
+
     def outputFile(self, target):
         self.newLine("Output File: {0}\n".format(target))
-        
+
     def errorLogFile(self, target):
         self.newLine("\nError Log: {0}".format(target))
 

@@ -16,15 +16,17 @@
 #
 #  Author: Mauro Soria
 
-import json
-
 from lib.reports import *
+from lib.utils.file_utils import FileUtils
+
+import time
 
 
-class JSONReport(FileBaseReport):
+class PlainTextReport(TailableFileBaseReport):
 
     def addPath(self, path, status, response):
         contentLength = None
+        location = None
 
         try:
             contentLength = int(response.headers["content-length"])
@@ -32,22 +34,28 @@ class JSONReport(FileBaseReport):
         except (KeyError, ValueError):
             contentLength = len(response.body)
 
-        self.storeData((path, status, contentLength, response.redirect))
+        try:
+            location = response.headers["location"]
+        except(KeyError, ValueError):
+            pass
 
+        self.storeData((path, status, contentLength, location))
 
     def generate(self):
-        headerName = "{0}://{1}:{2}/{3}".format(
-            self.protocol, self.host, self.port, self.basePath
-        )
-        result = {headerName: []}
+        result = "Time: {0}\n\n".format(time.ctime())
 
-        for path, status, contentLength, redirect in self.pathList:
-            entry = {
-                "status": status,
-                "path": path,
-                "content-length": contentLength,
-                "redirect": redirect,
-            }
-            result[headerName].append(entry)
+        for path, status, contentLength, location in self.getPathIterator():
+            result += "{0}  ".format(status)
+            result += "{0}  ".format(FileUtils.size_human(contentLength).rjust(6, " "))
+            result += "{0}://{1}:{2}/".format(self.protocol, self.host, self.port)
+            result += (
+                "{0}".format(path)
+                if self.basePath == ""
+                else "{0}/{1}".format(self.basePath, path)
+            )
+            if location:
+                result += "    -> REDIRECTS TO: {0}".format(location)
 
-        return json.dumps(result, sort_keys=True, indent=4)
+            result += "\n"
+
+        return result

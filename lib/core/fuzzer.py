@@ -18,9 +18,9 @@
 
 import threading
 
-from lib.connection.RequestException import RequestException
-from .Path import *
-from .Scanner import *
+from lib.connection.request_exception import RequestException
+from .path import *
+from .scanner import *
 
 
 class Fuzzer(object):
@@ -50,19 +50,18 @@ class Fuzzer(object):
         self.notFoundCallbacks = notFoundCallbacks
         self.errorCallbacks = errorCallbacks
         self.matches = []
-        self.errors = []
 
     def wait(self, timeout=None):
         for thread in self.threads:
             thread.join(timeout)
 
-            if timeout is not None and thread.is_alive():
+            if timeout and thread.is_alive():
                 return False
 
         return True
 
     def setupScanners(self):
-        if len(self.scanners) != 0:
+        if len(self.scanners):
             self.scanners = {}
 
         self.defaultScanner = Scanner(self.requester, self.testFailPath)
@@ -75,7 +74,7 @@ class Fuzzer(object):
             )
 
     def setupThreads(self):
-        if len(self.threads) != 0:
+        if len(self.threads):
             self.threads = []
 
         for thread in range(self.threadsCount):
@@ -86,7 +85,7 @@ class Fuzzer(object):
     def getScannerFor(self, path):
         if path.endswith("/"):
             return self.scanners["/"]
-        
+
         if path.startswith('.'):
             return self.scanners['dotfiles']
 
@@ -151,22 +150,22 @@ class Fuzzer(object):
 
     def thread_proc(self):
         self.playEvent.wait()
+
         try:
             path = next(self.dictionary)
-            while path is not None:
+
+            while path:
                 try:
                     status, response = self.scan(path)
                     result = Path(path=path, status=status, response=response)
 
-                    if status is not None:
+                    if status:
                         self.matches.append(result)
                         for callback in self.matchCallbacks:
                             callback(result)
                     else:
                         for callback in self.notFoundCallbacks:
                             callback(result)
-                    del status
-                    del response
 
                 except RequestException as e:
 

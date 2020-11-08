@@ -29,40 +29,36 @@ class ScannerException(Exception):
 
 class Scanner(object):
     def __init__(self, requester, testPath=None, suffix=None, preffix=None):
-        if testPath == None or testPath == "":
+        if testPath is None or testPath == "":
             self.testPath = RandomUtils.randString()
         else:
             self.testPath = testPath
 
-        self.suffix = suffix if suffix is not None else ""
-        self.preffix = preffix if preffix is not None else ""
+        self.suffix = suffix if suffix else ""
+        self.preffix = preffix if preffix else ""
         self.requester = requester
         self.tester = None
         self.redirectRegExp = None
         self.invalidStatus = None
         self.dynamicParser = None
         self.ratio = 0.98
-        self.redirectStatusCodes = [301, 302, 307]
+        self.redirectStatusCodes = [301, 302, 303, 307, 308]
         self.setup()
 
     def setup(self):
         firstPath = self.preffix + self.testPath + self.suffix
-        firstResponse = self.requester.request(firstPath)
+        firstResponse = self.requester.request(firstPath, nodelay=True)
         self.invalidStatus = firstResponse.status
+
+        secondPath = self.preffix + RandomUtils.randString(omit=self.testPath) + self.suffix
+        secondResponse = self.requester.request(secondPath, nodelay=True)
 
         if self.invalidStatus == 404:
             # Using the response status code is enough :-}
             return
 
         # look for redirects
-        secondPath = self.preffix + RandomUtils.randString(omit=self.testPath) + self.suffix
-        secondResponse = self.requester.request(secondPath)
-
-        if (
-            firstResponse.status in self.redirectStatusCodes
-            and firstResponse.redirect
-            and secondResponse.redirect
-        ):
+        elif firstResponse.status in self.redirectStatusCodes and firstResponse.redirect and secondResponse.redirect:
             self.redirectRegExp = self.generateRedirectRegExp(
                 firstResponse.redirect, secondResponse.redirect
             )
@@ -98,14 +94,14 @@ class Scanner(object):
             if n == 0:
                 continue
 
-            mark = firstLocation[i : i + n]
+            mark = firstLocation[i:i + n]
             marks.append(mark)
 
         regexp = "^.*{0}.*$".format(".*".join(map(re.escape, marks)))
         return regexp
 
     def scan(self, path, response):
-        if self.invalidStatus == 404 and response.status == 404:
+        if self.invalidStatus == response.status == 404:
             return False
 
         if self.invalidStatus != response.status:
@@ -113,7 +109,7 @@ class Scanner(object):
 
         redirectToInvalid = False
 
-        if self.redirectRegExp is not None and response.redirect is not None:
+        if self.redirectRegExp and response.redirect:
             redirectToInvalid = (
                 re.match(self.redirectRegExp, response.redirect) is not None
             )
