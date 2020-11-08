@@ -75,11 +75,10 @@ class Requester(object):
         self.host = parsed.netloc.split(":")[0]
 
         # resolve DNS to decrease overhead
-        if not requestByHostname:
-            try:
-                self.ip = socket.gethostbyname(self.host)
-            except socket.gaierror:
-                raise RequestException({"message": "Couldn't resolve DNS"})
+        try:
+            self.ip = socket.gethostbyname(self.host)
+        except socket.gaierror:
+            raise RequestException({"message": "Couldn't resolve DNS"})
 
         # If no port specified, set default (80, 443)
         try:
