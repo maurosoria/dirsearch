@@ -514,7 +514,7 @@ You can change the dirsearch default configurations (default extensions, timeout
         connection.add_option('-b', '--request-by-hostname',
                               help='By default dirsearch requests by IP for speed. This will force requests by hostname',
                               action='store_true', dest='requestByHostname', default=self.requestByHostname)
-        connection.add_option('--exit-on-error', action='store_true', dest='stop', default=self.exit_on_error,
+        connection.add_option('--exit-on-error', action='store_true', dest='exit_on_error', default=self.exit_on_error,
                               help='Exit whenever an error occurs')
         connection.add_option('--debug', action='store_true', dest='debug', default=self.debug)
 
