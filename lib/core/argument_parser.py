@@ -17,6 +17,7 @@
 #  Author: Mauro Soria
 
 from optparse import OptionParser, OptionGroup
+from ipaddress import IPv4Network
 
 from lib.utils.default_config_parser import DefaultConfigParser
 from lib.utils.file_utils import File
@@ -54,7 +55,10 @@ class ArgumentParser(object):
 
                     self.urlList = list(urlList.get_lines())
 
-            elif not options.url:
+            elif options.cidr:
+                self.urlList = [str(ip) for ip in IPv4Network(options.cidr)]
+
+            else:
                 print("URL target is missing, try using -u <url> ")
                 exit(0)
 
@@ -417,9 +421,10 @@ You can change the dirsearch default configurations (default extensions, timeout
 
         # Mandatory arguments
         mandatory = OptionGroup(parser, 'Mandatory')
-        mandatory.add_option('-u', '--url', help='URL target', action='store', type='string', dest='url', default=None)
+        mandatory.add_option('-u', '--url', help='Target URL', action='store', type='string', dest='url', default=None)
         mandatory.add_option('-l', '--url-list', help='URL list file', action='store', type='string', dest='urlList',
                              default=None, metavar='FILE')
+        mandatory.add_option('--cidr', help='Target CIDR', action='store', type='string', dest='cidr', default=None)
         mandatory.add_option('-e', '--extensions', help='Extension list separated by commas (Example: php,asp)',
                              action='store', dest='extensions', default=None)
         mandatory.add_option('-E', '--extension-list', help='Use predefined list of common extensions',
