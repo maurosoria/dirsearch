@@ -4,6 +4,7 @@
 Updating ...
 ---------
 - Faster
+- Allow to brute force through a CIDR notation
 - No extension option added
 - Support capital wordlist format
 - Support SOCKS proxy
