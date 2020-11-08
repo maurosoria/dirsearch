@@ -189,7 +189,7 @@ class Requester(object):
 
             except requests.exceptions.ConnectionError as e:
                 raise RequestException(
-                    {"message": "Error when connecting to: {0}".format(self.host if self.requestByHostname else self.ip)}
+                    {"message": "Cannot connect to: {0}".format(self.host)}
                 )
 
             except requests.exceptions.InvalidURL as e:
