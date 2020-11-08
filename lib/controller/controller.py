@@ -170,7 +170,6 @@ class Controller(object):
                             maxRetries=self.arguments.maxRetries,
                             delay=self.arguments.delay,
                             timeout=self.arguments.timeout,
-                            ip=self.arguments.ip,
                             proxy=self.arguments.proxy,
                             proxylist=self.arguments.proxylist,
                             redirect=self.arguments.redirect,
