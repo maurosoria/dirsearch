@@ -187,17 +187,17 @@ class Requester(object):
                     {"message": "Error with the proxy: {0}".format(e)}
                 )
 
-            except requests.exceptions.ConnectionError as e:
+            except requests.exceptions.ConnectionError:
                 raise RequestException(
                     {"message": "Cannot connect to: {0}".format(self.host)}
                 )
 
-            except requests.exceptions.InvalidURL as e:
+            except requests.exceptions.InvalidURL:
                 raise RequestException(
                     {"message": "Invalid URL: {0}".format(url)}
                 )
 
-            except requests.exceptions.InvalidProxyURL as e:
+            except requests.exceptions.InvalidProxyURL:
                 raise RequestException(
                     {"message": "Invalid proxy URL: {0}".format(proxy["http"])}
                 )

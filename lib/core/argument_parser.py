@@ -335,12 +335,7 @@ class ArgumentParser(object):
         self.redirect = options.follow_redirects
         self.request_by_hostname = options.request_by_hostname
         self.httpmethod = options.httpmethod
-<<<<<<< HEAD
-        self.stop = options.stop
-=======
-        self.requestByHostname = options.requestByHostname
         self.exit_on_error = options.exit_on_error
->>>>>>> 2a09ba7b7fbddc92cd3989d41199328319a16a5f
         self.debug = options.debug
 
         self.recursive_level_max = options.recursive_level_max
@@ -522,15 +517,9 @@ You can change the dirsearch default configurations (default extensions, timeout
                               default=self.max_retries, metavar='RETRIES')
         connection.add_option('-b', '--request-by-hostname',
                               help='By default dirsearch requests by IP for speed. This will force requests by hostname',
-<<<<<<< HEAD
                               action='store_true', dest='request_by_hostname', default=self.request_by_hostname)
-        connection.add_option('--stop-on-error', action='store_true', dest='stop', default=self.stop,
-                              help='Stop whenever an error occurs')
-=======
-                              action='store_true', dest='requestByHostname', default=self.requestByHostname)
         connection.add_option('--exit-on-error', action='store_true', dest='stop', default=self.exit_on_error,
                               help='Exit whenever an error occurs')
->>>>>>> 2a09ba7b7fbddc92cd3989d41199328319a16a5f
         connection.add_option('--debug', action='store_true', dest='debug', default=self.debug)
 
         # Report Settings
