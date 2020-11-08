@@ -541,7 +541,7 @@ class Controller(object):
         del path
 
     def errorCallback(self, path, errorMsg):
-        if self.arguments.stop:
+        if self.arguments.exit_on_error:
             self.exit = True
             self.fuzzer.stop()
             self.output.error("\nCanceled due to an error")
