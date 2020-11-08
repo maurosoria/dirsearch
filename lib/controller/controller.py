@@ -485,9 +485,9 @@ class Controller(object):
             ) and (
                     not self.excludeSizes or FileUtils.size_human(len(path.response.body)).strip() not in self.excludeSizes
             ) and not (
-                    self.minimumResponseSize or self.minimumResponseSize > len(path.response.body)
+                    self.minimumResponseSize and self.minimumResponseSize > len(path.response.body)
             ) and not (
-                    self.maximumResponseSize or self.maximumResponseSize < len(path.response.body)
+                    self.maximumResponseSize and self.maximumResponseSize < len(path.response.body)
             ):
 
                 for excludeText in self.excludeTexts:
