@@ -334,7 +334,7 @@ class ArgumentParser(object):
         self.redirect = options.followRedirects
         self.httpmethod = options.httpmethod
         self.requestByHostname = options.requestByHostname
-        self.stop = options.stop
+        self.exit_on_error = options.exit_on_error
         self.debug = options.debug
 
         self.recursive_level_max = options.recursive_level_max
@@ -404,7 +404,7 @@ class ArgumentParser(object):
         self.requestByHostname = config.safe_getboolean(
             "connection", "request-by-hostname", False
         )
-        self.stop = config.safe_getboolean("connection", "stop-on-error", False)
+        self.exit_on_error = config.safe_getboolean("connection", "exit-on-error", False)
         self.debug = config.safe_getboolean("connection", "debug", False)
 
     def parseArguments(self):
@@ -452,14 +452,14 @@ You can change the dirsearch default configurations (default extensions, timeout
 
         # Optional Settings
         general = OptionGroup(parser, 'General Settings')
-        general.add_option('-d', '--data', help='HTTP request data', action='store', dest='data',
-                           type='str', default=None)
         general.add_option('-r', '--recursive', help='Bruteforce recursively', action='store_true', dest='recursive',
                            default=self.recursive)
         general.add_option('-R', '--recursion-depth', help='Max recursion depth (subdirs) (Default: 0 [infinity])', action='store', type='int',
                            dest='recursive_level_max', default=self.recursive_level_max, metavar='DEPTH')
         general.add_option('-t', '--threads', help='Number of threads', action='store', type='int', dest='threadsCount',
                            default=self.threadsCount, metavar='THREADS')
+        general.add_option('-d', '--data', help='HTTP request data', action='store', dest='data',
+                           type='str', default=None)
         general.add_option('--minimal', action='store', dest='minimumResponseSize', type='int', default=None,
                            help='Minimal response length', metavar='LENGTH')
         general.add_option('--maximal', action='store', dest='maximumResponseSize', type='int', default=None,
@@ -512,8 +512,8 @@ You can change the dirsearch default configurations (default extensions, timeout
         connection.add_option('-b', '--request-by-hostname',
                               help='By default dirsearch requests by IP for speed. This will force requests by hostname',
                               action='store_true', dest='requestByHostname', default=self.requestByHostname)
-        connection.add_option('--stop-on-error', action='store_true', dest='stop', default=self.stop,
-                              help='Stop whenever an error occurs')
+        connection.add_option('--exit-on-error', action='store_true', dest='stop', default=self.exit_on_error,
+                              help='Exit whenever an error occurs')
         connection.add_option('--debug', action='store_true', dest='debug', default=self.debug)
 
         # Report Settings
