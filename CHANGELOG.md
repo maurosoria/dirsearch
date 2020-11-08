@@ -1,7 +1,7 @@
 # Changelog
 
 
-0.4.1 - Updating ...
+Updating ...
 ---------
 - Faster
 - No extension option added
@@ -10,7 +10,7 @@
 - Option to stop whenever an error occurs
 - Provide headers using file as input
 - Exclude responses by human readable sizes
-- Support XML report format
+- Support XML and Markdown report formats
 - Debug mode
 - Several updates
 - Multiple bugfixes
