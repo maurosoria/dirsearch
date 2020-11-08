@@ -28,7 +28,7 @@ from queue import Queue
 
 from lib.connection import Requester, RequestException
 from lib.core import Dictionary, Fuzzer, ReportManager
-from lib.reports import JSONReport, XMLReport, PlainTextReport, SimpleReport
+from lib.reports import JSONReport, XMLReport, PlainTextReport, SimpleReport, MarkdownReport
 from lib.utils import FileUtils
 
 
@@ -407,6 +407,14 @@ class Controller(object):
                         requester.basePath,
                         outputFile,
                     )
+                elif self.arguments.autoSaveFormat == "markdown":
+                    report = MarkdownReport(
+                        requester.host,
+                        requester.port,
+                        requester.protocol,
+                        requester.basePath,
+                        outputFile,
+                    )
                 else:
                     report = PlainTextReport(
                         requester.host,
@@ -456,6 +464,14 @@ class Controller(object):
                 )
             )
 
+        if self.arguments.markdownOutputFile:
+            self.reportManager.addOutput(
+                MarkdownReport(
+                    requester.host, requester.port, requester.protocol,
+                    requester.basePath, self.arguments.markdownOutputFile, self.batch
+                )
+            )
+
     # TODO: Refactor, this function should be a decorator for all the filters
     def matchCallback(self, path):
         self.index += 1
@@ -468,9 +484,10 @@ class Controller(object):
                     not self.blacklists.get(path.status) or path.path not in self.blacklists.get(path.status)
             ) and (
                     not self.excludeSizes or FileUtils.size_human(len(path.response.body)).strip() not in self.excludeSizes
-            ) and not ((
-                    self.minimumResponseSize and self.minimumResponseSize > len(path.response.body)) or (
-                    self.maximumResponseSize and self.maximumResponseSize < len(path.response.body))
+            ) and not (
+                    self.minimumResponseSize or self.minimumResponseSize > len(path.response.body)
+            ) and not (
+                    self.maximumResponseSize or self.maximumResponseSize < len(path.response.body)
             ):
 
                 for excludeText in self.excludeTexts:
