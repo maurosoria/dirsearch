@@ -65,14 +65,11 @@ class ArgumentParser(object):
         else:
             self.urlList = [options.url]
 
-        if not options.extensions and not options.defaultExtensions and not options.noExtension:
-            print('No extension specified. You must specify at least one extension or try using default extension list.')
-            exit(0)
+        if not options.extensions and not options.noExtension:
+            print('WARNING: No extension specified. You need to specify at least one extension.')
 
-        if not options.extensions and options.defaultExtensions:
-            options.extensions = self.defaultExtensions
         if options.noExtension:
-            options.extensions = ""
+            options.extensions = str()
 
         # Enable to use multiple dictionaries at once
         for dictFile in options.wordlist.split(','):
@@ -335,7 +332,7 @@ class ArgumentParser(object):
             self.excludeSubdirs = None
 
         if len(set(self.extensions).intersection(self.excludeExtensions)):
-            print("Exclude extensions can not contain any extension that has already in the extensions")
+            print("Exclude extension list can not contain any extension that has already in the extension list")
             exit(0)
 
         self.redirect = options.followRedirects
@@ -353,7 +350,7 @@ class ArgumentParser(object):
 
         # General
         self.threadsCount = config.safe_getint(
-            "general", "threads", 20, list(range(1, 200))
+            "general", "threads", 20, list(range(1, 300))
         )
 
         self.includeStatusCodes = config.safe_get("general", "include-status", None)
@@ -371,7 +368,7 @@ class ArgumentParser(object):
         self.testFailPath = config.safe_get("general", "scanner-fail-path", "").strip()
         self.saveHome = config.safe_getboolean("general", "save-logs-home", False)
         self.defaultExtensions = config.safe_get(
-            "general", "default-extensions", "php,asp,aspx,jsp,html,htm,js"
+            "general", "default-extensions", str()
         )
         self.excludeSubdirs = config.safe_get("general", "exclude-subdirs", None)
         self.full_url = config.safe_getboolean("general", "full-url", False)
@@ -429,9 +426,7 @@ You can change the dirsearch default configurations (default extensions, timeout
                              default=None, metavar='FILE')
         mandatory.add_option('--cidr', help='Target CIDR', action='store', type='string', dest='cidr', default=None)
         mandatory.add_option('-e', '--extensions', help='Extension list separated by commas (Example: php,asp)',
-                             action='store', dest='extensions', default=None)
-        mandatory.add_option('-E', '--extension-list', help='Use predefined list of common extensions',
-                             action='store_true', dest='defaultExtensions', default=False)
+                             action='store', dest='extensions', default=self.defaultExtensions)
         mandatory.add_option('-X', '--exclude-extensions',
                              help='Exclude extension list separated by commas (Example: asp,jsp)',
                              action='store', dest='excludeExtensions', default=None, metavar='EXTENSIONS')
@@ -449,7 +444,7 @@ You can change the dirsearch default configurations (default extensions, timeout
                               help='Force extensions for every wordlist entry')
         dictionary.add_option('--only-selected', dest='onlySelected', action='store_true',
                               help='Only entries with selected extensions or no extension + directories')
-        dictionary.add_option('--no-extension', dest='noExtension', action='store_true',
+        dictionary.add_option('--remove-extensions', dest='noExtension', action='store_true',
                               help='Remove extensions in all wordlist entries (Example: admin.php -> admin)')
         dictionary.add_option('--no-dot-extensions', dest='noDotExtensions', default=self.noDotExtensions,
                               help='Remove the "." character before extensions', action='store_true')
