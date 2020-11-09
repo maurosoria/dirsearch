@@ -186,11 +186,6 @@ class Requester(object):
                 self.url = "{0}://{1}:{2}".format(self.protocol, self.host, self.port)
                 continue
 
-            except requests.exceptions.ProxyError as e:
-                raise RequestException(
-                    {"message": "Error with the proxy: {0}".format(e)}
-                )
-
             except requests.exceptions.ConnectionError:
                 raise RequestException(
                     {
@@ -198,6 +193,11 @@ class Requester(object):
                             proxy["http"].split("://")[1] if proxy else self.host + ":" + self.port
                         )
                     }
+                )
+
+            except requests.exceptions.ProxyError as e:
+                raise RequestException(
+                    {"message": "Error with the proxy: {0}".format(e)}
                 )
 
             except requests.exceptions.InvalidURL:
