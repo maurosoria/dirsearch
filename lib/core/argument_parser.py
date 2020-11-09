@@ -117,7 +117,7 @@ class ArgumentParser(object):
         else:
             self.proxy = None
 
-        elif options.matches_proxy:
+        if options.matches_proxy:
             if options.matches_proxy.startswith(("http://", "https://", "socks5://", "socks5h://")):
                 self.matches_proxy = options.matches_proxy
             else:
