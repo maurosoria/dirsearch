@@ -193,7 +193,11 @@ class Requester(object):
 
             except requests.exceptions.ConnectionError:
                 raise RequestException(
-                    {"message": "Cannot connect to: {0}:{1}".format(self.host, self.port)}
+                    {
+                        "message": "Cannot connect to: {0}".format(
+                            proxy["http"].split("://")[1] if proxy else self.host + ":" + self.port
+                        )
+                    }
                 )
 
             except requests.exceptions.InvalidURL:
