@@ -112,10 +112,19 @@ class ArgumentParser(object):
             ):
                 self.proxy = options.proxy
             else:
-                self.proxy = "http://{0}".format(options.proxy)
+                self.proxy = "http://" + options.proxy
 
         else:
             self.proxy = None
+
+        elif options.matches_proxy:
+            if options.matches_proxy.startswith(("http://", "https://", "socks5://", "socks5h://")):
+                self.matches_proxy = options.matches_proxy
+            else:
+                self.matches_proxy = "http://" + options.matches_proxy
+
+        else:
+            self.matches_proxy = None
 
         if options.headers:
             try:
@@ -405,8 +414,9 @@ class ArgumentParser(object):
         self.delay = config.safe_getfloat("connection", "delay", 0)
         self.timeout = config.safe_getint("connection", "timeout", 10)
         self.maxRetries = config.safe_getint("connection", "max-retries", 3)
-        self.proxy = config.safe_get("connection", "http-proxy", None)
-        self.proxylist = config.safe_get("connection", "http-proxy-list", None)
+        self.proxy = config.safe_get("connection", "proxy", None)
+        self.proxylist = config.safe_get("connection", "proxy-list", None)
+        self.matches_proxy = config.safe_get("connection", "matches-proxy", None)
         self.httpmethod = config.safe_get(
             "connection", "httpmethod", "get", ["get", "head", "post", "put", "patch", "delete", "trace", "options", "debug"]
         )
@@ -515,6 +525,8 @@ You can change the dirsearch default configurations (default extensions, timeout
                               help='Proxy URL, support HTTP and SOCKS proxy (Example: localhost:8080, socks5://localhost:8088)', metavar='PROXY')
         connection.add_option('--proxy-list', action='store', dest='proxyList', type='string',
                               default=self.proxylist, help='File contains proxy servers', metavar='FILE')
+        connection.add_option('--matches-proxy', action='store', dest='matches_proxy', type='string', default=self.matches_proxy,
+                              help='Proxy to replay with found paths (matched responses)', metavar='PROXY')
         connection.add_option('-m', '--http-method', action='store', dest='httpmethod', type='string',
                               default=self.httpmethod, help='HTTP method (default: GET)', metavar='METHOD')
         connection.add_option('--max-retries', action='store', dest='maxRetries', type='int',
