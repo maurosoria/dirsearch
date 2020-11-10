@@ -37,18 +37,20 @@ Options
 
 
 ```
+Usage: dirsearch.py [-u|--url] target [-e|--extensions] extensions [options]
+
 Options:
+  --version             show program's version number and exit
   -h, --help            show this help message and exit
 
   Mandatory:
-    -u URL, --url=URL   URL target
-    -l URLLIST, --url-list=URLLIST
+    -u URL, --url=URL   Target URL
+    -l FILE, --url-list=FILE
                         URL list file
+    --cidr=CIDR         Target CIDR
     -e EXTENSIONS, --extensions=EXTENSIONS
                         Extension list separated by commas (Example: php,asp)
-    -E, --extensions-list
-                        Use predefined list of common extensions
-    -X EXCLUDEEXTENSIONS, --exclude-extensions=EXCLUDEEXTENSIONS
+    -X EXTENSIONS, --exclude-extensions=EXTENSIONS
                         Exclude extension list separated by commas (Example:
                         asp,jsp)
 
@@ -62,63 +64,60 @@ Options:
                         Add custom suffixes to all entries, ignores
                         directories (separated by commas)
     -f, --force-extensions
-                        Force extensions for every wordlist entry. Add
-                        %NOFORCE% at the end of the entry in the wordlist that
-                        you do not want to force
-    --no-extension      Remove extensions in all wordlist entries (Example:
+                        Force extensions for every wordlist entry
+    --only-selected     Only entries with selected extensions or no extension
+                        + directories
+    --remove-extensions
+                        Remove extensions in all wordlist entries (Example:
                         admin.php -> admin)
     --no-dot-extensions
                         Remove the "." character before extensions
-    -C, --capitalization
-                        Capital wordlist
     -U, --uppercase     Uppercase wordlist
     -L, --lowercase     Lowercase wordlist
+    -C, --capital       Capital wordlist
 
   General Settings:
+    -r, --recursive     Bruteforce recursively
+    -R DEPTH, --recursion-depth=DEPTH
+                        Max recursion depth (subdirs) (Default: 0 [infinity])
+    -t THREADS, --threads=THREADS
+                        Number of threads
     -d DATA, --data=DATA
                         HTTP request data
-    -r, --recursive     Bruteforce recursively
-    -R RECURSIVE_LEVEL_MAX, --recursive-level-max=RECURSIVE_LEVEL_MAX
-                        Max recursion level (subdirs) (Default: 1 [only
-                        rootdir + 1 dir])
-    --suppress-empty    Suppress empty responses
-    --minimal=MINIMUMRESPONSESIZE
-                        Minimal response length
-    --maximal=MAXIMUMRESPONSESIZE
-                        Maximal response length
-    --scan-subdir=SCANSUBDIRS, --scan-subdirs=SCANSUBDIRS
+    --minimal=LENGTH    Minimal response length
+    --maximal=LENGTH    Maximal response length
+    --scan-subdirs=SUBDIRS
                         Scan subdirectories of the given URL (separated by
                         commas)
-    --exclude-subdir=EXCLUDESUBDIRS, --exclude-subdirs=EXCLUDESUBDIRS
+    --exclude-subdirs=SUBDIRS
                         Exclude the following subdirectories during recursive
                         scan (separated by commas)
-    -t THREADSCOUNT, --threads=THREADSCOUNT
-                        Number of threads
-    -i INCLUDESTATUSCODES, --include-status=INCLUDESTATUSCODES
+    -i STATUS, --include-status=STATUS
                         Show only included status codes, separated by commas
-                        (Example: 301, 500)
-    -x EXCLUDESTATUSCODES, --exclude-status=EXCLUDESTATUSCODES
+                        (Example: 301,500)
+    -x STATUS, --exclude-status=STATUS
                         Do not show excluded status codes, separated by commas
-                        (Example: 301, 500)
-    --exclude-sizes=EXCLUDESIZES
+                        (Example: 301,500)
+    --exclude-sizes=SIZES
                         Exclude responses by sizes, separated by commas
                         (Example: 123B,4KB)
-    --exclude-texts=EXCLUDETEXTS
+    --exclude-texts=TEXTS
                         Exclude responses by texts, separated by commas
                         (Example: "Not found", "Error")
-    --exclude-regexps=EXCLUDEREGEXPS
+    --exclude-regexps=REGEXPS
                         Exclude responses by regexps, separated by commas
                         (Example: "Not foun[a-z]{1}", "^Error$")
     -H HEADERS, --header=HEADERS
                         HTTP request header, support multiple flags (Example:
                         -H "Referer: example.com" -H "Accept: */*")
-    --header-list=HEADERLIST
-                        File contains HTTP request headers
-    --user-agent=USERAGENT
-    --random-agent, --random-user-agent
-    --cookie=COOKIE
+    --header-list=FILE  File contains HTTP request headers
+    --random-user-agent
+                        Choose a random User-Agent for each request
     -F, --follow-redirects
-    --full-url          Print the full URL in the output
+                        Follow HTTP redirects
+    --full-url          Print full URLs in the output
+    --user-agent=USERAGENT
+    --cookie=COOKIE
     -q, --quiet-mode
 
   Connection Settings:
@@ -126,24 +125,24 @@ Options:
     --ip=IP             Server IP address
     -s DELAY, --delay=DELAY
                         Delay between requests (support float number)
-    --proxy=HTTPPROXY   Proxy URL, support HTTP and SOCKS proxy (Example:
+    --proxy=PROXY       Proxy URL, support HTTP and SOCKS proxy (Example:
                         localhost:8080, socks5://localhost:8088)
-    --proxy-list=PROXYLIST
-                        File contains proxy servers
-    -m HTTPMETHOD, --http-method=HTTPMETHOD
-                        HTTP method, default: GET
-    --max-retries=MAXRETRIES
+    --proxy-list=FILE   File contains proxy servers
+    -m METHOD, --http-method=METHOD
+                        HTTP method (default: GET)
+    --max-retries=RETRIES
     -b, --request-by-hostname
-                        By default dirsearch will request by IP for speed.
-                        This will force requests by hostname
-    --stop-on-error     Stop whenever an error occurs
+                        By default dirsearch requests by IP for speed. This
+                        will force requests by hostname
+    --exit-on-error     Exit whenever an error occurs
+    --debug
 
   Reports:
-    --simple-report=SIMPLEOUTPUTFILE
-                        Only found paths
-    --plain-text-report=PLAINTEXTOUTPUTFILE
-                        Found paths with status codes
-    --json-report=JSONOUTPUTFILE
+    --simple-report=OUTPUTFILE
+    --plain-text-report=OUTPUTFILE
+    --json-report=OUTPUTFILE
+    --xml-report=OUTPUTFILE
+    --markdown-report=OUTPUTFILE
 ```
 
  **NOTE**: 
@@ -219,7 +218,7 @@ Some examples for how to use dirsearch - those are the most common arguments. If
 
 ### Simple usage
 ```
-python3 dirsearch.py -E -u https://target
+python3 dirsearch.py -u https://target
 ```
 
 ```
@@ -332,7 +331,7 @@ Test
 Use "-i | --include-status" and "-x | --exclude-status" to select allowed and not allowed response status codes
 
 ```
-python3 dirsearch.py -E -u https://target -i 200,204,400,403 -x 500,502,429
+python3 dirsearch.py -e php,html,js -u https://target -i 200,204,400,403 -x 500,502,429
 ```
 
 "--exclude-sizes", "--exclude-texts" and "--exclude-regexps" are also supported for a more advanced filter
