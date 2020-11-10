@@ -147,4 +147,5 @@ class PrintOutput(object):
         pass
 
     def debug(self, info):
-        pass
+        with self.mutex:
+            self.newLine(info)

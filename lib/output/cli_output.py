@@ -229,5 +229,6 @@ class CLIOutput(object):
         self.newLine("\nError Log: {0}".format(target))
 
     def debug(self, info):
-        line = "[{0}] - {1}".format(time.strftime("%H:%M:%S"), info)
-        self.newLine(line)
+        with self.mutex:
+            line = "[{0}] - {1}".format(time.strftime("%H:%M:%S"), info)
+            self.newLine(line)
