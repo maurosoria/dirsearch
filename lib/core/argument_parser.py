@@ -105,6 +105,8 @@ class ArgumentParser(object):
 
             self.proxylist = open(options.proxyList).read().splitlines()
 
+            options.requestByHostname = True
+
         elif options.proxy:
             if (
                 options.proxy.startswith("http://") or options.proxy.startswith("https://") 
@@ -113,6 +115,8 @@ class ArgumentParser(object):
                 self.proxy = options.proxy
             else:
                 self.proxy = "http://{0}".format(options.proxy)
+
+            options.requestByHostname = True
 
         else:
             self.proxy = None
