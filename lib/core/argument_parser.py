@@ -106,10 +106,7 @@ class ArgumentParser(object):
             self.proxylist = open(options.proxyList).read().splitlines()
 
         elif options.proxy:
-            if (
-                options.proxy.startswith("http://") or options.proxy.startswith("https://") 
-                or options.proxy.startswith("socks5://") or options.proxy.startswith("socks5h://")
-            ):
+            if options.proxy.startswith(("http://", "https://", "socks5://", "socks5h://")):
                 self.proxy = options.proxy
             else:
                 self.proxy = "http://{0}".format(options.proxy)
