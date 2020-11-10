@@ -471,7 +471,7 @@ You can change the dirsearch default configurations (default extensions, timeout
                            help='Minimal response length', metavar='LENGTH')
         general.add_option('--maximal', action='store', dest='maximumResponseSize', type='int', default=None,
                            help='Maximal response length', metavar='LENGTH')
-        general.add_option('--scan-subdirs', help='Scan subdirectories of the given URL (separated by commas)', action='store',
+        general.add_option('--scan-subdirs', help='Scan subdirectories of the given URL[s] (separated by commas)', action='store',
                            dest='scanSubdirs', default=None, metavar='SUBDIRS')
         general.add_option('--exclude-subdirs', help='Exclude the following subdirectories during recursive scan (separated by commas)',
                            action='store', dest='excludeSubdirs', default=self.excludeSubdirs, metavar='SUBDIRS')
@@ -502,11 +502,11 @@ You can change the dirsearch default configurations (default extensions, timeout
 
         # Connection Settings
         connection = OptionGroup(parser, 'Connection Settings')
-        connection.add_option('--timeout', action='store', dest='timeout', type='int',
+        connection.add_option('--timeout', action='store', dest='timeout', type='float',
                               default=self.timeout, help='Connection timeout')
         connection.add_option('--ip', action='store', dest='ip', default=None,
                               help='Server IP address')
-        connection.add_option('-s', '--delay', help='Delay between requests (support float number)', action='store', dest='delay',
+        connection.add_option('-s', '--delay', help='Delay between requests', action='store', dest='delay',
                               type='float', default=self.delay)
         connection.add_option('--proxy', action='store', dest='proxy', type='string', default=self.proxy,
                               help='Proxy URL, support HTTP and SOCKS proxy (Example: localhost:8080, socks5://localhost:8088)', metavar='PROXY')
