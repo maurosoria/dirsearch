@@ -491,13 +491,13 @@ class Controller(object):
             ):
 
                 for excludeText in self.excludeTexts:
-                    if excludeText in path.response.body.decode():
+                    if excludeText in path.response.body.decode('iso8859-1'):
                         del path
                         return
 
                 for excludeRegexp in self.excludeRegexps:
                     if (
-                        re.search(excludeRegexp, path.response.body.decode())
+                        re.search(excludeRegexp, path.response.body.decode('iso8859-1'))
                         is not None
                     ):
                         del path
