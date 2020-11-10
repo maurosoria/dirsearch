@@ -21,15 +21,11 @@ git clone https://github.com/maurosoria/dirsearch.git
 cd dirsearch
 python3 dirsearch.py -u <URL> -e <EXTENSIONS>
 ```
-- For shorter command (Unix):
+If you are using Windows and don't have git, you can install the ZIP file [here](https://github.com/maurosoria/dirsearch/archive/master.zip), then extract and run.
 
-```
-chmod +x dirsearch.py
-./dirsearch.py -u <URL> -e <EXTENSIONS>
-```
-If you are using Windows and don't have git, you can install the ZIP file [here](https://github.com/maurosoria/dirsearch/archive/master.zip), then extract and run
+Dirsearch also supports [Docker](https://github.com/maurosoria/dirsearch#support-docker)
 
-**Dirsearch only supports python 3 or greater**
+**Dirsearch requires python 3 or greater**
 
 
 Options
@@ -159,7 +155,7 @@ Features
 - Fast
 - Easy and simple to use
 - Multithreading
-- Filtering wildcard responses (invalid webpages)
+- Wildcard responses filtering (invalid webpages)
 - Keep alive connections
 - Support for multiple extensions
 - Support for every HTTP method
@@ -167,6 +163,7 @@ Features
 - Extensions excluding
 - Reporting (Plain text, JSON, XML)
 - Recursive brute forcing
+- Target enumuration from an IP range
 - Sub-directories brute forcing
 - Force extensions
 - HTTP and SOCKS proxy support
@@ -198,14 +195,20 @@ About wordlists
 Wordlist must be a text file. Each line will be processed as such, except when the special keyword *%EXT%* is used, it will generate one entry for each extension (-e | --extensions) passed as an argument.
 
 Example:
-- sample/
-- example.%EXT%
+
+```
+sample/
+example.%EXT%
+```
 
 Passing the extensions "asp" and "aspx" will generate the following dictionary:
-- sample/
-- example
-- example.asp
-- example.aspx
+
+```
+sample/
+example
+example.asp
+example.aspx
+```
 
 You can also use -f | --force-extensions switch to append extensions to every word in the wordlists. For entries in the wordlist that you do not want to force, you can add *%NOFORCE%* at the end of them so dirsearch won't append any extension.
 
@@ -432,10 +435,11 @@ python3 dirsearch.py -u https://target -w db/dicc.txt --no-extension
 
 Tips
 ---------------
-- Want to run dirsearch with a rate of requests per second? Try `-t <rate> -s 1`
+- To run dirsearch with a rate of requests per second, try `-t <rate> -s 1`
 - Want to findout config files or backups? Try out `--suffixes ~` and `--prefixes .`
-- Don't want to force extensions on some endpoints? Add `%NOFORCE%` at the end of them so dirsearch won't do that
-- Want to find only folders/directories? Combine `--no-extension` and `--suffixes /` then done!
+- For some endpoints that you do not want to force extensions, add `%NOFORCE%` at the end of them
+- Want to find only folders/directories? Combine `--no-extension` and `--suffixes /`!
+- The combination of `--cidr`, `-F` and `-q` will reduce most of the noise + false negatives when brute-forcing with a CIDR
 
 Keep updating ...
 
