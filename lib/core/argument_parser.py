@@ -289,6 +289,7 @@ class ArgumentParser(object):
         self.jsonOutputFile = options.jsonOutputFile
         self.xmlOutputFile = options.xmlOutputFile
         self.markdownOutputFile = options.markdownOutputFile
+        self.color = options.color
         self.delay = options.delay
         self.timeout = options.timeout
         self.ip = options.ip
@@ -360,7 +361,7 @@ class ArgumentParser(object):
         )
 
         self.includeStatusCodes = config.safe_get("general", "include-status", None)
-
+        self.color = config.safe_getboolean("general", "color", True)
         self.excludeStatusCodes = config.safe_get("general", "exclude-status", None)
         self.excludeSizes = config.safe_get("general", "exclude-sizes", None)
         self.excludeTexts = config.safe_get("general", "exclude-texts", None)
@@ -478,6 +479,8 @@ You can change the dirsearch default configurations (default extensions, timeout
                            help='Maximal response length', metavar='LENGTH')
         general.add_option('--scan-subdirs', help='Scan subdirectories of the given URL[s] (separated by commas)', action='store',
                            dest='scanSubdirs', default=None, metavar='SUBDIRS')
+        general.add_option('--no-color', help='Return the results with colored output', action='store_false',
+                           dest='color', default=True, metavar='COLOR')
         general.add_option('--exclude-subdirs', help='Exclude the following subdirectories during recursive scan (separated by commas)',
                            action='store', dest='excludeSubdirs', default=self.excludeSubdirs, metavar='SUBDIRS')
         general.add_option('-i', '--include-status', help='Show only included status codes, separated by commas (Example: 301,500)',

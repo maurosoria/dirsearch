@@ -28,13 +28,14 @@ if sys.platform in ["win32", "msys"]:
 
 
 class PrintOutput(object):
-    def __init__(self):
+    def __init__(self, color):
         init()
         self.mutex = threading.Lock()
         self.blacklists = {}
         self.mutexCheckedPaths = threading.Lock()
         self.basePath = None
         self.errors = 0
+        self.color = color
 
     def header(self, text):
         pass
@@ -86,23 +87,25 @@ class PrintOutput(object):
             status, contentLength.rjust(6, " "), showPath
         )
 
-        if status == 200:
-            message = Fore.GREEN + message + Style.RESET_ALL
+        if self.color:
+            if status == 200:
+                message = Fore.GREEN + message + Style.RESET_ALL
 
-        elif status == 401:
-            message = Fore.YELLOW + message + Style.RESET_ALL
+            elif status == 401:
+                message = Fore.YELLOW + message + Style.RESET_ALL
 
-        elif status == 403:
-            message = Fore.BLUE + message + Style.RESET_ALL
+            elif status == 403:
+                message = Fore.BLUE + message + Style.RESET_ALL
 
-        elif status == 500:
-            message = Fore.RED + message + Style.RESET_ALL
+            elif status == 500:
+                message = Fore.RED + message + Style.RESET_ALL
 
         # Check if redirect
-        elif status in [301, 302, 307] and "location" in [
+        if status in [301, 302, 307] and "location" in [
             h.lower() for h in response.headers
         ]:
-            message = Fore.CYAN + message + Style.RESET_ALL
+            if self.color:
+                message = Fore.CYAN + message + Style.RESET_ALL
             message += "  ->  {0}".format(response.headers["location"])
 
         if addedToQueue:

@@ -16,6 +16,7 @@ Updating ...
 - Debug mode
 - Several updates
 - Multiple bugfixes
+- Disable colored output
 
 ---------
 
