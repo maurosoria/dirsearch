@@ -67,6 +67,7 @@ class Requester(object):
         # If no protocol specified, set http by default
         if not parsed.scheme:
             parsed = urllib.parse.urlparse("http://" + url)
+
         # If protocol is not supported
         elif parsed.scheme not in ["https", "http"]:
             raise RequestException({"message": "Unsupported URL scheme: {0}".format(parsed.scheme)})
@@ -133,18 +134,21 @@ class Requester(object):
     def unsetRandomAgents(self):
         self.randomAgents = None
 
-    def request(self, path, nodelay=False):
+    def request(self, path, nodelay=False, proxy=None):
         i = 0
-        proxy = None
         result = None
 
         while i <= self.maxRetries:
 
             try:
-                if self.proxylist:
-                    proxy = {"https": random.choice(self.proxylist), "http": random.choice(self.proxylist)}
-                elif self.proxy:
-                    proxy = {"https": self.proxy, "http": self.proxy}
+                if proxy:
+                    proxy = {"https": proxy, "http": proxy}
+
+                else:
+                    if self.proxylist:
+                        proxy = {"https": random.choice(self.proxylist), "http": random.choice(self.proxylist)}
+                    elif self.proxy:
+                        proxy = {"https": self.proxy, "http": self.proxy}
 
                 url = "{0}/{1}".format(self.url, self.basePath).rstrip("/")
 

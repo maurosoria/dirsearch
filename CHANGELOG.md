@@ -8,6 +8,7 @@ Updating ...
 - No extension option added
 - Support capital wordlist format
 - Support SOCKS proxy
+- Option to only replay proxy with found paths
 - Option to exit whenever an error occurs
 - Provide headers using file as input
 - Exclude responses by human readable sizes

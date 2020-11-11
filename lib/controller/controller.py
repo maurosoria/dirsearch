@@ -70,7 +70,7 @@ class Controller(object):
         if self.arguments.httpmethod.lower() not in [
             "get", "head", "post", "put", "patch", "options", "delete", "trace", "debug"
         ]:
-            self.output.error("Invalid HTTP method!")
+            self.output.error("Invalid HTTP method")
             exit(1)
 
         self.httpmethod = self.arguments.httpmethod.lower()
@@ -524,6 +524,9 @@ class Controller(object):
                 self.output.statusReport(
                     path.path, path.response, self.arguments.full_url, addedToQueue
                 )
+
+                if self.arguments.matches_proxy:
+                    self.requester.request(path.path, proxy=self.arguments.matches_proxy)
 
                 newPath = "{}{}".format(self.currentDirectory, path.path)
 
