@@ -402,7 +402,7 @@ class ArgumentParser(object):
         self.proxy = config.safe_get("connection", "http-proxy", None)
         self.proxylist = config.safe_get("connection", "http-proxy-list", None)
         self.httpmethod = config.safe_get(
-            "connection", "httpmethod", "get", ["get", "head", "post", "put", "patch", "delete", "trace", "options", "debug"]
+            "connection", "httpmethod", "get", ["get", "head", "post", "put", "patch", "delete", "trace", "options", "debug", "connect"]
         )
         self.requestByHostname = config.safe_getboolean(
             "connection", "request-by-hostname", False
@@ -413,7 +413,9 @@ class ArgumentParser(object):
     def parseArguments(self):
         usage = "Usage: %prog [-u|--url] target [-e|--extensions] extensions [options]"
         parser = OptionParser(usage, version='dirsearch v0.4.0', epilog='''
-You can change the dirsearch default configurations (default extensions, timeout, wordlist location, ...) by editing the "default.conf" file. More information at https://github.com/maurosoria/dirsearch.
+You can change the dirsearch default configurations (default extensions, 
+timeout, wordlist location, ...) by editing the "default.conf" file. More 
+information at https://github.com/maurosoria/dirsearch.
 ''')
 
         # Mandatory arguments
