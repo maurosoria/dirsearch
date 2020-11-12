@@ -361,7 +361,6 @@ class ArgumentParser(object):
         )
 
         self.includeStatusCodes = config.safe_get("general", "include-status", None)
-        self.color = config.safe_getboolean("general", "color", True)
         self.excludeStatusCodes = config.safe_get("general", "exclude-status", None)
         self.excludeSizes = config.safe_get("general", "exclude-sizes", None)
         self.excludeTexts = config.safe_get("general", "exclude-texts", None)
@@ -379,6 +378,7 @@ class ArgumentParser(object):
         )
         self.excludeSubdirs = config.safe_get("general", "exclude-subdirs", None)
         self.full_url = config.safe_getboolean("general", "full-url", False)
+        self.color = config.safe_getboolean("general", "color", True)
         self.quiet = config.safe_getboolean("general", "quiet-mode", False)
 
         # Reports
@@ -479,8 +479,6 @@ You can change the dirsearch default configurations (default extensions, timeout
                            help='Maximal response length', metavar='LENGTH')
         general.add_option('--scan-subdirs', help='Scan subdirectories of the given URL[s] (separated by commas)', action='store',
                            dest='scanSubdirs', default=None, metavar='SUBDIRS')
-        general.add_option('--no-color', help='Return the results with colored output', action='store_false',
-                           dest='color', default=True, metavar='COLOR')
         general.add_option('--exclude-subdirs', help='Exclude the following subdirectories during recursive scan (separated by commas)',
                            action='store', dest='excludeSubdirs', default=self.excludeSubdirs, metavar='SUBDIRS')
         general.add_option('-i', '--include-status', help='Show only included status codes, separated by commas (Example: 301,500)',
@@ -501,12 +499,14 @@ You can change the dirsearch default configurations (default extensions, timeout
                            action='store_true', dest='useRandomAgents',)
         general.add_option('-F', '--follow-redirects', help='Follow HTTP redirects',
                            action='store_true', dest='followRedirects', default=self.redirect)
-        general.add_option('--full-url', action='store_true', dest='full_url',
-                           help='Print full URLs in the output', default=self.full_url)
+        general.add_option('-q', '--quiet-mode', action='store_true', dest='quiet', default=self.quiet)
         general.add_option('--user-agent', action='store', type='string', dest='useragent',
                            default=self.useragent)
         general.add_option('--cookie', action='store', type='string', dest='cookie', default=None)
-        general.add_option('-q', '--quiet-mode', action='store_true', dest='quiet', default=self.quiet)
+        general.add_option('--full-url', action='store_true', dest='full_url',
+                           help='Print full URLs in the output', default=self.full_url)
+        general.add_option('--no-color', help='No colored output', action='store_false',
+                           dest='color', default=self.color)
 
         # Connection Settings
         connection = OptionGroup(parser, 'Connection Settings')
