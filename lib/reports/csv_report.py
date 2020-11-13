@@ -25,7 +25,6 @@ class CSVReport(FileBaseReport):
 
     def addPath(self, path, status, response):
         contentLength = None
-        location = None
 
         try:
             contentLength = int(response.headers["content-length"])
@@ -33,22 +32,17 @@ class CSVReport(FileBaseReport):
         except (KeyError, ValueError):
             contentLength = len(response.body)
 
-        try:
-            location = response.headers["location"]
-        except(KeyError, ValueError):
-            pass
-
-        self.storeData((path, status, contentLength, location))
+        self.storeData((path, status, contentLength, response.redirect))
 
     def generate(self):
         result = "Time,URL,Status,Size,Redirection\n"
 
-        for path, status, contentLength, location in self.getPathIterator():
+        for path, status, contentLength, redirect in self.pathList:
             result += "{0},".format(time.ctime())
             result += "{0}://{1}:{2}/{3}{4},".format(self.protocol, self.host, self.port, self.basePath, path)
             result += "{0},".format(contentLength)
-            if location:
-                result += "{0}".format(location)
+            if redirect:
+                result += "{0}".format(redirect)
 
             result += "\n"
 
