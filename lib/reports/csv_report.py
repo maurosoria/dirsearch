@@ -40,6 +40,7 @@ class CSVReport(FileBaseReport):
         for path, status, contentLength, redirect in self.pathList:
             result += "{0},".format(time.ctime())
             result += "{0}://{1}:{2}/{3}{4},".format(self.protocol, self.host, self.port, self.basePath, path)
+            result += "{0},".format(status)
             result += "{0},".format(contentLength)
             if redirect:
                 result += "{0}".format(redirect)
