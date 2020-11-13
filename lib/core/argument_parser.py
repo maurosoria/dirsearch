@@ -385,7 +385,7 @@ class ArgumentParser(object):
         # Reports
         self.autoSave = config.safe_getboolean("reports", "autosave-report", False)
         self.autoSaveFormat = config.safe_get(
-            "reports", "autosave-report-format", "plain", ["plain", "simple", "json", "xml", "csv"]
+            "reports", "autosave-report-format", "plain", ["plain", "simple", "json", "xml", "md", "csv"]
         )
 
         # Dictionary
