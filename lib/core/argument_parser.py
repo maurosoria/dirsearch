@@ -289,6 +289,7 @@ class ArgumentParser(object):
         self.jsonOutputFile = options.jsonOutputFile
         self.xmlOutputFile = options.xmlOutputFile
         self.markdownOutputFile = options.markdownOutputFile
+        self.csvOutputFile = options.csvOutputFile
         self.color = options.color
         self.delay = options.delay
         self.timeout = options.timeout
@@ -384,7 +385,7 @@ class ArgumentParser(object):
         # Reports
         self.autoSave = config.safe_getboolean("reports", "autosave-report", False)
         self.autoSaveFormat = config.safe_get(
-            "reports", "autosave-report-format", "plain", ["plain", "simple", "json", "xml"]
+            "reports", "autosave-report-format", "plain", ["plain", "simple", "json", "xml", "csv"]
         )
 
         # Dictionary
@@ -540,6 +541,7 @@ You can change the dirsearch default configurations (default extensions, timeout
         reports.add_option('--json-report', action='store', dest='jsonOutputFile', default=None, metavar='OUTPUTFILE')
         reports.add_option('--xml-report', action='store', dest='xmlOutputFile', default=None, metavar='OUTPUTFILE')
         reports.add_option('--markdown-report', action='store', dest='markdownOutputFile', default=None, metavar='OUTPUTFILE')
+        reports.add_option('--csv-report', action='store', dest='csvOutputFile', default=None, metavar='OUTPUTFILE')
 
         parser.add_option_group(mandatory)
         parser.add_option_group(dictionary)
