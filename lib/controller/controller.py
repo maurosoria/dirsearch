@@ -508,86 +508,53 @@ class Controller(object):
         self.output.warning("CTRL+C detected: Pausing threads, please wait...")
         self.fuzzer.pause()
 
-        try:
-            while True:
-                msg = "[e]xit / [c]ontinue"
-
-                if not self.directories.empty():
-                    msg += " / [n]ext"
-
-                if len(self.arguments.urlList) > 1:
-                    msg += " / [s]kip target"
-
-                self.output.inLine(msg + ": ")
-
-                option = input()
-
-                if option.lower() == "e":
-                    self.exit = True
-                    self.fuzzer.stop()
-                    raise KeyboardInterrupt
-
-                elif option.lower() == "c":
-                    self.fuzzer.play()
-                    return
-
-                elif not self.directories.empty() and option.lower() == "n":
-                    self.fuzzer.stop()
-                    return
-
-                elif len(self.arguments.urlList) > 1 and option.lower() == "s":
-                    raise SkipTargetInterrupt
-
-                else:
-                    continue
-
-        except KeyboardInterrupt:
-            self.exit = True
-            raise KeyboardInterrupt
-
     def handle429(self):
         self.output.warning("429 Too Many Requests detected: Server is blocking requests")
+        self.accept429 = True # Assumes you will either accept the 429 codes or exit
         self.fuzzer.pause()
 
-        try:
-            while True:
-                msg = "[e]xit / [c]ontinue"
+    def handlePause(self):
+        while True:
+            msg = "[e]xit / [c]ontinue"
 
-                if len(self.arguments.urlList) > 1:
-                    msg += " / [s]kip target"
+            if not self.directories.empty():
+                msg += " / [n]ext"
 
-                self.output.inLine(msg + ": ")
+            if len(self.arguments.urlList) > 1:
+                msg += " / [s]kip target"
 
-                option = input()
+            self.output.inLine(msg + ": ")
 
-                if option.lower() == "e":
-                    self.exit = True
-                    self.fuzzer.stop()
-                    raise KeyboardInterrupt
+            option = input()
 
-                elif option.lower() == "c":
-                    self.accept429 = True
-                    self.fuzzer.play()
-                    return
+            if option.lower() == "e":
+                self.exit = True
+                self.fuzzer.stop()
+                sys.exit(0)
 
-                elif len(self.arguments.urlList) > 1 and option.lower() == "s":
-                    raise SkipTargetInterrupt
+            elif option.lower() == "c":
+                self.fuzzer.resume()
+                return
 
-                else:
-                    continue
+            elif not self.directories.empty() and option.lower() == "n":
+                self.fuzzer.stop()
+                return
 
-        except KeyboardInterrupt:
-            self.exit = True
-            raise KeyboardInterrupt
+            elif len(self.arguments.urlList) > 1 and option.lower() == "s":
+                raise SkipTargetInterrupt
+
+            else:
+                continue
 
     def processPaths(self):
         while True:
             try:
                 while not self.fuzzer.wait(0.3):
+                    if self.fuzzer.isPaused():
+                        self.handlePause()
                     continue
                 break
-
-            except (KeyboardInterrupt, SystemExit):
+            except (KeyboardInterrupt):
                 self.handleInterrupt()
 
     def wait(self):
