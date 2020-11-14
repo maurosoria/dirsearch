@@ -21,12 +21,11 @@ git clone https://github.com/maurosoria/dirsearch.git
 cd dirsearch
 python3 dirsearch.py -u <URL> -e <EXTENSIONS>
 ```
-If you are using Windows and don't have git, you can install the ZIP file [here](https://github.com/maurosoria/dirsearch/archive/master.zip), then extract and run.
-
-Dirsearch also supports [Docker](https://github.com/maurosoria/dirsearch#support-docker)
+If you are using Windows and don't have git, you can install the ZIP file [here](https://github.com/maurosoria/dirsearch/archive/master.zip), then extract and run. Dirsearch also supports [Docker](https://github.com/maurosoria/dirsearch#support-docker)
 
 **Dirsearch requires python 3 or greater**
 
+*Note: For the best performance, you should use [CPython](https://cython.org/)*
 
 Options
 -------
@@ -192,27 +191,48 @@ Features
 
 About wordlists
 ---------------
-Wordlist must be a text file. Each line will be processed as such, except when the special keyword *%EXT%* is used, it will generate one entry for each extension (-e | --extensions) passed as an argument.
+- Wordlist must be a text file. Each line will be processed as such, except when the special keyword *%EXT%* is used, it will generate one entry for each extension (-e | --extensions) passed as an argument.
 
 Example:
 
 ```
-sample/
-example.%EXT%
+root/
+index.%EXT%
 ```
 
-Passing the extensions "asp" and "aspx" will generate the following dictionary:
+Passing the extensions "asp" and "aspx" (`-e asp,aspx`) will generate the following dictionary:
 
 ```
-sample/
-example
-example.asp
-example.aspx
+root/
+index
+index.asp
+index.aspx
 ```
 
-You can also use -f | --force-extensions switch to append extensions to every word in the wordlists. For entries in the wordlist that you do not want to force, you can add *%NOFORCE%* at the end of them so dirsearch won't append any extension.
+- For wordlists without *%EXT%* (like [SecLists](https://github.com/danielmiessler/SecLists)), you need to use the -f | --force-extensions switch to append extensions to every word in the wordlists, as well as the "/". And for entries in the wordlist that you do not want to force, you can add *%NOFORCE%* at the end of them so dirsearch won't append any extension.
 
-To use multiple wordlists, you can seperate your wordlists with commas. Example: -w wordlist1.txt,wordlist2.txt
+Example:
+
+```
+admin
+home.%EXT%
+api%NOFORCE%
+```
+
+Passing extensions "php" and "html" with the `-f`/`--force-extensions` flag (`-f -e php,html`) will generate the following dictionary:
+
+```
+admin
+admin.php
+admin.html
+admin/
+home
+home.php
+home.html
+api
+```
+
+- To use multiple wordlists, you can seperate your wordlists with commas. Example: -w wordlist1.txt,wordlist2.txt
 
 How to use
 ---------------
