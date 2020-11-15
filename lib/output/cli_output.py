@@ -162,9 +162,11 @@ class CLIOutput(object):
         with self.mutex:
             stripped = reason.strip()
             message = "\n" if reason.startswith("\n") else ""
-            message += stripped
             if self.color:
-                message = Style.BRIGHT + Fore.WHITE + Back.RED + message + Style.RESET_ALL
+                message += Style.BRIGHT + Fore.WHITE + Back.RED + stripped + Style.RESET_ALL
+            else:
+                message += stripped
+
             self.newLine(message)
 
     def warning(self, message):
