@@ -7,11 +7,12 @@ Updating ...
 - Allow to brute force through a CIDR notation
 - Exclude responses by human readable sizes
 - Provide headers from a file
-- No extension option added
+- Match/filter status codes by ranges
 - Support SOCKS proxy
 - XML, Markdown and CSV report formats
 - Capital wordlist format
-- Option to only replay proxy with found paths
+- Remove extensions option added
+- Option to replay proxy with found paths
 - Option to exit whenever an error occurs
 - Option to disable colored output
 - Debug mode
