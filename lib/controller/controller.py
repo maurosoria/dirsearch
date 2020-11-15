@@ -28,7 +28,7 @@ from queue import Queue
 
 from lib.connection import Requester, RequestException
 from lib.core import Dictionary, Fuzzer, ReportManager
-from lib.reports import JSONReport, XMLReport, PlainTextReport, SimpleReport, MarkdownReport
+from lib.reports import JSONReport, XMLReport, PlainTextReport, SimpleReport, MarkdownReport, CSVReport
 from lib.utils import FileUtils
 
 
@@ -356,7 +356,8 @@ class Controller(object):
             else:
 
                 fileName = ('{}_'.format(basePath))
-                fileName += time.strftime('%y-%m-%d_%H-%M-%S.txt')
+                fileName += time.strftime('%y-%m-%d_%H-%M-%S')
+                fileName += ".{0}".format(self.arguments.autoSaveFormat)
                 directoryPath = FileUtils.build_path(self.savePath, 'reports', requester.host)
 
             outputFile = FileUtils.build_path(directoryPath, fileName)
@@ -389,7 +390,7 @@ class Controller(object):
                         requester.protocol,
                         requester.basePath,
                         outputFile,
-                        self.batch
+                        self.batch,
                     )
                 elif self.arguments.autoSaveFormat == "json":
                     report = JSONReport(
@@ -398,6 +399,7 @@ class Controller(object):
                         requester.protocol,
                         requester.basePath,
                         outputFile,
+                        self.batch,
                     )
                 elif self.arguments.autoSaveFormat == "xml":
                     report = XMLReport(
@@ -406,14 +408,25 @@ class Controller(object):
                         requester.protocol,
                         requester.basePath,
                         outputFile,
+                        self.batch,
                     )
-                elif self.arguments.autoSaveFormat == "markdown":
+                elif self.arguments.autoSaveFormat == "md":
                     report = MarkdownReport(
                         requester.host,
                         requester.port,
                         requester.protocol,
                         requester.basePath,
                         outputFile,
+                        self.batch,
+                    )
+                elif self.arguments.autoSaveFormat == "csv":
+                    report = CSVReport(
+                        requester.host,
+                        requester.port,
+                        requester.protocol,
+                        requester.basePath,
+                        outputFile,
+                        self.batch,
                     )
                 else:
                     report = PlainTextReport(
@@ -469,6 +482,13 @@ class Controller(object):
                 MarkdownReport(
                     requester.host, requester.port, requester.protocol,
                     requester.basePath, self.arguments.markdownOutputFile, self.batch
+                )
+            )
+        if self.arguments.csvOutputFile:
+            self.reportManager.addOutput(
+                CSVReport(
+                    requester.host, requester.port, requester.protocol,
+                    requester.basePath, self.arguments.csvOutputFile, self.batch
                 )
             )
 
