@@ -120,12 +120,11 @@ class CLIOutput(object):
                 message = Fore.RED + message + Style.RESET_ALL
 
         # Check if redirect
-        if status in [301, 302, 303, 307, 308] and "location" in [
-            h.lower() for h in response.headers
-        ]:
+        if status in [301, 302, 303, 307, 308]:
             if self.color:
                 message = Fore.CYAN + message + Style.RESET_ALL
-            message += "  ->  {0}".format(response.headers["location"])
+            if "location" in [h.lower() for h in response.headers]:
+                message += "  ->  {0}".format(response.headers["location"])
 
         if addedToQueue:
             message += "     (Added to queue)"
@@ -163,9 +162,9 @@ class CLIOutput(object):
         with self.mutex:
             stripped = reason.strip()
             message = "\n" if reason.startswith("\n") else ""
-            message += Style.BRIGHT + Fore.WHITE + Back.RED
             message += stripped
-            message += Style.RESET_ALL
+            if self.color:
+                message = Style.BRIGHT + Fore.WHITE + Back.RED + message + Style.RESET_ALL
             self.newLine(message)
 
     def warning(self, message):
@@ -236,7 +235,6 @@ class CLIOutput(object):
             config += "Wordlist size: {0}".format(wordlist_size)
 
             self.newLine(config)
-
 
     def setTarget(self, target):
         if not target.endswith("/"):
