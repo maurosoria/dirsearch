@@ -476,11 +476,7 @@ information at https://github.com/maurosoria/dirsearch.
                            default=self.threadsCount, metavar='THREADS')
         general.add_option('-d', '--data', help='HTTP request data', action='store', dest='data',
                            type='str', default=None)
-        general.add_option('--minimal', action='store', dest='minimumResponseSize', type='int', default=None,
-                           help='Minimal response length', metavar='LENGTH')
-        general.add_option('--maximal', action='store', dest='maximumResponseSize', type='int', default=None,
-                           help='Maximal response length', metavar='LENGTH')
-        general.add_option('--scan-subdirs', help='Scan subdirectories of the given URL[s] (separated by commas)', action='store',
+        general.add_option('--subdirs', help='Scan subdirectories of the given URL[s] (separated by commas)', action='store',
                            dest='scanSubdirs', default=None, metavar='SUBDIRS')
         general.add_option('--exclude-subdirs', help='Exclude the following subdirectories during recursive scan (separated by commas)',
                            action='store', dest='excludeSubdirs', default=self.excludeSubdirs, metavar='SUBDIRS')
@@ -500,6 +496,10 @@ information at https://github.com/maurosoria/dirsearch.
                            dest='headerList', default=self.headerList, metavar='FILE')
         general.add_option('--random-user-agent', help='Choose a random User-Agent for each request',
                            action='store_true', dest='useRandomAgents',)
+        general.add_option('--minimal', action='store', dest='minimumResponseSize', type='int', default=None,
+                           help='Minimal response length', metavar='LENGTH')
+        general.add_option('--maximal', action='store', dest='maximumResponseSize', type='int', default=None,
+                           help='Maximal response length', metavar='LENGTH')
         general.add_option('-F', '--follow-redirects', help='Follow HTTP redirects',
                            action='store_true', dest='followRedirects', default=self.redirect)
         general.add_option('-q', '--quiet-mode', action='store_true', dest='quiet', default=self.quiet)
