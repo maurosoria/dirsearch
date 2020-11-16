@@ -292,7 +292,6 @@ class ArgumentParser(object):
         self.capitalization = options.capitalization
         self.forceExtensions = options.forceExtensions
         self.data = options.data
-        self.noDotExtensions = options.noDotExtensions
         self.simpleOutputFile = options.simpleOutputFile
         self.plainTextOutputFile = options.plainTextOutputFile
         self.jsonOutputFile = options.jsonOutputFile
@@ -409,7 +408,6 @@ class ArgumentParser(object):
         self.uppercase = config.safe_getboolean("dictionary", "uppercase", False)
         self.capitalization = config.safe_getboolean("dictionary", "capitalization", False)
         self.forceExtensions = config.safe_getboolean("dictionary", "force-extensions", False)
-        self.noDotExtensions = config.safe_getboolean("dictionary", "no-dot-extensions", False)
 
         # Connection
         self.useRandomAgents = config.safe_get(
@@ -465,8 +463,6 @@ information at https://github.com/maurosoria/dirsearch.''')
                               help='Only entries with selected extensions or no extension + directories')
         dictionary.add_option('--remove-extensions', dest='noExtension', action='store_true',
                               help='Remove extensions in all wordlist entries (Example: admin.php -> admin)')
-        dictionary.add_option('--no-dot-extensions', dest='noDotExtensions', default=self.noDotExtensions,
-                              help='Remove the "." character before extensions', action='store_true')
         dictionary.add_option('-U', '--uppercase', action='store_true', dest='uppercase', default=self.uppercase,
                               help='Uppercase wordlist')
         dictionary.add_option('-L', '--lowercase', action='store_true', dest='lowercase', default=self.lowercase,
