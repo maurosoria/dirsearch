@@ -171,18 +171,49 @@ class ArgumentParser(object):
 
         self.threadsCount = options.threadsCount
 
+        self.includeStatusCodes = []
+
         if options.includeStatusCodes:
 
-            try:
-                self.includeStatusCodes = list(
-                    oset([int(includeStatusCode.strip()) if includeStatusCode else None for includeStatusCode in
-                          options.includeStatusCodes.split(',')]))
+            for statusCode in options.includeStatusCodes.split(","):
+                try:
+                    if "-" in statusCode:
+                        statusCodes = [
+                            i for i in range(
+                                int(statusCode.split("-")[0].strip()),
+                                int(statusCode.split("-")[1].strip()) + 1
+                            )
+                        ]
+                        self.includeStatusCodes.extend(statusCodes)
 
-            except ValueError:
-                self.includeStatusCodes = []
+                    else:
+                        self.includeStatusCodes.append(int(statusCode.strip()))
 
-        else:
-            self.includeStatusCodes = []
+                except ValueError:
+                    print("Invalid status code or status code range: {}".format(statusCode))
+                    exit(0)
+
+        self.excludeStatusCodes = []
+
+        if options.excludeStatusCodes:
+
+            for statusCode in options.excludeStatusCodes.split(","):
+                try:
+                    if "-" in statusCode:
+                        statusCodes = [
+                            i for i in range(
+                                int(statusCode.split("-")[0].strip()),
+                                int(statusCode.split("-")[1].strip()) + 1
+                            )
+                        ]
+                        self.excludeStatusCodes.extend(statusCodes)
+
+                    else:
+                        self.excludeStatusCodes.append(int(statusCode.strip()))
+
+                except ValueError:
+                    print("Invalid status code or status code range: {}".format(statusCode))
+                    exit(0)
 
         if options.excludeExtensions:
 
@@ -201,28 +232,6 @@ class ArgumentParser(object):
 
         else:
             self.excludeExtensions = []
-
-        if options.excludeStatusCodes:
-
-            try:
-                self.excludeStatusCodes = list(
-                    oset(
-                        [
-                            int(excludeStatusCode.strip())
-                            if excludeStatusCode
-                            else None
-                            for excludeStatusCode in options.excludeStatusCodes.split(
-                                ","
-                            )
-                        ]
-                    )
-                )
-
-            except ValueError:
-                self.excludeStatusCodes = []
-
-        else:
-            self.excludeStatusCodes = []
 
         if options.excludeSizes:
             try:
@@ -479,9 +488,9 @@ information at https://github.com/maurosoria/dirsearch.''')
                            dest='scanSubdirs', default=None, metavar='SUBDIRS')
         general.add_option('--exclude-subdirs', help='Exclude the following subdirectories during recursive scan (separated by commas)',
                            action='store', dest='excludeSubdirs', default=self.excludeSubdirs, metavar='SUBDIRS')
-        general.add_option('-i', '--include-status', help='Show only included status codes, separated by commas (Example: 301,500)',
+        general.add_option('-i', '--include-status', help='Include status codes, separated by commas, support ranges (Example: 200,300-399)',
                            action='store', dest='includeStatusCodes', default=self.includeStatusCodes, metavar='STATUS')
-        general.add_option('-x', '--exclude-status', help='Do not show excluded status codes, separated by commas (Example: 301,500)',
+        general.add_option('-x', '--exclude-status', help='Exclude status codes, separated by commas, support ranges (Example: 301,500-599)',
                            action='store', dest='excludeStatusCodes', default=self.excludeStatusCodes, metavar='STATUS')
         general.add_option('--exclude-sizes', help='Exclude responses by sizes, separated by commas (Example: 123B,4KB)',
                            action='store', dest='excludeSizes', default=self.excludeSizes, metavar='SIZES')
