@@ -71,6 +71,7 @@ class Requester(object):
             raise RequestException({"message": "Unsupported URL scheme: {0}".format(parsed.scheme)})
 
         self.basePath = parsed.path.lstrip("/")
+        self.basePath = urllib.parse.quote(self.basePath, safe=":/^{}<>|%\"\\")
         self.protocol = parsed.scheme
         self.host = parsed.netloc.split(":")[0]
 
