@@ -381,7 +381,7 @@ class ArgumentParser(object):
             "general", "recursive-level-max", 0
         )
         self.headerList = config.safe_get("general", "headers-file", None)
-        self.testFailPath = config.safe_get("general", "scanner-fail-path", "").strip()
+        self.testFailPath = config.safe_get("general", "calibration-path", "").strip()
         self.saveHome = config.safe_getboolean("general", "save-logs-home", False)
         self.defaultExtensions = config.safe_get(
             "general", "default-extensions", str()
@@ -463,8 +463,8 @@ information at https://github.com/maurosoria/dirsearch.''')
                               help='Force extensions for every wordlist entry')
         dictionary.add_option('--only-selected', dest='onlySelected', action='store_true',
                               help='Only entries with selected extensions or no extension + directories')
-        dictionary.add_option('--remove-extensions', dest='noExtension', action='store_true',
-                              help='Remove extensions in all wordlist entries (Example: admin.php -> admin)')
+        dictionary.add_option('--no-extension', dest='noExtension', action='store_true',
+                              help='No extension in the wordlist, remove extensions in every word (Example: admin.php -> admin)')
         dictionary.add_option('--no-dot-extensions', dest='noDotExtensions', default=self.noDotExtensions,
                               help='Remove the "." character before extensions', action='store_true')
         dictionary.add_option('-U', '--uppercase', action='store_true', dest='uppercase', default=self.uppercase,
@@ -484,7 +484,7 @@ information at https://github.com/maurosoria/dirsearch.''')
                            default=self.threadsCount, metavar='THREADS')
         general.add_option('-d', '--data', help='HTTP request data', action='store', dest='data',
                            type='str', default=None)
-        general.add_option('--subdirs', help='Scan subdirectories of the given URL[s] (separated by commas)', action='store',
+        general.add_option('--subdirs', help='Scan sub-directories of the given URL[s] (separated by commas)', action='store',
                            dest='scanSubdirs', default=None, metavar='SUBDIRS')
         general.add_option('--exclude-subdirs', help='Exclude the following subdirectories during recursive scan (separated by commas)',
                            action='store', dest='excludeSubdirs', default=self.excludeSubdirs, metavar='SUBDIRS')
@@ -498,9 +498,11 @@ information at https://github.com/maurosoria/dirsearch.''')
                            action='store', dest='excludeTexts', default=self.excludeTexts, metavar='TEXTS')
         general.add_option('--exclude-regexps', help='Exclude responses by regexps, separated by commas (Example: "Not foun[a-z]{1}", "^Error$")',
                            action='store', dest='excludeRegexps', default=self.excludeRegexps, metavar='REGEXPS')
+        general.add_option('--calibration', help='Path to test for calibration', type='string',
+                           dest='testFailPath', default=self.testFailPath, metavar='PATH')
         general.add_option('-H', '--header', help='HTTP request header, support multiple flags (Example: -H "Referer: example.com" -H "Accept: */*")',
                            action='append', type='string', dest='headers', default=None)
-        general.add_option('--header-list', help="File contains HTTP request headers", type='string',
+        general.add_option('--header-list', help='File contains HTTP request headers', type='string',
                            dest='headerList', default=self.headerList, metavar='FILE')
         general.add_option('--random-user-agent', help='Choose a random User-Agent for each request',
                            action='store_true', dest='useRandomAgents',)
