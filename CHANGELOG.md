@@ -5,18 +5,19 @@ Updating ...
 ---------
 - Faster
 - Allow to brute force through a CIDR notation
-- No extension option added
-- Support capital wordlist format
-- Support SOCKS proxy
-- Option to only replay proxy with found paths
-- Option to exit whenever an error occurs
-- Provide headers using file as input
 - Exclude responses by human readable sizes
-- Support XML and Markdown report formats
+- Provide headers from a file
+- Match/filter status codes by ranges
+- Support SOCKS proxy
+- XML, Markdown and CSV report formats
+- Capital wordlist format
+- Remove extensions option added
+- Option to replay proxy with found paths
+- Option to exit whenever an error occurs
+- Option to disable colored output
 - Debug mode
 - Several updates
 - Multiple bugfixes
-- Disable colored output
 
 ---------
 
