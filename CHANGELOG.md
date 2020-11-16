@@ -11,12 +11,12 @@ Updating ...
 - Support SOCKS proxy
 - XML, Markdown and CSV report formats
 - Capital wordlist format
-- Remove extensions option added
 - Option to replay proxy with found paths
+- Option to remove all extensions in the wordlist
 - Option to exit whenever an error occurs
 - Option to disable colored output
 - Debug mode
-- Several updates
+- Several big updates
 - Multiple bugfixes
 
 ---------
