@@ -22,10 +22,10 @@ cd dirsearch
 python3 dirsearch.py -u <URL> -e <EXTENSIONS>
 ```
 
-For some features (like SOCKS proxy), you may need to install pips with requirements.txt
+To can use SOCKS proxy and work with `../` in the wordlist, you need to install pips with requirements.txt
 
 ```
-pip3 install requirements.txt
+pip3 install -r requirements.txt
 ```
 
 If you are using Windows and don't have git, you can install the ZIP file [here](https://github.com/maurosoria/dirsearch/archive/master.zip). Dirsearch also supports [Docker](https://github.com/maurosoria/dirsearch#support-docker)
