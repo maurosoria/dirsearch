@@ -127,8 +127,8 @@ class Controller(object):
             self.arguments.suffixes, self.arguments.prefixes,
             self.arguments.lowercase, self.arguments.uppercase,
             self.arguments.capitalization, self.arguments.forceExtensions,
-            self.arguments.noDotExtensions, self.arguments.excludeExtensions,
-            self.arguments.noExtension, self.arguments.onlySelected
+            self.arguments.excludeExtensions, self.arguments.noExtension,
+            self.arguments.onlySelected
         )
 
         self.allJobs = len(self.urlList) * (len(self.scanSubdirs) if self.scanSubdirs else 1)
@@ -264,7 +264,6 @@ class Controller(object):
 
     def getBlacklists(self):
         reext = re.compile(r'\%ext\%', re.IGNORECASE)
-        reextdot = re.compile(r'\.\%ext\%', re.IGNORECASE)
         blacklists = {}
 
         for status in [400, 403, 500]:
@@ -289,13 +288,7 @@ class Controller(object):
                 # Classic dirsearch blacklist processing (with %EXT% keyword)
                 if "%ext%" in line.lower():
                     for extension in self.arguments.extensions:
-                        if self.arguments.noDotExtensions:
-                            entry = reextdot.sub(extension, line)
-
-                        else:
-                            entry = line
-
-                        entry = reext.sub(extension, entry)
+                        entry = reext.sub(extension, line)
 
                         blacklists[status].append(entry)
 
