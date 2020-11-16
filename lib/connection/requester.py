@@ -62,8 +62,6 @@ class Requester(object):
 
         parsed = urllib.parse.urlparse(url)
 
-        self.basePath = parsed.path.lstrip("/")
-
         # If no protocol specified, set http by default
         if not parsed.scheme:
             parsed = urllib.parse.urlparse("http://" + url)
@@ -72,7 +70,7 @@ class Requester(object):
         elif parsed.scheme not in ["https", "http"]:
             raise RequestException({"message": "Unsupported URL scheme: {0}".format(parsed.scheme)})
 
-        self.basePath = parsed.path
+        self.basePath = parsed.path.lstrip("/")
         self.protocol = parsed.scheme
         self.host = parsed.netloc.split(":")[0]
 
