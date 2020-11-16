@@ -22,7 +22,7 @@ cd dirsearch
 python3 dirsearch.py -u <URL> -e <EXTENSIONS>
 ```
 
-To can use SOCKS proxy and work with `../` in the wordlist, you need to install pips with requirements.txt
+To can use SOCKS proxy or work with `../` in the wordlist, you need to install pips with requirements.txt
 
 ```
 pip3 install -r requirements.txt
@@ -86,20 +86,17 @@ Options:
                         Number of threads
     -d DATA, --data=DATA
                         HTTP request data
-    --minimal=LENGTH    Minimal response length
-    --maximal=LENGTH    Maximal response length
-    --scan-subdirs=SUBDIRS
-                        Scan subdirectories of the given URL (separated by
+    --subdirs=SUBDIRS   Scan subdirectories of the given URL[s] (separated by
                         commas)
     --exclude-subdirs=SUBDIRS
                         Exclude the following subdirectories during recursive
                         scan (separated by commas)
     -i STATUS, --include-status=STATUS
-                        Show only included status codes, separated by commas
-                        (Example: 301,500)
+                        Include status codes, separated by commas, support
+                        ranges (Example: 200,300-399)
     -x STATUS, --exclude-status=STATUS
-                        Do not show excluded status codes, separated by commas
-                        (Example: 301,500)
+                        Exclude status codes, separated by commas, support
+                        ranges (Example: 301,500-599)
     --exclude-sizes=SIZES
                         Exclude responses by sizes, separated by commas
                         (Example: 123B,4KB)
@@ -115,21 +112,26 @@ Options:
     --header-list=FILE  File contains HTTP request headers
     --random-user-agent
                         Choose a random User-Agent for each request
+    --minimal=LENGTH    Minimal response length
+    --maximal=LENGTH    Maximal response length
     -F, --follow-redirects
                         Follow HTTP redirects
-    --full-url          Print full URLs in the output
+    -q, --quiet-mode
     --user-agent=USERAGENT
     --cookie=COOKIE
-    -q, --quiet-mode
+    --full-url          Print full URLs in the output
+    --no-color          No colored output
 
   Connection Settings:
     --timeout=TIMEOUT   Connection timeout
     --ip=IP             Server IP address
     -s DELAY, --delay=DELAY
-                        Delay between requests (support float number)
+                        Delay between requests
     --proxy=PROXY       Proxy URL, support HTTP and SOCKS proxy (Example:
                         localhost:8080, socks5://localhost:8088)
     --proxy-list=FILE   File contains proxy servers
+    --matches-proxy=PROXY
+                        Proxy to replay with found paths (matched responses)
     -m METHOD, --http-method=METHOD
                         HTTP method (default: GET)
     --max-retries=RETRIES
@@ -145,10 +147,11 @@ Options:
     --json-report=OUTPUTFILE
     --xml-report=OUTPUTFILE
     --markdown-report=OUTPUTFILE
+    --csv-report=OUTPUTFILE
 ```
 
  **NOTE**: 
- You can change the dirsearch default configurations (default extensions, timeout, wordlist location, ...) by editing the "default.conf" file.
+ You can change the dirsearch default configurations (default extensions, timeout, wordlist location, ...) by editing the **default.conf** file.
 
 Operating Systems supported
 ---------------------------
@@ -468,9 +471,7 @@ Tips
 - Want to find only folders/directories? Combine `--no-extension` and `--suffixes /`!
 - The combination of `--cidr`, `-F` and `-q` will reduce most of the noise + false negatives when brute-forcing with a CIDR
 
-Keep updating ...
-
-#### Alerts
+#### Alert
 - Don't use `-e *`, it won't replace `*` with all extensions as what you are thinking
 
 Support Docker
@@ -508,7 +509,7 @@ Contributors
 ---------------
 Main: @maurosoria and @shelld3v
 
-Special thanks for these people:
+Special thanks to these people:
 
 - @V-Rico
 - @random-robbie
