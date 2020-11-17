@@ -34,6 +34,97 @@ If you are using Windows and don't have git, you can install the ZIP file [here]
 
 *Note: For the best performance, you should use [CPython](https://cython.org/)*
 
+Operating Systems supported
+---------------------------
+- Windows XP/7/8/10
+- GNU/Linux
+- MacOSX
+
+Features
+--------
+- Fast
+- Easy and simple to use
+- Multithreading
+- Wildcard responses filtering (invalid webpages)
+- Keep alive connections
+- Support for multiple extensions
+- Support for every HTTP method
+- Support for HTTP request data
+- Extensions excluding
+- Reporting (Plain text, JSON, XML)
+- Recursive brute forcing
+- Target enumuration from an IP range
+- Sub-directories brute forcing
+- Force extensions
+- HTTP and SOCKS proxy support
+- HTTP cookies and headers support
+- HTTP headers from file
+- User agent randomization
+- Proxy host randomization
+- Batch processing
+- Request delaying
+- Multiple wordlist formats (lowercase, uppercase, capitalization)
+- Default configuration from file
+- Quiet mode
+- Debug mode
+- Option to force requests by hostname
+- Option to add custom suffixes and prefixes
+- Option to whitelist response codes (-i 200,500)
+- Option to blacklist response codes (-x 404,403)
+- Option to exclude responses by sizes
+- Option to exclude responses by texts
+- Option to exclude responses by regexps (example: "Not foun[a-z]{1}")
+- Options to display only items with response length from range
+- Option to remove all extensions from every wordlist entry
+- Option to remove the dot before extensions
+- ...
+
+
+About wordlists
+---------------
+- Wordlist must be a text file. Each line will be processed as such, except when the special keyword *%EXT%* is used, it will generate one entry for each extension (-e | --extensions) passed as an argument.
+
+Example:
+
+```
+root/
+index.%EXT%
+```
+
+Passing the extensions "asp" and "aspx" (`-e asp,aspx`) will generate the following dictionary:
+
+```
+root/
+index
+index.asp
+index.aspx
+```
+
+- For wordlists without *%EXT%* (like [SecLists](https://github.com/danielmiessler/SecLists)), you need to use the **-f | --force-extensions** switch to append extensions to every word in the wordlists, as well as the "/". And for entries in the wordlist that you do not want to force, you can add *%NOFORCE%* at the end of them so dirsearch won't append any extension.
+
+Example:
+
+```
+admin
+home.%EXT%
+api%NOFORCE%
+```
+
+Passing extensions "php" and "html" with the **-f**/**--force-extensions** flag (`-f -e php,html`) will generate the following dictionary:
+
+```
+admin
+admin.php
+admin.html
+admin/
+home
+home.php
+home.html
+api
+```
+
+- To use multiple wordlists, you can seperate your wordlists with commas. Example: -w wordlist1.txt,wordlist2.txt
+
 Options
 -------
 
@@ -153,101 +244,10 @@ Options:
  **NOTE**: 
  You can change the dirsearch default configurations (default extensions, timeout, wordlist location, ...) by editing the **default.conf** file.
 
-Operating Systems supported
----------------------------
-- Windows XP/7/8/10
-- GNU/Linux
-- MacOSX
-
-Features
---------
-- Fast
-- Easy and simple to use
-- Multithreading
-- Wildcard responses filtering (invalid webpages)
-- Keep alive connections
-- Support for multiple extensions
-- Support for every HTTP method
-- Support for HTTP request data
-- Extensions excluding
-- Reporting (Plain text, JSON, XML)
-- Recursive brute forcing
-- Target enumuration from an IP range
-- Sub-directories brute forcing
-- Force extensions
-- HTTP and SOCKS proxy support
-- HTTP cookies and headers support
-- HTTP headers from file
-- User agent randomization
-- Proxy host randomization
-- Batch processing
-- Request delaying
-- Multiple wordlist formats (lowercase, uppercase, capitalization)
-- Default configuration from file
-- Quiet mode
-- Debug mode
-- Option to force requests by hostname
-- Option to add custom suffixes and prefixes
-- Option to whitelist response codes (-i 200,500)
-- Option to blacklist response codes (-x 404,403)
-- Option to exclude responses by sizes
-- Option to exclude responses by texts
-- Option to exclude responses by regexps (example: "Not foun[a-z]{1}")
-- Options to display only items with response length from range
-- Option to remove all extensions from every wordlist entry
-- Option to remove the dot before extensions
-- ...
-
-
-About wordlists
----------------
-- Wordlist must be a text file. Each line will be processed as such, except when the special keyword *%EXT%* is used, it will generate one entry for each extension (-e | --extensions) passed as an argument.
-
-Example:
-
-```
-root/
-index.%EXT%
-```
-
-Passing the extensions "asp" and "aspx" (`-e asp,aspx`) will generate the following dictionary:
-
-```
-root/
-index
-index.asp
-index.aspx
-```
-
-- For wordlists without *%EXT%* (like [SecLists](https://github.com/danielmiessler/SecLists)), you need to use the -f | --force-extensions switch to append extensions to every word in the wordlists, as well as the "/". And for entries in the wordlist that you do not want to force, you can add *%NOFORCE%* at the end of them so dirsearch won't append any extension.
-
-Example:
-
-```
-admin
-home.%EXT%
-api%NOFORCE%
-```
-
-Passing extensions "php" and "html" with the `-f`/`--force-extensions` flag (`-f -e php,html`) will generate the following dictionary:
-
-```
-admin
-admin.php
-admin.html
-admin/
-home
-home.php
-home.html
-api
-```
-
-- To use multiple wordlists, you can seperate your wordlists with commas. Example: -w wordlist1.txt,wordlist2.txt
-
 How to use
 ---------------
 
-Some examples for how to use dirsearch - those are the most common arguments. If you need all, just use the "-h" argument.
+Some examples for how to use dirsearch - those are the most common arguments. If you need all, just use the **-h** argument.
 
 ### Simple usage
 ```
@@ -263,12 +263,12 @@ python3 dirsearch.py -e php,html,js -u https://target -w /path/to/wordlist
 ```
 
 ### Recursive scan
-By adding "-r | --recursive" argument, dirsearch will automatically brute-force the after of directories that it found.
+By using the **-r | --recursive** argument, dirsearch will automatically brute-force the after of directories that it found.
 
 ```
 python3 dirsearch.py -e php,html,js -u https://target -r
 ```
-You can set the max recursion depth with "-R" or "--recursion-depth"
+You can set the max recursion depth with **-R** or **--recursion-depth**
 
 ```
 python3 dirsearch.py -e php,html,js -u https://target -r -R 3
@@ -283,15 +283,8 @@ In spite of that, the speed is actually still uncontrollable since it depends a 
 python3 dirsearch.py -e php,htm,js,bak,zip,tgz,txt -u https://target -t 30
 ```
 
-### Exclude extensions
-Sometimes your wordlist may contains many extensions, for many cases like `.asp`, `.aspx`, `.php`, `.jsp`, ... But if you found the core application behind it, many of those endpoints will be useless right? Don't worry, try "-X <extensions>" and all endpoints have given extensions will be removed.
-
-```
-python3 dirsearch.py -e asp,aspx,html,htm,js -u https://target -X php,jsp,jspx
-```
-
 ### Prefixes / Suffixes
-- "--prefixes": Adding custom prefixes to all entries
+- **--prefixes**: Adding custom prefixes to all entries
 
 ```
 python3 dirsearch.py -e php -u https://target --prefixes .,admin,_,~
@@ -310,7 +303,7 @@ _tools
 ~tools
 ```
 
-- "--suffixes": Adding custom suffixes to all entries
+- **--suffixes**: Adding custom suffixes to all entries
 
 ```
 python3 dirsearch.py -e php -u https://target --suffixes ~,/
@@ -328,6 +321,34 @@ index.php~
 index.php/
 internal~
 internal/
+```
+
+### Exclude extensions
+Use **-X | --exclude-extensions** with your exclude-extension list to remove all entries in the wordlist that have the given extensions
+
+```
+python3 dirsearch.py -e asp,aspx,htm,js -u https://target -X php,jsp,jspx
+```
+
+Base wordlist:
+
+```
+admin
+admin.%EXT%
+index.html
+home.php
+test.jsp
+```
+
+After:
+
+```
+admin
+admin.asp
+admin.aspx
+admin.htm
+admin.js
+index.html
 ```
 
 ### Wordlist formats
@@ -352,7 +373,7 @@ TEST
 ```
 ---------
 ```
-python3 dirsearch.py -e html -u https://target --capitalization
+python3 dirsearch.py -e html -u https://target --capital
 ```
 ```
 Admin
@@ -361,13 +382,13 @@ Test
 ```
 
 ### Filters
-Use "-i | --include-status" and "-x | --exclude-status" to select allowed and not allowed response status codes
+Use **-i | --include-status** and **-x | --exclude-status** to select allowed and not allowed response status codes
 
 ```
 python3 dirsearch.py -e php,html,js -u https://target -i 200,204,400,403 -x 500,502,429
 ```
 
-"--exclude-sizes", "--exclude-texts" and "--exclude-regexps" are also supported for a more advanced filter
+**--exclude-sizes**, **--exclude-texts** and **--exclude-regexps** are also supported for a more advanced filter
 
 ```
 python3 dirsearch.py -e php,html,js -u https://target --exclude-sizes 1B,243KB
@@ -382,13 +403,13 @@ python3 dirsearch.py -e php,html,js -u https://target --exclude-regexps "^Error$
 ```
 
 ### Scan sub-directories
-From an URL, you can scan sub-dirsearctories with "--scan-subdirs".
+From an URL, you can scan sub-dirsearctories with **--subdirs**.
 
 ```
-python3 dirsearch.py -e php,html,js -u https://target --scan-subdirs admin/,folder/,/
+python3 dirsearch.py -e php,html,js -u https://target --subdirs admin/,folder/,/
 ```
 
-A reverse version of this feature is "--exclude-subdir | --exclude-subdirs", which to prevent dirsearch from brute-forcing directories that should not be brute-forced when doing a recursive scan.
+A reverse version of this feature is **--exclude-subdirs**, which to prevent dirsearch from brute-forcing directories that should not be brute-forced when doing a recursive scan.
 
 ```
 python3 dirsearch.py -e php,html,js -u https://target --recursive -R 2 --exclude-subdirs "server-status/,%3f/"
