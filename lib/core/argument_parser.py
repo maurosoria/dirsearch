@@ -478,8 +478,8 @@ information at https://github.com/maurosoria/dirsearch.''')
         general = OptionGroup(parser, 'General Settings')
         general.add_option('-r', '--recursive', help='Bruteforce recursively', action='store_true', dest='recursive',
                            default=self.recursive)
-        general.add_option('-R', '--recursion-max-depth', help='Maximum recursion depth (Default: 0 [infinity])', action='store', type='int',
-                           dest='recursive_level_max', default=self.recursive_level_max, metavar='DEPTH')
+        general.add_option('-R', '--recursion-max-depth', help='Maximum recursion depth (Default: 0 [infinity])', action='store',
+                           type='int', dest='recursive_level_max', default=self.recursive_level_max, metavar='DEPTH')
         general.add_option('-t', '--threads', help='Number of threads', action='store', type='int', dest='threadsCount',
                            default=self.threadsCount, metavar='THREADS')
         general.add_option('-d', '--data', help='HTTP request data', action='store', dest='data',
