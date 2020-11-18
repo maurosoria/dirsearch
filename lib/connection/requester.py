@@ -56,14 +56,14 @@ class Requester(object):
         self.httpmethod = httpmethod
         self.data = data
 
-        # if no backslash, append one
+        # If no backslash, append one
         if not url.endswith("/"):
             url += "/"
 
         parsed = urllib.parse.urlparse(url)
 
         # If no protocol specified, set http by default
-        if not parsed.scheme:
+        if "://" not in url:
             parsed = urllib.parse.urlparse("http://" + url)
 
         # If protocol is not supported
@@ -71,6 +71,7 @@ class Requester(object):
             raise RequestException({"message": "Unsupported URL scheme: {0}".format(parsed.scheme)})
 
         self.basePath = parsed.path.lstrip("/")
+        self.basePath = urllib.parse.quote(self.basePath, safe=":/^{}<>|%\"\\")
         self.protocol = parsed.scheme
         self.host = parsed.netloc.split(":")[0]
 

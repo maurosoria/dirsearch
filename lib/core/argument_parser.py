@@ -311,21 +311,13 @@ class ArgumentParser(object):
 
         if options.scanSubdirs:
             self.scanSubdirs = list(
-                oset([subdir.strip() for subdir in options.scanSubdirs.split(",")])
+                oset(
+                    [subdir.strip(" /") + "/" for subdir in options.scanSubdirs.split(",")]
+                )
             )
 
-            for i in range(len(self.scanSubdirs)):
-
-                while self.scanSubdirs[i].startswith("/"):
-                    self.scanSubdirs[i] = self.scanSubdirs[i][1:]
-
-                while self.scanSubdirs[i].endswith("/"):
-                    self.scanSubdirs[i] = self.scanSubdirs[i][:-1]
-
-            self.scanSubdirs = list(oset([subdir + "/" for subdir in self.scanSubdirs]))
-
         else:
-            self.scanSubdirs = None
+            self.scanSubdirs = []
 
         if not self.recursive and options.excludeSubdirs:
             self.excludeSubdirs = None
@@ -380,12 +372,16 @@ class ArgumentParser(object):
             "general", "recursive-level-max", 0
         )
         self.headerList = config.safe_get("general", "headers-file", None)
-        self.testFailPath = config.safe_get("general", "scanner-fail-path", "").strip()
+        self.testFailPath = config.safe_get("general", "calibration-path", "").strip()
         self.saveHome = config.safe_getboolean("general", "save-logs-home", False)
         self.defaultExtensions = config.safe_get(
             "general", "default-extensions", str()
         )
         self.excludeSubdirs = config.safe_get("general", "exclude-subdirs", None)
+        self.useRandomAgents = config.safe_get(
+            "general", "random-user-agents", False
+        )
+        self.useragent = config.safe_get("general", "user-agent", None)
         self.full_url = config.safe_getboolean("general", "full-url", False)
         self.color = config.safe_getboolean("general", "color", True)
         self.quiet = config.safe_getboolean("general", "quiet-mode", False)
@@ -410,10 +406,6 @@ class ArgumentParser(object):
         self.forceExtensions = config.safe_getboolean("dictionary", "force-extensions", False)
 
         # Connection
-        self.useRandomAgents = config.safe_get(
-            "connection", "random-user-agents", False
-        )
-        self.useragent = config.safe_get("connection", "user-agent", None)
         self.delay = config.safe_getfloat("connection", "delay", 0)
         self.timeout = config.safe_getint("connection", "timeout", 10)
         self.maxRetries = config.safe_getint("connection", "max-retries", 3)
@@ -456,7 +448,7 @@ information at https://github.com/maurosoria/dirsearch.''')
         dictionary.add_option('--prefixes', action='store', dest='prefixes', default=self.prefixes,
                               help='Add custom prefixes to all entries (separated by commas)')
         dictionary.add_option('--suffixes', action='store', dest='suffixes', default=self.suffixes,
-                              help='Add custom suffixes to all entries, ignores directories (separated by commas)')
+                              help='Add custom suffixes to all entries, ignore directories (separated by commas)')
         dictionary.add_option('-f', '--force-extensions', action='store_true', dest='forceExtensions', default=self.forceExtensions,
                               help='Force extensions for every wordlist entry')
         dictionary.add_option('--only-selected', dest='onlySelected', action='store_true',
@@ -474,13 +466,13 @@ information at https://github.com/maurosoria/dirsearch.''')
         general = OptionGroup(parser, 'General Settings')
         general.add_option('-r', '--recursive', help='Bruteforce recursively', action='store_true', dest='recursive',
                            default=self.recursive)
-        general.add_option('-R', '--recursion-depth', help='Max recursion depth (subdirs) (Default: 0 [infinity])', action='store', type='int',
-                           dest='recursive_level_max', default=self.recursive_level_max, metavar='DEPTH')
+        general.add_option('-R', '--recursion-max-depth', help='Maximum recursion depth (Default: 0 [infinity])', action='store',
+                           type='int', dest='recursive_level_max', default=self.recursive_level_max, metavar='DEPTH')
         general.add_option('-t', '--threads', help='Number of threads', action='store', type='int', dest='threadsCount',
                            default=self.threadsCount, metavar='THREADS')
         general.add_option('-d', '--data', help='HTTP request data', action='store', dest='data',
                            type='str', default=None)
-        general.add_option('--subdirs', help='Scan subdirectories of the given URL[s] (separated by commas)', action='store',
+        general.add_option('--subdirs', help='Scan sub-directories of the given URL[s] (separated by commas)', action='store',
                            dest='scanSubdirs', default=None, metavar='SUBDIRS')
         general.add_option('--exclude-subdirs', help='Exclude the following subdirectories during recursive scan (separated by commas)',
                            action='store', dest='excludeSubdirs', default=self.excludeSubdirs, metavar='SUBDIRS')
@@ -494,9 +486,11 @@ information at https://github.com/maurosoria/dirsearch.''')
                            action='store', dest='excludeTexts', default=self.excludeTexts, metavar='TEXTS')
         general.add_option('--exclude-regexps', help='Exclude responses by regexps, separated by commas (Example: "Not foun[a-z]{1}", "^Error$")',
                            action='store', dest='excludeRegexps', default=self.excludeRegexps, metavar='REGEXPS')
+        general.add_option('--calibration', help='Path to test for calibration', type='string',
+                           dest='testFailPath', default=self.testFailPath, metavar='PATH')
         general.add_option('-H', '--header', help='HTTP request header, support multiple flags (Example: -H "Referer: example.com" -H "Accept: */*")',
                            action='append', type='string', dest='headers', default=None)
-        general.add_option('--header-list', help="File contains HTTP request headers", type='string',
+        general.add_option('--header-list', help='File contains HTTP request headers', type='string',
                            dest='headerList', default=self.headerList, metavar='FILE')
         general.add_option('--random-user-agent', help='Choose a random User-Agent for each request',
                            action='store_true', dest='useRandomAgents',)

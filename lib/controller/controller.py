@@ -115,9 +115,7 @@ class Controller(object):
         self.recursive = self.arguments.recursive
         self.minimumResponseSize = self.arguments.minimumResponseSize
         self.maximumResponseSize = self.arguments.maximumResponseSize
-        self.scanSubdirs = (
-            list(dict.fromkeys(arguments.scanSubdirs)) if arguments.scanSubdirs else []
-        )
+        self.scanSubdirs = arguments.scanSubdirs
         self.excludeSubdirs = (
             arguments.excludeSubdirs if arguments.excludeSubdirs else []
         )
