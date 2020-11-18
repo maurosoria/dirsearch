@@ -312,21 +312,13 @@ class ArgumentParser(object):
 
         if options.scanSubdirs:
             self.scanSubdirs = list(
-                oset([subdir.strip() for subdir in options.scanSubdirs.split(",")])
+                oset(
+                    [subdir.strip(" /") + "/" for subdir in options.scanSubdirs.split(",")]
+                )
             )
 
-            for i in range(len(self.scanSubdirs)):
-
-                while self.scanSubdirs[i].startswith("/"):
-                    self.scanSubdirs[i] = self.scanSubdirs[i][1:]
-
-                while self.scanSubdirs[i].endswith("/"):
-                    self.scanSubdirs[i] = self.scanSubdirs[i][:-1]
-
-            self.scanSubdirs = list(oset([subdir + "/" for subdir in self.scanSubdirs]))
-
         else:
-            self.scanSubdirs = None
+            self.scanSubdirs = []
 
         if not self.recursive and options.excludeSubdirs:
             self.excludeSubdirs = None
