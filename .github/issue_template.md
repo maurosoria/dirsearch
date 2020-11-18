@@ -9,3 +9,6 @@ What it should be instead?
 ### Any additional information?
 
 OS, python version, screenshots, dirsearch command, console output, ...?
+
+#### Checker:
+ - [ ] I have read the documentation (README)
