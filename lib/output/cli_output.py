@@ -23,7 +23,7 @@ import urllib.parse
 
 from lib.utils.file_utils import *
 from lib.utils.terminal_size import get_terminal_size
-from thirdparty.colorama import *
+from thirdparty.colorama import init, Fore, Back, Style
 
 if sys.platform in ["win32", "msys"]:
     from thirdparty.colorama.win32 import *
