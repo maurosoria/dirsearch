@@ -387,6 +387,10 @@ class ArgumentParser(object):
             "general", "default-extensions", str()
         )
         self.excludeSubdirs = config.safe_get("general", "exclude-subdirs", None)
+        self.useRandomAgents = config.safe_get(
+            "general", "random-user-agents", False
+        )
+        self.useragent = config.safe_get("general", "user-agent", None)
         self.full_url = config.safe_getboolean("general", "full-url", False)
         self.color = config.safe_getboolean("general", "color", True)
         self.quiet = config.safe_getboolean("general", "quiet-mode", False)
@@ -412,10 +416,6 @@ class ArgumentParser(object):
         self.noDotExtensions = config.safe_getboolean("dictionary", "no-dot-extensions", False)
 
         # Connection
-        self.useRandomAgents = config.safe_get(
-            "connection", "random-user-agents", False
-        )
-        self.useragent = config.safe_get("connection", "user-agent", None)
         self.delay = config.safe_getfloat("connection", "delay", 0)
         self.timeout = config.safe_getint("connection", "timeout", 10)
         self.maxRetries = config.safe_getint("connection", "max-retries", 3)
@@ -458,7 +458,7 @@ information at https://github.com/maurosoria/dirsearch.''')
         dictionary.add_option('--prefixes', action='store', dest='prefixes', default=self.prefixes,
                               help='Add custom prefixes to all entries (separated by commas)')
         dictionary.add_option('--suffixes', action='store', dest='suffixes', default=self.suffixes,
-                              help='Add custom suffixes to all entries, ignores directories (separated by commas)')
+                              help='Add custom suffixes to all entries, ignore directories (separated by commas)')
         dictionary.add_option('-f', '--force-extensions', action='store_true', dest='forceExtensions', default=self.forceExtensions,
                               help='Force extensions for every wordlist entry')
         dictionary.add_option('--only-selected', dest='onlySelected', action='store_true',
@@ -478,8 +478,8 @@ information at https://github.com/maurosoria/dirsearch.''')
         general = OptionGroup(parser, 'General Settings')
         general.add_option('-r', '--recursive', help='Bruteforce recursively', action='store_true', dest='recursive',
                            default=self.recursive)
-        general.add_option('-R', '--recursion-depth', help='Max recursion depth (subdirs) (Default: 0 [infinity])', action='store', type='int',
-                           dest='recursive_level_max', default=self.recursive_level_max, metavar='DEPTH')
+        general.add_option('-R', '--recursion-max-depth', help='Maximum recursion depth (Default: 0 [infinity])', action='store',
+                           type='int', dest='recursive_level_max', default=self.recursive_level_max, metavar='DEPTH')
         general.add_option('-t', '--threads', help='Number of threads', action='store', type='int', dest='threadsCount',
                            default=self.threadsCount, metavar='THREADS')
         general.add_option('-d', '--data', help='HTTP request data', action='store', dest='data',
