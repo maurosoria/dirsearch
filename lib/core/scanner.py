@@ -29,7 +29,7 @@ class ScannerException(Exception):
 
 class Scanner(object):
     def __init__(self, requester, testPath=None, suffix=None, preffix=None):
-        if testPath is None or testPath == "":
+        if not testPath:
             self.testPath = RandomUtils.randString()
         else:
             self.testPath = testPath
@@ -57,7 +57,7 @@ class Scanner(object):
             # Using the response status code is enough :-}
             return
 
-        # look for redirects
+        # Look for redirects
         elif firstResponse.status in self.redirectStatusCodes and firstResponse.redirect and secondResponse.redirect:
             self.redirectRegExp = self.generateRedirectRegExp(
                 firstResponse.redirect, secondResponse.redirect
@@ -89,9 +89,9 @@ class Scanner(object):
         for blocks in sm.get_matching_blocks():
             i = blocks[0]
             n = blocks[2]
-            # empty block
+            # Empty block
 
-            if n == 0:
+            if not n:
                 continue
 
             mark = firstLocation[i:i + n]
