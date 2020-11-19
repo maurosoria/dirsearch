@@ -287,12 +287,7 @@ class ArgumentParser(object):
         self.capitalization = options.capitalization
         self.forceExtensions = options.forceExtensions
         self.data = options.data
-        self.simpleOutputFile = options.simpleOutputFile
-        self.plainTextOutputFile = options.plainTextOutputFile
-        self.jsonOutputFile = options.jsonOutputFile
-        self.xmlOutputFile = options.xmlOutputFile
-        self.markdownOutputFile = options.markdownOutputFile
-        self.csvOutputFile = options.csvOutputFile
+        self.testFailPath = options.testFailPath
         self.color = options.color
         self.delay = options.delay
         self.timeout = options.timeout
@@ -303,6 +298,12 @@ class ArgumentParser(object):
         self.maximumResponseSize = options.maximumResponseSize
         self.noExtension = options.noExtension
         self.onlySelected = options.onlySelected
+        self.simpleOutputFile = options.simpleOutputFile
+        self.plainTextOutputFile = options.plainTextOutputFile
+        self.jsonOutputFile = options.jsonOutputFile
+        self.xmlOutputFile = options.xmlOutputFile
+        self.markdownOutputFile = options.markdownOutputFile
+        self.csvOutputFile = options.csvOutputFile
 
         if options.scanSubdirs:
             self.scanSubdirs = list(
@@ -437,8 +438,8 @@ information at https://github.com/maurosoria/dirsearch.''')
 
         # Dictionary Settings
         dictionary = OptionGroup(parser, 'Dictionary Settings')
-        dictionary.add_option('-w', '--wordlist', action='store', dest='wordlist',
-                              help='Customize wordlist (separated by commas)',
+        dictionary.add_option('-w', '--wordlists', action='store', dest='wordlist',
+                              help='Customize wordlists (separated by commas)',
                               default=self.wordlist)
         dictionary.add_option('--prefixes', action='store', dest='prefixes', default=self.prefixes,
                               help='Add custom prefixes to all entries (separated by commas)')
@@ -481,7 +482,7 @@ information at https://github.com/maurosoria/dirsearch.''')
                            action='store', dest='excludeTexts', default=self.excludeTexts, metavar='TEXTS')
         general.add_option('--exclude-regexps', help='Exclude responses by regexps, separated by commas (Example: "Not foun[a-z]{1}", "^Error$")',
                            action='store', dest='excludeRegexps', default=self.excludeRegexps, metavar='REGEXPS')
-        general.add_option('--calibration', help='Path to test for calibration', type='string',
+        general.add_option('--calibration', help='Path to test for calibration', action='store',
                            dest='testFailPath', default=self.testFailPath, metavar='PATH')
         general.add_option('-H', '--header', help='HTTP request header, support multiple flags (Example: -H "Referer: example.com" -H "Accept: */*")',
                            action='append', type='string', dest='headers', default=None)
