@@ -443,8 +443,8 @@ information at https://github.com/maurosoria/dirsearch.''')
 
         # Dictionary Settings
         dictionary = OptionGroup(parser, 'Dictionary Settings')
-        dictionary.add_option('-w', '--wordlist', action='store', dest='wordlist',
-                              help='Customize wordlist (separated by commas)',
+        dictionary.add_option('-w', '--wordlists', action='store', dest='wordlist',
+                              help='Customize wordlists (separated by commas)',
                               default=self.wordlist)
         dictionary.add_option('--prefixes', action='store', dest='prefixes', default=self.prefixes,
                               help='Add custom prefixes to all entries (separated by commas)')
