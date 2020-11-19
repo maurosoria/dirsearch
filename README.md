@@ -8,9 +8,9 @@ Overview
 --------
 Dirsearch is a mature command-line tool designed to brute force directories and files in webservers. 
 
-With 6 years of growth, dirsearch now has become the top web content scanner. As a feature-rich tool, dirsearch gives the user the opportunity to perform a complex web content discovering, with many vectors for the wordlist, high accuracy, impressive performance, advanced connection/request settings, modern brute-force techniques and nice output.
+With 6 years of growth, dirsearch now has become the top web content scanner. As a feature-rich tool, dirsearch gives users the opportunity to perform a complex web content discovering, with many vectors for the wordlist, high accuracy, impressive performance, advanced connection/request settings, modern brute-force techniques and nice output.
 
-Although there are now many awesome fuzzers like [wfuzz](https://github.com/xmendez/wfuzz), [gobuster](https://github.com/OJ/gobuster) or [ffuf](https://github.com/ffuf/ffuf), dirsearch is still showing it's own unique in features and detections when doing web content brute-force. Instead of supporting parameters fuzzing like in *ffuf* or *wfuzz*, dirsearch is keeping it as a traditional web path brute forcer. This allows dirsearch to focus on the accuracy of the output and support more features for its specific purpose.
+Although there are now many other fuzzers like [wfuzz](https://github.com/xmendez/wfuzz), [gobuster](https://github.com/OJ/gobuster) or [ffuf](https://github.com/ffuf/ffuf), dirsearch is still showing it's own unique in features and detections when doing web content brute-force. Instead of supporting parameters fuzzing like in *ffuf* or *wfuzz*, dirsearch keeps it as a traditional web path brute forcer, to much more focus on the specific purpose.
 
 
 Installation & Usage
@@ -32,8 +32,6 @@ If you are using Windows and don't have git, you can install the ZIP file [here]
 
 **Dirsearch requires python 3 or greater**
 
-*Note: For the best performance, you should use [CPython](https://cython.org/)*
-
 Operating Systems supported
 ---------------------------
 - Windows XP/7/8/10
@@ -51,7 +49,7 @@ Features
 - Support for every HTTP method
 - Support for HTTP request data
 - Extensions excluding
-- Reporting (Plain text, JSON, XML)
+- Reporting (Plain text, JSON, XML, Markdown, CSV)
 - Recursive brute forcing
 - Target enumuration from an IP range
 - Sub-directories brute forcing
@@ -69,14 +67,13 @@ Features
 - Debug mode
 - Option to force requests by hostname
 - Option to add custom suffixes and prefixes
-- Option to whitelist response codes (-i 200,500)
-- Option to blacklist response codes (-x 404,403)
+- Option to whitelist response codes, support ranges (-i 200,300-399)
+- Option to blacklist response codes, support ranges (-x 404,500-599)
 - Option to exclude responses by sizes
 - Option to exclude responses by texts
 - Option to exclude responses by regexps (example: "Not foun[a-z]{1}")
 - Options to display only items with response length from range
 - Option to remove all extensions from every wordlist entry
-- Option to remove the dot before extensions
 - ...
 
 
