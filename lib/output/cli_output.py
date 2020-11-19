@@ -23,7 +23,7 @@ import urllib.parse
 
 from lib.utils.file_utils import *
 from lib.utils.terminal_size import get_terminal_size
-from thirdparty.colorama import *
+from thirdparty.colorama import init, Fore, Back, Style
 
 if sys.platform in ["win32", "msys"]:
     from thirdparty.colorama.win32 import *
@@ -63,7 +63,7 @@ class CLIOutput(object):
             sys.stdout.write("\033[0G")
 
     def newLine(self, string):
-        if self.lastInLine is True:
+        if self.lastInLine:
             self.erase()
 
         if sys.platform in ["win32", "msys"]:
@@ -144,7 +144,7 @@ class CLIOutput(object):
         if allJobs > 1:
             message += "Job: {0}/{1} - ".format(currentJob, allJobs)
 
-        if self.errors > 0:
+        if self.errors:
             message += "Errors: {0} - ".format(self.errors)
 
         message += "Last request to: {0}".format(path)
@@ -215,6 +215,7 @@ class CLIOutput(object):
             config += Style.RESET_ALL
 
             self.newLine(config)
+
         else:
             separator = " | "
 
@@ -241,7 +242,7 @@ class CLIOutput(object):
     def setTarget(self, target):
         if not target.endswith("/"):
             target += "/"
-        if not target.startswith("http://") and not target.startswith("https://") and "://" not in target:
+        if not target.startswith(("http://", "https://")) and "://" not in target:
             target = "http://" + target
 
         self.target = target

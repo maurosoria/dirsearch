@@ -21,7 +21,7 @@ import threading
 import urllib.parse
 
 from lib.utils.file_utils import *
-from thirdparty.colorama import *
+from thirdparty.colorama import init, Fore, Back, Style
 
 if sys.platform in ["win32", "msys"]:
     from thirdparty.colorama.win32 import *

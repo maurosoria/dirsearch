@@ -22,7 +22,7 @@ from ipaddress import IPv4Network
 from lib.utils.default_config_parser import DefaultConfigParser
 from lib.utils.file_utils import File
 from lib.utils.file_utils import FileUtils
-from thirdparty.oset import *
+from thirdparty.oset import oset
 
 
 class ArgumentParser(object):
@@ -174,7 +174,6 @@ class ArgumentParser(object):
         self.includeStatusCodes = []
 
         if options.includeStatusCodes:
-
             for statusCode in options.includeStatusCodes.split(","):
                 try:
                     if "-" in statusCode:
@@ -196,7 +195,6 @@ class ArgumentParser(object):
         self.excludeStatusCodes = []
 
         if options.excludeStatusCodes:
-
             for statusCode in options.excludeStatusCodes.split(","):
                 try:
                     if "-" in statusCode:
@@ -216,7 +214,6 @@ class ArgumentParser(object):
                     exit(0)
 
         if options.excludeExtensions:
-
             try:
                 self.excludeExtensions = list(
                     oset(
@@ -236,7 +233,6 @@ class ArgumentParser(object):
         if options.excludeSizes:
             try:
                 self.excludeSizes = list(
-
                     oset(
                         [
                             excludeSize.strip().upper() if excludeSize else None
@@ -253,7 +249,6 @@ class ArgumentParser(object):
         if options.excludeTexts:
             try:
                 self.excludeTexts = list(
-
                     oset(
                         [
                             excludeText.strip() if excludeText else None
