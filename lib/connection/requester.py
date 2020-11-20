@@ -71,11 +71,12 @@ class Requester(object):
             raise RequestException({"message": "Unsupported URL scheme: {0}".format(parsed.scheme)})
 
         self.basePath = parsed.path.lstrip("/")
-        self.basePath = urllib.parse.quote(self.basePath, safe=":/~?%&+-=$!@^*()[]{}<>;'\"|\\,._")
+        # Safe quote all special characters in basePath to prevent from being encoded when performing requests
+        self.basePath = urllib.parse.quote(self.basePath, safe="!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~")
         self.protocol = parsed.scheme
         self.host = parsed.netloc.split(":")[0]
 
-        # resolve DNS to decrease overhead
+        # Resolve DNS to decrease overhead
         if ip:
             self.ip = ip
         else:
