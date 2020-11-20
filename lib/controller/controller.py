@@ -281,7 +281,8 @@ class Controller(object):
                 if line.lstrip().startswith("#"):
                     continue
 
-                line = line.lstrip("/")
+                if line.startswith("/"):
+                    line = line[1:]
 
                 # Classic dirsearch blacklist processing (with %EXT% keyword)
                 if "%ext%" in line.lower():
