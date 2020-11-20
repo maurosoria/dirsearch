@@ -78,7 +78,7 @@ class PrintOutput(object):
         finally:
             contentLength = FileUtils.size_human(size)
 
-        showPath = "/" + self.basePath.lstrip("/") + path
+        showPath = "/" + self.basePath + path
 
         parsed = urllib.parse.urlparse(self.target)
         showPath = "{0}://{1}{2}".format(parsed.scheme, parsed.netloc, showPath)
