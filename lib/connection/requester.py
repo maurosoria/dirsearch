@@ -75,11 +75,12 @@ class Requester(object):
         else:
             self.basePath = parsed.path
 
-        self.basePath = urllib.parse.quote(self.basePath, safe=":/~?%&+-=$!@^*()[]{}<>;'\"|\\,._")
+        # Safe quote all special characters in basePath to prevent from being encoded when performing requests
+        self.basePath = urllib.parse.quote(self.basePath, safe="!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~")
         self.protocol = parsed.scheme
         self.host = parsed.netloc.split(":")[0]
 
-        # resolve DNS to decrease overhead
+        # Resolve DNS to decrease overhead
         if ip:
             self.ip = ip
         else:
