@@ -432,9 +432,8 @@ information at https://github.com/maurosoria/dirsearch.''')
         mandatory.add_option('--cidr', help='Target CIDR', action='store', type='string', dest='cidr', default=None)
         mandatory.add_option('-e', '--extensions', help='Extension list separated by commas (Example: php,asp)',
                              action='store', dest='extensions', default=self.defaultExtensions)
-        mandatory.add_option('-X', '--exclude-extensions',
-                             help='Exclude extension list separated by commas (Example: asp,jsp)',
-                             action='store', dest='excludeExtensions', default=None, metavar='EXTENSIONS')
+        mandatory.add_option('-X', '--exclude-extensions', action='store', dest='excludeExtensions', default=None,
+                             help='Exclude extension list separated by commas (Example: asp,jsp)', metavar='EXTENSIONS')
 
         # Dictionary Settings
         dictionary = OptionGroup(parser, 'Dictionary Settings')
@@ -462,7 +461,7 @@ information at https://github.com/maurosoria/dirsearch.''')
         general = OptionGroup(parser, 'General Settings')
         general.add_option('-r', '--recursive', help='Bruteforce recursively', action='store_true', dest='recursive',
                            default=self.recursive)
-        general.add_option('-R', '--recursion-max-depth', help='Maximum recursion depth (Default: 0 [infinity])', action='store',
+        general.add_option('-R', '--recursion-max-depth', help='Maximum recursion depth', action='store',
                            type='int', dest='recursive_level_max', default=self.recursive_level_max, metavar='DEPTH')
         general.add_option('-t', '--threads', help='Number of threads', action='store', type='int', dest='threadsCount',
                            default=self.threadsCount, metavar='THREADS')
@@ -482,12 +481,12 @@ information at https://github.com/maurosoria/dirsearch.''')
                            action='store', dest='excludeTexts', default=self.excludeTexts, metavar='TEXTS')
         general.add_option('--exclude-regexps', help='Exclude responses by regexps, separated by commas (Example: "Not foun[a-z]{1}", "^Error$")',
                            action='store', dest='excludeRegexps', default=self.excludeRegexps, metavar='REGEXPS')
-        general.add_option('--calibration', help='Path to test for calibration', action='store',
-                           dest='testFailPath', default=self.testFailPath, metavar='PATH')
         general.add_option('-H', '--header', help='HTTP request header, support multiple flags (Example: -H "Referer: example.com" -H "Accept: */*")',
                            action='append', type='string', dest='headers', default=None)
         general.add_option('--header-list', help='File contains HTTP request headers', type='string',
                            dest='headerList', default=self.headerList, metavar='FILE')
+        general.add_option('--calibration', help='Path to test for calibration', action='store',
+                           dest='testFailPath', default=self.testFailPath, metavar='PATH')
         general.add_option('--random-user-agent', help='Choose a random User-Agent for each request',
                            action='store_true', dest='useRandomAgents',)
         general.add_option('--minimal', action='store', dest='minimumResponseSize', type='int', default=None,
@@ -496,10 +495,11 @@ information at https://github.com/maurosoria/dirsearch.''')
                            help='Maximal response length', metavar='LENGTH')
         general.add_option('-F', '--follow-redirects', help='Follow HTTP redirects',
                            action='store_true', dest='followRedirects', default=self.redirect)
-        general.add_option('-q', '--quiet-mode', action='store_true', dest='quiet', default=self.quiet)
         general.add_option('--user-agent', action='store', type='string', dest='useragent',
                            default=self.useragent)
         general.add_option('--cookie', action='store', type='string', dest='cookie', default=None)
+        general.add_option('-q', '--quiet-mode', action='store_true', dest='quiet',
+                           help='Quiet mode', default=self.quiet)
         general.add_option('--full-url', action='store_true', dest='full_url',
                            help='Print full URLs in the output', default=self.full_url)
         general.add_option('--no-color', help='No colored output', action='store_false',
@@ -514,11 +514,11 @@ information at https://github.com/maurosoria/dirsearch.''')
         connection.add_option('-s', '--delay', help='Delay between requests', action='store', dest='delay',
                               type='float', default=self.delay)
         connection.add_option('--proxy', action='store', dest='proxy', type='string', default=self.proxy,
-                              help='Proxy URL, support HTTP and SOCKS proxy (Example: localhost:8080, socks5://localhost:8088)', metavar='PROXY')
+                              help='Proxy URL, support HTTP and SOCKS proxies (Example: localhost:8080, socks5://localhost:8088)', metavar='PROXY')
         connection.add_option('--proxy-list', action='store', dest='proxyList', type='string',
                               default=self.proxylist, help='File contains proxy servers', metavar='FILE')
         connection.add_option('--matches-proxy', action='store', dest='matches_proxy', type='string', default=self.matches_proxy,
-                              help='Proxy to replay with found paths (matched responses)', metavar='PROXY')
+                              help='Proxy to replay with found paths', metavar='PROXY')
         connection.add_option('-m', '--http-method', action='store', dest='httpmethod', type='string',
                               default=self.httpmethod, help='HTTP method (default: GET)', metavar='METHOD')
         connection.add_option('--max-retries', action='store', dest='maxRetries', type='int',
@@ -528,7 +528,8 @@ information at https://github.com/maurosoria/dirsearch.''')
                               action='store_true', dest='requestByHostname', default=self.requestByHostname)
         connection.add_option('--exit-on-error', action='store_true', dest='exit_on_error', default=self.exit_on_error,
                               help='Exit whenever an error occurs')
-        connection.add_option('--debug', action='store_true', dest='debug', default=self.debug)
+        connection.add_option('--debug', action='store_true', dest='debug', default=self.debug,
+                              help='Debug mode')
 
         # Report Settings
         reports = OptionGroup(parser, 'Reports')
