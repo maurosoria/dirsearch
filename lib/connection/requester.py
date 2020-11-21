@@ -70,7 +70,11 @@ class Requester(object):
         elif parsed.scheme not in ["https", "http"]:
             raise RequestException({"message": "Unsupported URL scheme: {0}".format(parsed.scheme)})
 
-        self.basePath = parsed.path.lstrip("/")
+        if parsed.path.startswith("/"):
+            self.basePath = parsed.path[1:]
+        else:
+            self.basePath = parsed.path
+
         # Safe quote all special characters in basePath to prevent from being encoded when performing requests
         self.basePath = urllib.parse.quote(self.basePath, safe="!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~")
         self.protocol = parsed.scheme
@@ -150,7 +154,7 @@ class Requester(object):
                     elif self.proxy:
                         proxy = {"https": self.proxy, "http": self.proxy}
 
-                url = "{0}/{1}".format(self.url, self.basePath).rstrip("/")
+                url = "{0}/{1}".format(self.url, self.basePath)
 
                 if not url.endswith("/"):
                     url += "/"
