@@ -19,7 +19,6 @@
 import http.client
 import random
 import socket
-import time
 import urllib.parse
 
 import thirdparty.requests as requests
@@ -43,7 +42,6 @@ class Requester(object):
         useragent=None,
         maxPool=1,
         maxRetries=5,
-        delay=0,
         timeout=20,
         ip=None,
         proxy=None,
@@ -118,7 +116,6 @@ class Requester(object):
 
         self.maxRetries = maxRetries
         self.maxPool = maxPool
-        self.delay = delay
         self.timeout = timeout
         self.pool = None
         self.proxy = proxy
@@ -138,7 +135,7 @@ class Requester(object):
     def unsetRandomAgents(self):
         self.randomAgents = None
 
-    def request(self, path, nodelay=False, proxy=None):
+    def request(self, path, proxy=None):
         i = 0
         result = None
 
@@ -181,9 +178,6 @@ class Requester(object):
                     response.headers,
                     response.content,
                 )
-
-                if not nodelay:
-                    time.sleep(self.delay)
 
                 break
 

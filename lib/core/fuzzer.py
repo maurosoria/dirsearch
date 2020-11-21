@@ -17,6 +17,7 @@
 #  Author: Mauro Soria
 
 import threading
+import time
 
 from lib.connection.request_exception import RequestException
 from .path import *
@@ -30,6 +31,7 @@ class Fuzzer(object):
         dictionary,
         testFailPath=None,
         threads=1,
+        delay=0,
         matchCallbacks=[],
         notFoundCallbacks=[],
         errorCallbacks=[],
@@ -43,6 +45,7 @@ class Fuzzer(object):
         self.threadsCount = (
             threads if len(self.dictionary) >= threads else len(self.dictionary)
         )
+        self.delay = delay
         self.running = False
         self.scanners = {}
         self.defaultScanner = None
@@ -183,6 +186,8 @@ class Fuzzer(object):
 
                     if not self.running:
                         break
+
+                    time.sleep(self.delay)
 
         except StopIteration:
             return

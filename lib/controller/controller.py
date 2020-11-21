@@ -121,11 +121,16 @@ class Controller(object):
         )
 
         self.dictionary = Dictionary(
-            self.arguments.wordlist, self.arguments.extensions,
-            self.arguments.suffixes, self.arguments.prefixes,
-            self.arguments.lowercase, self.arguments.uppercase,
-            self.arguments.capitalization, self.arguments.forceExtensions,
-            self.arguments.excludeExtensions, self.arguments.noExtension,
+            self.arguments.wordlist,
+            self.arguments.extensions,
+            self.arguments.suffixes,
+            self.arguments.prefixes,
+            self.arguments.lowercase,
+            self.arguments.uppercase,
+            self.arguments.capitalization,
+            self.arguments.forceExtensions,
+            self.arguments.excludeExtensions,
+            self.arguments.noExtension,
             self.arguments.onlySelected
         )
 
@@ -166,7 +171,6 @@ class Controller(object):
                             useragent=self.arguments.useragent,
                             maxPool=self.arguments.threadsCount,
                             maxRetries=self.arguments.maxRetries,
-                            delay=self.arguments.delay,
                             timeout=self.arguments.timeout,
                             ip=self.arguments.ip,
                             proxy=self.arguments.proxy,
@@ -210,6 +214,7 @@ class Controller(object):
                         self.dictionary,
                         testFailPath=self.arguments.testFailPath,
                         threads=self.arguments.threadsCount,
+                        delay=self.arguments.delay,
                         matchCallbacks=matchCallbacks,
                         notFoundCallbacks=notFoundCallbacks,
                         errorCallbacks=errorCallbacks,
