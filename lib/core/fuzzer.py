@@ -184,10 +184,10 @@ class Fuzzer(object):
 
                     path = next(self.dictionary)  # Raises StopIteration when finishes
 
-                    time.sleep(self.delay)
-
                     if not self.running:
                         break
+
+                    time.sleep(self.delay)
 
         except StopIteration:
             return
