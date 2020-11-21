@@ -60,4 +60,5 @@ Special thanks for all the people who had helped dirsearch so far!
 - Bug fixes
 - Code updates (clean, features, workflow, ...)
 - Better documentation
+- Better default wordlist
 - Feature requests
