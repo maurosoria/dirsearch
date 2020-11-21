@@ -554,7 +554,6 @@ Special thanks to these people:
 - @mazen160
 - @k2l8m11n2
 - @vlohacks
-- @russtone
 - @jsav0
 - @serhattsnmz
 - @ColdFusionX
