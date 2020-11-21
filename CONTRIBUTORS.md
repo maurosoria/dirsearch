@@ -18,7 +18,6 @@
 - [Christian Mehlmauer](https://twitter.com/firefart)
 - [eur0pa](https://twitter.com/eur0pa_)
 - [vlohacks](https://github.com/vlohacks)
-- [russtone](https://github.com/russtone)
 - [J Savage](https://github.com/jsav0)
 - [A888R](https://github.com/A888R)
 - [Serhat Sönmez](https://github.com/serhattsnmz)
