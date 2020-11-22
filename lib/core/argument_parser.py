@@ -160,8 +160,8 @@ class ArgumentParser(object):
 
         if options.extensions == "*":
             self.extensions = [
-                "php", "inc.php", "jsp", "jsf", "asp", "aspx", "do", "action",
-                "cgi", "pl", "html", "htm", "js", "css", "json", "txt"
+                "php", "inc.php", "jsp", "jsf", "asp", "aspx", "do", "action", "cgi",
+                "pl", "html", "htm", "js", "css", "json", "txt", "tar.gz", "tgz"
             ]
         else:
             self.extensions = list(
