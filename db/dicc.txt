@@ -1,7 +1,6 @@
 !.gitignore
 !.htaccess
 !.htpasswd
-%20../
 %2e%2e//google.com
 %2e%2e;/test
 %3f/
@@ -15,7 +14,6 @@
 %EXT%.txt
 %EXT%.zip
 %ff
-%ff/
 +CSCOE+/logon.html#form_title_text
 +CSCOE+/session_password.html
 +CSCOT+/oem-customization?app=AnyConnect&type=oem&platform=..&resource-type=..&name=%2bCSCOE%2b/portal_inc.lua
