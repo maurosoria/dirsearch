@@ -431,8 +431,11 @@ class Controller(object):
 
         if path.status:
 
-            if path.status == 429 and not self.accept429:
-                self.handle429()
+            if path.status == 429:
+                if self.accept429:
+                    return
+                else:
+                    self.handle429()
 
             if path.status not in self.excludeStatusCodes and (
                     not self.includeStatusCodes or path.status in self.includeStatusCodes) and (
@@ -530,7 +533,8 @@ class Controller(object):
             if option.lower() == "e":
                 self.exit = True
                 self.fuzzer.stop()
-                sys.exit(0)
+                self.output.error("\nCanceled by the user")
+                exit(0)
 
             elif option.lower() == "c":
                 self.fuzzer.resume()
