@@ -3068,6 +3068,7 @@ awstats.%EXT%
 awstats.conf
 awstats.pl
 awstats/
+axis
 axis1/axis1-admin/
 axis2/axis2-admin/
 azureadmin/
