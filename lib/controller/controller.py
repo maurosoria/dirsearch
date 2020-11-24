@@ -151,6 +151,7 @@ class Controller(object):
                     self.reportManager = ReportManager()
                     self.currentUrl = url
                     self.output.setTarget(self.currentUrl)
+                    self.accept429 = False
 
                     try:
                         self.requester = Requester(
@@ -513,6 +514,8 @@ class Controller(object):
 
     def handle429(self):
         self.output.warning("429 Too Many Requests detected: Server is blocking requests")
+        # Assumes you will either accept the 429 codes or exit
+        self.accept429 = True
         self.fuzzer.pause()
 
     def handlePause(self):
@@ -536,7 +539,6 @@ class Controller(object):
                 exit(0)
 
             elif option.lower() == "c":
-                self.accept429 = True
                 self.fuzzer.resume()
                 return
 
