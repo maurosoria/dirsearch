@@ -158,9 +158,16 @@ class ArgumentParser(object):
                 print("Error in headers file: " + str(e))
                 exit(0)
 
-        self.extensions = list(
-            oset([extension.strip() for extension in options.extensions.split(",")])
-        )
+        if options.extensions == "*":
+            self.extensions = [
+                "php", "inc.php", "jsp", "jsf", "asp", "aspx", "do", "action", "cgi",
+                "pl", "html", "htm", "js", "css", "json", "txt", "tar.gz", "tgz"
+            ]
+        else:
+            self.extensions = list(
+                oset([extension.strip() for extension in options.extensions.split(",")])
+            )
+
         self.useragent = options.useragent
         self.useRandomAgents = options.useRandomAgents
         self.cookie = options.cookie

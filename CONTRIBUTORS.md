@@ -54,6 +54,7 @@
 - [act1on3](https://github.com/act1on3)
 - [Isla Mukheef](https://github.com/IslaMukheef)
 - [Dodain](https://github.com/Dodain)
+- [Binit Ghimire](https://github.com/TheBinitGhimire)
 
 Special thanks for all the people who had helped dirsearch so far!
 

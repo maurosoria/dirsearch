@@ -1,3 +1,9 @@
+---
+name: Bug Report
+about: Report a Dirsearch problem
+
+---
+
 ### What is the current behavior?
 
 What actually happens?
