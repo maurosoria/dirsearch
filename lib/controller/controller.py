@@ -513,7 +513,6 @@ class Controller(object):
 
     def handle429(self):
         self.output.warning("429 Too Many Requests detected: Server is blocking requests")
-        self.accept429 = True # Assumes you will either accept the 429 codes or exit
         self.fuzzer.pause()
 
     def handlePause(self):
@@ -537,6 +536,7 @@ class Controller(object):
                 exit(0)
 
             elif option.lower() == "c":
+                self.accept429 = True
                 self.fuzzer.resume()
                 return
 
