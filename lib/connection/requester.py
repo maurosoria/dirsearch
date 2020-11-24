@@ -124,7 +124,13 @@ class Requester(object):
         self.randomAgents = None
         self.requestByHostname = requestByHostname
         self.session = requests.Session()
-        self.url = "{0}://{1}:{2}".format(self.protocol, self.host if self.requestByHostname else self.ip, self.port)
+        self.url = "{0}://{1}:{2}/{3}{4}".format(
+            self.protocol,
+            self.host if self.requestByHostname else self.ip,
+            self.port,
+            self.basePath,
+            "" if self.basePath.endswith("/") else "/"
+        )
 
     def setHeader(self, header, content):
         self.headers[header.strip()] = content.strip()
@@ -150,11 +156,6 @@ class Requester(object):
                         proxy = {"https": random.choice(self.proxylist), "http": random.choice(self.proxylist)}
                     elif self.proxy:
                         proxy = {"https": self.proxy, "http": self.proxy}
-
-                url = "{0}/{1}".format(self.url, self.basePath)
-
-                if not url.endswith("/"):
-                    url += "/"
 
                 url += path
 
