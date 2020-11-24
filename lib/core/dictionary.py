@@ -97,7 +97,7 @@ class Dictionary(object):
     def generate(self):
         reext = re.compile(r"\%ext\%", re.IGNORECASE).sub
         renoforce = re.compile(r"\%noforce\%", re.IGNORECASE).sub
-        reexclude = re.findall
+        find = re.findall
         custom = []
         result = []
 
@@ -123,15 +123,10 @@ class Dictionary(object):
 
                 # Skip if the path is containing excluded extensions
                 if len(self._excludeExtensions):
-                    matched = False
-
-                    for excludeExtension in self._excludeExtensions:
-                        if len(reexclude("." + excludeExtension, line)):
-                            matched = True
-                            break
-
-                    if matched:
-                        continue
+                    if any(
+                        [find("." + extension, line) for extension in self._excludeExtensions]
+                    ):
+                            continue
 
                 # Classic dirsearch wordlist processing (with %EXT% keyword)
                 if "%ext%" in line.lower():
@@ -178,7 +173,6 @@ class Dictionary(object):
 
         # Adding suffixes for finding backups etc
         if self._suffixes:
-            suff = None
             for res in list(dict.fromkeys(result)):
                 if not res.rstrip().endswith("/"):
                     for suff in self._suffixes:
