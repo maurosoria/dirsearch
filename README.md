@@ -559,6 +559,8 @@ Special thanks to these people:
 - @ColdFusionX
 - @gdattacker
 - @chowmean
+- @dodain
 - @TheBinitGhimire
+
 
 #### Want to join the team? Feel free to submit any pull request that you can. If you don't know how to code, you can support us by updating the wordlist or the documentation. Giving feedback or a new feature suggestion is also the good way to help us improve this tool
