@@ -53,6 +53,7 @@
 - [Alex Leahu](https://github.com/alxjsn)
 - [act1on3](https://github.com/act1on3)
 - [Isla Mukheef](https://github.com/IslaMukheef)
+- [Binit Ghimire](https://github.com/TheBinitGhimire)
 
 Special thanks for all the people who had helped dirsearch so far!
 
