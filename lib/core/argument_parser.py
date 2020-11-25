@@ -359,11 +359,15 @@ class ArgumentParser(object):
         configPath = FileUtils.build_path(self.script_path, "default.conf")
         config.read(configPath)
 
+        # Mandatory
+        self.defaultExtensions = config.safe_get("mandatory", "default-extensions", str())
+        self.excludeExtensions = config.safe_get("mandatory", "exclude-extensions", None)
+        self.forceExtensions = config.safe_getboolean("mandatory", "force-extensions", False)
+
         # General
         self.threadsCount = config.safe_getint(
             "general", "threads", 20, list(range(1, 300))
         )
-
         self.includeStatusCodes = config.safe_get("general", "include-status", None)
         self.excludeStatusCodes = config.safe_get("general", "exclude-status", None)
         self.excludeSizes = config.safe_get("general", "exclude-sizes", None)
@@ -371,15 +375,10 @@ class ArgumentParser(object):
         self.excludeRegexps = config.safe_get("general", "exclude-regexps", None)
         self.redirect = config.safe_getboolean("general", "follow-redirects", False)
         self.recursive = config.safe_getboolean("general", "recursive", False)
-        self.recursive_level_max = config.safe_getint(
-            "general", "recursive-level-max", 0
-        )
+        self.recursive_level_max = config.safe_getint("general", "recursive-level-max", 0)
         self.headerList = config.safe_get("general", "headers-file", None)
         self.testFailPath = config.safe_get("general", "calibration-path", "").strip()
         self.saveHome = config.safe_getboolean("general", "save-logs-home", False)
-        self.defaultExtensions = config.safe_get(
-            "general", "default-extensions", str()
-        )
         self.excludeSubdirs = config.safe_get("general", "exclude-subdirs", None)
         self.useRandomAgents = config.safe_get(
             "general", "random-user-agents", False
@@ -406,7 +405,6 @@ class ArgumentParser(object):
         self.lowercase = config.safe_getboolean("dictionary", "lowercase", False)
         self.uppercase = config.safe_getboolean("dictionary", "uppercase", False)
         self.capitalization = config.safe_getboolean("dictionary", "capitalization", False)
-        self.forceExtensions = config.safe_getboolean("dictionary", "force-extensions", False)
 
         # Connection
         self.delay = config.safe_getfloat("connection", "delay", 0)
@@ -439,8 +437,10 @@ information at https://github.com/maurosoria/dirsearch.''')
         mandatory.add_option('--cidr', help='Target CIDR', action='store', type='string', dest='cidr', default=None)
         mandatory.add_option('-e', '--extensions', help='Extension list separated by commas (Example: php,asp)',
                              action='store', dest='extensions', default=self.defaultExtensions)
-        mandatory.add_option('-X', '--exclude-extensions', action='store', dest='excludeExtensions', default=None,
+        mandatory.add_option('-X', '--exclude-extensions', action='store', dest='excludeExtensions', default=self.excludeExtensions,
                              help='Exclude extension list separated by commas (Example: asp,jsp)', metavar='EXTENSIONS')
+        mandatory.add_option('-f', '--force-extensions', action='store_true', dest='forceExtensions', default=self.forceExtensions,
+                              help='Force extensions to the end of every wordlist entry. By default dirsearch only replaces the %EXT% keyword with extensions')
 
         # Dictionary Settings
         dictionary = OptionGroup(parser, 'Dictionary Settings')
@@ -451,8 +451,6 @@ information at https://github.com/maurosoria/dirsearch.''')
                               help='Add custom prefixes to all entries (separated by commas)')
         dictionary.add_option('--suffixes', action='store', dest='suffixes', default=self.suffixes,
                               help='Add custom suffixes to all entries, ignore directories (separated by commas)')
-        dictionary.add_option('-f', '--force-extensions', action='store_true', dest='forceExtensions', default=self.forceExtensions,
-                              help='Force extensions for every wordlist entry')
         dictionary.add_option('--only-selected', dest='onlySelected', action='store_true',
                               help='Only entries with selected extensions or no extension + directories')
         dictionary.add_option('--remove-extensions', dest='noExtension', action='store_true',
