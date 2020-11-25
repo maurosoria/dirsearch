@@ -47,7 +47,6 @@ class Fuzzer(object):
         )
         self.delay = delay
         self.running = False
-        self.paused = True
         self.scanners = {}
         self.defaultScanner = None
         self.matchCallbacks = matchCallbacks
