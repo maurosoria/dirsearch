@@ -443,7 +443,7 @@ information at https://github.com/maurosoria/dirsearch.''')
         mandatory.add_option('-X', '--exclude-extensions', action='store', dest='excludeExtensions', default=self.excludeExtensions,
                              help='Exclude extension list separated by commas (Example: asp,jsp)', metavar='EXTENSIONS')
         mandatory.add_option('-f', '--force-extensions', action='store_true', dest='forceExtensions', default=self.forceExtensions,
-                              help='Add extensions to the end of every wordlist entry. By default dirsearch only replaces the %EXT% keyword with extensions')
+                             help='Add extensions to the end of every wordlist entry. By default dirsearch only replaces the %EXT% keyword with extensions')
 
         # Dictionary Settings
         dictionary = OptionGroup(parser, 'Dictionary Settings')
