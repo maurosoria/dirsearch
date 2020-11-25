@@ -141,7 +141,6 @@ class Controller(object):
         self.threadsLock = Lock()
         self.batch = False
         self.batchSession = None
-        self.accept429 = False
 
         self.output.header(program_banner)
         self.printConfig()
