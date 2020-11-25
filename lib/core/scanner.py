@@ -108,6 +108,9 @@ class Scanner(object):
             if re.match(self.redirectRegExp, response.redirect) is None:
                 return True
 
+        elif self.redirectRegExp or response.redirect:
+            return True
+
         ratio = self.dynamicParser.compareTo(response.body)
 
         if ratio >= self.ratio:
