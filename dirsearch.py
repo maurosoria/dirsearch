@@ -35,10 +35,10 @@ class Program(object):
 
         self.arguments = ArgumentParser(self.script_path)
 
-        if self.arguments.clean_view:
-            self.output = PrintOutput()
+        if self.arguments.quiet:
+            self.output = PrintOutput(self.arguments.color)
         else:
-            self.output = CLIOutput()
+            self.output = CLIOutput(self.arguments.color)
 
         self.controller = Controller(self.script_path, self.arguments, self.output)
 

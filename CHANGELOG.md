@@ -1,19 +1,27 @@
 # Changelog
 
 
-0.4.1 - Updating ...
+Updating ...
 ---------
 - Faster
-- Added no extension option
-- Removed the delay between test requests when using -s
-- Support wordlist formats (2 from v0.4.0)
-- Multiple bugfixes
+- Allow to brute force through a CIDR notation
+- Exclude responses by human readable sizes
+- Provide headers from a file
+- Match/filter status codes by ranges
 - Support SOCKS proxy
-- Option to stop whenever an error occurs
+- XML, Markdown and CSV report formats
+- Capital wordlist format
+- Option to replay proxy with found paths
+- Option to remove all extensions in the wordlist
+- Option to exit whenever an error occurs
+- Option to disable colored output
+- Debug mode
+- Several big updates
+- Multiple bugfixes
 
 ---------
 
-0.4.0 - 2020.09.26
+0.4.0 - 2020.09.27
 ---------
 - Exclude extensions argument added
 - No dot extensions option
@@ -27,7 +35,7 @@
 
 ---------
 
-0.3.9 - 2017.11.26
+0.3.9 - 2019.11.26
 ---------
 - Added default extensions argument (-E).
 - Added suppress empty responses.

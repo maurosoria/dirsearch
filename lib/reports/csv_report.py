@@ -16,17 +16,15 @@
 #
 #  Author: Mauro Soria
 
-from lib.reports import *
-from lib.utils.file_utils import FileUtils
-
 import time
 
+from lib.reports import *
 
-class PlainTextReport(TailableFileBaseReport):
+
+class CSVReport(FileBaseReport):
 
     def addPath(self, path, status, response):
         contentLength = None
-        location = None
 
         try:
             contentLength = int(response.headers["content-length"])
@@ -34,27 +32,18 @@ class PlainTextReport(TailableFileBaseReport):
         except (KeyError, ValueError):
             contentLength = len(response.body)
 
-        try:
-            location = response.headers["location"]
-        except(KeyError, ValueError):
-            pass
-
-        self.storeData((path, status, contentLength, location))
+        self.storeData((path, status, contentLength, response.redirect))
 
     def generate(self):
-        result = "Time: {0}\n\n".format(time.ctime())
+        result = "Time,URL,Status,Size,Redirection\n"
 
-        for path, status, contentLength, location in self.getPathIterator():
-            result += "{0}  ".format(status)
-            result += "{0}  ".format(FileUtils.size_human(contentLength).rjust(6, " "))
-            result += "{0}://{1}:{2}/".format(self.protocol, self.host, self.port)
-            result += (
-                "{0}".format(path)
-                if self.basePath == ""
-                else "{0}/{1}".format(self.basePath, path)
-            )
-            if location:
-                result += "    -> REDIRECTS TO: {0}".format(location)
+        for path, status, contentLength, redirect in self.pathList:
+            result += "{0},".format(time.ctime())
+            result += "{0}://{1}:{2}/{3}{4},".format(self.protocol, self.host, self.port, self.basePath, path)
+            result += "{0},".format(status)
+            result += "{0},".format(contentLength)
+            if redirect:
+                result += "{0}".format(redirect)
 
             result += "\n"
 

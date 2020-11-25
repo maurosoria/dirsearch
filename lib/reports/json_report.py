@@ -17,6 +17,7 @@
 #  Author: Mauro Soria
 
 import json
+import time
 
 from lib.reports import *
 
@@ -38,12 +39,12 @@ class JSONReport(FileBaseReport):
         headerName = "{0}://{1}:{2}/{3}".format(
             self.protocol, self.host, self.port, self.basePath
         )
-        result = {headerName: []}
+        result = {"time": time.ctime(), headerName: []}
 
         for path, status, contentLength, redirect in self.pathList:
             entry = {
                 "status": status,
-                "path": path,
+                "path": "/" + path,
                 "content-length": contentLength,
                 "redirect": redirect,
             }

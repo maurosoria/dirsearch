@@ -45,6 +45,8 @@ import chardet
 import warnings
 from .exceptions import RequestsDependencyWarning
 
+urllib3.disable_warnings()
+
 
 def check_compatibility(urllib3_version, chardet_version):
     urllib3_version = urllib3_version.split('.')
