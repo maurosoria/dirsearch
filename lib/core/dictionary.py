@@ -121,12 +121,12 @@ class Dictionary(object):
                 else:
                     noforce = False
 
-                # Skip if the path is containing excluded extensions
-                if len(self._excludeExtensions):
+                # Skip if the path contains excluded extensions
+                if self._excludeExtensions:
                     if any(
                         [find("." + extension, line) for extension in self._excludeExtensions]
                     ):
-                            continue
+                        continue
 
                 # Classic dirsearch wordlist processing (with %EXT% keyword)
                 if "%ext%" in line.lower():
