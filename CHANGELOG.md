@@ -8,6 +8,7 @@ Updating ...
 - Exclude responses by human readable sizes
 - Provide headers from a file
 - Match/filter status codes by ranges
+- Detect 429 response status code
 - Support SOCKS proxy
 - XML, Markdown and CSV report formats
 - Capital wordlist format
@@ -16,7 +17,6 @@ Updating ...
 - Option to exit whenever an error occurs
 - Option to disable colored output
 - Debug mode
-- Several big updates
 - Multiple bugfixes
 
 ---------

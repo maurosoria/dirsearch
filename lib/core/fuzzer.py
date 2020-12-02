@@ -108,6 +108,7 @@ class Fuzzer(object):
         self.dictionary.reset()
         self.runningThreadsCount = len(self.threads)
         self.running = True
+        self.paused = False
         self.playEvent = threading.Event()
         self.pausedSemaphore = threading.Semaphore(0)
         self.playEvent.clear()
@@ -122,10 +123,16 @@ class Fuzzer(object):
         self.playEvent.set()
 
     def pause(self):
+        self.paused = True
         self.playEvent.clear()
         for thread in self.threads:
             if thread.is_alive():
                 self.pausedSemaphore.acquire()
+
+    def resume(self):
+        self.paused = False
+        self.pausedSemaphore.release()
+        self.play()
 
     def stop(self):
         self.running = False
@@ -137,6 +144,9 @@ class Fuzzer(object):
         if self.getScannerFor(path).scan(path, response):
             result = None if response.status == 404 else response.status
         return result, response
+
+    def isPaused(self):
+        return self.paused
 
     def isRunning(self):
         return self.running
