@@ -489,9 +489,6 @@ Tips
 - Want to find only folders/directories? Combine `--no-extension` and `--suffixes /`!
 - The combination of `--cidr`, `-F` and `-q` will reduce most of the noise + false negatives when brute-forcing with a CIDR
 
-#### Alert
-- Don't use `-e *`, it won't replace `*` with all extensions as what you are thinking
-
 Support Docker
 ---------------
 ### Install Docker Linux
