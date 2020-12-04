@@ -115,7 +115,7 @@ class Scanner(object):
         if ratio >= self.ratio:
             return False
 
-        elif redirectToInvalid and ratio >= (self.ratio - 0.15):
+        elif "redirectToInvalid" in locals() and ratio >= (self.ratio - 0.15):
             return False
 
         return True
