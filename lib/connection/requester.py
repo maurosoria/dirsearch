@@ -114,12 +114,16 @@ class Requester(object):
         if useragent:
             self.setHeader("User-agent", useragent)
 
+        self.proxy = proxy
+        self.proxylist = proxylist
+
+        if self.proxy or self.proxylist:
+            self.setHeader("Proxy-Connection", "keep-alive")
+
         self.maxRetries = maxRetries
         self.maxPool = maxPool
         self.timeout = timeout
         self.pool = None
-        self.proxy = proxy
-        self.proxylist = proxylist
         self.redirect = redirect
         self.randomAgents = None
         self.requestByHostname = requestByHostname
