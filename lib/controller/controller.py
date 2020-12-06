@@ -246,7 +246,7 @@ class Controller(object):
     def printConfig(self):
 
         self.output.config(
-            ', '.join(self.arguments.extensions),
+            ', '.join(self.dictionary._extensions),
             ', '.join(self.arguments.prefixes),
             ', '.join(self.arguments.suffixes),
             str(self.arguments.threadsCount),
