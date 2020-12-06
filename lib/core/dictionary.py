@@ -55,6 +55,13 @@ class Dictionary(object):
         self.uppercase = uppercase
         self.capitalization = capitalization
         self.dictionaryFiles = [File(path) for path in self.paths]
+
+        # Check if dictionaries don't use dirsearch classic extensions (with %EXT%)
+        if "%ext%" not in "".join(
+            [dictFile.read().lower() for dictFile in self.dictionaryFiles]
+        ) and not forcedExtensions:
+            self._extensions = [""]
+
         self.generate()
 
     @property
@@ -111,6 +118,7 @@ class Dictionary(object):
                 if line.startswith("/"):
                     line = line[1:]
 
+                # Remove extensions after the first character to keep the dot files
                 if self._noExtension:
                     line = line[0] + line[1:].split(".")[0]
 
