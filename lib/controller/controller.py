@@ -141,6 +141,7 @@ class Controller(object):
         self.threadsLock = Lock()
         self.batch = False
         self.batchSession = None
+        self.got429 = False
 
         self.output.header(program_banner)
         self.printConfig()
@@ -163,7 +164,7 @@ class Controller(object):
                     self.reportManager = ReportManager()
                     self.currentUrl = url
                     self.output.setTarget(self.currentUrl)
-                    self.accept429 = False
+                    self.ignore429 = False
 
                     try:
                         self.requester = Requester(
@@ -497,7 +498,7 @@ class Controller(object):
         if path.status:
 
             if path.status == 429:
-                if self.accept429:
+                if self.ignore429:
                     return
                 else:
                     self.handle429()
@@ -589,7 +590,7 @@ class Controller(object):
     def handle429(self):
         self.output.warning("429 Too Many Requests detected: Server is blocking requests")
         # Assumes you will either accept the 429 codes or exit
-        self.accept429 = True
+        self.got429 = True
         self.fuzzer.pause()
 
     def handlePause(self):
@@ -599,12 +600,21 @@ class Controller(object):
             if not self.directories.empty():
                 msg += " / [n]ext"
 
+            if self.got429:
+                msg += " / [i]gnore"
+
             if len(self.urlList) > 1:
                 msg += " / [s]kip target"
 
             self.output.inLine(msg + ": ")
 
             option = input()
+
+            if self.got429:
+                self.got429 = False
+
+                if option.lower() == "i":
+                    self.ignore429 = True
 
             if option.lower() == "e":
                 self.exit = True
@@ -616,11 +626,11 @@ class Controller(object):
                 self.fuzzer.resume()
                 return
 
-            elif not self.directories.empty() and option.lower() == "n":
+            elif option.lower() == "n" and not self.directories.empty():
                 self.fuzzer.stop()
                 return
 
-            elif len(self.urlList) > 1 and option.lower() == "s":
+            elif option.lower() == "s" and len(self.urlList) > 1:
                 raise SkipTargetInterrupt
 
             else:
