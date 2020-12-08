@@ -504,15 +504,15 @@ curl -fsSL https://get.docker.com | bash
 To create image
 
 ```sh
-docker build -t "dirsearch:v0.4.0" .
+docker build -t "dirsearch:v0.4.1" .
 ```
 
-> **dirsearch** is the name of the image and **v0.4.0** is the version
+> **dirsearch** is the name of the image and **v0.4.1** is the version
 
 ### Using dirsearch
 For using
 ```sh
-docker run -it --rm "dirsearch:v0.4.0" -u target -e php,html,js,zip
+docker run -it --rm "dirsearch:v0.4.1" -u target -e php,html,js,zip
 ```
 
 
