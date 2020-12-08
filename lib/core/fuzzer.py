@@ -142,7 +142,7 @@ class Fuzzer(object):
         response = self.requester.request(path)
         result = None
         if self.getScannerFor(path).scan(path, response):
-            result = None if response.status == 404 else response.status
+            result = response.status
         return result, response
 
     def isPaused(self):
