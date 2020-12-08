@@ -1314,7 +1314,9 @@
 .zshrc
 .zuul.yaml
 .zuul.yml
-/show_image_NpAdvCatPG.php?cache=false&cat=1&filename=
+_fragment
+_internal
+_proxy
 0
 0.htpasswd
 0.php
@@ -7659,6 +7661,7 @@ show_image_NpAdvSubFea.php?cache=false&cat=1&filename=
 showadmin
 showallsites
 showcode.asp
+show_image_NpAdvCatPG.php?cache=false&cat=1&filename=
 showgroups.%EXT%
 showlogin/
 showpost.%EXT%
