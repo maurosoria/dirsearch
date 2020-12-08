@@ -143,38 +143,36 @@ Options:
     -X EXTENSIONS, --exclude-extensions=EXTENSIONS
                         Exclude extension list separated by commas (Example:
                         asp,jsp)
+    -f, --force-extensions
+                        Add extensions to the end of every wordlist entry. By
+                        default dirsearch only replaces the %EXT% keyword with
+                        extensions
 
   Dictionary Settings:
-    -w WORDLIST, --wordlist=WORDLIST
-                        Customize wordlist (separated by commas)
+    -w WORDLIST, --wordlists=WORDLIST
+                        Customize wordlists (separated by commas)
     --prefixes=PREFIXES
                         Add custom prefixes to all entries (separated by
                         commas)
     --suffixes=SUFFIXES
-                        Add custom suffixes to all entries, ignores
-                        directories (separated by commas)
-    -f, --force-extensions
-                        Force extensions for every wordlist entry
+                        Add custom suffixes to all entries, ignore directories
+                        (separated by commas)
     --only-selected     Only entries with selected extensions or no extension
                         + directories
     --remove-extensions
                         Remove extensions in all wordlist entries (Example:
                         admin.php -> admin)
-    --no-dot-extensions
-                        Remove the "." character before extensions
     -U, --uppercase     Uppercase wordlist
     -L, --lowercase     Lowercase wordlist
     -C, --capital       Capital wordlist
 
   General Settings:
     -r, --recursive     Bruteforce recursively
-    -R DEPTH, --recursion-depth=DEPTH
-                        Max recursion depth (subdirs) (Default: 0 [infinity])
+    -R DEPTH, --recursion-max-depth=DEPTH
+                        Maximum recursion depth
     -t THREADS, --threads=THREADS
                         Number of threads
-    -d DATA, --data=DATA
-                        HTTP request data
-    --subdirs=SUBDIRS   Scan subdirectories of the given URL[s] (separated by
+    --subdirs=SUBDIRS   Scan sub-directories of the given URL[s] (separated by
                         commas)
     --exclude-subdirs=SUBDIRS
                         Exclude the following subdirectories during recursive
@@ -194,40 +192,45 @@ Options:
     --exclude-regexps=REGEXPS
                         Exclude responses by regexps, separated by commas
                         (Example: "Not foun[a-z]{1}", "^Error$")
-    -H HEADERS, --header=HEADERS
-                        HTTP request header, support multiple flags (Example:
-                        -H "Referer: example.com" -H "Accept: */*")
-    --header-list=FILE  File contains HTTP request headers
+    --calibration=PATH  Path to test for calibration
     --random-user-agent
                         Choose a random User-Agent for each request
     --minimal=LENGTH    Minimal response length
     --maximal=LENGTH    Maximal response length
-    -F, --follow-redirects
-                        Follow HTTP redirects
-    -q, --quiet-mode
-    --user-agent=USERAGENT
-    --cookie=COOKIE
+    -q, --quiet-mode    Quiet mode
     --full-url          Print full URLs in the output
     --no-color          No colored output
+
+  Request Settings:
+    -m METHOD, --http-method=METHOD
+                        HTTP method (default: GET)
+    -d DATA, --data=DATA
+                        HTTP request data
+    -H HEADERS, --header=HEADERS
+                        HTTP request header, support multiple flags (Example:
+                        -H "Referer: example.com" -H "Accept: */*")
+    --header-list=FILE  File contains HTTP request headers
+    -F, --follow-redirects
+                        Follow HTTP redirects
+    --user-agent=USERAGENT
+    --cookie=COOKIE
 
   Connection Settings:
     --timeout=TIMEOUT   Connection timeout
     --ip=IP             Server IP address
     -s DELAY, --delay=DELAY
                         Delay between requests
-    --proxy=PROXY       Proxy URL, support HTTP and SOCKS proxy (Example:
+    --proxy=PROXY       Proxy URL, support HTTP and SOCKS proxies (Example:
                         localhost:8080, socks5://localhost:8088)
     --proxy-list=FILE   File contains proxy servers
     --matches-proxy=PROXY
-                        Proxy to replay with found paths (matched responses)
-    -m METHOD, --http-method=METHOD
-                        HTTP method (default: GET)
+                        Proxy to replay with found paths
     --max-retries=RETRIES
     -b, --request-by-hostname
                         By default dirsearch requests by IP for speed. This
                         will force requests by hostname
     --exit-on-error     Exit whenever an error occurs
-    --debug
+    --debug             Debug mode
 
   Reports:
     --simple-report=OUTPUTFILE

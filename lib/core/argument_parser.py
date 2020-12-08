@@ -363,32 +363,28 @@ class ArgumentParser(object):
         configPath = FileUtils.build_path(self.script_path, "default.conf")
         config.read(configPath)
 
+        # Mandatory
+        self.defaultExtensions = config.safe_get("mandatory", "default-extensions", str())
+        self.excludeExtensions = config.safe_get("mandatory", "exclude-extensions", None)
+        self.forceExtensions = config.safe_getboolean("mandatory", "force-extensions", False)
+
         # General
         self.threadsCount = config.safe_getint(
             "general", "threads", 20, list(range(1, 300))
         )
-
         self.includeStatusCodes = config.safe_get("general", "include-status", None)
         self.excludeStatusCodes = config.safe_get("general", "exclude-status", None)
         self.excludeSizes = config.safe_get("general", "exclude-sizes", None)
         self.excludeTexts = config.safe_get("general", "exclude-texts", None)
         self.excludeRegexps = config.safe_get("general", "exclude-regexps", None)
-        self.redirect = config.safe_getboolean("general", "follow-redirects", False)
         self.recursive = config.safe_getboolean("general", "recursive", False)
-        self.recursive_level_max = config.safe_getint(
-            "general", "recursive-level-max", 0
-        )
-        self.headerList = config.safe_get("general", "headers-file", None)
+        self.recursive_level_max = config.safe_getint("general", "recursive-level-max", 0)
         self.testFailPath = config.safe_get("general", "calibration-path", "").strip()
         self.saveHome = config.safe_getboolean("general", "save-logs-home", False)
-        self.defaultExtensions = config.safe_get(
-            "general", "default-extensions", str()
-        )
         self.excludeSubdirs = config.safe_get("general", "exclude-subdirs", None)
         self.useRandomAgents = config.safe_get(
             "general", "random-user-agents", False
         )
-        self.useragent = config.safe_get("general", "user-agent", None)
         self.full_url = config.safe_getboolean("general", "full-url", False)
         self.color = config.safe_getboolean("general", "color", True)
         self.quiet = config.safe_getboolean("general", "quiet-mode", False)
@@ -410,7 +406,15 @@ class ArgumentParser(object):
         self.lowercase = config.safe_getboolean("dictionary", "lowercase", False)
         self.uppercase = config.safe_getboolean("dictionary", "uppercase", False)
         self.capitalization = config.safe_getboolean("dictionary", "capitalization", False)
-        self.forceExtensions = config.safe_getboolean("dictionary", "force-extensions", False)
+
+        # Request
+        self.httpmethod = config.safe_get(
+            "request", "httpmethod", "get", ["get", "head", "post", "put", "patch", "delete", "trace", "options", "debug", "connect"]
+        )
+        self.headerList = config.safe_get("request", "headers-file", None)
+        self.redirect = config.safe_getboolean("request", "follow-redirects", False)
+        self.useragent = config.safe_get("request", "user-agent", None)
+        self.cookie = config.safe_get("request", "cookie", None)
 
         # Connection
         self.delay = config.safe_getfloat("connection", "delay", 0)
@@ -419,9 +423,6 @@ class ArgumentParser(object):
         self.proxy = config.safe_get("connection", "proxy", None)
         self.proxylist = config.safe_get("connection", "proxy-list", None)
         self.matches_proxy = config.safe_get("connection", "matches-proxy", None)
-        self.httpmethod = config.safe_get(
-            "connection", "httpmethod", "get", ["get", "head", "post", "put", "patch", "delete", "trace", "options", "debug", "connect"]
-        )
         self.requestByHostname = config.safe_getboolean(
             "connection", "request-by-hostname", False
         )
@@ -443,8 +444,10 @@ information at https://github.com/maurosoria/dirsearch.''')
         mandatory.add_option('--cidr', help='Target CIDR', action='store', type='string', dest='cidr', default=None)
         mandatory.add_option('-e', '--extensions', help='Extension list separated by commas (Example: php,asp)',
                              action='store', dest='extensions', default=self.defaultExtensions)
-        mandatory.add_option('-X', '--exclude-extensions', action='store', dest='excludeExtensions', default=None,
+        mandatory.add_option('-X', '--exclude-extensions', action='store', dest='excludeExtensions', default=self.excludeExtensions,
                              help='Exclude extension list separated by commas (Example: asp,jsp)', metavar='EXTENSIONS')
+        mandatory.add_option('-f', '--force-extensions', action='store_true', dest='forceExtensions', default=self.forceExtensions,
+                             help='Add extensions to the end of every wordlist entry. By default dirsearch only replaces the %EXT% keyword with extensions')
 
         # Dictionary Settings
         dictionary = OptionGroup(parser, 'Dictionary Settings')
@@ -455,8 +458,6 @@ information at https://github.com/maurosoria/dirsearch.''')
                               help='Add custom prefixes to all entries (separated by commas)')
         dictionary.add_option('--suffixes', action='store', dest='suffixes', default=self.suffixes,
                               help='Add custom suffixes to all entries, ignore directories (separated by commas)')
-        dictionary.add_option('-f', '--force-extensions', action='store_true', dest='forceExtensions', default=self.forceExtensions,
-                              help='Force extensions for every wordlist entry')
         dictionary.add_option('--only-selected', dest='onlySelected', action='store_true',
                               help='Only entries with selected extensions or no extension + directories')
         dictionary.add_option('--remove-extensions', dest='noExtension', action='store_true',
@@ -476,8 +477,6 @@ information at https://github.com/maurosoria/dirsearch.''')
                            type='int', dest='recursive_level_max', default=self.recursive_level_max, metavar='DEPTH')
         general.add_option('-t', '--threads', help='Number of threads', action='store', type='int', dest='threadsCount',
                            default=self.threadsCount, metavar='THREADS')
-        general.add_option('-d', '--data', help='HTTP request data', action='store', dest='data',
-                           type='str', default=None)
         general.add_option('--subdirs', help='Scan sub-directories of the given URL[s] (separated by commas)', action='store',
                            dest='scanSubdirs', default=None, metavar='SUBDIRS')
         general.add_option('--exclude-subdirs', help='Exclude the following subdirectories during recursive scan (separated by commas)',
@@ -492,10 +491,6 @@ information at https://github.com/maurosoria/dirsearch.''')
                            action='store', dest='excludeTexts', default=self.excludeTexts, metavar='TEXTS')
         general.add_option('--exclude-regexps', help='Exclude responses by regexps, separated by commas (Example: "Not foun[a-z]{1}", "^Error$")',
                            action='store', dest='excludeRegexps', default=self.excludeRegexps, metavar='REGEXPS')
-        general.add_option('-H', '--header', help='HTTP request header, support multiple flags (Example: -H "Referer: example.com" -H "Accept: */*")',
-                           action='append', type='string', dest='headers', default=None)
-        general.add_option('--header-list', help='File contains HTTP request headers', type='string',
-                           dest='headerList', default=self.headerList, metavar='FILE')
         general.add_option('--calibration', help='Path to test for calibration', action='store',
                            dest='testFailPath', default=self.testFailPath, metavar='PATH')
         general.add_option('--random-user-agent', help='Choose a random User-Agent for each request',
@@ -504,17 +499,28 @@ information at https://github.com/maurosoria/dirsearch.''')
                            help='Minimal response length', metavar='LENGTH')
         general.add_option('--maximal', action='store', dest='maximumResponseSize', type='int', default=None,
                            help='Maximal response length', metavar='LENGTH')
-        general.add_option('-F', '--follow-redirects', help='Follow HTTP redirects',
-                           action='store_true', dest='followRedirects', default=self.redirect)
-        general.add_option('--user-agent', action='store', type='string', dest='useragent',
-                           default=self.useragent)
-        general.add_option('--cookie', action='store', type='string', dest='cookie', default=None)
         general.add_option('-q', '--quiet-mode', action='store_true', dest='quiet',
                            help='Quiet mode', default=self.quiet)
         general.add_option('--full-url', action='store_true', dest='full_url',
                            help='Print full URLs in the output', default=self.full_url)
         general.add_option('--no-color', help='No colored output', action='store_false',
                            dest='color', default=self.color)
+
+        # Request Settings
+        request = OptionGroup(parser, 'Request Settings')
+        request.add_option('-m', '--http-method', action='store', dest='httpmethod', type='string',
+                           default=self.httpmethod, help='HTTP method (default: GET)', metavar='METHOD')
+        request.add_option('-d', '--data', help='HTTP request data', action='store', dest='data',
+                           type='str', default=None)
+        request.add_option('-H', '--header', help='HTTP request header, support multiple flags (Example: -H "Referer: example.com" -H "Accept: */*")',
+                           action='append', type='string', dest='headers', default=None)
+        request.add_option('--header-list', help='File contains HTTP request headers', type='string',
+                           dest='headerList', default=self.headerList, metavar='FILE')
+        request.add_option('-F', '--follow-redirects', help='Follow HTTP redirects',
+                           action='store_true', dest='followRedirects', default=self.redirect)
+        request.add_option('--user-agent', action='store', type='string', dest='useragent',
+                           default=self.useragent)
+        request.add_option('--cookie', action='store', type='string', dest='cookie', default=self.cookie)
 
         # Connection Settings
         connection = OptionGroup(parser, 'Connection Settings')
@@ -530,8 +536,6 @@ information at https://github.com/maurosoria/dirsearch.''')
                               default=self.proxylist, help='File contains proxy servers', metavar='FILE')
         connection.add_option('--matches-proxy', action='store', dest='matches_proxy', type='string', default=self.matches_proxy,
                               help='Proxy to replay with found paths', metavar='PROXY')
-        connection.add_option('-m', '--http-method', action='store', dest='httpmethod', type='string',
-                              default=self.httpmethod, help='HTTP method (default: GET)', metavar='METHOD')
         connection.add_option('--max-retries', action='store', dest='maxRetries', type='int',
                               default=self.maxRetries, metavar='RETRIES')
         connection.add_option('-b', '--request-by-hostname',
@@ -554,6 +558,7 @@ information at https://github.com/maurosoria/dirsearch.''')
         parser.add_option_group(mandatory)
         parser.add_option_group(dictionary)
         parser.add_option_group(general)
+        parser.add_option_group(request)
         parser.add_option_group(connection)
         parser.add_option_group(reports)
         options, arguments = parser.parse_args()
