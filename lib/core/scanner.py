@@ -104,8 +104,10 @@ class Scanner(object):
             return True
 
         if self.redirectRegExp and response.redirect:
+            redirectToInvalid = re.match(self.redirectRegExp, response.redirect)
+
             # If redirection doesn't match the rule, mark as found
-            if re.match(self.redirectRegExp, response.redirect) is None:
+            if redirectToInvalid is None:
                 return True
 
         ratio = self.dynamicParser.compareTo(response.body)
@@ -113,7 +115,7 @@ class Scanner(object):
         if ratio >= self.ratio:
             return False
 
-        elif redirectToInvalid and ratio >= (self.ratio - 0.15):
+        elif "redirectToInvalid" in locals() and ratio >= (self.ratio - 0.15):
             return False
 
         return True
