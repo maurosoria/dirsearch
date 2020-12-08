@@ -1,7 +1,6 @@
 # Changelog
 
-
-Updating ...
+v0.4.1 (2020.12.8)
 ---------
 - Faster
 - Allow to brute force through a CIDR notation
