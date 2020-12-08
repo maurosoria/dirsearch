@@ -19,7 +19,6 @@
 import http.client
 import random
 import socket
-import time
 import urllib.parse
 
 import thirdparty.requests as requests
@@ -43,7 +42,6 @@ class Requester(object):
         useragent=None,
         maxPool=1,
         maxRetries=5,
-        delay=0,
         timeout=20,
         ip=None,
         proxy=None,
@@ -56,27 +54,31 @@ class Requester(object):
         self.httpmethod = httpmethod
         self.data = data
 
-        # if no backslash, append one
+        # If no backslash, append one
         if not url.endswith("/"):
             url += "/"
 
         parsed = urllib.parse.urlparse(url)
 
-        self.basePath = parsed.path.lstrip("/")
-
         # If no protocol specified, set http by default
-        if not parsed.scheme:
+        if "://" not in url:
             parsed = urllib.parse.urlparse("http://" + url)
 
         # If protocol is not supported
         elif parsed.scheme not in ["https", "http"]:
             raise RequestException({"message": "Unsupported URL scheme: {0}".format(parsed.scheme)})
 
-        self.basePath = parsed.path
+        if parsed.path.startswith("/"):
+            self.basePath = parsed.path[1:]
+        else:
+            self.basePath = parsed.path
+
+        # Safe quote all special characters in basePath to prevent from being encoded when performing requests
+        self.basePath = urllib.parse.quote(self.basePath, safe="!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~")
         self.protocol = parsed.scheme
         self.host = parsed.netloc.split(":")[0]
 
-        # resolve DNS to decrease overhead
+        # Resolve DNS to decrease overhead
         if ip:
             self.ip = ip
         else:
@@ -114,7 +116,6 @@ class Requester(object):
 
         self.maxRetries = maxRetries
         self.maxPool = maxPool
-        self.delay = delay
         self.timeout = timeout
         self.pool = None
         self.proxy = proxy
@@ -123,7 +124,13 @@ class Requester(object):
         self.randomAgents = None
         self.requestByHostname = requestByHostname
         self.session = requests.Session()
-        self.url = "{0}://{1}:{2}".format(self.protocol, self.host if self.requestByHostname else self.ip, self.port)
+        self.url = "{0}://{1}:{2}{3}{4}".format(
+            self.protocol,
+            self.host if self.requestByHostname else self.ip,
+            self.port,
+            self.basePath,
+            "" if self.basePath.endswith("/") else "/"
+        )
 
     def setHeader(self, header, content):
         self.headers[header.strip()] = content.strip()
@@ -134,7 +141,7 @@ class Requester(object):
     def unsetRandomAgents(self):
         self.randomAgents = None
 
-    def request(self, path, nodelay=False, proxy=None):
+    def request(self, path, proxy=None):
         i = 0
         result = None
 
@@ -150,12 +157,7 @@ class Requester(object):
                     elif self.proxy:
                         proxy = {"https": self.proxy, "http": self.proxy}
 
-                url = "{0}/{1}".format(self.url, self.basePath).rstrip("/")
-
-                if not url.endswith("/"):
-                    url += "/"
-
-                url += path
+                url = self.url + path
 
                 if self.randomAgents:
                     self.headers["User-agent"] = random.choice(self.randomAgents)
@@ -177,9 +179,6 @@ class Requester(object):
                     response.headers,
                     response.content,
                 )
-
-                if not nodelay:
-                    time.sleep(self.delay)
 
                 break
 

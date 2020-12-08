@@ -21,7 +21,7 @@ import threading
 import urllib.parse
 
 from lib.utils.file_utils import *
-from thirdparty.colorama import *
+from thirdparty.colorama import init, Fore, Style
 
 if sys.platform in ["win32", "msys"]:
     from thirdparty.colorama.win32 import *
@@ -78,7 +78,7 @@ class PrintOutput(object):
         finally:
             contentLength = FileUtils.size_human(size)
 
-        showPath = "/" + self.basePath.lstrip("/") + path
+        showPath = "/" + self.basePath + path
 
         parsed = urllib.parse.urlparse(self.target)
         showPath = "{0}://{1}{2}".format(parsed.scheme, parsed.netloc, showPath)
