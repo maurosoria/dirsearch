@@ -639,7 +639,7 @@ class Controller(object):
                 while not self.fuzzer.wait(0.3):
                     if self.fuzzer.isPaused():
                         self.handlePause()
-                    elif self.got429 and not self.ignore429:
+                    if self.got429 and not self.ignore429:
                         self.handle429()
                     continue
                 break
