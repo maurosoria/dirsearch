@@ -581,15 +581,15 @@ class Controller(object):
             self.errorLog.write(os.linesep + line)
             self.errorLog.flush()
 
-    def handleInterrupt(self):
-        self.output.warning("CTRL+C detected: Pausing threads, please wait...")
+    def handlePause(self, message):
+        self.output.warning(message)
         self.fuzzer.pause()
 
-    def handle429(self):
-        self.output.warning("429 Too Many Requests detected: Server is blocking requests")
-        self.fuzzer.pause()
+        while 1:
+            if self.fuzzer.stopped == len(self.fuzzer.threads):
+                self.fuzzer.stopped = 0
+                break
 
-    def handlePause(self):
         while True:
             msg = "[e]xit / [c]ontinue"
 
@@ -637,14 +637,12 @@ class Controller(object):
         while True:
             try:
                 while not self.fuzzer.wait(0.3):
-                    if self.fuzzer.isPaused():
-                        self.handlePause()
-                    if self.got429 and not self.ignore429:
-                        self.handle429()
+                    if not self.ignore429 and self.got429:
+                        self.handlePause("429 Response code detected: Server is blocking requests...")
                     continue
                 break
             except (KeyboardInterrupt):
-                self.handleInterrupt()
+                self.handlePause("CTRL+C detected: Pausing threads, please wait...")
 
     def wait(self):
         while not self.directories.empty():
