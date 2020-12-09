@@ -141,7 +141,7 @@ class Fuzzer(object):
     def scan(self, path):
         response = self.requester.request(path)
         result = None
-        if self.getScannerFor(path).scan(path, response):
+        if response.status != 404 and self.getScannerFor(path).scan(path, response):
             result = response.status
         return result, response
 
