@@ -128,7 +128,7 @@ class Requester(object):
             self.protocol,
             self.host if self.requestByHostname else self.ip,
             self.port,
-            self.basePath,
+            self.basePath if self.basePath.startswith("/") else self.basePath[-1:],
             "" if self.basePath.endswith("/") else "/"
         )
 
