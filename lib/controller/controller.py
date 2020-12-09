@@ -498,10 +498,8 @@ class Controller(object):
         if path.status:
 
             if path.status == 429:
-                if self.ignore429:
-                    return
-                else:
-                    self.handle429()
+                self.got429 = True
+                return
 
             if path.status not in self.excludeStatusCodes and (
                     not self.includeStatusCodes or path.status in self.includeStatusCodes
@@ -589,8 +587,6 @@ class Controller(object):
 
     def handle429(self):
         self.output.warning("429 Too Many Requests detected: Server is blocking requests")
-        # Assumes you will either accept the 429 codes or exit
-        self.got429 = True
         self.fuzzer.pause()
 
     def handlePause(self):
@@ -643,6 +639,8 @@ class Controller(object):
                 while not self.fuzzer.wait(0.3):
                     if self.fuzzer.isPaused():
                         self.handlePause()
+                    elif self.got429 and not self.ignore429:
+                        self.handle429()
                     continue
                 break
             except (KeyboardInterrupt):
