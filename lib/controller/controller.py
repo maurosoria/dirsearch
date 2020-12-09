@@ -596,7 +596,7 @@ class Controller(object):
             if not self.directories.empty():
                 msg += " / [n]ext"
 
-            if self.got429:
+            if self.got429 and not self.ignore429:
                 msg += " / [i]gnore"
 
             if len(self.urlList) > 1:
