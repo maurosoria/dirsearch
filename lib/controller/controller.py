@@ -612,9 +612,10 @@ class Controller(object):
 
             if self.got429:
                 self.got429 = False
-
                 if option.lower() == "i":
                     self.ignore429 = True
+                    self.fuzzer.resume()
+                    return
 
             if option.lower() == "e":
                 self.exit = True
