@@ -47,6 +47,7 @@ class Fuzzer(object):
         )
         self.delay = delay
         self.running = False
+        self.stopped = 0
         self.scanners = {}
         self.defaultScanner = None
         self.matchCallbacks = matchCallbacks
@@ -189,6 +190,7 @@ class Fuzzer(object):
 
                 finally:
                     if not self.playEvent.isSet():
+                        self.stopped += 1
                         self.pausedSemaphore.release()
                         self.playEvent.wait()
 
