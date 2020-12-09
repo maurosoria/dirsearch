@@ -97,9 +97,6 @@ class Scanner(object):
         return regexp
 
     def scan(self, path, response):
-        if self.invalidStatus == response.status == 404:
-            return False
-
         if self.invalidStatus != response.status:
             return True
 
