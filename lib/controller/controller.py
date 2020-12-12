@@ -536,7 +536,7 @@ class Controller(object):
                         if subdir == path.path + "/":
                             pathIsInScanSubdirs = True
 
-                if not self.recursive and not pathIsInScanSubdirs and "?" not in path.path:
+                if self.recursive and not pathIsInScanSubdirs and "?" not in path.path:
                     if path.response.redirect:
                         addedToQueue = self.addRedirectDirectory(path)
 
