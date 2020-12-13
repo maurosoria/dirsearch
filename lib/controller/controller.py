@@ -495,66 +495,66 @@ class Controller(object):
     def matchCallback(self, path):
         self.index += 1
 
-        if path.status:
+        if path.status == 429 and 429 not in self.excludeStatusCodes:
+            self.got429 = True
+            return
 
-            if path.status == 429:
-                self.got429 = True
-                return
+        if (
+                path.status and path.status not in self.excludeStatusCodes
+        ) and (
+                not self.includeStatusCodes or path.status in self.includeStatusCodes
+        ) and (
+                not self.blacklists.get(path.status) or path.path not in self.blacklists.get(path.status)
+        ) and (
+                not self.excludeSizes or FileUtils.size_human(len(path.response.body)).strip() not in self.excludeSizes
+        ) and (
+                not self.minimumResponseSize or self.minimumResponseSize < len(path.response.body)
+        ) and (
+                not self.maximumResponseSize or self.maximumResponseSize > len(path.response.body)
+        ):
 
-            if path.status not in self.excludeStatusCodes and (
-                    not self.includeStatusCodes or path.status in self.includeStatusCodes
-            ) and (
-                    not self.blacklists.get(path.status) or path.path not in self.blacklists.get(path.status)
-            ) and (
-                    not self.excludeSizes or FileUtils.size_human(len(path.response.body)).strip() not in self.excludeSizes
-            ) and (
-                    not self.minimumResponseSize or self.minimumResponseSize < len(path.response.body)
-            ) and (
-                    not self.maximumResponseSize or self.maximumResponseSize > len(path.response.body)
-            ):
+            for excludeText in self.excludeTexts:
+                if excludeText in path.response.body.decode('iso8859-1'):
+                    del path
+                    return
 
-                for excludeText in self.excludeTexts:
-                    if excludeText in path.response.body.decode('iso8859-1'):
-                        del path
-                        return
+            for excludeRegexp in self.excludeRegexps:
+                if (
+                    re.search(excludeRegexp, path.response.body.decode('iso8859-1'))
+                    is not None
+                ):
+                    del path
+                    return
 
-                for excludeRegexp in self.excludeRegexps:
-                    if (
-                        re.search(excludeRegexp, path.response.body.decode('iso8859-1'))
-                        is not None
-                    ):
-                        del path
-                        return
+            pathIsInScanSubdirs = False
+            addedToQueue = False
 
-                pathIsInScanSubdirs = False
-                addedToQueue = False
+            if self.scanSubdirs:
+                for subdir in self.scanSubdirs:
+                    if subdir == path.path + "/":
+                        pathIsInScanSubdirs = True
 
-                if self.scanSubdirs:
-                    for subdir in self.scanSubdirs:
-                        if subdir == path.path + "/":
-                            pathIsInScanSubdirs = True
+            if not self.recursive and not pathIsInScanSubdirs and "?" not in path.path:
+                if path.response.redirect:
+                    addedToQueue = self.addRedirectDirectory(path)
 
-                if not self.recursive and not pathIsInScanSubdirs and "?" not in path.path:
-                    if path.response.redirect:
-                        addedToQueue = self.addRedirectDirectory(path)
+                else:
+                    addedToQueue = self.addDirectory(path.path)
 
-                    else:
-                        addedToQueue = self.addDirectory(path.path)
+            self.output.statusReport(
+                path.path, path.response, self.arguments.full_url, addedToQueue
+            )
 
-                self.output.statusReport(
-                    path.path, path.response, self.arguments.full_url, addedToQueue
-                )
+            if self.arguments.matches_proxy:
+                self.requester.request(path.path, proxy=self.arguments.matches_proxy)
 
-                if self.arguments.matches_proxy:
-                    self.requester.request(path.path, proxy=self.arguments.matches_proxy)
+            newPath = "{}{}".format(self.currentDirectory, path.path)
 
-                newPath = "{}{}".format(self.currentDirectory, path.path)
+            self.reportManager.addPath(newPath, path.status, path.response)
 
-                self.reportManager.addPath(newPath, path.status, path.response)
+            self.reportManager.save()
 
-                self.reportManager.save()
-
-                del path
+            del path
 
     def notFoundCallback(self, path):
         self.index += 1
