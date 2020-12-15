@@ -495,68 +495,66 @@ class Controller(object):
     def matchCallback(self, path):
         self.index += 1
 
-        if path.status:
+        if path.status == 429:
+            self.got429 = True
+            return
 
-            if path.status == 429:
-                if self.ignore429:
+        if (
+                path.status and path.status not in self.excludeStatusCodes
+        ) and (
+                not self.includeStatusCodes or path.status in self.includeStatusCodes
+        ) and (
+                not self.blacklists.get(path.status) or path.path not in self.blacklists.get(path.status)
+        ) and (
+                not self.excludeSizes or FileUtils.size_human(len(path.response.body)).strip() not in self.excludeSizes
+        ) and (
+                not self.minimumResponseSize or self.minimumResponseSize < len(path.response.body)
+        ) and (
+                not self.maximumResponseSize or self.maximumResponseSize > len(path.response.body)
+        ):
+
+            for excludeText in self.excludeTexts:
+                if excludeText in path.response.body.decode('iso8859-1'):
+                    del path
                     return
+
+            for excludeRegexp in self.excludeRegexps:
+                if (
+                    re.search(excludeRegexp, path.response.body.decode('iso8859-1'))
+                    is not None
+                ):
+                    del path
+                    return
+
+            pathIsInScanSubdirs = False
+            addedToQueue = False
+
+            if self.scanSubdirs:
+                for subdir in self.scanSubdirs:
+                    if subdir == path.path + "/":
+                        pathIsInScanSubdirs = True
+
+            if not self.recursive and not pathIsInScanSubdirs and "?" not in path.path:
+                if path.response.redirect:
+                    addedToQueue = self.addRedirectDirectory(path)
+
                 else:
-                    self.handle429()
+                    addedToQueue = self.addDirectory(path.path)
 
-            if path.status not in self.excludeStatusCodes and (
-                    not self.includeStatusCodes or path.status in self.includeStatusCodes
-            ) and (
-                    not self.blacklists.get(path.status) or path.path not in self.blacklists.get(path.status)
-            ) and (
-                    not self.excludeSizes or FileUtils.size_human(len(path.response.body)).strip() not in self.excludeSizes
-            ) and (
-                    not self.minimumResponseSize or self.minimumResponseSize < len(path.response.body)
-            ) and (
-                    not self.maximumResponseSize or self.maximumResponseSize > len(path.response.body)
-            ):
+            self.output.statusReport(
+                path.path, path.response, self.arguments.full_url, addedToQueue
+            )
 
-                for excludeText in self.excludeTexts:
-                    if excludeText in path.response.body.decode('iso8859-1'):
-                        del path
-                        return
+            if self.arguments.matches_proxy:
+                self.requester.request(path.path, proxy=self.arguments.matches_proxy)
 
-                for excludeRegexp in self.excludeRegexps:
-                    if (
-                        re.search(excludeRegexp, path.response.body.decode('iso8859-1'))
-                        is not None
-                    ):
-                        del path
-                        return
+            newPath = "{}{}".format(self.currentDirectory, path.path)
 
-                pathIsInScanSubdirs = False
-                addedToQueue = False
+            self.reportManager.addPath(newPath, path.status, path.response)
 
-                if self.scanSubdirs:
-                    for subdir in self.scanSubdirs:
-                        if subdir == path.path + "/":
-                            pathIsInScanSubdirs = True
+            self.reportManager.save()
 
-                if not self.recursive and not pathIsInScanSubdirs and "?" not in path.path:
-                    if path.response.redirect:
-                        addedToQueue = self.addRedirectDirectory(path)
-
-                    else:
-                        addedToQueue = self.addDirectory(path.path)
-
-                self.output.statusReport(
-                    path.path, path.response, self.arguments.full_url, addedToQueue
-                )
-
-                if self.arguments.matches_proxy:
-                    self.requester.request(path.path, proxy=self.arguments.matches_proxy)
-
-                newPath = "{}{}".format(self.currentDirectory, path.path)
-
-                self.reportManager.addPath(newPath, path.status, path.response)
-
-                self.reportManager.save()
-
-                del path
+            del path
 
     def notFoundCallback(self, path):
         self.index += 1
@@ -583,24 +581,22 @@ class Controller(object):
             self.errorLog.write(os.linesep + line)
             self.errorLog.flush()
 
-    def handleInterrupt(self):
-        self.output.warning("CTRL+C detected: Pausing threads, please wait...")
+    def handlePause(self, message):
+        self.output.warning(message)
         self.fuzzer.pause()
 
-    def handle429(self):
-        self.output.warning("429 Too Many Requests detected: Server is blocking requests")
-        # Assumes you will either accept the 429 codes or exit
-        self.got429 = True
-        self.fuzzer.pause()
+        while 1:
+            if self.fuzzer.stopped == len(self.fuzzer.threads):
+                self.fuzzer.stopped = 0
+                break
 
-    def handlePause(self):
         while True:
             msg = "[e]xit / [c]ontinue"
 
             if not self.directories.empty():
                 msg += " / [n]ext"
 
-            if self.got429:
+            if self.got429 and not self.ignore429:
                 msg += " / [i]gnore"
 
             if len(self.urlList) > 1:
@@ -612,9 +608,10 @@ class Controller(object):
 
             if self.got429:
                 self.got429 = False
-
                 if option.lower() == "i":
                     self.ignore429 = True
+                    self.fuzzer.resume()
+                    return
 
             if option.lower() == "e":
                 self.exit = True
@@ -640,12 +637,12 @@ class Controller(object):
         while True:
             try:
                 while not self.fuzzer.wait(0.3):
-                    if self.fuzzer.isPaused():
-                        self.handlePause()
+                    if not self.ignore429 and self.got429:
+                        self.handlePause("429 Response code detected: Server is blocking requests...")
                     continue
                 break
             except (KeyboardInterrupt):
-                self.handleInterrupt()
+                self.handlePause("CTRL+C detected: Pausing threads, please wait...")
 
     def wait(self):
         while not self.directories.empty():
