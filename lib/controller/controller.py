@@ -495,7 +495,7 @@ class Controller(object):
     def matchCallback(self, path):
         self.index += 1
 
-        if path.status == 429 and 429 not in self.excludeStatusCodes:
+        if path.status == 429:
             self.got429 = True
             return
 
