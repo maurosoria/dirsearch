@@ -124,12 +124,11 @@ class Requester(object):
         self.randomAgents = None
         self.requestByHostname = requestByHostname
         self.session = requests.Session()
-        self.url = "{0}://{1}:{2}{3}{4}".format(
+        self.url = "{0}://{1}:{2}/{3}".format(
             self.protocol,
             self.host if self.requestByHostname else self.ip,
             self.port,
-            self.basePath if self.basePath.startswith("/") else "/" + self.basePath,
-            "" if self.basePath.endswith("/") else "/"
+            self.basePath,
         )
 
     def setHeader(self, header, content):
