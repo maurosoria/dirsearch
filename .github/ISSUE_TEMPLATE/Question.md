@@ -1,7 +1,7 @@
 ---
 name: Question
-about: Ask questions about Dirsearch
-
+about: Ask a question about Dirsearch
+labels: question
 ---
 
 ### What is the question?
