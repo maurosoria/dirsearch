@@ -17,10 +17,11 @@
 #  Author: Mauro Soria
 
 import threading
+import time
 
-from lib.connection.RequestException import RequestException
-from .Path import *
-from .Scanner import *
+from lib.connection.request_exception import RequestException
+from .path import *
+from .scanner import *
 
 
 class Fuzzer(object):
@@ -30,6 +31,7 @@ class Fuzzer(object):
         dictionary,
         testFailPath=None,
         threads=1,
+        delay=0,
         matchCallbacks=[],
         notFoundCallbacks=[],
         errorCallbacks=[],
@@ -43,30 +45,32 @@ class Fuzzer(object):
         self.threadsCount = (
             threads if len(self.dictionary) >= threads else len(self.dictionary)
         )
+        self.delay = delay
         self.running = False
+        self.stopped = 0
         self.scanners = {}
         self.defaultScanner = None
         self.matchCallbacks = matchCallbacks
         self.notFoundCallbacks = notFoundCallbacks
         self.errorCallbacks = errorCallbacks
         self.matches = []
-        self.errors = []
 
     def wait(self, timeout=None):
         for thread in self.threads:
             thread.join(timeout)
 
-            if timeout is not None and thread.is_alive():
+            if timeout and thread.is_alive():
                 return False
 
         return True
 
     def setupScanners(self):
-        if len(self.scanners) != 0:
+        if len(self.scanners):
             self.scanners = {}
 
-        self.defaultScanner = Scanner(self.requester, self.testFailPath, "")
-        self.scanners["/"] = Scanner(self.requester, self.testFailPath, "/")
+        self.defaultScanner = Scanner(self.requester, self.testFailPath)
+        self.scanners["/"] = Scanner(self.requester, self.testFailPath, suffix="/")
+        self.scanners["dotfiles"] = Scanner(self.requester, self.testFailPath, preffix=".")
 
         for extension in self.dictionary.extensions:
             self.scanners[extension] = Scanner(
@@ -74,7 +78,7 @@ class Fuzzer(object):
             )
 
     def setupThreads(self):
-        if len(self.threads) != 0:
+        if len(self.threads):
             self.threads = []
 
         for thread in range(self.threadsCount):
@@ -85,6 +89,9 @@ class Fuzzer(object):
     def getScannerFor(self, path):
         if path.endswith("/"):
             return self.scanners["/"]
+
+        if path.startswith('.'):
+            return self.scanners['dotfiles']
 
         for extension in list(self.scanners.keys()):
             if path.endswith(extension):
@@ -102,6 +109,7 @@ class Fuzzer(object):
         self.dictionary.reset()
         self.runningThreadsCount = len(self.threads)
         self.running = True
+        self.paused = False
         self.playEvent = threading.Event()
         self.pausedSemaphore = threading.Semaphore(0)
         self.playEvent.clear()
@@ -116,10 +124,16 @@ class Fuzzer(object):
         self.playEvent.set()
 
     def pause(self):
+        self.paused = True
         self.playEvent.clear()
         for thread in self.threads:
             if thread.is_alive():
                 self.pausedSemaphore.acquire()
+
+    def resume(self):
+        self.paused = False
+        self.pausedSemaphore.release()
+        self.play()
 
     def stop(self):
         self.running = False
@@ -131,6 +145,9 @@ class Fuzzer(object):
         if self.getScannerFor(path).scan(path, response):
             result = None if response.status == 404 else response.status
         return result, response
+
+    def isPaused(self):
+        return self.paused
 
     def isRunning(self):
         return self.running
@@ -147,22 +164,22 @@ class Fuzzer(object):
 
     def thread_proc(self):
         self.playEvent.wait()
+
         try:
             path = next(self.dictionary)
-            while path is not None:
+
+            while path:
                 try:
                     status, response = self.scan(path)
                     result = Path(path=path, status=status, response=response)
 
-                    if status is not None:
+                    if status:
                         self.matches.append(result)
                         for callback in self.matchCallbacks:
                             callback(result)
                     else:
                         for callback in self.notFoundCallbacks:
                             callback(result)
-                    del status
-                    del response
 
                 except RequestException as e:
 
@@ -173,6 +190,7 @@ class Fuzzer(object):
 
                 finally:
                     if not self.playEvent.isSet():
+                        self.stopped += 1
                         self.pausedSemaphore.release()
                         self.playEvent.wait()
 
@@ -180,6 +198,8 @@ class Fuzzer(object):
 
                     if not self.running:
                         break
+
+                    time.sleep(self.delay)
 
         except StopIteration:
             return

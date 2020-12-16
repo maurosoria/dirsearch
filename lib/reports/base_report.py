@@ -16,10 +16,24 @@
 #
 #  Author: Mauro Soria
 
+from multiprocessing import Queue, Lock
+import queue
 
 
 class BaseReport(object):
-  
+
+    def addPath(selg, path, status, response):
+        raise NotImplementedError
+
+    def save(self):
+        raise NotImplementedError
+
+    def close(self):
+        raise NotImplementedError
+
+
+class FileBaseReport(BaseReport):
+
     def __init__(self, host, port, protocol, basePath, output, batch):
         self.output = output
         self.port = port
@@ -46,7 +60,10 @@ class BaseReport(object):
         except (KeyError, ValueError):
             contentLength = len(response.body)
 
-        self.pathList.append((path, status, contentLength))
+        self.storeData((path, status, contentLength,))
+
+    def storeData(self, data):
+        self.pathList.append(data)
 
     def open(self):
         from os import name as os_name
@@ -59,7 +76,6 @@ class BaseReport(object):
             makedirs(dirname(output), exist_ok=True)
 
             self.output = output
-
 
         if self.batch:
             self.file = open(self.output, 'a+')
@@ -85,3 +101,26 @@ class BaseReport(object):
 
     def generate(self):
         raise NotImplementedError
+
+
+class TailableFileBaseReport(FileBaseReport):
+    def __init__(self, host, port, protocol, basePath, output, batch):
+        super().__init__(host, port, protocol, basePath, output, batch)
+        self.writeQueue = Queue()
+        self.saveMutex = Lock()
+
+    def save(self):
+        data = self.generate()
+        self.file.write(data)
+        self.file.flush()
+
+    def storeData(self, data):
+        self.writeQueue.put(data)
+        self.save()
+
+    def getPathIterator(self):
+        while True:
+            try:
+                yield self.writeQueue.get(False)
+            except queue.Empty:
+                break

@@ -1,4 +1,5 @@
-%
-Nueva Carpeta
-New Folder
-/%2e%2e/google.com
+%2e%2e//google.com
+%ff
+%2e%2e;/test
+%3f/
+%C0%AE%C0%AE%C0%AF
