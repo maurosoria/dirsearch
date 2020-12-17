@@ -124,11 +124,10 @@ class Requester(object):
         self.randomAgents = None
         self.requestByHostname = requestByHostname
         self.session = requests.Session()
-        self.url = "{0}://{1}:{2}/{3}".format(
+        self.url = "{0}://{1}:{2}/".format(
             self.protocol,
             self.host if self.requestByHostname else self.ip,
             self.port,
-            self.basePath,
         )
 
     def setHeader(self, header, content):
@@ -156,7 +155,7 @@ class Requester(object):
                     elif self.proxy:
                         proxy = {"https": self.proxy, "http": self.proxy}
 
-                url = self.url + path
+                url = self.url + basePath + path
 
                 if self.randomAgents:
                     self.headers["User-agent"] = random.choice(self.randomAgents)
@@ -185,7 +184,7 @@ class Requester(object):
                 raise RequestException({"message": "Too many redirects: {0}".format(e)})
 
             except requests.exceptions.SSLError:
-                self.url = "{0}://{1}:{2}".format(self.protocol, self.host, self.port)
+                self.url = "{0}://{1}:{2}/".format(self.protocol, self.host, self.port)
                 continue
 
             except requests.exceptions.ProxyError as e:
