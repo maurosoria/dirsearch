@@ -22,7 +22,7 @@ cd dirsearch
 python3 dirsearch.py -u <URL> -e <EXTENSIONS>
 ```
 
-To can use SOCKS proxy or work with `../` in the wordlist, you need to install pips with requirements.txt
+To can use SOCKS proxy or work with `../` in the wordlist, you need to install pips with `requirements.txt`
 
 ```
 pip3 install -r requirements.txt
@@ -61,6 +61,7 @@ Features
 - Proxy host randomization
 - Batch processing
 - Request delaying
+- `429 Too many requests` responses detecting
 - Multiple wordlist formats (lowercase, uppercase, capitalization)
 - Default configuration from file
 - Quiet mode
