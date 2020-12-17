@@ -1,5 +1,5 @@
 ---
-name: Question
+name: Ask Question
 about: Ask a question about Dirsearch
 labels: question
 ---
