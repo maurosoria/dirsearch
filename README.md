@@ -1,6 +1,8 @@
 Dirsearch - Web path scanner
 =========
-<img src="https://img.shields.io/badge/Built%20with-Python-Blue"> <img src="https://img.shields.io/github/release/maurosoria/dirsearch.svg"> <img src="https://img.shields.io/github/stars/maurosoria/dirsearch.svg"> <img src="https://img.shields.io/twitter/url?url=https%3A%2F%2Fgithub.com%2Fmaurosoria%2Fdirsearch">
+<img src="https://img.shields.io/badge/Built%20with-Python-Blue"> <img src="https://img.shields.io/github/release/maurosoria/dirsearch.svg">
+<img src="https://img.shields.io/github/stars/maurosoria/dirsearch.svg"> 
+<a href="https://twitter.com/intent/tweet?text=Dirsearch%20-%20Web%20path%20scanner%20by%20@_maurosoria%0A%0Ahttps://github.com/maurosoria/dirsearch"><img src="https://img.shields.io/twitter/url?url=https%3A%2F%2Fgithub.com%2Fmaurosoria%2Fdirsearch"></a>
 
 **Current Release: v0.4.1 (2020.12.8)**
 
@@ -244,7 +246,7 @@ Options:
 How to use
 ---------------
 
-[![Dirsearch demo](https://asciinema.org/a/380099.png)](https://asciinema.org/a/380099)
+[![Dirsearch demo](https://asciinema.org/a/380112.png)](https://asciinema.org/a/380112)
 
 Some examples for how to use dirsearch - those are the most common arguments. If you need all, just use the **-h** argument.
 
