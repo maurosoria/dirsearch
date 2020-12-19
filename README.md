@@ -1,7 +1,8 @@
-Dirsearch
+Dirsearch - Web path scanner
 =========
+<img src="https://img.shields.io/badge/Built%20with-Python-Blue"> <img src="https://img.shields.io/github/release/maurosoria/dirsearch.svg"> <img src="https://img.shields.io/github/stars/maurosoria/dirsearch.svg"> <img src="https://img.shields.io/twitter/url?url=https%3A%2F%2Fgithub.com%2Fmaurosoria%2Fdirsearch">
 
-Current Release: v0.4.1 (2020.12.8)
+**Current Release: v0.4.1 (2020.12.8)**
 
 
 Overview
@@ -22,21 +23,16 @@ cd dirsearch
 python3 dirsearch.py -u <URL> -e <EXTENSIONS>
 ```
 
-To can use SOCKS proxy or work with `../` in the wordlist, you need to install pips with `requirements.txt`
+- To can use SOCKS proxy or work with `../` in the wordlist, you need to install pips with `requirements.txt`
 
 ```
 pip3 install -r requirements.txt
 ```
 
-If you are using Windows and don't have git, you can install the ZIP file [here](https://github.com/maurosoria/dirsearch/archive/master.zip). Dirsearch also supports [Docker](https://github.com/maurosoria/dirsearch#support-docker)
+- If you are using Windows and don't have git, you can install the ZIP file [here](https://github.com/maurosoria/dirsearch/archive/master.zip). Dirsearch also supports [Docker](https://github.com/maurosoria/dirsearch#support-docker)
 
-**Dirsearch requires python 3 or greater**
+*Dirsearch requires python 3 or greater*
 
-Operating Systems supported
----------------------------
-- Windows XP/7/8/10
-- GNU/Linux
-- MacOSX
 
 Features
 --------
@@ -61,7 +57,7 @@ Features
 - Proxy host randomization
 - Batch processing
 - Request delaying
-- `429 Too many requests` responses detecting
+- 429 response code detecting
 - Multiple wordlist formats (lowercase, uppercase, capitalization)
 - Default configuration from file
 - Quiet mode
