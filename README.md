@@ -244,6 +244,8 @@ Options:
 How to use
 ---------------
 
+[![Dirsearch demo](https://asciinema.org/a/380099.png)](https://asciinema.org/a/380099)
+
 Some examples for how to use dirsearch - those are the most common arguments. If you need all, just use the **-h** argument.
 
 ### Simple usage
