@@ -43,6 +43,8 @@ class CLIOutput(object):
         self.blacklists = {}
         self.basePath = None
         self.errors = 0
+        if not color:
+            self.disableColors()
 
     def inLine(self, string):
         self.erase()
