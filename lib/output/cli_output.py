@@ -236,5 +236,5 @@ class CLIOutput(object):
             line = "[{0}] - {1}".format(time.strftime("%H:%M:%S"), info)
             self.newLine(line)
 
-    def disableColor(self):
+    def disableColors(self):
         Fore = Style = Back = NoColor
