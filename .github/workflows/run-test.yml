@@ -23,6 +23,9 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        pip3 install -r requirements.txt
     - name: Run test
       run: |
         python3 dirsearch.py -h
