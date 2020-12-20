@@ -239,4 +239,8 @@ class CLIOutput(object):
             self.newLine(line)
 
     def disableColors(self):
+        global Fore
+        global Style
+        global Back
+
         Fore = Style = Back = NoColor
