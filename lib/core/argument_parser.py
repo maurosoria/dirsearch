@@ -560,6 +560,6 @@ information at https://github.com/maurosoria/dirsearch.''')
         parser.add_option_group(general)
         parser.add_option_group(request)
         parser.add_option_group(connection)
-        parser.add_option_group(reports)
+        parser.add_option_group(oset)
         options, arguments = parser.parse_args()
         return options
