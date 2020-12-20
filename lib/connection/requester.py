@@ -124,7 +124,7 @@ class Requester(object):
         self.randomAgents = None
         self.requestByHostname = requestByHostname
         self.session = requests.Session()
-        self.url = "{0}://{1}:{2}/{3}".format(
+        self.url = "{0}://{1}:{2}{3}".format(
             self.protocol,
             self.host if self.requestByHostname else self.ip,
             self.port,
