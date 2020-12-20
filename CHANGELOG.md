@@ -1,18 +1,21 @@
 # Changelog
 
-
-Updating ...
+v0.4.1 (2020.12.8)
 ---------
 - Faster
-- No extension option added
-- Support capital wordlist format
-- Support SOCKS proxy
-- Option to exit whenever an error occurs
-- Provide headers using file as input
+- Allow to brute force through a CIDR notation
 - Exclude responses by human readable sizes
-- Support XML and Markdown report formats
+- Provide headers from a file
+- Match/filter status codes by ranges
+- Detect 429 response status code
+- Support SOCKS proxy
+- XML, Markdown and CSV report formats
+- Capital wordlist format
+- Option to replay proxy with found paths
+- Option to remove all extensions in the wordlist
+- Option to exit whenever an error occurs
+- Option to disable colored output
 - Debug mode
-- Several updates
 - Multiple bugfixes
 
 ---------

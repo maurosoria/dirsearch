@@ -23,14 +23,18 @@ import urllib.parse
 
 from lib.utils.file_utils import *
 from lib.utils.terminal_size import get_terminal_size
-from thirdparty.colorama import *
+from thirdparty.colorama import init, Fore, Back, Style
 
 if sys.platform in ["win32", "msys"]:
     from thirdparty.colorama.win32 import *
 
 
+class NoColor:
+    RED = GREEN = YELLOW = BLUE = MAGENTA = CYAN = WHITE = BRIGHT = RESET_ALL = ''
+
+
 class CLIOutput(object):
-    def __init__(self):
+    def __init__(self, color):
         init()
         self.lastLength = 0
         self.lastOutput = ""
@@ -39,6 +43,8 @@ class CLIOutput(object):
         self.blacklists = {}
         self.basePath = None
         self.errors = 0
+        if not color:
+            self.disableColors()
 
     def inLine(self, string):
         self.erase()
@@ -62,7 +68,7 @@ class CLIOutput(object):
             sys.stdout.write("\033[0G")
 
     def newLine(self, string):
-        if self.lastInLine is True:
+        if self.lastInLine:
             self.erase()
 
         if sys.platform in ["win32", "msys"]:
@@ -92,7 +98,7 @@ class CLIOutput(object):
         finally:
             contentLength = FileUtils.size_human(size)
 
-        showPath = "/" + self.basePath.lstrip("/") + path
+        showPath = "/" + self.basePath + path
 
         if full_url:
             parsed = urllib.parse.urlparse(self.target)
@@ -118,11 +124,10 @@ class CLIOutput(object):
             message = Fore.RED + message + Style.RESET_ALL
 
         # Check if redirect
-        elif status in [301, 302, 303, 307, 308] and "location" in [
-            h.lower() for h in response.headers
-        ]:
+        if status in [301, 302, 303, 307, 308]:
             message = Fore.CYAN + message + Style.RESET_ALL
-            message += "  ->  {0}".format(response.headers["location"])
+            if "location" in [h.lower() for h in response.headers]:
+                message += "  ->  {0}".format(response.headers["location"])
 
         if addedToQueue:
             message += "     (Added to queue)"
@@ -142,7 +147,7 @@ class CLIOutput(object):
         if allJobs > 1:
             message += "Job: {0}/{1} - ".format(currentJob, allJobs)
 
-        if self.errors > 0:
+        if self.errors:
             message += "Errors: {0} - ".format(self.errors)
 
         message += "Last request to: {0}".format(path)
@@ -160,18 +165,17 @@ class CLIOutput(object):
         with self.mutex:
             stripped = reason.strip()
             message = "\n" if reason.startswith("\n") else ""
-            message += Style.BRIGHT + Fore.WHITE + Back.RED
-            message += stripped
-            message += Style.RESET_ALL
+            message += Style.BRIGHT + Fore.WHITE + Back.RED + stripped + Style.RESET_ALL
+
             self.newLine(message)
 
-    def warning(self, reason):
+    def warning(self, message):
         with self.mutex:
-            message = Style.BRIGHT + Fore.YELLOW + reason + Style.RESET_ALL
+            message = Style.BRIGHT + Fore.YELLOW + message + Style.RESET_ALL
             self.newLine(message)
 
-    def header(self, text):
-        message = Style.BRIGHT + Fore.MAGENTA + text + Style.RESET_ALL
+    def header(self, message):
+        message = Style.BRIGHT + Fore.MAGENTA + message + Style.RESET_ALL
         self.newLine(message)
 
     def config(
@@ -183,22 +187,23 @@ class CLIOutput(object):
         wordlist_size,
         method,
     ):
+
         separator = Fore.MAGENTA + " | " + Fore.YELLOW
 
         config = Style.BRIGHT + Fore.YELLOW
         config += "Extensions: {0}".format(Fore.CYAN + extensions + Fore.YELLOW)
         config += separator
 
-        config += "HTTP method: {0}".format(Fore.CYAN + method.upper() + Fore.YELLOW)
-        config += separator
-
-        if prefixes != '':
+        if prefixes:
             config += 'Prefixes: {0}'.format(Fore.CYAN + prefixes + Fore.YELLOW)
             config += separator
 
-        if suffixes != '':
+        if suffixes:
             config += 'Suffixes: {0}'.format(Fore.CYAN + suffixes + Fore.YELLOW)
             config += separator
+
+        config += "HTTP method: {0}".format(Fore.CYAN + method.upper() + Fore.YELLOW)
+        config += separator
 
         config += "Threads: {0}".format(Fore.CYAN + threads + Fore.YELLOW)
         config += separator
@@ -211,7 +216,7 @@ class CLIOutput(object):
     def setTarget(self, target):
         if not target.endswith("/"):
             target += "/"
-        if not target.startswith("http://") and not target.startswith("https://") and "://" not in target:
+        if not target.startswith(("http://", "https://")) and "://" not in target:
             target = "http://" + target
 
         self.target = target
@@ -229,5 +234,13 @@ class CLIOutput(object):
         self.newLine("\nError Log: {0}".format(target))
 
     def debug(self, info):
-        line = "[{0}] - {1}".format(time.strftime("%H:%M:%S"), info)
-        self.newLine(line)
+        with self.mutex:
+            line = "[{0}] - {1}".format(time.strftime("%H:%M:%S"), info)
+            self.newLine(line)
+
+    def disableColors(self):
+        global Fore
+        global Style
+        global Back
+
+        Fore = Style = Back = NoColor

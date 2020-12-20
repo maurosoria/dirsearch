@@ -21,20 +21,26 @@ import threading
 import urllib.parse
 
 from lib.utils.file_utils import *
-from thirdparty.colorama import *
+from thirdparty.colorama import init, Fore, Style
 
 if sys.platform in ["win32", "msys"]:
     from thirdparty.colorama.win32 import *
 
 
+class NoColor:
+    RED = GREEN = YELLOW = BLUE = MAGENTA = CYAN = WHITE = BRIGHT = RESET_ALL = ''
+
+
 class PrintOutput(object):
-    def __init__(self):
+    def __init__(self, color):
         init()
         self.mutex = threading.Lock()
         self.blacklists = {}
         self.mutexCheckedPaths = threading.Lock()
         self.basePath = None
         self.errors = 0
+        if not color:
+            self.disableColors()
 
     def header(self, text):
         pass
@@ -77,7 +83,7 @@ class PrintOutput(object):
         finally:
             contentLength = FileUtils.size_human(size)
 
-        showPath = "/" + self.basePath.lstrip("/") + path
+        showPath = "/" + self.basePath + path
 
         parsed = urllib.parse.urlparse(self.target)
         showPath = "{0}://{1}{2}".format(parsed.scheme, parsed.netloc, showPath)
@@ -99,7 +105,7 @@ class PrintOutput(object):
             message = Fore.RED + message + Style.RESET_ALL
 
         # Check if redirect
-        elif status in [301, 302, 307] and "location" in [
+        if status in [301, 302, 307] and "location" in [
             h.lower() for h in response.headers
         ]:
             message = Fore.CYAN + message + Style.RESET_ALL
@@ -147,4 +153,12 @@ class PrintOutput(object):
         pass
 
     def debug(self, info):
-        pass
+        with self.mutex:
+            self.newLine(info)
+
+    def disableColors(self):
+        global Fore
+        global Style
+        global Back
+
+        Fore = Style = Back = NoColor
