@@ -28,4 +28,5 @@ jobs:
         pip3 install -r requirements.txt
     - name: Run test
       run: |
-        python3 dirsearch.py -h
+        echo tmp > tmp
+        python3 dirsearch.py -u https://example.com/test -w tmp -q -f -e php,html,js
