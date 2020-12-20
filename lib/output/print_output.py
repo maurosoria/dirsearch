@@ -157,4 +157,8 @@ class PrintOutput(object):
             self.newLine(info)
 
     def disableColors(self):
+        global Fore
+        global Style
+        global Back
+
         Fore = Style = Back = NoColor
