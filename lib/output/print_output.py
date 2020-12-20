@@ -39,6 +39,8 @@ class PrintOutput(object):
         self.mutexCheckedPaths = threading.Lock()
         self.basePath = None
         self.errors = 0
+        if not color:
+            self.disableColors()
 
     def header(self, text):
         pass
