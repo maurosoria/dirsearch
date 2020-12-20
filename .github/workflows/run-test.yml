@@ -1,0 +1,28 @@
+name: Test
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: 3.8
+        os: ubuntu-latest
+        include:
+          # pypy3 on Mac OS currently fails trying to compile
+          # brotlipy. Moving pypy3 to only test linux.
+          - python-version: pypy3
+            os: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Run test
+      run: |
+        python3 dirsearch.py -h
