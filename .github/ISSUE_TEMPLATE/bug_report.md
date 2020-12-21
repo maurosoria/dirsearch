@@ -1,7 +1,7 @@
 ---
 name: Bug Report
 about: Report a Dirsearch problem
-
+labels: bug
 ---
 
 ### What is the current behavior?

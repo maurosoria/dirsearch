@@ -1,7 +1,7 @@
 ---
 name: Feature Request
 about: Suggest a new feature for Dirsearch improvement
-
+labels: enhancement
 ---
 
 ### What is the feature?
