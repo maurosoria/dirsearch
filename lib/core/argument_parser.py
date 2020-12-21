@@ -169,7 +169,7 @@ class ArgumentParser(object):
             ]
         else:
             self.extensions = list(
-                oset([extension.strip() for extension in options.extensions.split(",")])
+                oset([extension.lstrip(' .') for extension in options.extensions.split(",")])
             )
 
         self.useragent = options.useragent
