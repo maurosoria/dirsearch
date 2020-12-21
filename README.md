@@ -1,42 +1,36 @@
-Dirsearch
+Dirsearch - Web path scanner
 =========
+<img src="https://img.shields.io/badge/Built%20with-Python-Blue"> <img src="https://img.shields.io/github/release/maurosoria/dirsearch.svg">
+<img src="https://img.shields.io/github/stars/maurosoria/dirsearch.svg"> 
+<a href="https://twitter.com/intent/tweet?text=Dirsearch%20-%20Web%20path%20scanner%20by%20@_maurosoria%0A%0Ahttps://github.com/maurosoria/dirsearch"><img src="https://img.shields.io/twitter/url?url=https%3A%2F%2Fgithub.com%2Fmaurosoria%2Fdirsearch"></a>
 
-Current Release: v0.4.1 (2020.12.8)
+**Current Release: v0.4.1 (2020.12.8)**
 
 
 Overview
 --------
-Dirsearch is a mature command-line tool designed to brute force directories and files in webservers. 
+- Dirsearch is a mature command-line tool designed to brute force directories and files in webservers. 
 
-With 6 years of growth, dirsearch now has become the top web content scanner. As a feature-rich tool, dirsearch gives users the opportunity to perform a complex web content discovering, with many vectors for the wordlist, high accuracy, impressive performance, advanced connection/request settings, modern brute-force techniques and nice output.
+- With 6 years of growth, dirsearch now has become the top web content scanner.
 
-Although there are now many other fuzzers like [wfuzz](https://github.com/xmendez/wfuzz), [gobuster](https://github.com/OJ/gobuster) or [ffuf](https://github.com/ffuf/ffuf), dirsearch is still showing it's own unique in features and detections when doing web content brute-force. Instead of supporting parameters fuzzing like in *ffuf* or *wfuzz*, dirsearch keeps it as a traditional web path brute forcer, to much more focus on the specific purpose.
+- As a feature-rich tool, dirsearch gives users the opportunity to perform a complex web content discovering, with many vectors for the wordlist, high accuracy, impressive performance, advanced connection/request settings, modern brute-force techniques and nice output.
 
 
 Installation & Usage
 ------------
 
-```
+```python
 git clone https://github.com/maurosoria/dirsearch.git
 cd dirsearch
 python3 dirsearch.py -u <URL> -e <EXTENSIONS>
 ```
 
-To can use SOCKS proxy or work with `../` in the wordlist, you need to install pips with requirements.txt
+- To can use SOCKS proxy or work with `../` in the wordlist, you need to install pips with `requirements.txt`: `pip3 install -r requirements.txt`
 
-```
-pip3 install -r requirements.txt
-```
+- If you are using Windows and don't have git, you can install the ZIP file [here](https://github.com/maurosoria/dirsearch/archive/master.zip). Dirsearch also supports [Docker](https://github.com/maurosoria/dirsearch#support-docker)
 
-If you are using Windows and don't have git, you can install the ZIP file [here](https://github.com/maurosoria/dirsearch/archive/master.zip). Dirsearch also supports [Docker](https://github.com/maurosoria/dirsearch#support-docker)
+*Dirsearch requires python 3 or greater*
 
-**Dirsearch requires python 3 or greater**
-
-Operating Systems supported
----------------------------
-- Windows XP/7/8/10
-- GNU/Linux
-- MacOSX
 
 Features
 --------
@@ -61,6 +55,7 @@ Features
 - Proxy host randomization
 - Batch processing
 - Request delaying
+- 429 response code detecting
 - Multiple wordlist formats (lowercase, uppercase, capitalization)
 - Default configuration from file
 - Quiet mode
@@ -246,6 +241,8 @@ Options:
 
 How to use
 ---------------
+
+[![Dirsearch demo](https://asciinema.org/a/380112.png)](https://asciinema.org/a/380112)
 
 Some examples for how to use dirsearch - those are the most common arguments. If you need all, just use the **-h** argument.
 
