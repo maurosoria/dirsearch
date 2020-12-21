@@ -9,27 +9,23 @@ Dirsearch - Web path scanner
 
 Overview
 --------
-Dirsearch is a mature command-line tool designed to brute force directories and files in webservers. 
+- Dirsearch is a mature command-line tool designed to brute force directories and files in webservers. 
 
-With 6 years of growth, dirsearch now has become the top web content scanner. As a feature-rich tool, dirsearch gives users the opportunity to perform a complex web content discovering, with many vectors for the wordlist, high accuracy, impressive performance, advanced connection/request settings, modern brute-force techniques and nice output.
+- With 6 years of growth, dirsearch now has become the top web content scanner.
 
-Although there are now many other fuzzers like [wfuzz](https://github.com/xmendez/wfuzz), [gobuster](https://github.com/OJ/gobuster) or [ffuf](https://github.com/ffuf/ffuf), dirsearch is still showing it's own unique in features and detections when doing web content brute-force. Instead of supporting parameters fuzzing like in *ffuf* or *wfuzz*, dirsearch keeps it as a traditional web path brute forcer, to much more focus on the specific purpose.
+- As a feature-rich tool, dirsearch gives users the opportunity to perform a complex web content discovering, with many vectors for the wordlist, high accuracy, impressive performance, advanced connection/request settings, modern brute-force techniques and nice output.
 
 
 Installation & Usage
 ------------
 
-```
+```python
 git clone https://github.com/maurosoria/dirsearch.git
 cd dirsearch
 python3 dirsearch.py -u <URL> -e <EXTENSIONS>
 ```
 
-- To can use SOCKS proxy or work with `../` in the wordlist, you need to install pips with `requirements.txt`
-
-```
-pip3 install -r requirements.txt
-```
+- To can use SOCKS proxy or work with `../` in the wordlist, you need to install pips with `requirements.txt`: `pip3 install -r requirements.txt`
 
 - If you are using Windows and don't have git, you can install the ZIP file [here](https://github.com/maurosoria/dirsearch/archive/master.zip). Dirsearch also supports [Docker](https://github.com/maurosoria/dirsearch#support-docker)
 
