@@ -1,6 +1,6 @@
-name: dirsearch CI
+name: Check PEP-8
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
   build:
