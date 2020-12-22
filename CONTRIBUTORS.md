@@ -56,10 +56,12 @@
 - [Dodain](https://github.com/Dodain)
 - [Binit Ghimire](https://github.com/TheBinitGhimire)
 - [Knowledge-Wisdom-Understanding](https://github.com/Knowledge-Wisdom-Understanding)
+- [TERADA-DANTE](https://github.com/TERADA-DANTE)
 
 Special thanks for all the people who had helped dirsearch so far!
 
 ### How can I help the project?
+
 - Bug fixes
 - Code updates (clean, features, workflow, ...)
 - Better documentation

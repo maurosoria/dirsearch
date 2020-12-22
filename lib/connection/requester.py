@@ -93,18 +93,14 @@ class Requester(object):
         except IndexError:
             self.port = 443 if self.protocol == "https" else 80
         except ValueError:
-            raise RequestException(
-                {"message": "Invalid port number: {0}".format(parsed.netloc.split(":")[1])}
-            )
+            raise RequestException({"message": "Invalid port number: {0}".format(parsed.netloc.split(":")[1])})
 
         # Pass if the host header has already been set
         if "host" not in [hd.lower() for hd in self.headers]:
             self.headers["Host"] = self.host
 
             # Include port in Host header if it's non-standard
-            if (self.protocol == "https" and self.port != 443) or (
-                self.protocol == "http" and self.port != 80
-            ):
+            if (self.protocol == "https" and self.port != 443) or (self.protocol == "http" and self.port != 80):
                 self.headers["Host"] += ":{0}".format(self.port)
 
         # Set cookie and user-agent headers
@@ -155,7 +151,7 @@ class Requester(object):
                     elif self.proxy:
                         proxy = {"https": self.proxy, "http": self.proxy}
 
-                url = self.url + basePath + path
+                url = self.url + self.basePath + path
 
                 if self.randomAgents:
                     self.headers["User-agent"] = random.choice(self.randomAgents)
@@ -188,24 +184,16 @@ class Requester(object):
                 continue
 
             except requests.exceptions.ProxyError as e:
-                raise RequestException(
-                    {"message": "Error with the proxy: {0}".format(e)}
-                )
+                raise RequestException({"message": "Error with the proxy: {0}".format(e)})
 
             except requests.exceptions.ConnectionError:
-                raise RequestException(
-                    {"message": "Cannot connect to: {0}:{1}".format(self.host, self.port)}
-                )
+                raise RequestException({"message": "Cannot connect to: {0}:{1}".format(self.host, self.port)})
 
             except requests.exceptions.InvalidURL:
-                raise RequestException(
-                    {"message": "Invalid URL: {0}".format(url)}
-                )
+                raise RequestException({"message": "Invalid URL: {0}".format(url)})
 
             except requests.exceptions.InvalidProxyURL:
-                raise RequestException(
-                    {"message": "Invalid proxy URL: {0}".format(proxy["http"])}
-                )
+                raise RequestException({"message": "Invalid proxy URL: {0}".format(proxy["http"])})
 
             except (
                 requests.exceptions.ConnectTimeout,
@@ -220,12 +208,6 @@ class Requester(object):
                 i += 1
 
         if i > self.maxRetries:
-            raise RequestException(
-                {
-                    "message": "There was a problem in the request to: {0}".format(
-                        url
-                    )
-                }
-            )
+            raise RequestException({"message": "There was a problem in the request to: {0}".format(url)})
 
         return result
