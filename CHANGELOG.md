@@ -2,7 +2,7 @@
 
 Currently working...
 ---------
-- Fix important bugs from v0.4.1
+- Fixed important bugs from v0.4.1
 - Exclude responses by redirects
 
 v0.4.1 (2020.12.8)
