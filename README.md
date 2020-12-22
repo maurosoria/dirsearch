@@ -66,7 +66,8 @@ Features
 - Option to blacklist response codes, support ranges (-x 404,500-599)
 - Option to exclude responses by sizes
 - Option to exclude responses by texts
-- Option to exclude responses by regexps (example: "Not foun[a-z]{1}")
+- Option to exclude responses by regexp(s)
+- Option to exclude responses by redirects
 - Options to display only items with response length from range
 - Option to remove all extensions from every wordlist entry
 - ...
