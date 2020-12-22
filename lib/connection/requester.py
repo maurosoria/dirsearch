@@ -155,7 +155,7 @@ class Requester(object):
                     elif self.proxy:
                         proxy = {"https": self.proxy, "http": self.proxy}
 
-                url = self.url + basePath + path
+                url = self.url + self.basePath + path
 
                 if self.randomAgents:
                     self.headers["User-agent"] = random.choice(self.randomAgents)
