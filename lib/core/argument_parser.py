@@ -172,6 +172,13 @@ class ArgumentParser(object):
                 oset([extension.lstrip(' .') for extension in options.extensions.split(",")])
             )
 
+        if options.excludeExtensions:
+            self.excludeExtensions = list(
+                oset([excludeExtension.lstrip(' .') for excludeExtension in options.excludeExtensions.split(",")])
+            )
+        else:
+            self.excludeExtensions = []
+
         self.useragent = options.useragent
         self.useRandomAgents = options.useRandomAgents
         self.cookie = options.cookie
@@ -224,23 +231,6 @@ class ArgumentParser(object):
                     print("Invalid status code or status code range: {0}".format(statusCode))
                     exit(1)
 
-        if options.excludeExtensions:
-            try:
-                self.excludeExtensions = list(
-                    oset(
-                        [
-                            excludeExtension.strip() if excludeExtension else None
-                            for excludeExtension in options.excludeExtensions.split(",")
-                        ]
-                    )
-                )
-
-            except ValueError:
-                self.excludeExtensions = []
-
-        else:
-            self.excludeExtensions = []
-
         if options.excludeSizes:
             try:
                 self.excludeSizes = list(
@@ -288,6 +278,22 @@ class ArgumentParser(object):
                 self.excludeRegexps = []
         else:
             self.excludeRegexps = []
+
+        if options.excludeRedirects:
+            try:
+                self.excludeRedirects = list(
+                    oset(
+                        [
+                            excludeRedirect.strip() if excludeRedirect else None
+                            for excludeRedirect in options.excludeRedirects.split(",")
+                        ]
+                    )
+                )
+
+            except ValueError:
+                self.excludeRedirects = []
+        else:
+            self.excludeRedirects = []
 
         self.prefixes = [] if not options.prefixes else list(oset([prefix.strip() for prefix in options.prefixes.split(",")]))
         self.suffixes = [] if not options.suffixes else list(oset([suffix.strip() for suffix in options.suffixes.split(",")]))
@@ -381,6 +387,7 @@ class ArgumentParser(object):
         self.excludeSizes = config.safe_get("general", "exclude-sizes", None)
         self.excludeTexts = config.safe_get("general", "exclude-texts", None)
         self.excludeRegexps = config.safe_get("general", "exclude-regexps", None)
+        self.excludeRedirects = config.safe_get("general", "exclude-redirects", None)
         self.recursive = config.safe_getboolean("general", "recursive", False)
         self.recursive_level_max = config.safe_getint("general", "recursive-level-max", 0)
         self.testFailPath = config.safe_get("general", "calibration-path", "").strip()
@@ -496,6 +503,8 @@ information at https://github.com/maurosoria/dirsearch.""")
                            action="store", dest="excludeTexts", default=self.excludeTexts, metavar="TEXTS")
         general.add_option("--exclude-regexps", help="Exclude responses by regexps, separated by commas (Example: 'Not foun[a-z]{1}', '^Error$')",
                            action="store", dest="excludeRegexps", default=self.excludeRegexps, metavar="REGEXPS")
+        general.add_option("--exclude-redirects", help="Exclude responses by redirect regexps or texts, separated by commas (Example: 'https:/oath.okta.com/*')",
+                           action="store", dest="excludeRedirects", default=self.excludeRedirects, metavar="REGEXPS")
         general.add_option("--calibration", help="Path to test for calibration", action="store",
                            dest="testFailPath", default=self.testFailPath, metavar="PATH")
         general.add_option("--random-user-agent", help="Choose a random User-Agent for each request",
