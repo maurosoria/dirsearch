@@ -112,6 +112,7 @@ class Controller(object):
         self.excludeSizes = self.arguments.excludeSizes
         self.excludeTexts = self.arguments.excludeTexts
         self.excludeRegexps = self.arguments.excludeRegexps
+        self.excludeRedirects = self.arguments.excludeRedirects
         self.recursive = self.arguments.recursive
         self.minimumResponseSize = self.arguments.minimumResponseSize
         self.maximumResponseSize = self.arguments.maximumResponseSize
@@ -521,6 +522,14 @@ class Controller(object):
             for excludeRegexp in self.excludeRegexps:
                 if (
                     re.search(excludeRegexp, path.response.body.decode('iso8859-1'))
+                    is not None
+                ):
+                    del path
+                    return
+
+            for excludeRedirect in self.excludeRedirects:
+                if path.response.redirect and (
+                    re.match(excludeRedirect, path.response.redirect)
                     is not None
                 ):
                     del path
