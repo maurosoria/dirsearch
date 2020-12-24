@@ -45,7 +45,7 @@ Features
 - Extensions excluding
 - Reporting (Plain text, JSON, XML, Markdown, CSV)
 - Recursive brute forcing
-- Target enumuration from an IP range
+- Target enumeration from an IP range
 - Sub-directories brute forcing
 - Force extensions
 - HTTP and SOCKS proxy support
