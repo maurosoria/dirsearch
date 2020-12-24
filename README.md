@@ -243,7 +243,7 @@ Options:
 How to use
 ---------------
 
-[![Dirsearch demo](https://asciinema.org/a/380112.png)](https://asciinema.org/a/380112)
+[![Dirsearch demo](https://asciinema.org/a/380112.svg)](https://asciinema.org/a/380112)
 
 Some examples for how to use dirsearch - those are the most common arguments. If you need all, just use the **-h** argument.
 
