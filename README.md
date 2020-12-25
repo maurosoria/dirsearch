@@ -15,6 +15,8 @@ Overview
 
 - As a feature-rich tool, dirsearch gives users the opportunity to perform a complex web content discovering, with many vectors for the wordlist, high accuracy, impressive performance, advanced connection/request settings, modern brute-force techniques and nice output.
 
+- Dirsearch is being actively developed
+
 
 Installation & Usage
 ------------
