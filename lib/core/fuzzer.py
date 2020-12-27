@@ -202,7 +202,7 @@ class Fuzzer(object):
                     time.sleep(self.delay)
 
         except StopIteration:
-            return
+            pass
 
         finally:
             self.stopThread()
