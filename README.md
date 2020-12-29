@@ -1,7 +1,9 @@
+![dirsearch](https://user-images.githubusercontent.com/59408894/103289759-87a0ce80-4a1a-11eb-89c9-2feb7e6db25f.png) - *Hacking is not a crime*
+
 Dirsearch - Web path scanner
 =========
 <img src="https://img.shields.io/badge/Built%20with-Python-Blue"> <img src="https://img.shields.io/github/release/maurosoria/dirsearch.svg">
-<img src="https://img.shields.io/github/stars/maurosoria/dirsearch.svg"> 
+<img src="https://img.shields.io/badge/license-MIT-_red.svg"> <img src="https://img.shields.io/github/stars/maurosoria/dirsearch.svg"> 
 <a href="https://twitter.com/intent/tweet?text=Dirsearch%20-%20Web%20path%20scanner%20by%20@_maurosoria%0A%0Ahttps://github.com/maurosoria/dirsearch"><img src="https://img.shields.io/twitter/url?url=https%3A%2F%2Fgithub.com%2Fmaurosoria%2Fdirsearch"></a>
 
 **Current Release: v0.4.1 (2020.12.8)**
@@ -15,7 +17,7 @@ Overview
 
 - As a feature-rich tool, dirsearch gives users the opportunity to perform a complex web content discovering, with many vectors for the wordlist, high accuracy, impressive performance, advanced connection/request settings, modern brute-force techniques and nice output.
 
-- Dirsearch is being actively developed
+- Dirsearch is being actively developed by @maurosoria and @shelld3v
 
 
 Installation & Usage
@@ -354,27 +356,24 @@ index.html
 ### Wordlist formats
 Supported wordlist formats: uppercase, lowercase, capitalization
 
-```
-python3 dirsearch.py -e html -u https://target --lowercase
-```
+#### Lowercase:
+
 ```
 admin
 index.html
 test
 ```
----------
-```
-python3 dirsearch.py -e html -u https://target --uppercase
-```
+
+#### Uppercase:
+
 ```
 ADMIN
 INDEX.HTML
 TEST
 ```
----------
-```
-python3 dirsearch.py -e html -u https://target --capital
-```
+
+#### Capital:
+
 ```
 Admin
 Index.html
