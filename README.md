@@ -2,9 +2,14 @@
 
 Dirsearch - Web path scanner
 =========
-<img src="https://img.shields.io/badge/Built%20with-Python-Blue"> <img src="https://img.shields.io/github/release/maurosoria/dirsearch.svg">
-<img src="https://img.shields.io/badge/license-MIT-_red.svg"> <img src="https://img.shields.io/github/stars/maurosoria/dirsearch.svg"> 
-<a href="https://twitter.com/intent/tweet?text=Dirsearch%20-%20Web%20path%20scanner%20by%20@_maurosoria%0A%0Ahttps://github.com/maurosoria/dirsearch"><img src="https://img.shields.io/twitter/url?url=https%3A%2F%2Fgithub.com%2Fmaurosoria%2Fdirsearch"></a>
+
+![Build](https://img.shields.io/badge/Built%20with-Python-Blue)
+![Release](https://img.shields.io/github/release/maurosoria/dirsearch.svg)
+![License](https://img.shields.io/badge/license-MIT-_red.svg)
+![Stars](https://img.shields.io/github/stars/maurosoria/dirsearch.svg)
+<a href="https://twitter.com/intent/tweet?text=Dirsearch%20-%20Web%20path%20scanner%20by%20@_maurosoria%0A%0Ahttps://github.com/maurosoria/dirsearch">
+    ![Tweet](https://img.shields.io/twitter/url?url=https%3A%2F%2Fgithub.com%2Fmaurosoria%2Fdirsearch)
+</a>
 
 **Current Release: v0.4.1 (2020.12.8)**
 
