@@ -15,6 +15,8 @@ Overview
 
 - As a feature-rich tool, dirsearch gives users the opportunity to perform a complex web content discovering, with many vectors for the wordlist, high accuracy, impressive performance, advanced connection/request settings, modern brute-force techniques and nice output.
 
+- Dirsearch is being actively developed
+
 
 Installation & Usage
 ------------
@@ -243,7 +245,7 @@ Options:
 How to use
 ---------------
 
-[![Dirsearch demo](https://asciinema.org/a/380112.png)](https://asciinema.org/a/380112)
+[![Dirsearch demo](https://asciinema.org/a/380112.svg)](https://asciinema.org/a/380112)
 
 Some examples for how to use dirsearch - those are the most common arguments. If you need all, just use the **-h** argument.
 
