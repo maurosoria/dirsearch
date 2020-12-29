@@ -507,7 +507,7 @@ information at https://github.com/maurosoria/dirsearch.""")
                            action="store", dest="excludeRedirects", default=self.excludeRedirects, metavar="REGEXPS")
         general.add_option("--calibration", help="Path to test for calibration", action="store",
                            dest="testFailPath", default=self.testFailPath, metavar="PATH")
-        general.add_option("--random-user-agent", help="Choose a random User-Agent for each request",
+        general.add_option("--random-agent", help="Choose a random User-Agent for each request",
                            action="store_true", dest="useRandomAgents",)
         general.add_option("--minimal", action="store", dest="minimumResponseSize", type="int", default=None,
                            help="Minimal response length", metavar="LENGTH")
