@@ -56,6 +56,7 @@
 - [Dodain](https://github.com/Dodain)
 - [Binit Ghimire](https://github.com/TheBinitGhimire)
 - [Knowledge-Wisdom-Understanding](https://github.com/Knowledge-Wisdom-Understanding)
+- [catmandx](https://github.com/catmandx)
 
 Special thanks for all the people who had helped dirsearch so far!
 
