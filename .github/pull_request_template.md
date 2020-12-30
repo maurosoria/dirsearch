@@ -9,7 +9,7 @@ Fix #{issue}
 Don't forget :)
 ---------------
 
- * Add your name to README.md and CONTRIBUTERS.md
+ * Add your name to CONTRIBUTERS.md
  * If this is a new feature, then please add some additional information about it to `CHANGELOG.md`
 
 
