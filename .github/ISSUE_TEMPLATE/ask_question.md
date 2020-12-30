@@ -1,6 +1,6 @@
 ---
 name: Ask Question
-about: Ask a question about Dirsearch
+about: Ask a question about dirsearch
 labels: question
 ---
 
