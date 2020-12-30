@@ -1,5 +1,10 @@
 # Changelog
 
+Currently working...
+---------
+- Fixed important bugs from v0.4.1
+- Exclude responses by redirects
+
 v0.4.1 (2020.12.8)
 ---------
 - Faster

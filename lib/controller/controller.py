@@ -112,6 +112,7 @@ class Controller(object):
         self.excludeSizes = self.arguments.excludeSizes
         self.excludeTexts = self.arguments.excludeTexts
         self.excludeRegexps = self.arguments.excludeRegexps
+        self.excludeRedirects = self.arguments.excludeRedirects
         self.recursive = self.arguments.recursive
         self.minimumResponseSize = self.arguments.minimumResponseSize
         self.maximumResponseSize = self.arguments.maximumResponseSize
@@ -526,6 +527,14 @@ class Controller(object):
                     del path
                     return
 
+            for excludeRedirect in self.excludeRedirects:
+                if path.response.redirect and (
+                    re.match(excludeRedirect, path.response.redirect)
+                    is not None
+                ):
+                    del path
+                    return
+
             pathIsInScanSubdirs = False
             addedToQueue = False
 
@@ -534,7 +543,7 @@ class Controller(object):
                     if subdir == path.path + "/":
                         pathIsInScanSubdirs = True
 
-            if not self.recursive and not pathIsInScanSubdirs and "?" not in path.path:
+            if self.recursive and not pathIsInScanSubdirs and "?" not in path.path:
                 if path.response.redirect:
                     addedToQueue = self.addRedirectDirectory(path)
 

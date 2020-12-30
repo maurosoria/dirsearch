@@ -755,7 +755,12 @@ class Response(object):
                 except ProtocolError as e:
                     raise ChunkedEncodingError(e)
                 except DecodeError as e:
-                    raise ContentDecodingError(e)
+                    # Dirsearch only
+                    while True:
+                        chunk = self.raw.read(chunk_size)
+                        if not chunk:
+                            break
+                        yield chunk
                 except ReadTimeoutError as e:
                     raise ConnectionError(e)
             else:
