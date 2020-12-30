@@ -2,8 +2,9 @@
 
 Currently working...
 ---------
-- Fixed important bugs from v0.4.1
+- Fixed critical bugs from v0.4.1 (IMPORTANT)
 - Exclude responses by redirects
+- URLs from STDIN
 
 v0.4.1 (2020.12.8)
 ---------
