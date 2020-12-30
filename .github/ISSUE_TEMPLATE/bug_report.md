@@ -1,6 +1,6 @@
 ---
 name: Bug Report
-about: Report a Dirsearch problem
+about: Report a dirsearch problem
 labels: bug
 ---
 
