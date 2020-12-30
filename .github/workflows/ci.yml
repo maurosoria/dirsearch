@@ -11,11 +11,6 @@ jobs:
       matrix:
         python-version: [3.8]
         os: [ubuntu-18.04]
-        include:
-          # pypy3 on Mac OS currently fails trying to compile
-          # brotlipy. Moving pypy3 to only test linux.
-          - python-version: pypy3
-            os: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v2
