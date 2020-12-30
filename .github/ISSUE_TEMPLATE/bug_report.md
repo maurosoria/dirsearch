@@ -17,4 +17,4 @@ What it should be instead?
 OS, python version, screenshots, dirsearch command, console output, ...?
 
 #### Checker:
- - [ ] I have read the documentation (README)
+ - [ ] I tested in the latest version of dirsearch
