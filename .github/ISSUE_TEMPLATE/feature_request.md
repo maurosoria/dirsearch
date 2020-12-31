@@ -1,6 +1,6 @@
 ---
 name: Feature Request
-about: Suggest a new feature for Dirsearch improvement
+about: Suggest a new feature for dirsearch improvement
 labels: enhancement
 ---
 
@@ -19,6 +19,3 @@ When and who will use this?
 #### Checker:
 
 - [ ] This feature is in scope for the dirsearch purpose
-
-
-Thank you a lot for your help !!!

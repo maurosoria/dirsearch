@@ -1,8 +1,15 @@
+![dirsearch](https://user-images.githubusercontent.com/59408894/103289759-87a0ce80-4a1a-11eb-89c9-2feb7e6db25f.png) - *Hacking is not a crime*
+
 Dirsearch - Web path scanner
 =========
-<img src="https://img.shields.io/badge/Built%20with-Python-Blue"> <img src="https://img.shields.io/github/release/maurosoria/dirsearch.svg">
-<img src="https://img.shields.io/github/stars/maurosoria/dirsearch.svg"> 
-<a href="https://twitter.com/intent/tweet?text=Dirsearch%20-%20Web%20path%20scanner%20by%20@_maurosoria%0A%0Ahttps://github.com/maurosoria/dirsearch"><img src="https://img.shields.io/twitter/url?url=https%3A%2F%2Fgithub.com%2Fmaurosoria%2Fdirsearch"></a>
+
+![Build](https://img.shields.io/badge/Built%20with-Python-Blue)
+![License](https://img.shields.io/badge/license-GNU_General_Public_License-_red.svg)
+![Release](https://img.shields.io/github/release/maurosoria/dirsearch.svg)
+![Stars](https://img.shields.io/github/stars/maurosoria/dirsearch.svg)
+<a href="https://twitter.com/intent/tweet?text=Dirsearch%20-%20Web%20path%20scanner%20by%20@_maurosoria%0A%0Ahttps://github.com/maurosoria/dirsearch">
+    ![Tweet](https://img.shields.io/twitter/url?url=https%3A%2F%2Fgithub.com%2Fmaurosoria%2Fdirsearch)
+</a>
 
 **Current Release: v0.4.1 (2020.12.8)**
 
@@ -15,7 +22,7 @@ Overview
 
 - As a feature-rich tool, dirsearch gives users the opportunity to perform a complex web content discovering, with many vectors for the wordlist, high accuracy, impressive performance, advanced connection/request settings, modern brute-force techniques and nice output.
 
-- Dirsearch is being actively developed
+- Dirsearch is being actively developed by [@maurosoria](https://twitter.com/_maurosoria) and [@shelld3v](https://github.com/shelld3v)
 
 
 Installation & Usage
@@ -60,8 +67,6 @@ Features
 - 429 response code detecting
 - Multiple wordlist formats (lowercase, uppercase, capitalization)
 - Default configuration from file
-- Quiet mode
-- Debug mode
 - Option to force requests by hostname
 - Option to add custom suffixes and prefixes
 - Option to whitelist response codes, support ranges (-i 200,300-399)
@@ -72,6 +77,8 @@ Features
 - Option to exclude responses by redirects
 - Options to display only items with response length from range
 - Option to remove all extensions from every wordlist entry
+- Quiet mode
+- Debug mode
 - ...
 
 
@@ -119,6 +126,7 @@ api
 ```
 
 - To use multiple wordlists, you can seperate your wordlists with commas. Example: -w wordlist1.txt,wordlist2.txt
+
 
 Options
 -------
@@ -242,6 +250,7 @@ Options:
  **NOTE**: 
  You can change the dirsearch default configurations (default extensions, timeout, wordlist location, ...) by editing the **default.conf** file.
 
+
 How to use
 ---------------
 
@@ -354,27 +363,24 @@ index.html
 ### Wordlist formats
 Supported wordlist formats: uppercase, lowercase, capitalization
 
-```
-python3 dirsearch.py -e html -u https://target --lowercase
-```
+#### Lowercase:
+
 ```
 admin
 index.html
 test
 ```
----------
-```
-python3 dirsearch.py -e html -u https://target --uppercase
-```
+
+#### Uppercase:
+
 ```
 ADMIN
 INDEX.HTML
 TEST
 ```
----------
-```
-python3 dirsearch.py -e html -u https://target --capital
-```
+
+#### Capital:
+
 ```
 Admin
 Index.html
@@ -388,7 +394,7 @@ Use **-i | --include-status** and **-x | --exclude-status** to select allowed an
 python3 dirsearch.py -e php,html,js -u https://target -i 200,204,400,403 -x 500,502,429
 ```
 
-**--exclude-sizes**, **--exclude-texts** and **--exclude-regexps** are also supported for a more advanced filter
+**--exclude-sizes**, **--exclude-texts**, **--exclude-regexps** and **--exclude-redirects** are also supported for a more advanced filter
 
 ```
 python3 dirsearch.py -e php,html,js -u https://target --exclude-sizes 1B,243KB
@@ -455,7 +461,7 @@ python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt -t 100 -m P
 ```
 
 ```
-python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --random-agent --cookie "PHPSESSID=el4ukv0kqbvoirg7nkp4dncpk3"
+python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --random-agent --cookie "isAdmin=1"
 ```
 
 ```
@@ -484,6 +490,7 @@ python3 dirsearch.py -u https://target -w db/dicc.txt --no-extension
 
 **There are more features and you will need to discover it by your self**
 
+
 Tips
 ---------------
 - To run dirsearch with a rate of requests per second, try `-t <rate> -s 1`
@@ -491,6 +498,7 @@ Tips
 - For some endpoints that you do not want to force extensions, add `%NOFORCE%` at the end of them
 - Want to find only folders/directories? Combine `--no-extension` and `--suffixes /`!
 - The combination of `--cidr`, `-F` and `-q` will reduce most of the noise + false negatives when brute-forcing with a CIDR
+
 
 Support Docker
 ---------------
@@ -528,42 +536,8 @@ License: GNU General Public License, version 2
 
 Contributors
 ---------------
-Main: @maurosoria and @shelld3v
+This tool is currently under development by @maurosoria and @shelld3v. We received a lot of help from many people around the world to improve this tool. Thanks so much to everyone who helped us!!
 
-Special thanks to these people:
+See [CONTRIBUTORS.md](https://github.com/maurosoria/dirsearch/blob/master/CONTRIBUTORS.md) for more information about who they are!
 
-- @V-Rico
-- @random-robbie
-- @mzfr
-- @DustinTheGreat
-- @jsfan
-- @liamosaur
-- @Anon-Exploiter
-- @tkisason
-- @ricardojba
-- @Sjord
-- @danritter
-- @shahril96
-- @drego85
-- @Bo0oM
-- @exploide
-- @redshark180
-- @zrquan
-- @SUHAR1K
-- @eur0pa
-- @FireFart
-- @telnet22
-- @sysevil
-- @mazen160
-- @k2l8m11n2
-- @vlohacks
-- @jsav0
-- @serhattsnmz
-- @ColdFusionX
-- @gdattacker
-- @chowmean
-- @dodain
-- @TheBinitGhimire
-- @Knowledge-Wisdom-Understanding
-
-#### Want to join the team? Feel free to submit any pull request that you can. If you don't know how to code, you can support us by updating the wordlist or the documentation. Giving feedback or a new feature suggestion is also a good way to help us improve this tool
+#### Want to join the team? Feel free to submit any pull request that you can. If you don't know how to code, you can support us by updating the wordlist or the documentation. Giving feedback or [a new feature suggestion](https://github.com/maurosoria/dirsearch/issues/new?labels=enhancement&template=feature_request.md) is also a good way to help us improve this tool
