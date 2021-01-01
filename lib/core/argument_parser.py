@@ -61,7 +61,7 @@ class ArgumentParser(object):
                 self.urlList = [str(ip) for ip in IPv4Network(options.cidr)]
 
             elif options.stdin_urls:
-                self.urlList = sys.stdin.read().split("\n")
+                self.urlList = sys.stdin.read().splitlines()
 
             else:
                 print("URL target is missing, try using -u <url>")
