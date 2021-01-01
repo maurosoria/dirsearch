@@ -7081,8 +7081,6 @@ AdaptCMS/admin.php?view=/&view=groups
 AdaptCMS/admin.php?view=/&view=levels
 AdaptCMS/admin.php?view=/&view=stats
 resolute.php?img=config.php
-getfiles.php?f=http://xxx&t=js
-admin/portalcollect.php?f=http://xxx&t=js
 faces/javax.faces.resource/web.xml?ln=../WEB-INF
 faces/javax.faces.resource/web.xml?ln=..\\WEB-INF
 learn/cubemail/restore.php
