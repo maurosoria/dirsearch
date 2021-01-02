@@ -84,7 +84,10 @@ Features
 
 About wordlists
 ---------------
-- Wordlist must be a text file. Each line will be processed as such, except when the special keyword *%EXT%* is used, it will generate one entry for each extension (-e | --extensions) passed as an argument.
+**Summary**: Wordlist must be a text file, each line will be an endpoint. About extensions, unlike other tools, dirsearch won't append extensions to every word, if you don't use the `-f` flag. By default, only the `%EXT%` keyword in the wordlist will be replaced with extensions (`-e <extensions>`).
+
+**Details**:
+- Each line in the wordlist will be processed as such, except when the special keyword *%EXT%* is used, it will generate one entry for each extension (-e | --extensions) passed as an argument.
 
 Example:
 
@@ -125,7 +128,7 @@ home.html
 api
 ```
 
-- To use multiple wordlists, you can seperate your wordlists with commas. Example: -w wordlist1.txt,wordlist2.txt
+*To use multiple wordlists, you can seperate your wordlists with commas. Example: -w wordlist1.txt,wordlist2.txt*
 
 
 Options
