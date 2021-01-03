@@ -79,12 +79,14 @@ Features
 - Option to remove all extensions from every wordlist entry
 - Quiet mode
 - Debug mode
-- ...
 
 
 About wordlists
 ---------------
-- Wordlist must be a text file. Each line will be processed as such, except when the special keyword *%EXT%* is used, it will generate one entry for each extension (-e | --extensions) passed as an argument.
+**Summary**: Wordlist must be a text file, each line will be an endpoint. About extensions, unlike other tools, dirsearch won't append extensions to every word, if you don't use the `-f` flag. By default, only the `%EXT%` keyword in the wordlist will be replaced with extensions (`-e <extensions>`).
+
+**Details**:
+- Each line in the wordlist will be processed as such, except when the special keyword *%EXT%* is used, it will generate one entry for each extension (-e | --extensions) passed as an argument.
 
 Example:
 
@@ -125,7 +127,7 @@ home.html
 api
 ```
 
-- To use multiple wordlists, you can seperate your wordlists with commas. Example: -w wordlist1.txt,wordlist2.txt
+*To use multiple wordlists, you can seperate your wordlists with commas. Example: -w wordlist1.txt,wordlist2.txt*
 
 
 Options
@@ -174,7 +176,7 @@ Options:
 
   General Settings:
     -r, --recursive     Bruteforce recursively
-    -R DEPTH, --recursion-max-depth=DEPTH
+    -R DEPTH, --recursion-depth=DEPTH
                         Maximum recursion depth
     -t THREADS, --threads=THREADS
                         Number of threads
@@ -194,13 +196,15 @@ Options:
                         (Example: 123B,4KB)
     --exclude-texts=TEXTS
                         Exclude responses by texts, separated by commas
-                        (Example: "Not found", "Error")
+                        (Example: 'Not found', 'Error')
     --exclude-regexps=REGEXPS
                         Exclude responses by regexps, separated by commas
-                        (Example: "Not foun[a-z]{1}", "^Error$")
+                        (Example: 'Not foun[a-z]{1}', '^Error$')
+    --exclude-redirects=REGEXPS
+                        Exclude responses by redirect regexps or texts,
+                        separated by commas (Example: 'https://okta.com/*')
     --calibration=PATH  Path to test for calibration
-    --random-user-agent
-                        Choose a random User-Agent for each request
+    --random-agent      Choose a random User-Agent for each request
     --minimal=LENGTH    Minimal response length
     --maximal=LENGTH    Maximal response length
     -q, --quiet-mode    Quiet mode
@@ -214,7 +218,7 @@ Options:
                         HTTP request data
     -H HEADERS, --header=HEADERS
                         HTTP request header, support multiple flags (Example:
-                        -H "Referer: example.com" -H "Accept: */*")
+                        -H 'Referer: example.com' -H 'Accept: */*')
     --header-list=FILE  File contains HTTP request headers
     -F, --follow-redirects
                         Follow HTTP redirects
