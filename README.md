@@ -79,7 +79,6 @@ Features
 - Option to remove all extensions from every wordlist entry
 - Quiet mode
 - Debug mode
-- ...
 
 
 About wordlists
