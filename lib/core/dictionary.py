@@ -149,7 +149,6 @@ class Dictionary(object):
                             result.append(quoted + "." + extension)
 
                     result.append(quoted)
-                    result.append(quoted + "/")
 
                 # Append line unmodified.
                 else:
