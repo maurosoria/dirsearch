@@ -177,7 +177,7 @@ Options:
 
   General Settings:
     -r, --recursive     Bruteforce recursively
-    -R DEPTH, --recursion-max-depth=DEPTH
+    -R DEPTH, --recursion-depth=DEPTH
                         Maximum recursion depth
     -t THREADS, --threads=THREADS
                         Number of threads
@@ -197,13 +197,16 @@ Options:
                         (Example: 123B,4KB)
     --exclude-texts=TEXTS
                         Exclude responses by texts, separated by commas
-                        (Example: "Not found", "Error")
+                        (Example: 'Not found', 'Error')
     --exclude-regexps=REGEXPS
                         Exclude responses by regexps, separated by commas
-                        (Example: "Not foun[a-z]{1}", "^Error$")
+                        (Example: 'Not foun[a-z]{1}', '^Error$')
+    --exclude-redirects=REGEXPS
+                        Exclude responses by redirect regexps or texts,
+                        separated by commas (Example:
+                        'https:/oath.okta.com/*')
     --calibration=PATH  Path to test for calibration
-    --random-user-agent
-                        Choose a random User-Agent for each request
+    --random-agent      Choose a random User-Agent for each request
     --minimal=LENGTH    Minimal response length
     --maximal=LENGTH    Maximal response length
     -q, --quiet-mode    Quiet mode
@@ -217,7 +220,7 @@ Options:
                         HTTP request data
     -H HEADERS, --header=HEADERS
                         HTTP request header, support multiple flags (Example:
-                        -H "Referer: example.com" -H "Accept: */*")
+                        -H 'Referer: example.com' -H 'Accept: */*')
     --header-list=FILE  File contains HTTP request headers
     -F, --follow-redirects
                         Follow HTTP redirects
