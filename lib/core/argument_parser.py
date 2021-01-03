@@ -16,6 +16,8 @@
 #
 #  Author: Mauro Soria
 
+import sys
+
 from optparse import OptionParser, OptionGroup
 from ipaddress import IPv4Network
 
@@ -57,6 +59,9 @@ class ArgumentParser(object):
 
             elif options.cidr:
                 self.urlList = [str(ip) for ip in IPv4Network(options.cidr)]
+
+            elif options.stdin_urls:
+                self.urlList = sys.stdin.read().splitlines()
 
             else:
                 print("URL target is missing, try using -u <url>")
@@ -453,6 +458,7 @@ information at https://github.com/maurosoria/dirsearch.""")
         mandatory.add_option("-u", "--url", help="Target URL", action="store", type="string", dest="url", default=None)
         mandatory.add_option("-l", "--url-list", help="URL list file", action="store", type="string", dest="urlList",
                              default=None, metavar="FILE")
+        mandatory.add_option("--stdin", help="URL list from STDIN", action="store_true", dest="stdin_urls")
         mandatory.add_option("--cidr", help="Target CIDR", action="store", type="string", dest="cidr", default=None)
         mandatory.add_option("-e", "--extensions", help="Extension list separated by commas (Example: php,asp)",
                              action="store", dest="extensions", default=self.defaultExtensions)
@@ -503,7 +509,7 @@ information at https://github.com/maurosoria/dirsearch.""")
                            action="store", dest="excludeTexts", default=self.excludeTexts, metavar="TEXTS")
         general.add_option("--exclude-regexps", help="Exclude responses by regexps, separated by commas (Example: 'Not foun[a-z]{1}', '^Error$')",
                            action="store", dest="excludeRegexps", default=self.excludeRegexps, metavar="REGEXPS")
-        general.add_option("--exclude-redirects", help="Exclude responses by redirect regexps or texts, separated by commas (Example: 'https:/oath.okta.com/*')",
+        general.add_option("--exclude-redirects", help="Exclude responses by redirect regexps or texts, separated by commas (Example: 'https://okta.com/*')",
                            action="store", dest="excludeRedirects", default=self.excludeRedirects, metavar="REGEXPS")
         general.add_option("--calibration", help="Path to test for calibration", action="store",
                            dest="testFailPath", default=self.testFailPath, metavar="PATH")

@@ -2,8 +2,9 @@
 
 Currently working...
 ---------
-- Fixed important bugs from v0.4.1
+- Fixed critical bugs from v0.4.1 (IMPORTANT)
 - Exclude responses by redirects
+- URLs from STDIN
 
 v0.4.1 (2020.12.8)
 ---------
@@ -99,8 +100,21 @@ v0.4.1 (2020.12.8)
 
 ---------
 
-- 0.2.6 - 2014.9.12 Fixed bug when dictionary size is greater than threads count. Fixed URL encoding bug (issue2).
-- 0.2.5 - 2014.9.2 Shows Content-Length in output and reports, added default.conf file (for setting defaults) and report auto save feature added.
+0.2.6 - 2014.9.12
+---------
+- Fixed bug when dictionary size is greater than threads count
+- Fixed URL encoding bug
+
+---------
+
+0.2.5 - 2014.9.2
+---------
+- Shows Content-Length in output and reports
+- Added default.conf file (for setting defaults)
+- Report auto save feature added.
+
+---------
+
 - 0.2.4 - 2014.7.17 Added Windows support, --scan-subdir|--scan-subdirs argument added, --exclude-subdir|--exclude-subdirs added, --header argument added, dirbuster dictionaries added, fixed some concurrency bugs, MVC refactoring
 - 0.2.3 - 2014.7.7 Fixed some bugs, minor refactorings, exclude status switch, "pause/next directory" feature, changed help structure, expaded default dictionary
 - 0.2.2 - 2014.7.2 Fixed some bugs, showing percentage of tested paths and added report generation feature
