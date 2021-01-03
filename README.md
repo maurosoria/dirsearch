@@ -102,7 +102,7 @@ index.asp
 index.aspx
 ```
 
-- For wordlists without *%EXT%* (like [SecLists](https://github.com/danielmiessler/SecLists)), you need to use the **-f | --force-extensions** switch to append extensions to every word in the wordlists, as well as the "/". And for entries in the wordlist that you do not want to force, you can add *%NOFORCE%* at the end of them so dirsearch won't append any extension.
+- For wordlists without *%EXT%* (like [SecLists](https://github.com/danielmiessler/SecLists)), you need to use the **-f | --force-extensions** switch to append extensions to every word in the wordlists. And for entries in the wordlist that you do not want to force, you can add *%NOFORCE%* at the end of them so dirsearch won't append any extension.
 
 Example:
 
@@ -118,7 +118,6 @@ Passing extensions "php" and "html" with the **-f**/**--force-extensions** flag 
 admin
 admin.php
 admin.html
-admin/
 home
 home.php
 home.html
