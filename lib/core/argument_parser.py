@@ -509,7 +509,7 @@ information at https://github.com/maurosoria/dirsearch.""")
                            action="store", dest="excludeTexts", default=self.excludeTexts, metavar="TEXTS")
         general.add_option("--exclude-regexps", help="Exclude responses by regexps, separated by commas (Example: 'Not foun[a-z]{1}', '^Error$')",
                            action="store", dest="excludeRegexps", default=self.excludeRegexps, metavar="REGEXPS")
-        general.add_option("--exclude-redirects", help="Exclude responses by redirect regexps or texts, separated by commas (Example: 'https:/oath.okta.com/*')",
+        general.add_option("--exclude-redirects", help="Exclude responses by redirect regexps or texts, separated by commas (Example: 'https://okta.com/*')",
                            action="store", dest="excludeRedirects", default=self.excludeRedirects, metavar="REGEXPS")
         general.add_option("--calibration", help="Path to test for calibration", action="store",
                            dest="testFailPath", default=self.testFailPath, metavar="PATH")
