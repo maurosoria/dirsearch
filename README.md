@@ -203,8 +203,7 @@ Options:
                         (Example: 'Not foun[a-z]{1}', '^Error$')
     --exclude-redirects=REGEXPS
                         Exclude responses by redirect regexps or texts,
-                        separated by commas (Example:
-                        'https:/oath.okta.com/*')
+                        separated by commas (Example: 'https://okta.com/*')
     --calibration=PATH  Path to test for calibration
     --random-agent      Choose a random User-Agent for each request
     --minimal=LENGTH    Minimal response length
