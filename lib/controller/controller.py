@@ -163,7 +163,7 @@ class Controller(object):
                 try:
                     gc.collect()
                     self.reportManager = ReportManager()
-                    self.currentUrl = url
+                    self.currentUrl = url if url.endswith("/") else url + "/"
                     self.output.setTarget(self.currentUrl)
                     self.ignore429 = False
 
@@ -223,7 +223,7 @@ class Controller(object):
                         errorCallbacks=errorCallbacks,
                     )
                     try:
-                        self.wait()
+                        self.prepare()
                     except RequestException as e:
                         self.output.error(
                             "Fatal error during site scanning: " + e.args[0]["message"]
@@ -542,8 +542,9 @@ class Controller(object):
                 for subdir in self.scanSubdirs:
                     if subdir == path.path + "/":
                         pathIsInScanSubdirs = True
+                        break
 
-            if self.recursive and not pathIsInScanSubdirs and "?" not in path.path:
+            if self.recursive and not pathIsInScanSubdirs and "?" not in path.path and "#" not in path.path:
                 if path.response.redirect:
                     addedToQueue = self.addRedirectDirectory(path)
 
@@ -645,15 +646,14 @@ class Controller(object):
     def processPaths(self):
         while True:
             try:
-                while not self.fuzzer.wait(0.3):
+                while not self.fuzzer.wait(0.25):
                     if not self.ignore429 and self.got429:
                         self.handlePause("429 Response code detected: Server is blocking requests...")
-                    continue
                 break
             except (KeyboardInterrupt):
                 self.handlePause("CTRL+C detected: Pausing threads, please wait...")
 
-    def wait(self):
+    def prepare(self):
         while not self.directories.empty():
             gc.collect()
             self.currentJob += 1
@@ -670,6 +670,14 @@ class Controller(object):
             self.processPaths()
 
         return
+
+    def addPort(self, url):
+        parsed = urllib.parse.urlparse(url)
+        if ":" not in parsed.netloc:
+            port = "443" if parsed.scheme == "https" else "80"
+            url = url.replace(parsed.netloc, parsed.netloc + ":" + port)
+
+        return url
 
     def addDirectory(self, path):
         if path.endswith("/"):
@@ -698,14 +706,14 @@ class Controller(object):
         # Resolve the redirect header relative to the current URL and add the
         # path to self.directories if it is a subdirectory of the current URL
 
-        baseUrl = self.currentUrl.rstrip("/") + "/" + self.currentDirectory
-
-        baseUrl = baseUrl.rstrip("/") + "/"
+        baseUrl = self.currentUrl + self.currentDirectory
+        baseUrl = self.addPort(baseUrl)
 
         absoluteUrl = urllib.parse.urljoin(baseUrl, path.response.redirect)
+        absoluteUrl = self.addPort(absoluteUrl)
 
         if absoluteUrl.startswith(baseUrl) and absoluteUrl != baseUrl and absoluteUrl.endswith("/"):
-            dir = absoluteUrl[len(self.currentUrl.rstrip("/")) + 1:]
+            dir = absoluteUrl[len(self.addPort(self.currentUrl)):]
 
             if dir in self.doneDirs:
                 return False

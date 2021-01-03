@@ -214,8 +214,6 @@ class CLIOutput(object):
         self.newLine(config)
 
     def setTarget(self, target):
-        if not target.endswith("/"):
-            target += "/"
         if not target.startswith(("http://", "https://")) and "://" not in target:
             target = "http://" + target
 
