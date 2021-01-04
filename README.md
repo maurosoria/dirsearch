@@ -1,4 +1,4 @@
-Dirsearch - Web path scanner
+dirsearch - **Web path scanner**
 =========
 <img src="https://img.shields.io/badge/Built%20with-Python-Blue"> <img src="https://img.shields.io/github/release/maurosoria/dirsearch.svg">
 <img src="https://img.shields.io/github/stars/maurosoria/dirsearch.svg"> 
