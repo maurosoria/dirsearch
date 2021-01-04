@@ -1,6 +1,6 @@
 ![dirsearch](https://user-images.githubusercontent.com/59408894/103289759-87a0ce80-4a1a-11eb-89c9-2feb7e6db25f.png) - *Hacking is not a crime*
 
-Dirsearch - Web path scanner
+dirsearch - Web path scanner
 =========
 
 ![Build](https://img.shields.io/badge/Built%20with-Python-Blue)
