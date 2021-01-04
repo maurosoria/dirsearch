@@ -648,7 +648,7 @@ class Controller(object):
             try:
                 while not self.fuzzer.wait(0.25):
                     if not self.ignore429 and self.got429:
-                        self.handlePause("429 Response code detected: Server is blocking requests...")
+                        self.handlePause("429 status code detected: Pausing threads, please wait...")
                 break
             except (KeyboardInterrupt):
                 self.handlePause("CTRL+C detected: Pausing threads, please wait...")
