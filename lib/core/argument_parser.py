@@ -172,6 +172,9 @@ class ArgumentParser(object):
                 "php", "inc.php", "jsp", "jsf", "asp", "aspx", "do", "action", "cgi",
                 "pl", "html", "htm", "js", "css", "json", "txt", "tar.gz", "tgz"
             ]
+        elif options.extensions == "CHANGELOG.md":
+            print("A weird extension was provided: CHANGELOG.md. Please do not use * as the extension or enclose it in double quotes")
+            exit(0)
         else:
             self.extensions = list(
                 oset([extension.lstrip(' .') for extension in options.extensions.split(",")])
