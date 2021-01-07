@@ -1,19 +1,33 @@
 # Changelog
 
+Currently working...
+---------
+- Fixed critical bugs from v0.4.1 (IMPORTANT)
+- Exclude responses by redirects
+- URLs from STDIN
+- Fixed the CSV Injection vulnerability (https://www.exploit-db.com/exploits/49370)
 
-0.4.1 - Updating ...
+v0.4.1 (2020.12.8)
 ---------
 - Faster
-- Added no extension option
-- Removed the delay between test requests when using -s
-- Support wordlist formats (2 from v0.4.0)
-- Multiple bugfixes
+- Allow to brute force through a CIDR notation
+- Exclude responses by human readable sizes
+- Provide headers from a file
+- Match/filter status codes by ranges
+- Detect 429 response status code
 - Support SOCKS proxy
-- Option to stop whenever an error occurs
+- XML, Markdown and CSV report formats
+- Capital wordlist format
+- Option to replay proxy with found paths
+- Option to remove all extensions in the wordlist
+- Option to exit whenever an error occurs
+- Option to disable colored output
+- Debug mode
+- Multiple bugfixes
 
 ---------
 
-0.4.0 - 2020.09.26
+0.4.0 - 2020.09.27
 ---------
 - Exclude extensions argument added
 - No dot extensions option
@@ -27,7 +41,7 @@
 
 ---------
 
-0.3.9 - 2017.11.26
+0.3.9 - 2019.11.26
 ---------
 - Added default extensions argument (-E).
 - Added suppress empty responses.
@@ -87,8 +101,21 @@
 
 ---------
 
-- 0.2.6 - 2014.9.12 Fixed bug when dictionary size is greater than threads count. Fixed URL encoding bug (issue2).
-- 0.2.5 - 2014.9.2 Shows Content-Length in output and reports, added default.conf file (for setting defaults) and report auto save feature added.
+0.2.6 - 2014.9.12
+---------
+- Fixed bug when dictionary size is greater than threads count
+- Fixed URL encoding bug
+
+---------
+
+0.2.5 - 2014.9.2
+---------
+- Shows Content-Length in output and reports
+- Added default.conf file (for setting defaults)
+- Report auto save feature added.
+
+---------
+
 - 0.2.4 - 2014.7.17 Added Windows support, --scan-subdir|--scan-subdirs argument added, --exclude-subdir|--exclude-subdirs added, --header argument added, dirbuster dictionaries added, fixed some concurrency bugs, MVC refactoring
 - 0.2.3 - 2014.7.7 Fixed some bugs, minor refactorings, exclude status switch, "pause/next directory" feature, changed help structure, expaded default dictionary
 - 0.2.2 - 2014.7.2 Fixed some bugs, showing percentage of tested paths and added report generation feature

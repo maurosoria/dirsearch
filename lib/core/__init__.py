@@ -1,5 +1,5 @@
-from .ArgumentParser import *  # noqa: F401
-from .Dictionary import *  # noqa: F401
-from .Fuzzer import *  # noqa: F401
-from .Path import *  # noqa: F401
-from .ReportManager import *  # noqa: F401
+from .argument_parser import *  # noqa: F401
+from .dictionary import *  # noqa: F401
+from .fuzzer import *  # noqa: F401
+from .path import *  # noqa: F401
+from .report_manager import *  # noqa: F401

@@ -1,3 +1,3 @@
-from .FileUtils import *  # noqa: F401
-from .RandomUtils import *  # noqa: F401
-from .DefaultConfigParser import *  # noqa: F401
+from .file_utils import *  # noqa: F401
+from .random_utils import *  # noqa: F401
+from .default_config_parser import *  # noqa: F401

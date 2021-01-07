@@ -19,19 +19,18 @@
 import http.client
 import random
 import socket
-import time
 import urllib.parse
 
 import thirdparty.requests as requests
-from .RequestException import *
-from .Response import *
+from .request_exception import *
+from .response import *
 
 
 class Requester(object):
     headers = {
-        "User-agent": "Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/28.0.1468.0 Safari/537.36",
-        "Accept-Language": "en-us",
-        "Accept-Encoding": "identity",
+        "User-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36",
+        "Accept-Language": "*",
+        "Accept-Encoding": "*",
         "Keep-Alive": "300",
         "Cache-Control": "max-age=0",
     }
@@ -43,7 +42,6 @@ class Requester(object):
         useragent=None,
         maxPool=1,
         maxRetries=5,
-        delay=0,
         timeout=20,
         ip=None,
         proxy=None,
@@ -56,26 +54,31 @@ class Requester(object):
         self.httpmethod = httpmethod
         self.data = data
 
-        # if no backslash, append one
+        # If no backslash, append one
         if not url.endswith("/"):
             url += "/"
 
         parsed = urllib.parse.urlparse(url)
-        self.basePath = parsed.path
 
-        # if not protocol specified, set http by default
-        if parsed.scheme not in ["https", "http"]:
+        # If no protocol specified, set http by default
+        if "://" not in url:
             parsed = urllib.parse.urlparse("http://" + url)
+
+        # If protocol is not supported
+        elif parsed.scheme not in ["https", "http"]:
+            raise RequestException({"message": "Unsupported URL scheme: {0}".format(parsed.scheme)})
+
+        if parsed.path.startswith("/"):
+            self.basePath = parsed.path[1:]
+        else:
             self.basePath = parsed.path
 
+        # Safe quote all special characters in basePath to prevent from being encoded when performing requests
+        self.basePath = urllib.parse.quote(self.basePath, safe="!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~")
         self.protocol = parsed.scheme
-
-        if self.protocol not in ["https", "http"]:
-            self.protocol = "http"
-
         self.host = parsed.netloc.split(":")[0]
 
-        # resolve DNS to decrease overhead
+        # Resolve DNS to decrease overhead
         if ip:
             self.ip = ip
         else:
@@ -89,6 +92,10 @@ class Requester(object):
             self.port = int(parsed.netloc.split(":")[1])
         except IndexError:
             self.port = 443 if self.protocol == "https" else 80
+        except ValueError:
+            raise RequestException(
+                {"message": "Invalid port number: {0}".format(parsed.netloc.split(":")[1])}
+            )
 
         # Pass if the host header has already been set
         if "host" not in [hd.lower() for hd in self.headers]:
@@ -109,7 +116,6 @@ class Requester(object):
 
         self.maxRetries = maxRetries
         self.maxPool = maxPool
-        self.delay = delay
         self.timeout = timeout
         self.pool = None
         self.proxy = proxy
@@ -118,10 +124,14 @@ class Requester(object):
         self.randomAgents = None
         self.requestByHostname = requestByHostname
         self.session = requests.Session()
-        self.url = "{0}://{1}:{2}".format(self.protocol, self.host if self.requestByHostname else self.ip, self.port)
+        self.url = "{0}://{1}:{2}/".format(
+            self.protocol,
+            self.host if self.requestByHostname else self.ip,
+            self.port,
+        )
 
     def setHeader(self, header, content):
-        self.headers[header] = content
+        self.headers[header.strip()] = content.strip()
 
     def setRandomAgents(self, agents):
         self.randomAgents = list(agents)
@@ -129,28 +139,23 @@ class Requester(object):
     def unsetRandomAgents(self):
         self.randomAgents = None
 
-    def request(self, path, nodelay=False):
+    def request(self, path, proxy=None):
         i = 0
-        proxy = None
         result = None
 
         while i <= self.maxRetries:
 
             try:
-                if self.proxylist:
-                    proxy = {"https": random.choice(self.proxylist), "http": random.choice(self.proxylist)}
-                elif self.proxy:
-                    proxy = {"https": self.proxy, "http": self.proxy}
+                if proxy:
+                    proxy = {"https": proxy, "http": proxy}
 
-                if self.basePath.startswith("/"):
-                    self.basePath = self.basePath[1:]
+                else:
+                    if self.proxylist:
+                        proxy = {"https": random.choice(self.proxylist), "http": random.choice(self.proxylist)}
+                    elif self.proxy:
+                        proxy = {"https": self.proxy, "http": self.proxy}
 
-                url = "{0}/{1}".format(self.url, self.basePath).rstrip("/")
-
-                if not url.endswith("/"):
-                    url += "/"
-
-                url += path
+                url = self.url + self.basePath + path
 
                 if self.randomAgents:
                     self.headers["User-agent"] = random.choice(self.randomAgents)
@@ -173,27 +178,34 @@ class Requester(object):
                     response.content,
                 )
 
-                if not nodelay:
-                    time.sleep(self.delay)
-
                 break
 
             except requests.exceptions.TooManyRedirects as e:
                 raise RequestException({"message": "Too many redirects: {0}".format(e)})
 
             except requests.exceptions.SSLError:
+                self.url = "{0}://{1}:{2}/".format(self.protocol, self.host, self.port)
+                continue
+
+            except requests.exceptions.ProxyError as e:
                 raise RequestException(
-                    {
-                        "message": "SSL Error connecting to server. Try the -b flag to connect by hostname"
-                    }
+                    {"message": "Error with the proxy: {0}".format(e)}
                 )
 
-            except requests.exceptions.ConnectionError as e:
-                if self.proxy is not None:
-                    raise RequestException(
-                        {"message": "Error with the proxy: {0}".format(e)}
-                    )
-                continue
+            except requests.exceptions.ConnectionError:
+                raise RequestException(
+                    {"message": "Cannot connect to: {0}:{1}".format(self.host, self.port)}
+                )
+
+            except requests.exceptions.InvalidURL:
+                raise RequestException(
+                    {"message": "Invalid URL: {0}".format(url)}
+                )
+
+            except requests.exceptions.InvalidProxyURL:
+                raise RequestException(
+                    {"message": "Invalid proxy URL: {0}".format(proxy["http"])}
+                )
 
             except (
                 requests.exceptions.ConnectTimeout,
@@ -210,7 +222,7 @@ class Requester(object):
         if i > self.maxRetries:
             raise RequestException(
                 {
-                    "message": "CONNECTION TIMEOUT: There was a problem in the request to: {0}".format(
+                    "message": "There was a problem in the request to: {0}".format(
                         url
                     )
                 }

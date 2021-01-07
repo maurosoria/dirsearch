@@ -20,7 +20,7 @@ import re
 import threading
 import urllib.parse
 
-from lib.utils.FileUtils import File
+from lib.utils.file_utils import File
 
 
 class Dictionary(object):
@@ -35,9 +35,9 @@ class Dictionary(object):
         uppercase=False,
         capitalization=False,
         forcedExtensions=False,
-        noDotExtensions=False,
         excludeExtensions=[],
         noExtension=False,
+        onlySelected=False,
     ):
 
         self.entries = []
@@ -49,8 +49,8 @@ class Dictionary(object):
         self._suffixes = suffixes
         self._paths = paths
         self._forcedExtensions = forcedExtensions
-        self._noDotExtensions = noDotExtensions
         self._noExtension = noExtension
+        self._onlySelected = onlySelected
         self.lowercase = lowercase
         self.uppercase = uppercase
         self.capitalization = capitalization
@@ -75,7 +75,7 @@ class Dictionary(object):
 
     @classmethod
     def quote(cls, string):
-        return urllib.parse.quote(string, safe=":/~?%&+-=$!@^*()[]{}<>;'\"|\\,._")
+        return urllib.parse.quote(string, safe="!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~")
 
     """
     Dictionary.generate() behaviour
@@ -96,15 +96,14 @@ class Dictionary(object):
 
     def generate(self):
         reext = re.compile(r"\%ext\%", re.IGNORECASE).sub
-        reextdot = re.compile(r"\.\%ext\%", re.IGNORECASE).sub
-        reexclude = re.findall
         renoforce = re.compile(r"\%noforce\%", re.IGNORECASE).sub
+        find = re.findall
         custom = []
         result = []
 
         # Enable to use multiple dictionaries at once
         for dictFile in self.dictionaryFiles:
-            for line in list(filter(None, dict.fromkeys(dictFile.getLines()))):
+            for line in list(filter(None, dict.fromkeys(dictFile.get_lines()))):
                 # Skip comments
                 if line.lstrip().startswith("#"):
                     continue
@@ -122,28 +121,17 @@ class Dictionary(object):
                 else:
                     noforce = False
 
-                # Skip if the path is containing excluded extensions
-                if len(self._excludeExtensions):
-                    matched = False
-
-                    for excludeExtension in self._excludeExtensions:
-                        if len(reexclude("." + excludeExtension, line)):
-                            matched = True
-                            break
-
-                    if matched:
+                # Skip if the path contains excluded extensions
+                if self._excludeExtensions:
+                    if any(
+                        [find("." + extension, line) for extension in self._excludeExtensions]
+                    ):
                         continue
 
                 # Classic dirsearch wordlist processing (with %EXT% keyword)
                 if "%ext%" in line.lower():
                     for extension in self._extensions:
-                        if self._noDotExtensions:
-                            newline = reextdot(extension, line)
-
-                        else:
-                            newline = line
-
-                        newline = reext(extension, newline)
+                        newline = reext(extension, line)
 
                         quoted = self.quote(newline)
                         result.append(quoted)
@@ -155,10 +143,10 @@ class Dictionary(object):
 
                     for extension in self._extensions:
                         # Why? Check https://github.com/maurosoria/dirsearch/issues/70
-                        if extension.strip() == '':
+                        if not extension.strip():
                             result.append(quoted)
                         else:
-                            result.append(quoted + ('' if self._noDotExtensions else '.') + extension)
+                            result.append(quoted + "." + extension)
 
                     result.append(quoted)
                     result.append(quoted + "/")
@@ -166,7 +154,15 @@ class Dictionary(object):
                 # Append line unmodified.
                 else:
                     quoted = self.quote(line)
-                    result.append(quoted)
+
+                    if self._onlySelected and not line.rstrip().endswith("/") and "." in line:
+                        for extension in self._extensions:
+                            if line.endswith("." + extension):
+                                result.append(quoted)
+                                break
+
+                    else:
+                        result.append(quoted)
 
         # Adding prefixes for finding config files etc
         if self._prefixes:
@@ -177,7 +173,6 @@ class Dictionary(object):
 
         # Adding suffixes for finding backups etc
         if self._suffixes:
-            suff = None
             for res in list(dict.fromkeys(result)):
                 if not res.rstrip().endswith("/"):
                     for suff in self._suffixes:

@@ -19,17 +19,22 @@
 import sys
 import threading
 import time
+import urllib.parse
 
-from lib.utils.FileUtils import *
-from lib.utils.TerminalSize import get_terminal_size
-from thirdparty.colorama import *
+from lib.utils.file_utils import *
+from lib.utils.terminal_size import get_terminal_size
+from thirdparty.colorama import init, Fore, Back, Style
 
 if sys.platform in ["win32", "msys"]:
     from thirdparty.colorama.win32 import *
 
 
+class NoColor:
+    RED = GREEN = YELLOW = BLUE = MAGENTA = CYAN = WHITE = BRIGHT = RESET_ALL = ''
+
+
 class CLIOutput(object):
-    def __init__(self):
+    def __init__(self, color):
         init()
         self.lastLength = 0
         self.lastOutput = ""
@@ -38,6 +43,8 @@ class CLIOutput(object):
         self.blacklists = {}
         self.basePath = None
         self.errors = 0
+        if not color:
+            self.disableColors()
 
     def inLine(self, string):
         self.erase()
@@ -61,7 +68,7 @@ class CLIOutput(object):
             sys.stdout.write("\033[0G")
 
     def newLine(self, string):
-        if self.lastInLine is True:
+        if self.lastInLine:
             self.erase()
 
         if sys.platform in ["win32", "msys"]:
@@ -78,68 +85,54 @@ class CLIOutput(object):
         sys.stdout.flush()
 
     def statusReport(self, path, response, full_url, addedToQueue):
-        with self.mutex:
-            contentLength = None
-            status = response.status
+        contentLength = None
+        status = response.status
 
-            # Check blacklist
-            if status in self.blacklists and path in self.blacklists[status]:
-                return
+        # Format message
+        try:
+            size = int(response.headers["content-length"])
 
-            # Format message
-            try:
-                size = int(response.headers["content-length"])
+        except (KeyError, ValueError):
+            size = len(response.body)
 
-            except (KeyError, ValueError):
-                size = len(response.body)
+        finally:
+            contentLength = FileUtils.size_human(size)
 
-            finally:
-                contentLength = FileUtils.sizeHuman(size)
+        showPath = "/" + self.basePath + path
 
-            if not self.basePath:
-                showPath = "/" + path
+        if full_url:
+            parsed = urllib.parse.urlparse(self.target)
+            showPath = "{0}://{1}{2}".format(parsed.scheme, parsed.netloc, showPath)
 
-            else:
-                if not self.basePath.startswith("/"):
-                    self.basePath = "/" + self.basePath
+        message = "[{0}] {1} - {2} - {3}".format(
+            time.strftime("%H:%M:%S"),
+            status,
+            contentLength.rjust(6, " "),
+            showPath,
+        )
 
-                showPath = self.basePath.rstrip("/") + "/" + path
+        if status == 200:
+            message = Fore.GREEN + message + Style.RESET_ALL
 
-                if full_url:
-                    showPath = (self.target[:-1] if self.target.endswith("/") else self.target) + showPath
+        elif status == 401:
+            message = Fore.YELLOW + message + Style.RESET_ALL
 
-            message = "[{0}] {1} - {2} - {3}".format(
-                time.strftime("%H:%M:%S"),
-                status,
-                contentLength.rjust(6, " "),
-                showPath,
-            )
+        elif status == 403:
+            message = Fore.BLUE + message + Style.RESET_ALL
 
-            if status == 200:
-                message = Fore.GREEN + message + Style.RESET_ALL
+        elif status == 500:
+            message = Fore.RED + message + Style.RESET_ALL
 
-            elif status == 400:
-                message = Fore.MAGENTA + message + Style.RESET_ALL
-
-            elif status == 401:
-                message = Fore.YELLOW + message + Style.RESET_ALL
-
-            elif status == 403:
-                message = Fore.BLUE + message + Style.RESET_ALL
-
-            elif status == 500:
-                message = Fore.RED + message + Style.RESET_ALL
-
-            # Check if redirect
-            elif status in [301, 302, 303, 307, 308] and "location" in [
-                h.lower() for h in response.headers
-            ]:
-                message = Fore.CYAN + message + Style.RESET_ALL
+        # Check if redirect
+        if status in [301, 302, 303, 307, 308]:
+            message = Fore.CYAN + message + Style.RESET_ALL
+            if "location" in [h.lower() for h in response.headers]:
                 message += "  ->  {0}".format(response.headers["location"])
 
-            if addedToQueue:
-                message += "     (Added to queue)"
+        if addedToQueue:
+            message += "     (Added to queue)"
 
+        with self.mutex:
             self.newLine(message)
 
     @staticmethod
@@ -149,12 +142,12 @@ class CLIOutput(object):
     def lastPath(self, path, index, length, currentJob, allJobs):
         x, y = get_terminal_size()
 
-        message = "{0:.2f}% ({1}/{2}) - ".format(self.percentage(index, length), index, length)
+        message = "{0:.2f}% - ".format(self.percentage(index, length))
 
         if allJobs > 1:
             message += "Job: {0}/{1} - ".format(currentJob, allJobs)
 
-        if self.errors > 0:
+        if self.errors:
             message += "Errors: {0} - ".format(self.errors)
 
         message += "Last request to: {0}".format(path)
@@ -172,18 +165,17 @@ class CLIOutput(object):
         with self.mutex:
             stripped = reason.strip()
             message = "\n" if reason.startswith("\n") else ""
-            message += Style.BRIGHT + Fore.WHITE + Back.RED
-            message += stripped
-            message += Style.RESET_ALL
+            message += Style.BRIGHT + Fore.WHITE + Back.RED + stripped + Style.RESET_ALL
+
             self.newLine(message)
 
-    def warning(self, reason):
+    def warning(self, message):
         with self.mutex:
-            message = Style.BRIGHT + Fore.YELLOW + reason + Style.RESET_ALL
+            message = Style.BRIGHT + Fore.YELLOW + message + Style.RESET_ALL
             self.newLine(message)
 
-    def header(self, text):
-        message = Style.BRIGHT + Fore.MAGENTA + text + Style.RESET_ALL
+    def header(self, message):
+        message = Style.BRIGHT + Fore.MAGENTA + message + Style.RESET_ALL
         self.newLine(message)
 
     def config(
@@ -194,44 +186,35 @@ class CLIOutput(object):
         threads,
         wordlist_size,
         method,
-        recursive,
-        recursion_level,
     ):
+
         separator = Fore.MAGENTA + " | " + Fore.YELLOW
 
         config = Style.BRIGHT + Fore.YELLOW
         config += "Extensions: {0}".format(Fore.CYAN + extensions + Fore.YELLOW)
         config += separator
 
-        config += "HTTP method: {0}".format(Fore.CYAN + method.upper() + Fore.YELLOW)
-        config += separator
-
-        if prefixes != '':
+        if prefixes:
             config += 'Prefixes: {0}'.format(Fore.CYAN + prefixes + Fore.YELLOW)
             config += separator
 
-        if suffixes != '':
+        if suffixes:
             config += 'Suffixes: {0}'.format(Fore.CYAN + suffixes + Fore.YELLOW)
             config += separator
+
+        config += "HTTP method: {0}".format(Fore.CYAN + method.upper() + Fore.YELLOW)
+        config += separator
 
         config += "Threads: {0}".format(Fore.CYAN + threads + Fore.YELLOW)
         config += separator
         config += "Wordlist size: {0}".format(Fore.CYAN + wordlist_size + Fore.YELLOW)
-
-        if recursive is True:
-            config += separator
-            config += "Recursion level: {0}".format(
-                Fore.CYAN + recursion_level + Fore.YELLOW
-            )
 
         config += Style.RESET_ALL
 
         self.newLine(config)
 
     def setTarget(self, target):
-        if not target.endswith("/"):
-            target += "/"
-        if not target.startswith("http://") and not target.startswith("https://"):
+        if not target.startswith(("http://", "https://")) and "://" not in target:
             target = "http://" + target
 
         self.target = target
@@ -249,5 +232,13 @@ class CLIOutput(object):
         self.newLine("\nError Log: {0}".format(target))
 
     def debug(self, info):
-        line = "[{0}] - {1}".format(time.strftime("%H:%M:%S"), info)
-        self.newLine(line)
+        with self.mutex:
+            line = "[{0}] - {1}".format(time.strftime("%H:%M:%S"), info)
+            self.newLine(line)
+
+    def disableColors(self):
+        global Fore
+        global Style
+        global Back
+
+        Fore = Style = Back = NoColor

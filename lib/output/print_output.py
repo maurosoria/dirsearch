@@ -18,22 +18,29 @@
 
 import sys
 import threading
+import urllib.parse
 
-from lib.utils.FileUtils import *
-from thirdparty.colorama import *
+from lib.utils.file_utils import *
+from thirdparty.colorama import init, Fore, Style
 
 if sys.platform in ["win32", "msys"]:
     from thirdparty.colorama.win32 import *
 
 
+class NoColor:
+    RED = GREEN = YELLOW = BLUE = MAGENTA = CYAN = WHITE = BRIGHT = RESET_ALL = ''
+
+
 class PrintOutput(object):
-    def __init__(self):
+    def __init__(self, color):
         init()
         self.mutex = threading.Lock()
         self.blacklists = {}
         self.mutexCheckedPaths = threading.Lock()
         self.basePath = None
         self.errors = 0
+        if not color:
+            self.disableColors()
 
     def header(self, text):
         pass
@@ -63,62 +70,51 @@ class PrintOutput(object):
         sys.stdout.flush()
 
     def statusReport(self, path, response, full_url, addedToQueue):
+        contentLength = None
+        status = response.status
+
+        # Format message
+        try:
+            size = int(response.headers["content-length"])
+
+        except (KeyError, ValueError):
+            size = len(response.body)
+
+        finally:
+            contentLength = FileUtils.size_human(size)
+
+        showPath = "/" + self.basePath + path
+
+        parsed = urllib.parse.urlparse(self.target)
+        showPath = "{0}://{1}{2}".format(parsed.scheme, parsed.netloc, showPath)
+
+        message = "{0} - {1} - {2}".format(
+            status, contentLength.rjust(6, " "), showPath
+        )
+
+        if status == 200:
+            message = Fore.GREEN + message + Style.RESET_ALL
+
+        elif status == 401:
+            message = Fore.YELLOW + message + Style.RESET_ALL
+
+        elif status == 403:
+            message = Fore.BLUE + message + Style.RESET_ALL
+
+        elif status == 500:
+            message = Fore.RED + message + Style.RESET_ALL
+
+        # Check if redirect
+        if status in [301, 302, 307] and "location" in [
+            h.lower() for h in response.headers
+        ]:
+            message = Fore.CYAN + message + Style.RESET_ALL
+            message += "  ->  {0}".format(response.headers["location"])
+
+        if addedToQueue:
+            message += "     (Added to queue)"
+
         with self.mutex:
-            contentLength = None
-            status = response.status
-
-            # Check blacklist
-            if status in self.blacklists and path in self.blacklists[status]:
-                return
-
-            # Format message
-            try:
-                size = int(response.headers["content-length"])
-
-            except (KeyError, ValueError):
-                size = len(response.body)
-
-            finally:
-                contentLength = FileUtils.sizeHuman(size)
-
-            if not self.basePath:
-                showPath = urljoin("/", path)
-
-            else:
-                if not self.basePath.startswith("/"):
-                    self.basePath = "/" + self.basePath
-
-                showPath = self.basePath.rstrip("/") + "/" + path
-                showPath = (self.target[:-1] if self.target.endswith("/") else self.target) + showPath
-            message = "{0} - {1} - {2}".format(
-                status, contentLength.rjust(6, " "), showPath
-            )
-
-            if status == 200:
-                message = Fore.GREEN + message + Style.RESET_ALL
-
-            elif status == 400:
-                message = Fore.MAGENTA + message + Style.RESET_ALL
-
-            elif status == 401:
-                message = Fore.YELLOW + message + Style.RESET_ALL
-
-            elif status == 403:
-                message = Fore.BLUE + message + Style.RESET_ALL
-
-            elif status == 500:
-                message = Fore.RED + message + Style.RESET_ALL
-
-            # Check if redirect
-            elif status in [301, 302, 307] and "location" in [
-                h.lower() for h in response.headers
-            ]:
-                message = Fore.CYAN + message + Style.RESET_ALL
-                message += "  ->  {0}".format(response.headers["location"])
-
-            if addedToQueue:
-                message += "     (Added to queue)"
-
             self.newLine(message)
 
     def lastPath(self, path, index, length, currentJob, allJobs):
@@ -141,13 +137,11 @@ class PrintOutput(object):
         threads,
         wordlist_size,
         method,
-        recursive,
-        recursion_level,
     ):
         pass
 
     def setTarget(self, target):
-        if not target.startswith("http://") and not target.startswith("https://"):
+        if not target.startswith("http://") and not target.startswith("https://") and "://" not in target:
             target = "http://" + target
 
         self.target = target
@@ -159,4 +153,12 @@ class PrintOutput(object):
         pass
 
     def debug(self, info):
-        pass
+        with self.mutex:
+            self.newLine(info)
+
+    def disableColors(self):
+        global Fore
+        global Style
+        global Back
+
+        Fore = Style = Back = NoColor

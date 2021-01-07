@@ -21,8 +21,8 @@ import os.path
 
 
 class File(object):
-    def __init__(self, *pathComponents):
-        self._path = FileUtils.buildPath(*pathComponents)
+    def __init__(self, *path_components):
+        self._path = FileUtils.build_path(*path_components)
         self.content = None
 
     @property
@@ -33,17 +33,17 @@ class File(object):
     def path(self, value):
         raise NotImplementedError
 
-    def isValid(self):
-        return FileUtils.isFile(self.path)
+    def is_valid(self):
+        return FileUtils.is_file(self.path)
 
     def exists(self):
         return FileUtils.exists(self.path)
 
-    def canRead(self):
-        return FileUtils.canRead(self.path)
+    def can_read(self):
+        return FileUtils.can_read(self.path)
 
-    def canWrite(self):
-        return FileUtils.canWrite(self.path)
+    def can_write(self):
+        return FileUtils.can_write(self.path)
 
     def read(self):
         return FileUtils.read(self.path)
@@ -56,8 +56,8 @@ class File(object):
             self.content = FileUtils.read()
         return self.content()
 
-    def getLines(self):
-        for line in FileUtils.getLines(self.path):
+    def get_lines(self):
+        for line in FileUtils.get_lines(self.path):
             yield line
 
     def __cmp__(self, other):
@@ -79,54 +79,54 @@ class File(object):
 
 class FileUtils(object):
     @staticmethod
-    def buildPath(*pathComponents):
-        if pathComponents:
-            path = os.path.join(*pathComponents)
+    def build_path(*path_components):
+        if path_components:
+            path = os.path.join(*path_components)
         else:
             path = ""
         return path
 
     @staticmethod
-    def exists(fileName):
-        return os.access(fileName, os.F_OK)
+    def exists(file_name):
+        return os.access(file_name, os.F_OK)
 
     @staticmethod
-    def canRead(fileName):
+    def can_read(file_name):
         try:
-            with open(fileName):
+            with open(file_name):
                 pass
         except IOError:
             return False
         return True
 
     @staticmethod
-    def canWrite(fileName):
-        return os.access(fileName, os.W_OK)
+    def can_write(file_name):
+        return os.access(file_name, os.W_OK)
 
     @staticmethod
-    def read(fileName):
-        return open(fileName, "r").read()
+    def read(file_name):
+        return open(file_name, "r").read()
 
     @staticmethod
-    def getLines(fileName):
-        with open(fileName, "r", errors="replace") as fd:
+    def get_lines(file_name):
+        with open(file_name, "r", errors="replace") as fd:
             return fd.read().splitlines()
 
     @staticmethod
-    def isDir(fileName):
-        return os.path.isdir(fileName)
+    def is_dir(file_name):
+        return os.path.isdir(file_name)
 
     @staticmethod
-    def isFile(fileName):
-        return os.path.isfile(fileName)
+    def is_file(file_name):
+        return os.path.isfile(file_name)
 
     @staticmethod
-    def createDirectory(directory):
+    def create_directory(directory):
         if not FileUtils.exists(directory):
             os.makedirs(directory)
 
     @staticmethod
-    def sizeHuman(num):
+    def size_human(num):
         base = 1024
         for x in ["B ", "KB", "MB", "GB"]:
             if num < base and num > -base:
@@ -135,10 +135,10 @@ class FileUtils(object):
         return "%3.0f %s" % (num, "TB")
 
     @staticmethod
-    def writeLines(fileName, lines):
+    def write_lines(file_name, lines):
         if type(lines) is list:
             content = "\n".join(lines)
         else:
             content = lines
-        with open(fileName, "w") as f:
+        with open(file_name, "w") as f:
             f.writelines(content)

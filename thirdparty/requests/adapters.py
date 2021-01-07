@@ -44,7 +44,7 @@ try:
     from urllib3.contrib.socks import SOCKSProxyManager
 except ImportError:
     def SOCKSProxyManager(*args, **kwargs):
-        raise InvalidSchema("Missing dependencies for SOCKS support.")
+        raise InvalidSchema("Missing dependencies for SOCKS support: PySocks. Please pip3 install PySocks")
 
 DEFAULT_POOLBLOCK = False
 DEFAULT_POOLSIZE = 10

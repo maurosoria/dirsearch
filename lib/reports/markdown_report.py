@@ -16,12 +16,11 @@
 #
 #  Author: Mauro Soria
 
-import json
-
 from lib.reports import *
+import time
 
 
-class JSONReport(FileBaseReport):
+class MarkdownReport(FileBaseReport):
 
     def addPath(self, path, status, response):
         contentLength = None
@@ -38,15 +37,16 @@ class JSONReport(FileBaseReport):
         headerName = "{0}://{1}:{2}/{3}".format(
             self.protocol, self.host, self.port, self.basePath
         )
-        result = {headerName: []}
+
+        result = "### Time: {0}\n".format(time.ctime())
+        result += "### Target: {0}\n\n".format(headerName)
+        result += "Path | Status | Size | Redirection\n"
+        result += "-----|--------|------|------------\n"
 
         for path, status, contentLength, redirect in self.pathList:
-            entry = {
-                "status": status,
-                "path": path,
-                "content-length": contentLength,
-                "redirect": redirect,
-            }
-            result[headerName].append(entry)
+            result += "[/{0}]({1}) | ".format(path, headerName + path)
+            result += "{0} | ".format(status)
+            result += "{0} | ".format(contentLength)
+            result += "{0}\n".format(redirect)
 
-        return json.dumps(result, sort_keys=True, indent=4)
+        return result

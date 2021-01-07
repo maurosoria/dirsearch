@@ -17,10 +17,11 @@
 #  Author: Mauro Soria
 
 import threading
+import time
 
-from lib.connection.RequestException import RequestException
-from .Path import *
-from .Scanner import *
+from lib.connection.request_exception import RequestException
+from .path import *
+from .scanner import *
 
 
 class Fuzzer(object):
@@ -30,6 +31,7 @@ class Fuzzer(object):
         dictionary,
         testFailPath=None,
         threads=1,
+        delay=0,
         matchCallbacks=[],
         notFoundCallbacks=[],
         errorCallbacks=[],
@@ -43,7 +45,9 @@ class Fuzzer(object):
         self.threadsCount = (
             threads if len(self.dictionary) >= threads else len(self.dictionary)
         )
+        self.delay = delay
         self.running = False
+        self.stopped = 0
         self.scanners = {}
         self.defaultScanner = None
         self.matchCallbacks = matchCallbacks
@@ -105,6 +109,7 @@ class Fuzzer(object):
         self.dictionary.reset()
         self.runningThreadsCount = len(self.threads)
         self.running = True
+        self.paused = False
         self.playEvent = threading.Event()
         self.pausedSemaphore = threading.Semaphore(0)
         self.playEvent.clear()
@@ -119,10 +124,16 @@ class Fuzzer(object):
         self.playEvent.set()
 
     def pause(self):
+        self.paused = True
         self.playEvent.clear()
         for thread in self.threads:
             if thread.is_alive():
                 self.pausedSemaphore.acquire()
+
+    def resume(self):
+        self.paused = False
+        self.pausedSemaphore.release()
+        self.play()
 
     def stop(self):
         self.running = False
@@ -134,6 +145,9 @@ class Fuzzer(object):
         if self.getScannerFor(path).scan(path, response):
             result = None if response.status == 404 else response.status
         return result, response
+
+    def isPaused(self):
+        return self.paused
 
     def isRunning(self):
         return self.running
@@ -176,6 +190,7 @@ class Fuzzer(object):
 
                 finally:
                     if not self.playEvent.isSet():
+                        self.stopped += 1
                         self.pausedSemaphore.release()
                         self.playEvent.wait()
 
@@ -184,8 +199,10 @@ class Fuzzer(object):
                     if not self.running:
                         break
 
+                    time.sleep(self.delay)
+
         except StopIteration:
-            return
+            pass
 
         finally:
             self.stopThread()

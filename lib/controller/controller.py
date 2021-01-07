@@ -28,7 +28,7 @@ from queue import Queue
 
 from lib.connection import Requester, RequestException
 from lib.core import Dictionary, Fuzzer, ReportManager
-from lib.reports import JSONReport, PlainTextReport, SimpleReport
+from lib.reports import JSONReport, XMLReport, PlainTextReport, SimpleReport, MarkdownReport, CSVReport
 from lib.utils import FileUtils
 
 
@@ -38,7 +38,7 @@ class SkipTargetInterrupt(Exception):
 
 MAYOR_VERSION = 0
 MINOR_VERSION = 4
-REVISION = 0
+REVISION = 1
 VERSION = {
     "MAYOR_VERSION": MAYOR_VERSION,
     "MINOR_VERSION": MINOR_VERSION,
@@ -50,11 +50,12 @@ class Controller(object):
     def __init__(self, script_path, arguments, output):
         global VERSION
         program_banner = (
-            open(FileUtils.buildPath(script_path, "lib", "controller", "banner.txt"))
+            open(FileUtils.build_path(script_path, "lib", "controller", "banner.txt"))
             .read()
             .format(**VERSION)
         )
 
+        self.directories = Queue()
         self.script_path = script_path
         self.exit = False
         self.arguments = arguments
@@ -62,10 +63,14 @@ class Controller(object):
         self.savePath = self.script_path
         self.doneDirs = []
 
+        self.urlList = list(filter(None, dict.fromkeys(self.arguments.urlList)))
+
         self.recursive_level_max = self.arguments.recursive_level_max
 
-        if self.arguments.httpmethod.lower() not in ["get", "head", "post", "put", "patch", "options", "delete", "trace", "debug"]:
-            self.output.error("Invalid HTTP method!")
+        if self.arguments.httpmethod.lower() not in [
+            "get", "head", "post", "put", "patch", "options", "delete", "trace", "debug", "connect"
+        ]:
+            self.output.error("Invalid HTTP method")
             exit(1)
 
         self.httpmethod = self.arguments.httpmethod.lower()
@@ -74,9 +79,9 @@ class Controller(object):
             savePath = self.getSavePath()
 
             if not FileUtils.exists(savePath):
-                FileUtils.createDirectory(savePath)
+                FileUtils.create_directory(savePath)
 
-            if FileUtils.exists(savePath) and not FileUtils.isDir(savePath):
+            if FileUtils.exists(savePath) and not FileUtils.is_dir(savePath):
                 self.output.error(
                     "Cannot use {} because is a file. Should be a directory".format(
                         savePath
@@ -84,72 +89,83 @@ class Controller(object):
                 )
                 exit(1)
 
-            if not FileUtils.canWrite(savePath):
+            if not FileUtils.can_write(savePath):
                 self.output.error("Directory {} is not writable".format(savePath))
                 exit(1)
 
-            logs = FileUtils.buildPath(savePath, "logs")
+            logs = FileUtils.build_path(savePath, "logs")
 
             if not FileUtils.exists(logs):
-                FileUtils.createDirectory(logs)
+                FileUtils.create_directory(logs)
 
-            reports = FileUtils.buildPath(savePath, "reports")
+            reports = FileUtils.build_path(savePath, "reports")
 
             if not FileUtils.exists(reports):
-                FileUtils.createDirectory(reports)
+                FileUtils.create_directory(reports)
 
             self.savePath = savePath
 
-        self.reportsPath = FileUtils.buildPath(self.savePath, "logs")
+        self.reportsPath = FileUtils.build_path(self.savePath, "logs")
         self.blacklists = self.getBlacklists()
         self.includeStatusCodes = self.arguments.includeStatusCodes
         self.excludeStatusCodes = self.arguments.excludeStatusCodes
+        self.excludeSizes = self.arguments.excludeSizes
         self.excludeTexts = self.arguments.excludeTexts
         self.excludeRegexps = self.arguments.excludeRegexps
+        self.excludeRedirects = self.arguments.excludeRedirects
         self.recursive = self.arguments.recursive
-        self.suppressEmpty = self.arguments.suppressEmpty
         self.minimumResponseSize = self.arguments.minimumResponseSize
         self.maximumResponseSize = self.arguments.maximumResponseSize
-        self.directories = Queue()
+        self.scanSubdirs = arguments.scanSubdirs
         self.excludeSubdirs = (
             arguments.excludeSubdirs if arguments.excludeSubdirs else []
         )
 
-        self.dictionary = Dictionary(self.arguments.wordlist, self.arguments.extensions, self.arguments.suffixes,
-                                     self.arguments.prefixes, self.arguments.lowercase, self.arguments.uppercase,
-                                     self.arguments.capitalization, self.arguments.forceExtensions,
-                                     self.arguments.noDotExtensions, self.arguments.excludeExtensions,
-                                     self.arguments.noExtension)
+        self.dictionary = Dictionary(
+            self.arguments.wordlist,
+            self.arguments.extensions,
+            self.arguments.suffixes,
+            self.arguments.prefixes,
+            self.arguments.lowercase,
+            self.arguments.uppercase,
+            self.arguments.capitalization,
+            self.arguments.forceExtensions,
+            self.arguments.excludeExtensions,
+            self.arguments.noExtension,
+            self.arguments.onlySelected
+        )
 
+        self.allJobs = len(self.urlList) * (len(self.scanSubdirs) if self.scanSubdirs else 1)
+        self.currentJob = 0
         self.errorLog = None
         self.errorLogPath = None
         self.threadsLock = Lock()
         self.batch = False
         self.batchSession = None
-        self.currentJob = 0
-        self.allJobs = 0
+        self.got429 = False
 
         self.output.header(program_banner)
         self.printConfig()
         self.setupErrorLogs()
         self.output.errorLogFile(self.errorLogPath)
 
-        if self.arguments.autoSave and len(self.arguments.urlList) > 1:
+        if self.arguments.autoSave and len(self.urlList) > 1:
             self.setupBatchReports()
             self.output.newLine("\nAutoSave path: {0}".format(self.batchDirectoryPath))
 
         if self.arguments.useRandomAgents:
-            self.randomAgents = FileUtils.getLines(
-                FileUtils.buildPath(script_path, "db", "user-agents.txt")
+            self.randomAgents = FileUtils.get_lines(
+                FileUtils.build_path(script_path, "db", "user-agents.txt")
             )
 
         try:
-            for url in list(dict.fromkeys(self.arguments.urlList)):
+            for url in self.urlList:
                 try:
                     gc.collect()
                     self.reportManager = ReportManager()
-                    self.currentUrl = url
+                    self.currentUrl = url if url.endswith("/") else url + "/"
                     self.output.setTarget(self.currentUrl)
+                    self.ignore429 = False
 
                     try:
                         self.requester = Requester(
@@ -158,7 +174,6 @@ class Controller(object):
                             useragent=self.arguments.useragent,
                             maxPool=self.arguments.threadsCount,
                             maxRetries=self.arguments.maxRetries,
-                            delay=self.arguments.delay,
                             timeout=self.arguments.timeout,
                             ip=self.arguments.ip,
                             proxy=self.arguments.proxy,
@@ -184,14 +199,12 @@ class Controller(object):
                     # Initialize directories Queue with start Path
                     self.basePath = self.requester.basePath
 
-                    if self.arguments.scanSubdirs:
-                        for subdir in self.arguments.scanSubdirs:
+                    if self.scanSubdirs:
+                        for subdir in self.scanSubdirs:
                             self.directories.put(subdir)
-                            self.allJobs += 1
 
                     else:
                         self.directories.put("")
-                        self.allJobs += 1
 
                     self.setupReports(self.requester)
 
@@ -204,12 +217,13 @@ class Controller(object):
                         self.dictionary,
                         testFailPath=self.arguments.testFailPath,
                         threads=self.arguments.threadsCount,
+                        delay=self.arguments.delay,
                         matchCallbacks=matchCallbacks,
                         notFoundCallbacks=notFoundCallbacks,
                         errorCallbacks=errorCallbacks,
                     )
                     try:
-                        self.wait()
+                        self.prepare()
                     except RequestException as e:
                         self.output.error(
                             "Fatal error during site scanning: " + e.args[0]["message"]
@@ -240,8 +254,6 @@ class Controller(object):
             str(self.arguments.threadsCount),
             str(len(self.dictionary)),
             str(self.httpmethod),
-            self.recursive,
-            str(self.recursive_level_max),
         )
 
     def getSavePath(self):
@@ -254,48 +266,40 @@ class Controller(object):
         else:
             dirPath = ".dirsearch"
 
-        return FileUtils.buildPath(basePath, dirPath)
+        return FileUtils.build_path(basePath, dirPath)
 
     def getBlacklists(self):
         reext = re.compile(r'\%ext\%', re.IGNORECASE)
-        reextdot = re.compile(r'\.\%ext\%', re.IGNORECASE)
         blacklists = {}
 
         for status in [400, 403, 500]:
-            blacklistFileName = FileUtils.buildPath(self.script_path, "db")
-            blacklistFileName = FileUtils.buildPath(
+            blacklistFileName = FileUtils.build_path(self.script_path, "db")
+            blacklistFileName = FileUtils.build_path(
                 blacklistFileName, "{}_blacklist.txt".format(status)
             )
 
-            if not FileUtils.canRead(blacklistFileName):
+            if not FileUtils.can_read(blacklistFileName):
                 # Skip if cannot read file
                 continue
 
             blacklists[status] = []
 
-            for line in FileUtils.getLines(blacklistFileName):
+            for line in FileUtils.get_lines(blacklistFileName):
                 # Skip comments
                 if line.lstrip().startswith("#"):
                     continue
 
-                # The same with Dictionary.py
                 if line.startswith("/"):
                     line = line[1:]
 
                 # Classic dirsearch blacklist processing (with %EXT% keyword)
                 if "%ext%" in line.lower():
                     for extension in self.arguments.extensions:
-                        if self.arguments.noDotExtensions:
-                            entry = reextdot.sub(extension, line)
-
-                        else:
-                            entry = line
-
-                        entry = reext.sub(extension, entry)
+                        entry = reext.sub(extension, line)
 
                         blacklists[status].append(entry)
 
-                # Forced extensions is not used here because -r is only used for wordlist (in documentation),
+                # Forced extensions is not used here because -r is only used for wordlist,
                 # applying in blacklist may create false negatives
 
                 else:
@@ -305,20 +309,20 @@ class Controller(object):
 
     def setupErrorLogs(self):
         fileName = "errors-{0}.log".format(time.strftime("%y-%m-%d_%H-%M-%S"))
-        self.errorLogPath = FileUtils.buildPath(
-            FileUtils.buildPath(self.savePath, "logs", fileName)
+        self.errorLogPath = FileUtils.build_path(
+            FileUtils.build_path(self.savePath, "logs", fileName)
         )
         self.errorLog = open(self.errorLogPath, "w")
 
     def setupBatchReports(self):
         self.batch = True
         self.batchSession = "BATCH-{0}".format(time.strftime("%y-%m-%d_%H-%M-%S"))
-        self.batchDirectoryPath = FileUtils.buildPath(
+        self.batchDirectoryPath = FileUtils.build_path(
             self.savePath, "reports", self.batchSession
         )
 
         if not FileUtils.exists(self.batchDirectoryPath):
-            FileUtils.createDirectory(self.batchDirectoryPath)
+            FileUtils.create_directory(self.batchDirectoryPath)
 
             if not FileUtils.exists(self.batchDirectoryPath):
                 self.output.error(
@@ -326,10 +330,10 @@ class Controller(object):
                 )
                 sys.exit(1)
 
-        if FileUtils.canWrite(self.batchDirectoryPath):
-            FileUtils.createDirectory(self.batchDirectoryPath)
-            targetsFile = FileUtils.buildPath(self.batchDirectoryPath, "TARGETS.txt")
-            FileUtils.writeLines(targetsFile, self.arguments.urlList)
+        if FileUtils.can_write(self.batchDirectoryPath):
+            FileUtils.create_directory(self.batchDirectoryPath)
+            targetsFile = FileUtils.build_path(self.batchDirectoryPath, "TARGETS.txt")
+            FileUtils.write_lines(targetsFile, self.urlList)
 
         else:
             self.output.error(
@@ -340,7 +344,7 @@ class Controller(object):
     def setupReports(self, requester):
         if self.arguments.autoSave:
 
-            basePath = "/" if not(len(requester.basePath)) else requester.basePath
+            basePath = requester.basePath
             basePath = basePath.replace(os.path.sep, ".")[:-1]
             fileName = None
             directoryPath = None
@@ -352,10 +356,11 @@ class Controller(object):
             else:
 
                 fileName = ('{}_'.format(basePath))
-                fileName += time.strftime('%y-%m-%d_%H-%M-%S.txt')
-                directoryPath = FileUtils.buildPath(self.savePath, 'reports', requester.host)
+                fileName += time.strftime('%y-%m-%d_%H-%M-%S')
+                fileName += ".{0}".format(self.arguments.autoSaveFormat)
+                directoryPath = FileUtils.build_path(self.savePath, 'reports', requester.host)
 
-            outputFile = FileUtils.buildPath(directoryPath, fileName)
+            outputFile = FileUtils.build_path(directoryPath, fileName)
 
             self.output.outputFile(outputFile)
 
@@ -368,14 +373,14 @@ class Controller(object):
                 outputFile += "_" + str(i)
 
             if not FileUtils.exists(directoryPath):
-                FileUtils.createDirectory(directoryPath)
+                FileUtils.create_directory(directoryPath)
 
                 if not FileUtils.exists(directoryPath):
                     self.output.error(
                         "Couldn't create reports folder {}".format(directoryPath)
                     )
                     sys.exit(1)
-            if FileUtils.canWrite(directoryPath):
+            if FileUtils.can_write(directoryPath):
                 report = None
 
                 if self.arguments.autoSaveFormat == "simple":
@@ -385,15 +390,43 @@ class Controller(object):
                         requester.protocol,
                         requester.basePath,
                         outputFile,
-                        self.batch
+                        self.batch,
                     )
-                if self.arguments.autoSaveFormat == "json":
+                elif self.arguments.autoSaveFormat == "json":
                     report = JSONReport(
                         requester.host,
                         requester.port,
                         requester.protocol,
                         requester.basePath,
                         outputFile,
+                        self.batch,
+                    )
+                elif self.arguments.autoSaveFormat == "xml":
+                    report = XMLReport(
+                        requester.host,
+                        requester.port,
+                        requester.protocol,
+                        requester.basePath,
+                        outputFile,
+                        self.batch,
+                    )
+                elif self.arguments.autoSaveFormat == "md":
+                    report = MarkdownReport(
+                        requester.host,
+                        requester.port,
+                        requester.protocol,
+                        requester.basePath,
+                        outputFile,
+                        self.batch,
+                    )
+                elif self.arguments.autoSaveFormat == "csv":
+                    report = CSVReport(
+                        requester.host,
+                        requester.port,
+                        requester.protocol,
+                        requester.basePath,
+                        outputFile,
+                        self.batch,
                     )
                 else:
                     report = PlainTextReport(
@@ -413,71 +446,125 @@ class Controller(object):
 
         # TODO: format, refactor code
         if self.arguments.simpleOutputFile:
-            self.reportManager.addOutput(SimpleReport(requester.host, requester.port, requester.protocol,
-                                                      requester.basePath, self.arguments.simpleOutputFile, self.batch))
+            self.reportManager.addOutput(
+                SimpleReport(
+                    requester.host, requester.port, requester.protocol,
+                    requester.basePath, self.arguments.simpleOutputFile, self.batch
+                )
+            )
 
         if self.arguments.plainTextOutputFile:
-            self.reportManager.addOutput(PlainTextReport(requester.host, requester.port, requester.protocol,
-                                                         requester.basePath, self.arguments.plainTextOutputFile, self.batch))
+            self.reportManager.addOutput(
+                PlainTextReport(
+                    requester.host, requester.port, requester.protocol,
+                    requester.basePath, self.arguments.plainTextOutputFile, self.batch
+                )
+            )
 
         if self.arguments.jsonOutputFile:
-            self.reportManager.addOutput(JSONReport(requester.host, requester.port, requester.protocol,
-                                                    requester.basePath, self.arguments.jsonOutputFile, self.batch))
+            self.reportManager.addOutput(
+                JSONReport(
+                    requester.host, requester.port, requester.protocol,
+                    requester.basePath, self.arguments.jsonOutputFile, self.batch
+                )
+            )
+
+        if self.arguments.xmlOutputFile:
+            self.reportManager.addOutput(
+                XMLReport(
+                    requester.host, requester.port, requester.protocol,
+                    requester.basePath, self.arguments.xmlOutputFile, self.batch
+                )
+            )
+
+        if self.arguments.markdownOutputFile:
+            self.reportManager.addOutput(
+                MarkdownReport(
+                    requester.host, requester.port, requester.protocol,
+                    requester.basePath, self.arguments.markdownOutputFile, self.batch
+                )
+            )
+        if self.arguments.csvOutputFile:
+            self.reportManager.addOutput(
+                CSVReport(
+                    requester.host, requester.port, requester.protocol,
+                    requester.basePath, self.arguments.csvOutputFile, self.batch
+                )
+            )
 
     # TODO: Refactor, this function should be a decorator for all the filters
     def matchCallback(self, path):
         self.index += 1
 
-        if path.status:
+        if path.status == 429:
+            self.got429 = True
+            return
 
-            if path.status not in self.excludeStatusCodes and (
-                    not self.includeStatusCodes or path.status in self.includeStatusCodes) and (
-                    not(self.blacklists.get(path.status)) or path.path not in self.blacklists.get(path.status)
-            ) and not (
-                    self.suppressEmpty and (not(len(path.response.body)))) and not ((
-                    self.minimumResponseSize and self.minimumResponseSize > len(path.response.body)) or (
-                    self.maximumResponseSize and self.maximumResponseSize < len(path.response.body))
-            ):
+        if (
+                path.status and path.status not in self.excludeStatusCodes
+        ) and (
+                not self.includeStatusCodes or path.status in self.includeStatusCodes
+        ) and (
+                not self.blacklists.get(path.status) or path.path not in self.blacklists.get(path.status)
+        ) and (
+                not self.excludeSizes or FileUtils.size_human(len(path.response.body)).strip() not in self.excludeSizes
+        ) and (
+                not self.minimumResponseSize or self.minimumResponseSize < len(path.response.body)
+        ) and (
+                not self.maximumResponseSize or self.maximumResponseSize > len(path.response.body)
+        ):
 
-                for excludeText in self.excludeTexts:
-                    if excludeText in path.response.body.decode():
-                        del path
-                        return
+            for excludeText in self.excludeTexts:
+                if excludeText in path.response.body.decode('iso8859-1'):
+                    del path
+                    return
 
-                for excludeRegexp in self.excludeRegexps:
+            for excludeRegexp in self.excludeRegexps:
+                if (
+                    re.search(excludeRegexp, path.response.body.decode('iso8859-1'))
+                    is not None
+                ):
+                    del path
+                    return
 
-                    if (
-                        re.search(excludeRegexp, path.response.body.decode())
-                        is not None
-                    ):
-                        del path
-                        return
+            for excludeRedirect in self.excludeRedirects:
+                if path.response.redirect and (
+                    re.match(excludeRedirect, path.response.redirect)
+                    is not None
+                ):
+                    del path
+                    return
 
-                pathIsInScanSubdirs = False
-                addedToQueue = False
+            pathIsInScanSubdirs = False
+            addedToQueue = False
 
-                if self.arguments.scanSubdirs:
-                    for subdir in self.arguments.scanSubdirs:
-                        if subdir == path.path + "/":
-                            pathIsInScanSubdirs = True
+            if self.scanSubdirs:
+                for subdir in self.scanSubdirs:
+                    if subdir == path.path + "/":
+                        pathIsInScanSubdirs = True
+                        break
 
-                if not pathIsInScanSubdirs:
-                    if not self.recursive:
-                        pass
-                    elif path.response.redirect:
-                        addedToQueue = self.addRedirectDirectory(path)
-                    else:
-                        addedToQueue = self.addDirectory(path.path)
+            if self.recursive and not pathIsInScanSubdirs and "?" not in path.path and "#" not in path.path:
+                if path.response.redirect:
+                    addedToQueue = self.addRedirectDirectory(path)
 
-                self.output.statusReport(path.path, path.response, self.arguments.full_url, addedToQueue)
+                else:
+                    addedToQueue = self.addDirectory(path.path)
 
-                newPath = "{}{}".format(self.currentDirectory, path.path)
+            self.output.statusReport(
+                path.path, path.response, self.arguments.full_url, addedToQueue
+            )
 
-                self.reportManager.addPath(newPath, path.status, path.response)
+            if self.arguments.matches_proxy:
+                self.requester.request(path.path, proxy=self.arguments.matches_proxy)
 
-                self.reportManager.save()
+            newPath = "{}{}".format(self.currentDirectory, path.path)
 
-                del path
+            self.reportManager.addPath(newPath, path.status, path.response)
+
+            self.reportManager.save()
+
+            del path
 
     def notFoundCallback(self, path):
         self.index += 1
@@ -485,12 +572,16 @@ class Controller(object):
         del path
 
     def errorCallback(self, path, errorMsg):
-        if self.arguments.stop:
+        if self.arguments.exit_on_error:
             self.exit = True
             self.fuzzer.stop()
             self.output.error("\nCanceled due to an error")
-            exit(0)
+            exit(1)
+
         else:
+            if self.arguments.debug:
+                self.output.debug(errorMsg)
+
             self.output.addConnectionError()
 
     def appendErrorLog(self, path, errorMsg):
@@ -500,61 +591,72 @@ class Controller(object):
             self.errorLog.write(os.linesep + line)
             self.errorLog.flush()
 
-    def handleInterrupt(self):
-        self.output.warning("CTRL+C detected: Pausing threads, please wait...")
+    def handlePause(self, message):
+        self.output.warning(message)
         self.fuzzer.pause()
 
-        try:
-            while True:
-                msg = "[e]xit / [c]ontinue"
+        while 1:
+            if self.fuzzer.stopped == len(self.fuzzer.threads):
+                self.fuzzer.stopped = 0
+                break
 
-                if not self.directories.empty():
-                    msg += " / [n]ext"
+        while True:
+            msg = "[e]xit / [c]ontinue"
 
-                if len(self.arguments.urlList) > 1:
-                    msg += " / [s]kip target"
+            if not self.directories.empty():
+                msg += " / [n]ext"
 
-                self.output.inLine(msg + ": ")
+            if self.got429 and not self.ignore429:
+                msg += " / [i]gnore"
 
-                option = input()
+            if len(self.urlList) > 1:
+                msg += " / [s]kip target"
 
-                if option.lower() == "e":
-                    self.exit = True
-                    self.fuzzer.stop()
-                    raise KeyboardInterrupt
+            self.output.inLine(msg + ": ")
 
-                elif option.lower() == "c":
-                    self.fuzzer.play()
+            option = input()
+
+            if self.got429:
+                self.got429 = False
+                if option.lower() == "i":
+                    self.ignore429 = True
+                    self.fuzzer.resume()
                     return
 
-                elif not self.directories.empty() and option.lower() == "n":
-                    self.fuzzer.stop()
-                    return
+            if option.lower() == "e":
+                self.exit = True
+                self.fuzzer.stop()
+                self.output.error("\nCanceled by the user")
+                exit(0)
 
-                elif len(self.arguments.urlList) > 1 and option.lower() == "s":
-                    raise SkipTargetInterrupt
+            elif option.lower() == "c":
+                self.fuzzer.resume()
+                return
 
-                else:
-                    continue
+            elif option.lower() == "n" and not self.directories.empty():
+                self.fuzzer.stop()
+                return
 
-        except KeyboardInterrupt:
-            self.exit = True
-            raise KeyboardInterrupt
+            elif option.lower() == "s" and len(self.urlList) > 1:
+                raise SkipTargetInterrupt
+
+            else:
+                continue
 
     def processPaths(self):
         while True:
             try:
-                while not self.fuzzer.wait(0.3):
-                    continue
+                while not self.fuzzer.wait(0.25):
+                    if not self.ignore429 and self.got429:
+                        self.handlePause("429 status code detected: Pausing threads, please wait...")
                 break
+            except (KeyboardInterrupt):
+                self.handlePause("CTRL+C detected: Pausing threads, please wait...")
 
-            except (KeyboardInterrupt, SystemExit):
-                self.handleInterrupt()
-
-    def wait(self):
+    def prepare(self):
         while not self.directories.empty():
-            self.currentJob += 1
             gc.collect()
+            self.currentJob += 1
             self.index = 0
             self.currentDirectory = self.directories.get()
             self.output.warning(
@@ -569,6 +671,14 @@ class Controller(object):
 
         return
 
+    def addPort(self, url):
+        parsed = urllib.parse.urlparse(url)
+        if ":" not in parsed.netloc:
+            port = "443" if parsed.scheme == "https" else "80"
+            url = url.replace(parsed.netloc, parsed.netloc + ":" + port)
+
+        return url
+
     def addDirectory(self, path):
         if path.endswith("/"):
             if path in [directory + "/" for directory in self.excludeSubdirs]:
@@ -579,7 +689,7 @@ class Controller(object):
             if dir in self.doneDirs:
                 return False
 
-            if dir.count("/") > self.recursive_level_max:
+            if self.recursive_level_max and dir.count("/") > self.recursive_level_max:
                 return False
 
             self.directories.put(dir)
@@ -596,19 +706,19 @@ class Controller(object):
         # Resolve the redirect header relative to the current URL and add the
         # path to self.directories if it is a subdirectory of the current URL
 
-        baseUrl = self.currentUrl.rstrip("/") + "/" + self.currentDirectory
-
-        baseUrl = baseUrl.rstrip("/") + "/"
+        baseUrl = self.currentUrl + self.currentDirectory
+        baseUrl = self.addPort(baseUrl)
 
         absoluteUrl = urllib.parse.urljoin(baseUrl, path.response.redirect)
+        absoluteUrl = self.addPort(absoluteUrl)
 
         if absoluteUrl.startswith(baseUrl) and absoluteUrl != baseUrl and absoluteUrl.endswith("/"):
-            dir = absoluteUrl[len(self.currentUrl.rstrip("/")) + 1:]
+            dir = absoluteUrl[len(self.addPort(self.currentUrl)):]
 
             if dir in self.doneDirs:
                 return False
 
-            if dir.count("/") > self.recursive_level_max:
+            if self.recursive_level_max and dir.count("/") > self.recursive_level_max:
                 return False
 
             self.directories.put(dir)

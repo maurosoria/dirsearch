@@ -17,7 +17,9 @@
 #  Author: Mauro Soria
 
 from lib.reports import *
-from lib.utils.FileUtils import FileUtils
+from lib.utils.file_utils import FileUtils
+
+import time
 
 
 class PlainTextReport(TailableFileBaseReport):
@@ -37,14 +39,14 @@ class PlainTextReport(TailableFileBaseReport):
         except(KeyError, ValueError):
             pass
 
-        self.storeData((path, status, contentLength, location, ))
+        self.storeData((path, status, contentLength, location))
 
     def generate(self):
-        result = ""
+        result = "Time: {0}\n\n".format(time.ctime())
 
         for path, status, contentLength, location in self.getPathIterator():
             result += "{0}  ".format(status)
-            result += "{0}  ".format(FileUtils.sizeHuman(contentLength).rjust(6, " "))
+            result += "{0}  ".format(FileUtils.size_human(contentLength).rjust(6, " "))
             result += "{0}://{1}:{2}/".format(self.protocol, self.host, self.port)
             result += (
                 "{0}".format(path)

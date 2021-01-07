@@ -1,31 +1,133 @@
-Dirsearch
+![dirsearch](https://user-images.githubusercontent.com/59408894/103289759-87a0ce80-4a1a-11eb-89c9-2feb7e6db25f.png) - *Hacking is not a crime*
+
+dirsearch - Web path scanner
 =========
 
-Current Release: v0.4.0 (2020.9.25)
+![Build](https://img.shields.io/badge/Built%20with-Python-Blue)
+![License](https://img.shields.io/badge/license-GNU_General_Public_License-_red.svg)
+![Release](https://img.shields.io/github/release/maurosoria/dirsearch.svg)
+![Stars](https://img.shields.io/github/stars/maurosoria/dirsearch.svg)
+<a href="https://twitter.com/intent/tweet?text=Dirsearch%20-%20Web%20path%20scanner%20by%20@_maurosoria%0A%0Ahttps://github.com/maurosoria/dirsearch">
+    ![Tweet](https://img.shields.io/twitter/url?url=https%3A%2F%2Fgithub.com%2Fmaurosoria%2Fdirsearch)
+</a>
+
+**Current Release: v0.4.1 (2020.12.8)**
 
 
 Overview
 --------
-dirsearch is an advanced command line tool designed to brute force directories and files in webservers.
+- Dirsearch is a mature command-line tool designed to brute force directories and files in webservers. 
+
+- With 6 years of growth, dirsearch now has become the top web content scanner.
+
+- As a feature-rich tool, dirsearch gives users the opportunity to perform a complex web content discovering, with many vectors for the wordlist, high accuracy, impressive performance, advanced connection/request settings, modern brute-force techniques and nice output.
+
+- Dirsearch is being actively developed by [@maurosoria](https://twitter.com/_maurosoria) and [@shelld3v](https://github.com/shelld3v)
 
 
 Installation & Usage
 ------------
 
-```
+```python
 git clone https://github.com/maurosoria/dirsearch.git
 cd dirsearch
-python3 dirsearch.py -u <URL> -e <EXTENSION>
+python3 dirsearch.py -u <URL> -e <EXTENSIONS>
 ```
-- For shorter command (Unix):
+
+- To can use SOCKS proxy or work with `../` in the wordlist, you need to install pips with `requirements.txt`: `pip3 install -r requirements.txt`
+
+- If you are using Windows and don't have git, you can install the ZIP file [here](https://github.com/maurosoria/dirsearch/archive/master.zip). Dirsearch also supports [Docker](https://github.com/maurosoria/dirsearch#support-docker)
+
+*Dirsearch requires python 3 or greater*
+
+
+Features
+--------
+- Fast
+- Easy and simple to use
+- Multithreading
+- Wildcard responses filtering (invalid webpages)
+- Keep alive connections
+- Support for multiple extensions
+- Support for every HTTP method
+- Support for HTTP request data
+- Extensions excluding
+- Reporting (Plain text, JSON, XML, Markdown, CSV)
+- Recursive brute forcing
+- Target enumeration from an IP range
+- Sub-directories brute forcing
+- Force extensions
+- HTTP and SOCKS proxy support
+- HTTP cookies and headers support
+- HTTP headers from file
+- User agent randomization
+- Proxy host randomization
+- Batch processing
+- Request delaying
+- 429 response code detecting
+- Multiple wordlist formats (lowercase, uppercase, capitalization)
+- Default configuration from file
+- Option to force requests by hostname
+- Option to add custom suffixes and prefixes
+- Option to whitelist response codes, support ranges (-i 200,300-399)
+- Option to blacklist response codes, support ranges (-x 404,500-599)
+- Option to exclude responses by sizes
+- Option to exclude responses by texts
+- Option to exclude responses by regexp(s)
+- Option to exclude responses by redirects
+- Options to display only items with response length from range
+- Option to remove all extensions from every wordlist entry
+- Quiet mode
+- Debug mode
+
+
+About wordlists
+---------------
+**Summary**: Wordlist must be a text file, each line will be an endpoint. About extensions, unlike other tools, dirsearch won't append extensions to every word, if you don't use the `-f` flag. By default, only the `%EXT%` keyword in the wordlist will be replaced with extensions (`-e <extensions>`).
+
+**Details**:
+- Each line in the wordlist will be processed as such, except when the special keyword *%EXT%* is used, it will generate one entry for each extension (-e | --extensions) passed as an argument.
+
+Example:
 
 ```
-chmod +x dirsearch.py
-./dirsearch.py -u <URL> -e <EXTENSION>
+root/
+index.%EXT%
 ```
-If you are using Windows and don't have git, you can install the ZIP file [here](https://github.com/maurosoria/dirsearch/archive/master.zip), then extract and run
 
-**Dirsearch only supports python 3 or greater**
+Passing the extensions "asp" and "aspx" (`-e asp,aspx`) will generate the following dictionary:
+
+```
+root/
+index
+index.asp
+index.aspx
+```
+
+- For wordlists without *%EXT%* (like [SecLists](https://github.com/danielmiessler/SecLists)), you need to use the **-f | --force-extensions** switch to append extensions to every word in the wordlists, as well as the "/". And for entries in the wordlist that you do not want to force, you can add *%NOFORCE%* at the end of them so dirsearch won't append any extension.
+
+Example:
+
+```
+admin
+home.%EXT%
+api%NOFORCE%
+```
+
+Passing extensions "php" and "html" with the **-f**/**--force-extensions** flag (`-f -e php,html`) will generate the following dictionary:
+
+```
+admin
+admin.php
+admin.html
+admin/
+home
+home.php
+home.html
+api
+```
+
+*To use multiple wordlists, you can seperate your wordlists with commas. Example: -w wordlist1.txt,wordlist2.txt*
 
 
 Options
@@ -33,178 +135,136 @@ Options
 
 
 ```
+Usage: dirsearch.py [-u|--url] target [-e|--extensions] extensions [options]
+
 Options:
+  --version             show program's version number and exit
   -h, --help            show this help message and exit
 
   Mandatory:
-    -u URL, --url=URL   URL target
-    -l URLLIST, --url-list=URLLIST
-                        URL list target
+    -u URL, --url=URL   Target URL
+    -l FILE, --url-list=FILE
+                        URL list file
+    --cidr=CIDR         Target CIDR
     -e EXTENSIONS, --extensions=EXTENSIONS
-                        Extensions list separated by comma (Example: php,asp)
-    -E, --extensions-list
-                        Use predefined list of common extensions
-    -X EXCLUDEEXTENSIONS, --exclude-extensions=EXCLUDEEXTENSIONS
-                        Exclude extensions list, separated by comma (Example:
+                        Extension list separated by commas (Example: php,asp)
+    -X EXTENSIONS, --exclude-extensions=EXTENSIONS
+                        Exclude extension list separated by commas (Example:
                         asp,jsp)
+    -f, --force-extensions
+                        Add extensions to the end of every wordlist entry. By
+                        default dirsearch only replaces the %EXT% keyword with
+                        extensions
 
   Dictionary Settings:
-    -w WORDLIST, --wordlist=WORDLIST
-                        Customize wordlist (separated by comma)
+    -w WORDLIST, --wordlists=WORDLIST
+                        Customize wordlists (separated by commas)
     --prefixes=PREFIXES
                         Add custom prefixes to all entries (separated by
-                        comma)
+                        commas)
     --suffixes=SUFFIXES
-                        Add custom suffixes to all entries, ignores
-                        directories (separated by comma)
-    -f, --force-extensions
-                        Force extensions for every wordlist entry. Add
-                        %NOFORCE% at the end of the entry in the wordlist that
-                        you do not want to force
-    --no-extension      Remove extensions in all entries (Example: admin.php
-                        -> admin)
-    --no-dot-extensions
-                        Remove the "." character before extensions
+                        Add custom suffixes to all entries, ignore directories
+                        (separated by commas)
+    --only-selected     Only entries with selected extensions or no extension
+                        + directories
+    --remove-extensions
+                        Remove extensions in all wordlist entries (Example:
+                        admin.php -> admin)
     -U, --uppercase     Uppercase wordlist
     -L, --lowercase     Lowercase wordlist
-    -C, --capitalization
-                        Capital wordlist
+    -C, --capital       Capital wordlist
 
   General Settings:
-    -d DATA, --data=DATA
-                        HTTP request data (POST, PUT, ... body)
-    -s DELAY, --delay=DELAY
-                        Delay between requests (support float number)
     -r, --recursive     Bruteforce recursively
-    -R RECURSIVE_LEVEL_MAX, --recursive-level-max=RECURSIVE_LEVEL_MAX
-                        Max recursion level (subdirs) (Default: 1 [only
-                        rootdir + 1 dir])
-    --suppress-empty    Suppress empty responses
-    --minimal=MINIMUMRESPONSESIZE
-                        Minimal response length
-    --maximal=MAXIMUMRESPONSESIZE
-                        Maximal response length
-    --scan-subdir=SCANSUBDIRS, --scan-subdirs=SCANSUBDIRS
-                        Scan subdirectories of the given URL (separated by
-                        comma)
-    --exclude-subdir=EXCLUDESUBDIRS, --exclude-subdirs=EXCLUDESUBDIRS
+    -R DEPTH, --recursion-depth=DEPTH
+                        Maximum recursion depth
+    -t THREADS, --threads=THREADS
+                        Number of threads
+    --subdirs=SUBDIRS   Scan sub-directories of the given URL[s] (separated by
+                        commas)
+    --exclude-subdirs=SUBDIRS
                         Exclude the following subdirectories during recursive
-                        scan (separated by comma)
-    -t THREADSCOUNT, --threads=THREADSCOUNT
-                        Number of Threads
-    -i INCLUDESTATUSCODES, --include-status=INCLUDESTATUSCODES
-                        Show only included status codes, separated by comma
-                        (example: 301, 500)
-    -x EXCLUDESTATUSCODES, --exclude-status=EXCLUDESTATUSCODES
-                        Do not show excluded status codes, separated by comma
-                        (example: 301, 500)
-    --exclude-texts=EXCLUDETEXTS
-                        Exclude responses by texts, separated by comma
-                        (example: "Not found", "Error")
-    --exclude-regexps=EXCLUDEREGEXPS
-                        Exclude responses by regexps, separated by comma
-                        (example: "Not foun[a-z]{1}", "^Error$")
-    -c COOKIE, --cookie=COOKIE
-    --user-agent=USERAGENT
-    -F, --follow-redirects
+                        scan (separated by commas)
+    -i STATUS, --include-status=STATUS
+                        Include status codes, separated by commas, support
+                        ranges (Example: 200,300-399)
+    -x STATUS, --exclude-status=STATUS
+                        Exclude status codes, separated by commas, support
+                        ranges (Example: 301,500-599)
+    --exclude-sizes=SIZES
+                        Exclude responses by sizes, separated by commas
+                        (Example: 123B,4KB)
+    --exclude-texts=TEXTS
+                        Exclude responses by texts, separated by commas
+                        (Example: 'Not found', 'Error')
+    --exclude-regexps=REGEXPS
+                        Exclude responses by regexps, separated by commas
+                        (Example: 'Not foun[a-z]{1}', '^Error$')
+    --exclude-redirects=REGEXPS
+                        Exclude responses by redirect regexps or texts,
+                        separated by commas (Example: 'https://okta.com/*')
+    --calibration=PATH  Path to test for calibration
+    --random-agent      Choose a random User-Agent for each request
+    --minimal=LENGTH    Minimal response length
+    --maximal=LENGTH    Maximal response length
+    -q, --quiet-mode    Quiet mode
+    --full-url          Print full URLs in the output
+    --no-color          No colored output
+
+  Request Settings:
+    -m METHOD, --http-method=METHOD
+                        HTTP method (default: GET)
+    -d DATA, --data=DATA
+                        HTTP request data
     -H HEADERS, --header=HEADERS
-                        HTTP request headers, support multiple flags (example:
-                        --header "Referer: example.com" --header "User-Agent:
-                        IE")
-    --full-url          Print the full URL in the output
-    --random-agents, --random-user-agents
-    -q, --quite-mode
+                        HTTP request header, support multiple flags (Example:
+                        -H 'Referer: example.com' -H 'Accept: */*')
+    --header-list=FILE  File contains HTTP request headers
+    -F, --follow-redirects
+                        Follow HTTP redirects
+    --user-agent=USERAGENT
+    --cookie=COOKIE
 
   Connection Settings:
     --timeout=TIMEOUT   Connection timeout
-    --ip=IP             Resolve name to IP address
-    --proxy=HTTPPROXY, --http-proxy=HTTPPROXY
-                        HTTP Proxy (example: localhost:8080)
-    --proxylist=PROXYLIST, --http-proxy-list=PROXYLIST
-                        File containg HTTP proxy servers
-    -m HTTPMETHOD, --http-method=HTTPMETHOD
-                        HTTP method, default: GET
-    --max-retries=MAXRETRIES
+    --ip=IP             Server IP address
+    -s DELAY, --delay=DELAY
+                        Delay between requests
+    --proxy=PROXY       Proxy URL, support HTTP and SOCKS proxies (Example:
+                        localhost:8080, socks5://localhost:8088)
+    --proxy-list=FILE   File contains proxy servers
+    --matches-proxy=PROXY
+                        Proxy to replay with found paths
+    --max-retries=RETRIES
     -b, --request-by-hostname
-                        By default dirsearch will request by IP for speed.
-                        This will force requests by hostname
+                        By default dirsearch requests by IP for speed. This
+                        will force requests by hostname
+    --exit-on-error     Exit whenever an error occurs
+    --debug             Debug mode
 
   Reports:
-    --simple-report=SIMPLEOUTPUTFILE
-                        Only found paths
-    --plain-text-report=PLAINTEXTOUTPUTFILE
-                        Found paths with status codes
-    --json-report=JSONOUTPUTFILE
+    --simple-report=OUTPUTFILE
+    --plain-text-report=OUTPUTFILE
+    --json-report=OUTPUTFILE
+    --xml-report=OUTPUTFILE
+    --markdown-report=OUTPUTFILE
+    --csv-report=OUTPUTFILE
 ```
 
  **NOTE**: 
- You can change the dirsearch default configurations (default extensions, timeout, wordlist location, ...) by editing the "default.conf" file.
+ You can change the dirsearch default configurations (default extensions, timeout, wordlist location, ...) by editing the **default.conf** file.
 
-Operating Systems supported
----------------------------
-- Windows XP/7/8/10
-- GNU/Linux
-- MacOSX
-
-Features
---------
-- Fast
-- Multithreaded
-- Keep alive connections
-- Support for multiple extensions (-e|--extensions asp,php)
-- Support for every HTTP method
-- Support for HTTP request data
-- Extensions excluding
-- Reporting (plain text, JSON)
-- Heuristically detects invalid web pages
-- Recursive brute forcing
-- Subdirectories brute forcing
-- Force extensions
-- HTTP proxy support
-- HTTP cookies and headers support
-- User agent randomization
-- Proxy host randomization
-- Batch processing
-- Request delaying
-- Multiple wordlist formats (lowercase, uppercase, capitalization)
-- Quiet mode
-- Option to force requests by hostname
-- Option to exclude responses by texts
-- Option to exclude responses by regexps (example: "Not foun[a-z]{1}")
-- Option to remove dot from extension when forcing
-- Options to display only items with response length from range
-- Option to whitelist response codes (-i 200,500)
-- Option to blacklist response codes (-x 404,403)
-- Option to add custom suffixes and prefixes
-- ...
-
-
-About wordlists
----------------
-Wordlist must be a text file. Each line will be processed as such, except when the special keyword %EXT% is used, it will generate one entry for each extension (-e | --extension) passed as an argument.
-
-Example:
-- sample/
-- example.%EXT%
-
-Passing the extensions "asp" and "aspx" will generate the following dictionary:
-- sample/
-- example
-- example.asp
-- example.aspx
-
-You can also use -f | --force-extensions switch to append extensions to every word in the wordlists.
-
-To use multiple wordlists, you can seperate your wordlists with comma. Example: -w wordlist1.txt,wordlist2.txt
 
 How to use
 ---------------
 
-Some examples for how to use dirsearch - those are the most common arguments. If you need all, just use the "-h" argument.
+[![Dirsearch demo](https://asciinema.org/a/380112.svg)](https://asciinema.org/a/380112)
+
+Some examples for how to use dirsearch - those are the most common arguments. If you need all, just use the **-h** argument.
 
 ### Simple usage
 ```
-python3 dirsearch.py -E -u https://target
+python3 dirsearch.py -u https://target
 ```
 
 ```
@@ -216,26 +276,28 @@ python3 dirsearch.py -e php,html,js -u https://target -w /path/to/wordlist
 ```
 
 ### Recursive scan
-By adding "-r | --recursive" argument, dirsearch will automatically brute-force the after of directories that it found.
+By using the **-r | --recursive** argument, dirsearch will automatically brute-force the after of directories that it found.
 
 ```
 python3 dirsearch.py -e php,html,js -u https://target -r
 ```
-You can set the max recursion depth with "-R" or "--recursive-level-max"
+You can set the max recursion depth with **-R** or **--recursion-depth**
 
 ```
 python3 dirsearch.py -e php,html,js -u https://target -r -R 3
 ```
 
-### Exclude extensions
-Sometimes your wordlist may contains many extensions, for many cases like `.asp`, `.aspx`, `.php`, `.jsp`, ... But if you found the core application behind it, ASP.NET for example, many of those endpoints will be useless right? Don't worry, try "-X <exclude-extensions>" and all endpoints with extensions you selected will be removed.
+### Threads
+The threads number (-t | --threads) reflects the number of separate brute force processes, that each process will perform path brute-forcing against the target. And so the bigger the threads number is, the more fast dirsearch runs. By default, the number of threads is 20, but you can increase it if you want to speed up the progress.
+
+In spite of that, the speed is actually still uncontrollable since it depends a lot on the response time of the server. And as a warning, we advise you to keep the threads number not too big because of the impact from too much automation requests, this should be adjusted to fit the power of the system that you're scanning against.
 
 ```
-python3 dirsearch.py -e asp,aspx,html,htm,js -u https://target -X php,jsp,jspx
+python3 dirsearch.py -e php,htm,js,bak,zip,tgz,txt -u https://target -t 30
 ```
 
 ### Prefixes / Suffixes
-- "--prefixes": Adding custom prefixes to all entries
+- **--prefixes**: Adding custom prefixes to all entries
 
 ```
 python3 dirsearch.py -e php -u https://target --prefixes .,admin,_,~
@@ -254,7 +316,7 @@ _tools
 ~tools
 ```
 
-- "--suffixes": Adding custom suffixes to all entries
+- **--suffixes**: Adding custom suffixes to all entries
 
 ```
 python3 dirsearch.py -e php -u https://target --suffixes ~,/
@@ -274,30 +336,55 @@ internal~
 internal/
 ```
 
+### Exclude extensions
+Use **-X | --exclude-extensions** with your exclude-extension list to remove all entries in the wordlist that have the given extensions
+
+```
+python3 dirsearch.py -e asp,aspx,htm,js -u https://target -X php,jsp,jspx
+```
+
+Base wordlist:
+
+```
+admin
+admin.%EXT%
+index.html
+home.php
+test.jsp
+```
+
+After:
+
+```
+admin
+admin.asp
+admin.aspx
+admin.htm
+admin.js
+index.html
+```
+
 ### Wordlist formats
 Supported wordlist formats: uppercase, lowercase, capitalization
 
-```
-python3 dirsearch.py -e html -u https://target --lowercase
-```
+#### Lowercase:
+
 ```
 admin
 index.html
 test
 ```
----------
-```
-python3 dirsearch.py -e html -u https://target --uppercase
-```
+
+#### Uppercase:
+
 ```
 ADMIN
 INDEX.HTML
 TEST
 ```
----------
-```
-python3 dirsearch.py -e html -u https://target --capitalization
-```
+
+#### Capital:
+
 ```
 Admin
 Index.html
@@ -305,13 +392,17 @@ Test
 ```
 
 ### Filters
-Use "-i | --include-status" and "-x | --exclude-status" to select allowed and not allowed response status codes
+Use **-i | --include-status** and **-x | --exclude-status** to select allowed and not allowed response status codes
 
 ```
-python3 dirsearch.py -E -u https://target -i 200,204,400,403 -x 500,502,429
+python3 dirsearch.py -e php,html,js -u https://target -i 200,204,400,403 -x 500,502,429
 ```
 
-"--exclude-texts" and "--exclude-regexps" are also supported for more advanced filter
+**--exclude-sizes**, **--exclude-texts**, **--exclude-regexps** and **--exclude-redirects** are also supported for a more advanced filter
+
+```
+python3 dirsearch.py -e php,html,js -u https://target --exclude-sizes 1B,243KB
+```
 
 ```
 python3 dirsearch.py -e php,html,js -u https://target --exclude-texts "403 Forbidden"
@@ -322,90 +413,122 @@ python3 dirsearch.py -e php,html,js -u https://target --exclude-regexps "^Error$
 ```
 
 ### Scan sub-directories
-From an URL, you can scan sub-dirsearctories with "--scan-subdirs".
+From an URL, you can scan sub-dirsearctories with **--subdirs**.
 
 ```
-python3 dirsearch.py -e php,html,js -u https://target --scan-subdirs admin/,folder/,/
+python3 dirsearch.py -e php,html,js -u https://target --subdirs admin/,folder/,/
 ```
 
-A reverse version of this feature is "--exclude-subdir | --exclude-subdirs", which to prevent dirsearch from brute-forcing directories that should not be brute-forced when doing a recursive scan.
+A reverse version of this feature is **--exclude-subdirs**, which to prevent dirsearch from brute-forcing directories that should not be brute-forced when doing a recursive scan.
 
 ```
 python3 dirsearch.py -e php,html,js -u https://target --recursive -R 2 --exclude-subdirs "server-status/,%3f/"
 ```
 
 ### Proxies
-dirsearch supports HTTP proxy, with two options: a proxy server or a list of proxy servers.
+Dirsearch supports SOCKS and HTTP proxy, with two options: a proxy server or a list of proxy servers.
 
 ```
 python3 dirsearch.py -e php,html,js -u https://target --proxy 127.0.0.1:8080
 ```
 
 ```
+python3 dirsearch.py -e php,html,js -u https://target --proxy socks5://10.10.0.1:8080
+```
+
+```
 python3 dirsearch.py -e php,html,js -u https://target --proxylist proxyservers.txt
+```
+
+### Reports
+Dirsearch allows the user to save the output into a file. It supports several output formats like text or json, and we are keep updating for new formats
+
+```
+python3 dirsearch.py -e php -l URLs.txt --plain-text-report report.txt
+```
+
+```
+python3 dirsearch.py -e php -u https://target --json-report target.json
+```
+
+```
+python3 dirsearch.py -e php -u https://target --simple-report target.txt
 ```
 
 ### Some others commands
 ```
-python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt -H "User-Agent: IE" -f
+python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt -H "X-Forwarded-Host: 127.0.0.1" -f
 ```
 
 ```
-python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt -t 40 -f
+python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt -t 100 -m POST --data "username=admin"
 ```
 
 ```
-python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --random-agents
+python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --random-agent --cookie "isAdmin=1"
 ```
 
 ```
-python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --json-report=reports/target.json
+python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --json-report=target.json
 ```
 
 ```
-python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --simple-report=reports/target-paths.txt
+python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --minimal 1
 ```
 
 ```
-python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --json-report=reports/report.json
+python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --header-list rate-limit-bypasses.txt
+```
+
+```
+python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt -q --stop-on-error
+```
+
+```
+python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --full-url
+```
+
+```
+python3 dirsearch.py -u https://target -w db/dicc.txt --no-extension
 ```
 
 **There are more features and you will need to discover it by your self**
 
+
 Tips
 ---------------
-- Want to run dirsearch with a rate of requests per second? Try `-t <rate> -s 1`
+- To run dirsearch with a rate of requests per second, try `-t <rate> -s 1`
 - Want to findout config files or backups? Try out `--suffixes ~` and `--prefixes .`
-- Don't want to force extensions on some endpoints? Add `%NOFORCE%` at the end of them so dirsearch won't do that
-- Want to find only folders/directories? Combine `--no-extension` and `--suffixes /` then done!
+- For some endpoints that you do not want to force extensions, add `%NOFORCE%` at the end of them
+- Want to find only folders/directories? Combine `--no-extension` and `--suffixes /`!
+- The combination of `--cidr`, `-F` and `-q` will reduce most of the noise + false negatives when brute-forcing with a CIDR
 
-Keep updating ...
-
-#### Alerts
-- Don't use `-e *`, it won't replace `*` with all extensions as what you are thinking
 
 Support Docker
 ---------------
 ### Install Docker Linux
 Install Docker
+
 ```sh
 curl -fsSL https://get.docker.com | bash
 ```
+
 > To use docker you need superuser power
 
 ### Build Image dirsearch
 To create image
+
 ```sh
-docker build -t "dirsearch:v0.4.0" .
+docker build -t "dirsearch:v0.4.1" .
 ```
-> **dirsearch** this is name the image and **v0.4.0** is version
+
+> **dirsearch** is the name of the image and **v0.4.1** is the version
 
 ### Using dirsearch
 For using
 ```sh
-docker run -it --rm "dirsearch:v0.4.0" -u target -e php,html,js,zip
+docker run -it --rm "dirsearch:v0.4.1" -u target -e php,html,js,zip
 ```
-> target is the site or IP
 
 
 License
@@ -417,39 +540,8 @@ License: GNU General Public License, version 2
 
 Contributors
 ---------------
-Main: @maurosoria and @shelld3v
+This tool is currently under development by @maurosoria and @shelld3v. We received a lot of help from many people around the world to improve this tool. Thanks so much to everyone who helped us!!
 
-Special thanks for these people:
+See [CONTRIBUTORS.md](https://github.com/maurosoria/dirsearch/blob/master/CONTRIBUTORS.md) for more information about who they are!
 
-- @V-Rico
-- @random-robbie
-- @mzfr
-- @DustinTheGreat
-- @jsfan
-- @liamosaur
-- @Anon-Exploiter
-- @tkisason
-- @ricardojba
-- @Sjord
-- @danritter
-- @shahril96
-- @drego85
-- @Bo0oM
-- @exploide
-- @redshark180
-- @zrquan
-- @SUHAR1K
-- @eur0pa
-- @FireFart
-- @telnet22
-- @sysevil
-- @mazen160
-- @k2l8m11n2
-- @vlohacks
-- @russtone
-- @jsav0
-- @serhattsnmz
-- @ColdFusionX
-- @gdattacker
-
-#### Feeling excited? Just [tweet](https://twitter.com/intent/tweet?text=I%20just%20installed%20dirsearch%20v0.4.0%20-%20A%20Web%20Path%20Scanner%20https%3A%2F%2Fgithub.com%2Fmaurosoria%2Fdirsearch%20%23fuzzer%20%23bugbounty%20%23dirsearch%20%23pentesting%20%23security) about it!
+#### Want to join the team? Feel free to submit any pull request that you can. If you don't know how to code, you can support us by updating the wordlist or the documentation. Giving feedback or [a new feature suggestion](https://github.com/maurosoria/dirsearch/issues/new?labels=enhancement&template=feature_request.md) is also a good way to help us improve this tool
