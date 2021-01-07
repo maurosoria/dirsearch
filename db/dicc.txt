@@ -6,6 +6,7 @@
 %3f/
 %C0%AE%C0%AE%C0%AF
 %EXT%
+horizon.log
 %EXT%.bak
 %EXT%.old
 %EXT%.php
