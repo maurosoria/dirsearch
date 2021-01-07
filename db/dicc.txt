@@ -8154,6 +8154,9 @@ test0.php
 test1
 test1.php
 test123.php
+/secure/admin/SendBulkMail!default.jspa
+/admin/SendBulkMail!default.jspa
+/SendBulkMail!default.jspa
 test2
 test2.html
 test2.php
