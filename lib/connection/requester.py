@@ -50,6 +50,7 @@ class Requester(object):
         requestByHostname=False,
         httpmethod="get",
         data=None,
+        scheme=None,
     ):
         self.httpmethod = httpmethod
         self.data = data
@@ -62,7 +63,7 @@ class Requester(object):
 
         # If no protocol specified, set http by default
         if "://" not in url:
-            parsed = urllib.parse.urlparse("http://" + url)
+            parsed = urllib.parse.urlparse("{0}://{1}".format(scheme, url))
 
         # If protocol is not supported
         elif parsed.scheme not in ["https", "http"]:
