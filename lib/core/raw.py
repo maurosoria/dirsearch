@@ -52,7 +52,7 @@ class Raw(object):
             self.body = None
 
         self.http_headers_lowercase = dict(
-            (key.lower(), value) for key, value in self.http_headers
+            (key.lower(), value) for key, value in self.http_headers.items()
         )
 
         try:
@@ -63,7 +63,7 @@ class Raw(object):
         self.basePath = self.header[0].split(" ")[1]
 
     def url(self):
-        return ["{0}://{1}{2}".format(self.scheme, self.host, self.basePath)]
+        return "{0}://{1}{2}".format(self.scheme, self.host, self.basePath)
 
     def method(self):
         return self.header[0].split(" ")[0]
