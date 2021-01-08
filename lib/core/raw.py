@@ -22,18 +22,6 @@ from lib.utils import File
 class Raw(object):
     def __init__(self, raw_file, protocol):
         with File(raw_file) as raw_content:
-            if not raw_content.exists():
-                print("The file with the raw request does not exist")
-                exit(1)
-
-            if not raw_content.is_valid():
-                print("The file with the raw request is invalid")
-                exit(1)
-
-            if not raw_content.can_read():
-                print("The file with the raw request cannot be read")
-                exit(1)
-
             self.raw_content = raw_content.read()
 
         self.protocol = protocol
