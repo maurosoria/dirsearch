@@ -46,6 +46,7 @@ class Requester(object):
     ):
         self.httpmethod = httpmethod
         self.data = data
+        self.headers = {}
 
         # If no backslash, append one
         if not url.endswith("/"):
@@ -90,15 +91,14 @@ class Requester(object):
                 {"message": "Invalid port number: {0}".format(parsed.netloc.split(":")[1])}
             )
 
-        # Pass if the host header has already been set
-        if "host" not in [hd.lower() for hd in self.headers]:
-            self.headers["Host"] = self.host
+        # Set the Host header, this will be overwritten if the user also set this header
+        self.headers["Host"] = self.host
 
-            # Include port in Host header if it's non-standard
-            if (self.protocol == "https" and self.port != 443) or (
-                self.protocol == "http" and self.port != 80
-            ):
-                self.headers["Host"] += ":{0}".format(self.port)
+        # Include port in Host header if it's non-standard
+        if (self.protocol == "https" and self.port != 443) or (
+            self.protocol == "http" and self.port != 80
+        ):
+            self.headers["Host"] += ":{0}".format(self.port)
 
         # Set cookie and user-agent headers
         if cookie:
