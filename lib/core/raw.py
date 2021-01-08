@@ -74,10 +74,7 @@ class Raw(object):
         return self.http_headers
 
     def data(self):
-        if (
-            "content-type" in self.http_headers_lowercase.keys()
-            and "json" in self.http_headers_lowercase["content-type"]
-        ):
+        if "content-type" in self.http_headers_lowercase.keys() and "json" in self.http_headers_lowercase["content-type"]:
             try:
                 self.body = json.loads(self.body)
             except json.decoder.JSONDecodeError:
