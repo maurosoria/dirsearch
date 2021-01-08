@@ -36,6 +36,7 @@ class ArgumentParser(object):
 
         self.quiet = options.quiet
         self.full_url = options.full_url
+        self.urlList = None
         self.raw_file = None
 
         if not options.url:
