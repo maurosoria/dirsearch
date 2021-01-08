@@ -81,7 +81,7 @@ class Controller(object):
             self.urlList = list(filter(None, dict.fromkeys(self.arguments.urlList)))
             self.httpmethod = self.arguments.httpmethod.lower()
             self.data = self.arguments.data
-            self.headers = {**self.arguments.headers, **default_headers}
+            self.headers = {**default_headers, **self.arguments.headers}
             self.cookie = self.arguments.cookie
             self.useragent = self.arguments.useragent
         else:
