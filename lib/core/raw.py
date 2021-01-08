@@ -80,7 +80,7 @@ class Raw(object):
         else:
             return None
 
-    def cookie(self)
+    def cookie(self):
         if "cookie" in self.http_headers_lowercase.keys:
             return self.http_headers_lowercase["cookie"]
         else:
