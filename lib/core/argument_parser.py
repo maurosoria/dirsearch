@@ -394,6 +394,10 @@ class ArgumentParser(object):
 
         self.recursive_level_max = options.recursive_level_max
 
+        if self.scheme not in ["http", "https"]:
+            print("Invalid URI scheme: {0}".format(self.scheme))
+            exit(1)
+
     def parseConfig(self):
         config = DefaultConfigParser()
         configPath = FileUtils.build_path(self.script_path, "default.conf")
@@ -459,7 +463,7 @@ class ArgumentParser(object):
         self.maxRetries = config.safe_getint("connection", "max-retries", 3)
         self.proxy = config.safe_get("connection", "proxy", None)
         self.proxylist = config.safe_get("connection", "proxy-list", None)
-        self.scheme = config.safe_get("connection", "scheme", "http")
+        self.scheme = config.safe_get("connection", "scheme", "http", ["http", "https"])
         self.matches_proxy = config.safe_get("connection", "matches-proxy", None)
         self.requestByHostname = config.safe_getboolean(
             "connection", "request-by-hostname", False
