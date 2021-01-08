@@ -70,10 +70,18 @@ class Controller(object):
             exit(1)
 
         if self.arguments.urlList:
+            default_headers = {
+                "User-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36",
+                "Accept-Language": "*",
+                "Accept-Encoding": "*",
+                "Keep-Alive": "300",
+                "Cache-Control": "max-age=0",
+            }
+
             self.urlList = list(filter(None, dict.fromkeys(self.arguments.urlList)))
             self.httpmethod = self.arguments.httpmethod.lower()
             self.data = self.arguments.data
-            self.headers = self.arguments.headers
+            self.headers = {**self.arguments.headers, **default_headers}
             self.cookie = self.arguments.cookie
             self.useragent = self.arguments.useragent
         else:
