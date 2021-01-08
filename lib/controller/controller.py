@@ -69,7 +69,7 @@ class Controller(object):
             self.output.error("Invalid HTTP method")
             exit(1)
 
-        if self.urlList:
+        if self.arguments.urlList:
             self.urlList = list(filter(None, dict.fromkeys(self.arguments.urlList)))
             self.httpmethod = self.arguments.httpmethod.lower()
             self.data = self.arguments.data
