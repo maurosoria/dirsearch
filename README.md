@@ -51,6 +51,7 @@ Features
 - Support for multiple extensions
 - Support for every HTTP method
 - Support for HTTP request data
+- Support for raw request
 - Extensions excluding
 - Reporting (Plain text, JSON, XML, Markdown, CSV)
 - Recursive brute forcing
@@ -411,6 +412,18 @@ python3 dirsearch.py -e php,html,js -u https://target --exclude-texts "403 Forbi
 ```
 python3 dirsearch.py -e php,html,js -u https://target --exclude-regexps "^Error$"
 ```
+
+### Raw requests
+dirsearch allows you to import the raw request from a file. The raw file content will be looked something like this:
+
+```
+GET /admin HTTP/1.1
+Host: admin.example.com
+Cache-Control: max-age=0
+Accept: */*
+```
+
+Since there is no way for dirsearch to know what the URI scheme is (`http` or `https`), you need to set it using the `--scheme` flag. By default, the scheme is `http`, which is not popular in modern web servers now. That means, without setting up the scheme, you may brute-force with the wrong protocol, and will end up with false negatives.
 
 ### Scan sub-directories
 From an URL, you can scan sub-dirsearctories with **--subdirs**.
