@@ -77,7 +77,7 @@ class ArgumentParser(object):
                     if not raw_content.can_read():
                         print("The file with the raw request cannot be read")
                         exit(1)
-                        
+
                 self.raw_file = options.raw_file
 
             else:
