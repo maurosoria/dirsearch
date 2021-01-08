@@ -56,7 +56,7 @@ class Raw(object):
         )
 
         try:
-            self.host = self.http_headers_lowercase["host"]
+            self.host = self.http_headers_lowercase["host"].strip()
         except KeyError:
             print("Can't find the Host header in the raw request")
             exit(1)
@@ -75,13 +75,13 @@ class Raw(object):
         return self.body
 
     def user_agent(self):
-        if "user-agent" in self.http_headers_lowercase.keys:
+        if "user-agent" in self.http_headers_lowercase.keys():
             return self.http_headers_lowercase["user-agent"]
         else:
             return None
 
     def cookie(self):
-        if "cookie" in self.http_headers_lowercase.keys:
+        if "cookie" in self.http_headers_lowercase.keys():
             return self.http_headers_lowercase["cookie"]
         else:
             return None
