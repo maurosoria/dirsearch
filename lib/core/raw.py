@@ -51,10 +51,12 @@ class Raw(object):
         except IndexError:
             self.body = None
 
+        self.http_headers_lowercase = dict(
+            (key.lower(), value) for key, value in self.http_headers
+        )
+
         try:
-            self.host = dict(
-                (key.lower(), value) for key, value in self.http_headers
-            )["host"]
+            self.host = self.http_headers_lowercase["host"]
         except KeyError:
             print("Can't find the Host header in the raw request")
             exit(1)
@@ -71,3 +73,15 @@ class Raw(object):
 
     def data(self):
         return self.body
+
+    def user_agent(self):
+        if "user-agent" in self.http_headers_lowercase.keys:
+            return self.http_headers_lowercase["user-agent"]
+        else:
+            return None
+
+    def cookie(self)
+        if "cookie" in self.http_headers_lowercase.keys:
+            return self.http_headers_lowercase["cookie"]
+        else:
+            return None
