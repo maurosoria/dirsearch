@@ -46,6 +46,7 @@ class Requester(object):
     ):
         self.httpmethod = httpmethod
         self.data = data
+        self.headers = {}
 
         # If no backslash, append one
         if not url.endswith("/"):
