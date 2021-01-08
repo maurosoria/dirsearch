@@ -20,11 +20,11 @@ from lib.utils import File
 
 
 class Raw(object):
-    def __init__(self, raw_file, protocol):
+    def __init__(self, raw_file, scheme):
         with File(raw_file) as raw_content:
             self.raw_content = raw_content.read()
 
-        self.protocol = protocol
+        self.scheme = scheme
         self.parse()
 
     def parse(self):
@@ -63,7 +63,7 @@ class Raw(object):
         self.basePath = self.header[0].split(" ")[1]
 
     def url(self):
-        return ["{0}://{1}{2}".format(self.protocol, self.host, self.basePath)]
+        return ["{0}://{1}{2}".format(self.scheme, self.host, self.basePath)]
 
     def method(self):
         return self.header[0].split(" ")[0]
