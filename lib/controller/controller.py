@@ -27,7 +27,7 @@ from threading import Lock
 from queue import Queue
 
 from lib.connection import Requester, RequestException
-from lib.core import Dictionary, Fuzzer, ReportManager
+from lib.core import Dictionary, Fuzzer, ReportManager, Raw
 from lib.reports import JSONReport, XMLReport, PlainTextReport, SimpleReport, MarkdownReport, CSVReport
 from lib.utils import FileUtils
 
@@ -63,17 +63,29 @@ class Controller(object):
         self.savePath = self.script_path
         self.doneDirs = []
 
-        self.urlList = list(filter(None, dict.fromkeys(self.arguments.urlList)))
-
-        self.recursive_level_max = self.arguments.recursive_level_max
-
         if self.arguments.httpmethod.lower() not in [
             "get", "head", "post", "put", "patch", "options", "delete", "trace", "debug", "connect"
         ]:
             self.output.error("Invalid HTTP method")
             exit(1)
 
-        self.httpmethod = self.arguments.httpmethod.lower()
+        if self.urlList:
+            self.urlList = list(filter(None, dict.fromkeys(self.arguments.urlList)))
+            self.httpmethod = self.arguments.httpmethod.lower()
+            self.data = self.arguments.data
+            self.headers = self.arguments.headers
+            self.cookie = self.arguments.cookie
+            self.useragent = self.arguments.useragent
+        else:
+            _raw = Raw(self.arguments.raw_file, self.arguments.scheme)
+            self.urlList = _raw.url
+            self.httpmethod = _raw.method
+            self.data = _raw.data
+            self.headers = _raw.headers
+            self.cookie = _raw.cookie
+            self.useragent = _raw.user_agent
+
+        self.recursive_level_max = self.arguments.recursive_level_max
 
         if self.arguments.saveHome:
             savePath = self.getSavePath()
@@ -164,14 +176,14 @@ class Controller(object):
                     gc.collect()
                     self.reportManager = ReportManager()
                     self.currentUrl = url if url.endswith("/") else url + "/"
-                    self.output.setTarget(self.currentUrl)
+                    self.output.setTarget(self.currentUrl, self.arguments.scheme)
                     self.ignore429 = False
 
                     try:
                         self.requester = Requester(
                             url,
-                            cookie=self.arguments.cookie,
-                            useragent=self.arguments.useragent,
+                            cookie=self.cookie,
+                            useragent=self.useragent,
                             maxPool=self.arguments.threadsCount,
                             maxRetries=self.arguments.maxRetries,
                             timeout=self.arguments.timeout,
@@ -181,7 +193,8 @@ class Controller(object):
                             redirect=self.arguments.redirect,
                             requestByHostname=self.arguments.requestByHostname,
                             httpmethod=self.httpmethod,
-                            data=self.arguments.data,
+                            data=self.data,
+                            scheme=self.arguments.scheme,
                         )
 
                         self.requester.request("")
@@ -193,7 +206,7 @@ class Controller(object):
                     if self.arguments.useRandomAgents:
                         self.requester.setRandomAgents(self.randomAgents)
 
-                    for key, value in arguments.headers.items():
+                    for key, value in self.headers.items():
                         self.requester.setHeader(key, value)
 
                     # Initialize directories Queue with start Path
