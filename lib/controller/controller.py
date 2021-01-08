@@ -78,12 +78,12 @@ class Controller(object):
             self.useragent = self.arguments.useragent
         else:
             _raw = Raw(self.arguments.raw_file, self.arguments.scheme)
-            self.urlList = _raw.url
-            self.httpmethod = _raw.method
-            self.data = _raw.data
-            self.headers = _raw.headers
-            self.cookie = _raw.cookie
-            self.useragent = _raw.user_agent
+            self.urlList = _raw.url()
+            self.httpmethod = _raw.method()
+            self.data = _raw.data()
+            self.headers = _raw.headers()
+            self.cookie = _raw.cookie()
+            self.useragent = _raw.user_agent()
 
         self.recursive_level_max = self.arguments.recursive_level_max
 
