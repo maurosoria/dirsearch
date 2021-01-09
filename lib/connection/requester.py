@@ -27,14 +27,6 @@ from .response import *
 
 
 class Requester(object):
-    headers = {
-        "User-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36",
-        "Accept-Language": "*",
-        "Accept-Encoding": "*",
-        "Keep-Alive": "300",
-        "Cache-Control": "max-age=0",
-    }
-
     def __init__(
         self,
         url,
@@ -50,9 +42,11 @@ class Requester(object):
         requestByHostname=False,
         httpmethod="get",
         data=None,
+        scheme=None,
     ):
         self.httpmethod = httpmethod
         self.data = data
+        self.headers = {}
 
         # If no backslash, append one
         if not url.endswith("/"):
@@ -62,7 +56,7 @@ class Requester(object):
 
         # If no protocol specified, set http by default
         if "://" not in url:
-            parsed = urllib.parse.urlparse("http://" + url)
+            parsed = urllib.parse.urlparse("{0}://{1}".format(scheme, url))
 
         # If protocol is not supported
         elif parsed.scheme not in ["https", "http"]:
@@ -97,15 +91,14 @@ class Requester(object):
                 {"message": "Invalid port number: {0}".format(parsed.netloc.split(":")[1])}
             )
 
-        # Pass if the host header has already been set
-        if "host" not in [hd.lower() for hd in self.headers]:
-            self.headers["Host"] = self.host
+        # Set the Host header, this will be overwritten if the user also set this header
+        self.headers["Host"] = self.host
 
-            # Include port in Host header if it's non-standard
-            if (self.protocol == "https" and self.port != 443) or (
-                self.protocol == "http" and self.port != 80
-            ):
-                self.headers["Host"] += ":{0}".format(self.port)
+        # Include port in Host header if it's non-standard
+        if (self.protocol == "https" and self.port != 443) or (
+            self.protocol == "http" and self.port != 80
+        ):
+            self.headers["Host"] += ":{0}".format(self.port)
 
         # Set cookie and user-agent headers
         if cookie:
