@@ -16,8 +16,6 @@
 #
 #  Author: Mauro Soria
 
-import json
-
 from lib.utils import File
 
 
