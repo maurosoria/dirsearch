@@ -85,11 +85,17 @@ class Controller(object):
             self.cookie = self.arguments.cookie
             self.useragent = self.arguments.useragent
         else:
+            default_headers = {
+                "User-agent": None,
+                "Accept-Encoding": None,
+                "Accept": None,
+            }
+
             _raw = Raw(self.arguments.raw_file, self.arguments.scheme)
             self.urlList = [_raw.url()]
             self.httpmethod = _raw.method()
             self.data = _raw.data()
-            self.headers = _raw.headers()
+            self.headers = {**default_headers, **_raw.headers()}
             self.cookie = _raw.cookie()
             self.useragent = _raw.user_agent()
 
