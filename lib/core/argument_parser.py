@@ -487,7 +487,7 @@ information at https://github.com/maurosoria/dirsearch.""")
                              default=None, metavar="FILE")
         mandatory.add_option("--stdin", help="URL list from STDIN", action="store_true", dest="stdin_urls")
         mandatory.add_option("--cidr", help="Target CIDR", action="store", type="string", dest="cidr", default=None)
-        mandatory.add_option("--raw-request", help="File contains the raw request (use `--scheme` flag to set the scheme)", action="store",
+        mandatory.add_option("--raw", help="File contains the raw request (use `--scheme` flag to set the scheme)", action="store",
                              dest="raw_file", metavar="FILE")
         mandatory.add_option("-e", "--extensions", help="Extension list separated by commas (Example: php,asp)",
                              action="store", dest="extensions", default=self.defaultExtensions)
