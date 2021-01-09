@@ -205,6 +205,9 @@ class Controller(object):
                             scheme=self.arguments.scheme,
                         )
 
+                        for key, value in self.headers.items():
+                            self.requester.setHeader(key, value)
+
                         self.requester.request("")
 
                     except RequestException as e:
@@ -213,9 +216,6 @@ class Controller(object):
 
                     if self.arguments.useRandomAgents:
                         self.requester.setRandomAgents(self.randomAgents)
-
-                    for key, value in self.headers.items():
-                        self.requester.setHeader(key, value)
 
                     # Initialize directories Queue with start Path
                     self.basePath = self.requester.basePath
