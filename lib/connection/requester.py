@@ -139,14 +139,18 @@ class Requester(object):
         while i <= self.maxRetries:
 
             try:
-                if proxy:
-                    proxy = {"https": proxy, "http": proxy}
-
-                else:
+                if not proxy:
                     if self.proxylist:
-                        proxy = {"https": random.choice(self.proxylist), "http": random.choice(self.proxylist)}
+                        proxy = random.choice(self.proxylist)
                     elif self.proxy:
-                        proxy = {"https": self.proxy, "http": self.proxy}
+                        proxy = self.proxy
+
+                if proxy:
+                    if not proxy.startswith(
+                        ("http://", "https://", "socks5://", "socks5h://", "socks4://", "socks4a://")
+                    ):
+                        proxy = "http://" + proxy
+                    proxy = {"https": proxy, "http": proxy}
 
                 url = self.url + self.basePath + path
 
