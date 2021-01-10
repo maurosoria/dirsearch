@@ -150,7 +150,7 @@ class Requester(object):
                         ("http://", "https://", "socks5://", "socks5h://", "socks4://", "socks4a://")
                     ):
                         proxy = "http://" + proxy
-                    proxy = {"https": proxy, "http": proxy}
+                    proxy = {"http": proxy} if proxy.startswith("http:") else {"https": proxy, "http": proxy}
 
                 url = self.url + self.basePath + path
 
