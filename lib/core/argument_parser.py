@@ -128,21 +128,15 @@ class ArgumentParser(object):
             options.requestByHostname = True
 
         elif options.proxy:
-            if options.proxy.startswith(("http://", "https://", "socks5://", "socks5h://", "socks4://", "socks4a://")):
-                self.proxy = options.proxy
-            else:
-                self.proxy = "http://" + options.proxy
-
+            self.proxy = options.proxy
             options.requestByHostname = True
 
         else:
             self.proxy = None
 
         if options.matches_proxy:
-            if options.matches_proxy.startswith(("http://", "https://", "socks5://", "socks5h://", "socks4://", "socks4a://")):
-                self.matches_proxy = options.matches_proxy
-            else:
-                self.matches_proxy = "http://" + options.matches_proxy
+            self.matches_proxy = options.matches_proxy
+            options.requestByHostname = True
 
         else:
             self.matches_proxy = None
@@ -583,7 +577,7 @@ information at https://github.com/maurosoria/dirsearch.""")
                               help="Proxy URL, support HTTP and SOCKS proxies (Example: localhost:8080, socks5://localhost:8088)", metavar="PROXY")
         connection.add_option("--proxy-list", action="store", dest="proxyList", type="string",
                               default=self.proxylist, help="File contains proxy servers", metavar="FILE")
-        connection.add_option("--matches-proxy", action="store", dest="matches_proxy", type="string", default=self.matches_proxy,
+        connection.add_option("--replay-proxy", action="store", dest="matches_proxy", type="string", default=self.matches_proxy,
                               help="Proxy to replay with found paths", metavar="PROXY")
         connection.add_option("--scheme", help="Default scheme (for raw request or if there is no scheme in the URL)", action="store",
                               default=self.scheme, dest="scheme", metavar="SCHEME")
