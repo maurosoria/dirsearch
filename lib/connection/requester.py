@@ -157,6 +157,8 @@ class Requester(object):
                         proxies = {"https": proxy}
                     else:
                         proxies = {"https": proxy, "http": proxy}
+                else:
+                    proxies = None
 
                 url = self.url + self.basePath + path
 
