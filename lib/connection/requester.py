@@ -91,7 +91,7 @@ class Requester(object):
                 {"message": "Invalid port number: {0}".format(parsed.netloc.split(":")[1])}
             )
 
-        # Set the Host header, this will be overwritten if the user also set this header
+        # Set the Host header, this will be overwritten if the user has already set the header
         self.headers["Host"] = self.host
 
         # Include port in Host header if it's non-standard
@@ -123,8 +123,8 @@ class Requester(object):
             self.port,
         )
 
-    def setHeader(self, header, content):
-        self.headers[header.strip()] = content.strip()
+    def setHeader(self, key, value):
+        self.headers[key.strip()] = value.strip()
 
     def setRandomAgents(self, agents):
         self.randomAgents = list(agents)
@@ -150,7 +150,13 @@ class Requester(object):
                         ("http://", "https://", "socks5://", "socks5h://", "socks4://", "socks4a://")
                     ):
                         proxy = "http://" + proxy
-                    proxy = {"http": proxy} if proxy.startswith("http:") else {"https": proxy, "http": proxy}
+
+                    if proxy.startswith("http:"):
+                        proxies = {"http": proxy}
+                    elif proxy.startswith("https:"):
+                        proxies = {"https": proxy}
+                    else:
+                        proxies = {"https": proxy, "http": proxy}
 
                 url = self.url + self.basePath + path
 
@@ -161,11 +167,11 @@ class Requester(object):
                     self.httpmethod,
                     url,
                     data=self.data,
-                    proxies=proxy,
-                    verify=False,
+                    proxies=proxies,
                     allow_redirects=self.redirect,
                     headers=dict(self.headers),
                     timeout=self.timeout,
+                    verify=False,
                 )
 
                 result = Response(
@@ -177,12 +183,12 @@ class Requester(object):
 
                 break
 
-            except requests.exceptions.TooManyRedirects as e:
-                raise RequestException({"message": "Too many redirects: {0}".format(e)})
-
             except requests.exceptions.SSLError:
                 self.url = "{0}://{1}:{2}/".format(self.protocol, self.host, self.port)
                 continue
+
+            except requests.exceptions.TooManyRedirects as e:
+                raise RequestException({"message": "Too many redirects"})
 
             except requests.exceptions.ProxyError as e:
                 raise RequestException(
@@ -201,7 +207,7 @@ class Requester(object):
 
             except requests.exceptions.InvalidProxyURL:
                 raise RequestException(
-                    {"message": "Invalid proxy URL: {0}".format(proxy["http"])}
+                    {"message": "Invalid proxy URL: {0}".format(proxy)}
                 )
 
             except (
