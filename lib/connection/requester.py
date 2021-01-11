@@ -189,8 +189,10 @@ class Requester(object):
                 self.url = "{0}://{1}:{2}/".format(self.protocol, self.host, self.port)
                 continue
 
-            except requests.exceptions.TooManyRedirects as e:
-                raise RequestException({"message": "Too many redirects"})
+            except requests.exceptions.TooManyRedirects:
+                raise RequestException(
+                    {"message": "Too many redirects"}
+                )
 
             except requests.exceptions.ProxyError as e:
                 raise RequestException(
