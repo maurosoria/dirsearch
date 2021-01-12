@@ -3,3 +3,4 @@ from .dictionary import *  # noqa: F401
 from .fuzzer import *  # noqa: F401
 from .path import *  # noqa: F401
 from .report_manager import *  # noqa: F401
+from .raw import *  # noqa: F401
