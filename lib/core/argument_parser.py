@@ -459,7 +459,7 @@ class ArgumentParser(object):
         self.proxy = config.safe_get("connection", "proxy", None)
         self.proxylist = config.safe_get("connection", "proxy-list", None)
         self.scheme = config.safe_get("connection", "scheme", "http", ["http", "https"])
-        self.matches_proxy = config.safe_get("connection", "matches-proxy", None)
+        self.matches_proxy = config.safe_get("connection", "replay-proxy", None)
         self.requestByHostname = config.safe_getboolean(
             "connection", "request-by-hostname", False
         )
