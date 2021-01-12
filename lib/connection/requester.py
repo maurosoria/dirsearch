@@ -27,14 +27,6 @@ from .response import *
 
 
 class Requester(object):
-    headers = {
-        "User-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36",
-        "Accept-Language": "*",
-        "Accept-Encoding": "*",
-        "Keep-Alive": "300",
-        "Cache-Control": "max-age=0",
-    }
-
     def __init__(
         self,
         url,
@@ -50,9 +42,11 @@ class Requester(object):
         requestByHostname=False,
         httpmethod="get",
         data=None,
+        scheme=None,
     ):
         self.httpmethod = httpmethod
         self.data = data
+        self.headers = {}
 
         # If no backslash, append one
         if not url.endswith("/"):
@@ -62,7 +56,7 @@ class Requester(object):
 
         # If no protocol specified, set http by default
         if "://" not in url:
-            parsed = urllib.parse.urlparse("http://" + url)
+            parsed = urllib.parse.urlparse("{0}://{1}".format(scheme, url))
 
         # If protocol is not supported
         elif parsed.scheme not in ["https", "http"]:
@@ -97,15 +91,14 @@ class Requester(object):
                 {"message": "Invalid port number: {0}".format(parsed.netloc.split(":")[1])}
             )
 
-        # Pass if the host header has already been set
-        if "host" not in [hd.lower() for hd in self.headers]:
-            self.headers["Host"] = self.host
+        # Set the Host header, this will be overwritten if the user has already set the header
+        self.headers["Host"] = self.host
 
-            # Include port in Host header if it's non-standard
-            if (self.protocol == "https" and self.port != 443) or (
-                self.protocol == "http" and self.port != 80
-            ):
-                self.headers["Host"] += ":{0}".format(self.port)
+        # Include port in Host header if it's non-standard
+        if (self.protocol == "https" and self.port != 443) or (
+            self.protocol == "http" and self.port != 80
+        ):
+            self.headers["Host"] += ":{0}".format(self.port)
 
         # Set cookie and user-agent headers
         if cookie:
@@ -130,8 +123,8 @@ class Requester(object):
             self.port,
         )
 
-    def setHeader(self, header, content):
-        self.headers[header.strip()] = content.strip()
+    def setHeader(self, key, value):
+        self.headers[key.strip()] = value.strip()
 
     def setRandomAgents(self, agents):
         self.randomAgents = list(agents)
@@ -146,14 +139,26 @@ class Requester(object):
         while i <= self.maxRetries:
 
             try:
-                if proxy:
-                    proxy = {"https": proxy, "http": proxy}
-
-                else:
+                if not proxy:
                     if self.proxylist:
-                        proxy = {"https": random.choice(self.proxylist), "http": random.choice(self.proxylist)}
+                        proxy = random.choice(self.proxylist)
                     elif self.proxy:
-                        proxy = {"https": self.proxy, "http": self.proxy}
+                        proxy = self.proxy
+
+                if proxy:
+                    if not proxy.startswith(
+                        ("http://", "https://", "socks5://", "socks5h://", "socks4://", "socks4a://")
+                    ):
+                        proxy = "http://" + proxy
+
+                    if proxy.startswith("http:"):
+                        proxies = {"http": proxy}
+                    elif proxy.startswith("https:"):
+                        proxies = {"https": proxy}
+                    else:
+                        proxies = {"https": proxy, "http": proxy}
+                else:
+                    proxies = None
 
                 url = self.url + self.basePath + path
 
@@ -164,11 +169,11 @@ class Requester(object):
                     self.httpmethod,
                     url,
                     data=self.data,
-                    proxies=proxy,
-                    verify=False,
+                    proxies=proxies,
                     allow_redirects=self.redirect,
                     headers=dict(self.headers),
                     timeout=self.timeout,
+                    verify=False,
                 )
 
                 result = Response(
@@ -180,12 +185,14 @@ class Requester(object):
 
                 break
 
-            except requests.exceptions.TooManyRedirects as e:
-                raise RequestException({"message": "Too many redirects: {0}".format(e)})
-
             except requests.exceptions.SSLError:
                 self.url = "{0}://{1}:{2}/".format(self.protocol, self.host, self.port)
                 continue
+
+            except requests.exceptions.TooManyRedirects:
+                raise RequestException(
+                    {"message": "Too many redirects"}
+                )
 
             except requests.exceptions.ProxyError as e:
                 raise RequestException(
@@ -204,7 +211,7 @@ class Requester(object):
 
             except requests.exceptions.InvalidProxyURL:
                 raise RequestException(
-                    {"message": "Invalid proxy URL: {0}".format(proxy["http"])}
+                    {"message": "Invalid proxy URL: {0}".format(proxy)}
                 )
 
             except (
