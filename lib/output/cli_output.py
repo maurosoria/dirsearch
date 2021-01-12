@@ -213,9 +213,9 @@ class CLIOutput(object):
 
         self.newLine(config)
 
-    def setTarget(self, target):
+    def setTarget(self, target, scheme):
         if not target.startswith(("http://", "https://")) and "://" not in target:
-            target = "http://" + target
+            target = "{0}://{1}".format(scheme, target)
 
         self.target = target
 

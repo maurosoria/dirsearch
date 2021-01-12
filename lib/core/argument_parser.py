@@ -36,6 +36,8 @@ class ArgumentParser(object):
 
         self.quiet = options.quiet
         self.full_url = options.full_url
+        self.urlList = None
+        self.raw_file = None
 
         if not options.url:
 
@@ -62,6 +64,22 @@ class ArgumentParser(object):
 
             elif options.stdin_urls:
                 self.urlList = sys.stdin.read().splitlines()
+
+            elif options.raw_file:
+                with File(options.raw_file) as raw_content:
+                    if not raw_content.exists():
+                        print("The file with the raw request does not exist")
+                        exit(1)
+
+                    if not raw_content.is_valid():
+                        print("The file with the raw request is invalid")
+                        exit(1)
+
+                    if not raw_content.can_read():
+                        print("The file with the raw request cannot be read")
+                        exit(1)
+
+                self.raw_file = options.raw_file
 
             else:
                 print("URL target is missing, try using -u <url>")
@@ -110,21 +128,15 @@ class ArgumentParser(object):
             options.requestByHostname = True
 
         elif options.proxy:
-            if options.proxy.startswith(("http://", "https://", "socks5://", "socks5h://", "socks4://", "socks4a://")):
-                self.proxy = options.proxy
-            else:
-                self.proxy = "http://" + options.proxy
-
+            self.proxy = options.proxy
             options.requestByHostname = True
 
         else:
             self.proxy = None
 
         if options.matches_proxy:
-            if options.matches_proxy.startswith(("http://", "https://", "socks5://", "socks5h://", "socks4://", "socks4a://")):
-                self.matches_proxy = options.matches_proxy
-            else:
-                self.matches_proxy = "http://" + options.matches_proxy
+            self.matches_proxy = options.matches_proxy
+            options.requestByHostname = True
 
         else:
             self.matches_proxy = None
@@ -370,11 +382,16 @@ class ArgumentParser(object):
 
         self.redirect = options.followRedirects
         self.httpmethod = options.httpmethod
+        self.scheme = options.scheme
         self.requestByHostname = options.requestByHostname
         self.exit_on_error = options.exit_on_error
         self.debug = options.debug
 
         self.recursive_level_max = options.recursive_level_max
+
+        if self.scheme not in ["http", "https"]:
+            print("Invalid URI scheme: {0}".format(self.scheme))
+            exit(1)
 
     def parseConfig(self):
         config = DefaultConfigParser()
@@ -441,7 +458,8 @@ class ArgumentParser(object):
         self.maxRetries = config.safe_getint("connection", "max-retries", 3)
         self.proxy = config.safe_get("connection", "proxy", None)
         self.proxylist = config.safe_get("connection", "proxy-list", None)
-        self.matches_proxy = config.safe_get("connection", "matches-proxy", None)
+        self.scheme = config.safe_get("connection", "scheme", "http", ["http", "https"])
+        self.matches_proxy = config.safe_get("connection", "replay-proxy", None)
         self.requestByHostname = config.safe_getboolean(
             "connection", "request-by-hostname", False
         )
@@ -463,6 +481,8 @@ information at https://github.com/maurosoria/dirsearch.""")
                              default=None, metavar="FILE")
         mandatory.add_option("--stdin", help="URL list from STDIN", action="store_true", dest="stdin_urls")
         mandatory.add_option("--cidr", help="Target CIDR", action="store", type="string", dest="cidr", default=None)
+        mandatory.add_option("--raw", help="File contains the raw request (use `--scheme` flag to set the scheme)", action="store",
+                             dest="raw_file", metavar="FILE")
         mandatory.add_option("-e", "--extensions", help="Extension list separated by commas (Example: php,asp)",
                              action="store", dest="extensions", default=self.defaultExtensions)
         mandatory.add_option("-X", "--exclude-extensions", action="store", dest="excludeExtensions", default=self.excludeExtensions,
@@ -557,8 +577,10 @@ information at https://github.com/maurosoria/dirsearch.""")
                               help="Proxy URL, support HTTP and SOCKS proxies (Example: localhost:8080, socks5://localhost:8088)", metavar="PROXY")
         connection.add_option("--proxy-list", action="store", dest="proxyList", type="string",
                               default=self.proxylist, help="File contains proxy servers", metavar="FILE")
-        connection.add_option("--matches-proxy", action="store", dest="matches_proxy", type="string", default=self.matches_proxy,
+        connection.add_option("--replay-proxy", action="store", dest="matches_proxy", type="string", default=self.matches_proxy,
                               help="Proxy to replay with found paths", metavar="PROXY")
+        connection.add_option("--scheme", help="Default scheme (for raw request or if there is no scheme in the URL)", action="store",
+                              default=self.scheme, dest="scheme", metavar="SCHEME")
         connection.add_option("--max-retries", action="store", dest="maxRetries", type="int",
                               default=self.maxRetries, metavar="RETRIES")
         connection.add_option("-b", "--request-by-hostname",
