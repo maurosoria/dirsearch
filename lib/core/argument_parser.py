@@ -146,7 +146,7 @@ class ArgumentParser(object):
         if options.headers:
             try:
                 self.headers = dict(
-                    email.message_from_file(StringIO(options.headers)).items()
+                    email.message_from_file(StringIO("\r\n".join(options.headers)))
                 )
             except Exception:
                 print("Invalid headers")
@@ -171,7 +171,7 @@ class ArgumentParser(object):
                         exit(1)
 
                     headers = dict(
-                        email.message_from_file(StringIO(hlist.get_lines())).items()
+                        email.message_from_file(StringIO(hlist.read()))
                     )
 
                     for key, value in headers.items():
