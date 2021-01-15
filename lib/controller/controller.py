@@ -63,12 +63,6 @@ class Controller(object):
         self.savePath = self.script_path
         self.doneDirs = []
 
-        if self.arguments.httpmethod.lower() not in [
-            "get", "head", "post", "put", "patch", "options", "delete", "trace", "debug", "connect"
-        ]:
-            self.output.error("Invalid HTTP method")
-            exit(1)
-
         if self.arguments.urlList:
             default_headers = {
                 "User-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36",
@@ -85,6 +79,7 @@ class Controller(object):
             self.cookie = self.arguments.cookie
             self.useragent = self.arguments.useragent
         else:
+            # Overwrite python-requests default headers
             default_headers = {
                 "User-agent": None,
                 "Accept-Encoding": None,
@@ -109,7 +104,7 @@ class Controller(object):
 
             if FileUtils.exists(savePath) and not FileUtils.is_dir(savePath):
                 self.output.error(
-                    "Cannot use {} because is a file. Should be a directory".format(
+                    "Cannot use {} because it's a file. Should be a directory".format(
                         savePath
                     )
                 )
@@ -142,7 +137,7 @@ class Controller(object):
         self.recursive = self.arguments.recursive
         self.minimumResponseSize = self.arguments.minimumResponseSize
         self.maximumResponseSize = self.arguments.maximumResponseSize
-        self.scanSubdirs = arguments.scanSubdirs
+        self.scanSubdirs = self.arguments.scanSubdirs
         self.excludeSubdirs = (
             arguments.excludeSubdirs if arguments.excludeSubdirs else []
         )
@@ -161,7 +156,7 @@ class Controller(object):
             self.arguments.onlySelected
         )
 
-        self.allJobs = len(self.urlList) * (len(self.scanSubdirs) if self.scanSubdirs else 1)
+        self.allJobs = len(self.scanSubdirs) if self.scanSubdirs else 1
         self.currentJob = 0
         self.errorLog = None
         self.errorLogPath = None
@@ -253,7 +248,7 @@ class Controller(object):
                         self.prepare()
                     except RequestException as e:
                         self.output.error(
-                            "Fatal error during site scanning: " + e.args[0]["message"]
+                            "Fatal error during scanning: " + e.args[0]["message"]
                         )
                         raise SkipTargetInterrupt
 
@@ -364,7 +359,7 @@ class Controller(object):
 
         else:
             self.output.error(
-                "Couldn't create batch folder {}.".format(self.batchDirectoryPath)
+                "Couldn't create batch folder at {}".format(self.batchDirectoryPath)
             )
             sys.exit(1)
 
@@ -404,7 +399,7 @@ class Controller(object):
 
                 if not FileUtils.exists(directoryPath):
                     self.output.error(
-                        "Couldn't create reports folder {}".format(directoryPath)
+                        "Couldn't create the reports folder at {}".format(directoryPath)
                     )
                     sys.exit(1)
             if FileUtils.can_write(directoryPath):
@@ -556,25 +551,21 @@ class Controller(object):
 
             for excludeRedirect in self.excludeRedirects:
                 if path.response.redirect and (
-                    re.match(excludeRedirect, path.response.redirect)
-                    is not None
+                    (
+                        re.match(excludeRedirect, path.response.redirect.decode('iso8859-1'))
+                        is not None
+                    ) or (
+                        excludeRedirect in path.response.redirect
+                    )
                 ):
                     del path
                     return
 
-            pathIsInScanSubdirs = False
             addedToQueue = False
 
-            if self.scanSubdirs:
-                for subdir in self.scanSubdirs:
-                    if subdir == path.path + "/":
-                        pathIsInScanSubdirs = True
-                        break
-
-            if self.recursive and not pathIsInScanSubdirs and "?" not in path.path and "#" not in path.path:
+            if self.recursive and "?" not in path.path and "#" not in path.path:
                 if path.response.redirect:
                     addedToQueue = self.addRedirectDirectory(path)
-
                 else:
                     addedToQueue = self.addDirectory(path.path)
 
@@ -585,7 +576,7 @@ class Controller(object):
             if self.arguments.matches_proxy:
                 self.requester.request(path.path, proxy=self.arguments.matches_proxy)
 
-            newPath = "{}{}".format(self.currentDirectory, path.path)
+            newPath = self.currentDirectory + path.path
 
             self.reportManager.addPath(newPath, path.status, path.response)
 
@@ -622,10 +613,10 @@ class Controller(object):
         self.output.warning(message)
         self.fuzzer.pause()
 
-        while 1:
-            if self.fuzzer.stopped == len(self.fuzzer.threads):
-                self.fuzzer.stopped = 0
-                break
+        while self.fuzzer.stopped != len(self.fuzzer.threads):
+            pass
+
+        self.fuzzer.stopped = 0
 
         while True:
             msg = "[e]xit / [c]ontinue"
@@ -691,8 +682,7 @@ class Controller(object):
                     self.currentDirectory, time.strftime("%H:%M:%S")
                 )
             )
-            self.fuzzer.requester.basePath = self.basePath + self.currentDirectory
-            self.output.basePath = self.basePath + self.currentDirectory
+            self.fuzzer.requester.basePath = self.output.basePath = self.basePath + self.currentDirectory
             self.fuzzer.start()
             self.processPaths()
 
@@ -713,10 +703,11 @@ class Controller(object):
 
             dir = self.currentDirectory + path
 
-            if dir in self.doneDirs:
+            if self.scanSubdirs and dir in self.scanSubdirs:
                 return False
-
-            if self.recursive_level_max and dir.count("/") > self.recursive_level_max:
+            elif dir in self.doneDirs:
+                return False
+            elif self.recursive_level_max and dir.count("/") > self.recursive_level_max:
                 return False
 
             self.directories.put(dir)
@@ -740,12 +731,18 @@ class Controller(object):
         absoluteUrl = self.addPort(absoluteUrl)
 
         if absoluteUrl.startswith(baseUrl) and absoluteUrl != baseUrl and absoluteUrl.endswith("/"):
-            dir = absoluteUrl[len(self.addPort(self.currentUrl)):]
+            path = absoluteUrl[len(self.addPort(self.baseUrl)):]
 
-            if dir in self.doneDirs:
+            if path in [directory + "/" for directory in self.excludeSubdirs]:
                 return False
 
-            if self.recursive_level_max and dir.count("/") > self.recursive_level_max:
+            dir = absoluteUrl[len(self.addPort(self.currentUrl)):]
+
+            if self.scanSubdirs and dir in self.scanSubdirs:
+                return False
+            elif dir in self.doneDirs:
+                return False
+            elif self.recursive_level_max and dir.count("/") > self.recursive_level_max:
                 return False
 
             self.directories.put(dir)
