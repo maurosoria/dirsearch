@@ -63,7 +63,7 @@ class Controller(object):
         self.savePath = self.script_path
         self.doneDirs = []
 
-        if self.arguments.urlList:
+        if arguments.urlList:
             default_headers = {
                 "User-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36",
                 "Accept-Language": "*",
@@ -72,12 +72,12 @@ class Controller(object):
                 "Cache-Control": "max-age=0",
             }
 
-            self.urlList = list(filter(None, dict.fromkeys(self.arguments.urlList)))
-            self.httpmethod = self.arguments.httpmethod.lower()
-            self.data = self.arguments.data
-            self.headers = {**default_headers, **self.arguments.headers}
-            self.cookie = self.arguments.cookie
-            self.useragent = self.arguments.useragent
+            self.urlList = list(filter(None, dict.fromkeys(arguments.urlList)))
+            self.httpmethod = arguments.httpmethod.lower()
+            self.data = arguments.data
+            self.headers = {**default_headers, **arguments.headers}
+            self.cookie = arguments.cookie
+            self.useragent = arguments.useragent
         else:
             # Overwrite python-requests default headers
             default_headers = {
@@ -86,7 +86,7 @@ class Controller(object):
                 "Accept": None,
             }
 
-            _raw = Raw(self.arguments.raw_file, self.arguments.scheme)
+            _raw = Raw(arguments.raw_file, arguments.scheme)
             self.urlList = [_raw.url()]
             self.httpmethod = _raw.method()
             self.data = _raw.data()
@@ -94,9 +94,9 @@ class Controller(object):
             self.cookie = _raw.cookie()
             self.useragent = _raw.user_agent()
 
-        self.recursive_level_max = self.arguments.recursive_level_max
+        self.recursive_level_max = arguments.recursive_level_max
 
-        if self.arguments.saveHome:
+        if arguments.saveHome:
             savePath = self.getSavePath()
 
             if not FileUtils.exists(savePath):
@@ -128,32 +128,32 @@ class Controller(object):
 
         self.reportsPath = FileUtils.build_path(self.savePath, "logs")
         self.blacklists = self.getBlacklists()
-        self.includeStatusCodes = self.arguments.includeStatusCodes
-        self.excludeStatusCodes = self.arguments.excludeStatusCodes
-        self.excludeSizes = self.arguments.excludeSizes
-        self.excludeTexts = self.arguments.excludeTexts
-        self.excludeRegexps = self.arguments.excludeRegexps
-        self.excludeRedirects = self.arguments.excludeRedirects
-        self.recursive = self.arguments.recursive
-        self.minimumResponseSize = self.arguments.minimumResponseSize
-        self.maximumResponseSize = self.arguments.maximumResponseSize
-        self.scanSubdirs = self.arguments.scanSubdirs
+        self.includeStatusCodes = arguments.includeStatusCodes
+        self.excludeStatusCodes = arguments.excludeStatusCodes
+        self.excludeSizes = arguments.excludeSizes
+        self.excludeTexts = arguments.excludeTexts
+        self.excludeRegexps = arguments.excludeRegexps
+        self.excludeRedirects = arguments.excludeRedirects
+        self.recursive = arguments.recursive
+        self.minimumResponseSize = arguments.minimumResponseSize
+        self.maximumResponseSize = arguments.maximumResponseSize
+        self.scanSubdirs = arguments.scanSubdirs
         self.excludeSubdirs = (
             arguments.excludeSubdirs if arguments.excludeSubdirs else []
         )
 
         self.dictionary = Dictionary(
-            self.arguments.wordlist,
-            self.arguments.extensions,
-            self.arguments.suffixes,
-            self.arguments.prefixes,
-            self.arguments.lowercase,
-            self.arguments.uppercase,
-            self.arguments.capitalization,
-            self.arguments.forceExtensions,
-            self.arguments.excludeExtensions,
-            self.arguments.noExtension,
-            self.arguments.onlySelected
+            arguments.wordlist,
+            arguments.extensions,
+            arguments.suffixes,
+            arguments.prefixes,
+            arguments.lowercase,
+            arguments.uppercase,
+            arguments.capitalization,
+            arguments.forceExtensions,
+            arguments.excludeExtensions,
+            arguments.noExtension,
+            arguments.onlySelected
         )
 
         self.allJobs = len(self.scanSubdirs) if self.scanSubdirs else 1
@@ -170,11 +170,11 @@ class Controller(object):
         self.setupErrorLogs()
         self.output.errorLogFile(self.errorLogPath)
 
-        if self.arguments.autoSave and len(self.urlList) > 1:
+        if arguments.autoSave and len(self.urlList) > 1:
             self.setupBatchReports()
             self.output.newLine("\nAutoSave path: {0}".format(self.batchDirectoryPath))
 
-        if self.arguments.useRandomAgents:
+        if arguments.useRandomAgents:
             self.randomAgents = FileUtils.get_lines(
                 FileUtils.build_path(script_path, "db", "user-agents.txt")
             )
@@ -193,17 +193,17 @@ class Controller(object):
                             url,
                             cookie=self.cookie,
                             useragent=self.useragent,
-                            maxPool=self.arguments.threadsCount,
-                            maxRetries=self.arguments.maxRetries,
-                            timeout=self.arguments.timeout,
-                            ip=self.arguments.ip,
-                            proxy=self.arguments.proxy,
-                            proxylist=self.arguments.proxylist,
-                            redirect=self.arguments.redirect,
-                            requestByHostname=self.arguments.requestByHostname,
+                            maxPool=arguments.threadsCount,
+                            maxRetries=arguments.maxRetries,
+                            timeout=arguments.timeout,
+                            ip=arguments.ip,
+                            proxy=arguments.proxy,
+                            proxylist=arguments.proxylist,
+                            redirect=arguments.redirect,
+                            requestByHostname=arguments.requestByHostname,
                             httpmethod=self.httpmethod,
                             data=self.data,
-                            scheme=self.arguments.scheme,
+                            scheme=arguments.scheme,
                         )
 
                         for key, value in self.headers.items():
@@ -215,7 +215,7 @@ class Controller(object):
                         self.output.error(e.args[0]["message"])
                         raise SkipTargetInterrupt
 
-                    if self.arguments.useRandomAgents:
+                    if arguments.useRandomAgents:
                         self.requester.setRandomAgents(self.randomAgents)
 
                     # Initialize directories Queue with start Path
@@ -237,9 +237,9 @@ class Controller(object):
                     self.fuzzer = Fuzzer(
                         self.requester,
                         self.dictionary,
-                        testFailPath=self.arguments.testFailPath,
-                        threads=self.arguments.threadsCount,
-                        delay=self.arguments.delay,
+                        testFailPath=arguments.testFailPath,
+                        threads=arguments.threadsCount,
+                        delay=arguments.delay,
                         matchCallbacks=matchCallbacks,
                         notFoundCallbacks=notFoundCallbacks,
                         errorCallbacks=errorCallbacks,
