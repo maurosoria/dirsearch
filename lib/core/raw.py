@@ -16,6 +16,9 @@
 #
 #  Author: Mauro Soria
 
+import email
+from io import StringIO
+
 from lib.utils import File
 
 
@@ -33,13 +36,12 @@ class Raw(object):
         if len(self.parsed) == 1:
             self.parsed = self.raw_content.split("\r\n\r\n")
 
-        self.header = self.parsed[0].splitlines()
+        self.startline = self.parsed[0].splitlines()[0]
 
         try:
             self.http_headers = dict(
-                (key, value)
-                for (key, value) in (
-                    header.split(":", 1) for header in self.header[1:]
+                email.message_from_file(
+                    StringIO("\r\n".join(self.parsed[0].splitlines()[1:]))
                 )
             )
         except Exception:
@@ -60,13 +62,14 @@ class Raw(object):
         except KeyError:
             print("Can't find the Host header in the raw request")
             exit(1)
-        self.basePath = self.header[0].split(" ")[1]
+
+        self.basePath = self.startline.split(" ")[1]
 
     def url(self):
         return "{0}://{1}{2}".format(self.scheme, self.host, self.basePath)
 
     def method(self):
-        return self.header[0].split(" ")[0]
+        return self.startline.split(" ")[0]
 
     def headers(self):
         return self.http_headers
