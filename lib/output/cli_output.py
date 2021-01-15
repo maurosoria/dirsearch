@@ -47,6 +47,10 @@ class CLIOutput(object):
         if not color:
             self.disableColors()
 
+    @staticmethod
+    def percentage(x, y):
+        return float(x) / float(y) * 100
+
     def inLine(self, string):
         self.erase()
         sys.stdout.write(string)
@@ -136,10 +140,6 @@ class CLIOutput(object):
         with self.mutex:
             self.newLine(message)
 
-    @staticmethod
-    def percentage(x, y):
-        return float(x) / float(y) * 100
-
     def lastPath(self, path, index, length, currentJob, allJobs):
         l, h = get_terminal_size()
 
@@ -179,6 +179,19 @@ class CLIOutput(object):
         message = Style.BRIGHT + Fore.MAGENTA + message + Style.RESET_ALL
         self.newLine(message)
 
+    def separation(config, x):
+        l, h = get_terminal_size()
+        separator = Fore.MAGENTA + " | " + Fore.YELLOW
+
+        # Escape colours in text to get the real length
+        escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+
+        config = escape.sub("", config.splitlines()[-1] + x)
+        if len(config) + 3 > l:
+            return "\n"
+        else:
+            return separator
+
     def config(
         self,
         extensions,
@@ -189,32 +202,25 @@ class CLIOutput(object):
         method,
     ):
 
-        l, h = get_terminal_size()
-        separator = Fore.MAGENTA + " | " + Fore.YELLOW
-
-        # Escape colours in text to get the real length
-        escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
-        separation = lambda x: "\n" if len(escape.sub("", config.splitlines()[-1] + x)) + 3 > l else separator
-
         config = Style.BRIGHT + Fore.YELLOW
         config += "Extensions: {0}".format(Fore.CYAN + extensions + Fore.YELLOW)
 
         if prefixes:
             particle = 'Prefixes: {0}'.format(Fore.CYAN + prefixes + Fore.YELLOW)
-            config += separation(particle) + particle
+            config += self.separation(config, particle) + particle
 
         if suffixes:
             particle = 'Suffixes: {0}'.format(Fore.CYAN + suffixes + Fore.YELLOW)
-            config += separation(particle) + particle
+            config += self.separation(config, particle) + particle
 
         particle = "HTTP method: {0}".format(Fore.CYAN + method.upper() + Fore.YELLOW)
-        config += separation(particle) + particle
+        config += self.separation(config, particle) + particle
 
         particle = "Threads: {0}".format(Fore.CYAN + threads + Fore.YELLOW)
-        config += separation(particle) + particle
+        config += self.separation(config, particle) + particle
 
         particle = "Wordlist size: {0}".format(Fore.CYAN + wordlist_size + Fore.YELLOW)
-        config += separation(particle) + particle
+        config += self.separation(config, particle) + particle
 
         config += Style.RESET_ALL
 
