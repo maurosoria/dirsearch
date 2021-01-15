@@ -356,22 +356,12 @@ class ArgumentParser(object):
         else:
             self.scanSubdirs = []
 
-        if not self.recursive and options.excludeSubdirs:
-            self.excludeSubdirs = None
-
-        elif options.excludeSubdirs:
+        if options.excludeSubdirs:
             self.excludeSubdirs = list(
-                oset([subdir.strip() for subdir in options.excludeSubdirs.split(",")])
+                oset(
+                    [subdir.strip(" /") + "/" for subdir in options.excludeSubdirs.split(",")]
+                )
             )
-
-            for i in range(len(self.excludeSubdirs)):
-
-                while self.excludeSubdirs[i].startswith("/"):
-                    self.excludeSubdirs[i] = self.excludeSubdirs[i][1:]
-
-                while self.excludeSubdirs[i].endswith("/"):
-                    self.excludeSubdirs[i] = self.excludeSubdirs[i][:-1]
-            self.excludeSubdirs = list(oset(self.excludeSubdirs))
 
         else:
             self.excludeSubdirs = None
@@ -445,7 +435,7 @@ class ArgumentParser(object):
 
         # Request
         self.httpmethod = config.safe_get(
-            "request", "httpmethod", "get", ["get", "head", "post", "put", "patch", "delete", "trace", "options", "debug", "connect"]
+            "request", "httpmethod", "get"
         )
         self.headerList = config.safe_get("request", "headers-file", None)
         self.redirect = config.safe_getboolean("request", "follow-redirects", False)
