@@ -17,9 +17,11 @@
 #  Author: Mauro Soria
 
 import sys
+import email
 
 from optparse import OptionParser, OptionGroup
 from ipaddress import IPv4Network
+from io import StringIO
 
 from lib.utils.default_config_parser import DefaultConfigParser
 from lib.utils.file_utils import File
@@ -144,10 +146,7 @@ class ArgumentParser(object):
         if options.headers:
             try:
                 self.headers = dict(
-                    (key, value)
-                    for (key, value) in (
-                        header.split(":", 1) for header in options.headers
-                    )
+                    email.message_from_file(StringIO("\r\n".join(options.headers)))
                 )
             except Exception:
                 print("Invalid headers")
@@ -171,9 +170,11 @@ class ArgumentParser(object):
                         print("The header list cannot be read")
                         exit(1)
 
-                    lines = hlist.get_lines()
-                    for line in lines:
-                        key, value = line.split(":")[0], line.split(":")[1]
+                    headers = dict(
+                        email.message_from_file(StringIO(hlist.read()))
+                    )
+
+                    for key, value in headers.items():
                         self.headers[key] = value
             except Exception as e:
                 print("Error in headers file: " + str(e))
