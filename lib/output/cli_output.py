@@ -16,6 +16,7 @@
 #
 #  Author: Mauro Soria
 
+import re
 import sys
 import threading
 import time
@@ -45,6 +46,10 @@ class CLIOutput(object):
         self.errors = 0
         if not color:
             self.disableColors()
+
+    @staticmethod
+    def percentage(x, y):
+        return float(x) / float(y) * 100
 
     def inLine(self, string):
         self.erase()
@@ -135,12 +140,8 @@ class CLIOutput(object):
         with self.mutex:
             self.newLine(message)
 
-    @staticmethod
-    def percentage(x, y):
-        return float(x) / float(y) * 100
-
     def lastPath(self, path, index, length, currentJob, allJobs):
-        x, y = get_terminal_size()
+        l, h = get_terminal_size()
 
         message = "{0:.2f}% - ".format(self.percentage(index, length))
 
@@ -152,8 +153,8 @@ class CLIOutput(object):
 
         message += "Last request to: {0}".format(path)
 
-        if len(message) >= x:
-            message = message[:x - 1]
+        if len(message) >= l:
+            message = message[:l - 1]
 
         with self.mutex:
             self.inLine(message)
@@ -178,6 +179,19 @@ class CLIOutput(object):
         message = Style.BRIGHT + Fore.MAGENTA + message + Style.RESET_ALL
         self.newLine(message)
 
+    def separation(config, x):
+        l, h = get_terminal_size()
+        separator = Fore.MAGENTA + " | " + Fore.YELLOW
+
+        # Escape colours in text to get the real length
+        escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+
+        config = escape.sub("", config.splitlines()[-1] + x)
+        if len(config) + 3 > l:
+            return "\n"
+        else:
+            return separator
+
     def config(
         self,
         extensions,
@@ -188,26 +202,25 @@ class CLIOutput(object):
         method,
     ):
 
-        separator = Fore.MAGENTA + " | " + Fore.YELLOW
-
         config = Style.BRIGHT + Fore.YELLOW
         config += "Extensions: {0}".format(Fore.CYAN + extensions + Fore.YELLOW)
-        config += separator
 
         if prefixes:
-            config += 'Prefixes: {0}'.format(Fore.CYAN + prefixes + Fore.YELLOW)
-            config += separator
+            particle = 'Prefixes: {0}'.format(Fore.CYAN + prefixes + Fore.YELLOW)
+            config += self.separation(config, particle) + particle
 
         if suffixes:
-            config += 'Suffixes: {0}'.format(Fore.CYAN + suffixes + Fore.YELLOW)
-            config += separator
+            particle = 'Suffixes: {0}'.format(Fore.CYAN + suffixes + Fore.YELLOW)
+            config += self.separation(config, particle) + particle
 
-        config += "HTTP method: {0}".format(Fore.CYAN + method.upper() + Fore.YELLOW)
-        config += separator
+        particle = "HTTP method: {0}".format(Fore.CYAN + method.upper() + Fore.YELLOW)
+        config += self.separation(config, particle) + particle
 
-        config += "Threads: {0}".format(Fore.CYAN + threads + Fore.YELLOW)
-        config += separator
-        config += "Wordlist size: {0}".format(Fore.CYAN + wordlist_size + Fore.YELLOW)
+        particle = "Threads: {0}".format(Fore.CYAN + threads + Fore.YELLOW)
+        config += self.separation(config, particle) + particle
+
+        particle = "Wordlist size: {0}".format(Fore.CYAN + wordlist_size + Fore.YELLOW)
+        config += self.separation(config, particle) + particle
 
         config += Style.RESET_ALL
 
