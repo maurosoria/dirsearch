@@ -731,7 +731,7 @@ class Controller(object):
         absoluteUrl = self.addPort(absoluteUrl)
 
         if absoluteUrl.startswith(baseUrl) and absoluteUrl != baseUrl and absoluteUrl.endswith("/"):
-            path = absoluteUrl[len(self.addPort(self.baseUrl)):]
+            path = absoluteUrl[len(baseUrl):]
 
             if path in [directory + "/" for directory in self.excludeSubdirs]:
                 return False
