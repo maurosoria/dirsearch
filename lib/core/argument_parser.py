@@ -491,7 +491,7 @@ information at https://github.com/maurosoria/dirsearch.""")
         dictionary.add_option("--suffixes", action="store", dest="suffixes", default=self.suffixes,
                               help="Add custom suffixes to all entries, ignore directories (separated by commas)")
         dictionary.add_option("--only-selected", dest="onlySelected", action="store_true",
-                              help="Only entries with selected extensions or no extension + directories")
+                              help="Only directories + files with selected extensions (or no extension)")
         dictionary.add_option("--remove-extensions", dest="noExtension", action="store_true",
                               help="Remove extensions in all wordlist entries (Example: admin.php -> admin)")
         dictionary.add_option("-U", "--uppercase", action="store_true", dest="uppercase", default=self.uppercase,
