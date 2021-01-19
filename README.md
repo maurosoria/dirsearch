@@ -7,7 +7,7 @@ dirsearch - Web path scanner
 ![License](https://img.shields.io/badge/license-GNU_General_Public_License-_red.svg)
 ![Release](https://img.shields.io/github/release/maurosoria/dirsearch.svg)
 ![Stars](https://img.shields.io/github/stars/maurosoria/dirsearch.svg)
-<a href="https://twitter.com/intent/tweet?text=Dirsearch%20-%20Web%20path%20scanner%20by%20@_maurosoria%0A%0Ahttps://github.com/maurosoria/dirsearch">
+<a href="https://twitter.com/intent/tweet?text=dirsearch%20-%20Web%20path%20scanner%20by%20@_maurosoria%0A%0Ahttps://github.com/maurosoria/dirsearch">
     ![Tweet](https://img.shields.io/twitter/url?url=https%3A%2F%2Fgithub.com%2Fmaurosoria%2Fdirsearch)
 </a>
 
