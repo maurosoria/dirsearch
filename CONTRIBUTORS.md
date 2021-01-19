@@ -57,6 +57,7 @@
 - [Binit Ghimire](https://github.com/TheBinitGhimire)
 - [Knowledge-Wisdom-Understanding](https://github.com/Knowledge-Wisdom-Understanding)
 - [catmandx](https://github.com/catmandx)
+- [pinohans](https://github.com/pinohans)
 
 Special thanks for all the people who had helped dirsearch so far!
 

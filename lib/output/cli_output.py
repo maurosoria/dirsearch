@@ -179,7 +179,7 @@ class CLIOutput(object):
         message = Style.BRIGHT + Fore.MAGENTA + message + Style.RESET_ALL
         self.newLine(message)
 
-    def separation(config, x):
+    def separation(self, config, x):
         l, h = get_terminal_size()
         separator = Fore.MAGENTA + " | " + Fore.YELLOW
 
