@@ -81,9 +81,9 @@ class Controller(object):
         else:
             # Overwrite python-requests default headers
             default_headers = {
-                "User-agent": None,
-                "Accept-Encoding": None,
-                "Accept": None,
+                "User-Agent": "",
+                "Accept-Encoding": "",
+                "Accept": "",
             }
 
             _raw = Raw(arguments.raw_file, arguments.scheme)
