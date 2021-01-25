@@ -23,7 +23,6 @@ from lib.reports import *
 
 
 class JSONReport(FileBaseReport):
-
     def addPath(self, path, status, response):
         contentLength = None
 

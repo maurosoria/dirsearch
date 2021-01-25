@@ -21,7 +21,6 @@ import queue
 
 
 class BaseReport(object):
-
     def addPath(selg, path, status, response):
         raise NotImplementedError
 

@@ -63,22 +63,7 @@ class Controller(object):
         self.savePath = self.script_path
         self.doneDirs = []
 
-        if arguments.urlList:
-            default_headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36",
-                "Accept-Language": "*",
-                "Accept-Encoding": "*",
-                "Keep-Alive": "300",
-                "Cache-Control": "max-age=0",
-            }
-
-            self.urlList = list(filter(None, dict.fromkeys(arguments.urlList)))
-            self.httpmethod = arguments.httpmethod.lower()
-            self.data = arguments.data
-            self.headers = {**default_headers, **arguments.headers}
-            self.cookie = arguments.cookie
-            self.useragent = arguments.useragent
-        else:
+        if arguments.raw_file:
             # Overwrite python-requests default headers
             default_headers = {
                 "User-Agent": None,
@@ -93,6 +78,21 @@ class Controller(object):
             self.headers = {**default_headers, **_raw.headers()}
             self.cookie = _raw.cookie()
             self.useragent = _raw.user_agent()
+        else:
+            default_headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36",
+                "Accept-Language": "*",
+                "Accept-Encoding": "*",
+                "Keep-Alive": "300",
+                "Cache-Control": "max-age=0",
+            }
+
+            self.urlList = list(filter(None, dict.fromkeys(arguments.urlList)))
+            self.httpmethod = arguments.httpmethod.lower()
+            self.data = arguments.data
+            self.headers = {**default_headers, **arguments.headers}
+            self.cookie = arguments.cookie
+            self.useragent = arguments.useragent
 
         self.recursion_depth = arguments.recursion_depth
 
@@ -268,7 +268,6 @@ class Controller(object):
         self.output.warning("\nTask Completed")
 
     def printConfig(self):
-
         self.output.config(
             ', '.join(self.arguments.extensions),
             ', '.join(self.arguments.prefixes),

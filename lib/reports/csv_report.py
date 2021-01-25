@@ -22,7 +22,6 @@ from lib.reports import *
 
 
 class CSVReport(FileBaseReport):
-
     def addPath(self, path, status, response):
         contentLength = None
 
