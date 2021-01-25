@@ -384,10 +384,6 @@ class ArgumentParser(object):
             print("Invalid URI scheme: {0}".format(self.scheme))
             exit(1)
 
-        if self.scheme not in ["http", "https"]:
-            print("Invalid URI scheme: {0}".format(self.scheme))
-            exit(1)
-
     def parseConfig(self):
         config = DefaultConfigParser()
         configPath = FileUtils.build_path(self.script_path, "default.conf")

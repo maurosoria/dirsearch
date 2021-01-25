@@ -22,8 +22,6 @@ import time
 
 class XMLReport(FileBaseReport):
     def addPath(self, path, status, response):
-        contentLength = None
-
         try:
             contentLength = int(response.headers["content-length"])
 

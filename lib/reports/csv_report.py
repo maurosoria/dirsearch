@@ -23,11 +23,8 @@ from lib.reports import *
 
 class CSVReport(FileBaseReport):
     def addPath(self, path, status, response):
-        contentLength = None
-
         try:
             contentLength = int(response.headers["content-length"])
-
         except (KeyError, ValueError):
             contentLength = len(response.body)
 

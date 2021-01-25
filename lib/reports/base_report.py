@@ -32,7 +32,6 @@ class BaseReport(object):
 
 
 class FileBaseReport(BaseReport):
-
     def __init__(self, host, port, protocol, basePath, output, batch):
         self.output = output
         self.port = port
