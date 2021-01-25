@@ -94,7 +94,7 @@ class Controller(object):
             self.cookie = _raw.cookie()
             self.useragent = _raw.user_agent()
 
-        self.recursive_level_max = arguments.recursive_level_max
+        self.recursion_depth = arguments.recursion_depth
 
         if arguments.saveHome:
             savePath = self.getSavePath()
@@ -573,8 +573,8 @@ class Controller(object):
                 path.path, path.response, self.arguments.full_url, addedToQueue
             )
 
-            if self.arguments.matches_proxy:
-                self.requester.request(path.path, proxy=self.arguments.matches_proxy)
+            if self.arguments.replay_proxy:
+                self.requester.request(path.path, proxy=self.arguments.replay_proxy)
 
             newPath = self.currentDirectory + path.path
 
@@ -707,7 +707,7 @@ class Controller(object):
                 return False
             elif dir in self.doneDirs:
                 return False
-            elif self.recursive_level_max and dir.count("/") > self.recursive_level_max:
+            elif self.recursive_depth and dir.count("/") > self.recursion_depth:
                 return False
 
             self.directories.put(dir)
@@ -742,7 +742,7 @@ class Controller(object):
                 return False
             elif dir in self.doneDirs:
                 return False
-            elif self.recursive_level_max and dir.count("/") > self.recursive_level_max:
+            elif self.recursion_depth and dir.count("/") > self.recursion_depth:
                 return False
 
             self.directories.put(dir)

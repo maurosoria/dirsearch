@@ -136,12 +136,12 @@ class ArgumentParser(object):
         else:
             self.proxy = None
 
-        if options.matches_proxy:
-            self.matches_proxy = options.matches_proxy
+        if options.replay_proxy:
+            self.replay_proxy = options.replay_proxy
             options.requestByHostname = True
 
         else:
-            self.matches_proxy = None
+            self.replay_proxy = None
 
         if options.headers:
             try:
@@ -378,7 +378,11 @@ class ArgumentParser(object):
         self.exit_on_error = options.exit_on_error
         self.debug = options.debug
 
-        self.recursive_level_max = options.recursive_level_max
+        self.recursion_depth = options.recursion_depth
+
+        if self.scheme not in ["http", "https"]:
+            print("Invalid URI scheme: {0}".format(self.scheme))
+            exit(1)
 
         if self.scheme not in ["http", "https"]:
             print("Invalid URI scheme: {0}".format(self.scheme))
@@ -405,7 +409,7 @@ class ArgumentParser(object):
         self.excludeRegexps = config.safe_get("general", "exclude-regexps", None)
         self.excludeRedirects = config.safe_get("general", "exclude-redirects", None)
         self.recursive = config.safe_getboolean("general", "recursive", False)
-        self.recursive_level_max = config.safe_getint("general", "recursive-level-max", 0)
+        self.recursion_depth = config.safe_getint("general", "recursion-depth", 0)
         self.testFailPath = config.safe_get("general", "calibration-path", "").strip()
         self.saveHome = config.safe_getboolean("general", "save-logs-home", False)
         self.excludeSubdirs = config.safe_get("general", "exclude-subdirs", None)
@@ -450,7 +454,7 @@ class ArgumentParser(object):
         self.proxy = config.safe_get("connection", "proxy", None)
         self.proxylist = config.safe_get("connection", "proxy-list", None)
         self.scheme = config.safe_get("connection", "scheme", "http", ["http", "https"])
-        self.matches_proxy = config.safe_get("connection", "replay-proxy", None)
+        self.replay_proxy = config.safe_get("connection", "replay-proxy", None)
         self.requestByHostname = config.safe_getboolean(
             "connection", "request-by-hostname", False
         )
@@ -506,7 +510,7 @@ information at https://github.com/maurosoria/dirsearch.""")
         general.add_option("-r", "--recursive", help="Bruteforce recursively", action="store_true", dest="recursive",
                            default=self.recursive)
         general.add_option("-R", "--recursion-depth", help="Maximum recursion depth", action="store",
-                           type="int", dest="recursive_level_max", default=self.recursive_level_max, metavar="DEPTH")
+                           type="int", dest="recursion_depth", default=self.recursion_depth, metavar="DEPTH")
         general.add_option("-t", "--threads", help="Number of threads", action="store", type="int", dest="threadsCount",
                            default=self.threadsCount, metavar="THREADS")
         general.add_option("--subdirs", help="Scan sub-directories of the given URL[s] (separated by commas)", action="store",
@@ -568,7 +572,7 @@ information at https://github.com/maurosoria/dirsearch.""")
                               help="Proxy URL, support HTTP and SOCKS proxies (Example: localhost:8080, socks5://localhost:8088)", metavar="PROXY")
         connection.add_option("--proxy-list", action="store", dest="proxyList", type="string",
                               default=self.proxylist, help="File contains proxy servers", metavar="FILE")
-        connection.add_option("--replay-proxy", action="store", dest="matches_proxy", type="string", default=self.matches_proxy,
+        connection.add_option("--replay-proxy", action="store", dest="replay_proxy", type="string", default=self.replay_proxy,
                               help="Proxy to replay with found paths", metavar="PROXY")
         connection.add_option("--scheme", help="Default scheme (for raw request or if there is no scheme in the URL)", action="store",
                               default=self.scheme, dest="scheme", metavar="SCHEME")
