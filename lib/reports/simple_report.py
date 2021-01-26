@@ -19,13 +19,11 @@
 from lib.reports import *
 
 
-class SimpleReport(TailableFileBaseReport):
-
+class SimpleReport(FileBaseReport):
     def generate(self):
         result = ""
 
-        for path, _, _ in self.getPathIterator():
-
+        for path, _, _ in self.pathList:
             result += "{0}://{1}:{2}/".format(self.protocol, self.host, self.port)
             result += (
                 "{0}\n".format(path)

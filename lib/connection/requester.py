@@ -124,7 +124,7 @@ class Requester(object):
         )
 
     def setHeader(self, key, value):
-        self.headers[key.strip()] = value.strip()
+        self.headers[key.strip()] = value.strip() if value else value
 
     def setRandomAgents(self, agents):
         self.randomAgents = list(agents)

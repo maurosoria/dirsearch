@@ -22,29 +22,24 @@ from lib.utils.file_utils import FileUtils
 import time
 
 
-class PlainTextReport(TailableFileBaseReport):
-
+class PlainTextReport(FileBaseReport):
     def addPath(self, path, status, response):
-        contentLength = None
-        location = None
-
         try:
             contentLength = int(response.headers["content-length"])
-
         except (KeyError, ValueError):
             contentLength = len(response.body)
 
         try:
             location = response.headers["location"]
-        except(KeyError, ValueError):
-            pass
+        except (KeyError, ValueError):
+            location = None
 
         self.storeData((path, status, contentLength, location))
 
     def generate(self):
         result = "Time: {0}\n\n".format(time.ctime())
 
-        for path, status, contentLength, location in self.getPathIterator():
+        for path, status, contentLength, location in self.pathList:
             result += "{0}  ".format(status)
             result += "{0}  ".format(FileUtils.size_human(contentLength).rjust(6, " "))
             result += "{0}://{1}:{2}/".format(self.protocol, self.host, self.port)

@@ -63,9 +63,24 @@ class Controller(object):
         self.savePath = self.script_path
         self.doneDirs = []
 
-        if arguments.urlList:
+        if arguments.raw_file:
+            # Overwrite python-requests default headers
             default_headers = {
-                "User-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36",
+                "User-Agent": None,
+                "Accept-Encoding": None,
+                "Accept": None,
+            }
+
+            _raw = Raw(arguments.raw_file, arguments.scheme)
+            self.urlList = [_raw.url()]
+            self.httpmethod = _raw.method()
+            self.data = _raw.data()
+            self.headers = {**default_headers, **_raw.headers()}
+            self.cookie = _raw.cookie()
+            self.useragent = _raw.user_agent()
+        else:
+            default_headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36",
                 "Accept-Language": "*",
                 "Accept-Encoding": "*",
                 "Keep-Alive": "300",
@@ -78,23 +93,8 @@ class Controller(object):
             self.headers = {**default_headers, **arguments.headers}
             self.cookie = arguments.cookie
             self.useragent = arguments.useragent
-        else:
-            # Overwrite python-requests default headers
-            default_headers = {
-                "User-agent": None,
-                "Accept-Encoding": None,
-                "Accept": None,
-            }
 
-            _raw = Raw(arguments.raw_file, arguments.scheme)
-            self.urlList = [_raw.url()]
-            self.httpmethod = _raw.method()
-            self.data = _raw.data()
-            self.headers = {**default_headers, **_raw.headers()}
-            self.cookie = _raw.cookie()
-            self.useragent = _raw.user_agent()
-
-        self.recursive_level_max = arguments.recursive_level_max
+        self.recursion_depth = arguments.recursion_depth
 
         if arguments.saveHome:
             savePath = self.getSavePath()
@@ -268,7 +268,6 @@ class Controller(object):
         self.output.warning("\nTask Completed")
 
     def printConfig(self):
-
         self.output.config(
             ', '.join(self.arguments.extensions),
             ', '.join(self.arguments.prefixes),
@@ -573,8 +572,8 @@ class Controller(object):
                 path.path, path.response, self.arguments.full_url, addedToQueue
             )
 
-            if self.arguments.matches_proxy:
-                self.requester.request(path.path, proxy=self.arguments.matches_proxy)
+            if self.arguments.replay_proxy:
+                self.requester.request(path.path, proxy=self.arguments.replay_proxy)
 
             newPath = self.currentDirectory + path.path
 
@@ -707,7 +706,7 @@ class Controller(object):
                 return False
             elif dir in self.doneDirs:
                 return False
-            elif self.recursive_level_max and dir.count("/") > self.recursive_level_max:
+            elif self.recursive_depth and dir.count("/") > self.recursion_depth:
                 return False
 
             self.directories.put(dir)
@@ -742,7 +741,7 @@ class Controller(object):
                 return False
             elif dir in self.doneDirs:
                 return False
-            elif self.recursive_level_max and dir.count("/") > self.recursive_level_max:
+            elif self.recursion_depth and dir.count("/") > self.recursion_depth:
                 return False
 
             self.directories.put(dir)
