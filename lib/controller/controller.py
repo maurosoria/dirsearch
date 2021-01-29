@@ -163,7 +163,7 @@ class Controller(object):
         self.threadsLock = Lock()
         self.batch = False
         self.batchSession = None
-        self.got429 = False
+        self.skip429 = False
 
         self.output.header(program_banner)
         self.printConfig()
@@ -186,7 +186,6 @@ class Controller(object):
                     self.reportManager = ReportManager()
                     self.currentUrl = url if url.endswith("/") else url + "/"
                     self.output.setTarget(self.currentUrl, self.arguments.scheme)
-                    self.ignore429 = False
 
                     try:
                         self.requester = Requester(
@@ -524,8 +523,8 @@ class Controller(object):
     def matchCallback(self, path):
         self.index += 1
 
-        if path.status == 429:
-            self.got429 = True
+        if self.arguments.skip_on_429 and path.status == 429:
+            self.skip429 = True
             return
 
         if (
@@ -630,22 +629,12 @@ class Controller(object):
             if not self.directories.empty():
                 msg += " / [n]ext"
 
-            if self.got429 and not self.ignore429:
-                msg += " / [i]gnore"
-
             if len(self.urlList) > 1:
                 msg += " / [s]kip target"
 
             self.output.inLine(msg + ": ")
 
             option = input()
-
-            if self.got429:
-                self.got429 = False
-                if option.lower() == "i":
-                    self.ignore429 = True
-                    self.fuzzer.resume()
-                    return
 
             if option.lower() == "e":
                 self.exit = True
@@ -671,8 +660,16 @@ class Controller(object):
         while True:
             try:
                 while not self.fuzzer.wait(0.25):
-                    if not self.ignore429 and self.got429:
-                        self.handlePause("429 status code detected: Pausing threads, please wait...")
+                    if self.skip429:
+                        self.skip429 = False
+                        self.fuzzer.pause()
+
+                        while self.fuzzer.stopped != len(self.fuzzer.threads):
+                            pass
+                        self.output.error("\nSkipped the target due to 429 status code")
+
+                        raise SkipTargetInterrupt
+
                 break
             except (KeyboardInterrupt):
                 self.handlePause("CTRL+C detected: Pausing threads, please wait...")

@@ -376,6 +376,7 @@ class ArgumentParser(object):
         self.scheme = options.scheme
         self.requestByHostname = options.requestByHostname
         self.exit_on_error = options.exit_on_error
+        self.skip_on_429 = options.skip_on_429
         self.debug = options.debug
 
         self.recursion_depth = options.recursion_depth
@@ -412,6 +413,7 @@ class ArgumentParser(object):
         self.useRandomAgents = config.safe_get(
             "general", "random-user-agents", False
         )
+        self.skip_on_429 = config.safe_getboolean("general", "skip-on-429", False)
         self.full_url = config.safe_getboolean("general", "full-url", False)
         self.color = config.safe_getboolean("general", "color", True)
         self.quiet = config.safe_getboolean("general", "quiet-mode", False)
@@ -533,6 +535,8 @@ information at https://github.com/maurosoria/dirsearch.""")
                            help="Minimal response length", metavar="LENGTH")
         general.add_option("--maximal", action="store", dest="maximumResponseSize", type="int", default=None,
                            help="Maximal response length", metavar="LENGTH")
+        general.add_option("--skip-on-429", action="store_true", dest="skip_on_429",
+                           help="Skip target whenever 429 status code is returned", default=self.skip_on_429)
         general.add_option("-q", "--quiet-mode", action="store_true", dest="quiet",
                            help="Quiet mode", default=self.quiet)
         general.add_option("--full-url", action="store_true", dest="full_url",
