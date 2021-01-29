@@ -333,7 +333,14 @@ class Controller(object):
         self.errorLogPath = FileUtils.build_path(
             FileUtils.build_path(self.savePath, "logs", fileName)
         )
-        self.errorLog = open(self.errorLogPath, "w")
+
+        try:
+            self.errorLog = open(self.errorLogPath, "w")
+        except PermissionError:
+            self.output.error(
+                "Couldn't create the error log. Try running again with highest permission"
+            )
+            sys.exit(1)
 
     def setupBatchReports(self):
         self.batch = True
@@ -347,7 +354,7 @@ class Controller(object):
 
             if not FileUtils.exists(self.batchDirectoryPath):
                 self.output.error(
-                    "Couldn't create batch folder {}".format(self.batchDirectoryPath)
+                    "Couldn't create batch folder at {}".format(self.batchDirectoryPath)
                 )
                 sys.exit(1)
 
