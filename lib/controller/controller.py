@@ -236,7 +236,7 @@ class Controller(object):
                     self.fuzzer = Fuzzer(
                         self.requester,
                         self.dictionary,
-                        testFailPath=arguments.testFailPath,
+                        excludeContent=arguments.excludeContent,
                         threads=arguments.threadsCount,
                         delay=arguments.delay,
                         matchCallbacks=matchCallbacks,

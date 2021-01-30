@@ -29,7 +29,7 @@ class Fuzzer(object):
         self,
         requester,
         dictionary,
-        testFailPath=None,
+        excludeContent=None,
         threads=1,
         delay=0,
         matchCallbacks=[],
@@ -39,7 +39,7 @@ class Fuzzer(object):
 
         self.requester = requester
         self.dictionary = dictionary
-        self.testFailPath = testFailPath
+        self.excludeContent = excludeContent
         self.basePath = self.requester.basePath
         self.threads = []
         self.threadsCount = (
@@ -48,6 +48,7 @@ class Fuzzer(object):
         self.delay = delay
         self.running = False
         self.stopped = 0
+        self.calibration = None
         self.scanners = {}
         self.defaultScanner = None
         self.matchCallbacks = matchCallbacks
@@ -68,14 +69,19 @@ class Fuzzer(object):
         if len(self.scanners):
             self.scanners = {}
 
-        self.defaultScanner = Scanner(self.requester, self.testFailPath)
-        self.scanners["/"] = Scanner(self.requester, self.testFailPath, suffix="/")
-        self.scanners["dotfiles"] = Scanner(self.requester, self.testFailPath, preffix=".")
+        self.defaultScanner = Scanner(self.requester)
+        self.scanners["/"] = Scanner(self.requester, suffix="/")
+        self.scanners["dotfiles"] = Scanner(self.requester, preffix=".")
 
         for extension in self.dictionary.extensions:
             self.scanners[extension] = Scanner(
-                self.requester, self.testFailPath, "." + extension
+                self.requester, "." + extension
             )
+
+        if self.excludeContent:
+            if self.excludeContent.startswith("/"):
+                self.excludeContent = self.excludeContent[1:]
+            self.calibration = Scanner(self.requester, calibration=self.excludeContent)
 
     def setupThreads(self):
         if len(self.threads):
@@ -140,10 +146,14 @@ class Fuzzer(object):
         self.play()
 
     def scan(self, path):
-        response = self.requester.request(path)
         result = None
-        if self.getScannerFor(path).scan(path, response):
-            result = None if response.status == 404 else response.status
+        response = self.requester.request(path)
+
+        if self.getScannerFor(path).scan(path, response) and (
+            not self.calibration or self.calibration.scan(path, response)
+        ):
+            result = response.status
+            
         return result, response
 
     def isPaused(self):

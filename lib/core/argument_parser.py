@@ -329,7 +329,7 @@ class ArgumentParser(object):
         self.capitalization = options.capitalization
         self.forceExtensions = options.forceExtensions
         self.data = options.data
-        self.testFailPath = options.testFailPath
+        self.excludeContent = options.excludeContent
         self.color = options.color
         self.delay = options.delay
         self.timeout = options.timeout
@@ -405,9 +405,9 @@ class ArgumentParser(object):
         self.excludeTexts = config.safe_get("general", "exclude-texts", None)
         self.excludeRegexps = config.safe_get("general", "exclude-regexps", None)
         self.excludeRedirects = config.safe_get("general", "exclude-redirects", None)
+        self.excludeContent = config.safe_get("general", "exclude-content", "")
         self.recursive = config.safe_getboolean("general", "recursive", False)
         self.recursion_depth = config.safe_getint("general", "recursion-depth", 0)
-        self.testFailPath = config.safe_get("general", "calibration-path", "").strip()
         self.saveHome = config.safe_getboolean("general", "save-logs-home", False)
         self.excludeSubdirs = config.safe_get("general", "exclude-subdirs", None)
         self.useRandomAgents = config.safe_get(
@@ -527,8 +527,8 @@ information at https://github.com/maurosoria/dirsearch.""")
                            action="store", dest="excludeRegexps", default=self.excludeRegexps, metavar="REGEXPS")
         general.add_option("--exclude-redirects", help="Exclude responses by redirect regexps or texts, separated by commas (Example: 'https://okta.com/*')",
                            action="store", dest="excludeRedirects", default=self.excludeRedirects, metavar="REGEXPS")
-        general.add_option("--calibration", help="Path to test for calibration", action="store",
-                           dest="testFailPath", default=self.testFailPath, metavar="PATH")
+        general.add_option("--exclude-content", help="Exclude responses by response content of this path", action="store",
+                           dest="excludeContent", default=self.excludeContent, metavar="PATH")
         general.add_option("--random-agent", help="Choose a random User-Agent for each request",
                            action="store_true", dest="useRandomAgents",)
         general.add_option("--minimal", action="store", dest="minimumResponseSize", type="int", default=None,
