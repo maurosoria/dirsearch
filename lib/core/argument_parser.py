@@ -410,9 +410,6 @@ class ArgumentParser(object):
         self.recursion_depth = config.safe_getint("general", "recursion-depth", 0)
         self.saveHome = config.safe_getboolean("general", "save-logs-home", False)
         self.excludeSubdirs = config.safe_get("general", "exclude-subdirs", None)
-        self.useRandomAgents = config.safe_get(
-            "general", "random-user-agents", False
-        )
         self.skip_on_429 = config.safe_getboolean("general", "skip-on-429", False)
         self.full_url = config.safe_getboolean("general", "full-url", False)
         self.color = config.safe_getboolean("general", "color", True)
@@ -443,6 +440,7 @@ class ArgumentParser(object):
         self.headerList = config.safe_get("request", "headers-file", None)
         self.redirect = config.safe_getboolean("request", "follow-redirects", False)
         self.useragent = config.safe_get("request", "user-agent", None)
+        self.useRandomAgents = config.safe_get("request", "random-user-agents", False)
         self.cookie = config.safe_get("request", "cookie", None)
 
         # Connection
@@ -529,8 +527,6 @@ information at https://github.com/maurosoria/dirsearch.""")
                            action="store", dest="excludeRedirects", default=self.excludeRedirects, metavar="REGEXPS")
         general.add_option("--exclude-content", help="Exclude responses by response content of this path", action="store",
                            dest="excludeContent", default=self.excludeContent, metavar="PATH")
-        general.add_option("--random-agent", help="Choose a random User-Agent for each request",
-                           action="store_true", dest="useRandomAgents",)
         general.add_option("--minimal", action="store", dest="minimumResponseSize", type="int", default=None,
                            help="Minimal response length", metavar="LENGTH")
         general.add_option("--maximal", action="store", dest="maximumResponseSize", type="int", default=None,
@@ -556,6 +552,8 @@ information at https://github.com/maurosoria/dirsearch.""")
                            dest="headerList", default=self.headerList, metavar="FILE")
         request.add_option("-F", "--follow-redirects", help="Follow HTTP redirects",
                            action="store_true", dest="followRedirects", default=self.redirect)
+        request.add_option("--random-agent", help="Choose a random User-Agent for each request",
+                           default=self.useRandomAgents, action="store_true", dest="useRandomAgents")
         request.add_option("--user-agent", action="store", type="string", dest="useragent",
                            default=self.useragent)
         request.add_option("--cookie", action="store", type="string", dest="cookie", default=self.cookie)
