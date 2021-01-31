@@ -29,6 +29,8 @@ class Fuzzer(object):
         self,
         requester,
         dictionary,
+        suffixes=None,
+        prefixes=None,
         excludeContent=None,
         threads=1,
         delay=0,
@@ -39,6 +41,8 @@ class Fuzzer(object):
 
         self.requester = requester
         self.dictionary = dictionary
+        self.suffixes = suffixes if suffixes else []
+        self.prefixes = prefixes if prefixes else []
         self.excludeContent = excludeContent
         self.basePath = self.requester.basePath
         self.threads = []
@@ -71,11 +75,21 @@ class Fuzzer(object):
 
         self.defaultScanner = Scanner(self.requester)
         self.scanners["/"] = Scanner(self.requester, suffix="/")
-        self.scanners["dotfiles"] = Scanner(self.requester, preffix=".")
+        self.scanners["dotfiles"] = Scanner(self.requester, prefix=".")
 
         for extension in self.dictionary.extensions:
             self.scanners[extension] = Scanner(
-                self.requester, "." + extension
+                self.requester, suffix="." + extension
+            )
+
+        for prefix in self.prefixes:
+            self.scanners["pref" + prefix] = Scanner(
+                self.requester, prefix=prefix
+            )
+
+        for suffix in self.suffixes:
+            self.scanners["suff" + suffix] = Scanner(
+                self.requester, suffix=suffix
             )
 
         if self.excludeContent:
@@ -94,17 +108,24 @@ class Fuzzer(object):
 
     def getScannerFor(self, path):
         if path.endswith("/"):
-            return self.scanners["/"]
+            yield self.scanners["/"]
 
         if path.startswith('.'):
-            return self.scanners['dotfiles']
+            yield self.scanners['dotfiles']
 
         for extension in list(self.scanners.keys()):
-            if path.endswith(extension):
-                return self.scanners[extension]
+            if path.endswith("." + extension):
+                yield self.scanners[extension]
 
-        # By default, returns empty tester
-        return self.defaultScanner
+        for prefix in self.prefixes:
+            if path.startswith(prefix):
+                yield self.scanners["pref" + prefix]
+
+        for suffix in self.suffixes:
+            if path.endswith(suffix):
+                yield self.scanners["suff" + suffix]
+
+        yield self.defaultScanner
 
     def start(self):
         # Setting up testers
@@ -146,14 +167,15 @@ class Fuzzer(object):
         self.play()
 
     def scan(self, path):
-        result = None
         response = self.requester.request(path)
+        result = response.status
 
-        if self.getScannerFor(path).scan(path, response) and (
-            not self.calibration or self.calibration.scan(path, response)
-        ):
-            result = response.status
-            
+        for tester in list(self.getScannerFor(path)):
+            if not tester.scan(path, response) or (
+                self.calibration and not self.calibration.scan(path, response)
+            ):
+                result = None
+
         return result, response
 
     def isPaused(self):

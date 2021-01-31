@@ -17,7 +17,6 @@
 #  Author: Mauro Soria
 
 import re
-from difflib import SequenceMatcher
 
 from lib.utils import RandomUtils
 from thirdparty.sqlmap import DynamicContentParser
@@ -28,10 +27,10 @@ class ScannerException(Exception):
 
 
 class Scanner(object):
-    def __init__(self, requester, calibration=None, suffix=None, preffix=None):
+    def __init__(self, requester, calibration=None, suffix=None, prefix=None):
         self.calibration = calibration
         self.suffix = suffix if suffix else ""
-        self.preffix = preffix if preffix else ""
+        self.prefix = prefix if prefix else ""
         self.requester = requester
         self.tester = None
         self.redirectRegExp = None
@@ -41,7 +40,7 @@ class Scanner(object):
         self.setup()
 
     def setup(self):
-        firstPath = self.preffix + (
+        firstPath = self.prefix + (
             self.calibration if self.calibration else RandomUtils.randString()
         ) + self.suffix
         firstResponse = self.requester.request(firstPath)
@@ -51,7 +50,7 @@ class Scanner(object):
             # Using the response status code is enough
             return
 
-        secondPath = self.preffix + (
+        secondPath = self.prefix + (
             self.calibration if self.calibration else RandomUtils.randString()
         ) + self.suffix
         secondResponse = self.requester.request(secondPath)
@@ -59,7 +58,8 @@ class Scanner(object):
         # Look for redirects
         if firstResponse.redirect and secondResponse.redirect:
             self.redirectRegExp = self.generateRedirectRegExp(
-                firstResponse.redirect, secondResponse.redirect
+                firstResponse.redirect, firstPath,
+                secondResponse.redirect, secondPath,
             )
 
         # Analyze response bodies
@@ -78,22 +78,29 @@ class Scanner(object):
         if baseRatio < self.ratio:
             self.ratio = baseRatio
 
-    def generateRedirectRegExp(self, firstLocation, secondLocation):
-        sm = SequenceMatcher(None, firstLocation, secondLocation)
-        marks = []
+    def regexEscape(self, string):
+        # All special regex characters
+        regex_chars = ["\\", "(", ")", "[", "]", "{", "}",
+                       "^", "$", "?", "+", "*", "|", "."]
+        # Replace special regex characters from the path
+        for char in regex_chars:
+            string = string.replace(char, "\\" + char)
 
-        for blocks in sm.get_matching_blocks():
-            i = blocks[0]
-            n = blocks[2]
-            # Empty block
+        return string
 
-            if n == 0:
-                continue
+    def generateRedirectRegExp(self, firstLoc, firstPath, secondLoc, secondPath):
+        firstLoc = firstLoc.replace(firstPath, "DS_PATH")
+        secondLoc = secondLoc.replace(secondPath, "DS_PATH")
+        regexp = "^"
 
-            mark = firstLocation[i:i + n]
-            marks.append(mark)
+        for f, s in zip(firstLoc, secondLoc):
+            if f == s:
+                regexp += self.regexEscape(f)
+            else:
+                regexp += ".*"
+                break
+        regexp += "$"
 
-        regexp = "^.*{0}.*$".format(".*".join(map(re.escape, marks)))
         return regexp
 
     def scan(self, path, response):
@@ -104,7 +111,10 @@ class Scanner(object):
             return True
 
         if self.redirectRegExp and response.redirect:
-            redirectToInvalid = re.match(self.redirectRegExp, response.redirect)
+            redirectRegExp = self.redirectRegExp.replace(
+                "DS_PATH", self.regexEscape(path)
+            )
+            redirectToInvalid = re.match(redirectRegExp, response.redirect)
 
             # If redirection doesn't match the rule, mark as found
             if redirectToInvalid is None:
