@@ -143,17 +143,17 @@ class Controller(object):
         )
 
         self.dictionary = Dictionary(
-            arguments.wordlist,
-            arguments.extensions,
-            arguments.suffixes,
-            arguments.prefixes,
-            arguments.lowercase,
-            arguments.uppercase,
-            arguments.capitalization,
-            arguments.forceExtensions,
-            arguments.excludeExtensions,
-            arguments.noExtension,
-            arguments.onlySelected
+            paths=arguments.wordlist,
+            extensions=arguments.extensions,
+            suffixes=arguments.suffixes,
+            prefixes=arguments.prefixes,
+            lowercase=arguments.lowercase,
+            uppercase=arguments.uppercase,
+            capitalization=arguments.capitalization,
+            forcedExtensions=arguments.forceExtensions,
+            excludeExtensions=arguments.excludeExtensions,
+            noExtension=arguments.noExtension,
+            onlySelected=arguments.onlySelected
         )
 
         self.allJobs = len(self.scanSubdirs) if self.scanSubdirs else 1
@@ -236,7 +236,9 @@ class Controller(object):
                     self.fuzzer = Fuzzer(
                         self.requester,
                         self.dictionary,
-                        testFailPath=arguments.testFailPath,
+                        suffixes=arguments.suffixes,
+                        prefixes=arguments.prefixes,
+                        excludeContent=arguments.excludeContent,
                         threads=arguments.threadsCount,
                         delay=arguments.delay,
                         matchCallbacks=matchCallbacks,
