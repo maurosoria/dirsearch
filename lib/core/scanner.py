@@ -78,16 +78,6 @@ class Scanner(object):
         if baseRatio < self.ratio:
             self.ratio = baseRatio
 
-    def regexEscape(self, string):
-        # All special regex characters
-        regex_chars = ["\\", "(", ")", "[", "]", "{", "}",
-                       "^", "$", "?", "+", "*", "|", "."]
-        # Replace special regex characters from the path
-        for char in regex_chars:
-            string = string.replace(char, "\\" + char)
-
-        return string
-
     def generateRedirectRegExp(self, firstLoc, firstPath, secondLoc, secondPath):
         firstLoc = firstLoc.replace(firstPath, "DS_PATH")
         secondLoc = secondLoc.replace(secondPath, "DS_PATH")
@@ -95,7 +85,7 @@ class Scanner(object):
 
         for f, s in zip(firstLoc, secondLoc):
             if f == s:
-                regexp += self.regexEscape(f)
+                regexp += re.escape(f)
             else:
                 regexp += ".*"
                 break
@@ -112,7 +102,7 @@ class Scanner(object):
 
         if self.redirectRegExp and response.redirect:
             redirectRegExp = self.redirectRegExp.replace(
-                "DS_PATH", self.regexEscape(path)
+                "DS_PATH", re.escape(path)
             )
             redirectToInvalid = re.match(redirectRegExp, response.redirect)
 
