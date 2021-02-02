@@ -8606,6 +8606,9 @@ web.xml
 web.zip
 web/
 web/bundles/
+solr/admin/
+file/
+solr/admin/file/?file=solrconfig.xml
 web/phpMyAdmin/
 web/phpMyAdmin/index.php
 web/phpMyAdmin/scripts/setup.php
