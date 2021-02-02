@@ -74,8 +74,8 @@ class Fuzzer(object):
             self.scanners = {}
 
         self.defaultScanner = Scanner(self.requester)
-        self.scanners["/"] = Scanner(self.requester, suffix="/")
-        self.scanners["dotfiles"] = Scanner(self.requester, prefix=".")
+        self.scanners["pref=."] = Scanner(self.requester, prefix=".")
+        self.scanners["suff=/"] = Scanner(self.requester, suffix="/")
 
         for extension in self.dictionary.extensions:
             self.scanners[extension] = Scanner(
@@ -83,12 +83,12 @@ class Fuzzer(object):
             )
 
         for prefix in self.prefixes:
-            self.scanners["pref" + prefix] = Scanner(
+            self.scanners["pref=" + prefix] = Scanner(
                 self.requester, prefix=prefix
             )
 
         for suffix in self.suffixes:
-            self.scanners["suff" + suffix] = Scanner(
+            self.scanners["suff=" + suffix] = Scanner(
                 self.requester, suffix=suffix
             )
 
@@ -107,11 +107,11 @@ class Fuzzer(object):
             self.threads.append(newThread)
 
     def getScannerFor(self, path):
-        if path.endswith("/"):
-            yield self.scanners["/"]
-
         if path.startswith('.'):
-            yield self.scanners['dotfiles']
+            yield self.scanners['pref=.']
+
+        if path.endswith("/"):
+            yield self.scanners["suff=/"]
 
         for extension in list(self.scanners.keys()):
             if path.endswith("." + extension):
@@ -119,11 +119,11 @@ class Fuzzer(object):
 
         for prefix in self.prefixes:
             if path.startswith(prefix):
-                yield self.scanners["pref" + prefix]
+                yield self.scanners["pref=" + prefix]
 
         for suffix in self.suffixes:
             if path.endswith(suffix):
-                yield self.scanners["suff" + suffix]
+                yield self.scanners["suff=" + suffix]
 
         yield self.defaultScanner
 
@@ -170,7 +170,7 @@ class Fuzzer(object):
         response = self.requester.request(path)
         result = response.status
 
-        for tester in list(self.getScannerFor(path)):
+        for tester in list(set(self.getScannerFor(path))):
             if not tester.scan(path, response) or (
                 self.calibration and not self.calibration.scan(path, response)
             ):
