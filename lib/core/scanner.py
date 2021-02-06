@@ -79,9 +79,10 @@ class Scanner(object):
             self.ratio = baseRatio
 
     def generateRedirectRegExp(self, firstLoc, firstPath, secondLoc, secondPath):
-        firstLoc = firstLoc.replace(firstPath, "DS_PATH")
-        secondLoc = secondLoc.replace(secondPath, "DS_PATH")
+        firstLoc = firstLoc.replace(firstPath, "DIRSEARCH_PATH")
+        secondLoc = secondLoc.replace(secondPath, "DIRSEARCH_PATH")
         regexp = "^"
+        end = ""
 
         for f, s in zip(firstLoc, secondLoc):
             if f == s:
@@ -89,7 +90,15 @@ class Scanner(object):
             else:
                 regexp += ".*"
                 break
-        regexp += "$"
+
+        if regexp.endswith("*"):
+            for f, s in zip(firstLoc[::-1], secondLoc[::-1]):
+                if f == s:
+                    end = re.escape(f) + end
+                else:
+                    break
+
+        regexp += end + "$"
 
         return regexp
 
@@ -102,7 +111,7 @@ class Scanner(object):
 
         if self.redirectRegExp and response.redirect:
             redirectRegExp = self.redirectRegExp.replace(
-                "DS_PATH", re.escape(path)
+                "DIRSEARCH_PATH", re.escape(path)
             )
             redirectToInvalid = re.match(redirectRegExp, response.redirect)
 
