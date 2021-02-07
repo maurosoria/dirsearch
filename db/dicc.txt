@@ -14,6 +14,7 @@
 %EXT%.txt
 %EXT%.zip
 %ff
+application.properties
 +CSCOE+/logon.html#form_title_text
 +CSCOE+/session_password.html
 +CSCOT+/oem-customization?app=AnyConnect&type=oem&platform=..&resource-type=..&name=%2bCSCOE%2b/portal_inc.lua
