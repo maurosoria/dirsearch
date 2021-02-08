@@ -431,7 +431,7 @@ Accept: */*
 Since there is no way for dirsearch to know what the URI scheme is (`http` or `https`), you need to set it using the `--scheme` flag. By default, the scheme is `http`, which is not popular in modern web servers now. That means, without setting up the scheme, you may brute-force with the wrong protocol, and will end up with false negatives.
 
 ### Scan sub-directories
-From an URL, you can scan sub-dirsearctories with **--subdirs**.
+From an URL, you can scan sub-directories with **--subdirs**.
 
 ```
 python3 dirsearch.py -e php,html,js -u https://target --subdirs admin/,folder/,/
