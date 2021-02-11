@@ -425,7 +425,7 @@ admin.aspx
 ```
 
 ### Scan sub-directories
-From an URL, you can scan sub-dirsearctories with **--subdirs**.
+From an URL, you can scan sub-directories with **--subdirs**.
 
 ```
 python3 dirsearch.py -e php,html,js -u https://target --subdirs admin/,folder/,/

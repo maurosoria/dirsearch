@@ -716,7 +716,7 @@ class Controller(object):
                 return False
             elif dir in self.doneDirs:
                 return False
-            elif self.recursive_depth and dir.count("/") > self.recursion_depth:
+            elif self.recursion_depth and dir.count("/") > self.recursion_depth:
                 return False
 
             self.directories.put(dir)
