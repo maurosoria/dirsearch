@@ -9,6 +9,7 @@ Currently working...
 - Fixed the CSV Injection vulnerability (https://www.exploit-db.com/exploits/49370)
 - Raw request supported
 - Can setup the default URL scheme (will be used when there is no scheme in the URL)
+- Option to skip target by specified status codes
 
 v0.4.1 (2020.12.8)
 ---------
