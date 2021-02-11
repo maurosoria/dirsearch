@@ -163,7 +163,6 @@ class Controller(object):
         self.threadsLock = Lock()
         self.batch = False
         self.batchSession = None
-        self.skip429 = False
 
         self.output.header(program_banner)
         self.printConfig()
@@ -219,6 +218,7 @@ class Controller(object):
 
                     # Initialize directories Queue with start Path
                     self.basePath = self.requester.basePath
+                    self.status_skip = None
 
                     if self.scanSubdirs:
                         for subdir in self.scanSubdirs:
@@ -525,9 +525,10 @@ class Controller(object):
     def matchCallback(self, path):
         self.index += 1
 
-        if self.arguments.skip_on_429 and path.status == 429:
-            self.skip429 = True
-            return
+        for status in self.arguments.skip_on_status:
+            if path.status == status:
+                self.status_skip = status
+                return
 
         if (
                 path.status and path.status not in self.excludeStatusCodes
@@ -662,17 +663,20 @@ class Controller(object):
         while True:
             try:
                 while not self.fuzzer.wait(0.25):
-                    if self.skip429:
-                        self.skip429 = False
+                    # Check if the "skip status code" was returned
+                    if self.status_skip:
                         self.fuzzer.pause()
-
                         while self.fuzzer.stopped != len(self.fuzzer.threads):
                             pass
-                        self.output.error("\nSkipped the target due to 429 status code")
+
+                        self.output.error(
+                            "\nSkipped the target due to {0} status code".format(self.status_skip)
+                        )
 
                         raise SkipTargetInterrupt
 
                 break
+
             except (KeyboardInterrupt):
                 self.handlePause("CTRL+C detected: Pausing threads, please wait...")
 
