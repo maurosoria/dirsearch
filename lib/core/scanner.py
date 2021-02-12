@@ -63,9 +63,12 @@ class Scanner(object):
             )
 
         # Analyze response bodies
-        self.dynamicParser = DynamicContentParser(
-            self.requester, firstPath, firstResponse.body, secondResponse.body
-        )
+        if firstResponse.body != None and secondResponse.body != None:
+            self.dynamicParser = DynamicContentParser(
+                self.requester, firstPath, firstResponse.body, secondResponse.body
+            )
+        else:
+            self.dynamicParser = None
 
         baseRatio = float(
             "{0:.2f}".format(self.dynamicParser.comparisonRatio)
