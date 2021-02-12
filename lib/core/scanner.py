@@ -63,7 +63,7 @@ class Scanner(object):
             )
 
         # Analyze response bodies
-        if firstResponse.body != None and secondResponse.body != None:
+        if firstResponse.body is not None and secondResponse.body is not None:
             self.dynamicParser = DynamicContentParser(
                 self.requester, firstPath, firstResponse.body, secondResponse.body
             )
