@@ -1778,6 +1778,7 @@ DocProject/Help/Html2
 DocProject/Help/html
 DocProject/buildhelp/
 Dockerfile
+Documentation.html
 DynaCacheESI
 DynaCacheESI/esiInavlidator
 DynamicQuery/EmployeeFinder
@@ -4591,6 +4592,9 @@ dadmin
 dam.php
 dashboard
 dashboard.%EXT%
+dashboard/faq.html
+dashboard/howto.html
+dashboard/phpinfo.php
 dat
 dat.tar.gz
 dat.zip
@@ -4794,6 +4798,7 @@ doc
 doc/
 doc/api/
 doc/en/changes.html
+doc/html/index.html
 doc/stable.version
 docker-compose-dev.yml
 docker-compose.yml
@@ -4811,6 +4816,7 @@ docs/html/admin/ch03s07.html
 docs/html/admin/index.html
 docs/html/developer/ch02.html
 docs/html/developer/ch03s15.html
+docs/html/index.html
 docs/maintenance.txt
 docs/updating.txt
 docs51
@@ -6770,6 +6776,10 @@ pgadmin.log
 pgadmin/
 phinx.yml
 phmyadmin
+phpmyadmin/ChangeLog
+phpmyadmin/doc/html/index.html
+phpmyadmin/docs/html/index.html
+phpmyadmin/README
 phoenix
 phone
 phoneconferencing/
