@@ -101,7 +101,7 @@ class PrintOutput(object):
         elif status == 403:
             message = Fore.BLUE + message + Style.RESET_ALL
 
-        elif status == [500, 502, 503]:
+        elif status in [500, 502, 503]:
             message = Fore.RED + message + Style.RESET_ALL
 
         # Check if redirect
