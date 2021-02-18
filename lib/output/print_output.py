@@ -92,7 +92,7 @@ class PrintOutput(object):
             status, contentLength.rjust(6, " "), showPath
         )
 
-        if status == 200:
+        if status in [200, 201, 204]:
             message = Fore.GREEN + message + Style.RESET_ALL
 
         elif status == 401:
@@ -101,7 +101,7 @@ class PrintOutput(object):
         elif status == 403:
             message = Fore.BLUE + message + Style.RESET_ALL
 
-        elif status == 500:
+        elif status == [500, 502, 503]:
             message = Fore.RED + message + Style.RESET_ALL
 
         # Check if redirect
