@@ -18,6 +18,7 @@
 
 from lib.reports import *
 import time
+import sys
 
 
 class XMLReport(FileBaseReport):
@@ -37,7 +38,7 @@ class XMLReport(FileBaseReport):
             self.protocol, self.host, self.port, self.basePath
         )
 
-        result += "<time>{0}</time>\n".format(time.ctime())
+        result += "<dirsearchScan args=\"{0}\" time=\"{1}\">\n".format(' '.join(sys.argv), time.ctime())
         result += "<target url=\"{0}\">\n".format(headerName)
 
         for path, status, contentLength, redirect in self.pathList:
@@ -48,5 +49,6 @@ class XMLReport(FileBaseReport):
             result += " </info>\n"
 
         result += "</target>\n"
+        result += "</dirsearchScan>\n"
 
         return result

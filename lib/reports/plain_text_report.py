@@ -20,6 +20,7 @@ from lib.reports import *
 from lib.utils.file_utils import FileUtils
 
 import time
+import sys
 
 
 class PlainTextReport(FileBaseReport):
@@ -37,7 +38,7 @@ class PlainTextReport(FileBaseReport):
         self.storeData((path, status, contentLength, location))
 
     def generate(self):
-        result = "Time: {0}\n\n".format(time.ctime())
+        result = "# Dirsearch started {0} as: {1}\n\n".format(time.ctime(), ' '.join(sys.argv))
 
         for path, status, contentLength, location in self.pathList:
             result += "{0}  ".format(status)
