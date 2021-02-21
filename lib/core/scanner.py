@@ -18,6 +18,7 @@
 
 import re
 
+from urllib.parse import unquote
 from lib.utils import RandomUtils
 from thirdparty.sqlmap import DynamicContentParser
 
@@ -36,6 +37,7 @@ class Scanner(object):
         self.redirectRegExp = None
         self.invalidStatus = None
         self.dynamicParser = None
+        self.hash = None
         self.ratio = 0.98
         self.setup()
 
@@ -82,28 +84,28 @@ class Scanner(object):
             self.ratio = baseRatio
 
     def generateRedirectRegExp(self, firstLoc, firstPath, secondLoc, secondPath):
-        firstLoc = firstLoc.replace(firstPath, "DIRSEARCH_PATH")
-        secondLoc = secondLoc.replace(secondPath, "DIRSEARCH_PATH")
-        regexp = "^"
-        end = ""
+        # Use a hash to locate where the path gets reflected in the redirect
+        self.hash = RandomUtils.randString(n=20)
+        firstLoc = firstLoc.replace(firstPath, self.hash)
+        secondLoc = secondLoc.replace(secondPath, self.hash)
+        regExpStart = "^"
+        regExpEnd = "$"
 
         for f, s in zip(firstLoc, secondLoc):
             if f == s:
-                regexp += re.escape(f)
+                regExpStart += re.escape(f)
             else:
-                regexp += ".*"
+                regExpStart += ".*"
                 break
 
-        if regexp.endswith("*"):
+        if regExpStart.endswith(".*"):
             for f, s in zip(firstLoc[::-1], secondLoc[::-1]):
                 if f == s:
-                    end = re.escape(f) + end
+                    regExpEnd = re.escape(f) + regExpEnd
                 else:
                     break
 
-        regexp += end + "$"
-
-        return regexp
+        return unquote(regExpStart + regExpEnd)
 
     def scan(self, path, response):
         if self.invalidStatus == response.status == 404:
@@ -113,12 +115,18 @@ class Scanner(object):
             return True
 
         if self.redirectRegExp and response.redirect:
-            redirectRegExp = self.redirectRegExp.replace(
-                "DIRSEARCH_PATH", re.escape(path)
-            )
-            redirectToInvalid = re.match(redirectRegExp, response.redirect)
+            path = re.escape(unquote(path))
+            # A lot of times, '#' or '?' will be removed in the redirect, cause false positives
+            for char in ["\\#", "\\?"]:
+                if char in path:
+                    path = path.replace(char, "(|" + char) + ")"
 
-            # If redirection doesn't match the rule, mark as found
+            redirectRegExp = self.redirectRegExp.replace(self.hash, path)
+
+            # Redirect sometimes encodes/decodes characters in URL, which may confuse the
+            # rule check and make noise in the output, so we need to unquote() everything
+            redirectToInvalid = re.match(redirectRegExp, unquote(response.redirect))
+
             if redirectToInvalid is None:
                 return True
 

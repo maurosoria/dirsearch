@@ -107,6 +107,9 @@ class Fuzzer(object):
             self.threads.append(newThread)
 
     def getScannerFor(self, path):
+        # Clean the path, so can check for extensions/suffixes
+        path = path.split("?")[0].split("#")[0]
+
         if path.startswith('.'):
             yield self.scanners['pref=.']
 

@@ -1,3 +1,5 @@
 %ff
 %3f/
 %C0%AE%C0%AE%C0%AF
+%2e%2e;/test
+..;/
