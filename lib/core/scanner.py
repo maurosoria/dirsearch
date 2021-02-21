@@ -19,6 +19,7 @@
 import re
 
 from urllib.parse import unquote
+
 from lib.utils import RandomUtils
 from thirdparty.sqlmap import DynamicContentParser
 
@@ -37,7 +38,7 @@ class Scanner(object):
         self.redirectRegExp = None
         self.invalidStatus = None
         self.dynamicParser = None
-        self.hash = None
+        self.sign = None
         self.ratio = 0.98
         self.setup()
 
@@ -84,10 +85,10 @@ class Scanner(object):
             self.ratio = baseRatio
 
     def generateRedirectRegExp(self, firstLoc, firstPath, secondLoc, secondPath):
-        # Use a hash to locate where the path gets reflected in the redirect
-        self.hash = RandomUtils.randString(n=20)
-        firstLoc = firstLoc.replace(firstPath, self.hash)
-        secondLoc = secondLoc.replace(secondPath, self.hash)
+        # Use a unique sign to locate where the path gets reflected in the redirect
+        self.sign = RandomUtils.randString(n=20)
+        firstLoc = firstLoc.replace(firstPath, self.sign)
+        secondLoc = secondLoc.replace(secondPath, self.sign)
         regExpStart = "^"
         regExpEnd = "$"
 
@@ -121,7 +122,7 @@ class Scanner(object):
                 if char in path:
                     path = path.replace(char, "(|" + char) + ")"
 
-            redirectRegExp = self.redirectRegExp.replace(self.hash, path)
+            redirectRegExp = self.redirectRegExp.replace(self.sign, path)
 
             # Redirect sometimes encodes/decodes characters in URL, which may confuse the
             # rule check and make noise in the output, so we need to unquote() everything
