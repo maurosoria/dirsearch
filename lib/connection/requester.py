@@ -192,7 +192,7 @@ class Requester(object):
                 error = "Too many redirects: {0}".format(url)
 
             except requests.exceptions.ProxyError:
-                error = "Error with the proxy: {0}".format(list(proxies.values())[0])
+                error = "Error with the proxy: {0}".format(proxy)
 
             except requests.exceptions.ConnectionError:
                 error = "Cannot connect to: {0}:{1}".format(self.host, self.port)
