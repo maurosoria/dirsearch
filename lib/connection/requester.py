@@ -133,11 +133,10 @@ class Requester(object):
         self.randomAgents = None
 
     def request(self, path, proxy=None):
-        i = 0
         result = None
+        error = None
 
-        while i <= self.maxRetries:
-
+        for i in range(self.maxRetries):
             try:
                 if not proxy:
                     if self.proxylist:
@@ -190,29 +189,19 @@ class Requester(object):
                 continue
 
             except requests.exceptions.TooManyRedirects:
-                raise RequestException(
-                    {"message": "Too many redirects"}
-                )
+                error = "Too many redirects: {0}".format(url)
 
-            except requests.exceptions.ProxyError as e:
-                raise RequestException(
-                    {"message": "Error with the proxy: {0}".format(e)}
-                )
+            except requests.exceptions.ProxyError:
+                error = "Error with the proxy: {0}".format(list(proxies.values())[0])
 
             except requests.exceptions.ConnectionError:
-                raise RequestException(
-                    {"message": "Cannot connect to: {0}:{1}".format(self.host, self.port)}
-                )
+                error = "Cannot connect to: {0}:{1}".format(self.host, self.port)
 
             except requests.exceptions.InvalidURL:
-                raise RequestException(
-                    {"message": "Invalid URL: {0}".format(url)}
-                )
+                error = "Invalid URL: {0}".format(url)
 
             except requests.exceptions.InvalidProxyURL:
-                raise RequestException(
-                    {"message": "Invalid proxy URL: {0}".format(proxy)}
-                )
+                error = "Invalid proxy URL: {0}".format(proxy)
 
             except (
                 requests.exceptions.ConnectTimeout,
@@ -221,18 +210,12 @@ class Requester(object):
                 http.client.IncompleteRead,
                 socket.timeout,
             ):
-                continue
+                error = "Request timeout: {0}".format(url)
 
-            finally:
-                i += 1
+            except Exception:
+                error = "There was a problem in the request to: {0}".format(url)
 
-        if i > self.maxRetries:
-            raise RequestException(
-                {
-                    "message": "There was a problem in the request to: {0}".format(
-                        url
-                    )
-                }
-            )
+        if error:
+            raise RequestException({"message": error})
 
         return result
