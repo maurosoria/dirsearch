@@ -75,7 +75,7 @@ class Requester(object):
         # Resolve DNS to decrease overhead
         if ip:
             self.ip = ip
-        # A proxy could have a different DNS that would resolve the name. Therefore, 
+        # A proxy could have a different DNS that would resolve the name. Therefore,
         # resolving the name when using proxy to raise an error is pointless
         elif not proxy and not proxylist:
             try:
