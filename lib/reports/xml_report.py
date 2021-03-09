@@ -36,7 +36,7 @@ class XMLReport(FileBaseReport):
                 result += "  <info path=\"/{0}\">\n".format(e.path)
                 result += "   <status>{0}</status>\n".format(e.status)
                 result += "   <contentLength>{0}</contentLength>\n".format(e.getContentLength())
-                result += "   <redirect>{0}</redirect>\n".format("" if e.response.redirect is not None else e.response.redirect)
+                result += "   <redirect>{0}</redirect>\n".format("" if e.response.redirect is None else e.response.redirect)
                 result += "  </info>\n"
 
             result += " </target>\n"

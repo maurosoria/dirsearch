@@ -487,8 +487,6 @@ class Controller(object):
 
             self.report.addResult(newPath, path.status, path.response)
 
-            # self.reportManager.save()
-
             del path
 
     def notFoundCallback(self, path):
