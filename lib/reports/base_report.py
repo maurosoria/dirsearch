@@ -21,9 +21,6 @@ import queue
 
 
 class BaseReport(object):
-    def addPath(selg, path, status, response):
-        raise NotImplementedError
-
     def save(self):
         raise NotImplementedError
 
@@ -32,36 +29,11 @@ class BaseReport(object):
 
 
 class FileBaseReport(BaseReport):
-    def __init__(self, host, port, protocol, basePath, output, batch):
-        self.output = output
-        self.port = port
-        self.host = host
-        self.protocol = protocol
-        self.basePath = basePath
-        self.batch = batch
+    def __init__(self, outputFileName, entries=[]):
+        self.output = outputFileName
+        self.entries = entries
 
-        if self.basePath.endswith("/"):
-            self.basePath = self.basePath[:-1]
-
-        if self.basePath.startswith("/"):
-            self.basePath = self.basePath[1:]
-
-        self.pathList = []
         self.open()
-
-    def addPath(self, path, status, response):
-        contentLength = None
-
-        try:
-            contentLength = int(response.headers["content-length"])
-
-        except (KeyError, ValueError):
-            contentLength = len(response.body)
-
-        self.storeData((path, status, contentLength,))
-
-    def storeData(self, data):
-        self.pathList.append(data)
 
     def open(self):
         from os import name as os_name
@@ -75,24 +47,24 @@ class FileBaseReport(BaseReport):
 
             self.output = output
 
-        if self.batch:
-            self.file = open(self.output, 'a+')
+        # if self.batch:
+        #     self.file = open(self.output, 'a+')
 
-        else:
-            self.file = open(self.output, 'w+')
+        # else:
+        self.file = open(self.output, 'w+')
 
     def save(self):
-        if self.batch:
-            self.file.seek(0)
-            self.file.flush()
-            self.file.writelines(self.generate())
-            self.file.flush()
-        else:
-            self.file.seek(0)
-            self.file.truncate(0)
-            self.file.flush()
-            self.file.writelines(self.generate())
-            self.file.flush()
+        # if self.batch:
+        #     self.file.seek(0)
+        #     self.file.flush()
+        #     self.file.writelines(self.generate())
+        #     self.file.flush()
+        # else:
+        self.file.seek(0)
+        self.file.truncate(0)
+        self.file.flush()
+        self.file.writelines(self.generate())
+        self.file.flush()
 
     def close(self):
         self.file.close()
@@ -101,24 +73,24 @@ class FileBaseReport(BaseReport):
         raise NotImplementedError
 
 
-class TailableFileBaseReport(FileBaseReport):
-    def __init__(self, host, port, protocol, basePath, output, batch):
-        super().__init__(host, port, protocol, basePath, output, batch)
-        self.writeQueue = Queue()
-        self.saveMutex = Lock()
+# class TailableFileBaseReport(FileBaseReport):
+#     def __init__(self, host, port, protocol, basePath, output, batch):
+#         super().__init__(host, port, protocol, basePath, output, batch)
+#         self.writeQueue = Queue()
+#         self.saveMutex = Lock()
 
-    def save(self):
-        data = self.generate()
-        self.file.write(data)
-        self.file.flush()
+#     def save(self):
+#         data = self.generate()
+#         self.file.write(data)
+#         self.file.flush()
 
-    def storeData(self, data):
-        self.writeQueue.put(data)
-        self.save()
+#     def storeData(self, data):
+#         self.writeQueue.put(data)
+#         self.save()
 
-    def getPathIterator(self):
-        while True:
-            try:
-                yield self.writeQueue.get(False)
-            except queue.Empty:
-                break
+#     def getPathIterator(self):
+#         while True:
+#             try:
+#                 yield self.writeQueue.get(False)
+#             except queue.Empty:
+#                 break

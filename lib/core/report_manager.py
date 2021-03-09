@@ -17,26 +17,69 @@
 #  Author: Mauro Soria
 
 import threading
+from lib.reports import *
 
+class Result(object):
+    def __init__(self, path, status, response):
+        self.path = path
+        self.status = status
+        self.response = response
+
+    def getContentLength(self):
+        try:
+            contentLength = int(self.response.headers["content-length"])
+        except (KeyError, ValueError):
+            contentLength = len(self.response.body)
+        return contentLength
+
+class Report(object):
+    def __init__(self, host, port, protocol, basePath):
+        self.host = host
+        self.port = port
+        self.protocol = protocol
+        self.basePath = basePath
+        self.results = []
+
+        if self.basePath.endswith("/"):
+            self.basePath = self.basePath[:-1]
+
+        if self.basePath.startswith("/"):
+            self.basePath = self.basePath[1:]
+
+    def addResult(self, path, status, response):
+        result = Result(path, status, response)
+        self.results.append(result)
 
 class ReportManager(object):
-    def __init__(self):
-        self.outputs = []
+    def __init__(self, saveFormat, outputFile):
+        self.format = saveFormat
+        self.reports = []
+        self.output = outputFile
         self.lock = threading.Lock()
 
-    def addOutput(self, output):
-        self.outputs.append(output)
+    def addReport(self, report):
+        self.reports.append(report)
 
-    def addPath(self, path, status, response):
-        with self.lock:
-            for output in self.outputs:
-                output.addPath(path, status, response)
+    def writeReports(self):
+        if self.format == "simple":
+            report = SimpleReport(self.output, self.reports)
+        elif self.format == "json":
+            report = JSONReport(self.output, self.reports)
+        elif self.format == "xml":
+            report = XMLReport(self.output, self.reports)
+        elif self.format == "md":
+            report = MarkdownReport(self.output, self.reports)
+        elif self.format == "csv":
+            report = CSVReport(self.output, self.reports)
+        else:
+            report = PlainTextReport(self.output, self.reports)
+
+        report.save()
+        report.close()
 
     def save(self):
         with self.lock:
-            for output in self.outputs:
-                output.save()
+            self.output.save()
 
     def close(self):
-        for output in self.outputs:
-            output.close()
+        self.output.close()
