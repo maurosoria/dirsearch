@@ -32,7 +32,7 @@ class XMLReport(FileBaseReport):
             result += " <target url=\"{0}\">\n".format(headerName)
 
             for e in entry.results:
-                result += "  <info path=\"{0}\">\n".format(e.path)
+                result += "  <info path=\"/{0}\">\n".format(e.path)
                 result += "   <status>{0}</status>\n".format(e.status)
                 result += "   <contentLength>{0}</contentLength>\n".format(e.getContentLength())
                 result += "   <redirect>{0}</redirect>\n".format("" if e.response.redirect == None else e.response.redirect)

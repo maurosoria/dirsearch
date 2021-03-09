@@ -340,12 +340,14 @@ class ArgumentParser(object):
         self.maximumResponseSize = options.maximumResponseSize
         self.noExtension = options.noExtension
         self.onlySelected = options.onlySelected
-        self.simpleOutputFile = options.simpleOutputFile
-        self.plainTextOutputFile = options.plainTextOutputFile
-        self.jsonOutputFile = options.jsonOutputFile
-        self.xmlOutputFile = options.xmlOutputFile
-        self.markdownOutputFile = options.markdownOutputFile
-        self.csvOutputFile = options.csvOutputFile
+        self.outputFile = options.outputFile
+        self.outputFormat = options.outputFormat 
+        # self.simpleOutputFile = options.simpleOutputFile
+        # self.plainTextOutputFile = options.plainTextOutputFile
+        # self.jsonOutputFile = options.jsonOutputFile
+        # self.xmlOutputFile = options.xmlOutputFile
+        # self.markdownOutputFile = options.markdownOutputFile
+        # self.csvOutputFile = options.csvOutputFile
 
         if options.scanSubdirs:
             self.scanSubdirs = list(
@@ -588,12 +590,9 @@ information at https://github.com/maurosoria/dirsearch.""")
 
         # Report Settings
         reports = OptionGroup(parser, "Reports")
-        reports.add_option("--simple-report", action="store", dest="simpleOutputFile", default=None, metavar="OUTPUTFILE")
-        reports.add_option("--plain-text-report", action="store", dest="plainTextOutputFile", default=None, metavar="OUTPUTFILE")
-        reports.add_option("--json-report", action="store", dest="jsonOutputFile", default=None, metavar="OUTPUTFILE")
-        reports.add_option("--xml-report", action="store", dest="xmlOutputFile", default=None, metavar="OUTPUTFILE")
-        reports.add_option("--markdown-report", action="store", dest="markdownOutputFile", default=None, metavar="OUTPUTFILE")
-        reports.add_option("--csv-report", action="store", dest="csvOutputFile", default=None, metavar="OUTPUTFILE")
+        reports.add_option("-o", action="store", dest="outputFile", default=None, metavar="OUTPUTFILE")
+        reports.add_option("--format", action="store", dest="outputFormat", default=None, metavar="simple",
+                              help="simple, plain, json, xml, md, csv")
 
         parser.add_option_group(mandatory)
         parser.add_option_group(dictionary)
