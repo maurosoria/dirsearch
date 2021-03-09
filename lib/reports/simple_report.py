@@ -20,6 +20,7 @@ from lib.reports import *
 
 
 class SimpleReport(FileBaseReport):
+
     def generate(self):
         result = ""
 

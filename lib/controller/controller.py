@@ -27,7 +27,6 @@ from queue import Queue
 
 from lib.connection import Requester, RequestException
 from lib.core import Dictionary, Fuzzer, Report, ReportManager, Raw
-from lib.reports import JSONReport, XMLReport, PlainTextReport, SimpleReport, MarkdownReport, CSVReport
 from lib.utils import FileUtils
 
 
@@ -177,9 +176,8 @@ class Controller(object):
             self.randomAgents = FileUtils.get_lines(
                 FileUtils.build_path(script_path, "db", "user-agents.txt")
             )
-        
-        self.setupReportsNew()
 
+        self.setupReports()
         try:
             for url in self.urlList:
                 try:
@@ -366,26 +364,26 @@ class Controller(object):
             )
             sys.exit(1)
 
-    def setupReportsNew(self):
-        if self.arguments.outputFile != None:
+    def setupReports(self):
+        if self.arguments.outputFile is not None:
             self.output.outputFile(self.arguments.outputFile)
             outputFile = self.arguments.outputFile
         else:
             if self.batch:
-                    fileName = "BATCH"
-                    if self.arguments.outputFormat:
-                        fileName += ".{0}".format(self.arguments.outputFormat)
-                    elif self.arguments.autoSaveFormat:
-                        fileName += ".{0}".format(self.arguments.autoSaveFormat)
-                    else:
-                        fileName += ".txt"
-                    directoryPath = self.batchDirectoryPath
+                fileName = "BATCH"
+                if self.arguments.outputFormat:
+                    fileName += ".{0}".format(self.arguments.outputFormat)
+                elif self.arguments.autoSaveFormat:
+                    fileName += ".{0}".format(self.arguments.autoSaveFormat)
+                else:
+                    fileName += ".txt"
+                directoryPath = self.batchDirectoryPath
             else:
                 local_requester = Requester(self.urlList[0])
                 fileName = ('{}_'.format(local_requester.basePath))
                 fileName += time.strftime('%y-%m-%d_%H-%M-%S')
                 if self.arguments.outputFormat:
-                        fileName += ".{0}".format(self.arguments.outputFormat)
+                    fileName += ".{0}".format(self.arguments.outputFormat)
                 elif self.arguments.autoSaveFormat:
                     fileName += ".{0}".format(self.arguments.autoSaveFormat)
                 else:
@@ -422,61 +420,6 @@ class Controller(object):
                 self.reportManager = ReportManager(self.arguments.autoSaveFormat, outputFile)
             else:
                 self.reportManager = ReportManager("plain", outputFile)
-
-    def setupReports(self, requester):
-        if self.arguments.autoSave:
-
-            basePath = requester.basePath
-            basePath = basePath.replace(os.path.sep, ".")[:-1]
-            fileName = None
-            directoryPath = None
-
-            if self.batch:
-                fileName = requester.host
-                directoryPath = self.batchDirectoryPath
-
-            else:
-
-                fileName = ('{}_'.format(basePath))
-                fileName += time.strftime('%y-%m-%d_%H-%M-%S')
-                fileName += ".{0}".format(self.arguments.autoSaveFormat)
-                directoryPath = FileUtils.build_path(self.savePath, 'reports', requester.host)
-
-            outputFile = FileUtils.build_path(directoryPath, fileName)
-
-            self.output.outputFile(outputFile)
-
-            if FileUtils.exists(outputFile):
-                i = 2
-
-                while FileUtils.exists(outputFile + "_" + str(i)):
-                    i += 1
-
-                outputFile += "_" + str(i)
-
-            if not FileUtils.exists(directoryPath):
-                FileUtils.create_directory(directoryPath)
-
-                if not FileUtils.exists(directoryPath):
-                    self.output.error(
-                        "Couldn't create the reports folder at {}".format(directoryPath)
-                    )
-                    sys.exit(1)
-            if FileUtils.can_write(directoryPath):
-                report = None
-
-                if self.arguments.outputFormat:
-                    self.reportManager = ReportManager(self.arguments.outputFormat, self.arguments.outputFile)
-                else:
-                    if self.arguments.autoSaveFormat:
-                        self.reportManager = ReportManager(self.arguments.autoSaveFormat, outputFile)
-                    else:
-                        self.reportManager = ReportManager("plain", outputFile)
-
-            else:
-                self.output.error("Can't write reports to {}".format(directoryPath))
-                sys.exit(1)
-
 
     # TODO: Refactor, this function should be a decorator for all the filters
     def matchCallback(self, path):

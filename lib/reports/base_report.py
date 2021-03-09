@@ -16,8 +16,8 @@
 #
 #  Author: Mauro Soria
 
-from multiprocessing import Queue, Lock
-import queue
+# from multiprocessing import Queue, Lock
+# import queue
 
 
 class BaseReport(object):

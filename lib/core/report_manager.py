@@ -19,6 +19,7 @@
 import threading
 from lib.reports import *
 
+
 class Result(object):
     def __init__(self, path, status, response):
         self.path = path
@@ -31,6 +32,7 @@ class Result(object):
         except (KeyError, ValueError):
             contentLength = len(self.response.body)
         return contentLength
+
 
 class Report(object):
     def __init__(self, host, port, protocol, basePath):
@@ -49,6 +51,7 @@ class Report(object):
     def addResult(self, path, status, response):
         result = Result(path, status, response)
         self.results.append(result)
+
 
 class ReportManager(object):
     def __init__(self, saveFormat, outputFile):

@@ -25,7 +25,7 @@ class MarkdownReport(FileBaseReport):
         result = "### Info\n"
         result += "Time: {0}\n".format(time.ctime())
         result += "\n"
-        
+
         for entry in self.entries:
             headerName = "{0}://{1}:{2}/{3}".format(
                 entry.protocol, entry.host, entry.port, entry.basePath

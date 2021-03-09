@@ -16,8 +16,6 @@
 #
 #  Author: Mauro Soria
 
-import time
-
 from lib.reports import *
 
 

@@ -24,7 +24,7 @@ from lib.reports import *
 
 class JSONReport(FileBaseReport):
     def generate(self):
-        report = {"info":{"time": time.ctime()}, "results": []}
+        report = {"info": {"time": time.ctime()}, "results": []}
 
         for entry in self.entries:
             result = {}
@@ -32,7 +32,7 @@ class JSONReport(FileBaseReport):
                 entry.protocol, entry.host, entry.port, entry.basePath
             )
             result[headerName] = []
-            
+
             for e in entry.results:
                 pathEntry = {
                     "status": e.status,

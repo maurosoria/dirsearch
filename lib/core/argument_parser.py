@@ -341,13 +341,7 @@ class ArgumentParser(object):
         self.noExtension = options.noExtension
         self.onlySelected = options.onlySelected
         self.outputFile = options.outputFile
-        self.outputFormat = options.outputFormat 
-        # self.simpleOutputFile = options.simpleOutputFile
-        # self.plainTextOutputFile = options.plainTextOutputFile
-        # self.jsonOutputFile = options.jsonOutputFile
-        # self.xmlOutputFile = options.xmlOutputFile
-        # self.markdownOutputFile = options.markdownOutputFile
-        # self.csvOutputFile = options.csvOutputFile
+        self.outputFormat = options.outputFormat
 
         if options.scanSubdirs:
             self.scanSubdirs = list(
@@ -592,7 +586,7 @@ information at https://github.com/maurosoria/dirsearch.""")
         reports = OptionGroup(parser, "Reports")
         reports.add_option("-o", action="store", dest="outputFile", default=None, metavar="OUTPUTFILE")
         reports.add_option("--format", action="store", dest="outputFormat", default=None, metavar="simple",
-                              help="simple, plain, json, xml, md, csv")
+                           help="simple, plain, json, xml, md, csv")
 
         parser.add_option_group(mandatory)
         parser.add_option_group(dictionary)
