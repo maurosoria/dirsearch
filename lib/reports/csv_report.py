@@ -22,31 +22,28 @@ from lib.reports import *
 
 
 class CSVReport(FileBaseReport):
-    def addPath(self, path, status, response):
-        try:
-            contentLength = int(response.headers["content-length"])
-        except (KeyError, ValueError):
-            contentLength = len(response.body)
-
-        self.storeData((path, status, contentLength, response.redirect))
-
     def generate(self):
-        result = "Time,URL,Status,Size,Redirection\n"
+        result = "URL,Status,Size,Redirection\n"
         insecureChars = ("+", "-", "=", "@")
 
-        for path, status, contentLength, redirect in self.pathList:
-            result += "{0},".format(time.ctime())
-            result += "{0}://{1}:{2}/{3}{4},".format(self.protocol, self.host, self.port, self.basePath, path)
-            result += "{0},".format(status)
-            result += "{0},".format(contentLength)
-            if redirect:
-                # Preventing CSV injection. More info: https://www.exploit-db.com/exploits/49370
-                if redirect.startswith(insecureChars):
-                    redirect = "'" + redirect
+        for entry in self.entries:
+            for e in entry.results:
+                path = e.path
+                status = e.status
+                contentLength = e.getContentLength()
+                redirect = e.response.redirect
 
-                redirect = redirect.replace("\"", "\"\"")
-                result += "\"{0}\"".format(redirect)
+                result += "{0}://{1}:{2}/{3}{4},".format(entry.protocol, entry.host, entry.port, entry.basePath, path)
+                result += "{0},".format(status)
+                result += "{0},".format(contentLength)
+                if redirect:
+                    # Preventing CSV injection. More info: https://www.exploit-db.com/exploits/49370
+                    if redirect.startswith(insecureChars):
+                        redirect = "'" + redirect
 
-            result += "\n"
+                    redirect = redirect.replace("\"", "\"\"")
+                    result += "\"{0}\"".format(redirect)
+
+                result += "\n"
 
         return result
