@@ -23,12 +23,13 @@ class SimpleReport(FileBaseReport):
     def generate(self):
         result = ""
 
-        for path, _, _ in self.pathList:
-            result += "{0}://{1}:{2}/".format(self.protocol, self.host, self.port)
-            result += (
-                "{0}\n".format(path)
-                if self.basePath == ""
-                else "{0}/{1}\n".format(self.basePath, path)
-            )
+        for entry in self.entries:
+            for e in entry.results:
+                result += "{0}://{1}:{2}/".format(entry.protocol, entry.host, entry.port)
+                result += (
+                    "{0}\n".format(e.path)
+                    if entry.basePath == ""
+                    else "{0}/{1}\n".format(entry.basePath, e.path)
+                )
 
         return result
