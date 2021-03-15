@@ -25,7 +25,7 @@ def dispatch_hook(key, hooks, hook_data, **kwargs):
     hooks = hooks or {}
     hooks = hooks.get(key)
     if hooks:
-        if hasattr(hooks, '__call__'):
+        if callable(hooks):
             hooks = [hooks]
         for hook in hooks:
             _hook_data = hook(hook_data, **kwargs)
