@@ -35,10 +35,12 @@ class Dictionary(object):
         uppercase=False,
         capitalization=False,
         forcedExtensions=False,
-        excludeExtensions=[],
+        excludeExtensions=None,
         noExtension=False,
         onlySelected=False,
     ):
+        if excludeExtensions is None:
+            excludeExtensions = []
 
         self.entries = []
         self.currentIndex = 0

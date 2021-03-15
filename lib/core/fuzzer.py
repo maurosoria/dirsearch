@@ -32,10 +32,16 @@ class Fuzzer(object):
         testFailPath=None,
         threads=1,
         delay=0,
-        matchCallbacks=[],
-        notFoundCallbacks=[],
-        errorCallbacks=[],
+        matchCallbacks=None,
+        notFoundCallbacks=None,
+        errorCallbacks=None,
     ):
+        if matchCallbacks is None:
+            matchCallbacks = []
+        if notFoundCallbacks is None:
+            notFoundCallbacks = []
+        if errorCallbacks is None:
+            errorCallbacks = []
 
         self.requester = requester
         self.dictionary = dictionary
