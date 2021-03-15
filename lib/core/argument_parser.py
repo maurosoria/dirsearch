@@ -216,12 +216,10 @@ class ArgumentParser(object):
             for statusCode in options.includeStatusCodes.split(","):
                 try:
                     if "-" in statusCode:
-                        statusCodes = [
-                            i for i in range(
+                        statusCodes = list(range(
                                 int(statusCode.split("-")[0].strip()),
                                 int(statusCode.split("-")[1].strip()) + 1
-                            )
-                        ]
+                            ))
                         self.includeStatusCodes.extend(statusCodes)
 
                     else:
@@ -237,12 +235,10 @@ class ArgumentParser(object):
             for statusCode in options.excludeStatusCodes.split(","):
                 try:
                     if "-" in statusCode:
-                        statusCodes = [
-                            i for i in range(
+                        statusCodes = list(range(
                                 int(statusCode.split("-")[0].strip()),
                                 int(statusCode.split("-")[1].strip()) + 1
-                            )
-                        ]
+                            ))
                         self.excludeStatusCodes.extend(statusCodes)
 
                     else:
