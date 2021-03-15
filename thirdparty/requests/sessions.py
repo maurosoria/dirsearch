@@ -133,7 +133,7 @@ class SessionRedirectMixin(object):
         # Handle default port usage corresponding to scheme.
         changed_port = old_parsed.port != new_parsed.port
         changed_scheme = old_parsed.scheme != new_parsed.scheme
-        default_port = (DEFAULT_PORTS.get(old_parsed.scheme, None), None)
+        default_port = (DEFAULT_PORTS.get(old_parsed.scheme), None)
         if (not changed_scheme and old_parsed.port in default_port
                 and new_parsed.port in default_port):
             return False
