@@ -76,8 +76,8 @@ class Controller(object):
             self.httpmethod = _raw.method()
             self.data = _raw.data()
             self.headers = {**default_headers, **_raw.headers()}
-            self.cookie = _raw.cookie()
-            self.useragent = _raw.user_agent()
+            self.headers["Cookie"] = _raw.cookie()
+            self.headers["User-Agent"] = _raw.user_agent()
         else:
             default_headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36",
@@ -91,8 +91,8 @@ class Controller(object):
             self.httpmethod = arguments.httpmethod.lower()
             self.data = arguments.data
             self.headers = {**default_headers, **arguments.headers}
-            self.cookie = arguments.cookie
-            self.useragent = arguments.useragent
+            self.headers["Cookie"] = arguments.cookie
+            self.headers["User-Agent"] = arguments.useragent
 
         self.recursion_depth = arguments.recursion_depth
 
@@ -189,8 +189,6 @@ class Controller(object):
                     try:
                         self.requester = Requester(
                             url,
-                            cookie=self.cookie,
-                            useragent=self.useragent,
                             maxPool=arguments.threadsCount,
                             maxRetries=arguments.maxRetries,
                             timeout=arguments.timeout,
