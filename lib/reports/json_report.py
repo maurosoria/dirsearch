@@ -18,6 +18,7 @@
 
 import json
 import time
+import sys
 
 from lib.reports import *
 
@@ -35,7 +36,10 @@ class JSONReport(FileBaseReport):
         headerName = "{0}://{1}:{2}/{3}".format(
             self.protocol, self.host, self.port, self.basePath
         )
-        result = {"time": time.ctime(), headerName: []}
+
+        info = {"args": ' '.join(sys.argv), "time": time.ctime()}
+
+        result = {"info": info, headerName: []}
 
         for path, status, contentLength, redirect in self.pathList:
             entry = {
