@@ -75,7 +75,9 @@ class Requester(object):
         # Resolve DNS to decrease overhead
         if ip:
             self.ip = ip
-        else:
+        # A proxy could have a different DNS that would resolve the name. Therefore,
+        # resolving the name when using proxy to raise an error is pointless
+        elif not proxy and not proxylist:
             try:
                 self.ip = socket.gethostbyname(self.host)
             except socket.gaierror:
@@ -151,7 +153,7 @@ class Requester(object):
                         proxy = "http://" + proxy
 
                     if proxy.startswith("http:"):
-                        proxies = {"http": proxy}
+                        proxies = {"http": proxy, "https": proxy}
                     elif proxy.startswith("https:"):
                         proxies = {"https": proxy}
                     else:
