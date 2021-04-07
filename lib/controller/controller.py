@@ -246,9 +246,7 @@ class Controller(object):
                     try:
                         self.prepare()
                     except RequestException as e:
-                        self.output.error(
-                            "Fatal error during scanning: " + e.args[0]["message"]
-                        )
+                        self.output.error(e.args[0]["message"])
                         raise SkipTargetInterrupt
 
                 except SkipTargetInterrupt:
