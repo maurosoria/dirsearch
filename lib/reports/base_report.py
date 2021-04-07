@@ -75,11 +75,7 @@ class FileBaseReport(BaseReport):
 
             self.output = output
 
-        if self.batch:
-            self.file = open(self.output, 'a+')
-
-        else:
-            self.file = open(self.output, 'w+')
+        self.file = open(self.output, 'w+')
 
     def save(self):
         if self.batch:
