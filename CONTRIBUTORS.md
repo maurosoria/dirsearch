@@ -58,6 +58,7 @@
 - [Knowledge-Wisdom-Understanding](https://github.com/Knowledge-Wisdom-Understanding)
 - [catmandx](https://github.com/catmandx)
 - [Kyle Nweeia](https://github.com/kyle-nweeia)
+- [Xib3rR4dAr](https://github.com/Xib3rR4dAr)
 
 Special thanks for all the people who had helped dirsearch so far!
 
