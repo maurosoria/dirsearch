@@ -18,13 +18,14 @@
 
 import json
 import time
+import sys
 
 from lib.reports import *
 
 
 class JSONReport(FileBaseReport):
     def generate(self):
-        report = {"info": {"time": time.ctime()}, "results": []}
+        report = {"info": {"args": ' '.join(sys.argv), "time": time.ctime()}, "results": []}
 
         for entry in self.entries:
             result = {}

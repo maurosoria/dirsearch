@@ -20,11 +20,12 @@ from lib.reports import *
 from lib.utils.file_utils import FileUtils
 
 import time
+import sys
 
 
 class PlainTextReport(FileBaseReport):
     def generate(self):
-        result = "Time: {0}\n\n".format(time.ctime())
+        result = "# Dirsearch started {0} as: {1}\n\n".format(time.ctime(), ' '.join(sys.argv))
 
         for entry in self.entries:
             for e in entry.results:

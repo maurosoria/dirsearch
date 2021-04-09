@@ -18,11 +18,13 @@
 
 from lib.reports import *
 import time
+import sys
 
 
 class MarkdownReport(FileBaseReport):
     def generate(self):
         result = "### Info\n"
+        result += "Args: {0}\n".format(' '.join(sys.argv))
         result += "Time: {0}\n".format(time.ctime())
         result += "\n"
 
