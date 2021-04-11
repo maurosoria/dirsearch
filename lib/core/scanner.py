@@ -28,14 +28,10 @@ class ScannerException(Exception):
 
 
 class Scanner(object):
-    def __init__(self, requester, testPath=None, suffix=None, preffix=None):
-        if not testPath:
-            self.testPath = RandomUtils.randString()
-        else:
-            self.testPath = testPath
-
+    def __init__(self, requester, calibration=None, suffix=None, prefix=None):
+        self.calibration = calibration
         self.suffix = suffix if suffix else ""
-        self.preffix = preffix if preffix else ""
+        self.prefix = prefix if prefix else ""
         self.requester = requester
         self.tester = None
         self.redirectRegExp = None
@@ -45,7 +41,9 @@ class Scanner(object):
         self.setup()
 
     def setup(self):
-        firstPath = self.preffix + self.testPath + self.suffix
+        firstPath = self.prefix + (
+            self.calibration if self.calibration else RandomUtils.randString()
+        ) + self.suffix
         firstResponse = self.requester.request(firstPath)
         self.invalidStatus = firstResponse.status
 
@@ -53,7 +51,9 @@ class Scanner(object):
             # Using the response status code is enough :-}
             return
 
-        secondPath = self.preffix + RandomUtils.randString(omit=self.testPath) + self.suffix
+        secondPath = self.prefix + (
+            self.calibration if self.calibration else RandomUtils.randString()
+        ) + self.suffix
         secondResponse = self.requester.request(secondPath)
 
         # Look for redirects
@@ -63,9 +63,12 @@ class Scanner(object):
             )
 
         # Analyze response bodies
-        self.dynamicParser = DynamicContentParser(
-            self.requester, firstPath, firstResponse.body, secondResponse.body
-        )
+        if firstResponse.body is not None and secondResponse.body is not None:
+            self.dynamicParser = DynamicContentParser(
+                self.requester, firstPath, firstResponse.body, secondResponse.body
+            )
+        else:
+            self.dynamicParser = None
 
         baseRatio = float(
             "{0:.2f}".format(self.dynamicParser.comparisonRatio)

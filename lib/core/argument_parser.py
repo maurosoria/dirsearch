@@ -329,7 +329,7 @@ class ArgumentParser(object):
         self.capitalization = options.capitalization
         self.forceExtensions = options.forceExtensions
         self.data = options.data
-        self.testFailPath = options.testFailPath
+        self.excludeContent = options.excludeContent
         self.color = options.color
         self.delay = options.delay
         self.timeout = options.timeout
@@ -367,6 +367,19 @@ class ArgumentParser(object):
         else:
             self.excludeSubdirs = None
 
+        if options.skip_on_status:
+            try:
+                self.skip_on_status = list(
+                    set(
+                        [int(status) for status in options.skip_on_status.split(",")]
+                    )
+                )
+            except Exception:
+                print("Invalid skip status code(s)")
+                exit(1)
+        else:
+            self.skip_on_status = []
+
         if len(set(self.extensions).intersection(self.excludeExtensions)):
             print("Exclude extension list can not contain any extension that has already in the extension list")
             exit(1)
@@ -376,7 +389,6 @@ class ArgumentParser(object):
         self.scheme = options.scheme
         self.requestByHostname = options.requestByHostname
         self.exit_on_error = options.exit_on_error
-        self.skip_on_429 = options.skip_on_429
         self.debug = options.debug
 
         self.recursion_depth = options.recursion_depth
@@ -405,15 +417,12 @@ class ArgumentParser(object):
         self.excludeTexts = config.safe_get("general", "exclude-texts", None)
         self.excludeRegexps = config.safe_get("general", "exclude-regexps", None)
         self.excludeRedirects = config.safe_get("general", "exclude-redirects", None)
+        self.excludeContent = config.safe_get("general", "exclude-content", "")
         self.recursive = config.safe_getboolean("general", "recursive", False)
         self.recursion_depth = config.safe_getint("general", "recursion-depth", 0)
-        self.testFailPath = config.safe_get("general", "calibration-path", "").strip()
         self.saveHome = config.safe_getboolean("general", "save-logs-home", False)
         self.excludeSubdirs = config.safe_get("general", "exclude-subdirs", None)
-        self.useRandomAgents = config.safe_get(
-            "general", "random-user-agents", False
-        )
-        self.skip_on_429 = config.safe_getboolean("general", "skip-on-429", False)
+        self.skip_on_status = config.safe_get("general", "skip-on-status", None)
         self.full_url = config.safe_getboolean("general", "full-url", False)
         self.color = config.safe_getboolean("general", "color", True)
         self.quiet = config.safe_getboolean("general", "quiet-mode", False)
@@ -443,6 +452,7 @@ class ArgumentParser(object):
         self.headerList = config.safe_get("request", "headers-file", None)
         self.redirect = config.safe_getboolean("request", "follow-redirects", False)
         self.useragent = config.safe_get("request", "user-agent", None)
+        self.useRandomAgents = config.safe_get("request", "random-user-agents", False)
         self.cookie = config.safe_get("request", "cookie", None)
 
         # Connection
@@ -527,16 +537,14 @@ information at https://github.com/maurosoria/dirsearch.""")
                            action="store", dest="excludeRegexps", default=self.excludeRegexps, metavar="REGEXPS")
         general.add_option("--exclude-redirects", help="Exclude responses by redirect regexps or texts, separated by commas (Example: 'https://okta.com/*')",
                            action="store", dest="excludeRedirects", default=self.excludeRedirects, metavar="REGEXPS")
-        general.add_option("--calibration", help="Path to test for calibration", action="store",
-                           dest="testFailPath", default=self.testFailPath, metavar="PATH")
-        general.add_option("--random-agent", help="Choose a random User-Agent for each request",
-                           action="store_true", dest="useRandomAgents",)
+        general.add_option("--exclude-content", help="Exclude responses by response content of this path", action="store",
+                           dest="excludeContent", default=self.excludeContent, metavar="PATH")
+        general.add_option("--skip-on-status", action="store", dest="skip_on_status",
+                           help="Skip target whenever hit one of these status codes, separated by commas", default=self.skip_on_status)
         general.add_option("--minimal", action="store", dest="minimumResponseSize", type="int", default=None,
                            help="Minimal response length", metavar="LENGTH")
         general.add_option("--maximal", action="store", dest="maximumResponseSize", type="int", default=None,
                            help="Maximal response length", metavar="LENGTH")
-        general.add_option("--skip-on-429", action="store_true", dest="skip_on_429",
-                           help="Skip target whenever 429 status code is returned", default=self.skip_on_429)
         general.add_option("-q", "--quiet-mode", action="store_true", dest="quiet",
                            help="Quiet mode", default=self.quiet)
         general.add_option("--full-url", action="store_true", dest="full_url",
@@ -556,6 +564,8 @@ information at https://github.com/maurosoria/dirsearch.""")
                            dest="headerList", default=self.headerList, metavar="FILE")
         request.add_option("-F", "--follow-redirects", help="Follow HTTP redirects",
                            action="store_true", dest="followRedirects", default=self.redirect)
+        request.add_option("--random-agent", help="Choose a random User-Agent for each request",
+                           default=self.useRandomAgents, action="store_true", dest="useRandomAgents")
         request.add_option("--user-agent", action="store", type="string", dest="useragent",
                            default=self.useragent)
         request.add_option("--cookie", action="store", type="string", dest="cookie", default=self.cookie)
