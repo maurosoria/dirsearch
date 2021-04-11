@@ -52,7 +52,7 @@ class Scanner(object):
             return
 
         secondPath = self.prefix + (
-            self.calibration if self.calibration else RandomUtils.randString()
+            self.calibration if self.calibration else RandomUtils.randString(omit=firstPath)
         ) + self.suffix
         secondResponse = self.requester.request(secondPath)
 

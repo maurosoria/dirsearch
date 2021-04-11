@@ -137,6 +137,7 @@ class Controller(object):
         self.recursive = arguments.recursive
         self.minimumResponseSize = arguments.minimumResponseSize
         self.maximumResponseSize = arguments.maximumResponseSize
+        self.maxtime = arguments.maxtime
         self.scanSubdirs = arguments.scanSubdirs
         self.excludeSubdirs = (
             arguments.excludeSubdirs if arguments.excludeSubdirs else []
@@ -158,6 +159,7 @@ class Controller(object):
 
         self.allJobs = len(self.scanSubdirs) if self.scanSubdirs else 1
         self.currentJob = 0
+        self.startTime = time.time()
         self.errorLog = None
         self.errorLogPath = None
         self.threadsLock = Lock()
@@ -246,9 +248,7 @@ class Controller(object):
                     try:
                         self.prepare()
                     except RequestException as e:
-                        self.output.error(
-                            "Fatal error during scanning: " + e.args[0]["message"]
-                        )
+                        self.output.error(e.args[0]["message"])
                         raise SkipTargetInterrupt
 
                 except SkipTargetInterrupt:
@@ -672,6 +672,11 @@ class Controller(object):
                         )
 
                         raise SkipTargetInterrupt
+                    elif self.maxtime and time.time() - self.startTime > self.maxtime:
+                        self.output.error(
+                            "\nExited because the runtime exceeded the maximum set by the user"
+                        )
+                        exit(0)
 
                 break
 

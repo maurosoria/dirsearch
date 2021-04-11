@@ -389,6 +389,7 @@ class ArgumentParser(object):
         self.scheme = options.scheme
         self.requestByHostname = options.requestByHostname
         self.exit_on_error = options.exit_on_error
+        self.maxtime = options.maxtime
         self.debug = options.debug
 
         self.recursion_depth = options.recursion_depth
@@ -423,6 +424,7 @@ class ArgumentParser(object):
         self.saveHome = config.safe_getboolean("general", "save-logs-home", False)
         self.excludeSubdirs = config.safe_get("general", "exclude-subdirs", None)
         self.skip_on_status = config.safe_get("general", "skip-on-status", None)
+        self.maxtime = config.safe_getint("general", "max-time", 0)
         self.full_url = config.safe_getboolean("general", "full-url", False)
         self.color = config.safe_getboolean("general", "color", True)
         self.quiet = config.safe_getboolean("general", "quiet-mode", False)
@@ -545,6 +547,8 @@ information at https://github.com/maurosoria/dirsearch.""")
                            help="Minimal response length", metavar="LENGTH")
         general.add_option("--maximal", action="store", dest="maximumResponseSize", type="int", default=None,
                            help="Maximal response length", metavar="LENGTH")
+        general.add_option("--max-time", action="store", dest="maxtime", type="int", default=self.maxtime,
+                           help="Maximal runtime for the scan", metavar="SECONDS")
         general.add_option("-q", "--quiet-mode", action="store_true", dest="quiet",
                            help="Quiet mode", default=self.quiet)
         general.add_option("--full-url", action="store_true", dest="full_url",
