@@ -30,8 +30,6 @@ class Requester(object):
     def __init__(
         self,
         url,
-        cookie=None,
-        useragent=None,
         maxPool=1,
         maxRetries=5,
         timeout=20,
@@ -102,13 +100,6 @@ class Requester(object):
         ):
             self.headers["Host"] += ":{0}".format(self.port)
 
-        # Set cookie and user-agent headers
-        if cookie:
-            self.setHeader("Cookie", cookie)
-
-        if useragent:
-            self.setHeader("User-agent", useragent)
-
         self.maxRetries = maxRetries
         self.maxPool = maxPool
         self.timeout = timeout
@@ -164,7 +155,7 @@ class Requester(object):
                 url = self.url + self.basePath + path
 
                 if self.randomAgents:
-                    self.headers["User-agent"] = random.choice(self.randomAgents)
+                    self.headers["User-Agent"] = random.choice(self.randomAgents)
 
                 response = self.session.request(
                     self.httpmethod,
