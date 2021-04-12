@@ -1,6 +1,6 @@
 # Changelog
 
-Currently working...
+v0.4.2 (2021.4.12)
 ---------
 - Fixed critical bugs from v0.4.1 (IMPORTANT)
 - Exclude responses by redirects
