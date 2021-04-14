@@ -534,7 +534,6 @@ information at https://github.com/maurosoria/dirsearch.""")
                               help="Uppercase wordlist")
         dictionary.add_option("-L", "--lowercase", action="store_true", dest="lowercase", default=self.lowercase,
                               help="Lowercase wordlist")
-
         dictionary.add_option("-C", "--capital", action="store_true", dest="capitalization", default=self.capitalization,
                               help="Capital wordlist")
 
@@ -542,11 +541,11 @@ information at https://github.com/maurosoria/dirsearch.""")
         general = OptionGroup(parser, "General Settings")
         general.add_option("-t", "--threads", help="Number of threads", action="store", type="int", dest="threadsCount",
                            default=self.threadsCount, metavar="THREADS")
-        general.add_option("-r", "--recursive", help="Bruteforce recursively", action="store_true", dest="recursive",
+        general.add_option("-r", "--recursive", help="Brute-force recursively", action="store_true", dest="recursive",
                            default=self.recursive)
         general.add_option("--recursion-depth", help="Maximum recursion depth", action="store",
                            type="int", dest="recursion_depth", default=self.recursion_depth, metavar="DEPTH")
-        general.add_option("--recursion-status", help="Valid status codes to do recursive scan, support ranges (separated by commas) [Default: all]", action="store",
+        general.add_option("--recursion-status", help="Valid status codes to perform recursive scan, support ranges (separated by commas) [Default: all]", action="store",
                            dest="recursionStatusCodes", default=self.recursionStatusCodes, metavar="CODES")
         general.add_option("--subdirs", help="Scan sub-directories of the given URL[s] (separated by commas)", action="store",
                            dest="scanSubdirs", default=None, metavar="SUBDIRS")
