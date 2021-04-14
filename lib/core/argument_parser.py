@@ -252,6 +252,27 @@ class ArgumentParser(object):
                     print("Invalid status code or status code range: {0}".format(statusCode))
                     exit(1)
 
+        self.recursionStatusCodes = []
+
+        if options.recursionStatusCodes:
+            for statusCode in options.recursionStatusCodes.split(","):
+                try:
+                    if "-" in statusCode:
+                        statusCodes = [
+                            i for i in range(
+                                int(statusCode.split("-")[0].strip()),
+                                int(statusCode.split("-")[1].strip()) + 1
+                            )
+                        ]
+                        self.recursionStatusCodes.extend(statusCodes)
+
+                    else:
+                        self.recursionStatusCodes.append(int(statusCode.strip()))
+
+                except ValueError:
+                    print("Invalid status code or status code range: {0}".format(statusCode))
+                    exit(1)
+
         if options.excludeSizes:
             try:
                 self.excludeSizes = list(
@@ -421,6 +442,7 @@ class ArgumentParser(object):
         self.excludeContent = config.safe_get("general", "exclude-content", "")
         self.recursive = config.safe_getboolean("general", "recursive", False)
         self.recursion_depth = config.safe_getint("general", "recursion-depth", 0)
+        self.recursionStatusCodes = config.safe_get("general", "recursion-status", None)
         self.saveHome = config.safe_getboolean("general", "save-logs-home", False)
         self.excludeSubdirs = config.safe_get("general", "exclude-subdirs", None)
         self.skip_on_status = config.safe_get("general", "skip-on-status", None)
@@ -512,25 +534,28 @@ information at https://github.com/maurosoria/dirsearch.""")
                               help="Uppercase wordlist")
         dictionary.add_option("-L", "--lowercase", action="store_true", dest="lowercase", default=self.lowercase,
                               help="Lowercase wordlist")
+
         dictionary.add_option("-C", "--capital", action="store_true", dest="capitalization", default=self.capitalization,
                               help="Capital wordlist")
 
         # Optional Settings
         general = OptionGroup(parser, "General Settings")
-        general.add_option("-r", "--recursive", help="Bruteforce recursively", action="store_true", dest="recursive",
-                           default=self.recursive)
-        general.add_option("-R", "--recursion-depth", help="Maximum recursion depth", action="store",
-                           type="int", dest="recursion_depth", default=self.recursion_depth, metavar="DEPTH")
         general.add_option("-t", "--threads", help="Number of threads", action="store", type="int", dest="threadsCount",
                            default=self.threadsCount, metavar="THREADS")
+        general.add_option("-r", "--recursive", help="Bruteforce recursively", action="store_true", dest="recursive",
+                           default=self.recursive)
+        general.add_option("--recursion-depth", help="Maximum recursion depth", action="store",
+                           type="int", dest="recursion_depth", default=self.recursion_depth, metavar="DEPTH")
+        general.add_option("--recursion-status", help="Valid status codes to do recursive scan, support ranges (separated by commas) [Default: all]", action="store",
+                           dest="recursionStatusCodes", default=self.recursionStatusCodes, metavar="CODES")
         general.add_option("--subdirs", help="Scan sub-directories of the given URL[s] (separated by commas)", action="store",
                            dest="scanSubdirs", default=None, metavar="SUBDIRS")
         general.add_option("--exclude-subdirs", help="Exclude the following subdirectories during recursive scan (separated by commas)",
                            action="store", dest="excludeSubdirs", default=self.excludeSubdirs, metavar="SUBDIRS")
         general.add_option("-i", "--include-status", help="Include status codes, separated by commas, support ranges (Example: 200,300-399)",
-                           action="store", dest="includeStatusCodes", default=self.includeStatusCodes, metavar="STATUS")
+                           action="store", dest="includeStatusCodes", default=self.includeStatusCodes, metavar="CODES")
         general.add_option("-x", "--exclude-status", help="Exclude status codes, separated by commas, support ranges (Example: 301,500-599)",
-                           action="store", dest="excludeStatusCodes", default=self.excludeStatusCodes, metavar="STATUS")
+                           action="store", dest="excludeStatusCodes", default=self.excludeStatusCodes, metavar="CODES")
         general.add_option("--exclude-sizes", help="Exclude responses by sizes, separated by commas (Example: 123B,4KB)",
                            action="store", dest="excludeSizes", default=self.excludeSizes, metavar="SIZES")
         general.add_option("--exclude-texts", help="Exclude responses by texts, separated by commas (Example: 'Not found', 'Error')",
@@ -562,7 +587,7 @@ information at https://github.com/maurosoria/dirsearch.""")
                            default=self.httpmethod, help="HTTP method (default: GET)", metavar="METHOD")
         request.add_option("-d", "--data", help="HTTP request data", action="store", dest="data",
                            type="str", default=None)
-        request.add_option("-H", "--header", help="HTTP request header, support multiple flags (Example: -H 'Referer: example.com' -H 'Accept: */*')",
+        request.add_option("-H", "--header", help="HTTP request header, support multiple flags (Example: -H 'Referer: example.com')",
                            action="append", type="string", dest="headers", default=None)
         request.add_option("--header-list", help="File contains HTTP request headers", type="string",
                            dest="headerList", default=self.headerList, metavar="FILE")

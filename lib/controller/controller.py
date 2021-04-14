@@ -135,6 +135,7 @@ class Controller(object):
         self.excludeRegexps = arguments.excludeRegexps
         self.excludeRedirects = arguments.excludeRedirects
         self.recursive = arguments.recursive
+        self.recursionStatusCodes = arguments.recursionStatusCodes
         self.minimumResponseSize = arguments.minimumResponseSize
         self.maximumResponseSize = arguments.maximumResponseSize
         self.maxtime = arguments.maxtime
@@ -569,7 +570,11 @@ class Controller(object):
 
             addedToQueue = False
 
-            if self.recursive and "?" not in path.path and "#" not in path.path:
+            if (
+                    self.recursive and "?" not in path.path and "#" not in path.path
+            ) and (
+                    not self.recursionStatusCodes or path.status in self.recursionStatusCodes
+            ):
                 if path.response.redirect:
                     addedToQueue = self.addRedirectDirectory(path)
                 else:
@@ -619,8 +624,11 @@ class Controller(object):
         self.output.warning(message)
         self.fuzzer.pause()
 
-        while self.fuzzer.stopped != len(self.fuzzer.threads):
-            pass
+        # If one of the tasks is broken, don't let the user wait forever
+        for i in range(300):
+            if self.fuzzer.stopped == len(self.fuzzer.threads):
+                break
+            time.sleep(0.025)
 
         self.fuzzer.stopped = 0
 
