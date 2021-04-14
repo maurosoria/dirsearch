@@ -6038,6 +6038,13 @@ joinrequests.%EXT%
 jolokia
 jolokia/
 jolokia/list
+jolokia?p=/read/jboss.jmx:alias=jmx%2Frmi%2FRMIAdaptor/State
+jolokia/exec/java.lang:type=Memory/gc
+jolokia/list?maxObjects=100
+jolokia/read/java.lang:type=*/HeapMemoryUsage
+jolokia/read/java.lang:type=Memory/HeapMemoryUsage/used
+jolokia/search/*:j2eeType=J2EEServer,*
+jolokia/write/java.lang:type=Memory/Verbose/true
 joomla
 joomla.rar
 joomla.xml
