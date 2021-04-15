@@ -101,15 +101,16 @@ class PrintOutput(object):
         elif status == 403:
             message = Fore.BLUE + message + Style.RESET_ALL
 
-        elif status in [500, 502, 503]:
+        elif status in range(500, 600):
             message = Fore.RED + message + Style.RESET_ALL
 
-        # Check if redirect
-        if status in [301, 302, 307] and "location" in [
-            h.lower() for h in response.headers
-        ]:
+        elif status in range(300, 400):
             message = Fore.CYAN + message + Style.RESET_ALL
-            message += "  ->  {0}".format(response.headers["location"])
+            if "location" in [h.lower() for h in response.headers]:
+                message += "  ->  {0}".format(response.headers["location"])
+
+        else:
+            message = Fore.MAGENTA + message + Style.RESET_ALL
 
         if addedToQueue:
             message += "     (Added to queue)"
