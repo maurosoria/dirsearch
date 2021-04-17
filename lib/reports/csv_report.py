@@ -18,9 +18,10 @@
 
 from lib.reports import *
 
+
 class CSVReport(FileBaseReport):
     def generateHeader(self):
-        if self.headerWritten == False:
+        if self.headerWritten is False:
             self.headerWritten = True
             return "URL,Status,Size,Redirection\n"
         else:

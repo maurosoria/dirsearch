@@ -23,7 +23,7 @@ import sys
 
 class MarkdownReport(FileBaseReport):
     def generateHeader(self):
-        if self.headerWritten == False:
+        if self.headerWritten is False:
             self.headerWritten = True
             result = "### Info\n"
             result += "Args: {0}\n".format(' '.join(sys.argv))
@@ -35,7 +35,7 @@ class MarkdownReport(FileBaseReport):
 
     def generate(self):
         result = self.generateHeader()
-        
+
         for entry in self.entries:
             if (entry.protocol, entry.host, entry.port, entry.basePath) not in self.writtenEntries:
                 headerName = "{0}://{1}:{2}/{3}".format(

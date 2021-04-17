@@ -66,7 +66,7 @@ class ReportManager(object):
         self.writeReport()
 
     def writeReport(self):
-        if self.reportObj == None:
+        if self.reportObj is None:
             if self.format == "simple":
                 report = SimpleReport(self.output, self.report)
             elif self.format == "json":
@@ -81,7 +81,7 @@ class ReportManager(object):
                 report = PlainTextReport(self.output, self.report)
 
             self.reportObj = report
-            
+
         self.reportObj.save()
 
     def save(self):

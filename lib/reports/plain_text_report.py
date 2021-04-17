@@ -25,7 +25,7 @@ import sys
 
 class PlainTextReport(FileBaseReport):
     def generateHeader(self):
-        if self.headerWritten == False:
+        if self.headerWritten is False:
             self.headerWritten = True
             return "# Dirsearch started {0} as: {1}\n\n".format(time.ctime(), ' '.join(sys.argv))
         else:
@@ -33,7 +33,7 @@ class PlainTextReport(FileBaseReport):
 
     def generate(self):
         result = self.generateHeader()
-        
+
         for entry in self.entries:
             if (entry.protocol, entry.host, entry.port, entry.basePath) not in self.writtenEntries:
                 for e in entry.results:
