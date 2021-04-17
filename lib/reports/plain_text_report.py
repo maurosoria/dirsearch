@@ -24,23 +24,32 @@ import sys
 
 
 class PlainTextReport(FileBaseReport):
-    def generate(self):
-        result = "# Dirsearch started {0} as: {1}\n\n".format(time.ctime(), ' '.join(sys.argv))
+    def generateHeader(self):
+        if self.headerWritten == False:
+            self.headerWritten = True
+            return "# Dirsearch started {0} as: {1}\n\n".format(time.ctime(), ' '.join(sys.argv))
+        else:
+            return ""
 
+    def generateBatch(self):
+        result = self.generateBatchHeader()
+        
         for entry in self.entries:
-            for e in entry.results:
-                result += "{0}  ".format(e.status)
-                result += "{0}  ".format(FileUtils.size_human(e.getContentLength()).rjust(6, " "))
-                result += "{0}://{1}:{2}/".format(entry.protocol, entry.host, entry.port)
-                result += (
-                    "{0}".format(e.path)
-                    if entry.basePath == ""
-                    else "{0}/{1}".format(entry.basePath, e.path)
-                )
-                location = e.response.redirect
-                if location:
-                    result += "    -> REDIRECTS TO: {0}".format(location)
+            if (entry.protocol, entry.host, entry.port, entry.basePath) not in self.writtenEntries:
+                for e in entry.results:
+                    result += "{0}  ".format(e.status)
+                    result += "{0}  ".format(FileUtils.size_human(e.getContentLength()).rjust(6, " "))
+                    result += "{0}://{1}:{2}/".format(entry.protocol, entry.host, entry.port)
+                    result += (
+                        "{0}".format(e.path)
+                        if entry.basePath == ""
+                        else "{0}/{1}".format(entry.basePath, e.path)
+                    )
+                    location = e.response.redirect
+                    if location:
+                        result += "    -> REDIRECTS TO: {0}".format(location)
 
-                result += "\n"
+                    result += "\n"
+                self.writtenEntries.append((entry.protocol, entry.host, entry.port, entry.basePath))
 
         return result

@@ -20,17 +20,18 @@ from lib.reports import *
 
 
 class SimpleReport(FileBaseReport):
-
     def generate(self):
         result = ""
 
         for entry in self.entries:
-            for e in entry.results:
-                result += "{0}://{1}:{2}/".format(entry.protocol, entry.host, entry.port)
-                result += (
-                    "{0}\n".format(e.path)
-                    if entry.basePath == ""
-                    else "{0}/{1}\n".format(entry.basePath, e.path)
-                )
+            if (entry.protocol, entry.host, entry.port, entry.basePath) not in self.writtenEntries:
+                for e in entry.results:
+                    result += "{0}://{1}:{2}/".format(entry.protocol, entry.host, entry.port)
+                    result += (
+                        "{0}\n".format(e.path)
+                        if entry.basePath == ""
+                        else "{0}/{1}\n".format(entry.basePath, e.path)
+                    )
+                self.writtenEntries.append((entry.protocol, entry.host, entry.port, entry.basePath))
 
         return result

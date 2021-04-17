@@ -16,10 +16,6 @@
 #
 #  Author: Mauro Soria
 
-# from multiprocessing import Queue, Lock
-# import queue
-
-
 class BaseReport(object):
     def save(self):
         raise NotImplementedError
@@ -32,6 +28,8 @@ class FileBaseReport(BaseReport):
     def __init__(self, outputFileName, entries=[]):
         self.output = outputFileName
         self.entries = entries
+        self.headerWritten = False
+        self.writtenEntries = []
 
         self.open()
 
@@ -47,22 +45,9 @@ class FileBaseReport(BaseReport):
 
             self.output = output
 
-        # if self.batch:
-        #     self.file = open(self.output, 'a+')
-
-        # else:
         self.file = open(self.output, 'w+')
 
     def save(self):
-        # if self.batch:
-        #     self.file.seek(0)
-        #     self.file.flush()
-        #     self.file.writelines(self.generate())
-        #     self.file.flush()
-        # else:
-        self.file.seek(0)
-        self.file.truncate(0)
-        self.file.flush()
         self.file.writelines(self.generate())
         self.file.flush()
 
@@ -71,26 +56,3 @@ class FileBaseReport(BaseReport):
 
     def generate(self):
         raise NotImplementedError
-
-
-# class TailableFileBaseReport(FileBaseReport):
-#     def __init__(self, host, port, protocol, basePath, output, batch):
-#         super().__init__(host, port, protocol, basePath, output, batch)
-#         self.writeQueue = Queue()
-#         self.saveMutex = Lock()
-
-#     def save(self):
-#         data = self.generate()
-#         self.file.write(data)
-#         self.file.flush()
-
-#     def storeData(self, data):
-#         self.writeQueue.put(data)
-#         self.save()
-
-#     def getPathIterator(self):
-#         while True:
-#             try:
-#                 yield self.writeQueue.get(False)
-#             except queue.Empty:
-#                 break

@@ -257,7 +257,6 @@ class Controller(object):
             if not self.errorLog.closed:
                 self.errorLog.close()
 
-        self.reportManager.writeReports()
         self.output.warning("\nTask Completed")
 
     def printConfig(self):
@@ -587,7 +586,7 @@ class Controller(object):
             self.fuzzer.start()
             self.processPaths()
 
-        self.reportManager.addReport(self.report)
+        self.reportManager.updateReport(self.report)
         self.report = None
 
         return

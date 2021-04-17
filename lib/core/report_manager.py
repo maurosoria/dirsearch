@@ -56,29 +56,33 @@ class Report(object):
 class ReportManager(object):
     def __init__(self, saveFormat, outputFile):
         self.format = saveFormat
-        self.reports = []
+        self.report = []
+        self.reportObj = None
         self.output = outputFile
         self.lock = threading.Lock()
 
-    def addReport(self, report):
-        self.reports.append(report)
+    def updateReport(self, report):
+        self.report.append(report)
+        self.writeReport()
 
-    def writeReports(self):
-        if self.format == "simple":
-            report = SimpleReport(self.output, self.reports)
-        elif self.format == "json":
-            report = JSONReport(self.output, self.reports)
-        elif self.format == "xml":
-            report = XMLReport(self.output, self.reports)
-        elif self.format == "md":
-            report = MarkdownReport(self.output, self.reports)
-        elif self.format == "csv":
-            report = CSVReport(self.output, self.reports)
-        else:
-            report = PlainTextReport(self.output, self.reports)
+    def writeReport(self):
+        if self.reportObj == None:
+            if self.format == "simple":
+                report = SimpleReport(self.output, self.report)
+            elif self.format == "json":
+                report = JSONReport(self.output, self.report)
+            elif self.format == "xml":
+                report = XMLReport(self.output, self.report)
+            elif self.format == "md":
+                report = MarkdownReport(self.output, self.report)
+            elif self.format == "csv":
+                report = CSVReport(self.output, self.report)
+            else:
+                report = PlainTextReport(self.output, self.report)
 
-        report.save()
-        report.close()
+            self.reportObj = report
+            
+        self.reportObj.save()
 
     def save(self):
         with self.lock:

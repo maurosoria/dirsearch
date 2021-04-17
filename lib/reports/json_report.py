@@ -46,3 +46,10 @@ class JSONReport(FileBaseReport):
             report["results"].append(result)
 
         return json.dumps(report, sort_keys=True, indent=4)
+
+    def save(self):
+        self.file.seek(0)
+        self.file.truncate(0)
+        self.file.flush()
+        self.file.writelines(self.generate())
+        self.file.flush()

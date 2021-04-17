@@ -43,3 +43,10 @@ class XMLReport(FileBaseReport):
         result += "</dirsearchScan>\n"
 
         return result
+
+    def save(self):
+        self.file.seek(0)
+        self.file.truncate(0)
+        self.file.flush()
+        self.file.writelines(self.generate())
+        self.file.flush()
