@@ -31,8 +31,8 @@ class PlainTextReport(FileBaseReport):
         else:
             return ""
 
-    def generateBatch(self):
-        result = self.generateBatchHeader()
+    def generate(self):
+        result = self.generateHeader()
         
         for entry in self.entries:
             if (entry.protocol, entry.host, entry.port, entry.basePath) not in self.writtenEntries:
