@@ -482,9 +482,9 @@ information at https://github.com/maurosoria/dirsearch.""")
         # Mandatory arguments
         mandatory = OptionGroup(parser, "Mandatory")
         mandatory.add_option("-u", "--url", help="Target URL", action="store", type="string", dest="url", default=None)
-        mandatory.add_option("-l", "--url-list", help="URL list file", action="store", type="string", dest="urlList",
+        mandatory.add_option("-l", "--url-list", help="Target URL list file", action="store", type="string", dest="urlList",
                              default=None, metavar="FILE")
-        mandatory.add_option("--stdin", help="URL list from STDIN", action="store_true", dest="stdin_urls")
+        mandatory.add_option("--stdin", help="Target URL list from STDIN", action="store_true", dest="stdin_urls")
         mandatory.add_option("--cidr", help="Target CIDR", action="store", type="string", dest="cidr", default=None)
         mandatory.add_option("--raw", help="File contains the raw request (use `--scheme` flag to set the scheme)", action="store",
                              dest="raw_file", metavar="FILE")
@@ -493,7 +493,7 @@ information at https://github.com/maurosoria/dirsearch.""")
         mandatory.add_option("-X", "--exclude-extensions", action="store", dest="excludeExtensions", default=self.excludeExtensions,
                              help="Exclude extension list separated by commas (Example: asp,jsp)", metavar="EXTENSIONS")
         mandatory.add_option("-f", "--force-extensions", action="store_true", dest="forceExtensions", default=self.forceExtensions,
-                             help="Add extensions to the end of every wordlist entry. By default dirsearch only replaces the %EXT% keyword with extensions")
+                             help="Add extensions to every wordlist entry. By default dirsearch only replaces the %EXT% keyword with extensions")
 
         # Dictionary Settings
         dictionary = OptionGroup(parser, "Dictionary Settings")
@@ -501,13 +501,13 @@ information at https://github.com/maurosoria/dirsearch.""")
                               help="Customize wordlists (separated by commas)",
                               default=self.wordlist)
         dictionary.add_option("--prefixes", action="store", dest="prefixes", default=self.prefixes,
-                              help="Add custom prefixes to all entries (separated by commas)")
+                              help="Add custom prefixes to all wordlist entries (separated by commas)")
         dictionary.add_option("--suffixes", action="store", dest="suffixes", default=self.suffixes,
-                              help="Add custom suffixes to all entries, ignore directories (separated by commas)")
+                              help="Add custom suffixes to all wordlist entries, ignore directories (separated by commas)")
         dictionary.add_option("--only-selected", dest="onlySelected", action="store_true",
-                              help="Only directories + files with selected extensions (or no extension)")
+                              help="Remove paths have different extensions from selected ones via `-e` (keep entries don't have extensions)")
         dictionary.add_option("--remove-extensions", dest="noExtension", action="store_true",
-                              help="Remove extensions in all wordlist entries (Example: admin.php -> admin)")
+                              help="Remove extensions in all paths (Example: admin.php -> admin)")
         dictionary.add_option("-U", "--uppercase", action="store_true", dest="uppercase", default=self.uppercase,
                               help="Uppercase wordlist")
         dictionary.add_option("-L", "--lowercase", action="store_true", dest="lowercase", default=self.lowercase,
@@ -552,7 +552,7 @@ information at https://github.com/maurosoria/dirsearch.""")
         general.add_option("-q", "--quiet-mode", action="store_true", dest="quiet",
                            help="Quiet mode", default=self.quiet)
         general.add_option("--full-url", action="store_true", dest="full_url",
-                           help="Print full URLs in the output", default=self.full_url)
+                           help="Full URLs in the output (enabled automatically in quiet mode)", default=self.full_url)
         general.add_option("--no-color", help="No colored output", action="store_false",
                            dest="color", default=self.color)
 
@@ -593,7 +593,7 @@ information at https://github.com/maurosoria/dirsearch.""")
         connection.add_option("--max-retries", action="store", dest="maxRetries", type="int",
                               default=self.maxRetries, metavar="RETRIES")
         connection.add_option("-b", "--request-by-hostname",
-                              help="By default dirsearch requests by IP for speed. This will force requests by hostname",
+                              help="By default dirsearch requests by IP for speed. This will force dirsearch to request by hostname",
                               action="store_true", dest="requestByHostname", default=self.requestByHostname)
         connection.add_option("--exit-on-error", action="store_true", dest="exit_on_error", default=self.exit_on_error,
                               help="Exit whenever an error occurs")
