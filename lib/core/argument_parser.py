@@ -462,6 +462,7 @@ class ArgumentParser(object):
         self.delay = config.safe_getfloat("connection", "delay", 0)
         self.timeout = config.safe_getint("connection", "timeout", 10)
         self.maxRetries = config.safe_getint("connection", "retries", 2)
+        self.maxrate = config.safe_getint("connection", "max-rate", 0)
         self.proxy = config.safe_get("connection", "proxy", None)
         self.proxylist = config.safe_get("connection", "proxy-list", None)
         self.scheme = config.safe_get("connection", "scheme", "http", ["http", "https"])
@@ -469,7 +470,6 @@ class ArgumentParser(object):
         self.requestByHostname = config.safe_getboolean(
             "connection", "request-by-hostname", False
         )
-        self.maxrate = config.safe_getint("connection", "max-rate", 0)
         self.exit_on_error = config.safe_getboolean("connection", "exit-on-error", False)
         self.debug = config.safe_getboolean("connection", "debug", False)
 
@@ -592,7 +592,7 @@ information at https://github.com/maurosoria/dirsearch.""")
                               default=self.scheme, dest="scheme", metavar="SCHEME")
         connection.add_option("--max-rate", help="Max requests per second", action="store", dest="maxrate",
                               type="int", default=self.maxrate, metavar="REQUESTS")
-        connection.add_option("--retries", help="Number of retries for a failed request", action="store",
+        connection.add_option("--retries", help="Number of retries for failed requests", action="store",
                               dest="maxRetries", type="int", default=self.maxRetries, metavar="RETRIES")
         connection.add_option("-b", "--request-by-hostname",
                               help="By default dirsearch requests by IP for speed. This will force requests by hostname",
