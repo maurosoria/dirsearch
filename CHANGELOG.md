@@ -2,7 +2,7 @@
 
 Currently working...
 ---------
-- Fixed critical bugs from v0.4.1 (IMPORTANT)
+- Fixed critical bugs from v0.4.1
 - Exclude responses by redirects
 - URLs from STDIN
 - Fixed the CSV Injection vulnerability (https://www.exploit-db.com/exploits/49370)
@@ -10,6 +10,8 @@ Currently working...
 - Can setup the default URL scheme (will be used when there is no scheme in the URL)
 - Option to skip target by specified status codes
 - Added max-runtime option
+- Recursion on specified status codes
+- Max request rate
 
 v0.4.1 (2020.12.8)
 ---------
