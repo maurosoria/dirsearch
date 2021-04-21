@@ -388,7 +388,7 @@ class Controller(object):
                 directoryPath = self.batchDirectoryPath
             else:
                 localRequester = Requester(self.urlList[0])
-                fileName = ('{}_'.format(localRequester.basePath))
+                fileName = ('{}_'.format(localRequester.basePath.replace(os.path.sep, ".")[:-1]))
                 fileName += time.strftime('%y-%m-%d_%H-%M-%S')
                 fileName += self.getOutputExtension()
                 directoryPath = FileUtils.build_path(self.savePath, 'reports', localRequester.host)
