@@ -233,7 +233,7 @@ class CLIOutput(object):
         self.newLine(config)
 
     def outputFile(self, target):
-        self.newLine("Output File: {0}\n".format(target))
+        self.newLine("Output File: {0}".format(target))
 
     def errorLogFile(self, target):
         self.newLine("\nError Log: {0}".format(target))

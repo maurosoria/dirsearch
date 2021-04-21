@@ -171,7 +171,7 @@ class Controller(object):
 
         if arguments.autoSave and len(self.urlList) > 1:
             self.setupBatchReports()
-            self.output.newLine("\nAutoSave path: {0}".format(self.batchDirectoryPath))
+            self.output.newLine("AutoSave path: {0}".format(self.batchDirectoryPath))
 
         if arguments.useRandomAgents:
             self.randomAgents = FileUtils.get_lines(
