@@ -18,6 +18,7 @@
 
 import sys
 import email
+import base64
 
 from optparse import OptionParser, OptionGroup
 from ipaddress import IPv4Network
@@ -337,6 +338,9 @@ class ArgumentParser(object):
         else:
             self.excludeRedirects = []
 
+        if options.basic_auth:
+            self.headers["Authorization"] = "Basic {0}".format(base64.b64encode(options.basic_auth.encode()).decode())
+
         self.prefixes = [] if not options.prefixes else list(oset([prefix.strip() for prefix in options.prefixes.split(",")]))
         self.suffixes = [] if not options.suffixes else list(oset([suffix.strip() for suffix in options.suffixes.split(",")]))
         if options.wordlist:
@@ -594,6 +598,8 @@ information at https://github.com/maurosoria/dirsearch.""")
                            action="store_true", dest="followRedirects", default=self.redirect)
         request.add_option("--random-agent", help="Choose a random User-Agent for each request",
                            default=self.useRandomAgents, action="store_true", dest="useRandomAgents")
+        request.add_option("--auth", help="Basic authentication credential [Format: USER:PASS]",
+                           action="store", dest="basic_auth")
         request.add_option("--user-agent", action="store", type="string", dest="useragent",
                            default=self.useragent)
         request.add_option("--cookie", action="store", type="string", dest="cookie", default=self.cookie)
