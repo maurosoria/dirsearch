@@ -363,6 +363,20 @@ class Controller(object):
             )
             sys.exit(1)
 
+    def getOutputExtension(self):
+        if self.arguments.outputFormat:
+            if self.arguments.outputFormat == 'plain' or self.arguments.outputFormat == 'simple':
+                return ".txt"
+            else:
+                return ".{0}".format(self.arguments.outputFormat)
+        elif self.arguments.autoSaveFormat:
+            if self.arguments.autoSaveFormat == 'plain' or self.arguments.autoSaveFormat == 'simple':
+                return ".txt"
+            else:
+                return ".{0}".format(self.arguments.autoSaveFormat)
+        else:
+            return ".txt"
+
     def setupReports(self):
         if self.arguments.outputFile is not None:
             self.output.outputFile(self.arguments.outputFile)
@@ -370,24 +384,14 @@ class Controller(object):
         else:
             if self.batch:
                 fileName = "BATCH"
-                if self.arguments.outputFormat:
-                    fileName += ".{0}".format(self.arguments.outputFormat)
-                elif self.arguments.autoSaveFormat:
-                    fileName += ".{0}".format(self.arguments.autoSaveFormat)
-                else:
-                    fileName += ".txt"
+                fileName += self.getOutputExtension()
                 directoryPath = self.batchDirectoryPath
             else:
-                local_requester = Requester(self.urlList[0])
-                fileName = ('{}_'.format(local_requester.basePath))
+                localRequester = Requester(self.urlList[0])
+                fileName = ('{}_'.format(localRequester.basePath))
                 fileName += time.strftime('%y-%m-%d_%H-%M-%S')
-                if self.arguments.outputFormat:
-                    fileName += ".{0}".format(self.arguments.outputFormat)
-                elif self.arguments.autoSaveFormat:
-                    fileName += ".{0}".format(self.arguments.autoSaveFormat)
-                else:
-                    fileName += ".txt"
-                directoryPath = FileUtils.build_path(self.savePath, 'reports', local_requester.host)
+                fileName += self.getOutputExtension()
+                directoryPath = FileUtils.build_path(self.savePath, 'reports', localRequester.host)
 
             outputFile = FileUtils.build_path(directoryPath, fileName)
 
