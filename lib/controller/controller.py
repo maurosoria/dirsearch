@@ -574,7 +574,7 @@ class Controller(object):
             if (
                     self.recursive and "?" not in path.path and "#" not in path.path
             ) and (
-                    not self.recursionStatusCodes or path.status in self.recursionStatusCodes
+                    not self.recursionStatusCodes or path.status in self.recursionStatusCodes or path.response.redirect
             ):
                 if path.response.redirect:
                     addedToQueue = self.addRedirectDirectory(path)
