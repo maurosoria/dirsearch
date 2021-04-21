@@ -598,7 +598,7 @@ class Controller(object):
 
     def notFoundCallback(self, path):
         self.index += 1
-        self.output.lastPath(path, self.index, len(self.dictionary), self.currentJob, self.allJobs)
+        self.output.lastPath(path, self.index, len(self.dictionary), self.currentJob, self.allJobs, self.fuzzer.rate)
         del path
 
     def errorCallback(self, path, errorMsg):
