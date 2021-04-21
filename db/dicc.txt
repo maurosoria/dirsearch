@@ -4454,6 +4454,7 @@ config.ini
 config.ini.bak
 config.ini.old
 config.ini.txt
+config.js
 config.json
 config.json.cfm
 config.local
@@ -6060,6 +6061,7 @@ joomla/
 joomla/administrator
 js
 js/
+js/config.js
 js/elfinder/elfinder.php
 js/envConfig.js
 js/FCKeditor
@@ -6251,6 +6253,7 @@ lk/
 load.php
 local
 local-cgi/
+localconfig
 local.config.rb
 local.properties
 local.xml.additional
