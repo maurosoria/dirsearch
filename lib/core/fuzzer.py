@@ -34,6 +34,7 @@ class Fuzzer(object):
         excludeContent=None,
         threads=1,
         delay=0,
+        maxrate=0,
         matchCallbacks=[],
         notFoundCallbacks=[],
         errorCallbacks=[],
@@ -50,6 +51,7 @@ class Fuzzer(object):
             threads if len(self.dictionary) >= threads else len(self.dictionary)
         )
         self.delay = delay
+        self.maxrate = maxrate
         self.running = False
         self.stopped = 0
         self.calibration = None
@@ -141,6 +143,7 @@ class Fuzzer(object):
         # Setting up threads
         self.setupThreads()
         self.index = 0
+        self.rate = 0
         self.dictionary.reset()
         self.runningThreadsCount = len(self.threads)
         self.running = True
@@ -201,6 +204,9 @@ class Fuzzer(object):
     def stopThread(self):
         self.runningThreadsCount -= 1
 
+    def reduceRate(self):
+        self.rate -= 1
+
     def thread_proc(self):
         self.playEvent.wait()
 
@@ -209,6 +215,12 @@ class Fuzzer(object):
 
             while path:
                 try:
+                    # Pause if the request rate exceeded the maximal
+                    while self.maxrate and self.rate > self.maxrate:
+                        pass
+                    self.rate += 1
+                    threading.Timer(1, self.reduceRate).start()
+
                     status, response = self.scan(path)
                     result = Path(path=path, status=status, response=response)
 

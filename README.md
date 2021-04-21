@@ -39,47 +39,6 @@ python3 dirsearch.py -u <URL> -e <EXTENSIONS>
 *dirsearch requires python 3 or greater*
 
 
-Features
---------
-- Fast
-- Easy and simple to use
-- Multithreading
-- Wildcard responses filtering (invalid webpages)
-- Keep alive connections
-- Support for multiple extensions
-- Support for every HTTP method
-- Support for HTTP request data
-- Support for raw request
-- Extensions excluding
-- Reporting (Plain text, JSON, XML, Markdown, CSV)
-- Recursive brute forcing
-- Target enumeration from an IP range
-- Sub-directories brute forcing
-- Force extensions
-- HTTP and SOCKS proxy support
-- HTTP cookies and headers support
-- HTTP headers from file
-- User agent randomization
-- Proxy host randomization
-- Batch processing
-- Request delaying
-- 429 response code detecting
-- Multiple wordlist formats (lowercase, uppercase, capitalization)
-- Default configuration from file
-- Option to force requests by hostname
-- Option to add custom suffixes and prefixes
-- Option to whitelist response codes, support ranges (-i 200,300-399)
-- Option to blacklist response codes, support ranges (-x 404,500-599)
-- Option to exclude responses by sizes
-- Option to exclude responses by texts
-- Option to exclude responses by regexp(s)
-- Option to exclude responses by redirects
-- Options to display only items with response length from range
-- Option to remove all extensions from every wordlist entry
-- Quiet mode
-- Debug mode
-
-
 About wordlists
 ---------------
 **Summary**: Wordlist must be a text file, each line will be an endpoint. About extensions, unlike other tools, dirsearch doesn't append extensions to every word, if you don't use the `-f` flag. By default, only the `%EXT%` keyword in the wordlist will be replaced with extensions (`-e <extensions>`).

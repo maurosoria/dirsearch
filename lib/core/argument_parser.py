@@ -410,6 +410,7 @@ class ArgumentParser(object):
         self.scheme = options.scheme
         self.requestByHostname = options.requestByHostname
         self.exit_on_error = options.exit_on_error
+        self.maxrate = options.maxrate
         self.maxtime = options.maxtime
         self.debug = options.debug
 
@@ -482,7 +483,8 @@ class ArgumentParser(object):
         # Connection
         self.delay = config.safe_getfloat("connection", "delay", 0)
         self.timeout = config.safe_getint("connection", "timeout", 10)
-        self.maxRetries = config.safe_getint("connection", "max-retries", 3)
+        self.maxRetries = config.safe_getint("connection", "retries", 2)
+        self.maxrate = config.safe_getint("connection", "max-rate", 0)
         self.proxy = config.safe_get("connection", "proxy", None)
         self.proxylist = config.safe_get("connection", "proxy-list", None)
         self.scheme = config.safe_get("connection", "scheme", "http", ["http", "https"])
@@ -602,8 +604,6 @@ information at https://github.com/maurosoria/dirsearch.""")
         connection = OptionGroup(parser, "Connection Settings")
         connection.add_option("--timeout", action="store", dest="timeout", type="float",
                               default=self.timeout, help="Connection timeout")
-        connection.add_option("--ip", action="store", dest="ip", default=None,
-                              help="Server IP address")
         connection.add_option("-s", "--delay", help="Delay between requests", action="store", dest="delay",
                               type="float", default=self.delay)
         connection.add_option("--proxy", action="store", dest="proxy", type="string", default=self.proxy,
@@ -614,11 +614,15 @@ information at https://github.com/maurosoria/dirsearch.""")
                               help="Proxy to replay with found paths", metavar="PROXY")
         connection.add_option("--scheme", help="Default scheme (for raw request or if there is no scheme in the URL)", action="store",
                               default=self.scheme, dest="scheme", metavar="SCHEME")
-        connection.add_option("--max-retries", action="store", dest="maxRetries", type="int",
-                              default=self.maxRetries, metavar="RETRIES")
+        connection.add_option("--max-rate", help="Max requests per second", action="store", dest="maxrate",
+                              type="int", default=self.maxrate, metavar="REQUESTS")
+        connection.add_option("--retries", help="Number of retries for failed requests", action="store",
+                              dest="maxRetries", type="int", default=self.maxRetries, metavar="RETRIES")
         connection.add_option("-b", "--request-by-hostname",
                               help="By default dirsearch requests by IP for speed. This will force dirsearch to request by hostname",
                               action="store_true", dest="requestByHostname", default=self.requestByHostname)
+        connection.add_option("--ip", action="store", dest="ip", default=None,
+                              help="Server IP address")
         connection.add_option("--exit-on-error", action="store_true", dest="exit_on_error", default=self.exit_on_error,
                               help="Exit whenever an error occurs")
         connection.add_option("--debug", action="store_true", dest="debug", default=self.debug,

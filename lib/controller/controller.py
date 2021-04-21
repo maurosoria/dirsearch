@@ -242,6 +242,7 @@ class Controller(object):
                         excludeContent=arguments.excludeContent,
                         threads=arguments.threadsCount,
                         delay=arguments.delay,
+                        maxrate=arguments.maxrate,
                         matchCallbacks=matchCallbacks,
                         notFoundCallbacks=notFoundCallbacks,
                         errorCallbacks=errorCallbacks,
