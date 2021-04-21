@@ -221,7 +221,6 @@ class Fuzzer(object):
                             callback(result)
 
                 except RequestException as e:
-
                     for callback in self.errorCallbacks:
                         callback(path, e.args[0]["message"])
 
