@@ -574,7 +574,7 @@ class Controller(object):
             if (
                     self.recursive and "?" not in path.path and "#" not in path.path
             ) and (
-                    not self.recursionStatusCodes or path.status in self.recursionStatusCodes or path.response.redirect
+                    not self.recursionStatusCodes or path.status in self.recursionStatusCodes
             ):
                 if path.response.redirect:
                     addedToQueue = self.addRedirectDirectory(path)
@@ -609,9 +609,6 @@ class Controller(object):
             exit(1)
 
         else:
-            if self.arguments.debug:
-                self.output.debug(errorMsg)
-
             self.output.addConnectionError()
 
     def appendErrorLog(self, path, errorMsg):
@@ -681,9 +678,10 @@ class Controller(object):
                         )
 
                         raise SkipTargetInterrupt
+
                     elif self.maxtime and time.time() - self.startTime > self.maxtime:
                         self.output.error(
-                            "\nExited because the runtime exceeded the maximum set by the user"
+                            "\nCancelled because the runtime exceeded the maximal set by the user"
                         )
                         exit(0)
 

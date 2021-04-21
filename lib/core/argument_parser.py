@@ -182,8 +182,8 @@ class ArgumentParser(object):
 
         if options.extensions == "*":
             self.extensions = [
-                "php", "inc.php", "jsp", "jsf", "asp", "aspx", "do", "action", "cgi",
-                "pl", "html", "htm", "js", "css", "json", "txt", "tar.gz", "tgz"
+                "php", "jsp", "jsf", "asp", "aspx", "do", "action", "cgi",
+                "pl", "html", "htm", "js", "json", "json", "tar.gz", "tgz"
             ]
         elif options.extensions == "CHANGELOG.md":
             print("A weird extension was provided: CHANGELOG.md. Please do not use * as the extension or enclose it in double quotes")
@@ -412,7 +412,6 @@ class ArgumentParser(object):
         self.exit_on_error = options.exit_on_error
         self.maxrate = options.maxrate
         self.maxtime = options.maxtime
-        self.debug = options.debug
 
         self.recursion_depth = options.recursion_depth
 
@@ -493,7 +492,6 @@ class ArgumentParser(object):
             "connection", "request-by-hostname", False
         )
         self.exit_on_error = config.safe_getboolean("connection", "exit-on-error", False)
-        self.debug = config.safe_getboolean("connection", "debug", False)
 
     def parseArguments(self):
         usage = "Usage: %prog [-u|--url] target [-e|--extensions] extensions [options]"
@@ -547,8 +545,8 @@ information at https://github.com/maurosoria/dirsearch.""")
                            default=self.recursive)
         general.add_option("--recursion-depth", help="Maximum recursion depth", action="store",
                            type="int", dest="recursion_depth", default=self.recursion_depth, metavar="DEPTH")
-        general.add_option("--recursion-status", help="Valid status codes to perform recursive scan, support ranges (separated by commas) [Default: all]", action="store",
-                           dest="recursionStatusCodes", default=self.recursionStatusCodes, metavar="CODES")
+        general.add_option("--recursion-status", help="Valid status codes to perform recursive scan, support ranges (separated by commas)",
+                           action="store", dest="recursionStatusCodes", default=self.recursionStatusCodes, metavar="CODES")
         general.add_option("--subdirs", help="Scan sub-directories of the given URL[s] (separated by commas)", action="store",
                            dest="scanSubdirs", default=None, metavar="SUBDIRS")
         general.add_option("--exclude-subdirs", help="Exclude the following subdirectories during recursive scan (separated by commas)",
@@ -567,8 +565,8 @@ information at https://github.com/maurosoria/dirsearch.""")
                            action="store", dest="excludeRedirects", default=self.excludeRedirects, metavar="REGEXPS")
         general.add_option("--exclude-content", help="Exclude responses by response content of this path", action="store",
                            dest="excludeContent", default=self.excludeContent, metavar="PATH")
-        general.add_option("--skip-on-status", action="store", dest="skip_on_status",
-                           help="Skip target whenever hit one of these status codes, separated by commas", default=self.skip_on_status)
+        general.add_option("--skip-on-status", action="store", dest="skip_on_status", default=self.skip_on_status,
+                           help="Skip target whenever hit one of these status codes, separated by commas", metavar="CODES")
         general.add_option("--minimal", action="store", dest="minimumResponseSize", type="int", default=None,
                            help="Minimal response length", metavar="LENGTH")
         general.add_option("--maximal", action="store", dest="maximumResponseSize", type="int", default=None,
@@ -625,8 +623,6 @@ information at https://github.com/maurosoria/dirsearch.""")
                               help="Server IP address")
         connection.add_option("--exit-on-error", action="store_true", dest="exit_on_error", default=self.exit_on_error,
                               help="Exit whenever an error occurs")
-        connection.add_option("--debug", action="store_true", dest="debug", default=self.debug,
-                              help="Debug mode")
 
         # Report Settings
         reports = OptionGroup(parser, "Reports")
