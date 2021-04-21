@@ -681,7 +681,7 @@ class Controller(object):
 
                     elif self.maxtime and time.time() - self.startTime > self.maxtime:
                         self.output.error(
-                            "\nCancelled because the runtime exceeded the maximal set by the user"
+                            "\nCancelled because the runtime exceeded the maximal set by user"
                         )
                         exit(0)
 
