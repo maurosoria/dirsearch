@@ -544,6 +544,7 @@ class Controller(object):
                 self.exit = True
                 self.fuzzer.stop()
                 self.output.error("\nCanceled by the user")
+                self.reportManager.updateReport(self.report)
                 exit(0)
 
             elif option.lower() == "c":
