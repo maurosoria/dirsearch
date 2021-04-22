@@ -26,10 +26,19 @@ Overview
 Installation & Usage
 ------------
 
-```python
+```
 git clone https://github.com/maurosoria/dirsearch.git
 cd dirsearch
 python3 dirsearch.py -u <URL> -e <EXTENSIONS>
+```
+
+In case you want to run dirsearch anywhere:
+
+```
+git clone https://github.com/maurosoria/dirsearch.git
+cd dirsearch
+pip3 install .
+dirsearch -u <URL> -e <EXTENSIONS>
 ```
 
 - To can use SOCKS proxy or work with `../` in the wordlist, you need to install pips with `requirements.txt`: `pip3 install -r requirements.txt`
