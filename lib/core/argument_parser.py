@@ -598,9 +598,9 @@ information at https://github.com/maurosoria/dirsearch.""")
 
         # Report Settings
         reports = OptionGroup(parser, "Reports")
-        reports.add_option("-o", action="store", dest="outputFile", default=None, metavar="OUTPUTFILE")
-        reports.add_option("--format", action="store", dest="outputFormat", default=None, metavar="simple",
-                           help="simple, plain, json, xml, md, csv")
+        reports.add_option("-o", action="store", dest="outputFile", default=None, metavar="FILE", help="Output file")
+        reports.add_option("--format", action="store", dest="outputFormat", default=None, metavar="FORMAT",
+                           help="Report format (Available: simple, plain, json, xml, md, csv)")
 
         parser.add_option_group(mandatory)
         parser.add_option_group(dictionary)
