@@ -361,6 +361,8 @@ class ArgumentParser(object):
         self.ip = options.ip
         self.maxRetries = options.maxRetries
         self.recursive = options.recursive
+        self.deep_recursive = options.deep_recursive
+        self.force_recursive = options.force_recursive
         self.minimumResponseSize = options.minimumResponseSize
         self.maximumResponseSize = options.maximumResponseSize
         self.noExtension = options.noExtension
@@ -445,6 +447,8 @@ class ArgumentParser(object):
         self.excludeRedirects = config.safe_get("general", "exclude-redirects", None)
         self.excludeContent = config.safe_get("general", "exclude-content", "")
         self.recursive = config.safe_getboolean("general", "recursive", False)
+        self.deep_recursive = config.safe_getboolean("general", "deep-recursive", False)
+        self.force_recursive = config.safe_getboolean("general", "force-recursive", False)
         self.recursion_depth = config.safe_getint("general", "recursion-depth", 0)
         self.recursionStatusCodes = config.safe_get("general", "recursion-status", None)
         self.saveHome = config.safe_getboolean("general", "save-logs-home", False)
@@ -547,6 +551,10 @@ information at https://github.com/maurosoria/dirsearch.""")
                            default=self.threadsCount, metavar="THREADS")
         general.add_option("-r", "--recursive", help="Brute-force recursively", action="store_true", dest="recursive",
                            default=self.recursive)
+        general.add_option("--deep-recursive", help="Perform recursive scans on every directory depth (Example: api/users -> api/)", action="store_true", dest="deep_recursive",
+                           default=self.deep_recursive)
+        general.add_option("--force-recursive", help="Do recursive scans for every found path, not only paths end with slash", action="store_true", dest="force_recursive",
+                           default=self.force_recursive)
         general.add_option("--recursion-depth", help="Maximum recursion depth", action="store",
                            type="int", dest="recursion_depth", default=self.recursion_depth, metavar="DEPTH")
         general.add_option("--recursion-status", help="Valid status codes to perform recursive scan, support ranges (separated by commas)",

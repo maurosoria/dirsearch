@@ -135,6 +135,8 @@ class Controller(object):
         self.excludeRegexps = arguments.excludeRegexps
         self.excludeRedirects = arguments.excludeRedirects
         self.recursive = arguments.recursive
+        self.deep_recursive = arguments.deep_recursive
+        self.force_recursive = arguments.force_recursive
         self.recursionStatusCodes = arguments.recursionStatusCodes
         self.minimumResponseSize = arguments.minimumResponseSize
         self.maximumResponseSize = arguments.maximumResponseSize
@@ -572,7 +574,7 @@ class Controller(object):
             addedToQueue = False
 
             if (
-                    self.recursive and "?" not in path.path and "#" not in path.path
+                    any([self.recursive, self.deep_recursive, self.force_recursive])
             ) and (
                     not self.recursionStatusCodes or path.status in self.recursionStatusCodes
             ):
@@ -681,7 +683,7 @@ class Controller(object):
 
                     elif self.maxtime and time.time() - self.startTime > self.maxtime:
                         self.output.error(
-                            "\nCancelled because the runtime exceeded the maximal set by user"
+                            "\nCanceled because the runtime exceeded the maximal set by user"
                         )
                         exit(0)
 
@@ -715,29 +717,43 @@ class Controller(object):
 
         return url
 
-    def addDirectory(self, path):
-        if path.endswith("/"):
-            if path in [directory + "/" for directory in self.excludeSubdirs]:
-                return False
+    def addDirectory(self, path, fullPath=None):
+        added = False
+        path = path.split("?")[0].split("#")[0]
 
-            dir = self.currentDirectory + path
+        if path.rstrip("/") in [directory for directory in self.excludeSubdirs]:
+            return False
 
+        fullPath = self.currentDirectory + path if not fullPath else fullPath
+
+        dirs = []
+
+        if self.deep_recursive:
+            for i in range(1, path.count("/") + 1):
+                dir = fullPath.replace(path, "") + "/".join(path.split("/")[:i])
+                dirs.append(dir.rstrip("/") + "/")
+        if self.force_recursive:
+            if not fullPath.endswith("/"):
+                fullPath += "/"
+            dirs.append(fullPath)
+        elif self.recursive and fullPath.endswith("/"):
+            dirs.append(fullPath)
+
+        for dir in dirs:
             if self.scanSubdirs and dir in self.scanSubdirs:
-                return False
+                continue
             elif dir in self.doneDirs:
-                return False
+                continue
             elif self.recursion_depth and dir.count("/") > self.recursion_depth:
-                return False
+                continue
 
             self.directories.put(dir)
-            self.allJobs += 1
-
             self.doneDirs.append(dir)
 
-            return True
+            self.allJobs += 1
+            added = True
 
-        else:
-            return False
+        return added
 
     def addRedirectDirectory(self, path):
         # Resolve the redirect header relative to the current URL and add the
@@ -749,26 +765,10 @@ class Controller(object):
         absoluteUrl = urllib.parse.urljoin(baseUrl, path.response.redirect)
         absoluteUrl = self.addPort(absoluteUrl)
 
-        if absoluteUrl.startswith(baseUrl) and absoluteUrl != baseUrl and absoluteUrl.endswith("/"):
+        if absoluteUrl.startswith(baseUrl) and absoluteUrl != baseUrl:
             path = absoluteUrl[len(baseUrl):]
+            fullPath = absoluteUrl[len(self.addPort(self.currentUrl)):]
 
-            if path in [directory + "/" for directory in self.excludeSubdirs]:
-                return False
-
-            dir = absoluteUrl[len(self.addPort(self.currentUrl)):]
-
-            if self.scanSubdirs and dir in self.scanSubdirs:
-                return False
-            elif dir in self.doneDirs:
-                return False
-            elif self.recursion_depth and dir.count("/") > self.recursion_depth:
-                return False
-
-            self.directories.put(dir)
-            self.allJobs += 1
-
-            self.doneDirs.append(dir)
-
-            return True
+            return self.addDirectory(path, fullPath)
 
         return False
