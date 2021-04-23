@@ -35,8 +35,8 @@ class PlainTextReport(FileBaseReport):
         result = self.generateHeader()
 
         for entry in self.entries:
-            if (entry.protocol, entry.host, entry.port, entry.basePath) not in self.writtenEntries:
-                for e in entry.results:
+            for e in entry.results:
+                if (entry.protocol, entry.host, entry.port, entry.basePath, e.path) not in self.writtenEntries:
                     result += "{0}  ".format(e.status)
                     result += "{0}  ".format(FileUtils.size_human(e.getContentLength()).rjust(6, " "))
                     result += "{0}://{1}:{2}/".format(entry.protocol, entry.host, entry.port)
@@ -50,6 +50,6 @@ class PlainTextReport(FileBaseReport):
                         result += "    -> REDIRECTS TO: {0}".format(location)
 
                     result += "\n"
-                self.writtenEntries.append((entry.protocol, entry.host, entry.port, entry.basePath))
+                    self.writtenEntries.append((entry.protocol, entry.host, entry.port, entry.basePath, e.path))
 
         return result

@@ -41,6 +41,7 @@ class Report(object):
         self.protocol = protocol
         self.basePath = basePath
         self.results = []
+        self.completed = False
 
         if self.basePath.endswith("/"):
             self.basePath = self.basePath[:-1]
@@ -56,29 +57,30 @@ class Report(object):
 class ReportManager(object):
     def __init__(self, saveFormat, outputFile):
         self.format = saveFormat
-        self.report = []
+        self.reports = []
         self.reportObj = None
         self.output = outputFile
         self.lock = threading.Lock()
 
     def updateReport(self, report):
-        self.report.append(report)
+        if report not in self.reports:
+            self.reports.append(report)
         self.writeReport()
 
     def writeReport(self):
         if self.reportObj is None:
             if self.format == "simple":
-                report = SimpleReport(self.output, self.report)
+                report = SimpleReport(self.output, self.reports)
             elif self.format == "json":
-                report = JSONReport(self.output, self.report)
+                report = JSONReport(self.output, self.reports)
             elif self.format == "xml":
-                report = XMLReport(self.output, self.report)
+                report = XMLReport(self.output, self.reports)
             elif self.format == "md":
-                report = MarkdownReport(self.output, self.report)
+                report = MarkdownReport(self.output, self.reports)
             elif self.format == "csv":
-                report = CSVReport(self.output, self.report)
+                report = CSVReport(self.output, self.reports)
             else:
-                report = PlainTextReport(self.output, self.report)
+                report = PlainTextReport(self.output, self.reports)
 
             self.reportObj = report
 

@@ -22,6 +22,16 @@ import sys
 
 
 class MarkdownReport(FileBaseReport):
+    def __init__(self, outputFileName, entries=[]):
+        self.output = outputFileName
+        self.entries = entries
+        self.headerWritten = False
+        self.writtenEntries = []
+        self.printedTargetHeaderList = []
+        self.completedHosts = []
+
+        self.open()
+
     def generateHeader(self):
         if self.headerWritten is False:
             self.headerWritten = True
@@ -37,21 +47,26 @@ class MarkdownReport(FileBaseReport):
         result = self.generateHeader()
 
         for entry in self.entries:
-            if (entry.protocol, entry.host, entry.port, entry.basePath) not in self.writtenEntries:
-                headerName = "{0}://{1}:{2}/{3}".format(
-                    entry.protocol, entry.host, entry.port, entry.basePath
-                )
+            headerName = "{0}://{1}:{2}/{3}".format(
+                entry.protocol, entry.host, entry.port, entry.basePath
+            )
+            if (entry.protocol, entry.host, entry.port, entry.basePath) not in self.printedTargetHeaderList:
                 result += "### Target: {0}\n\n".format(headerName)
                 result += "Path | Status | Size | Redirection\n"
                 result += "-----|--------|------|------------\n"
+                self.printedTargetHeaderList.append((entry.protocol, entry.host, entry.port, entry.basePath))
 
-                for e in entry.results:
+            for e in entry.results:
+                if (entry.protocol, entry.host, entry.port, entry.basePath, e.path) not in self.writtenEntries:
                     result += "[/{0}]({1}) | ".format(e.path, headerName + e.path)
                     result += "{0} | ".format(e.status)
                     result += "{0} | ".format(e.getContentLength())
                     result += "{0}\n".format(e.response.redirect)
 
+                    self.writtenEntries.append((entry.protocol, entry.host, entry.port, entry.basePath, e.path))
+
+            if entry.completed and entry not in self.completedHosts:
                 result += "\n"
-                self.writtenEntries.append((entry.protocol, entry.host, entry.port, entry.basePath))
+                self.completedHosts.append(entry)
 
         return result

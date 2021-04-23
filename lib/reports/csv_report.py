@@ -32,8 +32,8 @@ class CSVReport(FileBaseReport):
         insecureChars = ("+", "-", "=", "@")
 
         for entry in self.entries:
-            if (entry.protocol, entry.host, entry.port, entry.basePath) not in self.writtenEntries:
-                for e in entry.results:
+            for e in entry.results:
+                if (entry.protocol, entry.host, entry.port, entry.basePath, e.path) not in self.writtenEntries:
                     path = e.path
                     status = e.status
                     contentLength = e.getContentLength()
@@ -51,6 +51,6 @@ class CSVReport(FileBaseReport):
                         result += "\"{0}\"".format(redirect)
 
                     result += "\n"
-                self.writtenEntries.append((entry.protocol, entry.host, entry.port, entry.basePath))
+                    self.writtenEntries.append((entry.protocol, entry.host, entry.port, entry.basePath, e.path))
 
         return result

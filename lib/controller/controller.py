@@ -166,8 +166,6 @@ class Controller(object):
 
         self.output.header(program_banner)
         self.printConfig()
-        self.setupErrorLogs()
-        self.output.errorLogFile(self.errorLogPath)
 
         if arguments.autoSave and len(self.urlList) > 1:
             self.setupBatchReports()
@@ -179,6 +177,8 @@ class Controller(object):
             )
 
         self.setupReports()
+        self.setupErrorLogs()
+        self.output.errorLogFile(self.errorLogPath)
         try:
             for url in self.urlList:
                 try:
@@ -490,6 +490,7 @@ class Controller(object):
             newPath = self.currentDirectory + path.path
 
             self.report.addResult(newPath, path.status, path.response)
+            self.reportManager.updateReport(self.report)
 
             del path
 
@@ -602,6 +603,7 @@ class Controller(object):
             self.fuzzer.start()
             self.processPaths()
 
+        self.report.completed = True
         self.reportManager.updateReport(self.report)
         self.report = None
 
