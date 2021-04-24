@@ -217,6 +217,7 @@ class CLIOutput(object):
         config += self.addConfig("Threads", threads, config)
         config += self.addConfig("Wordlist size", wordlist_size, config)
         config += Style.RESET_ALL
+        config += "\n"
 
         self.newLine(config)
 
@@ -226,17 +227,17 @@ class CLIOutput(object):
 
         self.target = target
 
-        config = Style.BRIGHT + "\n"
+        config = Style.BRIGHT
         config += self.addConfig("Target", target, config) + "\n"
         config += Style.RESET_ALL
 
         self.newLine(config)
 
     def outputFile(self, target):
-        self.newLine("Output File: {0}".format(target))
+        self.newLine("Output File: {0}\n".format(target))
 
     def errorLogFile(self, target):
-        self.newLine("\nError Log: {0}".format(target))
+        self.newLine("Error Log: {0}\n".format(target))
 
     def debug(self, info):
         with self.mutex:
