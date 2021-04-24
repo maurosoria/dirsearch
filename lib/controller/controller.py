@@ -379,8 +379,8 @@ class Controller(object):
 
     def setupReports(self):
         if self.arguments.outputFile is not None:
-            self.output.outputFile(self.arguments.outputFile)
-            outputFile = self.arguments.outputFile
+            outputFile = FileUtils.get_abs_path(self.arguments.outputFile)
+            self.output.outputFile(outputFile)
         else:
             if self.batch:
                 fileName = "BATCH"
