@@ -125,14 +125,16 @@ class CLIOutput(object):
         elif status == 403:
             message = Fore.BLUE + message + Style.RESET_ALL
 
-        elif status == [500, 502, 503]:
+        elif status in range(500, 600):
             message = Fore.RED + message + Style.RESET_ALL
 
-        # Check if redirect
-        if status in [301, 302, 303, 307, 308]:
+        elif status in range(300, 400):
             message = Fore.CYAN + message + Style.RESET_ALL
             if "location" in [h.lower() for h in response.headers]:
                 message += "  ->  {0}".format(response.headers["location"])
+
+        else:
+            message = Fore.MAGENTA + message + Style.RESET_ALL
 
         if addedToQueue:
             message += "     (Added to queue)"
@@ -140,10 +142,10 @@ class CLIOutput(object):
         with self.mutex:
             self.newLine(message)
 
-    def lastPath(self, path, index, length, currentJob, allJobs):
+    def lastPath(self, path, index, length, currentJob, allJobs, rate):
         l, h = get_terminal_size()
 
-        message = "{0:.2f}% - ".format(self.percentage(index, length))
+        message = "{0:.2f}% | {1} req/s - ".format(self.percentage(index, length), rate)
 
         if allJobs > 1:
             message += "Job: {0}/{1} - ".format(currentJob, allJobs)

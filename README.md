@@ -26,10 +26,19 @@ Overview
 Installation & Usage
 ------------
 
-```python
+```
 git clone https://github.com/maurosoria/dirsearch.git
 cd dirsearch
 python3 dirsearch.py -u <URL> -e <EXTENSIONS>
+```
+
+In case you want to run dirsearch anywhere:
+
+```
+git clone https://github.com/maurosoria/dirsearch.git
+cd dirsearch
+pip3 install .
+dirsearch -u <URL> -e <EXTENSIONS>
 ```
 
 - To can use SOCKS proxy or work with `../` in the wordlist, you need to install pips with `requirements.txt`: `pip3 install -r requirements.txt`
@@ -37,47 +46,6 @@ python3 dirsearch.py -u <URL> -e <EXTENSIONS>
 - If you are using Windows and don't have git, you can install the ZIP file [here](https://github.com/maurosoria/dirsearch/archive/master.zip). dirsearch also supports [Docker](https://github.com/maurosoria/dirsearch#support-docker)
 
 *dirsearch requires python 3 or greater*
-
-
-Features
---------
-- Fast
-- Easy and simple to use
-- Multithreading
-- Wildcard responses filtering (invalid webpages)
-- Keep alive connections
-- Support for multiple extensions
-- Support for every HTTP method
-- Support for HTTP request data
-- Support for raw request
-- Extensions excluding
-- Reporting (Plain text, JSON, XML, Markdown, CSV)
-- Recursive brute forcing
-- Target enumeration from an IP range
-- Sub-directories brute forcing
-- Force extensions
-- HTTP and SOCKS proxy support
-- HTTP cookies and headers support
-- HTTP headers from file
-- User agent randomization
-- Proxy host randomization
-- Batch processing
-- Request delaying
-- 429 response code detecting
-- Multiple wordlist formats (lowercase, uppercase, capitalization)
-- Default configuration from file
-- Option to force requests by hostname
-- Option to add custom suffixes and prefixes
-- Option to whitelist response codes, support ranges (-i 200,300-399)
-- Option to blacklist response codes, support ranges (-x 404,500-599)
-- Option to exclude responses by sizes
-- Option to exclude responses by texts
-- Option to exclude responses by regexp(s)
-- Option to exclude responses by redirects
-- Options to display only items with response length from range
-- Option to remove all extensions from every wordlist entry
-- Quiet mode
-- Debug mode
 
 
 About wordlists
@@ -137,8 +105,8 @@ Options:
   Mandatory:
     -u URL, --url=URL   Target URL
     -l FILE, --url-list=FILE
-                        URL list file
-    --stdin             URL list from STDIN
+                        Target URL list file
+    --stdin             Target URL list from STDIN
     --cidr=CIDR         Target CIDR
     --raw=FILE          File contains the raw request (use `--scheme` flag to
                         set the scheme)
@@ -148,43 +116,46 @@ Options:
                         Exclude extension list separated by commas (Example:
                         asp,jsp)
     -f, --force-extensions
-                        Add extensions to the end of every wordlist entry. By
-                        default dirsearch only replaces the %EXT% keyword with
+                        Add extensions to every wordlist entry. By default
+                        dirsearch only replaces the %EXT% keyword with
                         extensions
 
   Dictionary Settings:
     -w WORDLIST, --wordlists=WORDLIST
                         Customize wordlists (separated by commas)
     --prefixes=PREFIXES
-                        Add custom prefixes to all entries (separated by
-                        commas)
+                        Add custom prefixes to all wordlist entries (separated
+                        by commas)
     --suffixes=SUFFIXES
-                        Add custom suffixes to all entries, ignore directories
-                        (separated by commas)
-    --only-selected     Only directories + files with selected extensions (or
-                        no extension)
+                        Add custom suffixes to all wordlist entries, ignore
+                        directories (separated by commas)
+    --only-selected     Remove paths have different extensions from selected
+                        ones via `-e` (keep entries don't have extensions)
     --remove-extensions
-                        Remove extensions in all wordlist entries (Example:
-                        admin.php -> admin)
+                        Remove extensions in all paths (Example: admin.php ->
+                        admin)
     -U, --uppercase     Uppercase wordlist
     -L, --lowercase     Lowercase wordlist
     -C, --capital       Capital wordlist
 
   General Settings:
-    -r, --recursive     Bruteforce recursively
-    -R DEPTH, --recursion-depth=DEPTH
-                        Maximum recursion depth
     -t THREADS, --threads=THREADS
                         Number of threads
+    -r, --recursive     Brute-force recursively
+    --recursion-depth=DEPTH
+                        Maximum recursion depth
+    --recursion-status=CODES
+                        Valid status codes to perform recursive scan, support
+                        ranges (separated by commas)
     --subdirs=SUBDIRS   Scan sub-directories of the given URL[s] (separated by
                         commas)
     --exclude-subdirs=SUBDIRS
                         Exclude the following subdirectories during recursive
                         scan (separated by commas)
-    -i STATUS, --include-status=STATUS
+    -i CODES, --include-status=CODES
                         Include status codes, separated by commas, support
                         ranges (Example: 200,300-399)
-    -x STATUS, --exclude-status=STATUS
+    -x CODES, --exclude-status=CODES
                         Exclude status codes, separated by commas, support
                         ranges (Example: 301,500-599)
     --exclude-sizes=SIZES
@@ -201,11 +172,15 @@ Options:
                         separated by commas (Example: 'https://okta.com/*')
     --exclude-content=PATH
                         Exclude responses by response content of this path
+    --skip-on-status=CODES
+                        Skip target whenever hit one of these status codes,
+                        separated by commas
     --minimal=LENGTH    Minimal response length
     --maximal=LENGTH    Maximal response length
-    --skip-on-429       Skip target whenever 429 status code is returned
+    --max-time=SECONDS  Maximal runtime for the scan
     -q, --quiet-mode    Quiet mode
-    --full-url          Print full URLs in the output
+    --full-url          Full URLs in the output (enabled automatically in
+                        quiet mode)
     --no-color          No colored output
 
   Request Settings:
@@ -215,17 +190,16 @@ Options:
                         HTTP request data
     -H HEADERS, --header=HEADERS
                         HTTP request header, support multiple flags (Example:
-                        -H 'Referer: example.com' -H 'Accept: */*')
+                        -H 'Referer: example.com')
     --header-list=FILE  File contains HTTP request headers
     -F, --follow-redirects
                         Follow HTTP redirects
     --random-agent      Choose a random User-Agent for each request
     --user-agent=USERAGENT
-    --cookie=COOKIE
+    --cookie=COOKIE     
 
   Connection Settings:
     --timeout=TIMEOUT   Connection timeout
-    --ip=IP             Server IP address
     -s DELAY, --delay=DELAY
                         Delay between requests
     --proxy=PROXY       Proxy URL, support HTTP and SOCKS proxies (Example:
@@ -235,12 +209,14 @@ Options:
                         Proxy to replay with found paths
     --scheme=SCHEME     Default scheme (for raw request or if there is no
                         scheme in the URL)
-    --max-retries=RETRIES
+    --max-rate=REQUESTS
+                        Max requests per second
+    --retries=RETRIES   Number of retries for failed requests
     -b, --request-by-hostname
                         By default dirsearch requests by IP for speed. This
-                        will force requests by hostname
+                        will force dirsearch to request by hostname
+    --ip=IP             Server IP address
     --exit-on-error     Exit whenever an error occurs
-    --debug             Debug mode
 
   Reports:
     --simple-report=OUTPUTFILE

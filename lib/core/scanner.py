@@ -60,7 +60,8 @@ class Scanner(object):
         # Look for redirects
         if firstResponse.redirect and secondResponse.redirect:
             self.redirectRegExp = self.generateRedirectRegExp(
-                firstResponse.redirect, secondResponse.redirect
+                firstResponse.redirect, firstPath,
+                secondResponse.redirect, secondPath,
             )
 
         # Analyze response bodies

