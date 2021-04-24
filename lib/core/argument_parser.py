@@ -394,6 +394,10 @@ class ArgumentParser(object):
             print("Invalid URI scheme: {0}".format(self.scheme))
             exit(1)
 
+        if self.outputFormat and self.outputFormat not in ["simple", "plain", "json", "xml", "md", "csv"]:
+            print("Select one of the following output formats: simple, plain, json, xml, md, csv")
+            exit(1)
+
     def parseConfig(self):
         config = DefaultConfigParser()
         configPath = FileUtils.build_path(self.script_path, "default.conf")
