@@ -89,7 +89,7 @@ class CLIOutput(object):
         self.lastInLine = False
         sys.stdout.flush()
 
-    def statusReport(self, path, response, full_url, addedToQueue):
+    def statusReport(self, path, response, full_url, addedToQueue, templates):
         contentLength = None
         status = response.status
 
@@ -138,6 +138,10 @@ class CLIOutput(object):
 
         if addedToQueue:
             message += "     (Added to queue)"
+
+        if templates:
+            for template in templates:
+                message += "\n==> Template report: {0}".format(template)
 
         with self.mutex:
             self.newLine(message)

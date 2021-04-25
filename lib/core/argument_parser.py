@@ -17,6 +17,7 @@
 #  Author: Mauro Soria
 
 import sys
+import yaml
 import email
 import base64
 
@@ -407,6 +408,22 @@ class ArgumentParser(object):
         else:
             self.skip_on_status = []
 
+        if options.templates:
+            if not FileUtils.is_dir(options.templates):
+                print("{0} does not exist or isn't a directory".format(options.templates))
+                exit(1)
+            elif not FileUtils.can_read_directory(options.templates):
+                print("Can't read all files in {0}".format(options.templates))
+                exit(1)
+
+            templates = list(FileUtils.read_directory(options.templates).values())
+
+            try:
+                self.templates = [yaml.safe_load(template) for template in templates]
+            except Exception:
+                print("Found at least a file in {0} has valid format. Make sure all of them are in YAML")
+                exit(1)
+
         if len(set(self.extensions).intersection(self.excludeExtensions)):
             print("Exclude extension list can not contain any extension that has already in the extension list")
             exit(1)
@@ -451,6 +468,7 @@ class ArgumentParser(object):
         self.force_recursive = config.safe_getboolean("general", "force-recursive", False)
         self.recursion_depth = config.safe_getint("general", "recursion-depth", 0)
         self.recursionStatusCodes = config.safe_get("general", "recursion-status", None)
+        self.templates = config.safe_get("general", "templates-location", None)
         self.saveHome = config.safe_getboolean("general", "save-logs-home", False)
         self.excludeSubdirs = config.safe_get("general", "exclude-subdirs", None)
         self.skip_on_status = config.safe_get("general", "skip-on-status", None)
@@ -551,14 +569,16 @@ information at https://github.com/maurosoria/dirsearch.""")
                            default=self.threadsCount, metavar="THREADS")
         general.add_option("-r", "--recursive", help="Brute-force recursively", action="store_true", dest="recursive",
                            default=self.recursive)
-        general.add_option("--deep-recursive", help="Perform recursive scans on every directory depth (Example: api/users -> api/)", action="store_true", dest="deep_recursive",
-                           default=self.deep_recursive)
-        general.add_option("--force-recursive", help="Do recursive scans for every found path, not only paths end with slash", action="store_true", dest="force_recursive",
-                           default=self.force_recursive)
+        general.add_option("--deep-recursive", help="Perform recursive scans on every directory depth (Example: api/users -> api/)",
+                           action="store_true", dest="deep_recursive", default=self.deep_recursive)
+        general.add_option("--force-recursive", help="Do recursive scans for every found path, not only paths end with slash",
+                           action="store_true", dest="force_recursive", default=self.force_recursive)
         general.add_option("--recursion-depth", help="Maximum recursion depth", action="store",
                            type="int", dest="recursion_depth", default=self.recursion_depth, metavar="DEPTH")
         general.add_option("--recursion-status", help="Valid status codes to perform recursive scan, support ranges (separated by commas)",
                            action="store", dest="recursionStatusCodes", default=self.recursionStatusCodes, metavar="CODES")
+        general.add_option("-T", "--templates", help="Directory contains detection templates", action="store", dest="templates",
+                           default=self.templates, metavar="DIRECTORY")
         general.add_option("--subdirs", help="Scan sub-directories of the given URL[s] (separated by commas)", action="store",
                            dest="scanSubdirs", default=None, metavar="SUBDIRS")
         general.add_option("--exclude-subdirs", help="Exclude the following subdirectories during recursive scan (separated by commas)",

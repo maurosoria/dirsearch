@@ -115,6 +115,10 @@ class PrintOutput(object):
         if addedToQueue:
             message += "     (Added to queue)"
 
+        if templates:
+            for template in templates:
+                message += "\n==> Template report: {0}".format(template)
+
         with self.mutex:
             self.newLine(message)
 

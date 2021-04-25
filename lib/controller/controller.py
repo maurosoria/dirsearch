@@ -128,6 +128,7 @@ class Controller(object):
 
         self.reportsPath = FileUtils.build_path(self.savePath, "logs")
         self.blacklists = self.getBlacklists()
+        self.templates = arguments.templates
         self.includeStatusCodes = arguments.includeStatusCodes
         self.excludeStatusCodes = arguments.excludeStatusCodes
         self.excludeSizes = arguments.excludeSizes
@@ -583,8 +584,44 @@ class Controller(object):
                 else:
                     addedToQueue = self.addDirectory(path.path)
 
+            matched_templates = []
+
+            for template in self.templates:
+                if (
+                        "method" in template and self.httpmethod not in template["method"]
+                ) or (
+                        "path" in template and path.path not in template["path"]
+                ) or (
+                        "status" in template and path.status not in template["status"]
+                ):
+                    continue
+
+                if "headers" in template:
+                    invalid = False
+
+                    for header in template["headers"]:
+                        header = header.split(":")
+                        if len(header) > 2:
+                            header = [header[0], ":".join(header[1:])]
+                        header = (header[0].lower(), header[1].lstrip(" "))
+
+                        if header not in list(path.response.headers.items()):
+                            invalid = True
+
+                    if invalid:
+                        continue
+
+                if (
+                        "body" in template
+                ) and (
+                        template["body"][0] not in path.response.body or not re.match(template["body"][0], path.response.body)
+                ):
+                        continue
+
+                matched_templates.append(template["description"][0])
+
             self.output.statusReport(
-                path.path, path.response, self.arguments.full_url, addedToQueue
+                path.path, path.response, self.arguments.full_url, addedToQueue, matched_templates
             )
 
             if self.arguments.replay_proxy:

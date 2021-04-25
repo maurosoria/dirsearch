@@ -18,6 +18,7 @@
 
 import os
 import os.path
+import glob
 
 
 class File(object):
@@ -119,6 +120,22 @@ class FileUtils(object):
     @staticmethod
     def is_file(file_name):
         return os.path.isfile(file_name)
+
+    @staticmethod
+    def can_read_directory(directory):
+        for root, _, files in os.walk(directory):
+            for file in files:
+                if not FileUtils.can_read(os.path.join(root, file)):
+                    return False
+        return True
+
+    @staticmethod
+    def read_directory(directory):
+        data = {}
+        for root, _, files in os.walk(directory):
+            for file in files:
+                data[file] = FileUtils.read(os.path.join(root, file))
+        return data
 
     @staticmethod
     def create_directory(directory):
