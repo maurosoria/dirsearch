@@ -41,7 +41,7 @@ pip3 install .
 dirsearch -u <URL> -e <EXTENSIONS>
 ```
 
-- To can use SOCKS proxy or work with `../` in the wordlist, you need to install pips with `requirements.txt`: `pip3 install -r requirements.txt`
+- To can use SOCKS proxy, you need to install pips with **requirements.txt**: `pip3 install -r requirements.txt`
 
 - If you are using Windows and don't have git, you can install the ZIP file [here](https://github.com/maurosoria/dirsearch/archive/master.zip). dirsearch also supports [Docker](https://github.com/maurosoria/dirsearch#support-docker)
 
