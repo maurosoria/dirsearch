@@ -59,7 +59,7 @@
 - [catmandx](https://github.com/catmandx)
 - [Kyle Nweeia](https://github.com/kyle-nweeia)
 - [Xib3rR4dAr](https://github.com/Xib3rR4dAr)
-
+- [oaktree](https://github.com/git-oaktree)
 Special thanks for all the people who had helped dirsearch so far!
 
 ### How can I help the project?
