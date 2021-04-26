@@ -18,18 +18,15 @@
 
 import json
 import time
+import sys
 
 from lib.reports import *
 
 
 class JSONReport(FileBaseReport):
-
     def addPath(self, path, status, response):
-        contentLength = None
-
         try:
             contentLength = int(response.headers["content-length"])
-
         except (KeyError, ValueError):
             contentLength = len(response.body)
 
@@ -39,7 +36,10 @@ class JSONReport(FileBaseReport):
         headerName = "{0}://{1}:{2}/{3}".format(
             self.protocol, self.host, self.port, self.basePath
         )
-        result = {"time": time.ctime(), headerName: []}
+
+        info = {"args": ' '.join(sys.argv), "time": time.ctime()}
+
+        result = {"info": info, headerName: []}
 
         for path, status, contentLength, redirect in self.pathList:
             entry = {

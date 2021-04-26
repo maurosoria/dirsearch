@@ -63,9 +63,15 @@ class Controller(object):
         self.savePath = self.script_path
         self.doneDirs = []
 
-        if arguments.urlList:
+        if arguments.raw_file:
+            _raw = Raw(arguments.raw_file, arguments.scheme)
+            self.urlList = [_raw.url()]
+            self.httpmethod = _raw.method()
+            self.data = _raw.data()
+            self.headers = _raw.headers()
+        else:
             default_headers = {
-                "User-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36",
                 "Accept-Language": "*",
                 "Accept-Encoding": "*",
                 "Keep-Alive": "300",
@@ -76,25 +82,12 @@ class Controller(object):
             self.httpmethod = arguments.httpmethod.lower()
             self.data = arguments.data
             self.headers = {**default_headers, **arguments.headers}
-            self.cookie = arguments.cookie
-            self.useragent = arguments.useragent
-        else:
-            # Overwrite python-requests default headers
-            default_headers = {
-                "User-agent": None,
-                "Accept-Encoding": None,
-                "Accept": None,
-            }
+            if arguments.cookie:
+                self.headers["Cookie"] = arguments.cookie
+            if arguments.cookie:
+                self.headers["User-Agent"] = arguments.useragent
 
-            _raw = Raw(arguments.raw_file, arguments.scheme)
-            self.urlList = [_raw.url()]
-            self.httpmethod = _raw.method()
-            self.data = _raw.data()
-            self.headers = {**default_headers, **_raw.headers()}
-            self.cookie = _raw.cookie()
-            self.useragent = _raw.user_agent()
-
-        self.recursive_level_max = arguments.recursive_level_max
+        self.recursion_depth = arguments.recursion_depth
 
         if arguments.saveHome:
             savePath = self.getSavePath()
@@ -135,35 +128,39 @@ class Controller(object):
         self.excludeRegexps = arguments.excludeRegexps
         self.excludeRedirects = arguments.excludeRedirects
         self.recursive = arguments.recursive
+        self.deep_recursive = arguments.deep_recursive
+        self.force_recursive = arguments.force_recursive
+        self.recursionStatusCodes = arguments.recursionStatusCodes
         self.minimumResponseSize = arguments.minimumResponseSize
         self.maximumResponseSize = arguments.maximumResponseSize
+        self.maxtime = arguments.maxtime
         self.scanSubdirs = arguments.scanSubdirs
         self.excludeSubdirs = (
             arguments.excludeSubdirs if arguments.excludeSubdirs else []
         )
 
         self.dictionary = Dictionary(
-            arguments.wordlist,
-            arguments.extensions,
-            arguments.suffixes,
-            arguments.prefixes,
-            arguments.lowercase,
-            arguments.uppercase,
-            arguments.capitalization,
-            arguments.forceExtensions,
-            arguments.excludeExtensions,
-            arguments.noExtension,
-            arguments.onlySelected
+            paths=arguments.wordlist,
+            extensions=arguments.extensions,
+            suffixes=arguments.suffixes,
+            prefixes=arguments.prefixes,
+            lowercase=arguments.lowercase,
+            uppercase=arguments.uppercase,
+            capitalization=arguments.capitalization,
+            forcedExtensions=arguments.forceExtensions,
+            excludeExtensions=arguments.excludeExtensions,
+            noExtension=arguments.noExtension,
+            onlySelected=arguments.onlySelected
         )
 
         self.allJobs = len(self.scanSubdirs) if self.scanSubdirs else 1
         self.currentJob = 0
+        self.startTime = time.time()
         self.errorLog = None
         self.errorLogPath = None
         self.threadsLock = Lock()
         self.batch = False
         self.batchSession = None
-        self.got429 = False
 
         self.output.header(program_banner)
         self.printConfig()
@@ -186,13 +183,10 @@ class Controller(object):
                     self.reportManager = ReportManager()
                     self.currentUrl = url if url.endswith("/") else url + "/"
                     self.output.setTarget(self.currentUrl, self.arguments.scheme)
-                    self.ignore429 = False
 
                     try:
                         self.requester = Requester(
                             url,
-                            cookie=self.cookie,
-                            useragent=self.useragent,
                             maxPool=arguments.threadsCount,
                             maxRetries=arguments.maxRetries,
                             timeout=arguments.timeout,
@@ -220,6 +214,7 @@ class Controller(object):
 
                     # Initialize directories Queue with start Path
                     self.basePath = self.requester.basePath
+                    self.status_skip = None
 
                     if self.scanSubdirs:
                         for subdir in self.scanSubdirs:
@@ -237,9 +232,12 @@ class Controller(object):
                     self.fuzzer = Fuzzer(
                         self.requester,
                         self.dictionary,
-                        testFailPath=arguments.testFailPath,
+                        suffixes=arguments.suffixes,
+                        prefixes=arguments.prefixes,
+                        excludeContent=arguments.excludeContent,
                         threads=arguments.threadsCount,
                         delay=arguments.delay,
+                        maxrate=arguments.maxrate,
                         matchCallbacks=matchCallbacks,
                         notFoundCallbacks=notFoundCallbacks,
                         errorCallbacks=errorCallbacks,
@@ -247,9 +245,7 @@ class Controller(object):
                     try:
                         self.prepare()
                     except RequestException as e:
-                        self.output.error(
-                            "Fatal error during scanning: " + e.args[0]["message"]
-                        )
+                        self.output.error(e.args[0]["message"])
                         raise SkipTargetInterrupt
 
                 except SkipTargetInterrupt:
@@ -268,7 +264,6 @@ class Controller(object):
         self.output.warning("\nTask Completed")
 
     def printConfig(self):
-
         self.output.config(
             ', '.join(self.arguments.extensions),
             ', '.join(self.arguments.prefixes),
@@ -334,7 +329,14 @@ class Controller(object):
         self.errorLogPath = FileUtils.build_path(
             FileUtils.build_path(self.savePath, "logs", fileName)
         )
-        self.errorLog = open(self.errorLogPath, "w")
+
+        try:
+            self.errorLog = open(self.errorLogPath, "w")
+        except PermissionError:
+            self.output.error(
+                "Couldn't create the error log. Try running again with highest permission"
+            )
+            sys.exit(1)
 
     def setupBatchReports(self):
         self.batch = True
@@ -348,7 +350,7 @@ class Controller(object):
 
             if not FileUtils.exists(self.batchDirectoryPath):
                 self.output.error(
-                    "Couldn't create batch folder {}".format(self.batchDirectoryPath)
+                    "Couldn't create batch folder at {}".format(self.batchDirectoryPath)
                 )
                 sys.exit(1)
 
@@ -518,9 +520,10 @@ class Controller(object):
     def matchCallback(self, path):
         self.index += 1
 
-        if path.status == 429:
-            self.got429 = True
-            return
+        for status in self.arguments.skip_on_status:
+            if path.status == status:
+                self.status_skip = status
+                return
 
         if (
                 path.status and path.status not in self.excludeStatusCodes
@@ -563,7 +566,11 @@ class Controller(object):
 
             addedToQueue = False
 
-            if self.recursive and "?" not in path.path and "#" not in path.path:
+            if (
+                    any([self.recursive, self.deep_recursive, self.force_recursive])
+            ) and (
+                    not self.recursionStatusCodes or path.status in self.recursionStatusCodes
+            ):
                 if path.response.redirect:
                     addedToQueue = self.addRedirectDirectory(path)
                 else:
@@ -573,8 +580,8 @@ class Controller(object):
                 path.path, path.response, self.arguments.full_url, addedToQueue
             )
 
-            if self.arguments.matches_proxy:
-                self.requester.request(path.path, proxy=self.arguments.matches_proxy)
+            if self.arguments.replay_proxy:
+                self.requester.request(path.path, proxy=self.arguments.replay_proxy)
 
             newPath = self.currentDirectory + path.path
 
@@ -586,7 +593,7 @@ class Controller(object):
 
     def notFoundCallback(self, path):
         self.index += 1
-        self.output.lastPath(path, self.index, len(self.dictionary), self.currentJob, self.allJobs)
+        self.output.lastPath(path, self.index, len(self.dictionary), self.currentJob, self.allJobs, self.fuzzer.rate)
         del path
 
     def errorCallback(self, path, errorMsg):
@@ -597,9 +604,6 @@ class Controller(object):
             exit(1)
 
         else:
-            if self.arguments.debug:
-                self.output.debug(errorMsg)
-
             self.output.addConnectionError()
 
     def appendErrorLog(self, path, errorMsg):
@@ -613,8 +617,11 @@ class Controller(object):
         self.output.warning(message)
         self.fuzzer.pause()
 
-        while self.fuzzer.stopped != len(self.fuzzer.threads):
-            pass
+        # If one of the tasks is broken, don't let the user wait forever
+        for i in range(300):
+            if self.fuzzer.stopped == len(self.fuzzer.threads):
+                break
+            time.sleep(0.025)
 
         self.fuzzer.stopped = 0
 
@@ -624,22 +631,12 @@ class Controller(object):
             if not self.directories.empty():
                 msg += " / [n]ext"
 
-            if self.got429 and not self.ignore429:
-                msg += " / [i]gnore"
-
             if len(self.urlList) > 1:
                 msg += " / [s]kip target"
 
             self.output.inLine(msg + ": ")
 
             option = input()
-
-            if self.got429:
-                self.got429 = False
-                if option.lower() == "i":
-                    self.ignore429 = True
-                    self.fuzzer.resume()
-                    return
 
             if option.lower() == "e":
                 self.exit = True
@@ -665,9 +662,26 @@ class Controller(object):
         while True:
             try:
                 while not self.fuzzer.wait(0.25):
-                    if not self.ignore429 and self.got429:
-                        self.handlePause("429 status code detected: Pausing threads, please wait...")
+                    # Check if the "skip status code" was returned
+                    if self.status_skip:
+                        self.fuzzer.pause()
+                        while self.fuzzer.stopped != len(self.fuzzer.threads):
+                            pass
+
+                        self.output.error(
+                            "\nSkipped the target due to {0} status code".format(self.status_skip)
+                        )
+
+                        raise SkipTargetInterrupt
+
+                    elif self.maxtime and time.time() - self.startTime > self.maxtime:
+                        self.output.error(
+                            "\nCanceled because the runtime exceeded the maximal set by user"
+                        )
+                        exit(0)
+
                 break
+
             except (KeyboardInterrupt):
                 self.handlePause("CTRL+C detected: Pausing threads, please wait...")
 
@@ -696,29 +710,43 @@ class Controller(object):
 
         return url
 
-    def addDirectory(self, path):
-        if path.endswith("/"):
-            if path in [directory + "/" for directory in self.excludeSubdirs]:
-                return False
+    def addDirectory(self, path, fullPath=None):
+        added = False
+        path = path.split("?")[0].split("#")[0]
 
-            dir = self.currentDirectory + path
+        if path.rstrip("/") in [directory for directory in self.excludeSubdirs]:
+            return False
 
+        fullPath = self.currentDirectory + path if not fullPath else fullPath
+
+        dirs = []
+
+        if self.deep_recursive:
+            for i in range(1, path.count("/") + 1):
+                dir = fullPath.replace(path, "") + "/".join(path.split("/")[:i])
+                dirs.append(dir.rstrip("/") + "/")
+        if self.force_recursive:
+            if not fullPath.endswith("/"):
+                fullPath += "/"
+            dirs.append(fullPath)
+        elif self.recursive and fullPath.endswith("/"):
+            dirs.append(fullPath)
+
+        for dir in dirs:
             if self.scanSubdirs and dir in self.scanSubdirs:
-                return False
+                continue
             elif dir in self.doneDirs:
-                return False
-            elif self.recursive_level_max and dir.count("/") > self.recursive_level_max:
-                return False
+                continue
+            elif self.recursion_depth and dir.count("/") > self.recursion_depth:
+                continue
 
             self.directories.put(dir)
-            self.allJobs += 1
-
             self.doneDirs.append(dir)
 
-            return True
+            self.allJobs += 1
+            added = True
 
-        else:
-            return False
+        return added
 
     def addRedirectDirectory(self, path):
         # Resolve the redirect header relative to the current URL and add the
@@ -730,26 +758,10 @@ class Controller(object):
         absoluteUrl = urllib.parse.urljoin(baseUrl, path.response.redirect)
         absoluteUrl = self.addPort(absoluteUrl)
 
-        if absoluteUrl.startswith(baseUrl) and absoluteUrl != baseUrl and absoluteUrl.endswith("/"):
+        if absoluteUrl.startswith(baseUrl) and absoluteUrl != baseUrl:
             path = absoluteUrl[len(baseUrl):]
+            fullPath = absoluteUrl[len(self.addPort(self.currentUrl)):]
 
-            if path in [directory + "/" for directory in self.excludeSubdirs]:
-                return False
-
-            dir = absoluteUrl[len(self.addPort(self.currentUrl)):]
-
-            if self.scanSubdirs and dir in self.scanSubdirs:
-                return False
-            elif dir in self.doneDirs:
-                return False
-            elif self.recursive_level_max and dir.count("/") > self.recursive_level_max:
-                return False
-
-            self.directories.put(dir)
-            self.allJobs += 1
-
-            self.doneDirs.append(dir)
-
-            return True
+            return self.addDirectory(path, fullPath)
 
         return False

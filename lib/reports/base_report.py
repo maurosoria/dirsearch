@@ -21,7 +21,6 @@ import queue
 
 
 class BaseReport(object):
-
     def addPath(selg, path, status, response):
         raise NotImplementedError
 
@@ -33,7 +32,6 @@ class BaseReport(object):
 
 
 class FileBaseReport(BaseReport):
-
     def __init__(self, host, port, protocol, basePath, output, batch):
         self.output = output
         self.port = port
@@ -77,11 +75,7 @@ class FileBaseReport(BaseReport):
 
             self.output = output
 
-        if self.batch:
-            self.file = open(self.output, 'a+')
-
-        else:
-            self.file = open(self.output, 'w+')
+        self.file = open(self.output, 'w+')
 
     def save(self):
         if self.batch:

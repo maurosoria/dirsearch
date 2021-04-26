@@ -29,9 +29,12 @@ class Fuzzer(object):
         self,
         requester,
         dictionary,
-        testFailPath=None,
+        suffixes=None,
+        prefixes=None,
+        excludeContent=None,
         threads=1,
         delay=0,
+        maxrate=0,
         matchCallbacks=[],
         notFoundCallbacks=[],
         errorCallbacks=[],
@@ -39,21 +42,28 @@ class Fuzzer(object):
 
         self.requester = requester
         self.dictionary = dictionary
-        self.testFailPath = testFailPath
+        self.suffixes = suffixes if suffixes else []
+        self.prefixes = prefixes if prefixes else []
+        self.excludeContent = excludeContent
         self.basePath = self.requester.basePath
         self.threads = []
         self.threadsCount = (
             threads if len(self.dictionary) >= threads else len(self.dictionary)
         )
         self.delay = delay
+        self.maxrate = maxrate
         self.running = False
         self.stopped = 0
-        self.scanners = {}
+        self.calibration = None
         self.defaultScanner = None
         self.matchCallbacks = matchCallbacks
         self.notFoundCallbacks = notFoundCallbacks
         self.errorCallbacks = errorCallbacks
         self.matches = []
+        self.scanners = {
+            "prefixes": {},
+            "suffixes": {},
+        }
 
     def wait(self, timeout=None):
         for thread in self.threads:
@@ -66,16 +76,36 @@ class Fuzzer(object):
 
     def setupScanners(self):
         if len(self.scanners):
-            self.scanners = {}
+            self.scanners = {
+                "prefixes": {},
+                "suffixes": {},
+            }
 
-        self.defaultScanner = Scanner(self.requester, self.testFailPath)
-        self.scanners["/"] = Scanner(self.requester, self.testFailPath, suffix="/")
-        self.scanners["dotfiles"] = Scanner(self.requester, self.testFailPath, preffix=".")
+        # Default scanners (wildcard testers)
+        self.defaultScanner = Scanner(self.requester)
+        self.prefixes.append(".")
+        self.suffixes.append("/")
+
+        for prefix in self.prefixes:
+            self.scanners["prefixes"][prefix] = Scanner(
+                self.requester, prefix=prefix
+            )
+
+        for suffix in self.suffixes:
+            self.scanners["suffixes"][suffix] = Scanner(
+                self.requester, suffix=suffix
+            )
 
         for extension in self.dictionary.extensions:
-            self.scanners[extension] = Scanner(
-                self.requester, self.testFailPath, "." + extension
-            )
+            if "." + extension not in self.scanners["suffixes"]:
+                self.scanners["suffixes"]["." + extension] = Scanner(
+                    self.requester, suffix="." + extension
+                )
+
+        if self.excludeContent:
+            if self.excludeContent.startswith("/"):
+                self.excludeContent = self.excludeContent[1:]
+            self.calibration = Scanner(self.requester, calibration=self.excludeContent)
 
     def setupThreads(self):
         if len(self.threads):
@@ -87,18 +117,25 @@ class Fuzzer(object):
             self.threads.append(newThread)
 
     def getScannerFor(self, path):
-        if path.endswith("/"):
-            return self.scanners["/"]
+        # Clean the path, so can check for extensions/suffixes
+        path = path.split("?")[0].split("#")[0]
 
-        if path.startswith('.'):
-            return self.scanners['dotfiles']
+        if self.excludeContent:
+            yield self.calibration
 
-        for extension in list(self.scanners.keys()):
-            if path.endswith(extension):
-                return self.scanners[extension]
+        for prefix in self.prefixes:
+            if path.startswith(prefix):
+                yield self.scanners["prefixes"][prefix]
 
-        # By default, returns empty tester
-        return self.defaultScanner
+        for suffix in self.suffixes:
+            if path.endswith(suffix):
+                yield self.scanners["suffixes"][suffix]
+
+        for extension in self.dictionary.extensions:
+            if path.endswith("." + extension):
+                yield self.scanners["suffixes"]["." + extension]
+
+        yield self.defaultScanner
 
     def start(self):
         # Setting up testers
@@ -106,6 +143,7 @@ class Fuzzer(object):
         # Setting up threads
         self.setupThreads()
         self.index = 0
+        self.rate = 0
         self.dictionary.reset()
         self.runningThreadsCount = len(self.threads)
         self.running = True
@@ -141,9 +179,13 @@ class Fuzzer(object):
 
     def scan(self, path):
         response = self.requester.request(path)
-        result = None
-        if self.getScannerFor(path).scan(path, response):
-            result = None if response.status == 404 else response.status
+        result = response.status
+
+        for tester in list(set(self.getScannerFor(path))):
+            if not tester.scan(path, response):
+                result = None
+                break
+
         return result, response
 
     def isPaused(self):
@@ -162,6 +204,9 @@ class Fuzzer(object):
     def stopThread(self):
         self.runningThreadsCount -= 1
 
+    def reduceRate(self):
+        self.rate -= 1
+
     def thread_proc(self):
         self.playEvent.wait()
 
@@ -170,6 +215,12 @@ class Fuzzer(object):
 
             while path:
                 try:
+                    # Pause if the request rate exceeded the maximal
+                    while self.maxrate and self.rate > self.maxrate:
+                        pass
+                    self.rate += 1
+                    threading.Timer(1, self.reduceRate).start()
+
                     status, response = self.scan(path)
                     result = Path(path=path, status=status, response=response)
 
@@ -182,7 +233,6 @@ class Fuzzer(object):
                             callback(result)
 
                 except RequestException as e:
-
                     for callback in self.errorCallbacks:
                         callback(path, e.args[0]["message"])
 

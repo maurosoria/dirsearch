@@ -2,12 +2,19 @@
 
 Currently working...
 ---------
-- Fixed critical bugs from v0.4.1 (IMPORTANT)
+- Fixed critical bugs from v0.4.1
 - Exclude responses by redirects
 - URLs from STDIN
 - Fixed the CSV Injection vulnerability (https://www.exploit-db.com/exploits/49370)
 - Raw request supported
 - Can setup the default URL scheme (will be used when there is no scheme in the URL)
+- Added max-runtime option
+- Recursion on specified status codes
+- Max request rate
+- Support basic authentication
+- Deep recursive scan
+- Option to force recurse on all found paths (not just the ones end with /)
+- Option to skip target by specified status codes
 
 v0.4.1 (2020.12.8)
 ---------

@@ -18,6 +18,7 @@
 
 import sys
 import email
+import base64
 
 from optparse import OptionParser, OptionGroup
 from ipaddress import IPv4Network
@@ -136,12 +137,12 @@ class ArgumentParser(object):
         else:
             self.proxy = None
 
-        if options.matches_proxy:
-            self.matches_proxy = options.matches_proxy
+        if options.replay_proxy:
+            self.replay_proxy = options.replay_proxy
             options.requestByHostname = True
 
         else:
-            self.matches_proxy = None
+            self.replay_proxy = None
 
         if options.headers:
             try:
@@ -182,8 +183,8 @@ class ArgumentParser(object):
 
         if options.extensions == "*":
             self.extensions = [
-                "php", "inc.php", "jsp", "jsf", "asp", "aspx", "do", "action", "cgi",
-                "pl", "html", "htm", "js", "css", "json", "txt", "tar.gz", "tgz"
+                "php", "jsp", "jsf", "asp", "aspx", "do", "action", "cgi",
+                "pl", "html", "htm", "js", "json", "json", "tar.gz", "tgz"
             ]
         elif options.extensions == "CHANGELOG.md":
             print("A weird extension was provided: CHANGELOG.md. Please do not use * as the extension or enclose it in double quotes")
@@ -247,6 +248,27 @@ class ArgumentParser(object):
 
                     else:
                         self.excludeStatusCodes.append(int(statusCode.strip()))
+
+                except ValueError:
+                    print("Invalid status code or status code range: {0}".format(statusCode))
+                    exit(1)
+
+        self.recursionStatusCodes = []
+
+        if options.recursionStatusCodes:
+            for statusCode in options.recursionStatusCodes.split(","):
+                try:
+                    if "-" in statusCode:
+                        statusCodes = [
+                            i for i in range(
+                                int(statusCode.split("-")[0].strip()),
+                                int(statusCode.split("-")[1].strip()) + 1
+                            )
+                        ]
+                        self.recursionStatusCodes.extend(statusCodes)
+
+                    else:
+                        self.recursionStatusCodes.append(int(statusCode.strip()))
 
                 except ValueError:
                     print("Invalid status code or status code range: {0}".format(statusCode))
@@ -316,6 +338,9 @@ class ArgumentParser(object):
         else:
             self.excludeRedirects = []
 
+        if options.basic_auth:
+            self.headers["Authorization"] = "Basic {0}".format(base64.b64encode(options.basic_auth.encode()).decode())
+
         self.prefixes = [] if not options.prefixes else list(oset([prefix.strip() for prefix in options.prefixes.split(",")]))
         self.suffixes = [] if not options.suffixes else list(oset([suffix.strip() for suffix in options.suffixes.split(",")]))
         if options.wordlist:
@@ -329,13 +354,15 @@ class ArgumentParser(object):
         self.capitalization = options.capitalization
         self.forceExtensions = options.forceExtensions
         self.data = options.data
-        self.testFailPath = options.testFailPath
+        self.excludeContent = options.excludeContent
         self.color = options.color
         self.delay = options.delay
         self.timeout = options.timeout
         self.ip = options.ip
         self.maxRetries = options.maxRetries
         self.recursive = options.recursive
+        self.deep_recursive = options.deep_recursive
+        self.force_recursive = options.force_recursive
         self.minimumResponseSize = options.minimumResponseSize
         self.maximumResponseSize = options.maximumResponseSize
         self.noExtension = options.noExtension
@@ -367,6 +394,19 @@ class ArgumentParser(object):
         else:
             self.excludeSubdirs = None
 
+        if options.skip_on_status:
+            try:
+                self.skip_on_status = list(
+                    set(
+                        [int(status) for status in options.skip_on_status.split(",")]
+                    )
+                )
+            except Exception:
+                print("Invalid skip status code(s)")
+                exit(1)
+        else:
+            self.skip_on_status = []
+
         if len(set(self.extensions).intersection(self.excludeExtensions)):
             print("Exclude extension list can not contain any extension that has already in the extension list")
             exit(1)
@@ -376,9 +416,10 @@ class ArgumentParser(object):
         self.scheme = options.scheme
         self.requestByHostname = options.requestByHostname
         self.exit_on_error = options.exit_on_error
-        self.debug = options.debug
+        self.maxrate = options.maxrate
+        self.maxtime = options.maxtime
 
-        self.recursive_level_max = options.recursive_level_max
+        self.recursion_depth = options.recursion_depth
 
         if self.scheme not in ["http", "https"]:
             print("Invalid URI scheme: {0}".format(self.scheme))
@@ -404,14 +445,16 @@ class ArgumentParser(object):
         self.excludeTexts = config.safe_get("general", "exclude-texts", None)
         self.excludeRegexps = config.safe_get("general", "exclude-regexps", None)
         self.excludeRedirects = config.safe_get("general", "exclude-redirects", None)
+        self.excludeContent = config.safe_get("general", "exclude-content", "")
         self.recursive = config.safe_getboolean("general", "recursive", False)
-        self.recursive_level_max = config.safe_getint("general", "recursive-level-max", 0)
-        self.testFailPath = config.safe_get("general", "calibration-path", "").strip()
+        self.deep_recursive = config.safe_getboolean("general", "deep-recursive", False)
+        self.force_recursive = config.safe_getboolean("general", "force-recursive", False)
+        self.recursion_depth = config.safe_getint("general", "recursion-depth", 0)
+        self.recursionStatusCodes = config.safe_get("general", "recursion-status", None)
         self.saveHome = config.safe_getboolean("general", "save-logs-home", False)
         self.excludeSubdirs = config.safe_get("general", "exclude-subdirs", None)
-        self.useRandomAgents = config.safe_get(
-            "general", "random-user-agents", False
-        )
+        self.skip_on_status = config.safe_get("general", "skip-on-status", None)
+        self.maxtime = config.safe_getint("general", "max-time", 0)
         self.full_url = config.safe_getboolean("general", "full-url", False)
         self.color = config.safe_getboolean("general", "color", True)
         self.quiet = config.safe_getboolean("general", "quiet-mode", False)
@@ -441,21 +484,22 @@ class ArgumentParser(object):
         self.headerList = config.safe_get("request", "headers-file", None)
         self.redirect = config.safe_getboolean("request", "follow-redirects", False)
         self.useragent = config.safe_get("request", "user-agent", None)
+        self.useRandomAgents = config.safe_get("request", "random-user-agents", False)
         self.cookie = config.safe_get("request", "cookie", None)
 
         # Connection
         self.delay = config.safe_getfloat("connection", "delay", 0)
         self.timeout = config.safe_getint("connection", "timeout", 10)
-        self.maxRetries = config.safe_getint("connection", "max-retries", 3)
+        self.maxRetries = config.safe_getint("connection", "retries", 2)
+        self.maxrate = config.safe_getint("connection", "max-rate", 0)
         self.proxy = config.safe_get("connection", "proxy", None)
         self.proxylist = config.safe_get("connection", "proxy-list", None)
         self.scheme = config.safe_get("connection", "scheme", "http", ["http", "https"])
-        self.matches_proxy = config.safe_get("connection", "replay-proxy", None)
+        self.replay_proxy = config.safe_get("connection", "replay-proxy", None)
         self.requestByHostname = config.safe_getboolean(
             "connection", "request-by-hostname", False
         )
         self.exit_on_error = config.safe_getboolean("connection", "exit-on-error", False)
-        self.debug = config.safe_getboolean("connection", "debug", False)
 
     def parseArguments(self):
         usage = "Usage: %prog [-u|--url] target [-e|--extensions] extensions [options]"
@@ -468,9 +512,9 @@ information at https://github.com/maurosoria/dirsearch.""")
         # Mandatory arguments
         mandatory = OptionGroup(parser, "Mandatory")
         mandatory.add_option("-u", "--url", help="Target URL", action="store", type="string", dest="url", default=None)
-        mandatory.add_option("-l", "--url-list", help="URL list file", action="store", type="string", dest="urlList",
+        mandatory.add_option("-l", "--url-list", help="Target URL list file", action="store", type="string", dest="urlList",
                              default=None, metavar="FILE")
-        mandatory.add_option("--stdin", help="URL list from STDIN", action="store_true", dest="stdin_urls")
+        mandatory.add_option("--stdin", help="Target URL list from STDIN", action="store_true", dest="stdin_urls")
         mandatory.add_option("--cidr", help="Target CIDR", action="store", type="string", dest="cidr", default=None)
         mandatory.add_option("--raw", help="File contains the raw request (use `--scheme` flag to set the scheme)", action="store",
                              dest="raw_file", metavar="FILE")
@@ -479,7 +523,7 @@ information at https://github.com/maurosoria/dirsearch.""")
         mandatory.add_option("-X", "--exclude-extensions", action="store", dest="excludeExtensions", default=self.excludeExtensions,
                              help="Exclude extension list separated by commas (Example: asp,jsp)", metavar="EXTENSIONS")
         mandatory.add_option("-f", "--force-extensions", action="store_true", dest="forceExtensions", default=self.forceExtensions,
-                             help="Add extensions to the end of every wordlist entry. By default dirsearch only replaces the %EXT% keyword with extensions")
+                             help="Add extensions to every wordlist entry. By default dirsearch only replaces the %EXT% keyword with extensions")
 
         # Dictionary Settings
         dictionary = OptionGroup(parser, "Dictionary Settings")
@@ -487,13 +531,13 @@ information at https://github.com/maurosoria/dirsearch.""")
                               help="Customize wordlists (separated by commas)",
                               default=self.wordlist)
         dictionary.add_option("--prefixes", action="store", dest="prefixes", default=self.prefixes,
-                              help="Add custom prefixes to all entries (separated by commas)")
+                              help="Add custom prefixes to all wordlist entries (separated by commas)")
         dictionary.add_option("--suffixes", action="store", dest="suffixes", default=self.suffixes,
-                              help="Add custom suffixes to all entries, ignore directories (separated by commas)")
+                              help="Add custom suffixes to all wordlist entries, ignore directories (separated by commas)")
         dictionary.add_option("--only-selected", dest="onlySelected", action="store_true",
-                              help="Only directories + files with selected extensions (or no extension)")
+                              help="Remove paths have different extensions from selected ones via `-e` (keep entries don't have extensions)")
         dictionary.add_option("--remove-extensions", dest="noExtension", action="store_true",
-                              help="Remove extensions in all wordlist entries (Example: admin.php -> admin)")
+                              help="Remove extensions in all paths (Example: admin.php -> admin)")
         dictionary.add_option("-U", "--uppercase", action="store_true", dest="uppercase", default=self.uppercase,
                               help="Uppercase wordlist")
         dictionary.add_option("-L", "--lowercase", action="store_true", dest="lowercase", default=self.lowercase,
@@ -503,20 +547,26 @@ information at https://github.com/maurosoria/dirsearch.""")
 
         # Optional Settings
         general = OptionGroup(parser, "General Settings")
-        general.add_option("-r", "--recursive", help="Bruteforce recursively", action="store_true", dest="recursive",
-                           default=self.recursive)
-        general.add_option("-R", "--recursion-depth", help="Maximum recursion depth", action="store",
-                           type="int", dest="recursive_level_max", default=self.recursive_level_max, metavar="DEPTH")
         general.add_option("-t", "--threads", help="Number of threads", action="store", type="int", dest="threadsCount",
                            default=self.threadsCount, metavar="THREADS")
+        general.add_option("-r", "--recursive", help="Brute-force recursively", action="store_true", dest="recursive",
+                           default=self.recursive)
+        general.add_option("--deep-recursive", help="Perform recursive scans on every directory depth (Example: api/users -> api/)", action="store_true", dest="deep_recursive",
+                           default=self.deep_recursive)
+        general.add_option("--force-recursive", help="Do recursive scans for every found path, not only paths end with slash", action="store_true", dest="force_recursive",
+                           default=self.force_recursive)
+        general.add_option("--recursion-depth", help="Maximum recursion depth", action="store",
+                           type="int", dest="recursion_depth", default=self.recursion_depth, metavar="DEPTH")
+        general.add_option("--recursion-status", help="Valid status codes to perform recursive scan, support ranges (separated by commas)",
+                           action="store", dest="recursionStatusCodes", default=self.recursionStatusCodes, metavar="CODES")
         general.add_option("--subdirs", help="Scan sub-directories of the given URL[s] (separated by commas)", action="store",
                            dest="scanSubdirs", default=None, metavar="SUBDIRS")
         general.add_option("--exclude-subdirs", help="Exclude the following subdirectories during recursive scan (separated by commas)",
                            action="store", dest="excludeSubdirs", default=self.excludeSubdirs, metavar="SUBDIRS")
         general.add_option("-i", "--include-status", help="Include status codes, separated by commas, support ranges (Example: 200,300-399)",
-                           action="store", dest="includeStatusCodes", default=self.includeStatusCodes, metavar="STATUS")
+                           action="store", dest="includeStatusCodes", default=self.includeStatusCodes, metavar="CODES")
         general.add_option("-x", "--exclude-status", help="Exclude status codes, separated by commas, support ranges (Example: 301,500-599)",
-                           action="store", dest="excludeStatusCodes", default=self.excludeStatusCodes, metavar="STATUS")
+                           action="store", dest="excludeStatusCodes", default=self.excludeStatusCodes, metavar="CODES")
         general.add_option("--exclude-sizes", help="Exclude responses by sizes, separated by commas (Example: 123B,4KB)",
                            action="store", dest="excludeSizes", default=self.excludeSizes, metavar="SIZES")
         general.add_option("--exclude-texts", help="Exclude responses by texts, separated by commas (Example: 'Not found', 'Error')",
@@ -525,18 +575,20 @@ information at https://github.com/maurosoria/dirsearch.""")
                            action="store", dest="excludeRegexps", default=self.excludeRegexps, metavar="REGEXPS")
         general.add_option("--exclude-redirects", help="Exclude responses by redirect regexps or texts, separated by commas (Example: 'https://okta.com/*')",
                            action="store", dest="excludeRedirects", default=self.excludeRedirects, metavar="REGEXPS")
-        general.add_option("--calibration", help="Path to test for calibration", action="store",
-                           dest="testFailPath", default=self.testFailPath, metavar="PATH")
-        general.add_option("--random-agent", help="Choose a random User-Agent for each request",
-                           action="store_true", dest="useRandomAgents",)
+        general.add_option("--exclude-content", help="Exclude responses by response content of this path", action="store",
+                           dest="excludeContent", default=self.excludeContent, metavar="PATH")
+        general.add_option("--skip-on-status", action="store", dest="skip_on_status", default=self.skip_on_status,
+                           help="Skip target whenever hit one of these status codes, separated by commas", metavar="CODES")
         general.add_option("--minimal", action="store", dest="minimumResponseSize", type="int", default=None,
                            help="Minimal response length", metavar="LENGTH")
         general.add_option("--maximal", action="store", dest="maximumResponseSize", type="int", default=None,
                            help="Maximal response length", metavar="LENGTH")
+        general.add_option("--max-time", action="store", dest="maxtime", type="int", default=self.maxtime,
+                           help="Maximal runtime for the scan", metavar="SECONDS")
         general.add_option("-q", "--quiet-mode", action="store_true", dest="quiet",
                            help="Quiet mode", default=self.quiet)
         general.add_option("--full-url", action="store_true", dest="full_url",
-                           help="Print full URLs in the output", default=self.full_url)
+                           help="Full URLs in the output (enabled automatically in quiet mode)", default=self.full_url)
         general.add_option("--no-color", help="No colored output", action="store_false",
                            dest="color", default=self.color)
 
@@ -546,12 +598,16 @@ information at https://github.com/maurosoria/dirsearch.""")
                            default=self.httpmethod, help="HTTP method (default: GET)", metavar="METHOD")
         request.add_option("-d", "--data", help="HTTP request data", action="store", dest="data",
                            type="str", default=None)
-        request.add_option("-H", "--header", help="HTTP request header, support multiple flags (Example: -H 'Referer: example.com' -H 'Accept: */*')",
+        request.add_option("-H", "--header", help="HTTP request header, support multiple flags (Example: -H 'Referer: example.com')",
                            action="append", type="string", dest="headers", default=None)
         request.add_option("--header-list", help="File contains HTTP request headers", type="string",
                            dest="headerList", default=self.headerList, metavar="FILE")
         request.add_option("-F", "--follow-redirects", help="Follow HTTP redirects",
                            action="store_true", dest="followRedirects", default=self.redirect)
+        request.add_option("--random-agent", help="Choose a random User-Agent for each request",
+                           default=self.useRandomAgents, action="store_true", dest="useRandomAgents")
+        request.add_option("--auth", help="Basic authentication credential [Format: USER:PASS]",
+                           action="store", dest="basic_auth")
         request.add_option("--user-agent", action="store", type="string", dest="useragent",
                            default=self.useragent)
         request.add_option("--cookie", action="store", type="string", dest="cookie", default=self.cookie)
@@ -560,27 +616,27 @@ information at https://github.com/maurosoria/dirsearch.""")
         connection = OptionGroup(parser, "Connection Settings")
         connection.add_option("--timeout", action="store", dest="timeout", type="float",
                               default=self.timeout, help="Connection timeout")
-        connection.add_option("--ip", action="store", dest="ip", default=None,
-                              help="Server IP address")
         connection.add_option("-s", "--delay", help="Delay between requests", action="store", dest="delay",
                               type="float", default=self.delay)
         connection.add_option("--proxy", action="store", dest="proxy", type="string", default=self.proxy,
                               help="Proxy URL, support HTTP and SOCKS proxies (Example: localhost:8080, socks5://localhost:8088)", metavar="PROXY")
         connection.add_option("--proxy-list", action="store", dest="proxyList", type="string",
                               default=self.proxylist, help="File contains proxy servers", metavar="FILE")
-        connection.add_option("--replay-proxy", action="store", dest="matches_proxy", type="string", default=self.matches_proxy,
+        connection.add_option("--replay-proxy", action="store", dest="replay_proxy", type="string", default=self.replay_proxy,
                               help="Proxy to replay with found paths", metavar="PROXY")
         connection.add_option("--scheme", help="Default scheme (for raw request or if there is no scheme in the URL)", action="store",
                               default=self.scheme, dest="scheme", metavar="SCHEME")
-        connection.add_option("--max-retries", action="store", dest="maxRetries", type="int",
-                              default=self.maxRetries, metavar="RETRIES")
+        connection.add_option("--max-rate", help="Max requests per second", action="store", dest="maxrate",
+                              type="int", default=self.maxrate, metavar="REQUESTS")
+        connection.add_option("--retries", help="Number of retries for failed requests", action="store",
+                              dest="maxRetries", type="int", default=self.maxRetries, metavar="RETRIES")
         connection.add_option("-b", "--request-by-hostname",
-                              help="By default dirsearch requests by IP for speed. This will force requests by hostname",
+                              help="By default dirsearch requests by IP for speed. This will force dirsearch to request by hostname",
                               action="store_true", dest="requestByHostname", default=self.requestByHostname)
+        connection.add_option("--ip", action="store", dest="ip", default=None,
+                              help="Server IP address")
         connection.add_option("--exit-on-error", action="store_true", dest="exit_on_error", default=self.exit_on_error,
                               help="Exit whenever an error occurs")
-        connection.add_option("--debug", action="store_true", dest="debug", default=self.debug,
-                              help="Debug mode")
 
         # Report Settings
         reports = OptionGroup(parser, "Reports")

@@ -116,7 +116,7 @@ class CLIOutput(object):
             showPath,
         )
 
-        if status == 200:
+        if status in [200, 201, 204]:
             message = Fore.GREEN + message + Style.RESET_ALL
 
         elif status == 401:
@@ -125,14 +125,16 @@ class CLIOutput(object):
         elif status == 403:
             message = Fore.BLUE + message + Style.RESET_ALL
 
-        elif status == 500:
+        elif status in range(500, 600):
             message = Fore.RED + message + Style.RESET_ALL
 
-        # Check if redirect
-        if status in [301, 302, 303, 307, 308]:
+        elif status in range(300, 400):
             message = Fore.CYAN + message + Style.RESET_ALL
             if "location" in [h.lower() for h in response.headers]:
                 message += "  ->  {0}".format(response.headers["location"])
+
+        else:
+            message = Fore.MAGENTA + message + Style.RESET_ALL
 
         if addedToQueue:
             message += "     (Added to queue)"
@@ -140,10 +142,10 @@ class CLIOutput(object):
         with self.mutex:
             self.newLine(message)
 
-    def lastPath(self, path, index, length, currentJob, allJobs):
+    def lastPath(self, path, index, length, currentJob, allJobs, rate):
         l, h = get_terminal_size()
 
-        message = "{0:.2f}% - ".format(self.percentage(index, length))
+        message = "{0:.2f}% | {1} req/s - ".format(self.percentage(index, length), rate)
 
         if allJobs > 1:
             message += "Job: {0}/{1} - ".format(currentJob, allJobs)
@@ -179,18 +181,20 @@ class CLIOutput(object):
         message = Style.BRIGHT + Fore.MAGENTA + message + Style.RESET_ALL
         self.newLine(message)
 
-    def separation(self, config, x):
-        l, h = get_terminal_size()
-        separator = Fore.MAGENTA + " | " + Fore.YELLOW
-
+    def addConfig(self, key, value, msg):
+        l, _ = get_terminal_size()
         # Escape colours in text to get the real length
-        escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+        escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])|\n")
+        particle = Fore.YELLOW + key + ": " + Fore.CYAN + value
 
-        config = escape.sub("", config.splitlines()[-1] + x)
-        if len(config) + 3 > l:
-            return "\n"
+        if len(escape.sub("", msg)) == 0:
+            separator = ""
+        elif len(escape.sub("", msg.splitlines()[-1] + particle)) + 3 > l:
+            separator = "\n"
         else:
-            return separator
+            separator = Fore.MAGENTA + " | " + Fore.YELLOW
+
+        return separator + particle
 
     def config(
         self,
@@ -202,26 +206,18 @@ class CLIOutput(object):
         method,
     ):
 
-        config = Style.BRIGHT + Fore.YELLOW
-        config += "Extensions: {0}".format(Fore.CYAN + extensions + Fore.YELLOW)
+        config = Style.BRIGHT
+        config += self.addConfig("Extensions", extensions, config)
 
         if prefixes:
-            particle = 'Prefixes: {0}'.format(Fore.CYAN + prefixes + Fore.YELLOW)
-            config += self.separation(config, particle) + particle
+            config += self.addConfig("Prefixes", prefixes, config)
 
         if suffixes:
-            particle = 'Suffixes: {0}'.format(Fore.CYAN + suffixes + Fore.YELLOW)
-            config += self.separation(config, particle) + particle
+            config += self.addConfig("Suffixes", suffixes, config)
 
-        particle = "HTTP method: {0}".format(Fore.CYAN + method.upper() + Fore.YELLOW)
-        config += self.separation(config, particle) + particle
-
-        particle = "Threads: {0}".format(Fore.CYAN + threads + Fore.YELLOW)
-        config += self.separation(config, particle) + particle
-
-        particle = "Wordlist size: {0}".format(Fore.CYAN + wordlist_size + Fore.YELLOW)
-        config += self.separation(config, particle) + particle
-
+        config += self.addConfig("HTTP method", method.upper(), config)
+        config += self.addConfig("Threads", threads, config)
+        config += self.addConfig("Wordlist size", wordlist_size, config)
         config += Style.RESET_ALL
 
         self.newLine(config)
@@ -232,8 +228,8 @@ class CLIOutput(object):
 
         self.target = target
 
-        config = Style.BRIGHT + Fore.YELLOW
-        config += "\nTarget: {0}\n".format(Fore.CYAN + target + Fore.YELLOW)
+        config = Style.BRIGHT + "\n"
+        config += self.addConfig("Target", target, config) + "\n"
         config += Style.RESET_ALL
 
         self.newLine(config)

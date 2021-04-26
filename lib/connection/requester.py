@@ -30,8 +30,6 @@ class Requester(object):
     def __init__(
         self,
         url,
-        cookie=None,
-        useragent=None,
         maxPool=1,
         maxRetries=5,
         timeout=20,
@@ -75,7 +73,9 @@ class Requester(object):
         # Resolve DNS to decrease overhead
         if ip:
             self.ip = ip
-        else:
+        # A proxy could have a different DNS that would resolve the name. Therefore,
+        # resolving the name when using proxy to raise an error is pointless
+        elif not proxy and not proxylist:
             try:
                 self.ip = socket.gethostbyname(self.host)
             except socket.gaierror:
@@ -100,13 +100,6 @@ class Requester(object):
         ):
             self.headers["Host"] += ":{0}".format(self.port)
 
-        # Set cookie and user-agent headers
-        if cookie:
-            self.setHeader("Cookie", cookie)
-
-        if useragent:
-            self.setHeader("User-agent", useragent)
-
         self.maxRetries = maxRetries
         self.maxPool = maxPool
         self.timeout = timeout
@@ -124,7 +117,7 @@ class Requester(object):
         )
 
     def setHeader(self, key, value):
-        self.headers[key.strip()] = value.strip()
+        self.headers[key.strip()] = value.strip() if value else value
 
     def setRandomAgents(self, agents):
         self.randomAgents = list(agents)
@@ -133,11 +126,10 @@ class Requester(object):
         self.randomAgents = None
 
     def request(self, path, proxy=None):
-        i = 0
         result = None
+        error = None
 
-        while i <= self.maxRetries:
-
+        for i in range(self.maxRetries):
             try:
                 if not proxy:
                     if self.proxylist:
@@ -152,7 +144,7 @@ class Requester(object):
                         proxy = "http://" + proxy
 
                     if proxy.startswith("http:"):
-                        proxies = {"http": proxy}
+                        proxies = {"http": proxy, "https": proxy}
                     elif proxy.startswith("https:"):
                         proxies = {"https": proxy}
                     else:
@@ -163,15 +155,19 @@ class Requester(object):
                 url = self.url + self.basePath + path
 
                 if self.randomAgents:
-                    self.headers["User-agent"] = random.choice(self.randomAgents)
+                    self.headers["User-Agent"] = random.choice(self.randomAgents)
 
-                response = self.session.request(
+                request = requests.Request(
                     self.httpmethod,
-                    url,
+                    url=url,
+                    headers=dict(self.headers),
                     data=self.data,
+                )
+                prepare = request.prepare()
+                response = self.session.send(
+                    prepare,
                     proxies=proxies,
                     allow_redirects=self.redirect,
-                    headers=dict(self.headers),
                     timeout=self.timeout,
                     verify=False,
                 )
@@ -190,29 +186,19 @@ class Requester(object):
                 continue
 
             except requests.exceptions.TooManyRedirects:
-                raise RequestException(
-                    {"message": "Too many redirects"}
-                )
+                error = "Too many redirects: {0}".format(url)
 
-            except requests.exceptions.ProxyError as e:
-                raise RequestException(
-                    {"message": "Error with the proxy: {0}".format(e)}
-                )
+            except requests.exceptions.ProxyError:
+                error = "Error with the proxy: {0}".format(proxy)
 
             except requests.exceptions.ConnectionError:
-                raise RequestException(
-                    {"message": "Cannot connect to: {0}:{1}".format(self.host, self.port)}
-                )
+                error = "Cannot connect to: {0}:{1}".format(self.host, self.port)
 
             except requests.exceptions.InvalidURL:
-                raise RequestException(
-                    {"message": "Invalid URL: {0}".format(url)}
-                )
+                error = "Invalid URL: {0}".format(url)
 
             except requests.exceptions.InvalidProxyURL:
-                raise RequestException(
-                    {"message": "Invalid proxy URL: {0}".format(proxy)}
-                )
+                error = "Invalid proxy URL: {0}".format(proxy)
 
             except (
                 requests.exceptions.ConnectTimeout,
@@ -221,18 +207,12 @@ class Requester(object):
                 http.client.IncompleteRead,
                 socket.timeout,
             ):
-                continue
+                error = "Request timeout: {0}".format(url)
 
-            finally:
-                i += 1
+            except Exception:
+                error = "There was a problem in the request to: {0}".format(url)
 
-        if i > self.maxRetries:
-            raise RequestException(
-                {
-                    "message": "There was a problem in the request to: {0}".format(
-                        url
-                    )
-                }
-            )
+        if error:
+            raise RequestException({"message": error})
 
         return result

@@ -113,8 +113,10 @@ class Dictionary(object):
 
                 if self._noExtension:
                     line = line[0] + line[1:].split(".")[0]
+                    if line == ".":
+                        continue
 
-                # Check if the line is having the %NOFORCE% keyword
+                # Check if the line has the %NOFORCE% keyword
                 if "%noforce%" in line.lower():
                     noforce = True
                     line = renoforce("", line)

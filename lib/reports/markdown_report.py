@@ -18,13 +18,11 @@
 
 from lib.reports import *
 import time
+import sys
 
 
 class MarkdownReport(FileBaseReport):
-
     def addPath(self, path, status, response):
-        contentLength = None
-
         try:
             contentLength = int(response.headers["content-length"])
 
@@ -38,7 +36,8 @@ class MarkdownReport(FileBaseReport):
             self.protocol, self.host, self.port, self.basePath
         )
 
-        result = "### Time: {0}\n".format(time.ctime())
+        result = "### Args: {0}\n".format(' '.join(sys.argv))
+        result += "### Time: {0}\n".format(time.ctime())
         result += "### Target: {0}\n\n".format(headerName)
         result += "Path | Status | Size | Redirection\n"
         result += "-----|--------|------|------------\n"
