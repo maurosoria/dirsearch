@@ -587,35 +587,63 @@ class Controller(object):
             matched_templates = []
 
             for template in self.templates:
-                if (
-                        "method" in template and self.httpmethod not in template["method"]
-                ) or (
-                        "path" in template and path.path not in template["path"]
-                ) or (
-                        "status" in template and path.status not in template["status"]
-                ):
+                for object in template:
+                    if not isinstance(template[object], (list, dict)):
+                        template[object] = [template[object]]
+
+                if "status" in template and path.status not in template["status"]:
                     continue
 
-                if "headers" in template:
-                    invalid = False
+                if "method" in template and self.httpmethod not in [m.lower() for m in template["method"]]:
+                    continue
 
-                    for header in template["headers"]:
-                        header = header.split(":")
-                        if len(header) > 2:
-                            header = [header[0], ":".join(header[1:])]
-                        header = (header[0].lower(), header[1].lstrip(" "))
-
-                        if header not in list(path.response.headers.items()):
-                            invalid = True
-
-                    if invalid:
+                if "path" in template:
+                    if "regex" in template["path"] and not any(
+                        [re.match(p, path.path) for p in template["path"]["regex"]]
+                    ):
+                        continue
+                    if template["path"][0] not in path.path:
                         continue
 
-                if (
-                        "body" in template
-                ) and (
-                        template["body"][0] not in path.response.body or not re.match(template["body"][0], path.response.body)
-                ):
+                if "headers" in template:
+                    match = False
+
+                    if "regex" in template["headers"]:
+                        t_headers = template["headers"]["regex"]
+                    else:
+                        t_headers = template["headers"]
+
+                    for header in t_headers:
+                        header = header.split(":")
+                        header[0] = header[0].lower()
+                        if header[1].startswith(" "):
+                            header[1] = header[1][1:]
+                        header = ":".join(header)
+
+                        for h in list(path.response.headers.items()):
+                            if "regex" in template["headers"] and re.match(
+                                header, ":".join([h[0].lower(), h[1]])
+                            ):
+                                match = True
+                                break
+                            elif "regex" not in template["headers"] and header in ":".join(
+                                [h[0].lower(), h[1]]
+                            ):
+                                match = True
+                                break
+
+                        if match:
+                            break
+
+                    if not match:
+                        continue
+
+                if "body" in template:
+                    if "regex" in template["body"] and not re.match(
+                        template["body"]["regex"][0], path.response.body
+                    ):
+                        continue
+                    elif "regex" not in template["body"] and template["body"][0] not in path.response.body:
                         continue
 
                 matched_templates.append(template["description"][0])

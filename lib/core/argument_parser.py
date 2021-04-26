@@ -408,6 +408,8 @@ class ArgumentParser(object):
         else:
             self.skip_on_status = []
 
+        self.templates = []
+
         if options.templates:
             if not FileUtils.is_dir(options.templates):
                 print("{0} does not exist or isn't a directory".format(options.templates))
@@ -418,11 +420,12 @@ class ArgumentParser(object):
 
             templates = list(FileUtils.read_directory(options.templates).values())
 
-            try:
-                self.templates = [yaml.safe_load(template) for template in templates]
-            except Exception:
-                print("Found at least a file in {0} has valid format. Make sure all of them are in YAML")
-                exit(1)
+            for template in templates:
+                try:
+                    self.templates.append(yaml.safe_load(template))
+                except Exception:
+                    print("{0} has valid format. Make sure it is written in YAML correctly".format(template))
+                    exit(1)
 
         if len(set(self.extensions).intersection(self.excludeExtensions)):
             print("Exclude extension list can not contain any extension that has already in the extension list")
@@ -577,7 +580,7 @@ information at https://github.com/maurosoria/dirsearch.""")
                            type="int", dest="recursion_depth", default=self.recursion_depth, metavar="DEPTH")
         general.add_option("--recursion-status", help="Valid status codes to perform recursive scan, support ranges (separated by commas)",
                            action="store", dest="recursionStatusCodes", default=self.recursionStatusCodes, metavar="CODES")
-        general.add_option("-T", "--templates", help="Directory contains detection templates", action="store", dest="templates",
+        general.add_option("-T", "--templates", help="Directory contains signature templates", action="store", dest="templates",
                            default=self.templates, metavar="DIRECTORY")
         general.add_option("--subdirs", help="Scan sub-directories of the given URL[s] (separated by commas)", action="store",
                            dest="scanSubdirs", default=None, metavar="SUBDIRS")

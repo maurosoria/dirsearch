@@ -1,0 +1,4 @@
+description: Nginx
+headers:
+  regex:
+    - "^(s|S)erver: nginx$"

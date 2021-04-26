@@ -1,0 +1,13 @@
+description: Directory Listing
+method: GET
+status: 200
+body: 
+  regex: >
+    ^(.*)<html>
+     <head>
+      <title>Index of /(.*)</title>
+     </head>
+     <body>
+    <h1>Index of /(.*)</h1>
+      <table>(.*)$
+

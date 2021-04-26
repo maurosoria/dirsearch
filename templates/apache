@@ -1,0 +1,4 @@
+description: Apache
+headers:
+  regex:
+    - "^Server: Apache (.*)$"

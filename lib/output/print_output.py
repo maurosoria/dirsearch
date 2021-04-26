@@ -117,7 +117,7 @@ class PrintOutput(object):
 
         if templates:
             for template in templates:
-                message += "\n==> Template report: {0}".format(template)
+                message += "\n==> Template: {0}".format(template)
 
         with self.mutex:
             self.newLine(message)
