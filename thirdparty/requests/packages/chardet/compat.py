@@ -1,6 +1,7 @@
 ######################## BEGIN LICENSE BLOCK ########################
 # Contributor(s):
-#   Ian Cordasco - port to Python
+#   Dan Blanchard
+#   Ian Cordasco
 #
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
@@ -22,13 +23,14 @@ import sys
 
 
 if sys.version_info < (3, 0):
-    base_str = (str, unicode)
+    PY2 = True
+    PY3 = False
+    string_types = (str, unicode)
+    text_type = unicode
+    iteritems = dict.iteritems
 else:
-    base_str = (bytes, str)
-
-
-def wrap_ord(a):
-    if sys.version_info < (3, 0) and isinstance(a, base_str):
-        return ord(a)
-    else:
-        return a
+    PY2 = False
+    PY3 = True
+    string_types = (bytes, str)
+    text_type = str
+    iteritems = dict.items

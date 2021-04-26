@@ -1,20 +1,25 @@
-import codecs
+from __future__ import absolute_import
 
-from uuid import uuid4
+import binascii
+import codecs
+import os
 from io import BytesIO
 
+from .fields import RequestField
 from .packages import six
 from .packages.six import b
-from .fields import RequestField
 
 writer = codecs.lookup("utf-8")[3]
 
 
 def choose_boundary():
     """
-    Our embarassingly-simple replacement for mimetools.choose_boundary.
+    Our embarrassingly-simple replacement for mimetools.choose_boundary.
     """
-    return uuid4().hex
+    boundary = binascii.hexlify(os.urandom(16))
+    if not six.PY2:
+        boundary = boundary.decode("ascii")
+    return boundary
 
 
 def iter_field_objects(fields):
@@ -64,7 +69,7 @@ def encode_multipart_formdata(fields, boundary=None):
 
     :param boundary:
         If not specified, then a random boundary will be generated using
-        :func:`mimetools.choose_boundary`.
+        :func:`urllib3.filepost.choose_boundary`.
     """
     body = BytesIO()
     if boundary is None:

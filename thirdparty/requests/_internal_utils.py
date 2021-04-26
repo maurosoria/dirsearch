@@ -3,6 +3,7 @@
 """
 requests._internal_utils
 ~~~~~~~~~~~~~~
+
 Provides utility functions that are consumed internally by Requests
 which depend on extremely few external helpers (such as compat)
 """
@@ -28,6 +29,7 @@ def to_native_string(string, encoding='ascii'):
 
 def unicode_is_ascii(u_string):
     """Determine if unicode string only contains ASCII characters.
+
     :param str u_string: unicode string to check. Must be unicode
         and not Python 2 `str`.
     :rtype: bool
