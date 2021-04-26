@@ -157,13 +157,17 @@ class Requester(object):
                 if self.randomAgents:
                     self.headers["User-Agent"] = random.choice(self.randomAgents)
 
-                response = self.session.request(
+                request = requests.Request(
                     self.httpmethod,
-                    url,
+                    url=url,
+                    headers=dict(self.headers),
                     data=self.data,
+                )
+                prepare = request.prepare()
+                response = self.session.send(
+                    prepare,
                     proxies=proxies,
                     allow_redirects=self.redirect,
-                    headers=dict(self.headers),
                     timeout=self.timeout,
                     verify=False,
                 )

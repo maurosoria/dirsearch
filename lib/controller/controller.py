@@ -64,20 +64,11 @@ class Controller(object):
         self.doneDirs = []
 
         if arguments.raw_file:
-            # Overwrite python-requests default headers
-            default_headers = {
-                "User-Agent": None,
-                "Accept-Encoding": None,
-                "Accept": None,
-            }
-
             _raw = Raw(arguments.raw_file, arguments.scheme)
             self.urlList = [_raw.url()]
             self.httpmethod = _raw.method()
             self.data = _raw.data()
-            self.headers = {**default_headers, **_raw.headers()}
-            self.headers["Cookie"] = _raw.cookie()
-            self.headers["User-Agent"] = _raw.user_agent()
+            self.headers = _raw.headers()
         else:
             default_headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36",
@@ -91,8 +82,10 @@ class Controller(object):
             self.httpmethod = arguments.httpmethod.lower()
             self.data = arguments.data
             self.headers = {**default_headers, **arguments.headers}
-            self.headers["Cookie"] = arguments.cookie
-            self.headers["User-Agent"] = arguments.useragent
+            if arguments.cookie:
+                self.headers["Cookie"] = arguments.cookie
+            if arguments.cookie:
+                self.headers["User-Agent"] = arguments.useragent
 
         self.recursion_depth = arguments.recursion_depth
 

@@ -16,7 +16,7 @@ setuptools.setup(
     package_data={"": ["../default.conf", "../lib/controller/banner.txt", "../logs/*", "../reports/*", "../db/*"]},
     include_package_data=True,
     python_requires=">=3.0",
-    install_requires=["certifi>=2020.11.8", "chardet>=3.0.2", "urllib3<=1.24.3,>=1.21.1", "cryptography>=2.8", "PySocks"],
+    install_requires=["certifi>=2020.11.8", "chardet>=3.0.2", "urllib3>=1.21.1", "cryptography>=2.8", "PySocks"],
     classifiers=[
         "Programming Language :: Python",
         "Environment :: Console",
