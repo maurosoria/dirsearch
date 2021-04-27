@@ -122,7 +122,7 @@ class FileUtils(object):
         return os.path.isfile(file_name)
 
     @staticmethod
-    def can_read_directory(directory):
+    def can_read_dir(directory):
         for root, _, files in os.walk(directory):
             for file in files:
                 if not FileUtils.can_read(os.path.join(root, file)):
@@ -130,7 +130,7 @@ class FileUtils(object):
         return True
 
     @staticmethod
-    def read_directory(directory):
+    def read_dir(directory):
         data = {}
         for root, _, files in os.walk(directory):
             for file in files:

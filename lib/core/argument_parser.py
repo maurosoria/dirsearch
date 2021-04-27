@@ -408,23 +408,23 @@ class ArgumentParser(object):
         else:
             self.skip_on_status = []
 
-        self.templates = []
+        self.signatures = []
 
-        if options.templates:
-            if not FileUtils.is_dir(options.templates):
-                print("{0} does not exist or isn't a directory".format(options.templates))
+        if options.signatures:
+            if not FileUtils.is_dir(options.signatures):
+                print("{0} does not exist or isn't a directory".format(options.signatures))
                 exit(1)
-            elif not FileUtils.can_read_directory(options.templates):
-                print("Can't read all files in {0}".format(options.templates))
+            elif not FileUtils.can_read_dir(options.signatures):
+                print("Can't read all files in {0}".format(options.signatures))
                 exit(1)
 
-            templates = list(FileUtils.read_directory(options.templates).values())
+            signatures = list(FileUtils.read_dir(options.signatures).values())
 
-            for template in templates:
+            for signature in signatures:
                 try:
-                    self.templates.append(yaml.safe_load(template))
+                    self.signatures.append(yaml.safe_load(signature))
                 except Exception:
-                    print("{0} has valid format. Make sure it is written in YAML correctly".format(template))
+                    print("{0} has valid format. Make sure it is written in YAML correctly".format(signature))
                     exit(1)
 
         if len(set(self.extensions).intersection(self.excludeExtensions)):
@@ -471,7 +471,7 @@ class ArgumentParser(object):
         self.force_recursive = config.safe_getboolean("general", "force-recursive", False)
         self.recursion_depth = config.safe_getint("general", "recursion-depth", 0)
         self.recursionStatusCodes = config.safe_get("general", "recursion-status", None)
-        self.templates = config.safe_get("general", "templates-location", None)
+        self.signatures = config.safe_get("general", "signatures-location", None)
         self.saveHome = config.safe_getboolean("general", "save-logs-home", False)
         self.excludeSubdirs = config.safe_get("general", "exclude-subdirs", None)
         self.skip_on_status = config.safe_get("general", "skip-on-status", None)
@@ -580,8 +580,8 @@ information at https://github.com/maurosoria/dirsearch.""")
                            type="int", dest="recursion_depth", default=self.recursion_depth, metavar="DEPTH")
         general.add_option("--recursion-status", help="Valid status codes to perform recursive scan, support ranges (separated by commas)",
                            action="store", dest="recursionStatusCodes", default=self.recursionStatusCodes, metavar="CODES")
-        general.add_option("-T", "--templates", help="Directory contains signature templates", action="store", dest="templates",
-                           default=self.templates, metavar="DIRECTORY")
+        general.add_option("--signatures", help="Directory contains signatures", action="store", dest="signatures",
+                           default=self.signatures, metavar="DIRECTORY")
         general.add_option("--subdirs", help="Scan sub-directories of the given URL[s] (separated by commas)", action="store",
                            dest="scanSubdirs", default=None, metavar="SUBDIRS")
         general.add_option("--exclude-subdirs", help="Exclude the following subdirectories during recursive scan (separated by commas)",

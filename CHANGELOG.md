@@ -15,7 +15,7 @@ Currently working...
 - Deep recursive scan
 - Option to force recurse on all found paths (not just the ones end with /)
 - Option to skip target by specified status codes
-- Release dirsearch templates feature
+- Release dirsearch signatures feature
 
 v0.4.1 (2020.12.8)
 ---------

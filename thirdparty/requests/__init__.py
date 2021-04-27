@@ -67,10 +67,9 @@ def check_compatibility(urllib3_version, chardet_version):
     # Check chardet for compatibility.
     major, minor, patch = chardet_version.split('.')[:3]
     major, minor, patch = int(major), int(minor), int(patch)
-    # chardet >= 3.0.2, < 4.x.x
+    # chardet >= 3.0.0, < 4.x.x
     assert major >= 3
     assert major <= 4
-    assert patch >= 2
 
 
 def _check_cryptography(cryptography_version):

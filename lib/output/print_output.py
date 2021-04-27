@@ -69,7 +69,7 @@ class PrintOutput(object):
         sys.stdout.write(string + "\n")
         sys.stdout.flush()
 
-    def statusReport(self, path, response, full_url, addedToQueue):
+    def statusReport(self, path, response, full_url, addedToQueue, signatures):
         contentLength = None
         status = response.status
 
@@ -115,9 +115,8 @@ class PrintOutput(object):
         if addedToQueue:
             message += "     (Added to queue)"
 
-        if templates:
-            for template in templates:
-                message += "\n==> Template: {0}".format(template)
+        for signature in signatures:
+                message += "\n==> Signature found: {0}".format(signature)
 
         with self.mutex:
             self.newLine(message)

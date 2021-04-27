@@ -27,7 +27,7 @@ from threading import Lock
 from queue import Queue
 
 from lib.connection import Requester, RequestException
-from lib.core import Dictionary, Fuzzer, ReportManager, Raw
+from lib.core import Dictionary, Fuzzer, ReportManager, Raw, Signatures
 from lib.reports import JSONReport, XMLReport, PlainTextReport, SimpleReport, MarkdownReport, CSVReport
 from lib.utils import FileUtils
 
@@ -128,7 +128,7 @@ class Controller(object):
 
         self.reportsPath = FileUtils.build_path(self.savePath, "logs")
         self.blacklists = self.getBlacklists()
-        self.templates = arguments.templates
+        self.signatures = arguments.signatures
         self.includeStatusCodes = arguments.includeStatusCodes
         self.excludeStatusCodes = arguments.excludeStatusCodes
         self.excludeSizes = arguments.excludeSizes
@@ -146,6 +146,8 @@ class Controller(object):
         self.excludeSubdirs = (
             arguments.excludeSubdirs if arguments.excludeSubdirs else []
         )
+
+        self.signatures_scanner = Signatures(self.signatures)
 
         self.dictionary = Dictionary(
             paths=arguments.wordlist,
@@ -584,72 +586,10 @@ class Controller(object):
                 else:
                     addedToQueue = self.addDirectory(path.path)
 
-            matched_templates = []
-
-            for template in self.templates:
-                for object in template:
-                    if not isinstance(template[object], (list, dict)):
-                        template[object] = [template[object]]
-
-                if "status" in template and path.status not in template["status"]:
-                    continue
-
-                if "method" in template and self.httpmethod not in [m.lower() for m in template["method"]]:
-                    continue
-
-                if "path" in template:
-                    if "regex" in template["path"] and not any(
-                        [re.match(p, path.path) for p in template["path"]["regex"]]
-                    ):
-                        continue
-                    if template["path"][0] not in path.path:
-                        continue
-
-                if "headers" in template:
-                    match = False
-
-                    if "regex" in template["headers"]:
-                        t_headers = template["headers"]["regex"]
-                    else:
-                        t_headers = template["headers"]
-
-                    for header in t_headers:
-                        header = header.split(":")
-                        header[0] = header[0].lower()
-                        if header[1].startswith(" "):
-                            header[1] = header[1][1:]
-                        header = ":".join(header)
-
-                        for h in list(path.response.headers.items()):
-                            if "regex" in template["headers"] and re.match(
-                                header, ":".join([h[0].lower(), h[1]])
-                            ):
-                                match = True
-                                break
-                            elif "regex" not in template["headers"] and header in ":".join(
-                                [h[0].lower(), h[1]]
-                            ):
-                                match = True
-                                break
-
-                        if match:
-                            break
-
-                    if not match:
-                        continue
-
-                if "body" in template:
-                    if "regex" in template["body"] and not re.match(
-                        template["body"]["regex"][0], path.response.body
-                    ):
-                        continue
-                    elif "regex" not in template["body"] and template["body"][0] not in path.response.body:
-                        continue
-
-                matched_templates.append(template["description"][0])
+            signatures = self.signatures_scanner.check(self.httpmethod, path)
 
             self.output.statusReport(
-                path.path, path.response, self.arguments.full_url, addedToQueue, matched_templates
+                path.path, path.response, self.arguments.full_url, addedToQueue, signatures
             )
 
             if self.arguments.replay_proxy:

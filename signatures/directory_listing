@@ -1,4 +1,4 @@
-description: Directory Listing
+name: Directory Listing
 method: GET
 status: 200
 body: 
