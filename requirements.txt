@@ -1,5 +1,5 @@
 certifi>=2020.11.8
 chardet>=3.0.2
-urllib3<=1.24.3
+urllib3>=1.21.1
 cryptography>=2.8
 PySocks

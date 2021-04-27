@@ -16,6 +16,7 @@
 #
 #  Author: Mauro Soria
 
+import urllib3
 import http.client
 import random
 import socket
@@ -24,6 +25,8 @@ import urllib.parse
 import thirdparty.requests as requests
 from .request_exception import *
 from .response import *
+
+urllib3.disable_warnings()
 
 
 class Requester(object):
@@ -143,9 +146,7 @@ class Requester(object):
                     ):
                         proxy = "http://" + proxy
 
-                    if proxy.startswith("http:"):
-                        proxies = {"http": proxy, "https": proxy}
-                    elif proxy.startswith("https:"):
+                    if proxy.startswith("https://"):
                         proxies = {"https": proxy}
                     else:
                         proxies = {"https": proxy, "http": proxy}
@@ -157,13 +158,17 @@ class Requester(object):
                 if self.randomAgents:
                     self.headers["User-Agent"] = random.choice(self.randomAgents)
 
-                response = self.session.request(
+                request = requests.Request(
                     self.httpmethod,
-                    url,
+                    url=url,
+                    headers=dict(self.headers),
                     data=self.data,
+                )
+                prepare = request.prepare()
+                response = self.session.send(
+                    prepare,
                     proxies=proxies,
                     allow_redirects=self.redirect,
-                    headers=dict(self.headers),
                     timeout=self.timeout,
                     verify=False,
                 )
