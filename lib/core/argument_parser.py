@@ -516,7 +516,7 @@ information at https://github.com/maurosoria/dirsearch.""")
                              default=None, metavar="FILE")
         mandatory.add_option("--stdin", help="Target URL list from STDIN", action="store_true", dest="stdin_urls")
         mandatory.add_option("--cidr", help="Target CIDR", action="store", type="string", dest="cidr", default=None)
-        mandatory.add_option("--raw", help="File contains the raw request (use `--scheme` flag to set the scheme)", action="store",
+        mandatory.add_option("--raw", help="Load raw HTTP request from file (use `--scheme` flag to set the scheme)", action="store",
                              dest="raw_file", metavar="FILE")
         mandatory.add_option("-e", "--extensions", help="Extension list separated by commas (Example: php,asp)",
                              action="store", dest="extensions", default=self.defaultExtensions)
@@ -607,7 +607,7 @@ information at https://github.com/maurosoria/dirsearch.""")
         request.add_option("--random-agent", help="Choose a random User-Agent for each request",
                            default=self.useRandomAgents, action="store_true", dest="useRandomAgents")
         request.add_option("--auth", help="Basic authentication credential [Format: USER:PASS]",
-                           action="store", dest="basic_auth")
+                           action="store", dest="basic_auth", metavar="CREDENTIAL")
         request.add_option("--user-agent", action="store", type="string", dest="useragent",
                            default=self.useragent)
         request.add_option("--cookie", action="store", type="string", dest="cookie", default=self.cookie)
@@ -627,7 +627,7 @@ information at https://github.com/maurosoria/dirsearch.""")
         connection.add_option("--scheme", help="Default scheme (for raw request or if there is no scheme in the URL)", action="store",
                               default=self.scheme, dest="scheme", metavar="SCHEME")
         connection.add_option("--max-rate", help="Max requests per second", action="store", dest="maxrate",
-                              type="int", default=self.maxrate, metavar="REQUESTS")
+                              type="int", default=self.maxrate, metavar="RATE")
         connection.add_option("--retries", help="Number of retries for failed requests", action="store",
                               dest="maxRetries", type="int", default=self.maxRetries, metavar="RETRIES")
         connection.add_option("-b", "--request-by-hostname",
