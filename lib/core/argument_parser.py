@@ -367,8 +367,10 @@ class ArgumentParser(object):
         self.maximumResponseSize = options.maximumResponseSize
         self.noExtension = options.noExtension
         self.onlySelected = options.onlySelected
-        self.outputFile = options.outputFile
-        self.outputFormat = options.outputFormat
+        if options.outputFile:
+            self.outputFile = options.outputFile
+        if options.outputFormat:
+            self.outputFormat = options.outputFormat
 
         if options.scanSubdirs:
             self.scanSubdirs = list(
@@ -460,9 +462,9 @@ class ArgumentParser(object):
         self.quiet = config.safe_getboolean("general", "quiet-mode", False)
 
         # Reports
-        self.autoSave = config.safe_getboolean("reports", "autosave-report", False)
-        self.autoSaveFormat = config.safe_get(
-            "reports", "autosave-report-format", "txt", ["txt", "simple", "json", "xml", "md", "csv"]
+        self.outputFile = config.safe_get("reports", "report-output", None)
+        self.outputFormat = config.safe_get(
+            "reports", "report-format", "plain", ["plain", "simple", "json", "xml", "md", "csv"]
         )
 
         # Dictionary

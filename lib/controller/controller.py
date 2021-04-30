@@ -163,9 +163,8 @@ class Controller(object):
         self.output.header(program_banner)
         self.printConfig()
 
-        if arguments.autoSave and len(self.urlList) > 1:
+        if len(self.urlList) > 1:
             self.setupBatchReports()
-            self.output.newLine("AutoSave path: {0}\n".format(self.batchDirectoryPath))
 
         if arguments.useRandomAgents:
             self.randomAgents = FileUtils.get_lines(
@@ -336,30 +335,20 @@ class Controller(object):
 
     def setupBatchReports(self):
         self.batch = True
-        self.batchSession = "BATCH-{0}".format(time.strftime("%y-%m-%d_%H-%M-%S"))
-        self.batchDirectoryPath = FileUtils.build_path(
-            self.savePath, "reports", self.batchSession
-        )
-
-        if not FileUtils.exists(self.batchDirectoryPath):
-            FileUtils.create_directory(self.batchDirectoryPath)
+        if self.arguments.outputFile is None:
+            self.batchSession = "BATCH-{0}".format(time.strftime("%y-%m-%d_%H-%M-%S"))
+            self.batchDirectoryPath = FileUtils.build_path(
+                self.savePath, "reports", self.batchSession
+            )
 
             if not FileUtils.exists(self.batchDirectoryPath):
-                self.output.error(
-                    "Couldn't create batch folder at {}".format(self.batchDirectoryPath)
-                )
-                sys.exit(1)
+                FileUtils.create_directory(self.batchDirectoryPath)
 
-        if FileUtils.can_write(self.batchDirectoryPath):
-            FileUtils.create_directory(self.batchDirectoryPath)
-            targetsFile = FileUtils.build_path(self.batchDirectoryPath, "TARGETS.txt")
-            FileUtils.write_lines(targetsFile, self.urlList)
-
-        else:
-            self.output.error(
-                "Couldn't create batch folder at {}".format(self.batchDirectoryPath)
-            )
-            sys.exit(1)
+                if not FileUtils.exists(self.batchDirectoryPath):
+                    self.output.error(
+                        "Couldn't create batch folder at {}".format(self.batchDirectoryPath)
+                    )
+                    sys.exit(1)
 
     def getOutputExtension(self):
         if self.arguments.outputFormat:
@@ -367,11 +356,6 @@ class Controller(object):
                 return ".txt"
             else:
                 return ".{0}".format(self.arguments.outputFormat)
-        elif self.arguments.autoSaveFormat:
-            if self.arguments.autoSaveFormat == 'plain' or self.arguments.autoSaveFormat == 'simple':
-                return ".txt"
-            else:
-                return ".{0}".format(self.arguments.autoSaveFormat)
         else:
             return ".txt"
 
@@ -417,10 +401,7 @@ class Controller(object):
         elif self.arguments.outputFormat:
             self.reportManager = ReportManager(self.arguments.outputFormat, outputFile)
         else:
-            if self.arguments.autoSaveFormat:
-                self.reportManager = ReportManager(self.arguments.autoSaveFormat, outputFile)
-            else:
-                self.reportManager = ReportManager("plain", outputFile)
+            self.reportManager = ReportManager("plain", outputFile)
 
     # TODO: Refactor, this function should be a decorator for all the filters
     def matchCallback(self, path):
