@@ -118,7 +118,7 @@ class PrintOutput(object):
         with self.mutex:
             self.newLine(message)
 
-    def lastPath(self, path, index, length, currentJob, allJobs):
+    def lastPath(self, path, index, length, currentJob, allJobs, rate):
         pass
 
     def addConnectionError(self):

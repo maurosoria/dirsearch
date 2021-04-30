@@ -45,8 +45,6 @@ import chardet
 import warnings
 from .exceptions import RequestsDependencyWarning
 
-urllib3.disable_warnings()
-
 
 def check_compatibility(urllib3_version, chardet_version):
     urllib3_version = urllib3_version.split('.')
@@ -67,10 +65,9 @@ def check_compatibility(urllib3_version, chardet_version):
     # Check chardet for compatibility.
     major, minor, patch = chardet_version.split('.')[:3]
     major, minor, patch = int(major), int(minor), int(patch)
-    # chardet >= 3.0.2, < 4.x.x
-    assert major >= 3
-    assert major <= 4
-    assert patch >= 2
+    # chardet >= 3.0.2, < 5.0.0
+    assert (3, 0, 2) <= (major, minor, patch) < (5, 0, 0)
+
 
 
 def _check_cryptography(cryptography_version):
