@@ -253,6 +253,7 @@ class Controller(object):
                         raise SkipTargetInterrupt
 
                 except SkipTargetInterrupt:
+                    self.report.completed = True
                     continue
 
         except KeyboardInterrupt:
@@ -565,6 +566,7 @@ class Controller(object):
                 return
 
             elif option.lower() == "s" and len(self.urlList) > 1:
+                self.output.newLine()
                 raise SkipTargetInterrupt
 
             else:
