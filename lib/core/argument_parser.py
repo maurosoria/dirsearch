@@ -641,7 +641,7 @@ information at https://github.com/maurosoria/dirsearch.""")
                            default=self.useRandomAgents, action="store_true", dest="useRandomAgents")
         request.add_option("--auth-type", help="Authentication type (basic, digest, bearer, ntlm)",
                            action="store", dest="auth_type", metavar="TYPE")
-        request.add_option("--auth", help="Authentication credential (Select auth type with --auth-type)",
+        request.add_option("--auth", help="Authentication credential [Format: USER:PASS] (select auth type with --auth-type)",
                            action="store", dest="auth", metavar="CREDENTIAL")
         request.add_option("--user-agent", action="store", type="string", dest="useragent",
                            default=self.useragent)
