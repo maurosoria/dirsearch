@@ -44,10 +44,12 @@ class Requester(object):
         httpmethod="get",
         data=None,
         scheme=None,
+        auth=None,
     ):
         self.httpmethod = httpmethod
         self.data = data
         self.headers = {}
+        self.auth = auth
 
         # If no backslash, append one
         if not url.endswith("/"):
@@ -118,6 +120,11 @@ class Requester(object):
             self.host if self.requestByHostname else self.ip,
             self.port,
         )
+        self.baseUrl = "{0}://{1}:{2}/".format(
+            self.protocol,
+            self.host,
+            self.port,
+        )
 
     def setHeader(self, key, value):
         self.headers[key.strip()] = value.strip() if value else value
@@ -162,6 +169,7 @@ class Requester(object):
                     self.httpmethod,
                     url=url,
                     headers=dict(self.headers),
+                    auth=self.auth,
                     data=self.data,
                 )
                 prepare = request.prepare()
@@ -183,11 +191,11 @@ class Requester(object):
                 break
 
             except requests.exceptions.SSLError:
-                self.url = "{0}://{1}:{2}/".format(self.protocol, self.host, self.port)
+                self.url = self.baseUrl
                 continue
 
             except requests.exceptions.TooManyRedirects:
-                error = "Too many redirects: {0}".format(url)
+                error = "Too many redirects: {0}".format(self.baseUrl)
 
             except requests.exceptions.ProxyError:
                 error = "Error with the proxy: {0}".format(proxy)
@@ -196,7 +204,7 @@ class Requester(object):
                 error = "Cannot connect to: {0}:{1}".format(self.host, self.port)
 
             except requests.exceptions.InvalidURL:
-                error = "Invalid URL: {0}".format(url)
+                error = "Invalid URL: {0}".format(self.baseUrl)
 
             except requests.exceptions.InvalidProxyURL:
                 error = "Invalid proxy URL: {0}".format(proxy)
@@ -208,10 +216,10 @@ class Requester(object):
                 http.client.IncompleteRead,
                 socket.timeout,
             ):
-                error = "Request timeout: {0}".format(url)
+                error = "Request timeout: {0}".format(self.baseUrl)
 
             except Exception:
-                error = "There was a problem in the request to: {0}".format(url)
+                error = "There was a problem in the request to: {0}".format(self.baseUrl)
 
         if error:
             raise RequestException({"message": error})

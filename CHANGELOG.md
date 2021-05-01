@@ -11,7 +11,7 @@ Currently working...
 - Added max-runtime option
 - Recursion on specified status codes
 - Max request rate
-- Support basic authentication
+- Support several authentication types
 - Deep recursive scan
 - Option to force recurse on all found paths (not just the ones end with /)
 - Option to skip target by specified status codes

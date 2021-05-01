@@ -198,6 +198,7 @@ class Controller(object):
                             httpmethod=self.httpmethod,
                             data=self.data,
                             scheme=arguments.scheme,
+                            auth=arguments.auth,
                         )
 
                         for key, value in self.headers.items():

@@ -23,6 +23,8 @@ import base64
 from optparse import OptionParser, OptionGroup
 from ipaddress import IPv4Network
 from io import StringIO
+from requests_ntlm import HttpNtlmAuth
+from requests.auth import HTTPDigestAuth
 
 from lib.utils.default_config_parser import DefaultConfigParser
 from lib.utils.file_utils import File
@@ -338,9 +340,6 @@ class ArgumentParser(object):
         else:
             self.excludeRedirects = []
 
-        if options.basic_auth:
-            self.headers["Authorization"] = "Basic {0}".format(base64.b64encode(options.basic_auth.encode()).decode())
-
         self.prefixes = [] if not options.prefixes else list(oset([prefix.strip() for prefix in options.prefixes.split(",")]))
         self.suffixes = [] if not options.suffixes else list(oset([suffix.strip() for suffix in options.suffixes.split(",")]))
         if options.wordlist:
@@ -406,6 +405,40 @@ class ArgumentParser(object):
                 exit(1)
         else:
             self.skip_on_status = []
+
+        self.auth = None
+
+        if options.auth and options.auth_type:
+            if options.auth_type not in ["basic", "digest", "bearer", "ntlm"]:
+                print("'{0}' is not in available authentication types: basic, digest, bearer, ntlm".format(options.auth_type))
+                exit(1)
+            elif options.auth_type == "basic":
+                self.headers["Authorization"] = "Basic {0}".format(
+                    base64.b64encode(options.auth.encode()).decode()
+            )
+
+            elif options.auth_type == "bearer":
+                self.headers["Authorization"] = "Bearer {0}".format(options.auth)
+
+            else:
+                user = options.auth.split(":")[0]
+                try:
+                    password = ":".join(options.auth.split(":")[1:])
+                except IndexError:
+                    password = None
+
+                if options.auth_type == "digest":
+                    auth = HTTPDigestAuth(user, password)
+                else:
+                    auth = HttpNtlmAuth(user, password)
+
+        elif options.auth:
+            print("Please select the authentication type with --auth-type")
+            exit(1)
+
+        elif options.auth_type:
+            print("No authetication credential found")
+            exit(1)
 
         if len(set(self.extensions).intersection(self.excludeExtensions)):
             print("Exclude extension list can not contain any extension that has already in the extension list")
@@ -606,8 +639,10 @@ information at https://github.com/maurosoria/dirsearch.""")
                            action="store_true", dest="followRedirects", default=self.redirect)
         request.add_option("--random-agent", help="Choose a random User-Agent for each request",
                            default=self.useRandomAgents, action="store_true", dest="useRandomAgents")
-        request.add_option("--auth", help="Basic authentication credential [Format: USER:PASS]",
-                           action="store", dest="basic_auth", metavar="CREDENTIAL")
+        request.add_option("--auth-type", help="Authentication type (basic, digest, bearer, ntlm)",
+                           action="store", dest="auth_type", metavar="TYPE")
+        request.add_option("--auth", help="Authentication credential (Select auth type with --auth-type)",
+                           action="store", dest="auth", metavar="CREDENTIAL")
         request.add_option("--user-agent", action="store", type="string", dest="useragent",
                            default=self.useragent)
         request.add_option("--cookie", action="store", type="string", dest="cookie", default=self.cookie)
