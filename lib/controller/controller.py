@@ -23,12 +23,10 @@ import time
 import re
 import urllib.parse
 from threading import Lock
-
 from queue import Queue
 
 from lib.connection import Requester, RequestException
-from lib.core import Dictionary, Fuzzer, ReportManager, Raw
-from lib.reports import JSONReport, XMLReport, PlainTextReport, SimpleReport, MarkdownReport, CSVReport
+from lib.core import Dictionary, Fuzzer, Report, ReportManager, Raw
 from lib.utils import FileUtils
 
 
@@ -164,23 +162,22 @@ class Controller(object):
 
         self.output.header(program_banner)
         self.printConfig()
-        self.setupErrorLogs()
-        self.output.errorLogFile(self.errorLogPath)
 
-        if arguments.autoSave and len(self.urlList) > 1:
+        if len(self.urlList) > 1:
             self.setupBatchReports()
-            self.output.newLine("\nAutoSave path: {0}".format(self.batchDirectoryPath))
 
         if arguments.useRandomAgents:
             self.randomAgents = FileUtils.get_lines(
                 FileUtils.build_path(script_path, "db", "user-agents.txt")
             )
 
+        self.setupReports()
+        self.setupErrorLogs()
+        self.output.errorLogFile(self.errorLogPath)
         try:
             for url in self.urlList:
                 try:
                     gc.collect()
-                    self.reportManager = ReportManager()
                     self.currentUrl = url if url.endswith("/") else url + "/"
                     self.output.setTarget(self.currentUrl, self.arguments.scheme)
 
@@ -204,6 +201,7 @@ class Controller(object):
                             self.requester.setHeader(key, value)
 
                         self.requester.request("")
+                        self.report = Report(self.requester.host, self.requester.port, self.requester.protocol, self.requester.basePath)
 
                     except RequestException as e:
                         self.output.error(e.args[0]["message"])
@@ -222,8 +220,6 @@ class Controller(object):
 
                     else:
                         self.directories.put("")
-
-                    self.setupReports(self.requester)
 
                     matchCallbacks = [self.matchCallback]
                     notFoundCallbacks = [self.notFoundCallback]
@@ -249,6 +245,7 @@ class Controller(object):
                         raise SkipTargetInterrupt
 
                 except SkipTargetInterrupt:
+                    self.report.completed = True
                     continue
 
         except KeyboardInterrupt:
@@ -258,8 +255,6 @@ class Controller(object):
         finally:
             if not self.errorLog.closed:
                 self.errorLog.close()
-
-            self.reportManager.close()
 
         self.output.warning("\nTask Completed")
 
@@ -340,53 +335,47 @@ class Controller(object):
 
     def setupBatchReports(self):
         self.batch = True
-        self.batchSession = "BATCH-{0}".format(time.strftime("%y-%m-%d_%H-%M-%S"))
-        self.batchDirectoryPath = FileUtils.build_path(
-            self.savePath, "reports", self.batchSession
-        )
-
-        if not FileUtils.exists(self.batchDirectoryPath):
-            FileUtils.create_directory(self.batchDirectoryPath)
+        if self.arguments.outputFile is None:
+            self.batchSession = "BATCH-{0}".format(time.strftime("%y-%m-%d_%H-%M-%S"))
+            self.batchDirectoryPath = FileUtils.build_path(
+                self.savePath, "reports", self.batchSession
+            )
 
             if not FileUtils.exists(self.batchDirectoryPath):
-                self.output.error(
-                    "Couldn't create batch folder at {}".format(self.batchDirectoryPath)
-                )
-                sys.exit(1)
+                FileUtils.create_directory(self.batchDirectoryPath)
 
-        if FileUtils.can_write(self.batchDirectoryPath):
-            FileUtils.create_directory(self.batchDirectoryPath)
-            targetsFile = FileUtils.build_path(self.batchDirectoryPath, "TARGETS.txt")
-            FileUtils.write_lines(targetsFile, self.urlList)
+                if not FileUtils.exists(self.batchDirectoryPath):
+                    self.output.error(
+                        "Couldn't create batch folder at {}".format(self.batchDirectoryPath)
+                    )
+                    sys.exit(1)
 
-        else:
-            self.output.error(
-                "Couldn't create batch folder at {}".format(self.batchDirectoryPath)
-            )
-            sys.exit(1)
-
-    def setupReports(self, requester):
-        if self.arguments.autoSave:
-
-            basePath = requester.basePath
-            basePath = basePath.replace(os.path.sep, ".")[:-1]
-            fileName = None
-            directoryPath = None
-
-            if self.batch:
-                fileName = requester.host
-                directoryPath = self.batchDirectoryPath
-
+    def getOutputExtension(self):
+        if self.arguments.outputFormat:
+            if self.arguments.outputFormat == 'plain' or self.arguments.outputFormat == 'simple':
+                return ".txt"
             else:
+                return ".{0}".format(self.arguments.outputFormat)
+        else:
+            return ".txt"
 
-                fileName = ('{}_'.format(basePath))
+    def setupReports(self):
+        if self.arguments.outputFile is not None:
+            outputFile = FileUtils.get_abs_path(self.arguments.outputFile)
+            self.output.outputFile(outputFile)
+        else:
+            if self.batch:
+                fileName = "BATCH"
+                fileName += self.getOutputExtension()
+                directoryPath = self.batchDirectoryPath
+            else:
+                localRequester = Requester(self.urlList[0])
+                fileName = ('{}_'.format(localRequester.basePath.replace(os.path.sep, ".")[:-1]))
                 fileName += time.strftime('%y-%m-%d_%H-%M-%S')
-                fileName += ".{0}".format(self.arguments.autoSaveFormat)
-                directoryPath = FileUtils.build_path(self.savePath, 'reports', requester.host)
+                fileName += self.getOutputExtension()
+                directoryPath = FileUtils.build_path(self.savePath, 'reports', localRequester.host)
 
             outputFile = FileUtils.build_path(directoryPath, fileName)
-
-            self.output.outputFile(outputFile)
 
             if FileUtils.exists(outputFile):
                 i = 2
@@ -404,117 +393,15 @@ class Controller(object):
                         "Couldn't create the reports folder at {}".format(directoryPath)
                     )
                     sys.exit(1)
-            if FileUtils.can_write(directoryPath):
-                report = None
 
-                if self.arguments.autoSaveFormat == "simple":
-                    report = SimpleReport(
-                        requester.host,
-                        requester.port,
-                        requester.protocol,
-                        requester.basePath,
-                        outputFile,
-                        self.batch,
-                    )
-                elif self.arguments.autoSaveFormat == "json":
-                    report = JSONReport(
-                        requester.host,
-                        requester.port,
-                        requester.protocol,
-                        requester.basePath,
-                        outputFile,
-                        self.batch,
-                    )
-                elif self.arguments.autoSaveFormat == "xml":
-                    report = XMLReport(
-                        requester.host,
-                        requester.port,
-                        requester.protocol,
-                        requester.basePath,
-                        outputFile,
-                        self.batch,
-                    )
-                elif self.arguments.autoSaveFormat == "md":
-                    report = MarkdownReport(
-                        requester.host,
-                        requester.port,
-                        requester.protocol,
-                        requester.basePath,
-                        outputFile,
-                        self.batch,
-                    )
-                elif self.arguments.autoSaveFormat == "csv":
-                    report = CSVReport(
-                        requester.host,
-                        requester.port,
-                        requester.protocol,
-                        requester.basePath,
-                        outputFile,
-                        self.batch,
-                    )
-                else:
-                    report = PlainTextReport(
-                        requester.host,
-                        requester.port,
-                        requester.protocol,
-                        requester.basePath,
-                        outputFile,
-                        self.batch
-                    )
+            self.output.outputFile(outputFile)
 
-                self.reportManager.addOutput(report)
-
-            else:
-                self.output.error("Can't write reports to {}".format(directoryPath))
-                sys.exit(1)
-
-        # TODO: format, refactor code
-        if self.arguments.simpleOutputFile:
-            self.reportManager.addOutput(
-                SimpleReport(
-                    requester.host, requester.port, requester.protocol,
-                    requester.basePath, self.arguments.simpleOutputFile, self.batch
-                )
-            )
-
-        if self.arguments.plainTextOutputFile:
-            self.reportManager.addOutput(
-                PlainTextReport(
-                    requester.host, requester.port, requester.protocol,
-                    requester.basePath, self.arguments.plainTextOutputFile, self.batch
-                )
-            )
-
-        if self.arguments.jsonOutputFile:
-            self.reportManager.addOutput(
-                JSONReport(
-                    requester.host, requester.port, requester.protocol,
-                    requester.basePath, self.arguments.jsonOutputFile, self.batch
-                )
-            )
-
-        if self.arguments.xmlOutputFile:
-            self.reportManager.addOutput(
-                XMLReport(
-                    requester.host, requester.port, requester.protocol,
-                    requester.basePath, self.arguments.xmlOutputFile, self.batch
-                )
-            )
-
-        if self.arguments.markdownOutputFile:
-            self.reportManager.addOutput(
-                MarkdownReport(
-                    requester.host, requester.port, requester.protocol,
-                    requester.basePath, self.arguments.markdownOutputFile, self.batch
-                )
-            )
-        if self.arguments.csvOutputFile:
-            self.reportManager.addOutput(
-                CSVReport(
-                    requester.host, requester.port, requester.protocol,
-                    requester.basePath, self.arguments.csvOutputFile, self.batch
-                )
-            )
+        if self.arguments.outputFile and self.arguments.outputFormat:
+            self.reportManager = ReportManager(self.arguments.outputFormat, self.arguments.outputFile)
+        elif self.arguments.outputFormat:
+            self.reportManager = ReportManager(self.arguments.outputFormat, outputFile)
+        else:
+            self.reportManager = ReportManager("plain", outputFile)
 
     # TODO: Refactor, this function should be a decorator for all the filters
     def matchCallback(self, path):
@@ -585,9 +472,8 @@ class Controller(object):
 
             newPath = self.currentDirectory + path.path
 
-            self.reportManager.addPath(newPath, path.status, path.response)
-
-            self.reportManager.save()
+            self.report.addResult(newPath, path.status, path.response)
+            self.reportManager.updateReport(self.report)
 
             del path
 
@@ -642,6 +528,7 @@ class Controller(object):
                 self.exit = True
                 self.fuzzer.stop()
                 self.output.error("\nCanceled by the user")
+                self.reportManager.updateReport(self.report)
                 exit(0)
 
             elif option.lower() == "c":
@@ -653,6 +540,7 @@ class Controller(object):
                 return
 
             elif option.lower() == "s" and len(self.urlList) > 1:
+                self.output.newLine()
                 raise SkipTargetInterrupt
 
             else:
@@ -699,6 +587,10 @@ class Controller(object):
             self.fuzzer.requester.basePath = self.output.basePath = self.basePath + self.currentDirectory
             self.fuzzer.start()
             self.processPaths()
+
+        self.report.completed = True
+        self.reportManager.updateReport(self.report)
+        self.report = None
 
         return
 

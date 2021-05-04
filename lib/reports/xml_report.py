@@ -22,33 +22,31 @@ import sys
 
 
 class XMLReport(FileBaseReport):
-    def addPath(self, path, status, response):
-        try:
-            contentLength = int(response.headers["content-length"])
-
-        except (KeyError, ValueError):
-            contentLength = len(response.body)
-
-        self.storeData((path, status, contentLength, response.redirect))
-
     def generate(self):
         result = "<?xml version=\"1.0\"?>\n"
-
-        headerName = "{0}://{1}:{2}/{3}".format(
-            self.protocol, self.host, self.port, self.basePath
-        )
-
         result += "<dirsearchScan args=\"{0}\" time=\"{1}\">\n".format(' '.join(sys.argv), time.ctime())
-        result += "<target url=\"{0}\">\n".format(headerName)
 
-        for path, status, contentLength, redirect in self.pathList:
-            result += " <info path=\"/{0}\">\n".format(path)
-            result += "  <status>{0}</status>\n".format(status)
-            result += "  <contentLength>{0}</contentLength>\n".format(contentLength)
-            result += "  <redirect>{0}</redirect>\n".format(redirect)
-            result += " </info>\n"
+        for entry in self.entries:
+            headerName = "{0}://{1}:{2}/{3}".format(
+                entry.protocol, entry.host, entry.port, entry.basePath
+            )
+            result += " <target url=\"{0}\">\n".format(headerName)
 
-        result += "</target>\n"
+            for e in entry.results:
+                result += "  <info path=\"/{0}\">\n".format(e.path)
+                result += "   <status>{0}</status>\n".format(e.status)
+                result += "   <contentLength>{0}</contentLength>\n".format(e.getContentLength())
+                result += "   <redirect>{0}</redirect>\n".format("" if e.response.redirect is None else e.response.redirect)
+                result += "  </info>\n"
+
+            result += " </target>\n"
         result += "</dirsearchScan>\n"
 
         return result
+
+    def save(self):
+        self.file.seek(0)
+        self.file.truncate(0)
+        self.file.flush()
+        self.file.writelines(self.generate())
+        self.file.flush()

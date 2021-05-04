@@ -87,6 +87,10 @@ class FileUtils(object):
         return path
 
     @staticmethod
+    def get_abs_path(file_name):
+        return os.path.abspath(file_name)
+
+    @staticmethod
     def exists(file_name):
         return os.access(file_name, os.F_OK)
 
