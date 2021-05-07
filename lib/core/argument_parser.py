@@ -415,7 +415,7 @@ class ArgumentParser(object):
             elif options.auth_type == "basic":
                 self.headers["Authorization"] = "Basic {0}".format(
                     base64.b64encode(options.auth.encode()).decode()
-            )
+                )
 
             elif options.auth_type == "bearer":
                 self.headers["Authorization"] = "Bearer {0}".format(options.auth)
