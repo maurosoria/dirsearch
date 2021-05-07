@@ -4,9 +4,16 @@
 <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
 <meta content="utf-8" http-equiv="encoding">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.5.16/vue.js"></script>
-<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" >
+<script src="https://cdn.jsdelivr.net/npm/vue@2.6.12/dist/vue.js" integrity="sha384-ma9ivURrHX5VOB4tNq+UiGNkJoANH4EAJmhxd1mmDq0gKOv88wkKZOfRDOpXynwh" crossorigin="anonymous"></script>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-wEmeIV1mKuiNpC+IOBjI7aAzPcEZeedi5yW5f2yOq55WWLwNGmvvx4Um1vskeMj0" crossorigin="anonymous">
 <script>
+function search(app, result) {
+    if (!isNaN(app.searchQuery)) {
+        return result.status == app.searchQuery || result.contentLength == app.searchQuery;
+    }
+    return app.searchQuery.toLowerCase().split(' ').every(v => result.url.toLowerCase().includes(v) ||
+        (result.redirect && result.redirect.toLowerCase().includes(v)));
+}
 window.onload = function () {
     var app = new Vue({
       el: '#app',
@@ -20,7 +27,7 @@ window.onload = function () {
         resultQuery(){
           if(this.searchQuery){
           return this.resources.filter((result)=>{
-            return this.searchQuery.toLowerCase().split(' ').every(v => result.path.toLowerCase().includes(v))
+            return search(this, result)
           })
           }else{
             return this.resources;
@@ -32,35 +39,43 @@ window.onload = function () {
 </script>
 </head>
 <body>
-<div id="app">
-   <div class="panel panel-default">
-   <div class="panel-heading">
-         <strong>Dirsearch</strong></div>
-            <div class="row">
-                 <div class="search-wrapper panel-heading col-sm-12">
-                     <input class="form-control" type="text" v-model="searchQuery" placeholder="Search" />
-                </div>                        
+    <div id="app">
+        <div class="panel panel-default">
+            <div class="navbar navbar-expand-lg navbar-light bg-light">
+                <div class="p-3">
+                    <h1>dirsearch</h1>
+                </div>
             </div>
-        <div class="table-responsive">
-            <table v-if="resources.length" class="table">
-                <tbody>
-                    <tr>
-                        <td>Path</td>
-                        <td>Status</td>
-                        <td>Content Length</td>
-                        <td>Redirect</td>
-                    </tr>
-                    <tr v-for="result in resultQuery">
-                        <td><a v-bind:href="result.url" target="_blank">{{result.path}}</a></td>
-                        <td><a target="_blank">{{result.status}}</a></td>
-                        <td><a target="_blank">{{result.contentLength}}</a></td>
-                        <td><a v-bind:href="result.redirect" target="_blank">{{result.redirect}}</a></td>
-                    </tr>
-                </tbody>
-            </table>
+            <br>
+            <div class="w-75 p-3 mx-auto">
+                <div class="row">
+                    <div class="search-wrapper panel-heading col-sm-12">
+                        <input class="form-control" type="text" v-model="searchQuery" placeholder="Search" />
+                    </div>
+                </div>
+                <br>
+                <div class="table-responsive">
+                    <table v-if="resources.length" class="table">
+                        <tbody>
+                            <tr>
+                                <td>Path</td>
+                                <td>Status</td>
+                                <td>Content Length</td>
+                                <td>Redirect</td>
+                            </tr>
+                            <tr v-for="result in resultQuery">
+                                <td><a class="text-decoration-none" v-bind:href="result.url" target="_blank">{{result.url}}</a></td>
+                                <td><a target="_blank">{{result.status}}</a></td>
+                                <td><a target="_blank">{{result.contentLength}}</a></td>
+                                <td><a class="text-decoration-none" v-bind:href="result.redirect" target="_blank">{{result.redirect}}</a></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div>
+                </div>
+            </div>
         </div>
-   </div>
-   </div>
-
+    </div>
 </body>
 </html>
