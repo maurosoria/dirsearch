@@ -7,8 +7,8 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.exceptions import UnsupportedAlgorithm
 from ntlm_auth import ntlm
-from requests.auth import AuthBase
-from requests.packages.urllib3.response import HTTPResponse
+from thirdparty.requests.auth import AuthBase
+from thirdparty.requests.packages.urllib3.response import HTTPResponse
 
 
 class HttpNtlmAuth(AuthBase):
