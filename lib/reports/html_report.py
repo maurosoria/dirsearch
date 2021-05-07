@@ -18,6 +18,7 @@
 
 import time
 import sys
+import json
 import os
 from mako.template import Template
 
@@ -26,11 +27,24 @@ from lib.reports import *
 
 class HTMLReport(FileBaseReport):
     def generate(self):
-        metadata = {"info": {"args": ' '.join(sys.argv), "time": time.ctime()}, "results": []}
         template_file= os.path.dirname(os.path.realpath(__file__)) + '/templates/html_report_template.html'
         mytemplate = Template(filename=template_file)
 
-        return mytemplate.render(info=metadata, entries=self.entries)
+        results = []
+        for entry in self.entries:
+            for e in entry.results:
+                headerName = "{0}://{1}:{2}/{3}".format(
+                    entry.protocol, entry.host, entry.port, entry.basePath
+                )
+                results.append({
+                    "url": headerName + e.path,
+                    "path": e.path,
+                    "status": e.status,
+                    "contentLength": e.getContentLength(),
+                    "redirect": e.response.redirect
+                    })
+
+        return mytemplate.render(results=json.dumps(results))
 
     def save(self):
         self.file.seek(0)

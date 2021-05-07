@@ -1,10 +1,66 @@
+<!DOCTYPE html>
 <html>
+<head>
+<meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+<meta content="utf-8" http-equiv="encoding">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.5.16/vue.js"></script>
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" >
+<script>
+window.onload = function () {
+    var app = new Vue({
+      el: '#app',
+      data() {
+        return {
+            searchQuery: null,
+            resources: ${results}
+        };
+      },
+      computed: {
+        resultQuery(){
+          if(this.searchQuery){
+          return this.resources.filter((result)=>{
+            return this.searchQuery.toLowerCase().split(' ').every(v => result.path.toLowerCase().includes(v))
+          })
+          }else{
+            return this.resources;
+          }
+        }
+      }
+    });
+}
+</script>
+</head>
 <body>
-<h1>${info}</h1>
-% for entry in entries:
-	% for e in entry.results:
-		<li> ${loop.index}: ${e.path} ${e.status}</li>
-	% endfor
-% endfor
+<div id="app">
+   <div class="panel panel-default">
+   <div class="panel-heading">
+         <strong>Dirsearch</strong></div>
+            <div class="row">
+                 <div class="search-wrapper panel-heading col-sm-12">
+                     <input class="form-control" type="text" v-model="searchQuery" placeholder="Search" />
+                </div>                        
+            </div>
+        <div class="table-responsive">
+            <table v-if="resources.length" class="table">
+                <tbody>
+                    <tr>
+                        <td>Path</td>
+                        <td>Status</td>
+                        <td>Content Length</td>
+                        <td>Redirect</td>
+                    </tr>
+                    <tr v-for="result in resultQuery">
+                        <td><a v-bind:href="result.url" target="_blank">{{result.path}}</a></td>
+                        <td><a target="_blank">{{result.status}}</a></td>
+                        <td><a target="_blank">{{result.contentLength}}</a></td>
+                        <td><a v-bind:href="result.redirect" target="_blank">{{result.redirect}}</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+   </div>
+   </div>
+
 </body>
 </html>
