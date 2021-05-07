@@ -58,10 +58,10 @@ window.onload = function () {
                     <table v-if="resources.length" class="table">
                         <tbody>
                             <tr>
-                                <td>Path</td>
-                                <td>Status</td>
-                                <td>Content Length</td>
-                                <td>Redirect</td>
+                                <th>Path</th>
+                                <th>Status</th>
+                                <th>Content Length</th>
+                                <th>Redirect</th>
                             </tr>
                             <tr v-for="result in resultQuery">
                                 <td><a class="text-decoration-none" v-bind:href="result.url" target="_blank">{{result.url}}</a></td>

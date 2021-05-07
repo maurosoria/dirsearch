@@ -16,8 +16,6 @@
 #
 #  Author: Mauro Soria
 
-import time
-import sys
 import json
 import os
 from mako.template import Template
@@ -27,7 +25,7 @@ from lib.reports import *
 
 class HTMLReport(FileBaseReport):
     def generate(self):
-        template_file= os.path.dirname(os.path.realpath(__file__)) + '/templates/html_report_template.html'
+        template_file = os.path.dirname(os.path.realpath(__file__)) + '/templates/html_report_template.html'
         mytemplate = Template(filename=template_file)
 
         results = []
@@ -42,7 +40,7 @@ class HTMLReport(FileBaseReport):
                     "status": e.status,
                     "contentLength": e.getContentLength(),
                     "redirect": e.response.redirect
-                    })
+                })
 
         return mytemplate.render(results=json.dumps(results))
 
