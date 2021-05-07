@@ -9,13 +9,13 @@ import os
 import struct
 import time
 
-import ntlm_auth.compute_hash as comphash
-import ntlm_auth.compute_keys as compkeys
-import ntlm_auth.messages
+import thirdparty.ntlm_auth.compute_hash as comphash
+import thirdparty.ntlm_auth.compute_keys as compkeys
+import thirdparty.ntlm_auth.messages
 
-from ntlm_auth.des import DES
-from ntlm_auth.constants import AvId, AvFlags, NegotiateFlags
-from ntlm_auth.gss_channel_bindings import GssChannelBindingsStruct
+from thirdparty.ntlm_auth.des import DES
+from thirdparty.ntlm_auth.constants import AvId, AvFlags, NegotiateFlags
+from thirdparty.ntlm_auth.gss_channel_bindings import GssChannelBindingsStruct
 
 
 class ComputeResponse():

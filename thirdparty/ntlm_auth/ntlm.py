@@ -4,11 +4,11 @@
 import base64
 import struct
 
-from ntlm_auth.constants import NegotiateFlags
-from ntlm_auth.exceptions import NoAuthContextError
-from ntlm_auth.messages import AuthenticateMessage, ChallengeMessage, \
+from thirdparty.ntlm_auth.constants import NegotiateFlags
+from thirdparty.ntlm_auth.exceptions import NoAuthContextError
+from thirdparty.ntlm_auth.messages import AuthenticateMessage, ChallengeMessage, \
     NegotiateMessage
-from ntlm_auth.session_security import SessionSecurity
+from thirdparty.ntlm_auth.session_security import SessionSecurity
 
 
 class NtlmContext(object):

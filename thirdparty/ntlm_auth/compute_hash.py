@@ -6,7 +6,7 @@ import hashlib
 import hmac
 import re
 
-from ntlm_auth.des import DES
+from thirdparty.ntlm_auth.des import DES
 
 
 def _lmowfv1(password):

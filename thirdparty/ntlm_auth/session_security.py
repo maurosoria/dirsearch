@@ -6,10 +6,10 @@ import hashlib
 import hmac
 import struct
 
-import ntlm_auth.compute_keys as compkeys
+import thirdparty.ntlm_auth.compute_keys as compkeys
 
-from ntlm_auth.constants import NegotiateFlags, SignSealConstants
-from ntlm_auth.rc4 import ARC4
+from thirdparty.ntlm_auth.constants import NegotiateFlags, SignSealConstants
+from thirdparty.ntlm_auth.rc4 import ARC4
 
 
 class _NtlmMessageSignature1(object):

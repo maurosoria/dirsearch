@@ -4,8 +4,8 @@
 import hashlib
 import hmac
 
-from ntlm_auth.des import DES
-from ntlm_auth.constants import NegotiateFlags
+from thirdparty.ntlm_auth.des import DES
+from thirdparty.ntlm_auth.constants import NegotiateFlags
 
 
 def _get_exchange_key_ntlm_v1(negotiate_flags, session_base_key,

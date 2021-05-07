@@ -6,10 +6,10 @@ import hmac
 import os
 import struct
 
-from ntlm_auth.compute_response import ComputeResponse
-from ntlm_auth.constants import AvId, AvFlags, MessageTypes, NegotiateFlags, \
+from thirdparty.ntlm_auth.compute_response import ComputeResponse
+from thirdparty.ntlm_auth.constants import AvId, AvFlags, MessageTypes, NegotiateFlags, \
     NTLM_SIGNATURE
-from ntlm_auth.rc4 import ARC4
+from thirdparty.ntlm_auth.rc4 import ARC4
 
 try:
     from collections import OrderedDict
