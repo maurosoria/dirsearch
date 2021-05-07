@@ -2,7 +2,7 @@ import setuptools
 
 setuptools.setup(
     name="dirsearch",
-    version="0.4.1",
+    version="0.4.2",
     author="Mauro Soria",
     author_email="maurosoria@protonmail.com",
     description="Advanced web path scanner",

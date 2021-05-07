@@ -9,7 +9,7 @@ dirsearch - Web path scanner
     ![Tweet](https://img.shields.io/twitter/url?url=https%3A%2F%2Fgithub.com%2Fmaurosoria%2Fdirsearch)
 </a>
 
-**Current Release: v0.4.1 (2020.12.8)**
+**Current Release: v0.4.2 (2021.5.7)**
 
 
 Overview
@@ -505,15 +505,15 @@ curl -fsSL https://get.docker.com | bash
 To create image
 
 ```sh
-docker build -t "dirsearch:v0.4.1" .
+docker build -t "dirsearch:v0.4.2" .
 ```
 
-> **dirsearch** is the name of the image and **v0.4.1** is the version
+> **dirsearch** is the name of the image and **v0.4.2** is the version
 
 ### Using dirsearch
 For using
 ```sh
-docker run -it --rm "dirsearch:v0.4.1" -u target -e php,html,js,zip
+docker run -it --rm "dirsearch:v0.4.2" -u target -e php,html,js,zip
 ```
 
 

@@ -505,7 +505,7 @@ class ArgumentParser(object):
 
     def parseArguments(self):
         usage = "Usage: %prog [-u|--url] target [-e|--extensions] extensions [options]"
-        parser = OptionParser(usage, version="dirsearch v0.4.1",
+        parser = OptionParser(usage, version="dirsearch v0.4.2",
                               epilog="""
 You can change the dirsearch default configurations (default extensions,
 timeout, wordlist location, ...) by editing the "default.conf" file. More

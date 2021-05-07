@@ -1,8 +1,8 @@
 # Changelog
 
-Currently working...
+v0.4.2 (2021.5.7)
 ---------
-- Fixed critical bugs from v0.4.1
+- Fixed bugs from v0.4.1
 - Exclude responses by redirects
 - URLs from STDIN
 - Fixed the CSV Injection vulnerability (https://www.exploit-db.com/exploits/49370)
