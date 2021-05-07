@@ -221,7 +221,7 @@ Options:
   Reports:
     -o FILE             Output file
     --format=FORMAT     Report format (Available: simple, plain, json, xml,
-                        md, csv)
+                        md, csv, html)
 ```
 
  **NOTE**:

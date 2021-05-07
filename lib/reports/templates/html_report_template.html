@@ -1,0 +1,10 @@
+<html>
+<body>
+<h1>${info}</h1>
+% for entry in entries:
+	% for e in entry.results:
+		<li> ${loop.index}: ${e.path} ${e.status}</li>
+	% endfor
+% endfor
+</body>
+</html>
