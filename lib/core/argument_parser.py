@@ -23,11 +23,11 @@ import base64
 from optparse import OptionParser, OptionGroup
 from ipaddress import IPv4Network
 from io import StringIO
-from requests.auth import HTTPDigestAuth
 
 from lib.utils.default_config_parser import DefaultConfigParser
 from lib.utils.file_utils import File
 from lib.utils.file_utils import FileUtils
+from thirdparty.requests.auth import HTTPDigestAuth
 from thirdparty.oset import oset
 from thirdparty.requests_ntlm import HttpNtlmAuth
 
