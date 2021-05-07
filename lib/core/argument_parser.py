@@ -428,9 +428,9 @@ class ArgumentParser(object):
                     password = None
 
                 if options.auth_type == "digest":
-                    auth = HTTPDigestAuth(user, password)
+                    self.auth = HTTPDigestAuth(user, password)
                 else:
-                    auth = HttpNtlmAuth(user, password)
+                    self.auth = HttpNtlmAuth(user, password)
 
         elif options.auth:
             print("Please select the authentication type with --auth-type")
