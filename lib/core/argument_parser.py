@@ -423,8 +423,8 @@ class ArgumentParser(object):
             print("Invalid URI scheme: {0}".format(self.scheme))
             exit(1)
 
-        if self.outputFormat and self.outputFormat not in ["simple", "plain", "json", "xml", "md", "csv"]:
-            print("Select one of the following output formats: simple, plain, json, xml, md, csv")
+        if self.outputFormat and self.outputFormat not in ["simple", "plain", "json", "xml", "md", "csv", "html"]:
+            print("Select one of the following output formats: simple, plain, json, xml, md, csv, html")
             exit(1)
 
     def parseConfig(self):
@@ -464,7 +464,7 @@ class ArgumentParser(object):
         # Reports
         self.outputFile = config.safe_get("reports", "report-output", None)
         self.outputFormat = config.safe_get(
-            "reports", "report-format", "plain", ["plain", "simple", "json", "xml", "md", "csv"]
+            "reports", "report-format", "plain", ["plain", "simple", "json", "xml", "md", "csv", "html"]
         )
 
         # Dictionary
@@ -644,7 +644,7 @@ information at https://github.com/maurosoria/dirsearch.""")
         reports = OptionGroup(parser, "Reports")
         reports.add_option("-o", action="store", dest="outputFile", default=None, metavar="FILE", help="Output file")
         reports.add_option("--format", action="store", dest="outputFormat", default=None, metavar="FORMAT",
-                           help="Report format (Available: simple, plain, json, xml, md, csv)")
+                           help="Report format (Available: simple, plain, json, xml, md, csv, html)")
 
         parser.add_option_group(mandatory)
         parser.add_option_group(dictionary)

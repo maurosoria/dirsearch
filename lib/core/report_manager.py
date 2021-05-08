@@ -79,6 +79,8 @@ class ReportManager(object):
                 report = MarkdownReport(self.output, self.reports)
             elif self.format == "csv":
                 report = CSVReport(self.output, self.reports)
+            elif self.format == "html":
+                report = HTMLReport(self.output, self.reports)
             else:
                 report = PlainTextReport(self.output, self.reports)
 
