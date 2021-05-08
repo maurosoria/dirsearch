@@ -19,9 +19,8 @@
 import json
 import os
 
-from thirdparty.mako.template import Template
-
 from lib.reports import *
+from thirdparty.mako.template import Template
 
 
 class HTMLReport(FileBaseReport):
