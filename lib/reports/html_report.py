@@ -18,7 +18,8 @@
 
 import json
 import os
-from mako.template import Template
+
+from thirdparty.mako.template import Template
 
 from lib.reports import *
 

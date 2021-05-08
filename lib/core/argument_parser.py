@@ -18,7 +18,6 @@
 
 import sys
 import email
-import base64
 
 from optparse import OptionParser, OptionGroup
 from ipaddress import IPv4Network
