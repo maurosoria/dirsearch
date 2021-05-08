@@ -13,6 +13,7 @@ Currently working...
 - Max request rate
 - Support several authentication types
 - Deep recursive scan
+- HTML report format
 - Option to force recurse on all found paths (not just the ones end with /)
 - Option to skip target by specified status codes
 
