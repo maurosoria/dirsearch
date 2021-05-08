@@ -11,7 +11,7 @@ function search(app, result) {
     return app.searchQuery.toLowerCase().split(" ").every(
       (v) => result.url.toLowerCase().includes(v) ||
       result.contentType.toLowerCase().includes(v) ||
-      result.contentLength.toString().includes(v) ||
+      result.contentLength.toLowerCase().includes(v) ||
       result.status.toString().includes(v) ||
       (result.redirect && result.redirect.toLowerCase().includes(v))
     );
@@ -50,9 +50,9 @@ window.onload = function () {
             </div>
             <br>
             <div class="w-75 p-3 mx-auto">
-                <strong>Command:</strong> <code style="display:inline;background-color:#566573;color:#F7F9F9;border-radius:4px;">${command}</code>
+                <strong>Command:</strong> <code style="display:inline;background-color:#566573;color:#F7F9F9;border-radius:4px;">${metadata['command']}</code>
                 <br>
-                <strong>Time:</strong> <p style="display:inline;">${date}</p>
+                <strong>Time:</strong> <p style="display:inline;">${metadata['date']}</p>
                 <br>
                 <br>
                 <div class="row">
@@ -73,7 +73,7 @@ window.onload = function () {
                             </tr>
                             <tr v-for="result in resultQuery">
                                 <td><a class="text-decoration-none" v-bind:href="result.url" target="_blank">{{result.url}}</a></td>
-                                <td><a target="_blank">{{result.status}}</a></td>
+                                <td><a class="text-decoration-none" v-bind:class="result.statusColorClass" target="_blank">{{result.status}}</a></td>
                                 <td><a target="_blank">{{result.contentLength}}</a></td>
                                 <td><a target="_blank">{{result.contentType}}</a></td>
                                 <td><a class="text-decoration-none" v-bind:href="result.redirect" target="_blank">{{result.redirect}}</a></td>

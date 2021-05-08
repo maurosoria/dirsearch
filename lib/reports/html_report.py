@@ -20,6 +20,7 @@ import json
 import os
 
 from lib.reports import *
+from lib.utils import FileUtils
 from thirdparty.mako.template import Template
 
 
@@ -28,24 +29,36 @@ class HTMLReport(FileBaseReport):
         template_file = os.path.dirname(os.path.realpath(__file__)) + '/templates/html_report_template.html'
         mytemplate = Template(filename=template_file)
 
-        command = " ".join(sys.argv)
-        date = time.ctime()
+        metadata = {
+            "command": " ".join(sys.argv),
+            "date": time.ctime()
+        }
         results = []
         for entry in self.entries:
             for e in entry.results:
                 headerName = "{0}://{1}:{2}/{3}".format(
                     entry.protocol, entry.host, entry.port, entry.basePath
                 )
+
+                statusColorClass = ''
+                if e.status >= 200 and e.status <= 299:
+                    statusColorClass = 'text-success'
+                elif e.status >= 300 and e.status <= 399:
+                    statusColorClass = 'text-warning'
+                elif e.status >= 400 and e.status <= 599:
+                    statusColorClass = 'text-danger'
+
                 results.append({
                     "url": headerName + e.path,
                     "path": e.path,
                     "status": e.status,
-                    "contentLength": e.getContentLength(),
+                    "statusColorClass": statusColorClass,
+                    "contentLength": FileUtils.size_human(e.getContentLength()),
                     "contentType": e.response.headers.get("content-type"),
                     "redirect": e.response.redirect
                 })
 
-        return mytemplate.render(results=json.dumps(results), command=command, date=date)
+        return mytemplate.render(metadata=metadata, results=json.dumps(results))
 
     def save(self):
         self.file.seek(0)
