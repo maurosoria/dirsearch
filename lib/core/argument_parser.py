@@ -27,9 +27,7 @@ from io import StringIO
 from lib.utils.default_config_parser import DefaultConfigParser
 from lib.utils.file_utils import File
 from lib.utils.file_utils import FileUtils
-from thirdparty.requests.auth import HTTPDigestAuth
 from thirdparty.oset import oset
-from thirdparty.requests_ntlm import HttpNtlmAuth
 
 
 class ArgumentParser(object):
@@ -366,6 +364,7 @@ class ArgumentParser(object):
         self.maximumResponseSize = options.maximumResponseSize
         self.noExtension = options.noExtension
         self.onlySelected = options.onlySelected
+
         if options.outputFile:
             self.outputFile = options.outputFile
         if options.outputFormat:
@@ -404,37 +403,15 @@ class ArgumentParser(object):
         else:
             self.skip_on_status = []
 
-        self.auth = None
-
-        if options.auth and options.auth_type:
-            if options.auth_type not in ["basic", "digest", "bearer", "ntlm"]:
-                print("'{0}' is not in available authentication types: basic, digest, bearer, ntlm".format(options.auth_type))
-                exit(1)
-            elif options.auth_type == "basic":
-                self.headers["Authorization"] = "Basic {0}".format(
-                    base64.b64encode(options.auth.encode()).decode()
-                )
-
-            elif options.auth_type == "bearer":
-                self.headers["Authorization"] = "Bearer {0}".format(options.auth)
-
-            else:
-                user = options.auth.split(":")[0]
-                try:
-                    password = ":".join(options.auth.split(":")[1:])
-                except IndexError:
-                    password = None
-
-                if options.auth_type == "digest":
-                    self.auth = HTTPDigestAuth(user, password)
-                else:
-                    self.auth = HttpNtlmAuth(user, password)
-
-        elif options.auth:
+        if options.auth and options.auth_type and (
+            options.auth_type not in ["basic", "digest", "bearer", "ntlm"]
+        ):
+            print("'{0}' is not in available authentication types: basic, digest, bearer, ntlm".format(options.auth_type))
+            exit(1)
+        elif options.auth and not options.auth_type:
             print("Please select the authentication type with --auth-type")
             exit(1)
-
-        elif options.auth_type:
+        elif options.auth_type and not options.auth:
             print("No authetication credential found")
             exit(1)
 
@@ -442,6 +419,8 @@ class ArgumentParser(object):
             print("Exclude extension list can not contain any extension that has already in the extension list")
             exit(1)
 
+        self.auth_type = options.auth_type
+        self.auth = options.auth
         self.redirect = options.followRedirects
         self.httpmethod = options.httpmethod
         self.scheme = options.scheme
@@ -643,7 +622,7 @@ information at https://github.com/maurosoria/dirsearch.""")
                            default=self.useRandomAgents, action="store_true", dest="useRandomAgents")
         request.add_option("--auth-type", help="Authentication type (basic, digest, bearer, ntlm)",
                            action="store", dest="auth_type", metavar="TYPE")
-        request.add_option("--auth", help="Authentication credential [Format: USER:PASS] (select auth type with --auth-type)",
+        request.add_option("--auth", help="Authentication credential [Format: USER:PASS or bearer token] (select auth type with --auth-type)",
                            action="store", dest="auth", metavar="CREDENTIAL")
         request.add_option("--user-agent", action="store", type="string", dest="useragent",
                            default=self.useragent)

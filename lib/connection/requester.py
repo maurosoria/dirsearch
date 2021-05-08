@@ -23,6 +23,9 @@ import socket
 import urllib.parse
 
 import thirdparty.requests as requests
+
+from thirdparty.requests.auth import HTTPBasicAuth, HTTPDigestAuth
+from thirdparty.requests_ntlm import HttpNtlmAuth
 from .request_exception import *
 from .response import *
 
@@ -44,12 +47,10 @@ class Requester(object):
         httpmethod="get",
         data=None,
         scheme=None,
-        auth=None,
     ):
         self.httpmethod = httpmethod
         self.data = data
         self.headers = {}
-        self.auth = auth
 
         # If no backslash, append one
         if not url.endswith("/"):
@@ -113,6 +114,7 @@ class Requester(object):
         self.proxylist = proxylist
         self.redirect = redirect
         self.randomAgents = None
+        self.auth = None
         self.requestByHostname = requestByHostname
         self.session = requests.Session()
         self.url = "{0}://{1}:{2}/".format(
@@ -132,8 +134,22 @@ class Requester(object):
     def setRandomAgents(self, agents):
         self.randomAgents = list(agents)
 
-    def unsetRandomAgents(self):
-        self.randomAgents = None
+    def setAuth(self, type, credential):
+        if type == "bearer":
+            self.setHeader("Authorization", "Bearer {0}".format(credential))
+        else:
+            user = credential.split(":")[0]
+            try:
+                password = ":".join(credential.split(":")[1:])
+            except IndexError:
+                password = ""
+
+            if type == "basic":
+                self.auth = HTTPBasicAuth(user, password)
+            elif type == "digest":
+                self.auth = HTTPDigestAuth(user, password)
+            else:
+                self.auth = HttpNtlmAuth(user, password)
 
     def request(self, path, proxy=None):
         result = None

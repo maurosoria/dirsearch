@@ -195,11 +195,13 @@ class Controller(object):
                             httpmethod=self.httpmethod,
                             data=self.data,
                             scheme=arguments.scheme,
-                            auth=arguments.auth,
                         )
 
                         for key, value in self.headers.items():
                             self.requester.setHeader(key, value)
+
+                        if arguments.auth:
+                            self.requester.setAuth(arguments.auth_type, arguments.auth)
 
                         self.requester.request("")
                         self.report = Report(self.requester.host, self.requester.port, self.requester.protocol, self.requester.basePath)
