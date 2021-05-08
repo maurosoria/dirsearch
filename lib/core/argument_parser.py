@@ -564,9 +564,9 @@ information at https://github.com/maurosoria/dirsearch.""")
                            default=self.threadsCount, metavar="THREADS")
         general.add_option("-r", "--recursive", help="Brute-force recursively", action="store_true", dest="recursive",
                            default=self.recursive)
-        general.add_option("--deep-recursive", help="Perform recursive scans on every directory depth (Example: api/users -> api/)", action="store_true", dest="deep_recursive",
+        general.add_option("--deep-recursive", help="Perform recursive scan on every directory depth (Example: api/users -> api/)", action="store_true", dest="deep_recursive",
                            default=self.deep_recursive)
-        general.add_option("--force-recursive", help="Do recursive scans for every found path, not only paths end with slash", action="store_true", dest="force_recursive",
+        general.add_option("--force-recursive", help="Do recursive brute-force for every found path, not only paths end with slash", action="store_true", dest="force_recursive",
                            default=self.force_recursive)
         general.add_option("--recursion-depth", help="Maximum recursion depth", action="store",
                            type="int", dest="recursion_depth", default=self.recursion_depth, metavar="DEPTH")
@@ -655,7 +655,7 @@ information at https://github.com/maurosoria/dirsearch.""")
 
         # Report Settings
         reports = OptionGroup(parser, "Reports")
-        reports.add_option("-o", action="store", dest="outputFile", default=None, metavar="FILE", help="Output file")
+        reports.add_option("-o", "--output", action="store", dest="outputFile", default=None, metavar="FILE", help="Output file")
         reports.add_option("--format", action="store", dest="outputFormat", default=None, metavar="FORMAT",
                            help="Report format (Available: simple, plain, json, xml, md, csv, html)")
 
