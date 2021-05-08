@@ -28,6 +28,8 @@ class HTMLReport(FileBaseReport):
         template_file = os.path.dirname(os.path.realpath(__file__)) + '/templates/html_report_template.html'
         mytemplate = Template(filename=template_file)
 
+        command = " ".join(sys.argv)
+        date = time.ctime()
         results = []
         for entry in self.entries:
             for e in entry.results:
@@ -39,10 +41,11 @@ class HTMLReport(FileBaseReport):
                     "path": e.path,
                     "status": e.status,
                     "contentLength": e.getContentLength(),
+                    "contentType": e.response.headers.get("content-type"),
                     "redirect": e.response.redirect
                 })
 
-        return mytemplate.render(results=json.dumps(results))
+        return mytemplate.render(results=json.dumps(results), command=command, date=date)
 
     def save(self):
         self.file.seek(0)

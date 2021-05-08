@@ -24,7 +24,7 @@ import sys
 class XMLReport(FileBaseReport):
     def generate(self):
         result = "<?xml version=\"1.0\"?>\n"
-        result += "<dirsearchScan args=\"{0}\" time=\"{1}\">\n".format(' '.join(sys.argv), time.ctime())
+        result += "<dirsearchScan args=\"{0}\" time=\"{1}\">\n".format(" ".join(sys.argv), time.ctime())
 
         for entry in self.entries:
             headerName = "{0}://{1}:{2}/{3}".format(
