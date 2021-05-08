@@ -10,7 +10,7 @@
 function search(app, result) {
     return app.searchQuery.toLowerCase().split(" ").every(
       (v) => result.url.toLowerCase().includes(v) ||
-      result.contentType.includes(v) ||
+      result.contentType.toLowerCase().includes(v) ||
       result.contentLength.toString().includes(v) ||
       result.status.toString().includes(v) ||
       (result.redirect && result.redirect.toLowerCase().includes(v))
