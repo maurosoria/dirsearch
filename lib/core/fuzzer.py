@@ -215,7 +215,7 @@ class Fuzzer(object):
 
             while path:
                 try:
-                    # Pause if the request rate exceeded the maximal
+                    # Pause if the request rate exceeded the maximum
                     while self.maxrate and self.rate > self.maxrate:
                         pass
                     self.rate += 1
