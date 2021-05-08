@@ -86,7 +86,8 @@ class ReportManager(object):
 
             self.reportObj = report
 
-        self.reportObj.save()
+        with self.lock:
+            self.reportObj.save()
 
     def save(self):
         with self.lock:

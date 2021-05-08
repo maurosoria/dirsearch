@@ -73,7 +73,7 @@ window.onload = function () {
                             </tr>
                             <tr v-for="result in resultQuery">
                                 <td><a class="text-decoration-none" v-bind:href="result.url" target="_blank">{{result.url}}</a></td>
-                                <td><a target="_blank">{{result.status}}</a></td>
+                                <td><a class="text-decoration-none" v-bind:class="result.statusColorClass" target="_blank">{{result.status}}</a></td>
                                 <td><a target="_blank">{{result.contentLength}}</a></td>
                                 <td><a target="_blank">{{result.contentType}}</a></td>
                                 <td><a class="text-decoration-none" v-bind:href="result.redirect" target="_blank">{{result.redirect}}</a></td>

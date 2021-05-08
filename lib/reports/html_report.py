@@ -20,6 +20,7 @@ import json
 import os
 
 from lib.reports import *
+from lib.utils import FileUtils
 from thirdparty.mako.template import Template
 
 
@@ -38,11 +39,21 @@ class HTMLReport(FileBaseReport):
                 headerName = "{0}://{1}:{2}/{3}".format(
                     entry.protocol, entry.host, entry.port, entry.basePath
                 )
+
+                statusColorClass = ''
+                if e.status >= 200 and e.status <= 299:
+                    statusColorClass = 'text-success'
+                elif e.status >= 300 and e.status <= 399:
+                    statusColorClass = 'text-warning'
+                elif e.status >= 400 and e.status <= 599:
+                    statusColorClass = 'text-danger'
+
                 results.append({
                     "url": headerName + e.path,
                     "path": e.path,
                     "status": e.status,
-                    "contentLength": e.getContentLength(),
+                    "statusColorClass": statusColorClass,
+                    "contentLength": FileUtils.size_human(e.getContentLength()),
                     "contentType": e.response.headers.get("content-type"),
                     "redirect": e.response.redirect
                 })
