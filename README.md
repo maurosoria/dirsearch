@@ -219,12 +219,9 @@ Options:
     --exit-on-error     Exit whenever an error occurs
 
   Reports:
-    --simple-report=OUTPUTFILE
-    --plain-text-report=OUTPUTFILE
-    --json-report=OUTPUTFILE
-    --xml-report=OUTPUTFILE
-    --markdown-report=OUTPUTFILE
-    --csv-report=OUTPUTFILE
+    -o FILE             Output file
+    --format=FORMAT     Report format (Available: simple, plain, json, xml,
+                        md, csv, html)
 ```
 
  **NOTE**:
@@ -432,15 +429,15 @@ python3 dirsearch.py -e php,html,js -u https://target --proxylist proxyservers.t
 Dirsearch allows the user to save the output into a file. It supports several output formats like text or json, and we are keep updating for new formats
 
 ```
-python3 dirsearch.py -e php -l URLs.txt --plain-text-report report.txt
+python3 dirsearch.py -e php -l URLs.txt --format plain -o report.txt
 ```
 
 ```
-python3 dirsearch.py -e php -u https://target --json-report target.json
+python3 dirsearch.py -e php -u https://target --format json -o target.json
 ```
 
 ```
-python3 dirsearch.py -e php -u https://target --simple-report target.txt
+python3 dirsearch.py -e php -u https://target --format simple -o target.txt
 ```
 
 ### Some others commands
@@ -457,7 +454,7 @@ python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --random-ag
 ```
 
 ```
-python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --json-report=target.json
+python3 dirsearch.py -e php,txt,zip -u https://target -w db/dicc.txt --format json -o target.json
 ```
 
 ```

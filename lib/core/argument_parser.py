@@ -366,12 +366,10 @@ class ArgumentParser(object):
         self.maximumResponseSize = options.maximumResponseSize
         self.noExtension = options.noExtension
         self.onlySelected = options.onlySelected
-        self.simpleOutputFile = options.simpleOutputFile
-        self.plainTextOutputFile = options.plainTextOutputFile
-        self.jsonOutputFile = options.jsonOutputFile
-        self.xmlOutputFile = options.xmlOutputFile
-        self.markdownOutputFile = options.markdownOutputFile
-        self.csvOutputFile = options.csvOutputFile
+        if options.outputFile:
+            self.outputFile = options.outputFile
+        if options.outputFormat:
+            self.outputFormat = options.outputFormat
 
         if options.scanSubdirs:
             self.scanSubdirs = list(
@@ -458,6 +456,10 @@ class ArgumentParser(object):
             print("Invalid URI scheme: {0}".format(self.scheme))
             exit(1)
 
+        if self.outputFormat and self.outputFormat not in ["simple", "plain", "json", "xml", "md", "csv", "html"]:
+            print("Select one of the following output formats: simple, plain, json, xml, md, csv, html")
+            exit(1)
+
     def parseConfig(self):
         config = DefaultConfigParser()
         configPath = FileUtils.build_path(self.script_path, "default.conf")
@@ -493,9 +495,9 @@ class ArgumentParser(object):
         self.quiet = config.safe_getboolean("general", "quiet-mode", False)
 
         # Reports
-        self.autoSave = config.safe_getboolean("reports", "autosave-report", False)
-        self.autoSaveFormat = config.safe_get(
-            "reports", "autosave-report-format", "txt", ["txt", "simple", "json", "xml", "md", "csv"]
+        self.outputFile = config.safe_get("reports", "report-output", None)
+        self.outputFormat = config.safe_get(
+            "reports", "report-format", "plain", ["plain", "simple", "json", "xml", "md", "csv", "html"]
         )
 
         # Dictionary
@@ -675,12 +677,9 @@ information at https://github.com/maurosoria/dirsearch.""")
 
         # Report Settings
         reports = OptionGroup(parser, "Reports")
-        reports.add_option("--simple-report", action="store", dest="simpleOutputFile", default=None, metavar="OUTPUTFILE")
-        reports.add_option("--plain-text-report", action="store", dest="plainTextOutputFile", default=None, metavar="OUTPUTFILE")
-        reports.add_option("--json-report", action="store", dest="jsonOutputFile", default=None, metavar="OUTPUTFILE")
-        reports.add_option("--xml-report", action="store", dest="xmlOutputFile", default=None, metavar="OUTPUTFILE")
-        reports.add_option("--markdown-report", action="store", dest="markdownOutputFile", default=None, metavar="OUTPUTFILE")
-        reports.add_option("--csv-report", action="store", dest="csvOutputFile", default=None, metavar="OUTPUTFILE")
+        reports.add_option("-o", action="store", dest="outputFile", default=None, metavar="FILE", help="Output file")
+        reports.add_option("--format", action="store", dest="outputFormat", default=None, metavar="FORMAT",
+                           help="Report format (Available: simple, plain, json, xml, md, csv, html)")
 
         parser.add_option_group(mandatory)
         parser.add_option_group(dictionary)

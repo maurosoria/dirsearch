@@ -65,7 +65,7 @@ class PrintOutput(object):
             sys.stdout.write("\033[1K")
             sys.stdout.write("\033[0G")
 
-    def newLine(self, string):
+    def newLine(self, string=''):
         sys.stdout.write(string + "\n")
         sys.stdout.flush()
 

@@ -59,6 +59,7 @@
 - [catmandx](https://github.com/catmandx)
 - [Kyle Nweeia](https://github.com/kyle-nweeia)
 - [Xib3rR4dAr](https://github.com/Xib3rR4dAr)
+- [Rohit Soni](https://github.com/StreetOfHackerR007/)
 
 Special thanks for all the people who had helped dirsearch so far!
 

@@ -24,34 +24,32 @@ import sys
 
 
 class PlainTextReport(FileBaseReport):
-    def addPath(self, path, status, response):
-        try:
-            contentLength = int(response.headers["content-length"])
-        except (KeyError, ValueError):
-            contentLength = len(response.body)
-
-        try:
-            location = response.headers["location"]
-        except (KeyError, ValueError):
-            location = None
-
-        self.storeData((path, status, contentLength, location))
+    def generateHeader(self):
+        if self.headerWritten is False:
+            self.headerWritten = True
+            return "# Dirsearch started {0} as: {1}\n\n".format(time.ctime(), ' '.join(sys.argv))
+        else:
+            return ""
 
     def generate(self):
-        result = "# Dirsearch started {0} as: {1}\n\n".format(time.ctime(), ' '.join(sys.argv))
+        result = self.generateHeader()
 
-        for path, status, contentLength, location in self.pathList:
-            result += "{0}  ".format(status)
-            result += "{0}  ".format(FileUtils.size_human(contentLength).rjust(6, " "))
-            result += "{0}://{1}:{2}/".format(self.protocol, self.host, self.port)
-            result += (
-                "{0}".format(path)
-                if self.basePath == ""
-                else "{0}/{1}".format(self.basePath, path)
-            )
-            if location:
-                result += "    -> REDIRECTS TO: {0}".format(location)
+        for entry in self.entries:
+            for e in entry.results:
+                if (entry.protocol, entry.host, entry.port, entry.basePath, e.path) not in self.writtenEntries:
+                    result += "{0}  ".format(e.status)
+                    result += "{0}  ".format(FileUtils.size_human(e.getContentLength()).rjust(6, " "))
+                    result += "{0}://{1}:{2}/".format(entry.protocol, entry.host, entry.port)
+                    result += (
+                        "{0}".format(e.path)
+                        if entry.basePath == ""
+                        else "{0}/{1}".format(entry.basePath, e.path)
+                    )
+                    location = e.response.redirect
+                    if location:
+                        result += "    -> REDIRECTS TO: {0}".format(location)
 
-            result += "\n"
+                    result += "\n"
+                    self.writtenEntries.append((entry.protocol, entry.host, entry.port, entry.basePath, e.path))
 
         return result

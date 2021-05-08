@@ -24,30 +24,32 @@ from lib.reports import *
 
 
 class JSONReport(FileBaseReport):
-    def addPath(self, path, status, response):
-        try:
-            contentLength = int(response.headers["content-length"])
-        except (KeyError, ValueError):
-            contentLength = len(response.body)
-
-        self.storeData((path, status, contentLength, response.redirect))
-
     def generate(self):
-        headerName = "{0}://{1}:{2}/{3}".format(
-            self.protocol, self.host, self.port, self.basePath
-        )
+        report = {"info": {"args": ' '.join(sys.argv), "time": time.ctime()}, "results": []}
 
-        info = {"args": ' '.join(sys.argv), "time": time.ctime()}
+        for entry in self.entries:
+            result = {}
+            headerName = "{0}://{1}:{2}/{3}".format(
+                entry.protocol, entry.host, entry.port, entry.basePath
+            )
+            result[headerName] = []
 
-        result = {"info": info, headerName: []}
+            for e in entry.results:
+                pathEntry = {
+                    "status": e.status,
+                    "path": "/" + e.path,
+                    "content-length": e.getContentLength(),
+                    "redirect": e.response.redirect,
+                }
+                result[headerName].append(pathEntry)
 
-        for path, status, contentLength, redirect in self.pathList:
-            entry = {
-                "status": status,
-                "path": "/" + path,
-                "content-length": contentLength,
-                "redirect": redirect,
-            }
-            result[headerName].append(entry)
+            report["results"].append(result)
 
-        return json.dumps(result, sort_keys=True, indent=4)
+        return json.dumps(report, sort_keys=True, indent=4)
+
+    def save(self):
+        self.file.seek(0)
+        self.file.truncate(0)
+        self.file.flush()
+        self.file.writelines(self.generate())
+        self.file.flush()

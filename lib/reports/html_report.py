@@ -16,33 +16,33 @@
 #
 #  Author: Mauro Soria
 
+import json
+import os
+from mako.template import Template
+
 from lib.reports import *
-import time
-import sys
 
 
-class XMLReport(FileBaseReport):
+class HTMLReport(FileBaseReport):
     def generate(self):
-        result = "<?xml version=\"1.0\"?>\n"
-        result += "<dirsearchScan args=\"{0}\" time=\"{1}\">\n".format(' '.join(sys.argv), time.ctime())
+        template_file = os.path.dirname(os.path.realpath(__file__)) + '/templates/html_report_template.html'
+        mytemplate = Template(filename=template_file)
 
+        results = []
         for entry in self.entries:
-            headerName = "{0}://{1}:{2}/{3}".format(
-                entry.protocol, entry.host, entry.port, entry.basePath
-            )
-            result += " <target url=\"{0}\">\n".format(headerName)
-
             for e in entry.results:
-                result += "  <info path=\"/{0}\">\n".format(e.path)
-                result += "   <status>{0}</status>\n".format(e.status)
-                result += "   <contentLength>{0}</contentLength>\n".format(e.getContentLength())
-                result += "   <redirect>{0}</redirect>\n".format("" if e.response.redirect is None else e.response.redirect)
-                result += "  </info>\n"
+                headerName = "{0}://{1}:{2}/{3}".format(
+                    entry.protocol, entry.host, entry.port, entry.basePath
+                )
+                results.append({
+                    "url": headerName + e.path,
+                    "path": e.path,
+                    "status": e.status,
+                    "contentLength": e.getContentLength(),
+                    "redirect": e.response.redirect
+                })
 
-            result += " </target>\n"
-        result += "</dirsearchScan>\n"
-
-        return result
+        return mytemplate.render(results=json.dumps(results))
 
     def save(self):
         self.file.seek(0)
