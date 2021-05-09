@@ -515,7 +515,7 @@ class Controller(object):
         self.fuzzer.stopped = 0
 
         while True:
-            msg = "[e]xit / [c]ontinue"
+            msg = "[q]uit / [c]ontinue"
 
             if not self.directories.empty():
                 msg += " / [n]ext"
@@ -527,7 +527,7 @@ class Controller(object):
 
             option = input()
 
-            if option.lower() == "e":
+            if option.lower() == "q":
                 self.exit = True
                 self.fuzzer.stop()
                 self.output.error("\nCanceled by the user")
