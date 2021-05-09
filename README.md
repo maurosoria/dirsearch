@@ -19,7 +19,7 @@ A advanced command-line tool designed to brute force directories and files in we
 Table of Contents
 ------------
 * [Installation](#Installation--Usage)
-* [Wordlist](#Wordlists-IMPORTANT)
+* [Wordlists](#Wordlists-IMPORTANT)
 * [Options](#Options)
 * [Configuration](#Configuration)
 * [How to use](#How-to-use)
