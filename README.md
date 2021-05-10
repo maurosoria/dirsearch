@@ -11,7 +11,7 @@ dirsearch - Web path scanner
 
 **Current Release: v0.4.1 (2020.12.8)**
 
-A advanced command-line tool designed to brute force directories and files in webservers, AKA web path scanner
+An advanced command-line tool designed to brute force directories and files in webservers, AKA web path scanner
 
 [dirsearch](https://github.com/maurosoria/dirsearch) is being actively developed by [@maurosoria](https://twitter.com/_maurosoria) and [@shelld3v](https://twitter.com/shells3c_)
 
@@ -58,7 +58,7 @@ Choose one of these installation options:
 
 - Install with git: `git clone https://github.com/maurosoria/dirsearch.git`
 - Install with ZIP file: [download](https://github.com/maurosoria/dirsearch/archive/master.zip)
-- Install with Docker: `docker build -t "dirsearch:v0.4.1"` ([more infomation](https://github.com/maurosoria/dirsearch#support-docker))
+- Install with Docker: `docker build -t "dirsearch:v0.4.1"` ([more information](https://github.com/maurosoria/dirsearch#support-docker))
 - Install with Kali Linux: `sudo apt-get install dirsearch`
 
 Some other notes:
@@ -358,7 +358,7 @@ python3 dirsearch.py -e php,html,js -u https://target -r --recursion-depth 3 --r
 
 ----
 ### Threads
-The threads number (**-t | --threads**) reflects the number of separated brute force processes. And so the bigger the threads number is, the faster dirsearch runs. By default, the number of threads is 30, but you can increase it if you want to speed up the progress.
+The thread number (**-t | --threads**) reflects the number of separated brute force processes. And so the bigger the thread number is, the faster dirsearch runs. By default, the number of threads is 30, but you can increase it if you want to speed up the progress.
 
 In spite of that, the speed still depends a lot on the response time of the server. And as a warning, we advise you to keep the threads number not too big because it can cause DoS.
 
@@ -438,7 +438,7 @@ python3 dirsearch.py -e php,html,js -u https://target --exclude-content /error.h
 
 ----
 ### Raw request
-dirsearch allows you to import the raw request from a file. The content will be something looked like this:
+dirsearch allows you to import the raw request from a file. The content would be something looked like this:
 
 ```http
 GET /admin HTTP/1.1
@@ -507,7 +507,7 @@ index.html
 
 ----
 ### Scan sub-directories
-- From an URL, you can scan sub-directories of it with **--subdirs**.
+- From an URL, you can scan a list of sub-directories with **--subdirs**.
 
 ```
 python3 dirsearch.py -e php,html,js -u https://target --subdirs admin/,folder/,/
@@ -581,17 +581,17 @@ python3 dirsearch.py -u https://target --full-url --max-rate 100
 python3 dirsearch.py -u https://target --remove-extensions
 ```
 
-**There are more features and you will need to discover it by your self**
+**There are more features and you will need to discover them by your self**
 
 
 Tips
 ---------------
 - The server has a request limit? That's bad, but feel free to bypass it, by randomizing proxy with `--proxy-list`
-- Want to findout config files or backups? Try out `--suffixes ~` and `--prefixes .`
+- Want to find out config files or backups? Try `--suffixes ~` and `--prefixes .`
 - For some endpoints that you do not want to force extensions, add `%NOFORCE%` at the end of them
-- Want to find only folders/directories? Combine `--no-extension` and `--suffixes /`!
+- Want to find only folders/directories? Combine `--remove-extensions` and `--suffixes /`!
 - The combination of `--cidr`, `-F`, `-q` and a low `--timeout` will reduce most of the noise + false negatives when brute-forcing with a CIDR
-- Scan a list of URL, but don't want to see an 429 flood? Use `--skip-on-status` + `429` will help you to skip a target whenever it returns 429
+- Scan a list of URLs, but don't want to see a 429 flood? Use `--skip-on-status` + `429` will help you to skip a target whenever it returns 429
 
 Support Docker
 ---------------
