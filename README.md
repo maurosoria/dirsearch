@@ -42,6 +42,13 @@ Table of Contents
 * [Contributors](#Contributors)
 
 
+Kali Linux
+------------
+#### dirsearch is now available in official Kali Linux packages
+
+![Kali Linux](https://www.redeszone.net/app/uploads-redeszone.net/2020/11/kali-linux-2020-4.jpg)
+
+
 Installation & Usage
 ------------
 
@@ -49,9 +56,10 @@ Installation & Usage
 
 Choose one of these installation options:
 
-- Install via git: `git clone https://github.com/maurosoria/dirsearch.git`
-- Install via ZIP file: [download](https://github.com/maurosoria/dirsearch/archive/master.zip)
-- Install via Docker: `docker build -t "dirsearch:v0.4.1"` ([more infomation](https://github.com/maurosoria/dirsearch#support-docker))
+- Install with git: `git clone https://github.com/maurosoria/dirsearch.git`
+- Install with ZIP file: [download](https://github.com/maurosoria/dirsearch/archive/master.zip)
+- Install with Docker: `docker build -t "dirsearch:v0.4.1"` ([more infomation](https://github.com/maurosoria/dirsearch#support-docker))
+- Install with Kali Linux: `sudo apt-get install dirsearch`
 
 Some other notes:
 
