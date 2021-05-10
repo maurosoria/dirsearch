@@ -363,11 +363,8 @@ class ArgumentParser(object):
         self.maximumResponseSize = options.maximumResponseSize
         self.noExtension = options.noExtension
         self.onlySelected = options.onlySelected
-
-        if options.outputFile:
-            self.outputFile = options.outputFile
-        if options.outputFormat:
-            self.outputFormat = options.outputFormat
+        self.outputFile = options.outputFile
+        self.outputFormat = options.outputFormat
 
         if options.scanSubdirs:
             self.scanSubdirs = list(
@@ -464,7 +461,6 @@ class ArgumentParser(object):
         self.force_recursive = config.safe_getboolean("general", "force-recursive", False)
         self.recursion_depth = config.safe_getint("general", "recursion-depth", 0)
         self.recursionStatusCodes = config.safe_get("general", "recursion-status", None)
-        self.saveHome = config.safe_getboolean("general", "save-logs-home", False)
         self.excludeSubdirs = config.safe_get("general", "exclude-subdirs", None)
         self.skip_on_status = config.safe_get("general", "skip-on-status", None)
         self.maxtime = config.safe_getint("general", "max-time", 0)
@@ -473,7 +469,9 @@ class ArgumentParser(object):
         self.quiet = config.safe_getboolean("general", "quiet-mode", False)
 
         # Reports
-        self.outputFile = config.safe_get("reports", "report-output", None)
+        self.outputLocation = config.safe_get("reports", "report-output-folder", None)
+        self.autosaveReport = config.safe_getboolean("reports", "autosave-report", False)
+        self.logsLocation = config.safe_get("reports", "logs-location", None)
         self.outputFormat = config.safe_get(
             "reports", "report-format", "plain", ["plain", "simple", "json", "xml", "md", "csv", "html"]
         )
@@ -656,7 +654,7 @@ information at https://github.com/maurosoria/dirsearch.""")
         # Report Settings
         reports = OptionGroup(parser, "Reports")
         reports.add_option("-o", "--output", action="store", dest="outputFile", default=None, metavar="FILE", help="Output file")
-        reports.add_option("--format", action="store", dest="outputFormat", default=None, metavar="FORMAT",
+        reports.add_option("--format", action="store", dest="outputFormat", default=self.outputFormat, metavar="FORMAT",
                            help="Report format (Available: simple, plain, json, xml, md, csv, html)")
 
         parser.add_option_group(mandatory)

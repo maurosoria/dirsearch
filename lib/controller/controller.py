@@ -44,6 +44,18 @@ VERSION = {
 }
 
 
+class EmptyReportManager(object):
+    def __init__(self):
+        pass
+    def updateReport(self, *args):
+        pass
+
+class EmptyReport(object):
+    def __init__(self):
+        pass
+    def addResult(self, *args):
+        pass
+
 class Controller(object):
     def __init__(self, script_path, arguments, output):
         global VERSION
@@ -58,7 +70,7 @@ class Controller(object):
         self.exit = False
         self.arguments = arguments
         self.output = output
-        self.savePath = self.script_path
+        self.save_path = None
         self.doneDirs = []
 
         if arguments.raw_file:
@@ -87,37 +99,20 @@ class Controller(object):
 
         self.recursion_depth = arguments.recursion_depth
 
-        if arguments.saveHome:
-            savePath = self.getSavePath()
+        if arguments.logsLocation and self.validatePath(arguments.logsLocation):
+            self.logsPath = FileUtils.build_path(arguments.logsLocation)
+        else:
+            self.logsPath = FileUtils.build_path(self.script_path, "logs")
+            if not FileUtils.exists(self.logsPath):
+                FileUtils.create_directory(self.logsPath)
 
-            if not FileUtils.exists(savePath):
-                FileUtils.create_directory(savePath)
+        if arguments.outputLocation and self.validatePath(arguments.outputLocation):
+            self.save_path = FileUtils.build_path(arguments.outputLocation)
+        else:
+            self.save_path = FileUtils.build_path(self.script_path, "reports")
+            if not FileUtils.exists(self.save_path):
+                FileUtils.create_directory(self.save_path)
 
-            if FileUtils.exists(savePath) and not FileUtils.is_dir(savePath):
-                self.output.error(
-                    "Cannot use {} because it's a file. Should be a directory".format(
-                        savePath
-                    )
-                )
-                exit(1)
-
-            if not FileUtils.can_write(savePath):
-                self.output.error("Directory {} is not writable".format(savePath))
-                exit(1)
-
-            logs = FileUtils.build_path(savePath, "logs")
-
-            if not FileUtils.exists(logs):
-                FileUtils.create_directory(logs)
-
-            reports = FileUtils.build_path(savePath, "reports")
-
-            if not FileUtils.exists(reports):
-                FileUtils.create_directory(reports)
-
-            self.savePath = savePath
-
-        self.reportsPath = FileUtils.build_path(self.savePath, "logs")
         self.blacklists = self.getBlacklists()
         self.includeStatusCodes = arguments.includeStatusCodes
         self.excludeStatusCodes = arguments.excludeStatusCodes
@@ -163,15 +158,19 @@ class Controller(object):
         self.output.header(program_banner)
         self.printConfig()
 
-        if len(self.urlList) > 1:
-            self.setupBatchReports()
-
         if arguments.useRandomAgents:
             self.randomAgents = FileUtils.get_lines(
                 FileUtils.build_path(script_path, "db", "user-agents.txt")
             )
 
-        self.setupReports()
+        if arguments.autosaveReport or arguments.outputFile:
+            if len(self.urlList) > 1:
+                self.setupBatchReports()
+            self.setupReports()
+        else:
+            self.reportManager = EmptyReportManager()
+            self.report = EmptyReport()
+
         self.setupErrorLogs()
         self.output.errorLogFile(self.errorLogPath)
         try:
@@ -204,7 +203,8 @@ class Controller(object):
                             self.requester.setAuth(arguments.auth_type, arguments.auth)
 
                         self.requester.request("")
-                        self.report = Report(self.requester.host, self.requester.port, self.requester.protocol, self.requester.basePath)
+                        if arguments.autosaveReport or arguments.outputFile:
+                            self.report = Report(self.requester.host, self.requester.port, self.requester.protocol, self.requester.basePath)
 
                     except RequestException as e:
                         self.output.error(e.args[0]["message"])
@@ -271,18 +271,6 @@ class Controller(object):
             str(self.httpmethod),
         )
 
-    def getSavePath(self):
-        basePath = None
-        dirPath = None
-        basePath = os.path.expanduser("~")
-
-        if os.name == "nt":
-            dirPath = "dirsearch"
-        else:
-            dirPath = ".dirsearch"
-
-        return FileUtils.build_path(basePath, dirPath)
-
     def getBlacklists(self):
         reext = re.compile(r'\%ext\%', re.IGNORECASE)
         blacklists = {}
@@ -325,7 +313,7 @@ class Controller(object):
     def setupErrorLogs(self):
         fileName = "errors-{0}.log".format(time.strftime("%y-%m-%d_%H-%M-%S"))
         self.errorLogPath = FileUtils.build_path(
-            FileUtils.build_path(self.savePath, "logs", fileName)
+            self.logsPath, fileName
         )
 
         try:
@@ -338,10 +326,10 @@ class Controller(object):
 
     def setupBatchReports(self):
         self.batch = True
-        if self.arguments.outputFile is None:
+        if not self.arguments.outputFile:
             self.batchSession = "BATCH-{0}".format(time.strftime("%y-%m-%d_%H-%M-%S"))
             self.batchDirectoryPath = FileUtils.build_path(
-                self.savePath, "reports", self.batchSession
+                self.save_path, self.batchSession
             )
 
             if not FileUtils.exists(self.batchDirectoryPath):
@@ -354,16 +342,13 @@ class Controller(object):
                     sys.exit(1)
 
     def getOutputExtension(self):
-        if self.arguments.outputFormat:
-            if self.arguments.outputFormat == 'plain' or self.arguments.outputFormat == 'simple':
-                return ".txt"
-            else:
-                return ".{0}".format(self.arguments.outputFormat)
+        if self.arguments.outputFormat and self.arguments.outputFormat not in ["plain", "simple"]:
+            return ".{0}".format(self.arguments.outputFormat)
         else:
             return ".txt"
 
     def setupReports(self):
-        if self.arguments.outputFile is not None:
+        if self.arguments.outputFile:
             outputFile = FileUtils.get_abs_path(self.arguments.outputFile)
             self.output.outputFile(outputFile)
         else:
@@ -373,10 +358,10 @@ class Controller(object):
                 directoryPath = self.batchDirectoryPath
             else:
                 localRequester = Requester(self.urlList[0])
-                fileName = ('{}_'.format(localRequester.basePath.replace(os.path.sep, ".")[:-1]))
-                fileName += time.strftime('%y-%m-%d_%H-%M-%S')
+                fileName = ("{}_".format(localRequester.basePath.replace(os.path.sep, ".")[:-1]))
+                fileName += time.strftime("%y-%m-%d_%H-%M-%S")
                 fileName += self.getOutputExtension()
-                directoryPath = FileUtils.build_path(self.savePath, 'reports', localRequester.host)
+                directoryPath = FileUtils.build_path(self.save_path, localRequester.host)
 
             outputFile = FileUtils.build_path(directoryPath, fileName)
 
@@ -405,6 +390,29 @@ class Controller(object):
             self.reportManager = ReportManager(self.arguments.outputFormat, outputFile)
         else:
             self.reportManager = ReportManager("plain", outputFile)
+
+    def validatePath(self, path):
+        if not FileUtils.exists(path):
+            self.output.error(
+                "{} does not exist".format(
+                    path
+                )
+            )
+            exit(1)
+
+        if FileUtils.exists(path) and not FileUtils.is_dir(path):
+            self.output.error(
+                "{} is a file, should be a directory".format(
+                    path
+                )
+            )
+            exit(1)
+
+        if not FileUtils.can_write(path):
+            self.output.error("Directory {} is not writable".format(path))
+            exit(1)
+
+        return True
 
     # TODO: Refactor, this function should be a decorator for all the filters
     def matchCallback(self, path):
@@ -573,7 +581,7 @@ class Controller(object):
 
                 break
 
-            except (KeyboardInterrupt):
+            except KeyboardInterrupt:
                 self.handlePause("CTRL+C detected: Pausing threads, please wait...")
 
     def prepare(self):
