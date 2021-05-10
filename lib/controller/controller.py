@@ -47,14 +47,18 @@ VERSION = {
 class EmptyReportManager(object):
     def __init__(self):
         pass
+
     def updateReport(self, *args):
         pass
+
 
 class EmptyReport(object):
     def __init__(self):
         pass
+
     def addResult(self, *args):
         pass
+
 
 class Controller(object):
     def __init__(self, script_path, arguments, output):
@@ -70,7 +74,6 @@ class Controller(object):
         self.exit = False
         self.arguments = arguments
         self.output = output
-        self.save_path = None
         self.doneDirs = []
 
         if arguments.raw_file:
