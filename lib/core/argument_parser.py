@@ -494,9 +494,9 @@ class ArgumentParser(object):
         )
         self.headerList = config.safe_get("request", "headers-file", None)
         self.redirect = config.safe_getboolean("request", "follow-redirects", False)
-        self.useragent = config.safe_get("request", "user-agent", None)
         self.useRandomAgents = config.safe_get("request", "random-user-agents", False)
-        self.cookie = config.safe_get("request", "cookie", None)
+        self.useragent = config.safe_get("request", "user-agent", "")
+        self.cookie = config.safe_get("request", "cookie", "")
 
         # Connection
         self.delay = config.safe_getfloat("connection", "delay", 0)
@@ -619,7 +619,7 @@ information at https://github.com/maurosoria/dirsearch.""")
                            default=self.useRandomAgents, action="store_true", dest="useRandomAgents")
         request.add_option("--auth-type", help="Authentication type (basic, digest, bearer, ntlm)",
                            action="store", dest="auth_type", metavar="TYPE")
-        request.add_option("--auth", help="Authentication credential [Format: USER:PASS or bearer token] (select auth type with --auth-type)",
+        request.add_option("--auth", help="Authentication credential (user:password or bearer token)",
                            action="store", dest="auth", metavar="CREDENTIAL")
         request.add_option("--user-agent", action="store", type="string", dest="useragent",
                            default=self.useragent)

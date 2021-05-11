@@ -13,7 +13,7 @@ dirsearch - Web path scanner
 
 An advanced command-line tool designed to brute force directories and files in webservers, AKA web path scanner
 
-[dirsearch](https://github.com/maurosoria/dirsearch) is being actively developed by [@maurosoria](https://twitter.com/_maurosoria) and [@shelld3v](https://twitter.com/shells3c_)
+**dirsearch** is being actively developed by [@maurosoria](https://twitter.com/_maurosoria) and [@shelld3v](https://twitter.com/shells3c_)
 
 
 Table of Contents

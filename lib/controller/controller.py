@@ -166,13 +166,12 @@ class Controller(object):
                 FileUtils.build_path(script_path, "db", "user-agents.txt")
             )
 
+        self.reportManager = EmptyReportManager()
+        self.report = EmptyReport()
         if arguments.autosaveReport or arguments.outputFile:
             if len(self.urlList) > 1:
                 self.setupBatchReports()
             self.setupReports()
-        else:
-            self.reportManager = EmptyReportManager()
-            self.report = EmptyReport()
 
         self.setupErrorLogs()
         self.output.errorLogFile(self.errorLogPath)
@@ -199,6 +198,9 @@ class Controller(object):
                             scheme=arguments.scheme,
                         )
 
+                        if arguments.autosaveReport or arguments.outputFile:
+                            self.report = Report(self.requester.host, self.requester.port, self.requester.protocol, self.requester.basePath)
+
                         for key, value in self.headers.items():
                             self.requester.setHeader(key, value)
 
@@ -206,8 +208,6 @@ class Controller(object):
                             self.requester.setAuth(arguments.auth_type, arguments.auth)
 
                         self.requester.request("")
-                        if arguments.autosaveReport or arguments.outputFile:
-                            self.report = Report(self.requester.host, self.requester.port, self.requester.protocol, self.requester.basePath)
 
                     except RequestException as e:
                         self.output.error(e.args[0]["message"])
@@ -620,7 +620,7 @@ class Controller(object):
         added = False
         path = path.split("?")[0].split("#")[0]
 
-        if path.rstrip("/") in [directory for directory in self.excludeSubdirs]:
+        if path.rstrip("/") + "/" in [directory for directory in self.excludeSubdirs]:
             return False
 
         fullPath = self.currentDirectory + path if not fullPath else fullPath
