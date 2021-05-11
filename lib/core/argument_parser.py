@@ -18,7 +18,6 @@
 
 import sys
 import email
-import base64
 
 from optparse import OptionParser, OptionGroup
 from ipaddress import IPv4Network
@@ -338,9 +337,6 @@ class ArgumentParser(object):
         else:
             self.excludeRedirects = []
 
-        if options.basic_auth:
-            self.headers["Authorization"] = "Basic {0}".format(base64.b64encode(options.basic_auth.encode()).decode())
-
         self.prefixes = [] if not options.prefixes else list(oset([prefix.strip() for prefix in options.prefixes.split(",")]))
         self.suffixes = [] if not options.suffixes else list(oset([suffix.strip() for suffix in options.suffixes.split(",")]))
         if options.wordlist:
@@ -367,10 +363,8 @@ class ArgumentParser(object):
         self.maximumResponseSize = options.maximumResponseSize
         self.noExtension = options.noExtension
         self.onlySelected = options.onlySelected
-        if options.outputFile:
-            self.outputFile = options.outputFile
-        if options.outputFormat:
-            self.outputFormat = options.outputFormat
+        self.outputFile = options.outputFile
+        self.outputFormat = options.outputFormat
 
         if options.scanSubdirs:
             self.scanSubdirs = list(
@@ -405,10 +399,24 @@ class ArgumentParser(object):
         else:
             self.skip_on_status = []
 
+        if options.auth and options.auth_type and (
+            options.auth_type not in ["basic", "digest", "bearer", "ntlm"]
+        ):
+            print("'{0}' is not in available authentication types: basic, digest, bearer, ntlm".format(options.auth_type))
+            exit(1)
+        elif options.auth and not options.auth_type:
+            print("Please select the authentication type with --auth-type")
+            exit(1)
+        elif options.auth_type and not options.auth:
+            print("No authetication credential found")
+            exit(1)
+
         if len(set(self.extensions).intersection(self.excludeExtensions)):
             print("Exclude extension list can not contain any extension that has already in the extension list")
             exit(1)
 
+        self.auth_type = options.auth_type
+        self.auth = options.auth
         self.redirect = options.followRedirects
         self.httpmethod = options.httpmethod
         self.scheme = options.scheme
@@ -453,7 +461,6 @@ class ArgumentParser(object):
         self.force_recursive = config.safe_getboolean("general", "force-recursive", False)
         self.recursion_depth = config.safe_getint("general", "recursion-depth", 0)
         self.recursionStatusCodes = config.safe_get("general", "recursion-status", None)
-        self.saveHome = config.safe_getboolean("general", "save-logs-home", False)
         self.excludeSubdirs = config.safe_get("general", "exclude-subdirs", None)
         self.skip_on_status = config.safe_get("general", "skip-on-status", None)
         self.maxtime = config.safe_getint("general", "max-time", 0)
@@ -462,7 +469,9 @@ class ArgumentParser(object):
         self.quiet = config.safe_getboolean("general", "quiet-mode", False)
 
         # Reports
-        self.outputFile = config.safe_get("reports", "report-output", None)
+        self.outputLocation = config.safe_get("reports", "report-output-folder", None)
+        self.autosaveReport = config.safe_getboolean("reports", "autosave-report", False)
+        self.logsLocation = config.safe_get("reports", "logs-location", None)
         self.outputFormat = config.safe_get(
             "reports", "report-format", "plain", ["plain", "simple", "json", "xml", "md", "csv", "html"]
         )
@@ -553,9 +562,9 @@ information at https://github.com/maurosoria/dirsearch.""")
                            default=self.threadsCount, metavar="THREADS")
         general.add_option("-r", "--recursive", help="Brute-force recursively", action="store_true", dest="recursive",
                            default=self.recursive)
-        general.add_option("--deep-recursive", help="Perform recursive scans on every directory depth (Example: api/users -> api/)", action="store_true", dest="deep_recursive",
+        general.add_option("--deep-recursive", help="Perform recursive scan on every directory depth (Example: api/users -> api/)", action="store_true", dest="deep_recursive",
                            default=self.deep_recursive)
-        general.add_option("--force-recursive", help="Do recursive scans for every found path, not only paths end with slash", action="store_true", dest="force_recursive",
+        general.add_option("--force-recursive", help="Do recursive brute-force for every found path, not only paths end with slash", action="store_true", dest="force_recursive",
                            default=self.force_recursive)
         general.add_option("--recursion-depth", help="Maximum recursion depth", action="store",
                            type="int", dest="recursion_depth", default=self.recursion_depth, metavar="DEPTH")
@@ -608,8 +617,10 @@ information at https://github.com/maurosoria/dirsearch.""")
                            action="store_true", dest="followRedirects", default=self.redirect)
         request.add_option("--random-agent", help="Choose a random User-Agent for each request",
                            default=self.useRandomAgents, action="store_true", dest="useRandomAgents")
-        request.add_option("--auth", help="Basic authentication credential [Format: USER:PASS]",
-                           action="store", dest="basic_auth", metavar="CREDENTIAL")
+        request.add_option("--auth-type", help="Authentication type (basic, digest, bearer, ntlm)",
+                           action="store", dest="auth_type", metavar="TYPE")
+        request.add_option("--auth", help="Authentication credential [Format: USER:PASS or bearer token] (select auth type with --auth-type)",
+                           action="store", dest="auth", metavar="CREDENTIAL")
         request.add_option("--user-agent", action="store", type="string", dest="useragent",
                            default=self.useragent)
         request.add_option("--cookie", action="store", type="string", dest="cookie", default=self.cookie)
@@ -642,8 +653,8 @@ information at https://github.com/maurosoria/dirsearch.""")
 
         # Report Settings
         reports = OptionGroup(parser, "Reports")
-        reports.add_option("-o", action="store", dest="outputFile", default=None, metavar="FILE", help="Output file")
-        reports.add_option("--format", action="store", dest="outputFormat", default=None, metavar="FORMAT",
+        reports.add_option("-o", "--output", action="store", dest="outputFile", default=None, metavar="FILE", help="Output file")
+        reports.add_option("--format", action="store", dest="outputFormat", default=self.outputFormat, metavar="FORMAT",
                            help="Report format (Available: simple, plain, json, xml, md, csv, html)")
 
         parser.add_option_group(mandatory)

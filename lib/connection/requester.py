@@ -23,6 +23,9 @@ import socket
 import urllib.parse
 
 import thirdparty.requests as requests
+
+from thirdparty.requests.auth import HTTPBasicAuth, HTTPDigestAuth
+from thirdparty.requests_ntlm import HttpNtlmAuth
 from .request_exception import *
 from .response import *
 
@@ -111,11 +114,17 @@ class Requester(object):
         self.proxylist = proxylist
         self.redirect = redirect
         self.randomAgents = None
+        self.auth = None
         self.requestByHostname = requestByHostname
         self.session = requests.Session()
         self.url = "{0}://{1}:{2}/".format(
             self.protocol,
             self.host if self.requestByHostname else self.ip,
+            self.port,
+        )
+        self.baseUrl = "{0}://{1}:{2}/".format(
+            self.protocol,
+            self.host,
             self.port,
         )
 
@@ -125,8 +134,22 @@ class Requester(object):
     def setRandomAgents(self, agents):
         self.randomAgents = list(agents)
 
-    def unsetRandomAgents(self):
-        self.randomAgents = None
+    def setAuth(self, type, credential):
+        if type == "bearer":
+            self.setHeader("Authorization", "Bearer {0}".format(credential))
+        else:
+            user = credential.split(":")[0]
+            try:
+                password = ":".join(credential.split(":")[1:])
+            except IndexError:
+                password = ""
+
+            if type == "basic":
+                self.auth = HTTPBasicAuth(user, password)
+            elif type == "digest":
+                self.auth = HTTPDigestAuth(user, password)
+            else:
+                self.auth = HttpNtlmAuth(user, password)
 
     def request(self, path, proxy=None):
         result = None
@@ -162,6 +185,7 @@ class Requester(object):
                     self.httpmethod,
                     url=url,
                     headers=dict(self.headers),
+                    auth=self.auth,
                     data=self.data,
                 )
                 prepare = request.prepare()
@@ -183,11 +207,11 @@ class Requester(object):
                 break
 
             except requests.exceptions.SSLError:
-                self.url = "{0}://{1}:{2}/".format(self.protocol, self.host, self.port)
+                self.url = self.baseUrl
                 continue
 
             except requests.exceptions.TooManyRedirects:
-                error = "Too many redirects: {0}".format(url)
+                error = "Too many redirects: {0}".format(self.baseUrl)
 
             except requests.exceptions.ProxyError:
                 error = "Error with the proxy: {0}".format(proxy)
@@ -196,7 +220,7 @@ class Requester(object):
                 error = "Cannot connect to: {0}:{1}".format(self.host, self.port)
 
             except requests.exceptions.InvalidURL:
-                error = "Invalid URL: {0}".format(url)
+                error = "Invalid URL: {0}".format(self.baseUrl)
 
             except requests.exceptions.InvalidProxyURL:
                 error = "Invalid proxy URL: {0}".format(proxy)
@@ -208,10 +232,10 @@ class Requester(object):
                 http.client.IncompleteRead,
                 socket.timeout,
             ):
-                error = "Request timeout: {0}".format(url)
+                error = "Request timeout: {0}".format(self.baseUrl)
 
             except Exception:
-                error = "There was a problem in the request to: {0}".format(url)
+                error = "There was a problem in the request to: {0}".format(self.baseUrl)
 
         if error:
             raise RequestException({"message": error})

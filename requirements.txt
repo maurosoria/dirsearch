@@ -2,5 +2,4 @@ certifi>=2020.11.8
 chardet>=3.0.2
 urllib3>=1.21.1
 cryptography>=2.8
-PySocks
-mako>=1.0.7
+PySocks>=1.6.8
