@@ -620,7 +620,7 @@ class Controller(object):
         added = False
         path = path.split("?")[0].split("#")[0]
 
-        if path.rstrip("/") in [directory for directory in self.excludeSubdirs]:
+        if path.rstrip("/") + "/" in [directory for directory in self.excludeSubdirs]:
             return False
 
         fullPath = self.currentDirectory + path if not fullPath else fullPath
