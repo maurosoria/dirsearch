@@ -57,9 +57,9 @@ class Dictionary(object):
         self.dictionaryFiles = [File(path) for path in self.paths]
 
         # Check if dictionaries don't use dirsearch classic extensions (with %EXT%)
-        if "%ext%" not in "".join(
-            [dictFile.read().lower() for dictFile in self.dictionaryFiles]
-        ) and not forcedExtensions:
+        if not forcedExtensions and not any(
+            ["%ext%" in dict.read().lower() for dict in self.dictionaryFiles]
+        ):
             self._extensions = [""]
 
         self.generate()
