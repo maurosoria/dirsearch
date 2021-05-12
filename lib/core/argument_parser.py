@@ -384,7 +384,7 @@ class ArgumentParser(object):
             )
 
         else:
-            self.excludeSubdirs = None
+            self.excludeSubdirs = []
 
         if options.skip_on_status:
             try:

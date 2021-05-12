@@ -79,7 +79,7 @@ Wordlists (IMPORTANT)
 ---------------
 **Summary:**
   - Wordlist is a text file, each line is a path.
-  - About extensions, unlike other tools, dirsearch will only replace the `%EXT%` keyword with extensions in **-e | --extensions** flag.
+  - About extensions, unlike other tools, dirsearch will only replace the `%EXT%` keyword with extensions in **-e** flag.
   - For wordlists without `%EXT%` (like [SecLists](https://github.com/danielmiessler/SecLists)), **-f | --force-extensions** switch is required to append extensions to every word in wordlist, as well as the `/`. And for entries in wordlist that you do not want to append extensions, you can add `%NOFORCE%` at the end of them.
   - To use multiple wordlists, you can seperate your wordlists with commas. Example: `wordlist1.txt,wordlist2.txt`.
 
@@ -131,8 +131,8 @@ Options:
                         Target URL list file
     --stdin             Target URL list from STDIN
     --cidr=CIDR         Target CIDR
-    --raw=FILE          File contains the raw request (use `--scheme` flag to
-                        set the scheme)
+    --raw=FILE          Load raw HTTP request from file (use `--scheme` flag
+                        to set the scheme)
     -e EXTENSIONS, --extensions=EXTENSIONS
                         Extension list separated by commas (Example: php,asp)
     -X EXTENSIONS, --exclude-extensions=EXTENSIONS
@@ -165,6 +165,10 @@ Options:
     -t THREADS, --threads=THREADS
                         Number of threads
     -r, --recursive     Brute-force recursively
+    --deep-recursive    Perform recursive scan on every directory depth
+                        (Example: api/users -> api/)
+    --force-recursive   Do recursive brute-force for every found path, not
+                        only paths end with slash
     --recursion-depth=DEPTH
                         Maximum recursion depth
     --recursion-status=CODES
@@ -218,8 +222,11 @@ Options:
     -F, --follow-redirects
                         Follow HTTP redirects
     --random-agent      Choose a random User-Agent for each request
+    --auth-type=TYPE    Authentication type (basic, digest, bearer, ntlm)
+    --auth=CREDENTIAL   Authentication credential (user:password or bearer
+                        token)
     --user-agent=USERAGENT
-    --cookie=COOKIE     
+    --cookie=COOKIE
 
   Connection Settings:
     --timeout=TIMEOUT   Connection timeout
@@ -232,8 +239,7 @@ Options:
                         Proxy to replay with found paths
     --scheme=SCHEME     Default scheme (for raw request or if there is no
                         scheme in the URL)
-    --max-rate=REQUESTS
-                        Max requests per second
+    --max-rate=RATE     Max requests per second
     --retries=RETRIES   Number of retries for failed requests
     -b, --request-by-hostname
                         By default dirsearch requests by IP for speed. This
@@ -242,7 +248,8 @@ Options:
     --exit-on-error     Exit whenever an error occurs
 
   Reports:
-    -o FILE             Output file
+    -o FILE, --output=FILE
+                        Output file
     --format=FORMAT     Report format (Available: simple, plain, json, xml,
                         md, csv, html)
 ```
@@ -272,7 +279,6 @@ recursion-depth = 0
 exclude-subdirs = %%ff/
 random-user-agents = False
 max-time = 0
-save-logs-home = False
 full-url = False
 quiet-mode = False
 color = True
@@ -286,9 +292,11 @@ recursion-status = 200-399,401,403
 # skip-on-status = 429,999
 
 [reports]
-# report-output = output.txt
 report-format = plain
-## Support: plain, simple, json, xml, md, csv
+autosave-report = True
+# report-output-folder = /home/user
+# logs-location = /tmp
+## Supported: plain, simple, json, xml, md, csv, html
 
 [dictionary]
 lowercase = False

@@ -131,9 +131,7 @@ class Controller(object):
         self.maximumResponseSize = arguments.maximumResponseSize
         self.maxtime = arguments.maxtime
         self.scanSubdirs = arguments.scanSubdirs
-        self.excludeSubdirs = (
-            arguments.excludeSubdirs if arguments.excludeSubdirs else []
-        )
+        self.excludeSubdirs = arguments.excludeSubdirs
 
         self.dictionary = Dictionary(
             paths=arguments.wordlist,
@@ -220,9 +218,8 @@ class Controller(object):
                     self.basePath = self.requester.basePath
                     self.status_skip = None
 
-                    if self.scanSubdirs:
-                        for subdir in self.scanSubdirs:
-                            self.directories.put(subdir)
+                    for subdir in self.scanSubdirs:
+                        self.directories.put(subdir)
 
                     else:
                         self.directories.put("")
@@ -620,7 +617,7 @@ class Controller(object):
         added = False
         path = path.split("?")[0].split("#")[0]
 
-        if path.rstrip("/") + "/" in [directory for directory in self.excludeSubdirs]:
+        if any([path.startswith(directory) for directory in self.excludeSubdirs]):
             return False
 
         fullPath = self.currentDirectory + path if not fullPath else fullPath
@@ -639,7 +636,7 @@ class Controller(object):
             dirs.append(fullPath)
 
         for dir in dirs:
-            if self.scanSubdirs and dir in self.scanSubdirs:
+            if dir in self.scanSubdirs:
                 continue
             elif dir in self.doneDirs:
                 continue
