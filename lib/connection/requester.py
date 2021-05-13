@@ -189,6 +189,7 @@ class Requester(object):
                     data=self.data,
                 )
                 prepare = request.prepare()
+                prepare.url = url
                 response = self.session.send(
                     prepare,
                     proxies=proxies,
