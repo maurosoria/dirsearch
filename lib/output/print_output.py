@@ -36,16 +36,16 @@ class PrintOutput(object):
         init()
         self.mutex = threading.Lock()
         self.blacklists = {}
-        self.mutexCheckedPaths = threading.Lock()
-        self.basePath = None
+        self.mutex_checked_paths = threading.Lock()
+        self.base_path = None
         self.errors = 0
         if not color:
-            self.disableColors()
+            self.disable_colors()
 
     def header(self, text):
         pass
 
-    def inLine(self, string):
+    def in_line(self, string):
         self.erase()
         sys.stdout.write(string)
         sys.stdout.flush()
@@ -53,11 +53,11 @@ class PrintOutput(object):
     def erase(self):
         if sys.platform in ["win32", "cygwin", "msys"]:
             csbi = GetConsoleScreenBufferInfo()
-            line = "\b" * int(csbi.dwCursorPosition.X)
+            line = "\b" * int(csbi.dw_cursor_position.X)
             sys.stdout.write(line)
-            width = csbi.dwCursorPosition.X
-            csbi.dwCursorPosition.X = 0
-            FillConsoleOutputCharacter(STDOUT, " ", width, csbi.dwCursorPosition)
+            width = csbi.dw_cursor_position.X
+            csbi.dw_cursor_position.X = 0
+            FillConsoleOutputCharacter(STDOUT, " ", width, csbi.dw_cursor_position)
             sys.stdout.write(line)
             sys.stdout.flush()
 
@@ -65,12 +65,12 @@ class PrintOutput(object):
             sys.stdout.write("\033[1K")
             sys.stdout.write("\033[0G")
 
-    def newLine(self, string=''):
+    def new_line(self, string=''):
         sys.stdout.write(string + "\n")
         sys.stdout.flush()
 
-    def statusReport(self, path, response, full_url, addedToQueue):
-        contentLength = None
+    def status_report(self, path, response, full_url, added_to_queue):
+        content_length = None
         status = response.status
 
         # Format message
@@ -81,15 +81,15 @@ class PrintOutput(object):
             size = len(response.body)
 
         finally:
-            contentLength = FileUtils.size_human(size)
+            content_length = FileUtils.size_human(size)
 
-        showPath = "/" + self.basePath + path
+        show_path = "/" + self.base_path + path
 
         parsed = urllib.parse.urlparse(self.target)
-        showPath = "{0}://{1}{2}".format(parsed.scheme, parsed.netloc, showPath)
+        show_path = "{0}://{1}{2}".format(parsed.scheme, parsed.netloc, show_path)
 
         message = "{0} - {1} - {2}".format(
-            status, contentLength.rjust(6, " "), showPath
+            status, content_length.rjust(6, " "), show_path
         )
 
         if status in [200, 201, 204]:
@@ -112,16 +112,16 @@ class PrintOutput(object):
         else:
             message = Fore.MAGENTA + message + Style.RESET_ALL
 
-        if addedToQueue:
+        if added_to_queue:
             message += "     (Added to queue)"
 
         with self.mutex:
-            self.newLine(message)
+            self.new_line(message)
 
-    def lastPath(self, path, index, length, currentJob, allJobs, rate):
+    def last_path(self, path, index, length, current_job, all_jobs, rate):
         pass
 
-    def addConnectionError(self):
+    def add_connection_error(self):
         self.errors += 1
 
     def error(self, reason):
@@ -141,23 +141,23 @@ class PrintOutput(object):
     ):
         pass
 
-    def setTarget(self, target, scheme):
+    def set_target(self, target, scheme):
         if not target.startswith("http://") and not target.startswith("https://") and "://" not in target:
             target = "{0}://{1}".format(scheme, target)
 
         self.target = target
 
-    def outputFile(self, target):
+    def output_file(self, target):
         pass
 
-    def errorLogFile(self, target):
+    def error_log_file(self, target):
         pass
 
     def debug(self, info):
         with self.mutex:
-            self.newLine(info)
+            self.new_line(info)
 
-    def disableColors(self):
+    def disable_colors(self):
         global Fore
         global Style
         global Back

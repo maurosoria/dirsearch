@@ -34,27 +34,27 @@ class Dictionary(object):
         lowercase=False,
         uppercase=False,
         capitalization=False,
-        forcedExtensions=False,
-        excludeExtensions=[],
-        noExtension=False,
-        onlySelected=False,
+        forced_extensions=False,
+        exclude_extensions=[],
+        no_extension=False,
+        only_selected=False,
     ):
 
         self.entries = []
-        self.currentIndex = 0
+        self.current_index = 0
         self.condition = threading.Lock()
         self._extensions = extensions
-        self._excludeExtensions = excludeExtensions
+        self._exclude_extensions = exclude_extensions
         self._prefixes = prefixes
         self._suffixes = suffixes
         self._paths = paths
-        self._forcedExtensions = forcedExtensions
-        self._noExtension = noExtension
-        self._onlySelected = onlySelected
+        self._forced_extensions = forced_extensions
+        self._no_extension = no_extension
+        self._only_selected = only_selected
         self.lowercase = lowercase
         self.uppercase = uppercase
         self.capitalization = capitalization
-        self.dictionaryFiles = [File(path) for path in self.paths]
+        self.dictionary_files = [File(path) for path in self.paths]
         self.generate()
 
     @property
@@ -102,8 +102,8 @@ class Dictionary(object):
         result = []
 
         # Enable to use multiple dictionaries at once
-        for dictFile in self.dictionaryFiles:
-            for line in list(filter(None, dict.fromkeys(dictFile.get_lines()))):
+        for dict_file in self.dictionary_files:
+            for line in list(filter(None, dict.fromkeys(dict_file.get_lines()))):
                 # Skip comments
                 if line.lstrip().startswith("#"):
                     continue
@@ -111,7 +111,7 @@ class Dictionary(object):
                 if line.startswith("/"):
                     line = line[1:]
 
-                if self._noExtension:
+                if self._no_extension:
                     line = line[0] + line[1:].split(".")[0]
                     if line == ".":
                         continue
@@ -124,9 +124,9 @@ class Dictionary(object):
                     noforce = False
 
                 # Skip if the path contains excluded extensions
-                if self._excludeExtensions:
+                if self._exclude_extensions:
                     if any(
-                        [find("." + extension, line) for extension in self._excludeExtensions]
+                        [find("." + extension, line) for extension in self._exclude_extensions]
                     ):
                         continue
 
@@ -140,7 +140,7 @@ class Dictionary(object):
 
                 # If forced extensions is used and the path is not a directory ... (terminated by /)
                 # process line like a forced extension.
-                elif self._forcedExtensions and not line.rstrip().endswith("/") and not noforce:
+                elif self._forced_extensions and not line.rstrip().endswith("/") and not noforce:
                     quoted = self.quote(line)
 
                     for extension in self._extensions:
@@ -157,7 +157,7 @@ class Dictionary(object):
                 else:
                     quoted = self.quote(line)
 
-                    if self._onlySelected and not line.rstrip().endswith("/") and "." in line:
+                    if self._only_selected and not line.rstrip().endswith("/") and "." in line:
                         for extension in self._extensions:
                             if line.endswith("." + extension):
                                 result.append(quoted)
@@ -202,28 +202,28 @@ class Dictionary(object):
         self.generate()
         self.reset()
 
-    def nextWithIndex(self, basePath=None):
+    def next_with_index(self, base_path=None):
         self.condition.acquire()
 
         try:
-            result = self.entries[self.currentIndex]
+            result = self.entries[self.current_index]
 
         except IndexError:
             self.condition.release()
             raise StopIteration
 
-        self.currentIndex = self.currentIndex + 1
-        currentIndex = self.currentIndex
+        self.current_index = self.current_index + 1
+        current_index = self.current_index
         self.condition.release()
-        return currentIndex, result
+        return current_index, result
 
-    def __next__(self, basePath=None):
-        _, path = self.nextWithIndex(basePath)
+    def __next__(self, base_path=None):
+        _, path = self.next_with_index(base_path)
         return path
 
     def reset(self):
         self.condition.acquire()
-        self.currentIndex = 0
+        self.current_index = 0
         self.condition.release()
 
     def __len__(self):

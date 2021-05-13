@@ -27,15 +27,15 @@ class XMLReport(FileBaseReport):
         result += "<dirsearchScan args=\"{0}\" time=\"{1}\">\n".format(" ".join(sys.argv), time.ctime())
 
         for entry in self.entries:
-            headerName = "{0}://{1}:{2}/{3}".format(
-                entry.protocol, entry.host, entry.port, entry.basePath
+            header_name = "{0}://{1}:{2}/{3}".format(
+                entry.protocol, entry.host, entry.port, entry.base_path
             )
-            result += " <target url=\"{0}\">\n".format(headerName)
+            result += " <target url=\"{0}\">\n".format(header_name)
 
             for e in entry.results:
                 result += "  <info path=\"/{0}\">\n".format(e.path)
                 result += "   <status>{0}</status>\n".format(e.status)
-                result += "   <contentLength>{0}</contentLength>\n".format(e.getContentLength())
+                result += "   <contentLength>{0}</contentLength>\n".format(e.get_content_length())
                 result += "   <redirect>{0}</redirect>\n".format("" if e.response.redirect is None else e.response.redirect)
                 result += "  </info>\n"
 
