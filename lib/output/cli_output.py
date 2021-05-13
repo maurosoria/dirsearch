@@ -251,4 +251,4 @@ class CLIOutput(object):
         global Style
         global Back
 
-        Fore = Style = back = NoColor
+        Fore = Style = Back = NoColor
