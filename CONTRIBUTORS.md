@@ -60,6 +60,7 @@
 - [Kyle Nweeia](https://github.com/kyle-nweeia)
 - [Xib3rR4dAr](https://github.com/Xib3rR4dAr)
 - [Rohit Soni](https://github.com/StreetOfHackerR007/)
+- [Maxime Peim](https://github.com/maxime-peim)
 
 Special thanks for all the people who had helped dirsearch so far!
 
