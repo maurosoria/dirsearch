@@ -97,7 +97,7 @@ class Controller(object):
             self.headers = {**default_headers, **arguments.headers}
             if arguments.cookie:
                 self.headers["Cookie"] = arguments.cookie
-            if arguments.cookie:
+            if arguments.useragent:
                 self.headers["User-Agent"] = arguments.useragent
 
         self.recursion_depth = arguments.recursion_depth
