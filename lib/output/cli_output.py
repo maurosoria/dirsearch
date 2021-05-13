@@ -60,11 +60,11 @@ class CLIOutput(object):
     def erase(self):
         if sys.platform in ["win32", "msys"]:
             csbi = GetConsoleScreenBufferInfo()
-            line = "\b" * int(csbi.dw_cursor_position.X)
+            line = "\b" * int(csbi.dwCursorPosition.X)
             sys.stdout.write(line)
-            width = csbi.dw_cursor_position.X
-            csbi.dw_cursor_position.X = 0
-            FillConsoleOutputCharacter(STDOUT, " ", width, csbi.dw_cursor_position)
+            width = csbi.dwCursorPosition.X
+            csbi.dwCursorPosition.X = 0
+            FillConsoleOutputCharacter(STDOUT, " ", width, csbi.dwCursorPosition)
             sys.stdout.write(line)
             sys.stdout.flush()
 
