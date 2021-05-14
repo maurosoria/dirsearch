@@ -655,7 +655,7 @@ class Controller(object):
         # Resolve the redirect header relative to the current URL and add the
         # path to self.directories if it is a subdirectory of the current URL
 
-        baseUrl = self.currentUrl + self.currentDirectory
+        baseUrl = self.currentUrl + self.currentDirectory + path.path
         baseUrl = self.addPort(baseUrl)
 
         absoluteUrl = urllib.parse.urljoin(baseUrl, path.response.redirect)
