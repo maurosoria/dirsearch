@@ -216,7 +216,7 @@ class Fuzzer(object):
             while path:
                 try:
                     # Pause if the request rate exceeded the maximum
-                    while self.maxrate and self.rate > self.maxrate:
+                    while self.maxrate and self.rate >= self.maxrate:
                         pass
                     self.rate += 1
                     threading.Timer(1, self.reduceRate).start()
