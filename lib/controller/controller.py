@@ -196,9 +196,6 @@ class Controller(object):
                             scheme=arguments.scheme,
                         )
 
-                        if arguments.autosaveReport or arguments.outputFile:
-                            self.report = Report(self.requester.host, self.requester.port, self.requester.protocol, self.requester.basePath)
-
                         for key, value in self.headers.items():
                             self.requester.setHeader(key, value)
 
@@ -206,6 +203,9 @@ class Controller(object):
                             self.requester.setAuth(arguments.auth_type, arguments.auth)
 
                         self.requester.request("")
+
+                        if arguments.autosaveReport or arguments.outputFile:
+                            self.report = Report(self.requester.host, self.requester.port, self.requester.protocol, self.requester.basePath)
 
                     except RequestException as e:
                         self.output.error(e.args[0]["message"])
