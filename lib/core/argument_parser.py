@@ -408,7 +408,7 @@ class ArgumentParser(object):
             print("Please select the authentication type with --auth-type")
             exit(1)
         elif options.auth_type and not options.auth:
-            print("No authetication credential found")
+            print("No authentication credential found")
             exit(1)
 
         if len(set(self.extensions).intersection(self.excludeExtensions)):
