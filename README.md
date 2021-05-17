@@ -36,8 +36,9 @@ Table of Contents
   * [Proxies](#Proxies)
   * [Reports](#Reports)
   * [Some others commands](#Some-others-commands)
-* [Tips](#Tips)
 * [Support Docker](#Support-Docker)
+* [References](#References)
+* [Tips](#Tips)
 * [License](#License)
 * [Contributors](#Contributors)
 
@@ -52,7 +53,7 @@ Kali Linux
 Installation & Usage
 ------------
 
-**Requirement: python 3.x**
+**Requirement: python 3.8 or higher**
 
 Choose one of these installation options:
 
@@ -592,15 +593,6 @@ python3 dirsearch.py -u https://target --remove-extensions
 **There are more features and you will need to discover them by your self**
 
 
-Tips
----------------
-- The server has a request limit? That's bad, but feel free to bypass it, by randomizing proxy with `--proxy-list`
-- Want to find out config files or backups? Try `--suffixes ~` and `--prefixes .`
-- For some endpoints that you do not want to force extensions, add `%NOFORCE%` at the end of them
-- Want to find only folders/directories? Combine `--remove-extensions` and `--suffixes /`!
-- The combination of `--cidr`, `-F`, `-q` and a low `--timeout` will reduce most of the noise + false negatives when brute-forcing with a CIDR
-- Scan a list of URLs, but don't want to see a 429 flood? Use `--skip-on-status` + `429` will help you to skip a target whenever it returns 429
-
 Support Docker
 ---------------
 ### Install Docker Linux
@@ -626,6 +618,29 @@ For using
 ```sh
 docker run -it --rm "dirsearch:v0.4.1" -u target -e php,html,js,zip
 ```
+
+
+References
+---------------
+- [Comprehensive Guide on Dirsearch](https://www.hackingarticles.in/comprehensive-guide-on-dirsearch/) by Shubham Sharma
+- [Comprehensive Guide on Dirsearch Part 2](https://www.hackingarticles.in/comprehensive-guide-on-dirsearch-part-2/) by Shubham Sharma
+- [GUÍA COMPLETA SOBRE EL USO DE DIRSEARCH](https://esgeeks.com/guia-completa-uso-dirsearch/?feed_id=5703&_unique_id=6076249cc271f) by ESGEEKS
+- [How to use Dirsearch to detect web directories](https://www.ehacking.net/2020/01/how-to-find-hidden-web-directories-using-dirsearch.html) by EHacking
+- [dirsearch how to](https://vk9-sec.com/dirsearch-how-to/) by VK9 Security
+- [Find Hidden Web Directories with Dirsearch](https://null-byte.wonderhowto.com/how-to/find-hidden-web-directories-with-dirsearch-0201615/) by Wonder How To
+- [Brute force directories and files in webservers using dirsearch](https://upadhyayraj.medium.com/brute-force-directories-and-files-in-webservers-using-dirsearch-613e4a7fa8d5) by Raj Upadhyay
+- [Live Bug Bounty Recon Session on Yahoo (Amass, crts.sh, dirsearch) w/ @TheDawgyg](https://www.youtube.com/watch?v=u4dUnJ1U0T4) by Nahamsec
+- [Dirsearch to find Hidden Web Directories](https://medium.com/@irfaanshakeel/dirsearch-to-find-hidden-web-directories-d0357fbe47b0) by Irfan Shakeel
+- [Getting access to 25000 employees details](https://medium.com/@ehsahil/getting-access-to-25k-employees-details-c085d18b73f0) by Sahil Ahamad
+
+Tips
+---------------
+- The server has a request limit? That's bad, but feel free to bypass it, by randomizing proxy with `--proxy-list`
+- Want to find out config files or backups? Try `--suffixes ~` and `--prefixes .`
+- For some endpoints that you do not want to force extensions, add `%NOFORCE%` at the end of them
+- Want to find only folders/directories? Combine `--remove-extensions` and `--suffixes /`!
+- The combination of `--cidr`, `-F`, `-q` and a low `--timeout` will reduce most of the noise + false negatives when brute-forcing with a CIDR
+- Scan a list of URLs, but don't want to see a 429 flood? Use `--skip-on-status` + `429` will help you to skip a target whenever it returns 429
 
 
 License
