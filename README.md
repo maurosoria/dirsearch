@@ -81,7 +81,7 @@ Wordlists (IMPORTANT)
   - Wordlist is a text file, each line is a path.
   - About extensions, unlike other tools, dirsearch will only replace the `%EXT%` keyword with extensions in **-e | --extensions** flag.
   - For wordlists without `%EXT%` (like [SecLists](https://github.com/danielmiessler/SecLists)), **-f | --force-extensions** switch is required to append extensions to every word in wordlist, as well as the `/`. And for entries in wordlist that you do not want to append extensions, you can add `%NOFORCE%` at the end of them.
-  - To use multiple wordlists, you can seperate your wordlists with commas. Example: `wordlist1.txt,wordlist2.txt`.
+  - To use multiple wordlists, you can separate your wordlists with commas. Example: `wordlist1.txt,wordlist2.txt`.
 
 **Examples:**
 
