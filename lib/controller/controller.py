@@ -453,7 +453,7 @@ class Controller(object):
             for excludeRedirect in self.excludeRedirects:
                 if path.response.redirect and (
                     (
-                        re.match(excludeRedirect, path.response.redirect.decode('iso8859-1'))
+                        re.match(excludeRedirect, path.response.redirect)
                         is not None
                     ) or (
                         excludeRedirect in path.response.redirect
