@@ -21,7 +21,7 @@ import os
 import sys
 import time
 import re
-import urllib.parse
+from urllib.parse import urljoin
 from threading import Lock
 from queue import Queue
 
@@ -177,8 +177,8 @@ class Controller(object):
             for url in self.urlList:
                 try:
                     gc.collect()
-                    self.currentUrl = url if url.endswith("/") else url + "/"
-                    self.output.setTarget(self.currentUrl, self.arguments.scheme)
+                    url = url if url.endswith("/") else url + "/"
+                    self.output.setTarget(url, self.arguments.scheme)
 
                     try:
                         self.requester = Requester(
@@ -214,7 +214,7 @@ class Controller(object):
                     if arguments.useRandomAgents:
                         self.requester.setRandomAgents(self.randomAgents)
 
-                    # Initialize directories Queue with start Path
+                    # Initialize directories Queue with start path
                     self.basePath = self.requester.basePath
                     self.status_skip = None
 
@@ -506,7 +506,7 @@ class Controller(object):
     def appendErrorLog(self, path, errorMsg):
         with self.threadsLock:
             line = time.strftime("[%y-%m-%d %H:%M:%S] - ")
-            line += self.currentUrl + " - " + path + " - " + errorMsg
+            line += self.requester.baseUrl + " - " + path + " - " + errorMsg
             self.errorLog.write(os.linesep + line)
             self.errorLog.flush()
 
@@ -605,22 +605,14 @@ class Controller(object):
 
         return
 
-    def addPort(self, url):
-        parsed = urllib.parse.urlparse(url)
-        if ":" not in parsed.netloc:
-            port = "443" if parsed.scheme == "https" else "80"
-            url = url.replace(parsed.netloc, parsed.netloc + ":" + port)
-
-        return url
-
-    def addDirectory(self, path, fullPath=None):
+    def addDirectory(self, path):
         added = False
         path = path.split("?")[0].split("#")[0]
 
         if any([path.startswith(directory) for directory in self.excludeSubdirs]):
             return False
 
-        fullPath = self.currentDirectory + path if not fullPath else fullPath
+        fullPath = self.currentDirectory + path
 
         dirs = []
 
@@ -651,20 +643,26 @@ class Controller(object):
 
         return added
 
+    def addPort(self, url):
+        chunks = url.split("/")
+        if ":" not in chunks[2]:
+            chunks[2] += (":80" if chunks[0] == "http:" else ":443")
+            url = "/".join(chunks)
+
+        return url
+
     def addRedirectDirectory(self, path):
         # Resolve the redirect header relative to the current URL and add the
         # path to self.directories if it is a subdirectory of the current URL
 
-        baseUrl = self.currentUrl + self.currentDirectory + path.path
-        baseUrl = self.addPort(baseUrl)
+        baseUrl = self.requester.baseUrl + self.basePath + self.currentDirectory + path.path
 
-        absoluteUrl = urllib.parse.urljoin(baseUrl, path.response.redirect)
-        absoluteUrl = self.addPort(absoluteUrl)
+        redirectUrl = urljoin(self.requester.baseUrl, path.response.redirect)
+        redirectUrl = self.addPort(redirectUrl)
 
-        if absoluteUrl.startswith(baseUrl) and absoluteUrl != baseUrl:
-            path = absoluteUrl[len(baseUrl):]
-            fullPath = absoluteUrl[len(self.addPort(self.currentUrl)):]
+        if redirectUrl.startswith(baseUrl + "/"):
+            path = redirectUrl.replace(self.requester.baseUrl + self.basePath + self.currentDirectory, "")
 
-            return self.addDirectory(path, fullPath)
+            return self.addDirectory(path)
 
         return False

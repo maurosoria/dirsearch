@@ -52,10 +52,6 @@ class Requester(object):
         self.data = data
         self.headers = {}
 
-        # If no backslash, append one
-        if not url.endswith("/"):
-            url += "/"
-
         parsed = urllib.parse.urlparse(url)
 
         # If no protocol specified, set http by default

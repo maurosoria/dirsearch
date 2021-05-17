@@ -42,9 +42,7 @@ class ArgumentParser(object):
         self.raw_file = None
 
         if not options.url:
-
             if options.urlList:
-
                 with File(options.urlList) as urlList:
 
                     if not urlList.exists():
