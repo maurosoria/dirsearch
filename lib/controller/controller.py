@@ -21,7 +21,8 @@ import os
 import sys
 import time
 import re
-import urllib.parse
+
+from urllib.parse import urljoin
 from threading import Lock
 from queue import Queue
 
@@ -48,7 +49,7 @@ class EmptyReportManager(object):
     def __init__(self):
         pass
 
-    def updateReport(self, *args):
+    def update_report(self, *args):
         pass
 
 
@@ -56,7 +57,7 @@ class EmptyReport(object):
     def __init__(self):
         pass
 
-    def addResult(self, *args):
+    def add_result(self, *args):
         pass
 
 
@@ -74,11 +75,11 @@ class Controller(object):
         self.exit = False
         self.arguments = arguments
         self.output = output
-        self.doneDirs = []
+        self.done_dirs = []
 
         if arguments.raw_file:
             _raw = Raw(arguments.raw_file, arguments.scheme)
-            self.urlList = [_raw.url()]
+            self.url_list = [_raw.url()]
             self.httpmethod = _raw.method()
             self.data = _raw.data()
             self.headers = _raw.headers()
@@ -91,49 +92,47 @@ class Controller(object):
                 "Cache-Control": "max-age=0",
             }
 
-            self.urlList = list(filter(None, dict.fromkeys(arguments.urlList)))
+            self.url_list = list(filter(None, dict.fromkeys(arguments.url_list)))
             self.httpmethod = arguments.httpmethod.lower()
             self.data = arguments.data
             self.headers = {**default_headers, **arguments.headers}
             if arguments.cookie:
                 self.headers["Cookie"] = arguments.cookie
-            if arguments.cookie:
+            if arguments.useragent:
                 self.headers["User-Agent"] = arguments.useragent
 
         self.recursion_depth = arguments.recursion_depth
 
-        if arguments.logsLocation and self.validatePath(arguments.logsLocation):
-            self.logsPath = FileUtils.build_path(arguments.logsLocation)
+        if arguments.logs_location and self.validate_path(arguments.logs_location):
+            self.logs_path = FileUtils.build_path(arguments.logs_location)
         else:
-            self.logsPath = FileUtils.build_path(self.script_path, "logs")
-            if not FileUtils.exists(self.logsPath):
-                FileUtils.create_directory(self.logsPath)
+            self.logs_path = FileUtils.build_path(self.script_path, "logs")
+            if not FileUtils.exists(self.logs_path):
+                FileUtils.create_directory(self.logs_path)
 
-        if arguments.outputLocation and self.validatePath(arguments.outputLocation):
-            self.save_path = FileUtils.build_path(arguments.outputLocation)
+        if arguments.output_location and self.validate_path(arguments.output_location):
+            self.save_path = FileUtils.build_path(arguments.output_location)
         else:
             self.save_path = FileUtils.build_path(self.script_path, "reports")
             if not FileUtils.exists(self.save_path):
                 FileUtils.create_directory(self.save_path)
 
-        self.blacklists = self.getBlacklists()
-        self.includeStatusCodes = arguments.includeStatusCodes
-        self.excludeStatusCodes = arguments.excludeStatusCodes
-        self.excludeSizes = arguments.excludeSizes
-        self.excludeTexts = arguments.excludeTexts
-        self.excludeRegexps = arguments.excludeRegexps
-        self.excludeRedirects = arguments.excludeRedirects
+        self.blacklists = self.get_blacklists()
+        self.include_status_codes = arguments.include_status_codes
+        self.exclude_status_codes = arguments.exclude_status_codes
+        self.exclude_sizes = arguments.exclude_sizes
+        self.exclude_texts = arguments.exclude_texts
+        self.exclude_regexps = arguments.exclude_regexps
+        self.exclude_redirects = arguments.exclude_redirects
         self.recursive = arguments.recursive
         self.deep_recursive = arguments.deep_recursive
         self.force_recursive = arguments.force_recursive
-        self.recursionStatusCodes = arguments.recursionStatusCodes
-        self.minimumResponseSize = arguments.minimumResponseSize
-        self.maximumResponseSize = arguments.maximumResponseSize
+        self.recursion_status_codes = arguments.recursion_status_codes
+        self.minimum_response_size = arguments.minimum_response_size
+        self.maximum_response_size = arguments.maximum_response_size
         self.maxtime = arguments.maxtime
-        self.scanSubdirs = arguments.scanSubdirs
-        self.excludeSubdirs = (
-            arguments.excludeSubdirs if arguments.excludeSubdirs else []
-        )
+        self.scan_subdirs = arguments.scan_subdirs
+        self.exclude_subdirs = arguments.exclude_subdirs
 
         self.dictionary = Dictionary(
             paths=arguments.wordlist,
@@ -143,106 +142,105 @@ class Controller(object):
             lowercase=arguments.lowercase,
             uppercase=arguments.uppercase,
             capitalization=arguments.capitalization,
-            forcedExtensions=arguments.forceExtensions,
-            excludeExtensions=arguments.excludeExtensions,
-            noExtension=arguments.noExtension,
-            onlySelected=arguments.onlySelected
+            forced_extensions=arguments.force_extensions,
+            exclude_extensions=arguments.exclude_extensions,
+            no_extension=arguments.no_extension,
+            only_selected=arguments.only_selected
         )
 
-        self.allJobs = len(self.scanSubdirs) if self.scanSubdirs else 1
-        self.currentJob = 0
-        self.startTime = time.time()
-        self.errorLog = None
-        self.errorLogPath = None
-        self.threadsLock = Lock()
+        self.all_jobs = len(self.scan_subdirs) if self.scan_subdirs else 1
+        self.current_job = 0
+        self.start_time = time.time()
+        self.error_log = None
+        self.error_log_path = None
+        self.threads_lock = Lock()
         self.batch = False
-        self.batchSession = None
+        self.batch_session = None
 
         self.output.header(program_banner)
-        self.printConfig()
+        self.print_config()
 
-        if arguments.useRandomAgents:
-            self.randomAgents = FileUtils.get_lines(
+        if arguments.use_random_agents:
+            self.random_agents = FileUtils.get_lines(
                 FileUtils.build_path(script_path, "db", "user-agents.txt")
             )
 
-        self.reportManager = EmptyReportManager()
+        self.report_manager = EmptyReportManager()
         self.report = EmptyReport()
-        if arguments.autosaveReport or arguments.outputFile:
-            if len(self.urlList) > 1:
-                self.setupBatchReports()
-            self.setupReports()
+        if arguments.autosave_report or arguments.output_file:
+            if len(self.url_list) > 1:
+                self.setup_batch_reports()
+            self.setup_reports()
 
-        self.setupErrorLogs()
-        self.output.errorLogFile(self.errorLogPath)
+        self.setup_error_logs()
+        self.output.error_log_file(self.error_log_path)
         try:
-            for url in self.urlList:
+            for url in self.url_list:
                 try:
                     gc.collect()
-                    self.currentUrl = url if url.endswith("/") else url + "/"
-                    self.output.setTarget(self.currentUrl, self.arguments.scheme)
+                    url = url if url.endswith("/") else url + "/"
+                    self.output.set_target(url, self.arguments.scheme)
 
                     try:
                         self.requester = Requester(
                             url,
-                            maxPool=arguments.threadsCount,
-                            maxRetries=arguments.maxRetries,
+                            max_pool=arguments.threads_count,
+                            max_retries=arguments.max_retries,
                             timeout=arguments.timeout,
                             ip=arguments.ip,
                             proxy=arguments.proxy,
                             proxylist=arguments.proxylist,
                             redirect=arguments.redirect,
-                            requestByHostname=arguments.requestByHostname,
+                            request_by_hostname=arguments.request_by_hostname,
                             httpmethod=self.httpmethod,
                             data=self.data,
                             scheme=arguments.scheme,
                         )
 
-                        if arguments.autosaveReport or arguments.outputFile:
-                            self.report = Report(self.requester.host, self.requester.port, self.requester.protocol, self.requester.basePath)
-
                         for key, value in self.headers.items():
-                            self.requester.setHeader(key, value)
+                            self.requester.set_header(key, value)
 
                         if arguments.auth:
-                            self.requester.setAuth(arguments.auth_type, arguments.auth)
+                            self.requester.set_auth(arguments.auth_type, arguments.auth)
 
                         self.requester.request("")
+
+                        if arguments.autosave_report or arguments.output_file:
+                            self.report = Report(self.requester.host, self.requester.port, self.requester.protocol, self.requester.base_path)
 
                     except RequestException as e:
                         self.output.error(e.args[0]["message"])
                         raise SkipTargetInterrupt
 
-                    if arguments.useRandomAgents:
-                        self.requester.setRandomAgents(self.randomAgents)
+                    if arguments.use_random_agents:
+                        self.requester.set_random_agents(self.random_agents)
 
                     # Initialize directories Queue with start Path
-                    self.basePath = self.requester.basePath
+                    self.base_path = self.requester.base_path
                     self.status_skip = None
 
-                    if self.scanSubdirs:
-                        for subdir in self.scanSubdirs:
-                            self.directories.put(subdir)
+                    for subdir in self.scan_subdirs:
+                        self.directories.put(subdir)
 
                     else:
                         self.directories.put("")
 
-                    matchCallbacks = [self.matchCallback]
-                    notFoundCallbacks = [self.notFoundCallback]
-                    errorCallbacks = [self.errorCallback, self.appendErrorLog]
+                    match_callbacks = [self.match_callback]
+                    not_found_callbacks = [self.not_found_callback]
+                    error_callbacks = [self.error_callback, self.append_error_log]
 
                     self.fuzzer = Fuzzer(
                         self.requester,
                         self.dictionary,
                         suffixes=arguments.suffixes,
                         prefixes=arguments.prefixes,
-                        excludeContent=arguments.excludeContent,
-                        threads=arguments.threadsCount,
+                        exclude_content=arguments.exclude_content,
+                        threads=arguments.threads_count,
                         delay=arguments.delay,
                         maxrate=arguments.maxrate,
-                        matchCallbacks=matchCallbacks,
-                        notFoundCallbacks=notFoundCallbacks,
-                        errorCallbacks=errorCallbacks,
+                        match_callbacks=match_callbacks,
+                        not_found_callbacks=not_found_callbacks,
+                        error_callbacks=error_callbacks,
                     )
                     try:
                         self.prepare()
@@ -259,38 +257,44 @@ class Controller(object):
             exit(0)
 
         finally:
-            if not self.errorLog.closed:
-                self.errorLog.close()
+            if not self.error_log.closed:
+                self.error_log.close()
 
         self.output.warning("\nTask Completed")
 
-    def printConfig(self):
+    def print_config(self):
         self.output.config(
             ', '.join(self.arguments.extensions),
             ', '.join(self.arguments.prefixes),
             ', '.join(self.arguments.suffixes),
-            str(self.arguments.threadsCount),
+            str(self.arguments.threads_count),
             str(len(self.dictionary)),
             str(self.httpmethod),
         )
 
-    def getBlacklists(self):
+    def is_timed_out(self):
+        if self.maxtime and time.time() - self.start_time > self.maxtime:
+            return True
+
+        return False
+
+    def get_blacklists(self):
         reext = re.compile(r'\%ext\%', re.IGNORECASE)
         blacklists = {}
 
         for status in [400, 403, 500]:
-            blacklistFileName = FileUtils.build_path(self.script_path, "db")
-            blacklistFileName = FileUtils.build_path(
-                blacklistFileName, "{}_blacklist.txt".format(status)
+            blacklist_file_name = FileUtils.build_path(self.script_path, "db")
+            blacklist_file_name = FileUtils.build_path(
+                blacklist_file_name, "{}_blacklist.txt".format(status)
             )
 
-            if not FileUtils.can_read(blacklistFileName):
+            if not FileUtils.can_read(blacklist_file_name):
                 # Skip if cannot read file
                 continue
 
             blacklists[status] = []
 
-            for line in FileUtils.get_lines(blacklistFileName):
+            for line in FileUtils.get_lines(blacklist_file_name):
                 # Skip comments
                 if line.lstrip().startswith("#"):
                     continue
@@ -313,88 +317,88 @@ class Controller(object):
 
         return blacklists
 
-    def setupErrorLogs(self):
-        fileName = "errors-{0}.log".format(time.strftime("%y-%m-%d_%H-%M-%S"))
-        self.errorLogPath = FileUtils.build_path(
-            self.logsPath, fileName
+    def setup_error_logs(self):
+        file_name = "errors-{0}.log".format(time.strftime("%y-%m-%d_%H-%M-%S"))
+        self.error_log_path = FileUtils.build_path(
+            self.logs_path, file_name
         )
 
         try:
-            self.errorLog = open(self.errorLogPath, "w")
+            self.error_log = open(self.error_log_path, "w")
         except PermissionError:
             self.output.error(
                 "Couldn't create the error log. Try running again with highest permission"
             )
             sys.exit(1)
 
-    def setupBatchReports(self):
+    def setup_batch_reports(self):
         self.batch = True
-        if not self.arguments.outputFile:
-            self.batchSession = "BATCH-{0}".format(time.strftime("%y-%m-%d_%H-%M-%S"))
-            self.batchDirectoryPath = FileUtils.build_path(
-                self.save_path, self.batchSession
+        if not self.arguments.output_file:
+            self.batch_session = "BATCH-{0}".format(time.strftime("%y-%m-%d_%H-%M-%S"))
+            self.batch_directory_path = FileUtils.build_path(
+                self.save_path, self.batch_session
             )
 
-            if not FileUtils.exists(self.batchDirectoryPath):
-                FileUtils.create_directory(self.batchDirectoryPath)
+            if not FileUtils.exists(self.batch_directory_path):
+                FileUtils.create_directory(self.batch_directory_path)
 
-                if not FileUtils.exists(self.batchDirectoryPath):
+                if not FileUtils.exists(self.batch_directory_path):
                     self.output.error(
-                        "Couldn't create batch folder at {}".format(self.batchDirectoryPath)
+                        "Couldn't create batch folder at {}".format(self.batch_directory_path)
                     )
                     sys.exit(1)
 
-    def getOutputExtension(self):
-        if self.arguments.outputFormat and self.arguments.outputFormat not in ["plain", "simple"]:
-            return ".{0}".format(self.arguments.outputFormat)
+    def get_output_extension(self):
+        if self.arguments.output_format and self.arguments.output_format not in ["plain", "simple"]:
+            return ".{0}".format(self.arguments.output_format)
         else:
             return ".txt"
 
-    def setupReports(self):
-        if self.arguments.outputFile:
-            outputFile = FileUtils.get_abs_path(self.arguments.outputFile)
-            self.output.outputFile(outputFile)
+    def setup_reports(self):
+        if self.arguments.output_file:
+            output_file = FileUtils.get_abs_path(self.arguments.output_file)
+            self.output.output_file(output_file)
         else:
             if self.batch:
-                fileName = "BATCH"
-                fileName += self.getOutputExtension()
-                directoryPath = self.batchDirectoryPath
+                file_name = "BATCH"
+                file_name += self.get_output_extension()
+                directory_path = self.batch_directory_path
             else:
-                localRequester = Requester(self.urlList[0])
-                fileName = ("{}_".format(localRequester.basePath.replace(os.path.sep, ".")[:-1]))
-                fileName += time.strftime("%y-%m-%d_%H-%M-%S")
-                fileName += self.getOutputExtension()
-                directoryPath = FileUtils.build_path(self.save_path, localRequester.host)
+                local_requester = Requester(self.url_list[0])
+                file_name = ("{}_".format(local_requester.base_path.replace(os.path.sep, ".")[:-1]))
+                file_name += time.strftime("%y-%m-%d_%H-%M-%S")
+                file_name += self.get_output_extension()
+                directory_path = FileUtils.build_path(self.save_path, local_requester.host)
 
-            outputFile = FileUtils.build_path(directoryPath, fileName)
+            output_file = FileUtils.build_path(directory_path, file_name)
 
-            if FileUtils.exists(outputFile):
+            if FileUtils.exists(output_file):
                 i = 2
 
-                while FileUtils.exists(outputFile + "_" + str(i)):
+                while FileUtils.exists(output_file + "_" + str(i)):
                     i += 1
 
-                outputFile += "_" + str(i)
+                output_file += "_" + str(i)
 
-            if not FileUtils.exists(directoryPath):
-                FileUtils.create_directory(directoryPath)
+            if not FileUtils.exists(directory_path):
+                FileUtils.create_directory(directory_path)
 
-                if not FileUtils.exists(directoryPath):
+                if not FileUtils.exists(directory_path):
                     self.output.error(
-                        "Couldn't create the reports folder at {}".format(directoryPath)
+                        "Couldn't create the reports folder at {}".format(directory_path)
                     )
                     sys.exit(1)
 
-            self.output.outputFile(outputFile)
+            self.output.output_file(output_file)
 
-        if self.arguments.outputFile and self.arguments.outputFormat:
-            self.reportManager = ReportManager(self.arguments.outputFormat, self.arguments.outputFile)
-        elif self.arguments.outputFormat:
-            self.reportManager = ReportManager(self.arguments.outputFormat, outputFile)
+        if self.arguments.output_file and self.arguments.output_format:
+            self.report_manager = ReportManager(self.arguments.output_format, self.arguments.output_file)
+        elif self.arguments.output_format:
+            self.report_manager = ReportManager(self.arguments.output_format, output_file)
         else:
-            self.reportManager = ReportManager("plain", outputFile)
+            self.report_manager = ReportManager("plain", output_file)
 
-    def validatePath(self, path):
+    def validate_path(self, path):
         if not FileUtils.exists(path):
             self.output.error(
                 "{} does not exist".format(
@@ -417,8 +421,52 @@ class Controller(object):
 
         return True
 
-    # TODO: Refactor, this function should be a decorator for all the filters
-    def matchCallback(self, path):
+    def valid(self, path):
+        if not path:
+            return False
+
+        if path.status in self.exclude_status_codes:
+            return False
+
+        if self.include_status_codes and path.status not in self.include_status_codes:
+            return False
+
+        if self.blacklists.get(path.status) and path.path in self.blacklists.get(path.status):
+            return False
+
+        if self.exclude_sizes and FileUtils.size_human(len(path.response.body)).strip() in self.exclude_sizes:
+            return False
+
+        if self.minimum_response_size and self.minimum_response_size > len(path.response.body):
+            return False
+
+        if self.maximum_response_size and self.maximum_response_size < len(path.response.body):
+            return False
+
+        for exclude_text in self.exclude_texts:
+            if exclude_text in path.response.body.decode('iso8859-1'):
+                return False
+
+        for exclude_regexp in self.exclude_regexps:
+            if (
+                re.search(exclude_regexp, path.response.body.decode('iso8859-1'))
+                is not None
+            ):
+                return False
+
+        for exclude_redirect in self.exclude_redirects:
+            if path.response.redirect and (
+                (
+                    re.match(exclude_redirect, path.response.redirect) is not None
+                ) or (
+                    exclude_redirect in path.response.redirect
+                )
+            ):
+                return False
+
+        return True
+
+    def match_callback(self, path):
         self.index += 1
 
         for status in self.arguments.skip_on_status:
@@ -426,77 +474,42 @@ class Controller(object):
                 self.status_skip = status
                 return
 
-        if (
-                path.status and path.status not in self.excludeStatusCodes
-        ) and (
-                not self.includeStatusCodes or path.status in self.includeStatusCodes
-        ) and (
-                not self.blacklists.get(path.status) or path.path not in self.blacklists.get(path.status)
-        ) and (
-                not self.excludeSizes or FileUtils.size_human(len(path.response.body)).strip() not in self.excludeSizes
-        ) and (
-                not self.minimumResponseSize or self.minimumResponseSize < len(path.response.body)
-        ) and (
-                not self.maximumResponseSize or self.maximumResponseSize > len(path.response.body)
-        ):
-
-            for excludeText in self.excludeTexts:
-                if excludeText in path.response.body.decode('iso8859-1'):
-                    del path
-                    return
-
-            for excludeRegexp in self.excludeRegexps:
-                if (
-                    re.search(excludeRegexp, path.response.body.decode('iso8859-1'))
-                    is not None
-                ):
-                    del path
-                    return
-
-            for excludeRedirect in self.excludeRedirects:
-                if path.response.redirect and (
-                    (
-                        re.match(excludeRedirect, path.response.redirect.decode('iso8859-1'))
-                        is not None
-                    ) or (
-                        excludeRedirect in path.response.redirect
-                    )
-                ):
-                    del path
-                    return
-
-            addedToQueue = False
-
-            if (
-                    any([self.recursive, self.deep_recursive, self.force_recursive])
-            ) and (
-                    not self.recursionStatusCodes or path.status in self.recursionStatusCodes
-            ):
-                if path.response.redirect:
-                    addedToQueue = self.addRedirectDirectory(path)
-                else:
-                    addedToQueue = self.addDirectory(path.path)
-
-            self.output.statusReport(
-                path.path, path.response, self.arguments.full_url, addedToQueue
-            )
-
-            if self.arguments.replay_proxy:
-                self.requester.request(path.path, proxy=self.arguments.replay_proxy)
-
-            newPath = self.currentDirectory + path.path
-
-            self.report.addResult(newPath, path.status, path.response)
-            self.reportManager.updateReport(self.report)
-
+        if not self.valid(path):
             del path
+            return
 
-    def notFoundCallback(self, path):
-        self.index += 1
-        self.output.lastPath(path, self.index, len(self.dictionary), self.currentJob, self.allJobs, self.fuzzer.rate)
+        added_to_queue = False
+
+        if (
+                any([self.recursive, self.deep_recursive, self.force_recursive])
+        ) and (
+                not self.recursion_status_codes or path.status in self.recursion_status_codes
+        ):
+            if path.response.redirect:
+                added_to_queue = self.add_redirect_directory(path)
+            else:
+                added_to_queue = self.add_directory(path.path)
+
+        self.output.status_report(
+            path.path, path.response, self.arguments.full_url, added_to_queue
+        )
+
+        if self.arguments.replay_proxy:
+            self.requester.request(path.path, proxy=self.arguments.replay_proxy)
+
+        new_path = self.current_directory + path.path
+
+        self.report.add_result(new_path, path.status, path.response)
+        self.report_manager.update_report(self.report)
+
         del path
 
-    def errorCallback(self, path, errorMsg):
+    def not_found_callback(self, path):
+        self.index += 1
+        self.output.last_path(path, self.index, len(self.dictionary), self.current_job, self.all_jobs, self.fuzzer.rate)
+        del path
+
+    def error_callback(self, path, error_msg):
         if self.arguments.exit_on_error:
             self.exit = True
             self.fuzzer.stop()
@@ -504,20 +517,20 @@ class Controller(object):
             exit(1)
 
         else:
-            self.output.addConnectionError()
+            self.output.add_connection_error()
 
-    def appendErrorLog(self, path, errorMsg):
-        with self.threadsLock:
+    def append_error_log(self, path, error_msg):
+        with self.threads_lock:
             line = time.strftime("[%y-%m-%d %H:%M:%S] - ")
-            line += self.currentUrl + " - " + path + " - " + errorMsg
-            self.errorLog.write(os.linesep + line)
-            self.errorLog.flush()
+            line += self.requester.base_url + " - " + path + " - " + error_msg
+            self.error_log.write(os.linesep + line)
+            self.error_log.flush()
 
-    def handlePause(self, message):
+    def handle_pause(self, message):
         self.output.warning(message)
         self.fuzzer.pause()
 
-        # If one of the tasks is broken, don't let the user wait forever
+        # If one of the tasks is broken, don't let the user wait Fore.er
         for i in range(300):
             if self.fuzzer.stopped == len(self.fuzzer.threads):
                 break
@@ -531,10 +544,10 @@ class Controller(object):
             if not self.directories.empty():
                 msg += " / [n]ext"
 
-            if len(self.urlList) > 1:
+            if len(self.url_list) > 1:
                 msg += " / [s]kip target"
 
-            self.output.inLine(msg + ": ")
+            self.output.in_line(msg + ": ")
 
             option = input()
 
@@ -542,7 +555,7 @@ class Controller(object):
                 self.exit = True
                 self.fuzzer.stop()
                 self.output.error("\nCanceled by the user")
-                self.reportManager.updateReport(self.report)
+                self.report_manager.update_report(self.report)
                 exit(0)
 
             elif option.lower() == "c":
@@ -553,14 +566,11 @@ class Controller(object):
                 self.fuzzer.stop()
                 return
 
-            elif option.lower() == "s" and len(self.urlList) > 1:
-                self.output.newLine()
+            elif option.lower() == "s" and len(self.url_list) > 1:
+                self.output.new_line()
                 raise SkipTargetInterrupt
 
-            else:
-                continue
-
-    def processPaths(self):
+    def process_paths(self):
         while True:
             try:
                 while not self.fuzzer.wait(0.25):
@@ -576,7 +586,7 @@ class Controller(object):
 
                         raise SkipTargetInterrupt
 
-                    elif self.maxtime and time.time() - self.startTime > self.maxtime:
+                    elif self.is_timed_out():
                         self.output.error(
                             "\nCanceled because the runtime exceeded the maximal set by user"
                         )
@@ -585,89 +595,87 @@ class Controller(object):
                 break
 
             except KeyboardInterrupt:
-                self.handlePause("CTRL+C detected: Pausing threads, please wait...")
+                self.handle_pause("CTRL+C detected: Pausing threads, please wait...")
 
     def prepare(self):
         while not self.directories.empty():
             gc.collect()
-            self.currentJob += 1
+            self.current_job += 1
             self.index = 0
-            self.currentDirectory = self.directories.get()
+            self.current_directory = self.directories.get()
             self.output.warning(
                 "[{1}] Starting: {0}".format(
-                    self.currentDirectory, time.strftime("%H:%M:%S")
+                    self.current_directory, time.strftime("%H:%M:%S")
                 )
             )
-            self.fuzzer.requester.basePath = self.output.basePath = self.basePath + self.currentDirectory
+            self.fuzzer.requester.base_path = self.output.base_path = self.base_path + self.current_directory
             self.fuzzer.start()
-            self.processPaths()
+            self.process_paths()
 
         self.report.completed = True
-        self.reportManager.updateReport(self.report)
+        self.report_manager.update_report(self.report)
         self.report = None
 
         return
 
-    def addPort(self, url):
-        parsed = urllib.parse.urlparse(url)
-        if ":" not in parsed.netloc:
-            port = "443" if parsed.scheme == "https" else "80"
-            url = url.replace(parsed.netloc, parsed.netloc + ":" + port)
-
-        return url
-
-    def addDirectory(self, path, fullPath=None):
+    def add_directory(self, path):
         added = False
         path = path.split("?")[0].split("#")[0]
 
-        if path.rstrip("/") + "/" in [directory for directory in self.excludeSubdirs]:
+        if any([path.startswith(directory) for directory in self.exclude_subdirs]):
             return False
 
-        fullPath = self.currentDirectory + path if not fullPath else fullPath
+        full_path = self.current_directory + path
 
         dirs = []
 
         if self.deep_recursive:
             for i in range(1, path.count("/") + 1):
-                dir = fullPath.replace(path, "") + "/".join(path.split("/")[:i])
+                dir = full_path.replace(path, "") + "/".join(path.split("/")[:i])
                 dirs.append(dir.rstrip("/") + "/")
         if self.force_recursive:
-            if not fullPath.endswith("/"):
-                fullPath += "/"
-            dirs.append(fullPath)
-        elif self.recursive and fullPath.endswith("/"):
-            dirs.append(fullPath)
+            if not full_path.endswith("/"):
+                full_path += "/"
+            dirs.append(full_path)
+        elif self.recursive and full_path.endswith("/"):
+            dirs.append(full_path)
 
         for dir in dirs:
-            if self.scanSubdirs and dir in self.scanSubdirs:
+            if dir in self.scan_subdirs:
                 continue
-            elif dir in self.doneDirs:
+            elif dir in self.done_dirs:
                 continue
             elif self.recursion_depth and dir.count("/") > self.recursion_depth:
                 continue
 
             self.directories.put(dir)
-            self.doneDirs.append(dir)
+            self.done_dirs.append(dir)
 
-            self.allJobs += 1
+            self.all_jobs += 1
             added = True
 
         return added
 
-    def addRedirectDirectory(self, path):
+    def add_port(self, url):
+        chunks = url.split("/")
+        if ":" not in chunks[2]:
+            chunks[2] += (":80" if chunks[0] == "http:" else ":443")
+            url = "/".join(chunks)
+
+        return url
+
+    def add_redirect_directory(self, path):
         # Resolve the redirect header relative to the current URL and add the
         # path to self.directories if it is a subdirectory of the current URL
 
-        baseUrl = self.currentUrl + self.currentDirectory
-        baseUrl = self.addPort(baseUrl)
+        base_url = self.requester.base_url + self.base_path + self.current_directory + path.path
 
-        absoluteUrl = urllib.parse.urljoin(baseUrl, path.response.redirect)
-        absoluteUrl = self.addPort(absoluteUrl)
+        redirect_url = urljoin(self.requester.base_url, path.response.redirect)
+        redirect_url = self.add_port(redirect_url)
 
-        if absoluteUrl.startswith(baseUrl) and absoluteUrl != baseUrl:
-            path = absoluteUrl[len(baseUrl):]
-            fullPath = absoluteUrl[len(self.addPort(self.currentUrl)):]
+        if redirect_url.startswith(base_url + "/"):
+            path = redirect_url[len(self.requester.base_url + self.base_path + self.current_directory):]
 
-            return self.addDirectory(path, fullPath)
+            return self.add_directory(path)
 
         return False

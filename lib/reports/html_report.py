@@ -36,24 +36,24 @@ class HTMLReport(FileBaseReport):
         results = []
         for entry in self.entries:
             for e in entry.results:
-                headerName = "{0}://{1}:{2}/{3}".format(
-                    entry.protocol, entry.host, entry.port, entry.basePath
+                header_name = "{0}://{1}:{2}/{3}".format(
+                    entry.protocol, entry.host, entry.port, entry.base_path
                 )
 
-                statusColorClass = ''
+                status_color_class = ''
                 if e.status >= 200 and e.status <= 299:
-                    statusColorClass = 'text-success'
+                    status_color_class = 'text-success'
                 elif e.status >= 300 and e.status <= 399:
-                    statusColorClass = 'text-warning'
+                    status_color_class = 'text-warning'
                 elif e.status >= 400 and e.status <= 599:
-                    statusColorClass = 'text-danger'
+                    status_color_class = 'text-danger'
 
                 results.append({
-                    "url": headerName + e.path,
+                    "url": header_name + e.path,
                     "path": e.path,
                     "status": e.status,
-                    "statusColorClass": statusColorClass,
-                    "contentLength": FileUtils.size_human(e.getContentLength()),
+                    "status_color_class": status_color_class,
+                    "contentLength": FileUtils.size_human(e.get_content_length()),
                     "contentType": e.response.headers.get("content-type"),
                     "redirect": e.response.redirect
                 })

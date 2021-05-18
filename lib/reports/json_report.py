@@ -29,19 +29,19 @@ class JSONReport(FileBaseReport):
 
         for entry in self.entries:
             result = {}
-            headerName = "{0}://{1}:{2}/{3}".format(
-                entry.protocol, entry.host, entry.port, entry.basePath
+            header_name = "{0}://{1}:{2}/{3}".format(
+                entry.protocol, entry.host, entry.port, entry.base_path
             )
-            result[headerName] = []
+            result[header_name] = []
 
             for e in entry.results:
-                pathEntry = {
+                path_entry = {
                     "status": e.status,
                     "path": "/" + e.path,
-                    "content-length": e.getContentLength(),
+                    "content-length": e.get_content_length(),
                     "redirect": e.response.redirect,
                 }
-                result[headerName].append(pathEntry)
+                result[header_name].append(path_entry)
 
             report["results"].append(result)
 

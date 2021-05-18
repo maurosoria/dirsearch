@@ -17,32 +17,31 @@
 #  Author: Mauro Soria
 
 from lib.reports import *
+from xml.dom import minidom
+
+import xml.etree.cElementTree as ET
 import time
 import sys
 
 
 class XMLReport(FileBaseReport):
     def generate(self):
-        result = "<?xml version=\"1.0\"?>\n"
-        result += "<dirsearchScan args=\"{0}\" time=\"{1}\">\n".format(" ".join(sys.argv), time.ctime())
+        result = ET.Element("dirsearchscan", args=" ".join(sys.argv), time=time.ctime())
 
         for entry in self.entries:
-            headerName = "{0}://{1}:{2}/{3}".format(
-                entry.protocol, entry.host, entry.port, entry.basePath
+            header_name = "{0}://{1}:{2}/{3}".format(
+                entry.protocol, entry.host, entry.port, entry.base_path
             )
-            result += " <target url=\"{0}\">\n".format(headerName)
+            target = ET.SubElement(result, "target", url=header_name)
 
             for e in entry.results:
-                result += "  <info path=\"/{0}\">\n".format(e.path)
-                result += "   <status>{0}</status>\n".format(e.status)
-                result += "   <contentLength>{0}</contentLength>\n".format(e.getContentLength())
-                result += "   <redirect>{0}</redirect>\n".format("" if e.response.redirect is None else e.response.redirect)
-                result += "  </info>\n"
+                path = ET.SubElement(target, "info", path="/" + e.path)
+                ET.SubElement(path, "status").text = str(e.status)
+                ET.SubElement(path, "contentlength").text = str(e.get_content_length())
+                ET.SubElement(path, "redirect").text = e.response.redirect if e.response.redirect else ""
 
-            result += " </target>\n"
-        result += "</dirsearchScan>\n"
-
-        return result
+        result = ET.tostring(result, encoding="utf-8", method="xml")
+        return minidom.parseString(result).toprettyxml()
 
     def save(self):
         self.file.seek(0)

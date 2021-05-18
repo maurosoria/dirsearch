@@ -37,25 +37,25 @@ class NoColor:
 class CLIOutput(object):
     def __init__(self, color):
         init()
-        self.lastLength = 0
-        self.lastOutput = ""
-        self.lastInLine = False
+        self.last_length = 0
+        self.last_output = ""
+        self.last_in_line = False
         self.mutex = threading.Lock()
         self.blacklists = {}
-        self.basePath = None
+        self.base_path = None
         self.errors = 0
         if not color:
-            self.disableColors()
+            self.disable_colors()
 
     @staticmethod
     def percentage(x, y):
         return float(x) / float(y) * 100
 
-    def inLine(self, string):
+    def in_line(self, string):
         self.erase()
         sys.stdout.write(string)
         sys.stdout.flush()
-        self.lastInLine = True
+        self.last_in_line = True
 
     def erase(self):
         if sys.platform in ["win32", "msys"]:
@@ -72,8 +72,8 @@ class CLIOutput(object):
             sys.stdout.write("\033[1K")
             sys.stdout.write("\033[0G")
 
-    def newLine(self, string=''):
-        if self.lastInLine:
+    def new_line(self, string=''):
+        if self.last_in_line:
             self.erase()
 
         if sys.platform in ["win32", "msys"]:
@@ -86,11 +86,11 @@ class CLIOutput(object):
             sys.stdout.write(string + "\n")
 
         sys.stdout.flush()
-        self.lastInLine = False
+        self.last_in_line = False
         sys.stdout.flush()
 
-    def statusReport(self, path, response, full_url, addedToQueue):
-        contentLength = None
+    def status_report(self, path, response, full_url, added_to_queue):
+        content_length = None
         status = response.status
 
         # Format message
@@ -101,19 +101,19 @@ class CLIOutput(object):
             size = len(response.body)
 
         finally:
-            contentLength = FileUtils.size_human(size)
+            content_length = FileUtils.size_human(size)
 
-        showPath = "/" + self.basePath + path
+        show_path = "/" + self.base_path + path
 
         if full_url:
             parsed = urllib.parse.urlparse(self.target)
-            showPath = "{0}://{1}{2}".format(parsed.scheme, parsed.netloc, showPath)
+            show_path = "{0}://{1}{2}".format(parsed.scheme, parsed.netloc, show_path)
 
         message = "[{0}] {1} - {2} - {3}".format(
             time.strftime("%H:%M:%S"),
             status,
-            contentLength.rjust(6, " "),
-            showPath,
+            content_length.rjust(6, " "),
+            show_path,
         )
 
         if status in [200, 201, 204]:
@@ -136,19 +136,19 @@ class CLIOutput(object):
         else:
             message = Fore.MAGENTA + message + Style.RESET_ALL
 
-        if addedToQueue:
+        if added_to_queue:
             message += "     (Added to queue)"
 
         with self.mutex:
-            self.newLine(message)
+            self.new_line(message)
 
-    def lastPath(self, path, index, length, currentJob, allJobs, rate):
+    def last_path(self, path, index, length, current_job, all_jobs, rate):
         l, h = get_terminal_size()
 
         message = "{0:.2f}% | {1} req/s - ".format(self.percentage(index, length), rate)
 
-        if allJobs > 1:
-            message += "Job: {0}/{1} - ".format(currentJob, allJobs)
+        if all_jobs > 1:
+            message += "Job: {0}/{1} - ".format(current_job, all_jobs)
 
         if self.errors:
             message += "Errors: {0} - ".format(self.errors)
@@ -159,9 +159,9 @@ class CLIOutput(object):
             message = message[:l - 1]
 
         with self.mutex:
-            self.inLine(message)
+            self.in_line(message)
 
-    def addConnectionError(self):
+    def add_connection_error(self):
         self.errors += 1
 
     def error(self, reason):
@@ -170,18 +170,18 @@ class CLIOutput(object):
             message = "\n" if reason.startswith("\n") else ""
             message += Style.BRIGHT + Fore.WHITE + Back.RED + stripped + Style.RESET_ALL
 
-            self.newLine(message)
+            self.new_line(message)
 
     def warning(self, message):
         with self.mutex:
             message = Style.BRIGHT + Fore.YELLOW + message + Style.RESET_ALL
-            self.newLine(message)
+            self.new_line(message)
 
     def header(self, message):
         message = Style.BRIGHT + Fore.MAGENTA + message + Style.RESET_ALL
-        self.newLine(message)
+        self.new_line(message)
 
-    def addConfig(self, key, value, msg):
+    def add_config(self, key, value, msg):
         l, _ = get_terminal_size()
         # Escape colours in text to get the real length
         escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])|\n")
@@ -207,46 +207,46 @@ class CLIOutput(object):
     ):
 
         config = Style.BRIGHT
-        config += self.addConfig("Extensions", extensions, config)
+        config += self.add_config("Extensions", extensions, config)
 
         if prefixes:
-            config += self.addConfig("Prefixes", prefixes, config)
+            config += self.add_config("Prefixes", prefixes, config)
 
         if suffixes:
-            config += self.addConfig("Suffixes", suffixes, config)
+            config += self.add_config("Suffixes", suffixes, config)
 
-        config += self.addConfig("HTTP method", method.upper(), config)
-        config += self.addConfig("Threads", threads, config)
-        config += self.addConfig("Wordlist size", wordlist_size, config)
+        config += self.add_config("HTTP method", method.upper(), config)
+        config += self.add_config("Threads", threads, config)
+        config += self.add_config("Wordlist size", wordlist_size, config)
         config += Style.RESET_ALL
         config += "\n"
 
-        self.newLine(config)
+        self.new_line(config)
 
-    def setTarget(self, target, scheme):
+    def set_target(self, target, scheme):
         if not target.startswith(("http://", "https://")) and "://" not in target:
             target = "{0}://{1}".format(scheme, target)
 
         self.target = target
 
         config = Style.BRIGHT
-        config += self.addConfig("Target", target, config) + "\n"
+        config += self.add_config("Target", target, config) + "\n"
         config += Style.RESET_ALL
 
-        self.newLine(config)
+        self.new_line(config)
 
-    def outputFile(self, target):
-        self.newLine("Output File: {0}\n".format(target))
+    def output_file(self, target):
+        self.new_line("Output File: {0}\n".format(target))
 
-    def errorLogFile(self, target):
-        self.newLine("Error Log: {0}\n".format(target))
+    def error_log_file(self, target):
+        self.new_line("Error Log: {0}\n".format(target))
 
     def debug(self, info):
         with self.mutex:
             line = "[{0}] - {1}".format(time.strftime("%H:%M:%S"), info)
-            self.newLine(line)
+            self.new_line(line)
 
-    def disableColors(self):
+    def disable_colors(self):
         global Fore
         global Style
         global Back
