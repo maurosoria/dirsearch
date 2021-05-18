@@ -21,7 +21,8 @@ import os
 import sys
 import time
 import re
-import urllib.parse
+
+from urllib.parse import urljoin
 from threading import Lock
 from queue import Queue
 
@@ -131,9 +132,7 @@ class Controller(object):
         self.maximum_response_size = arguments.maximum_response_size
         self.maxtime = arguments.maxtime
         self.scan_subdirs = arguments.scan_subdirs
-        self.exclude_subdirs = (
-            arguments.exclude_subdirs if arguments.exclude_subdirs else []
-        )
+        self.exclude_subdirs = arguments.exclude_subdirs
 
         self.dictionary = Dictionary(
             paths=arguments.wordlist,
@@ -179,8 +178,8 @@ class Controller(object):
             for url in self.url_list:
                 try:
                     gc.collect()
-                    self.current_url = url if url.endswith("/") else url + "/"
-                    self.output.set_target(self.current_url, self.arguments.scheme)
+                    url = url if url.endswith("/") else url + "/"
+                    self.output.set_target(url, self.arguments.scheme)
 
                     try:
                         self.requester = Requester(
@@ -198,9 +197,6 @@ class Controller(object):
                             scheme=arguments.scheme,
                         )
 
-                        if arguments.autosave_report or arguments.output_file:
-                            self.report = Report(self.requester.host, self.requester.port, self.requester.protocol, self.requester.base_path)
-
                         for key, value in self.headers.items():
                             self.requester.set_header(key, value)
 
@@ -208,6 +204,9 @@ class Controller(object):
                             self.requester.set_auth(arguments.auth_type, arguments.auth)
 
                         self.requester.request("")
+
+                        if arguments.autosave_report or arguments.output_file:
+                            self.report = Report(self.requester.host, self.requester.port, self.requester.protocol, self.requester.base_path)
 
                     except RequestException as e:
                         self.output.error(e.args[0]["message"])
@@ -220,9 +219,8 @@ class Controller(object):
                     self.base_path = self.requester.base_path
                     self.status_skip = None
 
-                    if self.scan_subdirs:
-                        for subdir in self.scan_subdirs:
-                            self.directories.put(subdir)
+                    for subdir in self.scan_subdirs:
+                        self.directories.put(subdir)
 
                     else:
                         self.directories.put("")
@@ -273,6 +271,12 @@ class Controller(object):
             str(len(self.dictionary)),
             str(self.httpmethod),
         )
+
+    def is_timed_out(self):
+        if self.maxtime and time.time() - self.start_time > self.maxtime:
+            return True
+
+        return False
 
     def get_blacklists(self):
         reext = re.compile(r'\%ext\%', re.IGNORECASE)
@@ -417,7 +421,51 @@ class Controller(object):
 
         return True
 
-    # TODO: Refactor, this function should be a decorator for all the filters
+    def valid(self, path):
+        if not path:
+            return False
+
+        if path.status in self.exclude_status_codes:
+            return False
+
+        if self.include_status_codes and path.status not in self.include_status_codes:
+            return False
+
+        if self.blacklists.get(path.status) and path.path in self.blacklists.get(path.status):
+            return False
+
+        if self.exclude_sizes and FileUtils.size_human(len(path.response.body)).strip() in self.exclude_sizes:
+            return False
+
+        if self.minimum_response_size and self.minimum_response_size > len(path.response.body):
+            return False
+
+        if self.maximum_response_size and self.maximum_response_size < len(path.response.body):
+            return False
+
+        for exclude_text in self.exclude_texts:
+            if exclude_text in path.response.body.decode('iso8859-1'):
+                return False
+
+        for exclude_regexp in self.exclude_regexps:
+            if (
+                re.search(exclude_regexp, path.response.body.decode('iso8859-1'))
+                is not None
+            ):
+                return False
+
+        for exclude_redirect in self.exclude_redirects:
+            if path.response.redirect and (
+                (
+                    re.match(exclude_redirect, path.response.redirect) is not None
+                ) or (
+                    exclude_redirect in path.response.redirect
+                )
+            ):
+                return False
+
+        return True
+
     def match_callback(self, path):
         self.index += 1
 
@@ -426,70 +474,35 @@ class Controller(object):
                 self.status_skip = status
                 return
 
-        if (
-                path.status and path.status not in self.exclude_status_codes
-        ) and (
-                not self.include_status_codes or path.status in self.include_status_codes
-        ) and (
-                not self.blacklists.get(path.status) or path.path not in self.blacklists.get(path.status)
-        ) and (
-                not self.exclude_sizes or FileUtils.size_human(len(path.response.body)).strip() not in self.exclude_sizes
-        ) and (
-                not self.minimum_response_size or self.minimum_response_size < len(path.response.body)
-        ) and (
-                not self.maximum_response_size or self.maximum_response_size > len(path.response.body)
-        ):
-
-            for exclude_text in self.exclude_texts:
-                if exclude_text in path.response.body.decode('iso8859-1'):
-                    del path
-                    return
-
-            for exclude_regexp in self.exclude_regexps:
-                if (
-                    re.search(exclude_regexp, path.response.body.decode('iso8859-1'))
-                    is not None
-                ):
-                    del path
-                    return
-
-            for exclude_redirect in self.exclude_redirects:
-                if path.response.redirect and (
-                    (
-                        re.match(exclude_redirect, path.response.redirect.decode('iso8859-1'))
-                        is not None
-                    ) or (
-                        exclude_redirect in path.response.redirect
-                    )
-                ):
-                    del path
-                    return
-
-            added_to_queue = False
-
-            if (
-                    any([self.recursive, self.deep_recursive, self.force_recursive])
-            ) and (
-                    not self.recursion_status_codes or path.status in self.recursion_status_codes
-            ):
-                if path.response.redirect:
-                    added_to_queue = self.add_redirect_directory(path)
-                else:
-                    added_to_queue = self.add_directory(path.path)
-
-            self.output.status_report(
-                path.path, path.response, self.arguments.full_url, added_to_queue
-            )
-
-            if self.arguments.replay_proxy:
-                self.requester.request(path.path, proxy=self.arguments.replay_proxy)
-
-            new_path = self.current_directory + path.path
-
-            self.report.add_result(new_path, path.status, path.response)
-            self.report_manager.update_report(self.report)
-
+        if not self.valid(path):
             del path
+            return
+
+        added_to_queue = False
+
+        if (
+                any([self.recursive, self.deep_recursive, self.force_recursive])
+        ) and (
+                not self.recursion_status_codes or path.status in self.recursion_status_codes
+        ):
+            if path.response.redirect:
+                added_to_queue = self.add_redirect_directory(path)
+            else:
+                added_to_queue = self.add_directory(path.path)
+
+        self.output.status_report(
+            path.path, path.response, self.arguments.full_url, added_to_queue
+        )
+
+        if self.arguments.replay_proxy:
+            self.requester.request(path.path, proxy=self.arguments.replay_proxy)
+
+        new_path = self.current_directory + path.path
+
+        self.report.add_result(new_path, path.status, path.response)
+        self.report_manager.update_report(self.report)
+
+        del path
 
     def not_found_callback(self, path):
         self.index += 1
@@ -509,7 +522,7 @@ class Controller(object):
     def append_error_log(self, path, error_msg):
         with self.threads_lock:
             line = time.strftime("[%y-%m-%d %H:%M:%S] - ")
-            line += self.current_url + " - " + path + " - " + error_msg
+            line += self.requester.base_url + " - " + path + " - " + error_msg
             self.error_log.write(os.linesep + line)
             self.error_log.flush()
 
@@ -557,9 +570,6 @@ class Controller(object):
                 self.output.new_line()
                 raise SkipTargetInterrupt
 
-            else:
-                continue
-
     def process_paths(self):
         while True:
             try:
@@ -576,7 +586,7 @@ class Controller(object):
 
                         raise SkipTargetInterrupt
 
-                    elif self.maxtime and time.time() - self.start_time > self.maxtime:
+                    elif self.is_timed_out():
                         self.output.error(
                             "\nCanceled because the runtime exceeded the maximal set by user"
                         )
@@ -608,22 +618,14 @@ class Controller(object):
 
         return
 
-    def add_port(self, url):
-        parsed = urllib.parse.urlparse(url)
-        if ":" not in parsed.netloc:
-            port = "443" if parsed.scheme == "https" else "80"
-            url = url.replace(parsed.netloc, parsed.netloc + ":" + port)
-
-        return url
-
-    def add_directory(self, path, full_path=None):
+    def add_directory(self, path):
         added = False
         path = path.split("?")[0].split("#")[0]
 
-        if path.rstrip("/") + "/" in [directory for directory in self.exclude_subdirs]:
+        if any([path.startswith(directory) for directory in self.exclude_subdirs]):
             return False
 
-        full_path = self.current_directory + path if not full_path else full_path
+        full_path = self.current_directory + path
 
         dirs = []
 
@@ -639,7 +641,7 @@ class Controller(object):
             dirs.append(full_path)
 
         for dir in dirs:
-            if self.scan_subdirs and dir in self.scan_subdirs:
+            if dir in self.scan_subdirs:
                 continue
             elif dir in self.done_dirs:
                 continue
@@ -654,20 +656,26 @@ class Controller(object):
 
         return added
 
+    def add_port(self, url):
+        chunks = url.split("/")
+        if ":" not in chunks[2]:
+            chunks[2] += (":80" if chunks[0] == "http:" else ":443")
+            url = "/".join(chunks)
+
+        return url
+
     def add_redirect_directory(self, path):
         # Resolve the redirect header relative to the current URL and add the
         # path to self.directories if it is a subdirectory of the current URL
 
-        base_url = self.current_url + self.current_directory
-        base_url = self.add_port(base_url)
+        base_url = self.requester.base_url + self.base_path + self.current_directory + path.path
 
-        absolute_url = urllib.parse.urljoin(base_url, path.response.redirect)
-        absolute_url = self.add_port(absolute_url)
+        redirect_url = urljoin(self.requester.base_url, path.response.redirect)
+        redirect_url = self.add_port(redirect_url)
 
-        if absolute_url.startswith(base_url) and absolute_url != base_url:
-            path = absolute_url[len(base_url):]
-            full_path = absolute_url[len(self.add_port(self.current_url)):]
+        if redirect_url.startswith(base_url + "/"):
+            path = redirect_url[len(self.requester.base_url + self.base_path + self.current_directory):]
 
-            return self.add_directory(path, full_path)
+            return self.add_directory(path)
 
         return False

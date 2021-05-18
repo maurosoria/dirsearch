@@ -36,8 +36,9 @@ Table of Contents
   * [Proxies](#Proxies)
   * [Reports](#Reports)
   * [Some others commands](#Some-others-commands)
-* [Tips](#Tips)
 * [Support Docker](#Support-Docker)
+* [References](#References)
+* [Tips](#Tips)
 * [License](#License)
 * [Contributors](#Contributors)
 
@@ -52,7 +53,7 @@ Kali Linux
 Installation & Usage
 ------------
 
-**Requirement: python 3.x**
+**Requirement: python 3.8 or higher**
 
 Choose one of these installation options:
 
@@ -79,9 +80,9 @@ Wordlists (IMPORTANT)
 ---------------
 **Summary:**
   - Wordlist is a text file, each line is a path.
-  - About extensions, unlike other tools, dirsearch will only replace the `%EXT%` keyword with extensions in **-e | --extensions** flag.
+  - About extensions, unlike other tools, dirsearch will only replace the `%EXT%` keyword with extensions in **-e** flag.
   - For wordlists without `%EXT%` (like [SecLists](https://github.com/danielmiessler/SecLists)), **-f | --force-extensions** switch is required to append extensions to every word in wordlist, as well as the `/`. And for entries in wordlist that you do not want to append extensions, you can add `%NOFORCE%` at the end of them.
-  - To use multiple wordlists, you can separate your wordlists with commas. Example: `wordlist1.txt,wordlist2.txt`.
+  - To use multiple wordlists, you can seperate your wordlists with commas. Example: `wordlist1.txt,wordlist2.txt`.
 
 **Examples:**
 
@@ -131,8 +132,8 @@ Options:
                         Target URL list file
     --stdin             Target URL list from STDIN
     --cidr=CIDR         Target CIDR
-    --raw=FILE          File contains the raw request (use `--scheme` flag to
-                        set the scheme)
+    --raw=FILE          Load raw HTTP request from file (use `--scheme` flag
+                        to set the scheme)
     -e EXTENSIONS, --extensions=EXTENSIONS
                         Extension list separated by commas (Example: php,asp)
     -X EXTENSIONS, --exclude-extensions=EXTENSIONS
@@ -165,6 +166,10 @@ Options:
     -t THREADS, --threads=THREADS
                         Number of threads
     -r, --recursive     Brute-force recursively
+    --deep-recursive    Perform recursive scan on every directory depth
+                        (Example: api/users -> api/)
+    --force-recursive   Do recursive brute-force for every found path, not
+                        only paths end with slash
     --recursion-depth=DEPTH
                         Maximum recursion depth
     --recursion-status=CODES
@@ -218,8 +223,11 @@ Options:
     -F, --follow-redirects
                         Follow HTTP redirects
     --random-agent      Choose a random User-Agent for each request
+    --auth-type=TYPE    Authentication type (basic, digest, bearer, ntlm)
+    --auth=CREDENTIAL   Authentication credential (user:password or bearer
+                        token)
     --user-agent=USERAGENT
-    --cookie=COOKIE     
+    --cookie=COOKIE
 
   Connection Settings:
     --timeout=TIMEOUT   Connection timeout
@@ -232,8 +240,7 @@ Options:
                         Proxy to replay with found paths
     --scheme=SCHEME     Default scheme (for raw request or if there is no
                         scheme in the URL)
-    --max-rate=REQUESTS
-                        Max requests per second
+    --max-rate=RATE     Max requests per second
     --retries=RETRIES   Number of retries for failed requests
     -b, --request-by-hostname
                         By default dirsearch requests by IP for speed. This
@@ -242,7 +249,8 @@ Options:
     --exit-on-error     Exit whenever an error occurs
 
   Reports:
-    -o FILE             Output file
+    -o FILE, --output=FILE
+                        Output file
     --format=FORMAT     Report format (Available: simple, plain, json, xml,
                         md, csv, html)
 ```
@@ -272,7 +280,6 @@ recursion-depth = 0
 exclude-subdirs = %%ff/
 random-user-agents = False
 max-time = 0
-save-logs-home = False
 full-url = False
 quiet-mode = False
 color = True
@@ -286,9 +293,11 @@ recursion-status = 200-399,401,403
 # skip-on-status = 429,999
 
 [reports]
-# report-output = output.txt
 report-format = plain
-## Support: plain, simple, json, xml, md, csv
+autosave-report = True
+# report-output-folder = /home/user
+# logs-location = /tmp
+## Supported: plain, simple, json, xml, md, csv, html
 
 [dictionary]
 lowercase = False
@@ -584,15 +593,6 @@ python3 dirsearch.py -u https://target --remove-extensions
 **There are more features and you will need to discover them by your self**
 
 
-Tips
----------------
-- The server has a request limit? That's bad, but feel free to bypass it, by randomizing proxy with `--proxy-list`
-- Want to find out config files or backups? Try `--suffixes ~` and `--prefixes .`
-- For some endpoints that you do not want to force extensions, add `%NOFORCE%` at the end of them
-- Want to find only folders/directories? Combine `--remove-extensions` and `--suffixes /`!
-- The combination of `--cidr`, `-F`, `-q` and a low `--timeout` will reduce most of the noise + false negatives when brute-forcing with a CIDR
-- Scan a list of URLs, but don't want to see a 429 flood? Use `--skip-on-status` + `429` will help you to skip a target whenever it returns 429
-
 Support Docker
 ---------------
 ### Install Docker Linux
@@ -618,6 +618,29 @@ For using
 ```sh
 docker run -it --rm "dirsearch:v0.4.1" -u target -e php,html,js,zip
 ```
+
+
+References
+---------------
+- [Comprehensive Guide on Dirsearch](https://www.hackingarticles.in/comprehensive-guide-on-dirsearch/) by Shubham Sharma
+- [Comprehensive Guide on Dirsearch Part 2](https://www.hackingarticles.in/comprehensive-guide-on-dirsearch-part-2/) by Shubham Sharma
+- [GUÍA COMPLETA SOBRE EL USO DE DIRSEARCH](https://esgeeks.com/guia-completa-uso-dirsearch/?feed_id=5703&_unique_id=6076249cc271f) by ESGEEKS
+- [How to use Dirsearch to detect web directories](https://www.ehacking.net/2020/01/how-to-find-hidden-web-directories-using-dirsearch.html) by EHacking
+- [dirsearch how to](https://vk9-sec.com/dirsearch-how-to/) by VK9 Security
+- [Find Hidden Web Directories with Dirsearch](https://null-byte.wonderhowto.com/how-to/find-hidden-web-directories-with-dirsearch-0201615/) by Wonder How To
+- [Brute force directories and files in webservers using dirsearch](https://upadhyayraj.medium.com/brute-force-directories-and-files-in-webservers-using-dirsearch-613e4a7fa8d5) by Raj Upadhyay
+- [Live Bug Bounty Recon Session on Yahoo (Amass, crts.sh, dirsearch) w/ @TheDawgyg](https://www.youtube.com/watch?v=u4dUnJ1U0T4) by Nahamsec
+- [Dirsearch to find Hidden Web Directories](https://medium.com/@irfaanshakeel/dirsearch-to-find-hidden-web-directories-d0357fbe47b0) by Irfan Shakeel
+- [Getting access to 25000 employees details](https://medium.com/@ehsahil/getting-access-to-25k-employees-details-c085d18b73f0) by Sahil Ahamad
+
+Tips
+---------------
+- The server has a request limit? That's bad, but feel free to bypass it, by randomizing proxy with `--proxy-list`
+- Want to find out config files or backups? Try `--suffixes ~` and `--prefixes .`
+- For some endpoints that you do not want to force extensions, add `%NOFORCE%` at the end of them
+- Want to find only folders/directories? Combine `--remove-extensions` and `--suffixes /`!
+- The combination of `--cidr`, `-F`, `-q` and a low `--timeout` will reduce most of the noise + false negatives when brute-forcing with a CIDR
+- Scan a list of URLs, but don't want to see a 429 flood? Use `--skip-on-status` + `429` will help you to skip a target whenever it returns 429
 
 
 License
