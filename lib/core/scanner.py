@@ -41,6 +41,8 @@ class Scanner(object):
         self.ratio = 0.98
         self.setup()
 
+    # Generate wildcard response information containers, this will be
+    # used to compare with other path responses
     def setup(self):
         first_path = self.prefix + (
             self.calibration if self.calibration else RandomUtils.rand_string()
@@ -77,12 +79,16 @@ class Scanner(object):
         )  # Rounding to 2 decimals
 
         # If response length is small, adjust ratio
-        if len(first_response) < 2000:
+        if len(first_response) < 500:
+            base_ratio -= 0.15
+        elif len(first_response) < 2000:
             base_ratio -= 0.1
 
         if base_ratio < self.ratio:
             self.ratio = base_ratio
 
+    # From 2 redirects of wildcard responses, generate a regexp that matches
+    # every wildcard redirect
     def generate_redirect_reg_exp(self, first_loc, first_path, second_loc, second_path):
         # Use a unique sign to locate where the path gets reflected in the redirect
         self.sign = RandomUtils.rand_string(n=20)
@@ -107,6 +113,8 @@ class Scanner(object):
 
         return unquote(reg_exp_start + reg_exp_end)
 
+    # Check if redirect matches the wildcard redirect regex or the response
+    # has high similarity with wildcard tested at the start
     def scan(self, path, response):
         if self.invalid_status == response.status == 404:
             return False
@@ -131,11 +139,12 @@ class Scanner(object):
             if redirect_to_invalid is None:
                 return True
 
+        # Compare 2 responses (wildcard one and given one)
         ratio = self.dynamic_parser.compareTo(response.body)
 
+        # If the similarity ratio is high enough to proof it's wildcard
         if ratio >= self.ratio:
             return False
-
         elif "redirect_to_invalid" in locals() and ratio >= (self.ratio - 0.15):
             return False
 
