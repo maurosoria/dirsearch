@@ -430,7 +430,7 @@ class Controller(object):
 
         return True
 
-    # Validate the response by different fitlers
+    # Validate the response by different filters
     def valid(self, path):
         if not path:
             return False
