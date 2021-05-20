@@ -38,7 +38,6 @@ class Scanner(object):
         self.invalid_status = None
         self.dynamic_parser = None
         self.sign = None
-        self.ratio = 0.98
         self.setup()
 
     # Generate wildcard response information containers, this will be
@@ -74,18 +73,24 @@ class Scanner(object):
         else:
             self.dynamic_parser = None
 
-        base_ratio = float(
+        self.ratio = float(
             "{0:.2f}".format(self.dynamic_parser.comparisonRatio)
         )  # Rounding to 2 decimals
 
+        # The wildcard response is static
+        if self.ratio == 1:
+            pass
         # If response length is small, adjust ratio
-        if len(first_response) < 500:
-            base_ratio -= 0.15
+        elif len(first_response) < 100:
+            self.ratio -= 0.1
+        elif len(first_response) < 500:
+            self.ratio -= 0.05
         elif len(first_response) < 2000:
-            base_ratio -= 0.1
-
-        if base_ratio < self.ratio:
-            self.ratio = base_ratio
+            self.ratio -= 0.02
+        # If the path is reflected in response, decrease the ratio. Because
+        # the difference between path lengths can reduce the similarity ratio
+        if first_path in first_response.body.decode():
+            self.ratio -= 0.12
 
     # From 2 redirects of wildcard responses, generate a regexp that matches
     # every wildcard redirect
