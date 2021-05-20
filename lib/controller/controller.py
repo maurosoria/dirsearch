@@ -536,7 +536,7 @@ class Controller(object):
     def append_error_log(self, path, error_msg):
         with self.threads_lock:
             line = time.strftime("[%y-%m-%d %H:%M:%S] - ")
-            line += self.requester.base_url + " - " + path + " - " + error_msg
+            line += self.requester.base_url + " - " + self.base_path + self.current_directory + path + " - " + error_msg
             self.error_log.write(os.linesep + line)
             self.error_log.flush()
 
@@ -593,8 +593,7 @@ class Controller(object):
                     # Check if the "skip status code" was returned
                     if self.status_skip:
                         self.fuzzer.pause()
-                        while self.fuzzer.stopped != len(self.fuzzer.threads):
-                            pass
+                        time.sleep(1.5)
 
                         self.output.error(
                             "\nSkipped the target due to {0} status code".format(self.status_skip)
