@@ -262,6 +262,7 @@ class Controller(object):
 
         self.output.warning("\nTask Completed")
 
+    # Print dirsearch metadata (threads, HTTP method, ...)
     def print_config(self):
         self.output.config(
             ', '.join(self.arguments.extensions),
@@ -272,12 +273,15 @@ class Controller(object):
             str(self.httpmethod),
         )
 
+    # Check if the runtime exceeded the maximum runtime set by user
     def is_timed_out(self):
         if self.maxtime and time.time() - self.start_time > self.maxtime:
             return True
 
         return False
 
+    # Get ignore paths for status codes
+    # TODO: Move this to /lib/core/dictionary.py
     def get_blacklists(self):
         reext = re.compile(r'\%ext\%', re.IGNORECASE)
         blacklists = {}
@@ -317,6 +321,7 @@ class Controller(object):
 
         return blacklists
 
+    # Create error log file
     def setup_error_logs(self):
         file_name = "errors-{0}.log".format(time.strftime("%y-%m-%d_%H-%M-%S"))
         self.error_log_path = FileUtils.build_path(
@@ -331,6 +336,7 @@ class Controller(object):
             )
             sys.exit(1)
 
+    # Create batch report folder
     def setup_batch_reports(self):
         self.batch = True
         if not self.arguments.output_file:
@@ -348,12 +354,14 @@ class Controller(object):
                     )
                     sys.exit(1)
 
+    # Get file extension for report format
     def get_output_extension(self):
         if self.arguments.output_format and self.arguments.output_format not in ["plain", "simple"]:
             return ".{0}".format(self.arguments.output_format)
         else:
             return ".txt"
 
+    # Create report file
     def setup_reports(self):
         if self.arguments.output_file:
             output_file = FileUtils.get_abs_path(self.arguments.output_file)
@@ -398,6 +406,7 @@ class Controller(object):
         else:
             self.report_manager = ReportManager("plain", output_file)
 
+    # Check if given path is valid (can read/write)
     def validate_path(self, path):
         if not FileUtils.exists(path):
             self.output.error(
@@ -421,6 +430,7 @@ class Controller(object):
 
         return True
 
+    # Validate the response by different filters
     def valid(self, path):
         if not path:
             return False
@@ -466,6 +476,7 @@ class Controller(object):
 
         return True
 
+    # Callback for found paths
     def match_callback(self, path):
         self.index += 1
 
@@ -504,11 +515,13 @@ class Controller(object):
 
         del path
 
+    # Callback for invalid paths
     def not_found_callback(self, path):
         self.index += 1
         self.output.last_path(path, self.index, len(self.dictionary), self.current_job, self.all_jobs, self.fuzzer.rate)
         del path
 
+    # Callback for errors while fuzzing
     def error_callback(self, path, error_msg):
         if self.arguments.exit_on_error:
             self.exit = True
@@ -519,18 +532,20 @@ class Controller(object):
         else:
             self.output.add_connection_error()
 
+    # Write error to log file
     def append_error_log(self, path, error_msg):
         with self.threads_lock:
             line = time.strftime("[%y-%m-%d %H:%M:%S] - ")
-            line += self.requester.base_url + " - " + path + " - " + error_msg
+            line += self.requester.base_url + " - " + self.base_path + self.current_directory + path + " - " + error_msg
             self.error_log.write(os.linesep + line)
             self.error_log.flush()
 
+    # Handle CTRL+C
     def handle_pause(self, message):
         self.output.warning(message)
         self.fuzzer.pause()
 
-        # If one of the tasks is broken, don't let the user wait Fore.er
+        # If one of the tasks is broken, don't let the user wait forever
         for i in range(300):
             if self.fuzzer.stopped == len(self.fuzzer.threads):
                 break
@@ -570,6 +585,7 @@ class Controller(object):
                 self.output.new_line()
                 raise SkipTargetInterrupt
 
+    # Monitor the fuzzing process
     def process_paths(self):
         while True:
             try:
@@ -577,8 +593,7 @@ class Controller(object):
                     # Check if the "skip status code" was returned
                     if self.status_skip:
                         self.fuzzer.pause()
-                        while self.fuzzer.stopped != len(self.fuzzer.threads):
-                            pass
+                        time.sleep(1.5)
 
                         self.output.error(
                             "\nSkipped the target due to {0} status code".format(self.status_skip)
@@ -597,6 +612,7 @@ class Controller(object):
             except KeyboardInterrupt:
                 self.handle_pause("CTRL+C detected: Pausing threads, please wait...")
 
+    # Preparation between subdirectory scans
     def prepare(self):
         while not self.directories.empty():
             gc.collect()
@@ -618,6 +634,7 @@ class Controller(object):
 
         return
 
+    # Add directory to the recursion queue
     def add_directory(self, path):
         added = False
         path = path.split("?")[0].split("#")[0]
@@ -656,6 +673,7 @@ class Controller(object):
 
         return added
 
+    # Add port to the URL
     def add_port(self, url):
         chunks = url.split("/")
         if ":" not in chunks[2]:
@@ -664,10 +682,9 @@ class Controller(object):
 
         return url
 
+    # Resolve the redirect and add the path to the recursion queue
+    # if it's a subdirectory of the current URL
     def add_redirect_directory(self, path):
-        # Resolve the redirect header relative to the current URL and add the
-        # path to self.directories if it is a subdirectory of the current URL
-
         base_url = self.requester.base_url + self.base_path + self.current_directory + path.path
 
         redirect_url = urljoin(self.requester.base_url, path.response.redirect)

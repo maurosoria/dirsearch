@@ -44,22 +44,8 @@ class ArgumentParser(object):
         if not options.url:
 
             if options.url_list:
-
-                with File(options.url_list) as urlList:
-
-                    if not urlList.exists():
-                        print("The file with URLs does not exist")
-                        exit(1)
-
-                    if not urlList.is_valid():
-                        print("The file with URLs is invalid")
-                        exit(1)
-
-                    if not urlList.can_read():
-                        print("The file with URLs cannot be read")
-                        exit(1)
-
-                    self.url_list = list(urlList.get_lines())
+                file = self.access_file(options.url_list, "file contains URLs")
+                self.url_list = list(file.get_lines())
 
             elif options.cidr:
                 self.url_list = [str(ip) for ip in IPv4Network(options.cidr)]
@@ -68,19 +54,7 @@ class ArgumentParser(object):
                 self.url_list = sys.stdin.read().splitlines()
 
             elif options.raw_file:
-                with File(options.raw_file) as raw_content:
-                    if not raw_content.exists():
-                        print("The file with the raw request does not exist")
-                        exit(1)
-
-                    if not raw_content.is_valid():
-                        print("The file with the raw request is invalid")
-                        exit(1)
-
-                    if not raw_content.can_read():
-                        print("The file with the raw request cannot be read")
-                        exit(1)
-
+                self.access_file(options.raw_file, "file with raw request")
                 self.raw_file = options.raw_file
 
             else:
@@ -96,36 +70,12 @@ class ArgumentParser(object):
         if options.no_extension:
             options.extensions = str()
 
-        # Enable to use multiple dictionaries at once
         for dict_file in options.wordlist.split(","):
-            with File(dict_file) as wordlist:
-                if not wordlist.exists():
-                    print("The wordlist file does not exist")
-                    exit(1)
-
-                if not wordlist.is_valid():
-                    print("The wordlist is invalid")
-                    exit(1)
-
-                if not wordlist.can_read():
-                    print("The wordlist cannot be read")
-                    exit(1)
+            self.access_file(dict_file, "wordlist")
 
         if options.proxy_list:
-            with File(options.proxy_list) as plist:
-                if not plist.exists():
-                    print("The proxylist file does not exist")
-                    exit(1)
-
-                if not plist.is_valid():
-                    print("The proxylist is invalid")
-                    exit(1)
-
-                if not plist.can_read():
-                    print("The proxylist cannot be read")
-                    exit(1)
-
-            self.proxylist = open(options.proxy_list).read().splitlines()
+            file = self.access_file(options.proxy_list, "proxylist file")
+            self.proxylist = file.read().splitlines()
 
             options.request_by_hostname = True
 
@@ -157,25 +107,15 @@ class ArgumentParser(object):
 
         if options.header_list:
             try:
-                with File(options.header_list) as hlist:
-                    if not hlist.exists():
-                        print("The header list file does not exist")
-                        exit(1)
+                file = self.access_file(options.header_list, "header list file")
 
-                    if not hlist.is_valid():
-                        print("The header list file is invalid")
-                        exit(1)
+                headers = dict(
+                    email.message_from_file(StringIO(file.read()))
+                )
 
-                    if not hlist.can_read():
-                        print("The header list cannot be read")
-                        exit(1)
+                for key, value in headers.items():
+                    self.headers[key] = value
 
-                    headers = dict(
-                        email.message_from_file(StringIO(hlist.read()))
-                    )
-
-                    for key, value in headers.items():
-                        self.headers[key] = value
             except Exception as e:
                 print("Error in headers file: " + str(e))
                 exit(1)
@@ -210,68 +150,20 @@ class ArgumentParser(object):
 
         self.threads_count = options.threads_count
 
-        self.include_status_codes = []
-
         if options.include_status_codes:
-            for status_code in options.include_status_codes.split(","):
-                try:
-                    if "-" in status_code:
-                        status_codes = [
-                            i for i in range(
-                                int(status_code.split("-")[0].strip()),
-                                int(status_code.split("-")[1].strip()) + 1
-                            )
-                        ]
-                        self.include_status_codes.extend(status_codes)
-
-                    else:
-                        self.include_status_codes.append(int(status_code.strip()))
-
-                except ValueError:
-                    print("Invalid status code or status code range: {0}".format(status_code))
-                    exit(1)
-
-        self.exclude_status_codes = []
+            self.include_status_codes = self.parse_status_codes(options.include_status_codes)
+        else:
+            self.include_status_codes = []
 
         if options.exclude_status_codes:
-            for status_code in options.exclude_status_codes.split(","):
-                try:
-                    if "-" in status_code:
-                        status_codes = [
-                            i for i in range(
-                                int(status_code.split("-")[0].strip()),
-                                int(status_code.split("-")[1].strip()) + 1
-                            )
-                        ]
-                        self.exclude_status_codes.extend(status_codes)
-
-                    else:
-                        self.exclude_status_codes.append(int(status_code.strip()))
-
-                except ValueError:
-                    print("Invalid status code or status code range: {0}".format(status_code))
-                    exit(1)
-
-        self.recursion_status_codes = []
+            self.exclude_status_codes = self.parse_status_codes(options.exclude_status_codes)
+        else:
+            self.exclude_status_codes = []
 
         if options.recursion_status_codes:
-            for status_code in options.recursion_status_codes.split(","):
-                try:
-                    if "-" in status_code:
-                        status_codes = [
-                            i for i in range(
-                                int(status_code.split("-")[0].strip()),
-                                int(status_code.split("-")[1].strip()) + 1
-                            )
-                        ]
-                        self.recursion_status_codes.extend(status_codes)
-
-                    else:
-                        self.recursion_status_codes.append(int(status_code.strip()))
-
-                except ValueError:
-                    print("Invalid status code or status code range: {0}".format(status_code))
-                    exit(1)
+            self.recursion_status_codes = self.parse_status_codes(options.recursion_status_codes)
+        else:
+            self.recursion_status_codes = []
 
         if options.exclude_sizes:
             try:
@@ -387,15 +279,7 @@ class ArgumentParser(object):
             self.exclude_subdirs = []
 
         if options.skip_on_status:
-            try:
-                self.skip_on_status = list(
-                    set(
-                        [int(status) for status in options.skip_on_status.split(",")]
-                    )
-                )
-            except Exception:
-                print("Invalid skip status code(s)")
-                exit(1)
+            self.skip_on_status = self.parse_status_codes(options.skip_on_status)
         else:
             self.skip_on_status = []
 
@@ -434,6 +318,43 @@ class ArgumentParser(object):
         if self.output_format and self.output_format not in ["simple", "plain", "json", "xml", "md", "csv", "html"]:
             print("Select one of the following output formats: simple, plain, json, xml, md, csv, html")
             exit(1)
+
+    def parse_status_codes(self, raw_status_codes):
+        status_codes = []
+        for status_code in raw_status_codes.split(","):
+            try:
+                if "-" in status_code:
+                    status_codes.extend([
+                        i for i in range(
+                            int(status_code.split("-")[0].strip()),
+                            int(status_code.split("-")[1].strip()) + 1
+                        )
+                    ])
+
+                else:
+                    status_codes.append(int(status_code.strip()))
+
+            except ValueError:
+                print("Invalid status code or status code range: {0}".format(status_code))
+                exit(1)
+
+        return status_codes
+
+    def access_file(self, path, name):
+        with File(path) as file:
+            if not file.exists():
+                print("The {} does not exist".format(name))
+                exit(1)
+
+            if not file.is_valid():
+                print("The {} is invalid".format(name))
+                exit(1)
+
+            if not file.can_read():
+                print("The {} cannot be read".format(name))
+                exit(1)
+
+            return file
 
     def parse_config(self):
         config = DefaultConfigParser()
@@ -589,7 +510,7 @@ information at https://github.com/maurosoria/dirsearch.""")
         general.add_option("--exclude-content", help="Exclude responses by response content of this path", action="store",
                            dest="exclude_content", default=self.exclude_content, metavar="PATH")
         general.add_option("--skip-on-status", action="store", dest="skip_on_status", default=self.skip_on_status,
-                           help="Skip target whenever hit one of these status codes, separated by commas", metavar="CODES")
+                           help="Skip target whenever hit one of these status codes, separated by commas, support ranges", metavar="CODES")
         general.add_option("--minimal", action="store", dest="minimum_response_size", type="int", default=None,
                            help="Minimal response length", metavar="LENGTH")
         general.add_option("--maximal", action="store", dest="maximum_response_size", type="int", default=None,
