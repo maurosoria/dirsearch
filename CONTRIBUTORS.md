@@ -62,6 +62,7 @@
 - [Rohit Soni](https://github.com/StreetOfHackerR007/)
 - [Maxime Peim](https://github.com/maxime-peim)
 - [Christian Clauss](https://github.com/cclauss)
+- [dipakpanchal456](https://github.com/dipakpanchal456)
 
 Special thanks for all the people who had helped dirsearch so far!
 
