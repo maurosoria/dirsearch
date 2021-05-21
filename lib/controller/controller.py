@@ -124,13 +124,11 @@ class Controller(object):
         self.exclude_texts = arguments.exclude_texts
         self.exclude_regexps = arguments.exclude_regexps
         self.exclude_redirects = arguments.exclude_redirects
-        self.recursive = arguments.recursive
         self.deep_recursive = arguments.deep_recursive
         self.force_recursive = arguments.force_recursive
         self.recursion_status_codes = arguments.recursion_status_codes
         self.minimum_response_size = arguments.minimum_response_size
         self.maximum_response_size = arguments.maximum_response_size
-        self.maxtime = arguments.maxtime
         self.scan_subdirs = arguments.scan_subdirs
         self.exclude_subdirs = arguments.exclude_subdirs
 
@@ -179,7 +177,7 @@ class Controller(object):
                 try:
                     gc.collect()
                     url = url if url.endswith("/") else url + "/"
-                    self.output.set_target(url, self.arguments.scheme)
+                    self.output.set_target(url, arguments.scheme)
 
                     try:
                         self.requester = Requester(
@@ -275,7 +273,7 @@ class Controller(object):
 
     # Check if the runtime exceeded the maximum runtime set by user
     def is_timed_out(self):
-        if self.maxtime and time.time() - self.start_time > self.maxtime:
+        if self.arguments.maxtime and time.time() - self.start_time > self.arguments.maxtime:
             return True
 
         return False
@@ -368,23 +366,15 @@ class Controller(object):
     # Check if given path is valid (can read/write)
     def validate_path(self, path):
         if not FileUtils.exists(path):
-            self.output.error(
-                "{} does not exist".format(
-                    path
-                )
-            )
+            self.output.error("{0} does not exist".format(path))
             exit(1)
 
         if FileUtils.exists(path) and not FileUtils.is_dir(path):
-            self.output.error(
-                "{} is a file, should be a directory".format(
-                    path
-                )
-            )
+            self.output.error("{0} is a file, should be a directory".format(path))
             exit(1)
 
         if not FileUtils.can_write(path):
-            self.output.error("Directory {} is not writable".format(path))
+            self.output.error("Directory {0} is not writable".format(path))
             exit(1)
 
         return True
@@ -403,32 +393,32 @@ class Controller(object):
         if self.blacklists.get(path.status) and path.path in self.blacklists.get(path.status):
             return False
 
-        if self.exclude_sizes and FileUtils.size_human(len(path.response.body)).strip() in self.exclude_sizes:
+        if self.exclude_sizes and FileUtils.size_human(len(path.body)).strip() in self.exclude_sizes:
             return False
 
-        if self.minimum_response_size and self.minimum_response_size > len(path.response.body):
+        if self.minimum_response_size and self.minimum_response_size > len(path.body):
             return False
 
-        if self.maximum_response_size and self.maximum_response_size < len(path.response.body):
+        if self.maximum_response_size and self.maximum_response_size < len(path.body):
             return False
 
         for exclude_text in self.exclude_texts:
-            if exclude_text in path.response.body.decode('iso8859-1'):
+            if exclude_text in path.body:
                 return False
 
         for exclude_regexp in self.exclude_regexps:
             if (
-                re.search(exclude_regexp, path.response.body.decode('iso8859-1'))
+                re.search(exclude_regexp, path.body)
                 is not None
             ):
                 return False
 
         for exclude_redirect in self.exclude_redirects:
-            if path.response.redirect and (
+            if path.redirect and (
                 (
-                    re.match(exclude_redirect, path.response.redirect) is not None
+                    re.match(exclude_redirect, path.redirect) is not None
                 ) or (
-                    exclude_redirect in path.response.redirect
+                    exclude_redirect in path.redirect
                 )
             ):
                 return False
@@ -451,11 +441,11 @@ class Controller(object):
         added_to_queue = False
 
         if (
-                any([self.recursive, self.deep_recursive, self.force_recursive])
+                any([self.arguments.recursive, self.deep_recursive, self.force_recursive])
         ) and (
                 not self.recursion_status_codes or path.status in self.recursion_status_codes
         ):
-            if path.response.redirect:
+            if path.redirect:
                 added_to_queue = self.add_redirect_directory(path)
             else:
                 added_to_queue = self.add_directory(path.path)
@@ -506,11 +496,9 @@ class Controller(object):
 
         # If one of the tasks is broken, don't let the user wait forever
         for i in range(300):
-            if self.fuzzer.stopped == len(self.fuzzer.threads):
+            if self.fuzzer.is_finished():
                 break
             time.sleep(0.025)
-
-        self.fuzzer.stopped = 0
 
         while True:
             msg = "[q]uit / [c]ontinue"
@@ -613,7 +601,7 @@ class Controller(object):
             if not full_path.endswith("/"):
                 full_path += "/"
             dirs.append(full_path)
-        elif self.recursive and full_path.endswith("/"):
+        elif self.arguments.recursive and full_path.endswith("/"):
             dirs.append(full_path)
 
         for dir in dirs:
@@ -646,7 +634,7 @@ class Controller(object):
     def add_redirect_directory(self, path):
         base_url = self.requester.base_url + self.base_path + self.current_directory + path.path
 
-        redirect_url = urljoin(self.requester.base_url, path.response.redirect)
+        redirect_url = urljoin(self.requester.base_url, path.redirect)
         redirect_url = self.add_port(redirect_url)
 
         if redirect_url.startswith(base_url + "/"):

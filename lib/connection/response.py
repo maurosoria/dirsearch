@@ -24,12 +24,6 @@ class Response(object):
         self.headers = headers
         self.body = body
 
-    def __str__(self):
-        return self.body
-
-    def __int__(self):
-        return self.status
-
     def __eq__(self, other):
         return self.status == other.status and self.body == other.body
 
