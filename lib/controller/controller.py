@@ -117,7 +117,7 @@ class Controller(object):
             if not FileUtils.exists(self.save_path):
                 FileUtils.create_directory(self.save_path)
 
-        self.blacklists = self.get_blacklists()
+        self.blacklists = Dictionary.generate_blacklists(self.script_path)
         self.include_status_codes = arguments.include_status_codes
         self.exclude_status_codes = arguments.exclude_status_codes
         self.exclude_sizes = arguments.exclude_sizes
@@ -142,7 +142,7 @@ class Controller(object):
             lowercase=arguments.lowercase,
             uppercase=arguments.uppercase,
             capitalization=arguments.capitalization,
-            forced_extensions=arguments.force_extensions,
+            force_extensions=arguments.force_extensions,
             exclude_extensions=arguments.exclude_extensions,
             no_extension=arguments.no_extension,
             only_selected=arguments.only_selected
@@ -279,47 +279,6 @@ class Controller(object):
             return True
 
         return False
-
-    # Get ignore paths for status codes
-    # TODO: Move this to /lib/core/dictionary.py
-    def get_blacklists(self):
-        reext = re.compile(r'\%ext\%', re.IGNORECASE)
-        blacklists = {}
-
-        for status in [400, 403, 500]:
-            blacklist_file_name = FileUtils.build_path(self.script_path, "db")
-            blacklist_file_name = FileUtils.build_path(
-                blacklist_file_name, "{}_blacklist.txt".format(status)
-            )
-
-            if not FileUtils.can_read(blacklist_file_name):
-                # Skip if cannot read file
-                continue
-
-            blacklists[status] = []
-
-            for line in FileUtils.get_lines(blacklist_file_name):
-                # Skip comments
-                if line.lstrip().startswith("#"):
-                    continue
-
-                if line.startswith("/"):
-                    line = line[1:]
-
-                # Classic dirsearch blacklist processing (with %EXT% keyword)
-                if "%ext%" in line.lower():
-                    for extension in self.arguments.extensions:
-                        entry = reext.sub(extension, line)
-
-                        blacklists[status].append(entry)
-
-                # Forced extensions is not used here because -r is only used for wordlist,
-                # applying in blacklist may create false negatives
-
-                else:
-                    blacklists[status].append(line)
-
-        return blacklists
 
     # Create error log file
     def setup_error_logs(self):

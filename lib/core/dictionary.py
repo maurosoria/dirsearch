@@ -20,7 +20,7 @@ import re
 import threading
 import urllib.parse
 
-from lib.utils.file_utils import File
+from lib.utils.file_utils import File, FileUtils
 
 
 class Dictionary(object):
@@ -34,7 +34,7 @@ class Dictionary(object):
         lowercase=False,
         uppercase=False,
         capitalization=False,
-        forced_extensions=False,
+        force_extensions=False,
         exclude_extensions=[],
         no_extension=False,
         only_selected=False,
@@ -48,7 +48,7 @@ class Dictionary(object):
         self._prefixes = prefixes
         self._suffixes = suffixes
         self._paths = paths
-        self._forced_extensions = forced_extensions
+        self._force_extensions = force_extensions
         self._no_extension = no_extension
         self._only_selected = only_selected
         self.lowercase = lowercase
@@ -95,9 +95,9 @@ class Dictionary(object):
     """
 
     def generate(self):
+        find = re.findall
         reext = re.compile(r"\%ext\%", re.IGNORECASE).sub
         renoforce = re.compile(r"\%noforce\%", re.IGNORECASE).sub
-        find = re.findall
         custom = []
         result = []
 
@@ -117,11 +117,10 @@ class Dictionary(object):
                         continue
 
                 # Check if the line has the %NOFORCE% keyword
+                force = True
                 if "%noforce%" in line.lower():
-                    noforce = True
+                    force = False
                     line = renoforce("", line)
-                else:
-                    noforce = False
 
                 # Skip if the path contains excluded extensions
                 if self._exclude_extensions:
@@ -140,7 +139,7 @@ class Dictionary(object):
 
                 # If forced extensions is used and the path is not a directory ... (terminated by /)
                 # process line like a forced extension.
-                elif self._forced_extensions and not line.rstrip().endswith("/") and not noforce:
+                elif self._force_extensions and not line.rstrip().endswith("/") and "." not in line and force:
                     quoted = self.quote(line)
 
                     for extension in self._extensions:
@@ -197,6 +196,46 @@ class Dictionary(object):
 
         del custom
         del result
+
+    # Get ignore paths for status codes.
+    # More information: https://github.com/maurosoria/dirsearch#Blacklist
+    def generate_blacklists(script_path):
+        reext = re.compile(r"\%ext\%", re.IGNORECASE).sub
+        blacklists = {}
+
+        for status in [400, 403, 500]:
+            blacklist_file_name = FileUtils.build_path(script_path, "db")
+            blacklist_file_name = FileUtils.build_path(
+                blacklist_file_name, "{}_blacklist.txt".format(status)
+            )
+
+            if not FileUtils.can_read(blacklist_file_name):
+                # Skip if cannot read file
+                continue
+
+            blacklists[status] = []
+
+            for line in FileUtils.get_lines(blacklist_file_name):
+                # Skip comments
+                if line.lstrip().startswith("#"):
+                    continue
+
+                if line.startswith("/"):
+                    line = line[1:]
+
+                # Classic dirsearch blacklist processing (with %EXT% keyword)
+                if "%ext%" in line.lower():
+                    for extension in self.arguments.extensions:
+                        entry = reext.sub(extension, line)
+                        blacklists[status].append(entry)
+
+                # Forced extensions is not used here because -r is only used for wordlist,
+                # applying in blacklist may create false negatives
+
+                else:
+                    blacklists[status].append(line)
+
+        return blacklists
 
     def regenerate(self):
         self.generate()
