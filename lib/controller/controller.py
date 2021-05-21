@@ -117,7 +117,7 @@ class Controller(object):
             if not FileUtils.exists(self.save_path):
                 FileUtils.create_directory(self.save_path)
 
-        self.blacklists = Dictionary.generate_blacklists(self.script_path)
+        self.blacklists = Dictionary.generate_blacklists(arguments.extensions, self.script_path)
         self.include_status_codes = arguments.include_status_codes
         self.exclude_status_codes = arguments.exclude_status_codes
         self.exclude_sizes = arguments.exclude_sizes

@@ -199,7 +199,7 @@ class Dictionary(object):
 
     # Get ignore paths for status codes.
     # More information: https://github.com/maurosoria/dirsearch#Blacklist
-    def generate_blacklists(script_path):
+    def generate_blacklists(extensions, script_path):
         reext = re.compile(r"\%ext\%", re.IGNORECASE).sub
         blacklists = {}
 
@@ -225,7 +225,7 @@ class Dictionary(object):
 
                 # Classic dirsearch blacklist processing (with %EXT% keyword)
                 if "%ext%" in line.lower():
-                    for extension in self.arguments.extensions:
+                    for extension in extensions:
                         entry = reext.sub(extension, line)
                         blacklists[status].append(entry)
 
