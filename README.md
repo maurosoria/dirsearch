@@ -635,12 +635,13 @@ References
 
 Tips
 ---------------
-- The server has a request limit? That's bad, but feel free to bypass it, by randomizing proxy with `--proxy-list`
+- The server has a requests limit? That's bad, but feel free to bypass it, by randomizing proxy with `--proxy-list`
 - Want to find out config files or backups? Try `--suffixes ~` and `--prefixes .`
 - For some endpoints that you do not want to force extensions, add `%NOFORCE%` at the end of them
-- Want to find only folders/directories? Combine `--remove-extensions` and `--suffixes /`!
-- The combination of `--cidr`, `-F`, `-q` and a low `--timeout` will reduce most of the noise + false negatives when brute-forcing with a CIDR
-- Scan a list of URLs, but don't want to see a 429 flood? Use `--skip-on-status` + `429` will help you to skip a target whenever it returns 429
+- Want to find only folders/directories? Why not combine `--remove-extensions` and `--suffixes /`!
+- The mix of `--cidr`, `-F`, `-q` and will reduce most of noises + false negatives when brute-forcing with a CIDR
+- Scan a list of URLs, but don't want to see a 429 flood? `--skip-on-status 429` will help you to skip a target whenever it returns 429
+- Brute-forcing a CIDR is so slow? Probably you forgot to reduce the request timeout and request retries. Suggestion: `--timeout 3 -retries 1`
 
 
 License
@@ -652,7 +653,7 @@ License: GNU General Public License, version 2
 
 Contributors
 ---------------
-This tool is currently under development by [maurosoria](https://twitter.com/_maurosoria) and [shelld3v](https://twitter.com/shells3c_). We received a lot of help from many people around the world to improve this tool. Thanks so much to everyone who helped us!!
+This tool is currently under development by [maurosoria](https://twitter.com/_maurosoria) and [shelld3v](https://twitter.com/shells3c_). We have received a lot of help from many people around the world to improve this tool. Thanks so much to everyone who have helped us!!
 
 See [CONTRIBUTORS.md](https://github.com/maurosoria/dirsearch/blob/master/CONTRIBUTORS.md) for more information about who they are!
 
