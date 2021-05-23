@@ -80,17 +80,19 @@ class Scanner(object):
         # The wildcard response is static
         if self.ratio == 1:
             pass
-        # If response length is small, adjust ratio
+        # Adjusting ratio based on response length
         elif len(first_response) < 100:
             self.ratio -= 0.1
         elif len(first_response) < 500:
             self.ratio -= 0.05
         elif len(first_response) < 2000:
             self.ratio -= 0.02
+        else:
+            self.ratio -= 0.01
         # If the path is reflected in response, decrease the ratio. Because
         # the difference between path lengths can reduce the similarity ratio
-        if first_path in first_response.body.decode():
-            self.ratio -= 0.12
+        if first_path in first_response.body.decode() and len(first_response) < 100000:
+            self.ratio -= 0.1
 
     # From 2 redirects of wildcard responses, generate a regexp that matches
     # every wildcard redirect
