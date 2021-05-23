@@ -105,14 +105,14 @@ class Controller(object):
 
         if arguments.logs_location and self.validate_path(arguments.logs_location):
             self.logs_path = FileUtils.build_path(arguments.logs_location)
-        else:
+        elif self.validate_path(self.script_path):
             self.logs_path = FileUtils.build_path(self.script_path, "logs")
             if not FileUtils.exists(self.logs_path):
                 FileUtils.create_directory(self.logs_path)
 
         if arguments.output_location and self.validate_path(arguments.output_location):
             self.save_path = FileUtils.build_path(arguments.output_location)
-        else:
+        elif self.validate_path(self.script_path):
             self.save_path = FileUtils.build_path(self.script_path, "reports")
             if not FileUtils.exists(self.save_path):
                 FileUtils.create_directory(self.save_path)
