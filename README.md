@@ -622,6 +622,7 @@ docker run -it --rm "dirsearch:v0.4.1" -u target -e php,html,js,zip
 
 References
 ---------------
+- [Best Tools For Directory Bruteforcing](https://secnhack.in/multiple-ways-to-find-hidden-directory-on-web-server/) by Shubham Goyal
 - [Comprehensive Guide on Dirsearch](https://www.hackingarticles.in/comprehensive-guide-on-dirsearch/) by Shubham Sharma
 - [Comprehensive Guide on Dirsearch Part 2](https://www.hackingarticles.in/comprehensive-guide-on-dirsearch-part-2/) by Shubham Sharma
 - [GUÍA COMPLETA SOBRE EL USO DE DIRSEARCH](https://esgeeks.com/guia-completa-uso-dirsearch/?feed_id=5703&_unique_id=6076249cc271f) by ESGEEKS
