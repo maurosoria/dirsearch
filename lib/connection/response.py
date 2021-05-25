@@ -18,11 +18,13 @@
 
 
 class Response(object):
-    def __init__(self, status, reason, headers, body):
-        self.status = status
-        self.reason = reason
-        self.headers = headers
-        self.body = body
+    def __init__(self, response):
+        self.status = response.status_code
+        self.headers = response.headers
+        self.body = ""
+
+        for chunk in response.iter_content(chunk_size=8192):
+            self.body += chunk.decode("iso8859-1")
 
     def __str__(self):
         return self.body
@@ -46,7 +48,6 @@ class Response(object):
         del self.body
         del self.headers
         del self.status
-        del self.reason
 
     @property
     def redirect(self):
