@@ -637,13 +637,14 @@ References
 
 Tips
 ---------------
-- The server has a requests limit? That's bad, but feel free to bypass it, by randomizing proxy with `--proxy-list`
+- The server has requests limit? That's bad, but feel free to bypass it, by randomizing proxy with `--proxy-list`
 - Want to find out config files or backups? Try `--suffixes ~` and `--prefixes .`
 - For some endpoints that you do not want to force extensions, add `%NOFORCE%` at the end of them
 - Want to find only folders/directories? Why not combine `--remove-extensions` and `--suffixes /`!
 - The mix of `--cidr`, `-F`, `-q` and will reduce most of noises + false negatives when brute-forcing with a CIDR
 - Scan a list of URLs, but don't want to see a 429 flood? `--skip-on-status 429` will help you to skip a target whenever it returns 429
-- Brute-forcing a CIDR is so slow? Probably you forgot to reduce the request timeout and request retries. Suggestion: `--timeout 3 -retries 1`
+- The server contains large files that slow down the scan? You *might* want to use `HEAD` HTTP method instead of `GET`
+- Brute-forcing CIDR is slow? Probably you forgot to reduce request timeout and request retries. Suggest: `--timeout 3 --retries 1`
 
 
 License
