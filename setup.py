@@ -42,3 +42,4 @@ setuptools.setup(
     ]
 )
 
+shutil.rmtree(env_dir, ignore_errors=True)
