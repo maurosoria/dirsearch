@@ -98,7 +98,7 @@ class CLIOutput(object):
             size = int(response.headers["content-length"])
 
         except (KeyError, ValueError):
-            size = len(response.body)
+            size = response.length
 
         finally:
             content_length = FileUtils.size_human(size)

@@ -393,13 +393,13 @@ class Controller(object):
         if self.blacklists.get(path.status) and path.path in self.blacklists.get(path.status):
             return False
 
-        if self.exclude_sizes and FileUtils.size_human(len(path.body)).strip() in self.exclude_sizes:
+        if self.exclude_sizes and FileUtils.size_human(path.length).strip() in self.exclude_sizes:
             return False
 
-        if self.minimum_response_size and self.minimum_response_size > len(path.body):
+        if self.minimum_response_size and self.minimum_response_size > path.length:
             return False
 
-        if self.maximum_response_size and self.maximum_response_size < len(path.body):
+        if self.maximum_response_size and self.maximum_response_size < path.length:
             return False
 
         for exclude_text in self.exclude_texts:

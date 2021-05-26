@@ -191,15 +191,11 @@ class Requester(object):
                     proxies=proxies,
                     allow_redirects=self.redirect,
                     timeout=self.timeout,
+                    stream=True,
                     verify=False,
                 )
 
-                result = Response(
-                    response.status_code,
-                    response.reason,
-                    response.headers,
-                    response.content,
-                )
+                result = Response(response)
 
                 break
 
