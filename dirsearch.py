@@ -20,8 +20,8 @@
 import os
 import sys
 
-if sys.version_info < (3, 0):
-    sys.stdout.write("Sorry, dirsearch requires Python 3.x\n")
+if sys.version_info < (3, 7):
+    sys.stdout.write("Sorry, dirsearch requires Python 3.7 or higher\n")
     sys.exit(1)
 
 from lib.core import ArgumentParser
