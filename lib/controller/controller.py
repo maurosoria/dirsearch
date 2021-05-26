@@ -219,11 +219,11 @@ class Controller(object):
                     self.base_path = self.requester.base_path
                     self.status_skip = None
 
+                    if not self.scan_subdirs:
+                        self.directories.put("")
+
                     for subdir in self.scan_subdirs:
                         self.directories.put(subdir)
-
-                    else:
-                        self.directories.put("")
 
                     match_callbacks = [self.match_callback]
                     not_found_callbacks = [self.not_found_callback]
