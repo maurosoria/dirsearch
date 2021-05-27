@@ -25,7 +25,7 @@ setuptools.setup(
     },
 
     package_data={
-        "dirsearch": ["*"]
+        "dirsearch": ["*", "db/*"]
     },
     include_package_data=True,
 
