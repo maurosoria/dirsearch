@@ -11,7 +11,6 @@ print("Created setup.py env in {}".format(env_dir))
 os.chdir(env_dir)
 
 print(setuptools.find_packages())
-#input(">> Continue <<")
 setuptools.setup(
     name="dirsearch",
     version="0.4.1",
@@ -30,8 +29,8 @@ setuptools.setup(
     },
     include_package_data=True,
 
-    python_requires=">=3.0",
-    install_requires=["certifi>=2020.11.8", "chardet>=3.0.2", "urllib3>=1.21.1", "cryptography>=2.8", "PySocks"],
+    python_requires=">=3.7",
+    install_requires=["certifi>=2020.11.8", "chardet>=3.0.2", "urllib3>=1.21.1", "cryptography>=2.8", "PySocks>=1.6.8", "cffi>=1.14.0"],
 
     classifiers=[
         "Programming Language :: Python",
