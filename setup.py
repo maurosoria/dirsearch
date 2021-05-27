@@ -10,7 +10,6 @@ print("Created setup.py env in {}".format(env_dir))
 
 os.chdir(env_dir)
 
-print(setuptools.find_packages())
 setuptools.setup(
     name="dirsearch",
     version="0.4.1",
