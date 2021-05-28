@@ -58,14 +58,15 @@ Installation & Usage
 Choose one of these installation options:
 
 - Install with git: `git clone https://github.com/maurosoria/dirsearch.git`
-- Install with ZIP file: [download](https://github.com/maurosoria/dirsearch/archive/master.zip)
+- Install with ZIP file: [Download here](https://github.com/maurosoria/dirsearch/archive/master.zip)
 - Install with Docker: `docker build -t "dirsearch:v0.4.1"` ([more information](https://github.com/maurosoria/dirsearch#support-docker))
 - Install with Kali Linux: `sudo apt-get install dirsearch`
 
-Some other notes:
+Some notes:
 
 - In case you want to global dirsearch, install it with pip: `pip3 install .` (inside dirsearch directory)
 - To can use SOCKS proxy feature, please install packages with **requirements.txt**: `pip3 install -r requirements.txt`
+- Before installing dirsearch with pip, make sure you have edited `default.conf` to match your flavors, such as reports/logs location
 
 **All in one:**
 ```
@@ -80,8 +81,8 @@ Wordlists (IMPORTANT)
 ---------------
 **Summary:**
   - Wordlist is a text file, each line is a path.
-  - About extensions, unlike other tools, dirsearch will only replace the `%EXT%` keyword with extensions in **-e** flag.
-  - For wordlists without `%EXT%` (like [SecLists](https://github.com/danielmiessler/SecLists)), **-f | --force-extensions** switch is required to append extensions to every word in wordlist, as well as the `/`. And for entries in wordlist that you do not want to append extensions, you can add `%NOFORCE%` at the end of them.
+  - About extensions, unlike other tools, dirsearch only replaces the `%EXT%` keyword with extensions from **-e** flag.
+  - For wordlists without `%EXT%` (like [SecLists](https://github.com/danielmiessler/SecLists)), **-f | --force-extensions** switch is required to append extensions to every word in wordlist, as well as the `/`. And for entries in wordlist that you do not want to append extensions, add `%NOFORCE%` at the end of them.
   - To use multiple wordlists, you can separate your wordlists with commas. Example: `wordlist1.txt,wordlist2.txt`.
 
 **Examples:**
