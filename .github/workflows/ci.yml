@@ -30,6 +30,6 @@ jobs:
       run: |
         flake8 . --exclude=thirdparty --count --ignore=E501,F403,F405 --show-source --statistics
         # exit-zero treats all errors as warnings.  Max complexity is currently 77.
-        flake8 . --exclude=thirdparty --count --ignore=E501,F403,F405 --exit-zero --max-complexity=10 --statistics
+        flake8 . --exclude=thirdparty --count --ignore=E501 --exit-zero --max-complexity=10 --statistics
     - name: Codespell
       run: codespell --ignore-words-list="cros,hist" --skip="./db/dicc.txt,./dirsearch/db/dicc.txt,./thirdparty"

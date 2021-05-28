@@ -16,7 +16,7 @@
 #
 #  Author: Mauro Soria
 
-from lib.reports import *
+from lib.reports import FileBaseReport
 import time
 import sys
 

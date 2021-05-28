@@ -17,7 +17,7 @@
 #  Author: Mauro Soria
 
 import threading
-from lib.reports import *
+from lib.reports import CSVReport, HTMLReport, JSONReport, MarkdownReport, PlainTextReport, SimpleReport, XMLReport
 
 
 class Result(object):

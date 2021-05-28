@@ -20,7 +20,7 @@ import json
 import time
 import sys
 
-from lib.reports import *
+from lib.reports import FileBaseReport
 
 
 class JSONReport(FileBaseReport):

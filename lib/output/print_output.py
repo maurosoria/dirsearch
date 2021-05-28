@@ -20,11 +20,13 @@ import sys
 import threading
 import urllib.parse
 
-from lib.utils.file_utils import *
+from lib.utils.file_utils import FileUtils
 from thirdparty.colorama import init, Fore, Style
 
 if sys.platform in ["win32", "msys"]:
-    from thirdparty.colorama.win32 import *
+    from thirdparty.colorama.win32 import (FillConsoleOutputCharacter,
+                                           GetConsoleScreenBufferInfo,
+                                           STDOUT)
 
 
 class NoColor:

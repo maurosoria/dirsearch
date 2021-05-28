@@ -20,8 +20,8 @@ import threading
 import time
 
 from lib.connection.request_exception import RequestException
-from .path import *
-from .scanner import *
+from .path import Path
+from .scanner import Scanner
 
 
 class Fuzzer(object):
