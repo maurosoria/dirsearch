@@ -26,8 +26,8 @@ import thirdparty.requests as requests
 
 from thirdparty.requests.auth import HTTPBasicAuth, HTTPDigestAuth
 from thirdparty.requests_ntlm import HttpNtlmAuth
-from .request_exception import *
-from .response import *
+from .request_exception import RequestException
+from .response import Response
 
 urllib3.disable_warnings()
 
