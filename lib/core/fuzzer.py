@@ -73,6 +73,10 @@ class Fuzzer(object):
 
         return True
 
+    def rate_adjuster(self):
+        while not self.fuzzer.wait(0.15):
+            self.stand_rate = self.rate
+
     def setup_scanners(self):
         if len(self.scanners):
             self.scanners = {
@@ -143,6 +147,7 @@ class Fuzzer(object):
         self.setup_threads()
         self.index = 0
         self.rate = 0
+        self.stand_rate = 0
         self.dictionary.reset()
         self.running_threads_count = len(self.threads)
         self.running = True
@@ -152,6 +157,7 @@ class Fuzzer(object):
         self.play_event.clear()
         self.exit = False
 
+        threading.Thread(target=self.rate_adjuster).start()
         for thread in self.threads:
             thread.start()
 

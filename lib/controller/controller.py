@@ -467,7 +467,7 @@ class Controller(object):
     # Callback for invalid paths
     def not_found_callback(self, path):
         self.index += 1
-        self.output.last_path(path, self.index, len(self.dictionary), self.current_job, self.all_jobs, self.fuzzer.rate)
+        self.output.last_path(path, self.index, len(self.dictionary), self.current_job, self.all_jobs, self.fuzzer.stand_rate)
         del path
 
     # Callback for errors while fuzzing
