@@ -496,9 +496,9 @@ class Controller(object):
 
         # If one of the tasks is broken, don't let the user wait forever
         for i in range(300):
-            if self.fuzzer.is_finished():
+            if self.fuzzer.is_stopped():
                 break
-            time.sleep(0.025)
+            time.sleep(0.02)
 
         while True:
             msg = "[q]uit / [c]ontinue"

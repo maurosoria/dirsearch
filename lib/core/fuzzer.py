@@ -197,7 +197,7 @@ class Fuzzer(object):
         self.running = False
         self.finished_event.set()
 
-    def is_finished(self):
+    def is_stopped(self):
         return self.running_threads_count == 0
 
     def decrease_threads(self):
