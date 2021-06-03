@@ -1,6 +1,5 @@
 # Contributors
 
-- [Mauro Soria](https://twitter.com/_maurosoria)
 - [Pham Sy Minh](https://github.com/shelld3v)
 - [Valerio Rico](https://github.com/V-Rico)
 - [Damian Strobel](https://twitter.com/damian_89_)
@@ -65,11 +64,11 @@
 - [Dipak Panchal](https://instagram.com/th3.d1p4k)
 - [Ivan Fedotov](https://github.com/qumusabel)
 
-Special thanks for all the people who had helped dirsearch so far!
+Special thanks to all the people who are named here!
 
 ### How can I help the project?
 - Bug fixes
-- Code updates (clean, features, workflow, ...)
-- Better documentation
-- Better default wordlist
+- Code updates
+- Documentation updates
+- Wordlist updates
 - Feature requests

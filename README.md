@@ -1,4 +1,7 @@
-dirsearch - Web path scanner
+<img src="https://user-images.githubusercontent.com/59408894/120434511-c6aac580-c3a6-11eb-8d93-bf96e529fb94.png" width=675>
+
+
+dirsearch - Web path discovery
 =========
 
 ![Build](https://img.shields.io/badge/Built%20with-Python-Blue)
@@ -18,6 +21,7 @@ An advanced command-line tool designed to brute force directories and files in w
 
 Table of Contents
 ------------
+* [Kali Linux](#Kali-Linux)
 * [Installation](#Installation--Usage)
 * [Wordlists](#Wordlists-IMPORTANT)
 * [Options](#Options)
@@ -203,7 +207,7 @@ Options:
                         Exclude responses by response content of this path
     --skip-on-status=CODES
                         Skip target whenever hit one of these status codes,
-                        separated by commas
+                        separated by commas, support ranges
     --minimal=LENGTH    Minimal response length
     --maximal=LENGTH    Maximal response length
     --max-time=SECONDS  Maximal runtime for the scan
@@ -591,7 +595,7 @@ python3 dirsearch.py -u https://target --full-url --max-rate 100
 python3 dirsearch.py -u https://target --remove-extensions
 ```
 
-**There are more features and you will need to discover them by your self**
+**There are more features and you will need to discover them by yourself**
 
 
 Support Docker
@@ -648,17 +652,16 @@ Tips
 - Brute-forcing CIDR is slow? Probably you forgot to reduce request timeout and request retries. Suggest: `--timeout 3 --retries 1`
 
 
+Contribution
+---------------
+We have been receiving a lot of helps from many people around the world to improve this tool. Thanks so much to everyone who have helped us so far!
+See [CONTRIBUTORS.md](https://github.com/maurosoria/dirsearch/blob/master/CONTRIBUTORS.md) to know who they are.
+
+#### Pull requests and feature requests are welcomed
+
+
 License
 ---------------
 Copyright (C) Mauro Soria (maurosoria@gmail.com)
 
 License: GNU General Public License, version 2
-
-
-Contributors
----------------
-This tool is currently under development by [maurosoria](https://twitter.com/_maurosoria) and [shelld3v](https://twitter.com/shells3c_). We have received a lot of help from many people around the world to improve this tool. Thanks so much to everyone who have helped us!!
-
-See [CONTRIBUTORS.md](https://github.com/maurosoria/dirsearch/blob/master/CONTRIBUTORS.md) for more information about who they are!
-
-#### Want to join the team? Feel free to submit any pull request that you can. If you don't know how to code, you can support us by updating the wordlist or the documentation. Giving feedback or [a new feature suggestion](https://github.com/maurosoria/dirsearch/issues/new?labels=enhancement&template=feature_request.md) is also a good way to help us improve this tool
