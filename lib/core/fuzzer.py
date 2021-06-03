@@ -74,7 +74,7 @@ class Fuzzer(object):
         return True
 
     def rate_adjuster(self):
-        while not self.fuzzer.wait(0.15):
+        while not self.wait(0.15):
             self.stand_rate = self.rate
 
     def setup_scanners(self):
@@ -157,9 +157,9 @@ class Fuzzer(object):
         self.play_event.clear()
         self.exit = False
 
-        threading.Thread(target=self.rate_adjuster).start()
         for thread in self.threads:
             thread.start()
+        threading.Thread(target=self.rate_adjuster).start()
 
         self.play()
 
