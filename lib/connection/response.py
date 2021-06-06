@@ -21,6 +21,9 @@ class Response(object):
     def __init__(self, response):
         self.status = response.status_code
         self.headers = response.headers
+        self.interactive_headers = dict(
+            (key.lower(), value) for key, value in self.headers.items()
+        )
         self.body = b""
 
         for chunk in response.iter_content(chunk_size=8192):
@@ -45,14 +48,12 @@ class Response(object):
 
     @property
     def redirect(self):
-        headers = dict((key.lower(), value) for key, value in self.headers.items())
-        return headers.get("location")
+        return self.interactive_headers.get("location")
 
     @property
     def length(self):
-        headers = dict((key.lower(), value) for key, value in self.headers.items())
-        if "content-length" in headers:
-            return int(headers.get("content-length"))
+        if "content-length" in self.interactive_headers:
+            return int(self.interactive_headers.get("content-length"))
 
         return len(self.body)
 

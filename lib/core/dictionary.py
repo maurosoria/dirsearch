@@ -123,10 +123,9 @@ class Dictionary(object):
                     line = renoforce("", line)
 
                 # Skip if the path contains excluded extensions
-                if self._exclude_extensions:
-                    if any(
-                        [find("." + extension, line) for extension in self._exclude_extensions]
-                    ):
+                if self._exclude_extensions and (
+                    any([line.endswith("." + extension) for extension in self._exclude_extensions])
+                ):
                         continue
 
                 # Classic dirsearch wordlist processing (with %EXT% keyword)
@@ -144,9 +143,7 @@ class Dictionary(object):
 
                     for extension in self._extensions:
                         # Why? Check https://github.com/maurosoria/dirsearch/issues/70
-                        if not extension.strip():
-                            result.append(quoted)
-                        else:
+                        if extension.strip():
                             result.append(quoted + "." + extension)
 
                     result.append(quoted)
@@ -154,30 +151,27 @@ class Dictionary(object):
 
                 # Append line unmodified.
                 else:
+                    if self._only_selected and (
+                        not any([line.endswith("." + extension) for extension in self.extensions])
+                    ):
+                            continue
+
                     quoted = self.quote(line)
-
-                    if self._only_selected and not line.rstrip().endswith("/") and "." in line:
-                        for extension in self._extensions:
-                            if line.endswith("." + extension):
-                                result.append(quoted)
-                                break
-
-                    else:
-                        result.append(quoted)
+                    result.append(quoted)
 
         # Adding prefixes for finding config files etc
         if self._prefixes:
-            for res in list(dict.fromkeys(result)):
+            for res in result:
                 for pref in self._prefixes:
                     if not res.startswith(pref):
                         custom.append(pref + res)
 
         # Adding suffixes for finding backups etc
         if self._suffixes:
-            for res in list(dict.fromkeys(result)):
-                if not res.rstrip().endswith("/"):
+            for res in result:
+                if not res.endswith("/"):
                     for suff in self._suffixes:
-                        if not res.rstrip().endswith(suff):
+                        if not res.endswith(suff):
                             custom.append(res + suff)
 
         result = custom if custom else result
