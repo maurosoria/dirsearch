@@ -125,7 +125,7 @@ class Dictionary(object):
                 if self._exclude_extensions and (
                     any(["." + extension in line for extension in self._exclude_extensions])
                 ):
-                        continue
+                    continue
 
                 # Classic dirsearch wordlist processing (with %EXT% keyword)
                 if "%ext%" in line.lower():
@@ -153,7 +153,7 @@ class Dictionary(object):
                     if self._only_selected and (
                         not any([line.endswith("." + extension) for extension in self.extensions])
                     ):
-                            continue
+                        continue
 
                     quoted = self.quote(line)
                     result.append(quoted)
