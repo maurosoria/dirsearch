@@ -95,7 +95,6 @@ class Dictionary(object):
     """
 
     def generate(self):
-        find = re.findall
         reext = re.compile(r"\%ext\%", re.IGNORECASE).sub
         renoforce = re.compile(r"\%noforce\%", re.IGNORECASE).sub
         custom = []
@@ -124,7 +123,7 @@ class Dictionary(object):
 
                 # Skip if the path contains excluded extensions
                 if self._exclude_extensions and (
-                    any([line.endswith("." + extension) for extension in self._exclude_extensions])
+                    any(["." + extension in line for extension in self._exclude_extensions])
                 ):
                         continue
 
