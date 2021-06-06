@@ -89,13 +89,26 @@ class Scanner(object):
             self.ratio -= 0.02
         else:
             self.ratio -= 0.01
-        # If the path is reflected in response, decrease the ratio. Because
-        # the difference between path lengths can reduce the similarity ratio
-        if first_path in first_response.body.decode() and len(first_response) < 100000:
-            self.ratio -= 0.1
+        """
+        If the path is reflected in response, decrease the ratio. Because
+        the difference between path lengths can reduce the similarity ratio
+        """
+        if first_path in first_response.body.decode():
+            if len(first_response) < 200:
+                self.ratio -= 0.15 + 15 / len(first_response)
+            elif len(first_response) < 1000:
+                self.ratio -= 0.06 + 30 / len(first_response)
+            elif len(first_response) < 5000:
+                self.ratio -= 0.04 + 75 / len(first_response)
+            elif len(first_response) < 20000:
+                self.ratio -= 0.02 + 250 / len(first_response)
+            else:
+                self.ratio -= 0.01
 
-    # From 2 redirects of wildcard responses, generate a regexp that matches
-    # every wildcard redirect
+    """
+    From 2 redirects of wildcard responses, generate a regexp that matches
+    every wildcard redirect
+    """
     def generate_redirect_reg_exp(self, first_loc, first_path, second_loc, second_path):
         # Use a unique sign to locate where the path gets reflected in the redirect
         self.sign = RandomUtils.rand_string(n=20)
@@ -152,7 +165,7 @@ class Scanner(object):
         # If the similarity ratio is high enough to proof it's wildcard
         if ratio >= self.ratio:
             return False
-        elif "redirect_to_invalid" in locals() and ratio >= (self.ratio - 0.15):
+        elif "redirect_to_invalid" in locals() and ratio >= (self.ratio - 0.18):
             return False
 
         return True
