@@ -100,7 +100,7 @@ class CLIOutput(object):
             size = int(response.headers["content-length"])
 
         except (KeyError, ValueError):
-            size = len(response.body)
+            size = response.length
 
         finally:
             content_length = FileUtils.size_human(size)
@@ -144,10 +144,13 @@ class CLIOutput(object):
         with self.mutex:
             self.new_line(message)
 
-    def last_path(self, path, index, length, current_job, all_jobs, rate):
+    def last_path(self, path, index, length, current_job, all_jobs, rate, show_rate):
         l, h = get_terminal_size()
 
-        message = "{0:.2f}% | {1} req/s - ".format(self.percentage(index, length), rate)
+        message = "{0:.2f}%{1} - ".format(
+            self.percentage(index, length),
+            " | {} req/s".format(rate) if show_rate else ""
+        )
 
         if all_jobs > 1:
             message += "Job: {0}/{1} - ".format(current_job, all_jobs)

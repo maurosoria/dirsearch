@@ -18,17 +18,16 @@
 
 
 class Response(object):
-    def __init__(self, status, reason, headers, body):
-        self.status = status
-        self.reason = reason
-        self.headers = headers
-        self.body = body
+    def __init__(self, response):
+        self.status = response.status_code
+        self.headers = response.headers
+        self.interactive_headers = dict(
+            (key.lower(), value) for key, value in self.headers.items()
+        )
+        self.body = b""
 
-    def __str__(self):
-        return self.body
-
-    def __int__(self):
-        return self.status
+        for chunk in response.iter_content(chunk_size=8192):
+            self.body += chunk
 
     def __eq__(self, other):
         return self.status == other.status and self.body == other.body
@@ -46,12 +45,17 @@ class Response(object):
         del self.body
         del self.headers
         del self.status
-        del self.reason
 
     @property
     def redirect(self):
-        headers = dict((key.lower(), value) for key, value in self.headers.items())
-        return headers.get("location")
+        return self.interactive_headers.get("location")
+
+    @property
+    def length(self):
+        if "content-length" in self.interactive_headers:
+            return int(self.interactive_headers.get("content-length"))
+
+        return len(self.body)
 
     @property
     def pretty(self):

@@ -27,11 +27,7 @@ class Result(object):
         self.response = response
 
     def get_content_length(self):
-        try:
-            content_length = int(self.response.headers["content-length"])
-        except (KeyError, ValueError):
-            content_length = len(self.response.body)
-        return content_length
+        return self.response.length
 
 
 class Report(object):

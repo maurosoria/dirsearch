@@ -80,7 +80,7 @@ class PrintOutput(object):
             size = int(response.headers["content-length"])
 
         except (KeyError, ValueError):
-            size = len(response.body)
+            size = response.length
 
         finally:
             content_length = FileUtils.size_human(size)
@@ -120,7 +120,7 @@ class PrintOutput(object):
         with self.mutex:
             self.new_line(message)
 
-    def last_path(self, path, index, length, current_job, all_jobs, rate):
+    def last_path(self, path, index, length, current_job, all_jobs, rate, show_rate):
         pass
 
     def add_connection_error(self):

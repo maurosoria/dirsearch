@@ -53,7 +53,6 @@ class Fuzzer(object):
         self.delay = delay
         self.maxrate = maxrate
         self.running = False
-        self.stopped = 0
         self.calibration = None
         self.default_scanner = None
         self.match_callbacks = match_callbacks
@@ -73,6 +72,10 @@ class Fuzzer(object):
                 return False
 
         return True
+
+    def rate_adjuster(self):
+        while not self.wait(0.15):
+            self.stand_rate = self.rate
 
     def setup_scanners(self):
         if len(self.scanners):
@@ -144,6 +147,7 @@ class Fuzzer(object):
         self.setup_threads()
         self.index = 0
         self.rate = 0
+        self.stand_rate = 0
         self.dictionary.reset()
         self.running_threads_count = len(self.threads)
         self.running = True
@@ -155,6 +159,7 @@ class Fuzzer(object):
 
         for thread in self.threads:
             thread.start()
+        threading.Thread(target=self.rate_adjuster).start()
 
         self.play()
 
@@ -198,11 +203,14 @@ class Fuzzer(object):
         self.running = False
         self.finished_event.set()
 
-    def is_finished(self):
+    def is_stopped(self):
         return self.running_threads_count == 0
 
-    def stop_thread(self):
+    def decrease_threads(self):
         self.running_threads_count -= 1
+
+    def increase_threads(self):
+        self.running_threads_count += 1
 
     def reduce_rate(self):
         self.rate -= 1
@@ -240,9 +248,10 @@ class Fuzzer(object):
 
                 finally:
                     if not self.play_event.is_set():
-                        self.stopped += 1
+                        self.decrease_threads()
                         self.paused_semaphore.release()
                         self.play_event.wait()
+                        self.increase_threads()
 
                     path = next(self.dictionary)  # Raises StopIteration when finishes
 
@@ -253,6 +262,3 @@ class Fuzzer(object):
 
         except StopIteration:
             pass
-
-        finally:
-            self.stop_thread()
