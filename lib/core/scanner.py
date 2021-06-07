@@ -96,12 +96,12 @@ class Scanner(object):
         if first_path in first_response.body.decode():
             if len(first_response) < 200:
                 self.ratio -= 0.15 + 15 / len(first_response)
-            elif len(first_response) < 1000:
+            elif len(first_response) < 800:
                 self.ratio -= 0.06 + 30 / len(first_response)
             elif len(first_response) < 5000:
-                self.ratio -= 0.04 + 75 / len(first_response)
+                self.ratio -= 0.03 + 80 / len(first_response)
             elif len(first_response) < 20000:
-                self.ratio -= 0.02 + 250 / len(first_response)
+                self.ratio -= 0.02 + 200 / len(first_response)
             else:
                 self.ratio -= 0.01
 
