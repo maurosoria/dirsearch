@@ -43,7 +43,7 @@ setuptools.setup(
         "Topic :: Security",
         "Programming Language :: Python :: 3.7"
     ],
-    keywords=["infosec", "arjun", "bug bounty", "pentesting", "security"],
+    keywords=["infosec", "bug bounty", "pentesting", "security"],
 )
 
 shutil.rmtree(env_dir, ignore_errors=True)
