@@ -28,29 +28,52 @@ class ScannerException(Exception):
 
 
 class Scanner(object):
-    def __init__(self, requester, calibration=None, suffix=None, prefix=None):
+    def __init__(self, requester, calibration=None, suffix=None, prefix=None, tested=None):
         self.calibration = calibration
         self.suffix = suffix if suffix else ""
         self.prefix = prefix if prefix else ""
+        self.tested = tested
         self.requester = requester
         self.tester = None
         self.redirect_reg_exp = None
-        self.invalid_status = None
+        self.response = None
         self.dynamic_parser = None
         self.sign = None
         self.setup()
 
-    # Generate wildcard response information containers, this will be
-    # used to compare with other path responses
+    def duplicate(self, response):
+        if not self.tested:
+            return
+        for t in self.tested:
+            for tester in self.tested[t].values():
+                if [response.status, response.body, response.redirect] == [
+                    tester.response.status, tester.response.body, tester.response.redirect
+                ]:
+                    return tester
+
+        return
+
+    """
+    Generate wildcard response information containers, this will be
+    used to compare with other path responses
+    """
     def setup(self):
         first_path = self.prefix + (
             self.calibration if self.calibration else RandomUtils.rand_string()
         ) + self.suffix
         first_response = self.requester.request(first_path)
-        self.invalid_status = first_response.status
+        self.response = first_response
 
-        if self.invalid_status == 404:
+        if self.response.status == 404:
             # Using the response status code is enough :-}
+            return
+
+        duplicate = self.duplicate(first_response)
+        if duplicate:
+            # Another test had been performed and shows the same response as this
+            self.ratio = duplicate.ratio
+            self.dynamic_parser = duplicate.dynamic_parser
+            self.redirect_reg_exp = duplicate.redirect_reg_exp
             return
 
         second_path = self.prefix + (
@@ -123,10 +146,10 @@ class Scanner(object):
     # Check if redirect matches the wildcard redirect regex or the response
     # has high similarity with wildcard tested at the start
     def scan(self, path, response):
-        if self.invalid_status == response.status == 404:
+        if self.response.status == response.status == 404:
             return False
 
-        if self.invalid_status != response.status:
+        if self.response.status != response.status:
             return True
 
         if self.redirect_reg_exp and response.redirect:

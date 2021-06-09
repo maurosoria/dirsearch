@@ -91,24 +91,26 @@ class Fuzzer(object):
 
         for prefix in self.prefixes:
             self.scanners["prefixes"][prefix] = Scanner(
-                self.requester, prefix=prefix
+                self.requester, prefix=prefix, tested=self.scanners
             )
 
         for suffix in self.suffixes:
             self.scanners["suffixes"][suffix] = Scanner(
-                self.requester, suffix=suffix
+                self.requester, suffix=suffix, tested=self.scanners
             )
 
         for extension in self.dictionary.extensions:
             if "." + extension not in self.scanners["suffixes"]:
                 self.scanners["suffixes"]["." + extension] = Scanner(
-                    self.requester, suffix="." + extension
+                    self.requester, suffix="." + extension, tested=self.scanners
                 )
 
         if self.exclude_content:
             if self.exclude_content.startswith("/"):
                 self.exclude_content = self.exclude_content[1:]
-            self.calibration = Scanner(self.requester, calibration=self.exclude_content)
+            self.calibration = Scanner(
+                self.requester, calibration=self.exclude_content, tested=self.scanners
+            )
 
     def setup_threads(self):
         if len(self.threads):
