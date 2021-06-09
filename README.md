@@ -65,12 +65,9 @@ Choose one of these installation options:
 - Install with ZIP file: [Download here](https://github.com/maurosoria/dirsearch/archive/master.zip)
 - Install with Docker: `docker build -t "dirsearch:v0.4.1"` ([more information](https://github.com/maurosoria/dirsearch#support-docker))
 - Install with Kali Linux: `sudo apt-get install dirsearch`
+- Install with PyPi: `pip3 install dirsearch`
 
-Some notes:
-
-- In case you want to global dirsearch, install it with pip: `pip3 install .` (inside dirsearch directory)
-- To can use SOCKS proxy feature, please install packages with **requirements.txt**: `pip3 install -r requirements.txt`
-- Before installing dirsearch with pip, make sure you have edited `default.conf` to match your flavors, such as reports/logs location
+Note: *To can use SOCKS proxy feature, please install packages with **requirements.txt**: `pip3 install -r requirements.txt`*
 
 **All in one:**
 ```
