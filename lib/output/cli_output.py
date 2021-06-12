@@ -145,8 +145,8 @@ class CLIOutput(object):
             self.new_line(message)
 
     def last_path(self, path, index, length, current_job, all_jobs, rate, show_rate):
-        l, h = get_terminal_size()
-        if l <= 45:
+        terminal_len, _ = get_terminal_size()
+        if terminal_len <= 45:
             return
 
         message = "{0:.2f}%{1} - ".format(
@@ -162,8 +162,8 @@ class CLIOutput(object):
 
         message += "Last request to: {0}".format(path)
 
-        if len(message) >= l:
-            message = message[:l - 1]
+        if len(message) >= terminal_len:
+            message = message[:terminal_len - 1]
 
         with self.mutex:
             self.in_line(message)
