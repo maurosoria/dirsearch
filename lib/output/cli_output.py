@@ -146,6 +146,8 @@ class CLIOutput(object):
 
     def last_path(self, path, index, length, current_job, all_jobs, rate, show_rate):
         l, h = get_terminal_size()
+        if l =< 45:
+            return
 
         message = "{0:.2f}%{1} - ".format(
             self.percentage(index, length),
