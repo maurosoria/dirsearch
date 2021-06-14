@@ -146,8 +146,7 @@ class Controller(object):
             only_selected=arguments.only_selected
         )
 
-        self.jobs_count = len(self.scan_subdirs) if self.scan_subdirs else 1
-        self.jobs_count = self.jobs_count * len(self.url_list)
+        self.jobs_count = len(self.url_list) * (len(self.scan_subdirs) if self.scan_subdirs else 1)
         self.current_job = 0
         self.start_time = time.time()
         self.error_log = None
