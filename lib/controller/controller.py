@@ -147,6 +147,7 @@ class Controller(object):
         )
 
         self.all_jobs = len(self.scan_subdirs) if self.scan_subdirs else 1
+        self.all_jobs = self.all_jobs * self.url_list
         self.current_job = 0
         self.start_time = time.time()
         self.error_log = None
