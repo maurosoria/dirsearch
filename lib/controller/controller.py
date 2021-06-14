@@ -256,8 +256,7 @@ class Controller(object):
             exit(0)
 
         finally:
-            if not self.error_log.closed:
-                self.error_log.close()
+            self.error_log.close()
 
         self.output.warning("\nTask Completed")
 
@@ -473,7 +472,7 @@ class Controller(object):
             self.index,
             len(self.dictionary),
             self.current_job,
-            self.all_jobs,
+            self.jobs_count,
             self.fuzzer.stand_rate,
             self.arguments.show_rate,
         )
@@ -623,7 +622,7 @@ class Controller(object):
             self.directories.put(dir)
             self.done_dirs.append(dir)
 
-            self.all_jobs += 1
+            self.jobs_count += 1
             added = True
 
         return added
