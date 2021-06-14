@@ -161,7 +161,7 @@ class Fuzzer(object):
 
         for thread in self.threads:
             thread.start()
-        threading.Thread(target=self.rate_adjuster).start()
+        threading.Thread(target=self.rate_adjuster, daemon=True).start()
 
         self.play()
 
