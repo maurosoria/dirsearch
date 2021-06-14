@@ -537,7 +537,6 @@ class Controller(object):
                 return
 
             elif option.lower() == "s" and len(self.url_list) > 1:
-                self.output.new_line()
                 raise SkipTargetInterrupt
 
     # Monitor the fuzzing process
