@@ -74,6 +74,7 @@ class Scanner(object):
             self.ratio = duplicate.ratio
             self.dynamic_parser = duplicate.dynamic_parser
             self.redirect_reg_exp = duplicate.redirect_reg_exp
+            self.sign = duplicate.sign
             return
 
         second_path = self.prefix + (
