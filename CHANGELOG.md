@@ -1,6 +1,6 @@
 # Changelog
 
-v0.4.2 (2021.5.7)
+v0.4.2 (2021.7.21)
 ---------
 - Fixed critical bugs from v0.4.1
 - More accurate
