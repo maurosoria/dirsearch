@@ -17,7 +17,7 @@
 #  Author: Mauro Soria
 
 import threading
-from lib.reports import *
+from lib.reports import CSVReport, HTMLReport, JSONReport, MarkdownReport, PlainTextReport, SimpleReport, XMLReport
 
 
 class Result(object):
@@ -26,49 +26,45 @@ class Result(object):
         self.status = status
         self.response = response
 
-    def getContentLength(self):
-        try:
-            contentLength = int(self.response.headers["content-length"])
-        except (KeyError, ValueError):
-            contentLength = len(self.response.body)
-        return contentLength
+    def get_content_length(self):
+        return self.response.length
 
 
 class Report(object):
-    def __init__(self, host, port, protocol, basePath):
+    def __init__(self, host, port, protocol, base_path):
         self.host = host
         self.port = port
         self.protocol = protocol
-        self.basePath = basePath
+        self.base_path = base_path
         self.results = []
         self.completed = False
 
-        if self.basePath.endswith("/"):
-            self.basePath = self.basePath[:-1]
+        if self.base_path.endswith("/"):
+            self.base_path = self.base_path[:-1]
 
-        if self.basePath.startswith("/"):
-            self.basePath = self.basePath[1:]
+        if self.base_path.startswith("/"):
+            self.base_path = self.base_path[1:]
 
-    def addResult(self, path, status, response):
+    def add_result(self, path, status, response):
         result = Result(path, status, response)
         self.results.append(result)
 
 
 class ReportManager(object):
-    def __init__(self, saveFormat, outputFile):
-        self.format = saveFormat
+    def __init__(self, save_format, output_file):
+        self.format = save_format
         self.reports = []
-        self.reportObj = None
-        self.output = outputFile
+        self.report_obj = None
+        self.output = output_file
         self.lock = threading.Lock()
 
-    def updateReport(self, report):
+    def update_report(self, report):
         if report not in self.reports:
             self.reports.append(report)
-        self.writeReport()
+        self.write_report()
 
-    def writeReport(self):
-        if self.reportObj is None:
+    def write_report(self):
+        if self.report_obj is None:
             if self.format == "simple":
                 report = SimpleReport(self.output, self.reports)
             elif self.format == "json":
@@ -79,12 +75,15 @@ class ReportManager(object):
                 report = MarkdownReport(self.output, self.reports)
             elif self.format == "csv":
                 report = CSVReport(self.output, self.reports)
+            elif self.format == "html":
+                report = HTMLReport(self.output, self.reports)
             else:
                 report = PlainTextReport(self.output, self.reports)
 
-            self.reportObj = report
+            self.report_obj = report
 
-        self.reportObj.save()
+        with self.lock:
+            self.report_obj.save()
 
     def save(self):
         with self.lock:

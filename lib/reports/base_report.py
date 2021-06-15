@@ -25,11 +25,11 @@ class BaseReport(object):
 
 
 class FileBaseReport(BaseReport):
-    def __init__(self, outputFileName, entries=[]):
-        self.output = outputFileName
+    def __init__(self, output_file_name, entries=[]):
+        self.output = output_file_name
         self.entries = entries
-        self.headerWritten = False
-        self.writtenEntries = []
+        self.header_written = False
+        self.written_entries = []
 
         self.open()
 

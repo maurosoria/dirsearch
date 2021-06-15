@@ -21,6 +21,9 @@ class Path(object):
     def __init__(self, path=None, status=None, response=None):
         self.path = path
         self.status = status
+        self.redirect = response.redirect
+        self.body = response.body.decode("iso8859-1")
+        self.length = response.length
         self.response = response
 
     def __str__(self):

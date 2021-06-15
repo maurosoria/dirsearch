@@ -11,3 +11,5 @@ __pycache__/
 db/test.txt
 
 default.conf
+
+.ropeproject/

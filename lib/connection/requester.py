@@ -23,8 +23,11 @@ import socket
 import urllib.parse
 
 import thirdparty.requests as requests
-from .request_exception import *
-from .response import *
+
+from thirdparty.requests.auth import HTTPBasicAuth, HTTPDigestAuth
+from thirdparty.requests_ntlm import HttpNtlmAuth
+from .request_exception import RequestException
+from .response import Response
 
 urllib3.disable_warnings()
 
@@ -33,14 +36,14 @@ class Requester(object):
     def __init__(
         self,
         url,
-        maxPool=1,
-        maxRetries=5,
+        max_pool=1,
+        max_retries=5,
         timeout=20,
         ip=None,
         proxy=None,
         proxylist=None,
         redirect=False,
-        requestByHostname=False,
+        request_by_hostname=False,
         httpmethod="get",
         data=None,
         scheme=None,
@@ -48,10 +51,6 @@ class Requester(object):
         self.httpmethod = httpmethod
         self.data = data
         self.headers = {}
-
-        # If no backslash, append one
-        if not url.endswith("/"):
-            url += "/"
 
         parsed = urllib.parse.urlparse(url)
 
@@ -64,19 +63,19 @@ class Requester(object):
             raise RequestException({"message": "Unsupported URL scheme: {0}".format(parsed.scheme)})
 
         if parsed.path.startswith("/"):
-            self.basePath = parsed.path[1:]
+            self.base_path = parsed.path[1:]
         else:
-            self.basePath = parsed.path
+            self.base_path = parsed.path
 
-        # Safe quote all special characters in basePath to prevent from being encoded when performing requests
-        self.basePath = urllib.parse.quote(self.basePath, safe="!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~")
+        # Safe quote all special characters in base_path to prevent from being encoded when performing requests
+        self.base_path = urllib.parse.quote(self.base_path, safe="!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~")
         self.protocol = parsed.scheme
         self.host = parsed.netloc.split(":")[0]
 
         # Resolve DNS to decrease overhead
         if ip:
             self.ip = ip
-        # A proxy could have a different DNS that would resolve the name. Therefore,
+        # A proxy could have a different DNS that would resolve the name. ThereFore.
         # resolving the name when using proxy to raise an error is pointless
         elif not proxy and not proxylist:
             try:
@@ -103,36 +102,56 @@ class Requester(object):
         ):
             self.headers["Host"] += ":{0}".format(self.port)
 
-        self.maxRetries = maxRetries
-        self.maxPool = maxPool
+        self.max_retries = max_retries
+        self.max_pool = max_pool
         self.timeout = timeout
         self.pool = None
         self.proxy = proxy
         self.proxylist = proxylist
         self.redirect = redirect
-        self.randomAgents = None
-        self.requestByHostname = requestByHostname
+        self.random_agents = None
+        self.auth = None
+        self.request_by_hostname = request_by_hostname
         self.session = requests.Session()
         self.url = "{0}://{1}:{2}/".format(
             self.protocol,
-            self.host if self.requestByHostname else self.ip,
+            self.host if self.request_by_hostname else self.ip,
+            self.port,
+        )
+        self.base_url = "{0}://{1}:{2}/".format(
+            self.protocol,
+            self.host,
             self.port,
         )
 
-    def setHeader(self, key, value):
+    def set_header(self, key, value):
         self.headers[key.strip()] = value.strip() if value else value
 
-    def setRandomAgents(self, agents):
-        self.randomAgents = list(agents)
+    def set_random_agents(self, agents):
+        self.random_agents = list(agents)
 
-    def unsetRandomAgents(self):
-        self.randomAgents = None
+    def set_auth(self, type, credential):
+        if type == "bearer":
+            self.set_header("Authorization", "Bearer {0}".format(credential))
+        else:
+            user = credential.split(":")[0]
+            try:
+                password = ":".join(credential.split(":")[1:])
+            except IndexError:
+                password = ""
+
+            if type == "basic":
+                self.auth = HTTPBasicAuth(user, password)
+            elif type == "digest":
+                self.auth = HTTPDigestAuth(user, password)
+            else:
+                self.auth = HttpNtlmAuth(user, password)
 
     def request(self, path, proxy=None):
         result = None
         error = None
 
-        for i in range(self.maxRetries):
+        for i in range(self.max_retries):
             try:
                 if not proxy:
                     if self.proxylist:
@@ -153,41 +172,39 @@ class Requester(object):
                 else:
                     proxies = None
 
-                url = self.url + self.basePath + path
+                url = self.url + self.base_path + path
 
-                if self.randomAgents:
-                    self.headers["User-Agent"] = random.choice(self.randomAgents)
+                if self.random_agents:
+                    self.headers["User-Agent"] = random.choice(self.random_agents)
 
                 request = requests.Request(
                     self.httpmethod,
                     url=url,
                     headers=dict(self.headers),
+                    auth=self.auth,
                     data=self.data,
                 )
                 prepare = request.prepare()
+                prepare.url = url
                 response = self.session.send(
                     prepare,
                     proxies=proxies,
                     allow_redirects=self.redirect,
                     timeout=self.timeout,
+                    stream=True,
                     verify=False,
                 )
 
-                result = Response(
-                    response.status_code,
-                    response.reason,
-                    response.headers,
-                    response.content,
-                )
+                result = Response(response)
 
                 break
 
             except requests.exceptions.SSLError:
-                self.url = "{0}://{1}:{2}/".format(self.protocol, self.host, self.port)
+                self.url = self.base_url
                 continue
 
             except requests.exceptions.TooManyRedirects:
-                error = "Too many redirects: {0}".format(url)
+                error = "Too many redirects: {0}".format(self.base_url)
 
             except requests.exceptions.ProxyError:
                 error = "Error with the proxy: {0}".format(proxy)
@@ -196,7 +213,7 @@ class Requester(object):
                 error = "Cannot connect to: {0}:{1}".format(self.host, self.port)
 
             except requests.exceptions.InvalidURL:
-                error = "Invalid URL: {0}".format(url)
+                error = "Invalid URL: {0}".format(self.base_url)
 
             except requests.exceptions.InvalidProxyURL:
                 error = "Invalid proxy URL: {0}".format(proxy)
@@ -208,10 +225,10 @@ class Requester(object):
                 http.client.IncompleteRead,
                 socket.timeout,
             ):
-                error = "Request timeout: {0}".format(url)
+                error = "Request timeout: {0}".format(self.base_url)
 
             except Exception:
-                error = "There was a problem in the request to: {0}".format(url)
+                error = "There was a problem in the request to: {0}".format(self.base_url)
 
         if error:
             raise RequestException({"message": error})

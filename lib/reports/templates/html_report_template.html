@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+<meta content="utf-8" http-equiv="encoding">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdn.jsdelivr.net/npm/vue@2.6.12/dist/vue.js" integrity="sha384-ma9ivURrHX5VOB4tNq+UiGNkJoANH4EAJmhxd1mmDq0gKOv88wkKZOfRDOpXynwh" crossorigin="anonymous"></script>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-wEmeIV1mKuiNpC+IOBjI7aAzPcEZeedi5yW5f2yOq55WWLwNGmvvx4Um1vskeMj0" crossorigin="anonymous">
+<script>
+function search(app, result) {
+    return app.searchQuery.toLowerCase().split(" ").every(
+      (v) => result.url.toLowerCase().includes(v) ||
+      result.contentType.toLowerCase().includes(v) ||
+      result.contentLength.toLowerCase().includes(v) ||
+      result.status.toString().includes(v) ||
+      (result.redirect && result.redirect.toLowerCase().includes(v))
+    );
+}
+window.onload = function () {
+    var app = new Vue({
+      el: '#app',
+      data() {
+        return {
+            searchQuery: null,
+            resources: ${results}
+        };
+      },
+      computed: {
+        resultQuery(){
+          if(this.searchQuery){
+          return this.resources.filter((result)=>{
+            return search(this, result)
+          })
+          }else{
+            return this.resources;
+          }
+        }
+      }
+    });
+}
+</script>
+</head>
+<body>
+    <div id="app">
+        <div class="panel panel-default">
+            <div class="navbar navbar-expand-lg navbar-light bg-light">
+                <div class="p-3">
+                    <h1><a href="https://github.com/maurosoria/dirsearch" style="text-decoration:none;color:black;">dirsearch</a></h1>
+                </div>
+            </div>
+            <br>
+            <div class="w-75 p-3 mx-auto">
+                <strong>Command:</strong> <code style="display:inline;background-color:#566573;color:#F7F9F9;border-radius:4px;">${metadata['command']}</code>
+                <br>
+                <strong>Time:</strong> <p style="display:inline;">${metadata['date']}</p>
+                <br>
+                <br>
+                <div class="row">
+                    <div class="search-wrapper panel-heading col-sm-12">
+                        <input class="form-control" type="text" v-model="searchQuery" placeholder="Search" />
+                    </div>
+                </div>
+                <br>
+                <div class="table-responsive">
+                    <table v-if="resources.length" class="table">
+                        <tbody>
+                            <tr>
+                                <th>URL</th>
+                                <th>Status</th>
+                                <th>Content Length</th>
+                                <th>Content Type</th>
+                                <th>Redirect</th>
+                            </tr>
+                            <tr v-for="result in resultQuery">
+                                <td><a class="text-decoration-none" v-bind:href="result.url" target="_blank">{{result.url}}</a></td>
+                                <td><a class="text-decoration-none" v-bind:class="result.statusColorClass" target="_blank">{{result.status}}</a></td>
+                                <td><a target="_blank">{{result.contentLength}}</a></td>
+                                <td><a target="_blank">{{result.contentType}}</a></td>
+                                <td><a class="text-decoration-none" v-bind:href="result.redirect" target="_blank">{{result.redirect}}</a></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

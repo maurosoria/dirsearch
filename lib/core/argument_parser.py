@@ -18,7 +18,6 @@
 
 import sys
 import email
-import base64
 
 from optparse import OptionParser, OptionGroup
 from ipaddress import IPv4Network
@@ -33,55 +32,29 @@ from thirdparty.oset import oset
 class ArgumentParser(object):
     def __init__(self, script_path):
         self.script_path = script_path
-        self.parseConfig()
+        self.parse_config()
 
-        options = self.parseArguments()
+        options = self.parse_arguments()
 
         self.quiet = options.quiet
         self.full_url = options.full_url
-        self.urlList = None
+        self.url_list = None
         self.raw_file = None
 
         if not options.url:
 
-            if options.urlList:
-
-                with File(options.urlList) as urlList:
-
-                    if not urlList.exists():
-                        print("The file with URLs does not exist")
-                        exit(1)
-
-                    if not urlList.is_valid():
-                        print("The file with URLs is invalid")
-                        exit(1)
-
-                    if not urlList.can_read():
-                        print("The file with URLs cannot be read")
-                        exit(1)
-
-                    self.urlList = list(urlList.get_lines())
+            if options.url_list:
+                file = self.access_file(options.url_list, "file contains URLs")
+                self.url_list = list(file.get_lines())
 
             elif options.cidr:
-                self.urlList = [str(ip) for ip in IPv4Network(options.cidr)]
+                self.url_list = [str(ip) for ip in IPv4Network(options.cidr)]
 
             elif options.stdin_urls:
-                self.urlList = sys.stdin.read().splitlines()
+                self.url_list = sys.stdin.read().splitlines()
 
             elif options.raw_file:
-                with File(options.raw_file) as raw_content:
-                    if not raw_content.exists():
-                        print("The file with the raw request does not exist")
-                        exit(1)
-
-                    if not raw_content.is_valid():
-                        print("The file with the raw request is invalid")
-                        exit(1)
-
-                    if not raw_content.can_read():
-                        print("The file with the raw request cannot be read")
-                        exit(1)
-
+                self.access_file(options.raw_file, "file with raw request")
                 self.raw_file = options.raw_file
 
             else:
@@ -89,57 +62,33 @@ class ArgumentParser(object):
                 exit(1)
 
         else:
-            self.urlList = [options.url]
+            self.url_list = [options.url]
 
-        if not options.extensions and not options.noExtension:
+        if not options.extensions and not options.no_extension:
             print("WARNING: No extension was specified!")
 
-        if options.noExtension:
+        if options.no_extension:
             options.extensions = str()
 
-        # Enable to use multiple dictionaries at once
-        for dictFile in options.wordlist.split(","):
-            with File(dictFile) as wordlist:
-                if not wordlist.exists():
-                    print("The wordlist file does not exist")
-                    exit(1)
+        for dict_file in options.wordlist.split(","):
+            self.access_file(dict_file, "wordlist")
 
-                if not wordlist.is_valid():
-                    print("The wordlist is invalid")
-                    exit(1)
+        if options.proxy_list:
+            file = self.access_file(options.proxy_list, "proxylist file")
+            self.proxylist = file.read().splitlines()
 
-                if not wordlist.can_read():
-                    print("The wordlist cannot be read")
-                    exit(1)
-
-        if options.proxyList:
-            with File(options.proxyList) as plist:
-                if not plist.exists():
-                    print("The proxylist file does not exist")
-                    exit(1)
-
-                if not plist.is_valid():
-                    print("The proxylist is invalid")
-                    exit(1)
-
-                if not plist.can_read():
-                    print("The proxylist cannot be read")
-                    exit(1)
-
-            self.proxylist = open(options.proxyList).read().splitlines()
-
-            options.requestByHostname = True
+            options.request_by_hostname = True
 
         elif options.proxy:
             self.proxy = options.proxy
-            options.requestByHostname = True
+            options.request_by_hostname = True
 
         else:
             self.proxy = None
 
         if options.replay_proxy:
             self.replay_proxy = options.replay_proxy
-            options.requestByHostname = True
+            options.request_by_hostname = True
 
         else:
             self.replay_proxy = None
@@ -156,27 +105,17 @@ class ArgumentParser(object):
         else:
             self.headers = {}
 
-        if options.headerList:
+        if options.header_list:
             try:
-                with File(options.headerList) as hlist:
-                    if not hlist.exists():
-                        print("The header list file does not exist")
-                        exit(1)
+                file = self.access_file(options.header_list, "header list file")
 
-                    if not hlist.is_valid():
-                        print("The header list file is invalid")
-                        exit(1)
+                headers = dict(
+                    email.message_from_file(StringIO(file.read()))
+                )
 
-                    if not hlist.can_read():
-                        print("The header list cannot be read")
-                        exit(1)
+                for key, value in headers.items():
+                    self.headers[key] = value
 
-                    headers = dict(
-                        email.message_from_file(StringIO(hlist.read()))
-                    )
-
-                    for key, value in headers.items():
-                        self.headers[key] = value
             except Exception as e:
                 print("Error in headers file: " + str(e))
                 exit(1)
@@ -194,152 +133,101 @@ class ArgumentParser(object):
                 oset([extension.lstrip(' .') for extension in options.extensions.split(",")])
             )
 
-        if options.excludeExtensions:
-            self.excludeExtensions = list(
-                oset([excludeExtension.lstrip(' .') for excludeExtension in options.excludeExtensions.split(",")])
+        if options.exclude_extensions:
+            self.exclude_extensions = list(
+                oset([exclude_extension.lstrip(' .') for exclude_extension in options.exclude_extensions.split(",")])
             )
         else:
-            self.excludeExtensions = []
+            self.exclude_extensions = []
 
         self.useragent = options.useragent
-        self.useRandomAgents = options.useRandomAgents
+        self.use_random_agents = options.use_random_agents
         self.cookie = options.cookie
 
-        if options.threadsCount < 1:
+        if options.threads_count < 1:
             print("Threads number must be greater than zero")
             exit(1)
 
-        self.threadsCount = options.threadsCount
+        self.threads_count = options.threads_count
 
-        self.includeStatusCodes = []
+        if options.include_status_codes:
+            self.include_status_codes = self.parse_status_codes(options.include_status_codes)
+        else:
+            self.include_status_codes = []
 
-        if options.includeStatusCodes:
-            for statusCode in options.includeStatusCodes.split(","):
-                try:
-                    if "-" in statusCode:
-                        statusCodes = [
-                            i for i in range(
-                                int(statusCode.split("-")[0].strip()),
-                                int(statusCode.split("-")[1].strip()) + 1
-                            )
-                        ]
-                        self.includeStatusCodes.extend(statusCodes)
+        if options.exclude_status_codes:
+            self.exclude_status_codes = self.parse_status_codes(options.exclude_status_codes)
+        else:
+            self.exclude_status_codes = []
 
-                    else:
-                        self.includeStatusCodes.append(int(statusCode.strip()))
+        if options.recursion_status_codes:
+            self.recursion_status_codes = self.parse_status_codes(options.recursion_status_codes)
+        else:
+            self.recursion_status_codes = []
 
-                except ValueError:
-                    print("Invalid status code or status code range: {0}".format(statusCode))
-                    exit(1)
-
-        self.excludeStatusCodes = []
-
-        if options.excludeStatusCodes:
-            for statusCode in options.excludeStatusCodes.split(","):
-                try:
-                    if "-" in statusCode:
-                        statusCodes = [
-                            i for i in range(
-                                int(statusCode.split("-")[0].strip()),
-                                int(statusCode.split("-")[1].strip()) + 1
-                            )
-                        ]
-                        self.excludeStatusCodes.extend(statusCodes)
-
-                    else:
-                        self.excludeStatusCodes.append(int(statusCode.strip()))
-
-                except ValueError:
-                    print("Invalid status code or status code range: {0}".format(statusCode))
-                    exit(1)
-
-        self.recursionStatusCodes = []
-
-        if options.recursionStatusCodes:
-            for statusCode in options.recursionStatusCodes.split(","):
-                try:
-                    if "-" in statusCode:
-                        statusCodes = [
-                            i for i in range(
-                                int(statusCode.split("-")[0].strip()),
-                                int(statusCode.split("-")[1].strip()) + 1
-                            )
-                        ]
-                        self.recursionStatusCodes.extend(statusCodes)
-
-                    else:
-                        self.recursionStatusCodes.append(int(statusCode.strip()))
-
-                except ValueError:
-                    print("Invalid status code or status code range: {0}".format(statusCode))
-                    exit(1)
-
-        if options.excludeSizes:
+        if options.exclude_sizes:
             try:
-                self.excludeSizes = list(
+                self.exclude_sizes = list(
                     oset(
                         [
-                            excludeSize.strip().upper() if excludeSize else None
-                            for excludeSize in options.excludeSizes.split(",")
+                            exclude_size.strip().upper() if exclude_size else None
+                            for exclude_size in options.exclude_sizes.split(",")
                         ]
                     )
                 )
 
             except ValueError:
-                self.excludeSizes = []
+                self.exclude_sizes = []
         else:
-            self.excludeSizes = []
+            self.exclude_sizes = []
 
-        if options.excludeTexts:
+        if options.exclude_texts:
             try:
-                self.excludeTexts = list(
+                self.exclude_texts = list(
                     oset(
                         [
-                            excludeText.strip() if excludeText else None
-                            for excludeText in options.excludeTexts.split(",")
+                            exclude_text.strip() if exclude_text else None
+                            for exclude_text in options.exclude_texts.split(",")
                         ]
                     )
                 )
 
             except ValueError:
-                self.excludeTexts = []
+                self.exclude_texts = []
         else:
-            self.excludeTexts = []
+            self.exclude_texts = []
 
-        if options.excludeRegexps:
+        if options.exclude_regexps:
             try:
-                self.excludeRegexps = list(
+                self.exclude_regexps = list(
                     oset(
                         [
-                            excludeRegexp.strip() if excludeRegexp else None
-                            for excludeRegexp in options.excludeRegexps.split(",")
+                            exclude_regexp.strip() if exclude_regexp else None
+                            for exclude_regexp in options.exclude_regexps.split(",")
                         ]
                     )
                 )
 
             except ValueError:
-                self.excludeRegexps = []
+                self.exclude_regexps = []
         else:
-            self.excludeRegexps = []
+            self.exclude_regexps = []
 
-        if options.excludeRedirects:
+        if options.exclude_redirects:
             try:
-                self.excludeRedirects = list(
+                self.exclude_redirects = list(
                     oset(
                         [
-                            excludeRedirect.strip() if excludeRedirect else None
-                            for excludeRedirect in options.excludeRedirects.split(",")
+                            exclude_redirect.strip() if exclude_redirect else None
+                            for exclude_redirect in options.exclude_redirects.split(",")
                         ]
                     )
                 )
 
             except ValueError:
-                self.excludeRedirects = []
+                self.exclude_redirects = []
         else:
-            self.excludeRedirects = []
-
-        if options.basic_auth:
-            self.headers["Authorization"] = "Basic {0}".format(base64.b64encode(options.basic_auth.encode()).decode())
+            self.exclude_redirects = []
 
         self.prefixes = [] if not options.prefixes else list(oset([prefix.strip() for prefix in options.prefixes.split(",")]))
         self.suffixes = [] if not options.suffixes else list(oset([suffix.strip() for suffix in options.suffixes.split(",")]))
@@ -352,67 +240,71 @@ class ArgumentParser(object):
         self.lowercase = options.lowercase
         self.uppercase = options.uppercase
         self.capitalization = options.capitalization
-        self.forceExtensions = options.forceExtensions
+        self.force_extensions = options.force_extensions
         self.data = options.data
-        self.excludeContent = options.excludeContent
+        self.exclude_content = options.exclude_content
         self.color = options.color
         self.delay = options.delay
         self.timeout = options.timeout
         self.ip = options.ip
-        self.maxRetries = options.maxRetries
+        self.max_retries = options.max_retries
         self.recursive = options.recursive
         self.deep_recursive = options.deep_recursive
         self.force_recursive = options.force_recursive
-        self.minimumResponseSize = options.minimumResponseSize
-        self.maximumResponseSize = options.maximumResponseSize
-        self.noExtension = options.noExtension
-        self.onlySelected = options.onlySelected
-        if options.outputFile:
-            self.outputFile = options.outputFile
-        if options.outputFormat:
-            self.outputFormat = options.outputFormat
+        self.minimum_response_size = options.minimum_response_size
+        self.maximum_response_size = options.maximum_response_size
+        self.no_extension = options.no_extension
+        self.only_selected = options.only_selected
+        self.output_file = options.output_file
+        self.output_format = options.output_format
 
-        if options.scanSubdirs:
-            self.scanSubdirs = list(
+        if options.scan_subdirs:
+            self.scan_subdirs = list(
                 oset(
-                    [subdir.strip(" /") + "/" for subdir in options.scanSubdirs.split(",")]
+                    [subdir.strip(" /") + "/" for subdir in options.scan_subdirs.split(",")]
                 )
             )
 
         else:
-            self.scanSubdirs = []
+            self.scan_subdirs = []
 
-        if options.excludeSubdirs:
-            self.excludeSubdirs = list(
+        if options.exclude_subdirs:
+            self.exclude_subdirs = list(
                 oset(
-                    [subdir.strip(" /") + "/" for subdir in options.excludeSubdirs.split(",")]
+                    [subdir.strip(" /") + "/" for subdir in options.exclude_subdirs.split(",")]
                 )
             )
 
         else:
-            self.excludeSubdirs = None
+            self.exclude_subdirs = []
 
         if options.skip_on_status:
-            try:
-                self.skip_on_status = list(
-                    set(
-                        [int(status) for status in options.skip_on_status.split(",")]
-                    )
-                )
-            except Exception:
-                print("Invalid skip status code(s)")
-                exit(1)
+            self.skip_on_status = self.parse_status_codes(options.skip_on_status)
         else:
             self.skip_on_status = []
 
-        if len(set(self.extensions).intersection(self.excludeExtensions)):
+        if options.auth and options.auth_type and (
+            options.auth_type not in ["basic", "digest", "bearer", "ntlm"]
+        ):
+            print("'{0}' is not in available authentication types: basic, digest, bearer, ntlm".format(options.auth_type))
+            exit(1)
+        elif options.auth and not options.auth_type:
+            print("Please select the authentication type with --auth-type")
+            exit(1)
+        elif options.auth_type and not options.auth:
+            print("No authentication credential found")
+            exit(1)
+
+        if len(set(self.extensions).intersection(self.exclude_extensions)):
             print("Exclude extension list can not contain any extension that has already in the extension list")
             exit(1)
 
-        self.redirect = options.followRedirects
+        self.auth_type = options.auth_type
+        self.auth = options.auth
+        self.redirect = options.follow_redirects
         self.httpmethod = options.httpmethod
         self.scheme = options.scheme
-        self.requestByHostname = options.requestByHostname
+        self.request_by_hostname = options.request_by_hostname
         self.exit_on_error = options.exit_on_error
         self.maxrate = options.maxrate
         self.maxtime = options.maxtime
@@ -423,48 +315,87 @@ class ArgumentParser(object):
             print("Invalid URI scheme: {0}".format(self.scheme))
             exit(1)
 
-        if self.outputFormat and self.outputFormat not in ["simple", "plain", "json", "xml", "md", "csv"]:
-            print("Select one of the following output formats: simple, plain, json, xml, md, csv")
+        if self.output_format and self.output_format not in ["simple", "plain", "json", "xml", "md", "csv", "html"]:
+            print("Select one of the following output formats: simple, plain, json, xml, md, csv, html")
             exit(1)
 
-    def parseConfig(self):
+    def parse_status_codes(self, raw_status_codes):
+        status_codes = []
+        for status_code in raw_status_codes.split(","):
+            try:
+                if "-" in status_code:
+                    status_codes.extend([
+                        i for i in range(
+                            int(status_code.split("-")[0].strip()),
+                            int(status_code.split("-")[1].strip()) + 1
+                        )
+                    ])
+
+                else:
+                    status_codes.append(int(status_code.strip()))
+
+            except ValueError:
+                print("Invalid status code or status code range: {0}".format(status_code))
+                exit(1)
+
+        return status_codes
+
+    def access_file(self, path, name):
+        with File(path) as file:
+            if not file.exists():
+                print("The {} does not exist".format(name))
+                exit(1)
+
+            if not file.is_valid():
+                print("The {} is invalid".format(name))
+                exit(1)
+
+            if not file.can_read():
+                print("The {} cannot be read".format(name))
+                exit(1)
+
+            return file
+
+    def parse_config(self):
         config = DefaultConfigParser()
-        configPath = FileUtils.build_path(self.script_path, "default.conf")
-        config.read(configPath)
+        config_path = FileUtils.build_path(self.script_path, "default.conf")
+        config.read(config_path)
 
         # Mandatory
-        self.defaultExtensions = config.safe_get("mandatory", "default-extensions", str())
-        self.excludeExtensions = config.safe_get("mandatory", "exclude-extensions", None)
-        self.forceExtensions = config.safe_getboolean("mandatory", "force-extensions", False)
+        self.default_extensions = config.safe_get("mandatory", "default-extensions", str())
+        self.exclude_extensions = config.safe_get("mandatory", "exclude-extensions", None)
+        self.force_extensions = config.safe_getboolean("mandatory", "force-extensions", False)
 
         # General
-        self.threadsCount = config.safe_getint(
+        self.threads_count = config.safe_getint(
             "general", "threads", 30, list(range(1, 300))
         )
-        self.includeStatusCodes = config.safe_get("general", "include-status", None)
-        self.excludeStatusCodes = config.safe_get("general", "exclude-status", None)
-        self.excludeSizes = config.safe_get("general", "exclude-sizes", None)
-        self.excludeTexts = config.safe_get("general", "exclude-texts", None)
-        self.excludeRegexps = config.safe_get("general", "exclude-regexps", None)
-        self.excludeRedirects = config.safe_get("general", "exclude-redirects", None)
-        self.excludeContent = config.safe_get("general", "exclude-content", "")
+        self.include_status_codes = config.safe_get("general", "include-status", None)
+        self.exclude_status_codes = config.safe_get("general", "exclude-status", None)
+        self.exclude_sizes = config.safe_get("general", "exclude-sizes", None)
+        self.exclude_texts = config.safe_get("general", "exclude-texts", None)
+        self.exclude_regexps = config.safe_get("general", "exclude-regexps", None)
+        self.exclude_redirects = config.safe_get("general", "exclude-redirects", None)
+        self.exclude_content = config.safe_get("general", "exclude-content", "")
         self.recursive = config.safe_getboolean("general", "recursive", False)
         self.deep_recursive = config.safe_getboolean("general", "deep-recursive", False)
         self.force_recursive = config.safe_getboolean("general", "force-recursive", False)
         self.recursion_depth = config.safe_getint("general", "recursion-depth", 0)
-        self.recursionStatusCodes = config.safe_get("general", "recursion-status", None)
-        self.saveHome = config.safe_getboolean("general", "save-logs-home", False)
-        self.excludeSubdirs = config.safe_get("general", "exclude-subdirs", None)
+        self.recursion_status_codes = config.safe_get("general", "recursion-status", None)
+        self.exclude_subdirs = config.safe_get("general", "exclude-subdirs", None)
         self.skip_on_status = config.safe_get("general", "skip-on-status", None)
         self.maxtime = config.safe_getint("general", "max-time", 0)
         self.full_url = config.safe_getboolean("general", "full-url", False)
         self.color = config.safe_getboolean("general", "color", True)
         self.quiet = config.safe_getboolean("general", "quiet-mode", False)
+        self.show_rate = config.safe_getboolean("general", "show-rate", False)
 
         # Reports
-        self.outputFile = config.safe_get("reports", "report-output", None)
-        self.outputFormat = config.safe_get(
-            "reports", "report-format", "plain", ["plain", "simple", "json", "xml", "md", "csv"]
+        self.output_location = config.safe_get("reports", "report-output-folder", None)
+        self.autosave_report = config.safe_getboolean("reports", "autosave-report", False)
+        self.logs_location = config.safe_get("reports", "logs-location", None)
+        self.output_format = config.safe_get(
+            "reports", "report-format", "plain", ["plain", "simple", "json", "xml", "md", "csv", "html"]
         )
 
         # Dictionary
@@ -483,27 +414,27 @@ class ArgumentParser(object):
         self.httpmethod = config.safe_get(
             "request", "httpmethod", "get"
         )
-        self.headerList = config.safe_get("request", "headers-file", None)
+        self.header_list = config.safe_get("request", "headers-file", None)
         self.redirect = config.safe_getboolean("request", "follow-redirects", False)
-        self.useragent = config.safe_get("request", "user-agent", None)
-        self.useRandomAgents = config.safe_get("request", "random-user-agents", False)
-        self.cookie = config.safe_get("request", "cookie", None)
+        self.use_random_agents = config.safe_get("request", "random-user-agents", False)
+        self.useragent = config.safe_get("request", "user-agent", "")
+        self.cookie = config.safe_get("request", "cookie", "")
 
         # Connection
         self.delay = config.safe_getfloat("connection", "delay", 0)
         self.timeout = config.safe_getint("connection", "timeout", 10)
-        self.maxRetries = config.safe_getint("connection", "retries", 2)
+        self.max_retries = config.safe_getint("connection", "retries", 2)
         self.maxrate = config.safe_getint("connection", "max-rate", 0)
         self.proxy = config.safe_get("connection", "proxy", None)
         self.proxylist = config.safe_get("connection", "proxy-list", None)
         self.scheme = config.safe_get("connection", "scheme", "http", ["http", "https"])
         self.replay_proxy = config.safe_get("connection", "replay-proxy", None)
-        self.requestByHostname = config.safe_getboolean(
+        self.request_by_hostname = config.safe_getboolean(
             "connection", "request-by-hostname", False
         )
         self.exit_on_error = config.safe_getboolean("connection", "exit-on-error", False)
 
-    def parseArguments(self):
+    def parse_arguments(self):
         usage = "Usage: %prog [-u|--url] target [-e|--extensions] extensions [options]"
         parser = OptionParser(usage, version="dirsearch v0.4.2",
                               epilog="""
@@ -514,17 +445,17 @@ information at https://github.com/maurosoria/dirsearch.""")
         # Mandatory arguments
         mandatory = OptionGroup(parser, "Mandatory")
         mandatory.add_option("-u", "--url", help="Target URL", action="store", type="string", dest="url", default=None)
-        mandatory.add_option("-l", "--url-list", help="Target URL list file", action="store", type="string", dest="urlList",
+        mandatory.add_option("-l", "--url-list", help="Target URL list file", action="store", type="string", dest="url_list",
                              default=None, metavar="FILE")
         mandatory.add_option("--stdin", help="Target URL list from STDIN", action="store_true", dest="stdin_urls")
         mandatory.add_option("--cidr", help="Target CIDR", action="store", type="string", dest="cidr", default=None)
         mandatory.add_option("--raw", help="Load raw HTTP request from file (use `--scheme` flag to set the scheme)", action="store",
                              dest="raw_file", metavar="FILE")
         mandatory.add_option("-e", "--extensions", help="Extension list separated by commas (Example: php,asp)",
-                             action="store", dest="extensions", default=self.defaultExtensions)
-        mandatory.add_option("-X", "--exclude-extensions", action="store", dest="excludeExtensions", default=self.excludeExtensions,
+                             action="store", dest="extensions", default=self.default_extensions)
+        mandatory.add_option("-X", "--exclude-extensions", action="store", dest="exclude_extensions", default=self.exclude_extensions,
                              help="Exclude extension list separated by commas (Example: asp,jsp)", metavar="EXTENSIONS")
-        mandatory.add_option("-f", "--force-extensions", action="store_true", dest="forceExtensions", default=self.forceExtensions,
+        mandatory.add_option("-f", "--force-extensions", action="store_true", dest="force_extensions", default=self.force_extensions,
                              help="Add extensions to every wordlist entry. By default dirsearch only replaces the %EXT% keyword with extensions")
 
         # Dictionary Settings
@@ -536,9 +467,9 @@ information at https://github.com/maurosoria/dirsearch.""")
                               help="Add custom prefixes to all wordlist entries (separated by commas)")
         dictionary.add_option("--suffixes", action="store", dest="suffixes", default=self.suffixes,
                               help="Add custom suffixes to all wordlist entries, ignore directories (separated by commas)")
-        dictionary.add_option("--only-selected", dest="onlySelected", action="store_true",
+        dictionary.add_option("--only-selected", dest="only_selected", action="store_true",
                               help="Remove paths have different extensions from selected ones via `-e` (keep entries don't have extensions)")
-        dictionary.add_option("--remove-extensions", dest="noExtension", action="store_true",
+        dictionary.add_option("--remove-extensions", dest="no_extension", action="store_true",
                               help="Remove extensions in all paths (Example: admin.php -> admin)")
         dictionary.add_option("-U", "--uppercase", action="store_true", dest="uppercase", default=self.uppercase,
                               help="Uppercase wordlist")
@@ -549,41 +480,41 @@ information at https://github.com/maurosoria/dirsearch.""")
 
         # Optional Settings
         general = OptionGroup(parser, "General Settings")
-        general.add_option("-t", "--threads", help="Number of threads", action="store", type="int", dest="threadsCount",
-                           default=self.threadsCount, metavar="THREADS")
+        general.add_option("-t", "--threads", help="Number of threads", action="store", type="int", dest="threads_count",
+                           default=self.threads_count, metavar="THREADS")
         general.add_option("-r", "--recursive", help="Brute-force recursively", action="store_true", dest="recursive",
                            default=self.recursive)
-        general.add_option("--deep-recursive", help="Perform recursive scans on every directory depth (Example: api/users -> api/)", action="store_true", dest="deep_recursive",
+        general.add_option("--deep-recursive", help="Perform recursive scan on every directory depth (Example: api/users -> api/)", action="store_true", dest="deep_recursive",
                            default=self.deep_recursive)
-        general.add_option("--force-recursive", help="Do recursive scans for every found path, not only paths end with slash", action="store_true", dest="force_recursive",
+        general.add_option("--force-recursive", help="Do recursive brute-force for every found path, not only paths end with slash", action="store_true", dest="force_recursive",
                            default=self.force_recursive)
         general.add_option("--recursion-depth", help="Maximum recursion depth", action="store",
                            type="int", dest="recursion_depth", default=self.recursion_depth, metavar="DEPTH")
         general.add_option("--recursion-status", help="Valid status codes to perform recursive scan, support ranges (separated by commas)",
-                           action="store", dest="recursionStatusCodes", default=self.recursionStatusCodes, metavar="CODES")
+                           action="store", dest="recursion_status_codes", default=self.recursion_status_codes, metavar="CODES")
         general.add_option("--subdirs", help="Scan sub-directories of the given URL[s] (separated by commas)", action="store",
-                           dest="scanSubdirs", default=None, metavar="SUBDIRS")
+                           dest="scan_subdirs", default=None, metavar="SUBDIRS")
         general.add_option("--exclude-subdirs", help="Exclude the following subdirectories during recursive scan (separated by commas)",
-                           action="store", dest="excludeSubdirs", default=self.excludeSubdirs, metavar="SUBDIRS")
+                           action="store", dest="exclude_subdirs", default=self.exclude_subdirs, metavar="SUBDIRS")
         general.add_option("-i", "--include-status", help="Include status codes, separated by commas, support ranges (Example: 200,300-399)",
-                           action="store", dest="includeStatusCodes", default=self.includeStatusCodes, metavar="CODES")
+                           action="store", dest="include_status_codes", default=self.include_status_codes, metavar="CODES")
         general.add_option("-x", "--exclude-status", help="Exclude status codes, separated by commas, support ranges (Example: 301,500-599)",
-                           action="store", dest="excludeStatusCodes", default=self.excludeStatusCodes, metavar="CODES")
+                           action="store", dest="exclude_status_codes", default=self.exclude_status_codes, metavar="CODES")
         general.add_option("--exclude-sizes", help="Exclude responses by sizes, separated by commas (Example: 123B,4KB)",
-                           action="store", dest="excludeSizes", default=self.excludeSizes, metavar="SIZES")
+                           action="store", dest="exclude_sizes", default=self.exclude_sizes, metavar="SIZES")
         general.add_option("--exclude-texts", help="Exclude responses by texts, separated by commas (Example: 'Not found', 'Error')",
-                           action="store", dest="excludeTexts", default=self.excludeTexts, metavar="TEXTS")
+                           action="store", dest="exclude_texts", default=self.exclude_texts, metavar="TEXTS")
         general.add_option("--exclude-regexps", help="Exclude responses by regexps, separated by commas (Example: 'Not foun[a-z]{1}', '^Error$')",
-                           action="store", dest="excludeRegexps", default=self.excludeRegexps, metavar="REGEXPS")
+                           action="store", dest="exclude_regexps", default=self.exclude_regexps, metavar="REGEXPS")
         general.add_option("--exclude-redirects", help="Exclude responses by redirect regexps or texts, separated by commas (Example: 'https://okta.com/*')",
-                           action="store", dest="excludeRedirects", default=self.excludeRedirects, metavar="REGEXPS")
+                           action="store", dest="exclude_redirects", default=self.exclude_redirects, metavar="REGEXPS")
         general.add_option("--exclude-content", help="Exclude responses by response content of this path", action="store",
-                           dest="excludeContent", default=self.excludeContent, metavar="PATH")
+                           dest="exclude_content", default=self.exclude_content, metavar="PATH")
         general.add_option("--skip-on-status", action="store", dest="skip_on_status", default=self.skip_on_status,
-                           help="Skip target whenever hit one of these status codes, separated by commas", metavar="CODES")
-        general.add_option("--minimal", action="store", dest="minimumResponseSize", type="int", default=None,
+                           help="Skip target whenever hit one of these status codes, separated by commas, support ranges", metavar="CODES")
+        general.add_option("--minimal", action="store", dest="minimum_response_size", type="int", default=None,
                            help="Minimal response length", metavar="LENGTH")
-        general.add_option("--maximal", action="store", dest="maximumResponseSize", type="int", default=None,
+        general.add_option("--maximal", action="store", dest="maximum_response_size", type="int", default=None,
                            help="Maximal response length", metavar="LENGTH")
         general.add_option("--max-time", action="store", dest="maxtime", type="int", default=self.maxtime,
                            help="Maximal runtime for the scan", metavar="SECONDS")
@@ -603,13 +534,15 @@ information at https://github.com/maurosoria/dirsearch.""")
         request.add_option("-H", "--header", help="HTTP request header, support multiple flags (Example: -H 'Referer: example.com')",
                            action="append", type="string", dest="headers", default=None)
         request.add_option("--header-list", help="File contains HTTP request headers", type="string",
-                           dest="headerList", default=self.headerList, metavar="FILE")
+                           dest="header_list", default=self.header_list, metavar="FILE")
         request.add_option("-F", "--follow-redirects", help="Follow HTTP redirects",
-                           action="store_true", dest="followRedirects", default=self.redirect)
+                           action="store_true", dest="follow_redirects", default=self.redirect)
         request.add_option("--random-agent", help="Choose a random User-Agent for each request",
-                           default=self.useRandomAgents, action="store_true", dest="useRandomAgents")
-        request.add_option("--auth", help="Basic authentication credential [Format: USER:PASS]",
-                           action="store", dest="basic_auth", metavar="CREDENTIAL")
+                           default=self.use_random_agents, action="store_true", dest="use_random_agents")
+        request.add_option("--auth-type", help="Authentication type (basic, digest, bearer, ntlm)",
+                           action="store", dest="auth_type", metavar="TYPE")
+        request.add_option("--auth", help="Authentication credential (user:password or bearer token)",
+                           action="store", dest="auth", metavar="CREDENTIAL")
         request.add_option("--user-agent", action="store", type="string", dest="useragent",
                            default=self.useragent)
         request.add_option("--cookie", action="store", type="string", dest="cookie", default=self.cookie)
@@ -622,7 +555,7 @@ information at https://github.com/maurosoria/dirsearch.""")
                               type="float", default=self.delay)
         connection.add_option("--proxy", action="store", dest="proxy", type="string", default=self.proxy,
                               help="Proxy URL, support HTTP and SOCKS proxies (Example: localhost:8080, socks5://localhost:8088)", metavar="PROXY")
-        connection.add_option("--proxy-list", action="store", dest="proxyList", type="string",
+        connection.add_option("--proxy-list", action="store", dest="proxy_list", type="string",
                               default=self.proxylist, help="File contains proxy servers", metavar="FILE")
         connection.add_option("--replay-proxy", action="store", dest="replay_proxy", type="string", default=self.replay_proxy,
                               help="Proxy to replay with found paths", metavar="PROXY")
@@ -631,10 +564,10 @@ information at https://github.com/maurosoria/dirsearch.""")
         connection.add_option("--max-rate", help="Max requests per second", action="store", dest="maxrate",
                               type="int", default=self.maxrate, metavar="RATE")
         connection.add_option("--retries", help="Number of retries for failed requests", action="store",
-                              dest="maxRetries", type="int", default=self.maxRetries, metavar="RETRIES")
+                              dest="max_retries", type="int", default=self.max_retries, metavar="RETRIES")
         connection.add_option("-b", "--request-by-hostname",
                               help="By default dirsearch requests by IP for speed. This will force dirsearch to request by hostname",
-                              action="store_true", dest="requestByHostname", default=self.requestByHostname)
+                              action="store_true", dest="request_by_hostname", default=self.request_by_hostname)
         connection.add_option("--ip", action="store", dest="ip", default=None,
                               help="Server IP address")
         connection.add_option("--exit-on-error", action="store_true", dest="exit_on_error", default=self.exit_on_error,
@@ -642,9 +575,9 @@ information at https://github.com/maurosoria/dirsearch.""")
 
         # Report Settings
         reports = OptionGroup(parser, "Reports")
-        reports.add_option("-o", action="store", dest="outputFile", default=None, metavar="FILE", help="Output file")
-        reports.add_option("--format", action="store", dest="outputFormat", default=None, metavar="FORMAT",
-                           help="Report format (Available: simple, plain, json, xml, md, csv)")
+        reports.add_option("-o", "--output", action="store", dest="output_file", default=None, metavar="FILE", help="Output file")
+        reports.add_option("--format", action="store", dest="output_format", default=self.output_format, metavar="FORMAT",
+                           help="Report format (Available: simple, plain, json, xml, md, csv, html)")
 
         parser.add_option_group(mandatory)
         parser.add_option_group(dictionary)

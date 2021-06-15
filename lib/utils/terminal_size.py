@@ -87,7 +87,7 @@ def _get_terminal_size_tput():
 
 
 def _get_terminal_size_linux():
-    def ioctl_GWINSZ(fd):
+    def ioctl_gwinsz(fd):
         try:
             import fcntl
             import termios
@@ -97,11 +97,11 @@ def _get_terminal_size_linux():
         except Exception:
             pass
 
-    cr = ioctl_GWINSZ(0) or ioctl_GWINSZ(1) or ioctl_GWINSZ(2)
+    cr = ioctl_gwinsz(0) or ioctl_gwinsz(1) or ioctl_gwinsz(2)
     if not cr:
         try:
             fd = os.open(os.ctermid(), os.O_RDONLY)
-            cr = ioctl_GWINSZ(fd)
+            cr = ioctl_gwinsz(fd)
             os.close(fd)
         except Exception:
             pass

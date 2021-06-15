@@ -63,10 +63,10 @@ class Raw(object):
             print("Can't find the Host header in the raw request")
             exit(1)
 
-        self.basePath = self.startline.split(" ")[1]
+        self.base_path = self.startline.split(" ")[1]
 
     def url(self):
-        return "{0}://{1}{2}".format(self.scheme, self.host, self.basePath)
+        return "{0}://{1}{2}".format(self.scheme, self.host, self.base_path)
 
     def method(self):
         return self.startline.split(" ")[0]

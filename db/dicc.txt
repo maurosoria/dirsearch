@@ -5225,6 +5225,7 @@ ews/
 Exadmin/
 examadmin
 example
+example.%EXT%
 example.php
 examples
 examples/
@@ -5372,6 +5373,7 @@ fileRealm.properties
 filerun.php
 filerun/
 files
+files.%EXT%
 files.7z
 files.md5
 files.php
@@ -5410,6 +5412,7 @@ fmr.php
 folder
 fonts
 footer
+footer.%EXT%
 footer_admin.%EXT%
 forgot
 forgot_pass.%EXT%
@@ -5558,6 +5561,7 @@ GreenhouseWebservlet
 GreenhouseWebservlet/
 groovy/
 group
+group.%EXT%
 groupadmin
 groupadmin.%EXT%
 groupcp.%EXT%
@@ -5597,7 +5601,7 @@ hardware
 hc_admin
 head.%EXT%
 header
-header.php
+header.%EXT%
 header_admin.%EXT%
 headers
 health
@@ -6252,6 +6256,7 @@ LiveUser_Admin/
 lk/
 load.php
 local
+local.%EXT%
 local-cgi/
 localconfig
 local.config.rb
@@ -6461,6 +6466,7 @@ mainadmin
 maint/
 MAINTAINERS.txt
 maintainers.txt
+maintenance.%EXT%
 maintenance.flag
 maintenance.flag.bak
 maintenance.flag2
@@ -6476,6 +6482,7 @@ makeRequest
 mambots
 mambots/editors/fckeditor
 manage
+manage.%EXT%
 manage.php
 manage.py
 manage/
@@ -6720,6 +6727,7 @@ Module.symvers
 module/tiny_mce
 module/tinymce
 modules
+modules.%EXT%
 modules.order
 modules/
 modules/admin/
@@ -7073,6 +7081,7 @@ panel-administracion/login
 panel-administracion/login.%EXT%
 panel-administracion/login.html
 panel-administracion/login.php
+panel.%EXT%
 panel.php
 panel/
 papers
@@ -7524,7 +7533,10 @@ play-stash
 player.swf
 playground.xcworkspace
 plesk-stat
-plesk-stat.%EXT%
+plesk-stat/anon_ftpstat/
+plesk-stat/ftpstat/
+webstat-ssl/
+webstat/
 pls
 pls/dad/null
 plugin.xml
@@ -7601,11 +7613,11 @@ pom.xml.next
 pom.xml.releaseBackup
 pom.xml.tag
 pom.xml.versionsBackup
-pop_profile.%EXT%
+pop_profile.php
 popup.htm
 popup.html
 popup_image.php
-popup_songs.%EXT%
+popup_songs.php
 portal
 portal/
 portal2
@@ -7620,6 +7632,7 @@ postgresql.conf
 postinfo.html
 postings.%EXT%
 posts
+posts.%EXT%
 power_user/
 powershell/
 pprof/
@@ -7652,6 +7665,7 @@ Procfile.dev
 Procfile.offline
 procmail
 product
+product.%EXT%
 product.json
 product_reviews.%EXT%
 productcockpit
@@ -7694,6 +7708,7 @@ proxy.stream?origin=https://google.com
 proxy/
 prv
 prv/
+prweb/PRRestService/unauthenticatedAPI/v1/docs
 ps_admin.cgi
 psquare/x.jsp
 PSUser/
@@ -7760,7 +7775,6 @@ rating_over.
 raygun/
 rcf/
 rcjakar/
-rcjakar/admin/login.%EXT%
 rcjakar/admin/login.php
 rcLogin/
 rd.%EXT%
@@ -7881,7 +7895,6 @@ resume
 resume.json
 review
 review.%EXT%
-reviewhelpful.%EXT%
 reviews
 reviews.%EXT%
 revision.inc
@@ -7914,7 +7927,7 @@ runtime_messages.jsp
 RushSite.xml
 s
 s.php
-s2dshopadmin.%EXT%
+s2dshopadmin.php
 sa.php
 sa2.php
 sadmin
@@ -8226,7 +8239,6 @@ siteadmin/
 siteadmin/index.%EXT%
 siteadmin/index.php
 siteadmin/login.%EXT%
-siteadmin/login.html
 siteadmin/login.php
 sitedown.%EXT%
 sitemanager.xml
@@ -8692,7 +8704,6 @@ templates/rhuk_milkyway/index.php
 templates/system/
 templates_admin
 templates_c
-templates_c.%EXT%
 templates_c/
 templets
 templets.%EXT%
