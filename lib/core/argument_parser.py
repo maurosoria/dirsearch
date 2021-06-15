@@ -488,7 +488,7 @@ information at https://github.com/maurosoria/dirsearch.""")
                            default=self.deep_recursive)
         general.add_option("--force-recursive", help="Do recursive brute-force for every found path, not only paths end with slash", action="store_true", dest="force_recursive",
                            default=self.force_recursive)
-        general.add_option("--recursion-depth", help="Maximum recursion depth", action="store",
+        general.add_option("-R", "--recursion-depth", help="Maximum recursion depth", action="store",
                            type="int", dest="recursion_depth", default=self.recursion_depth, metavar="DEPTH")
         general.add_option("--recursion-status", help="Valid status codes to perform recursive scan, support ranges (separated by commas)",
                            action="store", dest="recursion_status_codes", default=self.recursion_status_codes, metavar="CODES")
