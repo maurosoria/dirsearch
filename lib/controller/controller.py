@@ -72,7 +72,6 @@ class Controller(object):
 
         self.directories = Queue()
         self.script_path = script_path
-        self.exit = False
         self.arguments = arguments
         self.output = output
         self.done_dirs = []
@@ -480,7 +479,6 @@ class Controller(object):
     # Callback for errors while fuzzing
     def error_callback(self, path, error_msg):
         if self.arguments.exit_on_error:
-            self.exit = True
             self.fuzzer.stop()
             self.output.error("\nCanceled due to an error")
             exit(1)
@@ -521,7 +519,6 @@ class Controller(object):
             option = input()
 
             if option.lower() == "q":
-                self.exit = True
                 self.fuzzer.stop()
                 self.output.error("\nCanceled by the user")
                 self.report_manager.update_report(self.report)
