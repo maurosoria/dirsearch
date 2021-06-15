@@ -12,7 +12,7 @@ dirsearch - Web path discovery
     ![Tweet](https://img.shields.io/twitter/url?url=https%3A%2F%2Fgithub.com%2Fmaurosoria%2Fdirsearch)
 </a>
 
-**Current Release: v0.4.2 (2021.5.7)**
+**Current Release: v0.4.2 (2021.7.21)**
 
 An advanced command-line tool designed to brute force directories and files in webservers, AKA web path scanner
 
