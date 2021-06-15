@@ -157,11 +157,10 @@ class Fuzzer(object):
         self.play_event = threading.Event()
         self.paused_semaphore = threading.Semaphore(0)
         self.play_event.clear()
-        self.exit = False
 
         for thread in self.threads:
             thread.start()
-        threading.Thread(target=self.rate_adjuster).start()
+        threading.Thread(target=self.rate_adjuster, daemon=True).start()
 
         self.play()
 

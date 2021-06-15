@@ -72,7 +72,6 @@ class Controller(object):
 
         self.directories = Queue()
         self.script_path = script_path
-        self.exit = False
         self.arguments = arguments
         self.output = output
         self.done_dirs = []
@@ -146,7 +145,7 @@ class Controller(object):
             only_selected=arguments.only_selected
         )
 
-        self.all_jobs = len(self.scan_subdirs) if self.scan_subdirs else 1
+        self.jobs_count = len(self.url_list) * (len(self.scan_subdirs) if self.scan_subdirs else 1)
         self.current_job = 0
         self.start_time = time.time()
         self.error_log = None
@@ -255,8 +254,7 @@ class Controller(object):
             exit(0)
 
         finally:
-            if not self.error_log.closed:
-                self.error_log.close()
+            self.error_log.close()
 
         self.output.warning("\nTask Completed")
 
@@ -472,7 +470,7 @@ class Controller(object):
             self.index,
             len(self.dictionary),
             self.current_job,
-            self.all_jobs,
+            self.jobs_count,
             self.fuzzer.stand_rate,
             self.arguments.show_rate,
         )
@@ -481,7 +479,6 @@ class Controller(object):
     # Callback for errors while fuzzing
     def error_callback(self, path, error_msg):
         if self.arguments.exit_on_error:
-            self.exit = True
             self.fuzzer.stop()
             self.output.error("\nCanceled due to an error")
             exit(1)
@@ -522,7 +519,6 @@ class Controller(object):
             option = input()
 
             if option.lower() == "q":
-                self.exit = True
                 self.fuzzer.stop()
                 self.output.error("\nCanceled by the user")
                 self.report_manager.update_report(self.report)
@@ -537,7 +533,6 @@ class Controller(object):
                 return
 
             elif option.lower() == "s" and len(self.url_list) > 1:
-                self.output.new_line()
                 raise SkipTargetInterrupt
 
     # Monitor the fuzzing process
@@ -623,7 +618,7 @@ class Controller(object):
             self.directories.put(dir)
             self.done_dirs.append(dir)
 
-            self.all_jobs += 1
+            self.jobs_count += 1
             added = True
 
         return added
