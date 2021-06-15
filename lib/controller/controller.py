@@ -22,7 +22,7 @@ import sys
 import time
 import re
 
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 from threading import Lock
 from queue import Queue
 
@@ -165,8 +165,6 @@ class Controller(object):
         self.report_manager = EmptyReportManager()
         self.report = EmptyReport()
         if arguments.autosave_report or arguments.output_file:
-            if len(self.url_list) > 1:
-                self.setup_batch_reports()
             self.setup_reports()
 
         self.setup_error_logs()
@@ -322,22 +320,24 @@ class Controller(object):
             output_file = FileUtils.get_abs_path(self.arguments.output_file)
             self.output.output_file(output_file)
         else:
-            if self.batch:
+            if len(self.url_list) > 1:
+                self.setup_batch_reports()
                 file_name = "BATCH"
                 file_name += self.get_output_extension()
                 directory_path = self.batch_directory_path
             else:
-                local_requester = Requester(self.url_list[0])
-                file_name = ("{}_".format(local_requester.base_path.replace(os.path.sep, ".")[:-1]))
+                parsed = urlparse(self.url_list[0])
+                file_name = (
+                    "{}_".format(parsed.path.replace("/", "-"))
+                )
                 file_name += time.strftime("%y-%m-%d_%H-%M-%S")
                 file_name += self.get_output_extension()
-                directory_path = FileUtils.build_path(self.save_path, local_requester.host)
+                directory_path = FileUtils.build_path(self.save_path, parsed.netloc)
 
             output_file = FileUtils.build_path(directory_path, file_name)
 
             if FileUtils.exists(output_file):
                 i = 2
-
                 while FileUtils.exists(output_file + "_" + str(i)):
                     i += 1
 
