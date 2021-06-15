@@ -3,6 +3,7 @@
 Currently working...
 ---------
 - Fixed critical bugs from v0.4.1
+- More accurate
 - Exclude responses by redirects
 - URLs from STDIN
 - Fixed the CSV Injection vulnerability (https://www.exploit-db.com/exploits/49370)
