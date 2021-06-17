@@ -122,11 +122,11 @@ class ArgumentParser(object):
 
         if options.extensions == "*":
             self.extensions = [
-                "php", "jsp", "jsf", "asp", "aspx", "do", "action", "cgi",
-                "pl", "html", "htm", "js", "json", "json", "tar.gz", "tgz"
+                "php", "jsp", "asp", "aspx", "do", "action", "cgi",
+                "pl", "html", "htm", "js", "json", "tar.gz", "bak"
             ]
-        elif options.extensions == "CHANGELOG.md":
-            print("A weird extension was provided: CHANGELOG.md. Please do not use * as the extension or enclose it in double quotes")
+        elif options.extensions == "banner.txt":
+            print("A weird extension was provided: 'banner.txt'. Please do not use * as the extension or enclose it in double quotes")
             exit(0)
         else:
             self.extensions = list(
@@ -258,25 +258,21 @@ class ArgumentParser(object):
         self.output_file = options.output_file
         self.output_format = options.output_format
 
+        self.scan_subdirs = []
         if options.scan_subdirs:
-            self.scan_subdirs = list(
-                oset(
-                    [subdir.strip(" /") + "/" for subdir in options.scan_subdirs.split(",")]
-                )
-            )
+            for subdir in options.scan_subdirs.split(","):
+                subdir = subdir.strip(" ")
+                if subdir.startswith("/"):
+                    subdir = subdir[1:]
+                self.scan_subdirs.append(subdir)
 
-        else:
-            self.scan_subdirs = []
-
+        self.exclude_subdirs = []
         if options.exclude_subdirs:
-            self.exclude_subdirs = list(
-                oset(
-                    [subdir.strip(" /") + "/" for subdir in options.exclude_subdirs.split(",")]
-                )
-            )
-
-        else:
-            self.exclude_subdirs = []
+            for subdir in options.exclude_subdirs.split(","):
+                subdir = subdir.strip(" ")
+                if subdir.startswith("/"):
+                    subdir = subdir[1:]
+                self.exclude_subdirs.append(subdir)
 
         if options.skip_on_status:
             self.skip_on_status = self.parse_status_codes(options.skip_on_status)
