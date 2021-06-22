@@ -623,25 +623,16 @@ class Controller(object):
 
         return added
 
-    # Add port to the URL
-    def add_port(self, url):
-        chunks = url.split("/")
-        if ":" not in chunks[2]:
-            chunks[2] += (":80" if chunks[0] == "http:" else ":443")
-            url = "/".join(chunks)
-
-        return url
-
     # Resolve the redirect and add the path to the recursion queue
     # if it's a subdirectory of the current URL
     def add_redirect_directory(self, path):
-        base_url = self.requester.base_url + self.base_path + self.current_directory + path.path
+        base_path = "/" + self.base_path + self.current_directory + path.path
 
         redirect_url = urljoin(self.requester.base_url, path.redirect)
-        redirect_url = self.add_port(redirect_url)
+        redirect_path = urlparse(redirect_url).path
 
-        if redirect_url.startswith(base_url + "/"):
-            path = redirect_url[len(self.requester.base_url + self.base_path + self.current_directory):]
+        if redirect_path == base_path + "/":
+            path = redirect_path[len(self.base_path + self.current_directory) + 1:]
 
             return self.add_directory(path)
 
