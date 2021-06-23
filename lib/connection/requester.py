@@ -62,10 +62,9 @@ class Requester(object):
         elif parsed.scheme not in ["https", "http"]:
             raise RequestException({"message": "Unsupported URL scheme: {0}".format(parsed.scheme)})
 
+        self.base_path = parsed.path
         if parsed.path.startswith("/"):
             self.base_path = parsed.path[1:]
-        else:
-            self.base_path = parsed.path
 
         # Safe quote all special characters in base_path to prevent from being encoded when performing requests
         self.base_path = urllib.parse.quote(self.base_path, safe="!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~")

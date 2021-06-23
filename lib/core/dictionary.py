@@ -192,6 +192,7 @@ class Dictionary(object):
 
     # Get ignore paths for status codes.
     # More information: https://github.com/maurosoria/dirsearch#Blacklist
+    @staticmethod
     def generate_blacklists(extensions, script_path):
         reext = re.compile(r"\%ext\%", re.IGNORECASE).sub
         blacklists = {}

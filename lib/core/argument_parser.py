@@ -26,6 +26,7 @@ from io import StringIO
 from lib.utils.default_config_parser import DefaultConfigParser
 from lib.utils.file_utils import File
 from lib.utils.file_utils import FileUtils
+from lib.utils.parser_utils import ParserUtils
 from thirdparty.oset import oset
 
 
@@ -320,12 +321,7 @@ class ArgumentParser(object):
         for status_code in raw_status_codes.split(","):
             try:
                 if "-" in status_code:
-                    status_codes.extend([
-                        i for i in range(
-                            int(status_code.split("-")[0].strip()),
-                            int(status_code.split("-")[1].strip()) + 1
-                        )
-                    ])
+                    status_codes.extend(ParserUtils.get_range(status_code))
 
                 else:
                     status_codes.append(int(status_code.strip()))

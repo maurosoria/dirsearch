@@ -35,15 +35,9 @@ class Report(object):
         self.host = host
         self.port = port
         self.protocol = protocol
-        self.base_path = base_path
+        self.base_path = base_path[:-1]
         self.results = []
         self.completed = False
-
-        if self.base_path.endswith("/"):
-            self.base_path = self.base_path[:-1]
-
-        if self.base_path.startswith("/"):
-            self.base_path = self.base_path[1:]
 
     def add_result(self, path, status, response):
         result = Result(path, status, response)
