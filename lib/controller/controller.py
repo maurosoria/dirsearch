@@ -322,19 +322,19 @@ class Controller(object):
         else:
             if len(self.url_list) > 1:
                 self.setup_batch_reports()
-                file_name = "BATCH"
-                file_name += self.get_output_extension()
+                filename = "BATCH"
+                filename += self.get_output_extension()
                 directory_path = self.batch_directory_path
             else:
                 parsed = urlparse(self.url_list[0])
-                file_name = (
+                filename = (
                     "{}_".format(parsed.path.replace("/", "-"))
                 )
-                file_name += time.strftime("%y-%m-%d_%H-%M-%S")
-                file_name += self.get_output_extension()
+                filename += time.strftime("%y-%m-%d_%H-%M-%S")
+                filename += self.get_output_extension()
                 directory_path = FileUtils.build_path(self.save_path, parsed.netloc)
 
-            output_file = FileUtils.build_path(directory_path, file_name)
+            output_file = FileUtils.build_path(directory_path, filename)
 
             if FileUtils.exists(output_file):
                 i = 2
