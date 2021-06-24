@@ -67,7 +67,7 @@ Choose one of these installation options:
 - Install with Kali Linux: `sudo apt-get install dirsearch`
 - Install with PyPi: `pip3 install dirsearch`
 
-Note: *To can use SOCKS proxy feature, please install packages with **requirements.txt**: `pip3 install -r requirements.txt`*
+Note: *To use SOCKS proxy feature, please install packages with **requirements.txt**: `pip3 install -r requirements.txt`*
 
 **All in one:**
 ```
