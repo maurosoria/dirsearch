@@ -63,6 +63,7 @@
 - [Christian Clauss](https://github.com/cclauss)
 - [Dipak Panchal](https://instagram.com/th3.d1p4k)
 - [Ivan Fedotov](https://github.com/qumusabel)
+- [Manuel Poisson](https://github.com/ManuelPOISSON)
 
 Special thanks to all the people who are named here!
 
