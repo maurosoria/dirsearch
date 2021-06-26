@@ -1,4 +1,4 @@
-<img src="https://user-images.githubusercontent.com/59408894/120434511-c6aac580-c3a6-11eb-8d93-bf96e529fb94.png" width=675>
+<img src="https://github.com/maurosoria/dirsearch/blob/master/static/logo.png" width=675>
 
 
 dirsearch - Web path discovery
@@ -21,7 +21,6 @@ An advanced command-line tool designed to brute force directories and files in w
 
 Table of Contents
 ------------
-* [Kali Linux](#Kali-Linux)
 * [Installation](#Installation--Usage)
 * [Wordlists](#Wordlists-IMPORTANT)
 * [Options](#Options)
@@ -45,13 +44,6 @@ Table of Contents
 * [Tips](#Tips)
 * [Contribution](#Contribution)
 * [License](#License)
-
-
-Kali Linux
-------------
-#### dirsearch is now available in official Kali Linux packages
-
-![Kali Linux](https://www.redeszone.net/app/uploads-redeszone.net/2020/11/kali-linux-2020-4.jpg)
 
 
 Installation & Usage
