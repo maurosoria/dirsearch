@@ -1,5 +1,4 @@
-<img src="https://github.com/maurosoria/dirsearch/blob/master/static/logo.png" width=675>
-
+<img src="static/logo.png" alt="dirsearch" width="675px">
 
 dirsearch - Web path discovery
 =========
