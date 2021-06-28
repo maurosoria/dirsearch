@@ -5400,6 +5400,8 @@ firebase-debug.log
 FireFox_Reco
 FirmConnect.%EXT%
 fkadmin
+flag.txt
+flag.%EXT%
 flags
 flash
 flash/
