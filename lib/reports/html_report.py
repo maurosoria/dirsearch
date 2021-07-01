@@ -36,7 +36,7 @@ class HTMLReport(FileBaseReport):
         mytemplate = Template(filename=template_file)
 
         metadata = {
-            "command": sanitize(" ".join(sys.argv)),
+            "command": self.sanitize(" ".join(sys.argv)),
             "date": time.ctime()
         }
         results = []
@@ -54,13 +54,14 @@ class HTMLReport(FileBaseReport):
                 elif e.status >= 400 and e.status <= 599:
                     status_color_class = 'text-danger'
 
+                if not self.
                 results.append({
-                    "url": sanitize(header_name + e.path),
+                    "url": self.sanitize(header_name + e.path),
                     "status": e.status,
                     "status_color_class": status_color_class,
-                    "contentLength": sanitize(FileUtils.size_human(e.get_content_length())),
-                    "contentType": sanitize(e.response.headers.get("content-type")),
-                    "redirect": sanitize(e.response.redirect)
+                    "contentLength": self.sanitize(FileUtils.size_human(e.get_content_length())),
+                    "contentType": self.sanitize(e.response.headers.get("content-type")),
+                    "redirect": self.sanitize(e.response.redirect)
                 })
 
         return mytemplate.render(metadata=metadata, results=json.dumps(results))
