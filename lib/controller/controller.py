@@ -74,7 +74,7 @@ class Controller(object):
         self.script_path = script_path
         self.arguments = arguments
         self.output = output
-        self.pass_dirs = ["", "/"]
+        self.pass_dirs = ["/"]
 
         if arguments.raw_file:
             _raw = Raw(arguments.raw_file, arguments.scheme)
