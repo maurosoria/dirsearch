@@ -54,7 +54,6 @@ class HTMLReport(FileBaseReport):
                 elif e.status >= 400 and e.status <= 599:
                     status_color_class = 'text-danger'
 
-                if not self.
                 results.append({
                     "url": self.sanitize(header_name + e.path),
                     "status": e.status,
