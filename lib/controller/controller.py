@@ -74,7 +74,7 @@ class Controller(object):
         self.script_path = script_path
         self.arguments = arguments
         self.output = output
-        self.done_dirs = []
+        self.pass_dirs = ["/"]
 
         if arguments.raw_file:
             _raw = Raw(arguments.raw_file, arguments.scheme)
@@ -219,6 +219,7 @@ class Controller(object):
 
                     for subdir in self.scan_subdirs:
                         self.directories.put(subdir)
+                        self.pass_dirs.append(subdir)
 
                     match_callbacks = [self.match_callback]
                     not_found_callbacks = [self.not_found_callback]
@@ -586,20 +587,20 @@ class Controller(object):
 
     # Add directory to the recursion queue
     def add_directory(self, path):
+        dirs = []
         added = False
         path = path.split("?")[0].split("#")[0]
+        full_path = self.current_directory + path
 
         if any([path.startswith(directory) for directory in self.exclude_subdirs]):
             return False
 
-        full_path = self.current_directory + path
+        # Avoid paths contain consecutive slashes, we haven't had good handler for it yet
+        if self.deep_recursive and "//" not in path:
+            for i in range(1, path.count("/")):
+                dir = self.current_directory + "/".join(path.split("/")[:i]) + "/"
+                dirs.append(dir)
 
-        dirs = []
-
-        if self.deep_recursive:
-            for i in range(1, path.count("/") + 1):
-                dir = full_path.replace(path, "") + "/".join(path.split("/")[:i])
-                dirs.append(dir.rstrip("/") + "/")
         if self.force_recursive:
             if not full_path.endswith("/"):
                 full_path += "/"
@@ -607,16 +608,14 @@ class Controller(object):
         elif self.arguments.recursive and full_path.endswith("/"):
             dirs.append(full_path)
 
-        for dir in dirs:
-            if dir in self.scan_subdirs:
-                continue
-            elif dir in self.done_dirs:
+        for dir in list(set(dirs)):
+            if dir in self.pass_dirs:
                 continue
             elif self.recursion_depth and dir.count("/") > self.recursion_depth:
                 continue
 
             self.directories.put(dir)
-            self.done_dirs.append(dir)
+            self.pass_dirs.append(dir)
 
             self.jobs_count += 1
             added = True
