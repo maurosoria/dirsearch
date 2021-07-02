@@ -315,13 +315,13 @@ class Controller(object):
         else:
             return ".txt"
 
-    # Remove special characters from filename for Windows users
-    def clean_filename(self, filename):
+    # Remove special characters from file/folder name for Windows users
+    def clean_name(self, name):
         special_chars = ["\\", "/", "*", "?", ":", '"', "<", ">", "|"]
         for char in special_chars:
-            filename = filename.replace(char, "-")
+            name = name.replace(char, "-")
 
-        return filename
+        return name
 
     # Create report file
     def setup_reports(self):
@@ -341,9 +341,9 @@ class Controller(object):
                 )
                 filename += time.strftime("%y-%m-%d_%H-%M-%S")
                 filename += self.get_output_extension()
-                directory_path = FileUtils.build_path(self.report_path, parsed.netloc)
+                directory_path = FileUtils.build_path(self.report_path, self.clean_name(parsed.netloc))
 
-            filename = self.clean_filename(filename)
+            filename = self.clean_name(filename)
             output_file = FileUtils.build_path(directory_path, filename)
 
             if FileUtils.exists(output_file):
