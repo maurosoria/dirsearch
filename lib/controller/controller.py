@@ -110,11 +110,11 @@ class Controller(object):
                 FileUtils.create_directory(self.logs_path)
 
         if arguments.output_location and self.validate_path(arguments.output_location):
-            self.save_path = FileUtils.build_path(arguments.output_location)
+            self.report_path = FileUtils.build_path(arguments.output_location)
         elif self.validate_path(self.script_path):
-            self.save_path = FileUtils.build_path(self.script_path, "reports")
-            if not FileUtils.exists(self.save_path):
-                FileUtils.create_directory(self.save_path)
+            self.report_path = FileUtils.build_path(self.script_path, "reports")
+            if not FileUtils.exists(self.report_path):
+                FileUtils.create_directory(self.report_path)
 
         self.blacklists = Dictionary.generate_blacklists(arguments.extensions, self.script_path)
         self.include_status_codes = arguments.include_status_codes
@@ -296,7 +296,7 @@ class Controller(object):
         if not self.arguments.output_file:
             self.batch_session = "BATCH-{0}".format(time.strftime("%y-%m-%d_%H-%M-%S"))
             self.batch_directory_path = FileUtils.build_path(
-                self.save_path, self.batch_session
+                self.report_path, self.batch_session
             )
 
             if not FileUtils.exists(self.batch_directory_path):
@@ -315,6 +315,14 @@ class Controller(object):
         else:
             return ".txt"
 
+    # Remove special characters from filename for Windows users
+    def clean_filename(self, filename):
+        special_chars = ["\\", "/", "*", "?", ":", '"', "<", ">", "|"]
+        for char in special_chars:
+            filename = filename.replace(char, "-")
+
+        return filename
+
     # Create report file
     def setup_reports(self):
         if self.arguments.output_file:
@@ -329,12 +337,13 @@ class Controller(object):
             else:
                 parsed = urlparse(self.url_list[0])
                 filename = (
-                    "{}_".format(parsed.path.replace("/", "-"))
+                    "{}_".format(parsed.path)
                 )
                 filename += time.strftime("%y-%m-%d_%H-%M-%S")
                 filename += self.get_output_extension()
-                directory_path = FileUtils.build_path(self.save_path, parsed.netloc)
+                directory_path = FileUtils.build_path(self.report_path, parsed.netloc)
 
+            filename = self.clean_filename(filename)
             output_file = FileUtils.build_path(directory_path, filename)
 
             if FileUtils.exists(output_file):
