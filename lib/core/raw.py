@@ -55,26 +55,15 @@ class Raw(object):
 
         self.path = self.startline.split(" ")[1]
 
+    @property
     def url(self):
         return "{0}://{1}{2}".format(self.scheme, self.host, self.path)
 
+    @property
     def method(self):
         return self.startline.split(" ")[0]
 
+    @property
     def headers(self):
         return self.headersparser.headers
 
-    def data(self):
-        return self.body
-
-    def user_agent(self):
-        if "user-agent" in self.http_headers_lowercase.keys():
-            return self.headersparser.lower_headers["user-agent"]
-
-        return None
-
-    def cookie(self):
-        if "cookie" in self.http_headers_lowercase.keys():
-            return self.headersparser.lower_headers["cookie"]
-
-        return None

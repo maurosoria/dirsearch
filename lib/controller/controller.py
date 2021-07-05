@@ -94,11 +94,11 @@ class Controller(object):
         self.pass_dirs = ["/"]
 
         if arguments.raw_file:
-            _raw = Raw(arguments.raw_file, arguments.scheme)
-            self.url_list = [_raw.url()]
-            self.httpmethod = _raw.method()
-            self.data = _raw.data()
-            self.headers = _raw.headers()
+            raw = Raw(arguments.raw_file, arguments.scheme)
+            self.url_list = [raw.url]
+            self.httpmethod = raw.method
+            self.data = raw.body
+            self.headers = raw.headers
         else:
             default_headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36",

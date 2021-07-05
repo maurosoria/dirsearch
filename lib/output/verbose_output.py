@@ -25,7 +25,7 @@ from urllib.parse import urlparse
 
 from lib.utils.file import FileUtils
 from lib.utils.terminal_size import get_terminal_size
-from thirdparty.colorama import init, Fore, Back, Style
+from .colors import ColorOutput
 
 if sys.platform in ["win32", "msys"]:
     from thirdparty.colorama.win32 import (FillConsoleOutputCharacter,
@@ -33,13 +33,8 @@ if sys.platform in ["win32", "msys"]:
                                            STDOUT)
 
 
-class NoColor:
-    RED = GREEN = YELLOW = BLUE = MAGENTA = CYAN = WHITE = BRIGHT = RESET_ALL = ''
-
-
 class CLIOutput(object):
     def __init__(self, color):
-        init()
         self.last_length = 0
         self.last_output = ""
         self.last_in_line = False
@@ -47,11 +42,9 @@ class CLIOutput(object):
         self.blacklists = {}
         self.base_path = None
         self.errors = 0
-        if not color:
-            self.disable_colors()
+        self.colorizer = ColorOutput(color)
 
-    @staticmethod
-    def percentage(x, y):
+    def percentage(self, x, y):
         return float(x) / float(y) * 100
 
     def in_line(self, string):
@@ -120,25 +113,25 @@ class CLIOutput(object):
         )
 
         if status in [200, 201, 204]:
-            message = Fore.GREEN + message + Style.RESET_ALL
+            message = self.colorizer.color(message, fore="green")
 
         elif status == 401:
-            message = Fore.YELLOW + message + Style.RESET_ALL
+            message = self.colorizer.color(message, fore="yellow")
 
         elif status == 403:
-            message = Fore.BLUE + message + Style.RESET_ALL
+            message = self.colorizer.color(message, fore="blue")
 
         elif status in range(500, 600):
-            message = Fore.RED + message + Style.RESET_ALL
+            message = self.colorizer.color(message, fore="red")
 
         elif status in range(300, 400):
-            message = Fore.CYAN + message + Style.RESET_ALL
-            if "location" in [h.lower() for h in response.headers]:
-                message += "  ->  {0}".format(response.headers["location"])
+            message = self.colorizer.color(message, fore="cyan")
 
         else:
-            message = Fore.MAGENTA + message + Style.RESET_ALL
+            message =  self.colorizer.color(message, fore="magenta")
 
+        if response.redirect:
+            message += "  ->  {0}".format(response.redirect)
         if added_to_queue:
             message += "     (Added to queue)"
 
@@ -176,31 +169,32 @@ class CLIOutput(object):
         with self.mutex:
             stripped = reason.strip()
             message = "\n" if reason.startswith("\n") else ""
-            message += Style.BRIGHT + Fore.WHITE + Back.RED + stripped + Style.RESET_ALL
+            message += self.colorizer.color(stripped, fore="white", back="red", bright=True)
 
             self.new_line(message)
 
     def warning(self, message):
         with self.mutex:
-            message = Style.BRIGHT + Fore.YELLOW + message + Style.RESET_ALL
+            message = self.colorizer.color(message, fore="yellow", bright=True)
             self.new_line(message)
 
     def header(self, message):
-        message = Style.BRIGHT + Fore.MAGENTA + message + Style.RESET_ALL
+        message = self.colorizer.color(message, fore="magenta", bright=True)
         self.new_line(message)
 
     def add_config(self, key, value, msg):
         l, _ = get_terminal_size()
         # Escape colours in text to get the real length
         escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])|\n")
-        particle = Fore.YELLOW + key + ": " + Fore.CYAN + value
+        particle = self.colorizer.color(key + ": ", fore="yellow", bright=True)
+        particle += self.colorizer.color(value, fore="cyan", bright=True)
 
         if len(escape.sub("", msg)) == 0:
             separator = ""
         elif len(escape.sub("", msg.splitlines()[-1] + particle)) + 3 > l:
             separator = "\n"
         else:
-            separator = Fore.MAGENTA + " | " + Fore.YELLOW
+            separator = self.colorizer.color(" | ", fore="magenta", bright=True)
 
         return separator + particle
 
@@ -214,8 +208,7 @@ class CLIOutput(object):
         method,
     ):
 
-        config = Style.BRIGHT
-        config += self.add_config("Extensions", extensions, config)
+        config = self.add_config("Extensions", extensions, "")
 
         if prefixes:
             config += self.add_config("Prefixes", prefixes, config)
@@ -226,7 +219,6 @@ class CLIOutput(object):
         config += self.add_config("HTTP method", method.upper(), config)
         config += self.add_config("Threads", threads, config)
         config += self.add_config("Wordlist size", wordlist_size, config)
-        config += Style.RESET_ALL
 
         self.new_line(config)
 
@@ -236,11 +228,10 @@ class CLIOutput(object):
 
         self.target = target
 
-        config = Style.BRIGHT
-        config += "\n" + self.add_config("Target", target, config) + "\n"
-        config += Style.RESET_ALL
+        header = "\n" + self.add_config("Target", target, "") + "\n"
+        header = self.colorizer.color(header, bright=True)
 
-        self.new_line(config)
+        self.new_line(header)
 
     def output_file(self, target):
         self.new_line("\nOutput File: {0}".format(target))
@@ -252,10 +243,3 @@ class CLIOutput(object):
         with self.mutex:
             line = "[{0}] - {1}".format(time.strftime("%H:%M:%S"), info)
             self.new_line(line)
-
-    def disable_colors(self):
-        global Fore
-        global Style
-        global Back
-
-        Fore = Style = Back = NoColor

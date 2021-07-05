@@ -22,7 +22,7 @@ from threading import Lock
 from urllib.parse import urlparse
 
 from lib.utils.file import FileUtils
-from thirdparty.colorama import init, Fore, Style
+from .colors import ColorOutput
 
 if sys.platform in ["win32", "msys"]:
     from thirdparty.colorama.win32 import (FillConsoleOutputCharacter,
@@ -30,20 +30,14 @@ if sys.platform in ["win32", "msys"]:
                                            STDOUT)
 
 
-class NoColor:
-    RED = GREEN = YELLOW = BLUE = MAGENTA = CYAN = WHITE = BRIGHT = RESET_ALL = ''
-
-
 class PrintOutput(object):
     def __init__(self, color):
-        init()
         self.mutex = Lock()
         self.blacklists = {}
         self.mutex_checked_paths = Lock()
         self.base_path = None
         self.errors = 0
-        if not color:
-            self.disable_colors()
+        self.colorizer = ColorOutput(color)
 
     def header(self, text):
         pass
@@ -96,25 +90,25 @@ class PrintOutput(object):
         )
 
         if status in [200, 201, 204]:
-            message = Fore.GREEN + message + Style.RESET_ALL
+            message = self.colorizer.color(message, fore="green")
 
         elif status == 401:
-            message = Fore.YELLOW + message + Style.RESET_ALL
+            message = self.colorizer.color(message, fore="yellow")
 
         elif status == 403:
-            message = Fore.BLUE + message + Style.RESET_ALL
+            message = self.colorizer.color(message, fore="blue")
 
         elif status in range(500, 600):
-            message = Fore.RED + message + Style.RESET_ALL
+            message = self.colorizer.color(message, fore="red")
 
         elif status in range(300, 400):
-            message = Fore.CYAN + message + Style.RESET_ALL
-            if "location" in [h.lower() for h in response.headers]:
-                message += "  ->  {0}".format(response.headers["location"])
+            message = self.colorizer.color(message, fore="cyan")
 
         else:
-            message = Fore.MAGENTA + message + Style.RESET_ALL
+            message = self.colorizer.color(message, fore="magenta")
 
+        if response.redirect:
+            message += "  ->  {0}".format(response.redirect)
         if added_to_queue:
             message += "     (Added to queue)"
 
@@ -159,10 +153,3 @@ class PrintOutput(object):
     def debug(self, info):
         with self.mutex:
             self.new_line(info)
-
-    def disable_colors(self):
-        global Fore
-        global Style
-        global Back
-
-        Fore = Style = Back = NoColor
