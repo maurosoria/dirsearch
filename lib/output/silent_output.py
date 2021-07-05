@@ -39,7 +39,7 @@ class PrintOutput(object):
         init()
         self.mutex = Lock()
         self.blacklists = {}
-        self.mutex_checked_paths = threading.Lock()
+        self.mutex_checked_paths = Lock()
         self.base_path = None
         self.errors = 0
         if not color:
