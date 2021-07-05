@@ -128,7 +128,7 @@ class CLIOutput(object):
             message = self.colorizer.color(message, fore="cyan")
 
         else:
-            message =  self.colorizer.color(message, fore="magenta")
+            message = self.colorizer.color(message, fore="magenta")
 
         if response.redirect:
             message += "  ->  {0}".format(response.redirect)

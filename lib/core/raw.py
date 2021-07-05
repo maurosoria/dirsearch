@@ -66,4 +66,3 @@ class Raw(object):
     @property
     def headers(self):
         return self.headersparser.headers
-

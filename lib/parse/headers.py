@@ -42,9 +42,7 @@ class HeadersParser(object):
             return None
 
         return dict(
-            email.message_from_file(
-                StringIO("\r\n".join(raw))
-            )
+            email.message_from_file(StringIO(raw))
         )
 
     @staticmethod

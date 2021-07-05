@@ -24,6 +24,9 @@ def safequote(string):
 
 
 def uniq(string_list, filt=False):
+    if not string_list:
+        return string_list
+
     unique = dict.fromkeys(string_list)
     return list(filter(None, unique)) if filt else list(unique)
 
@@ -42,7 +45,7 @@ def lowercase(data):
         return data.lower()
     elif isinstance(data, list):
         return [i.lower() for i in data if isinstance(i, str)]
-    elif isinstance(data, list):
+    elif isinstance(data, dict):
         return dict((key.lower(), value) for key, value in data.items())
     elif isinstance(data, tuple):
         return tuple(i.lower() for i in data if isinstance(i, str))
