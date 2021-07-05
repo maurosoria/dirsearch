@@ -37,7 +37,7 @@ class NoColor:
 class PrintOutput(object):
     def __init__(self, color):
         init()
-        self.mutex = threading.Lock()
+        self.mutex = Lock()
         self.blacklists = {}
         self.mutex_checked_paths = threading.Lock()
         self.base_path = None
