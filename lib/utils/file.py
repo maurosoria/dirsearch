@@ -104,12 +104,28 @@ class FileUtils(object):
         return True
 
     @staticmethod
+    def can_read_dir(directory):
+        for root, _, files in os.walk(directory):
+            for file in files:
+                if not FileUtils.can_read(os.path.join(root, file)):
+                    return False
+        return True
+
+    @staticmethod
     def can_write(file_name):
         return os.access(file_name, os.W_OK)
 
     @staticmethod
     def read(file_name):
         return open(file_name, "r").read()
+
+    @staticmethod
+    def read_dir(directory):
+        data = {}
+        for root, _, files in os.walk(directory):
+            for file in files:
+                data[file] = FileUtils.read(os.path.join(root, file))
+        return data
 
     @staticmethod
     def get_lines(file_name):
