@@ -20,4 +20,4 @@ from ipaddress import IPv4Network
 
 
 def iprange(self, subnet):
-    return [str(ip) for ip in IPv4Network(options.cidr)]
+    return [str(ip) for ip in IPv4Network(subnet)]

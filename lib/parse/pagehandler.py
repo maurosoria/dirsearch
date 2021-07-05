@@ -16,6 +16,8 @@
 #
 #  Author: Mauro Soria
 
+import re
+
 try:
     from bs4 import BeautifulSoup
 except ImportError:

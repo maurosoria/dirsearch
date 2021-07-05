@@ -18,7 +18,6 @@
 
 import re
 import threading
-import urllib.parse
 
 from lib.utils.data import safequote
 from lib.utils.file import File, FileUtils

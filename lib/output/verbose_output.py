@@ -109,7 +109,7 @@ class CLIOutput(object):
         show_path = "/" + self.base_path + path
 
         if full_url:
-            parsed = urllib.parse.urlparse(self.target)
+            parsed = urlparse(self.target)
             show_path = "{0}://{1}{2}".format(parsed.scheme, parsed.netloc, show_path)
 
         message = "[{0}] {1} - {2} - {3}".format(

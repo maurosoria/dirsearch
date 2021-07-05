@@ -18,12 +18,15 @@
 
 from urllib.parse import quote
 
+
 def safequote(string):
     return quote(string, safe="!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~")
+
 
 def uniq(string_list, filt=False):
     unique = dict.fromkeys(string_list)
     return list(filter(None, unique)) if filt else list(unique)
+
 
 # Some characters are denied in file name by Windows
 def cleanfilename(string):
@@ -32,6 +35,7 @@ def cleanfilename(string):
         string = string.replace(char, "-")
 
     return string
+
 
 def lowercase(data):
     if isinstance(data, str):
