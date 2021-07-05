@@ -179,7 +179,7 @@ class Dictionary(object):
             self.entries = uniq(map(lambda l: l.upper(), result))
 
         elif self.capitalization:
-            self.entries = uniq((map(lambda l: l.capitalize(), result))
+            self.entries = uniq(map(lambda l: l.capitalize(), result))
 
         else:
             self.entries = uniq(result)
