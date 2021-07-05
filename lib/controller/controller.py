@@ -34,6 +34,7 @@ from lib.core.raw import Raw
 from lib.core.report_manager import Report, ReportManager
 from lib.utils.file import FileUtils
 from lib.utils.data import cleanfilename
+from lib.utils.data import uniq
 from lib.utils.timer import Timer
 
 
@@ -108,7 +109,7 @@ class Controller(object):
                 "Cache-Control": "max-age=0",
             }
 
-            self.url_list = list(filter(None, dict.fromkeys(arguments.url_list)))
+            self.url_list = uniq(arguments.url_list, filt=True)
             self.httpmethod = arguments.httpmethod.lower()
             self.data = arguments.data
             self.headers = {**default_headers, **arguments.headers}

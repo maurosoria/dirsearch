@@ -20,6 +20,7 @@ import re
 import threading
 
 from lib.utils.data import safequote
+from lib.utils.data import uniq
 from lib.utils.file import File, FileUtils
 
 
@@ -98,7 +99,7 @@ class Dictionary(object):
 
         # Enable to use multiple dictionaries at once
         for dict_file in self.dictionary_files:
-            for line in list(filter(None, dict.fromkeys(dict_file.get_lines()))):
+            for line in uniq(dict_file.get_lines(), filt=True):
                 # Skip comments
                 if line.lstrip().startswith("#"):
                     continue
@@ -172,16 +173,16 @@ class Dictionary(object):
         result = custom if custom else result
 
         if self.lowercase:
-            self.entries = list(dict.fromkeys(map(lambda l: l.lower(), result)))
+            self.entries = uniq(map(lambda l: l.lower(), result))
 
         elif self.uppercase:
-            self.entries = list(dict.fromkeys(map(lambda l: l.upper(), result)))
+            self.entries = uniq(map(lambda l: l.upper(), result))
 
         elif self.capitalization:
-            self.entries = list(dict.fromkeys(map(lambda l: l.capitalize(), result)))
+            self.entries = uniq((map(lambda l: l.capitalize(), result))
 
         else:
-            self.entries = list(dict.fromkeys(result))
+            self.entries = uniq(result)
 
         del custom
         del result
