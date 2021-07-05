@@ -42,7 +42,6 @@ class ArgumentParser(object):
         self.raw_file = None
 
         if not options.url:
-
             if options.url_list:
                 file = self.access_file(options.url_list, "file contains URLs")
                 self.url_list = list(file.get_lines())
@@ -63,6 +62,8 @@ class ArgumentParser(object):
 
         else:
             self.url_list = [options.url]
+
+        self.url_list = uniq(self.url_list)
 
         if not options.extensions and not options.no_extension:
             print("WARNING: No extension was specified!")
