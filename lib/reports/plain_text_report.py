@@ -16,11 +16,11 @@
 #
 #  Author: Mauro Soria
 
-from lib.reports import FileBaseReport
-from lib.utils.file_utils import FileUtils
-
 import time
 import sys
+
+from lib.reports.base import FileBaseReport
+from lib.utils.file import FileUtils
 
 
 class PlainTextReport(FileBaseReport):

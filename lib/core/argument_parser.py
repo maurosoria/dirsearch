@@ -17,17 +17,16 @@
 #  Author: Mauro Soria
 
 import sys
-import email
 
 from optparse import OptionParser, OptionGroup
-from ipaddress import IPv4Network
-from io import StringIO
 
-from lib.utils.default_config_parser import DefaultConfigParser
-from lib.utils.file_utils import File
-from lib.utils.file_utils import FileUtils
-from lib.utils.parser_utils import ParserUtils
-from thirdparty.oset import oset
+from lib.parse.configparser import ConfigParser
+from lib.parse.headers import HeadersParser
+from lib.utils.data import uniq
+from lib.utils.file import File
+from lib.utils.file import FileUtils
+from lib.utils.range import get_range
+from lib.utils.iprange import iprange
 
 
 class ArgumentParser(object):
@@ -49,7 +48,7 @@ class ArgumentParser(object):
                 self.url_list = list(file.get_lines())
 
             elif options.cidr:
-                self.url_list = [str(ip) for ip in IPv4Network(options.cidr)]
+                self.url_list = iprange(options.cidr)
 
             elif options.stdin_urls:
                 self.url_list = sys.stdin.read().splitlines()
@@ -94,29 +93,23 @@ class ArgumentParser(object):
         else:
             self.replay_proxy = None
 
+        self.headers = {}
+
         if options.headers:
             try:
-                self.headers = dict(
-                    email.message_from_file(StringIO("\r\n".join(options.headers)))
+                self.headers.update(
+                    HeadersParser(options.headers).headers
                 )
             except Exception:
                 print("Invalid headers")
                 exit(1)
 
-        else:
-            self.headers = {}
-
         if options.header_list:
             try:
                 file = self.access_file(options.header_list, "header list file")
-
-                headers = dict(
-                    email.message_from_file(StringIO(file.read()))
+                self.headers.update(
+                    HeadersParser(file.read()).headers
                 )
-
-                for key, value in headers.items():
-                    self.headers[key] = value
-
             except Exception as e:
                 print("Error in headers file: " + str(e))
                 exit(1)
@@ -130,13 +123,11 @@ class ArgumentParser(object):
             print("A weird extension was provided: 'banner.txt'. Please do not use * as the extension or enclose it in double quotes")
             exit(0)
         else:
-            self.extensions = list(
-                oset([extension.lstrip(' .') for extension in options.extensions.split(",")])
-            )
+            self.extensions = uniq([extension.lstrip(' .') for extension in options.extensions.split(",")])
 
         if options.exclude_extensions:
-            self.exclude_extensions = list(
-                oset([exclude_extension.lstrip(' .') for exclude_extension in options.exclude_extensions.split(",")])
+            self.exclude_extensions = uniq(
+                [exclude_extension.lstrip(' .') for exclude_extension in options.exclude_extensions.split(",")]
             )
         else:
             self.exclude_extensions = []
@@ -168,14 +159,10 @@ class ArgumentParser(object):
 
         if options.exclude_sizes:
             try:
-                self.exclude_sizes = list(
-                    oset(
-                        [
-                            exclude_size.strip().upper() if exclude_size else None
-                            for exclude_size in options.exclude_sizes.split(",")
-                        ]
-                    )
-                )
+                self.exclude_sizes = uniq([
+                    exclude_size.strip().upper() if exclude_size else None
+                    for exclude_size in options.exclude_sizes.split(",")
+                ])
 
             except ValueError:
                 self.exclude_sizes = []
@@ -184,14 +171,10 @@ class ArgumentParser(object):
 
         if options.exclude_texts:
             try:
-                self.exclude_texts = list(
-                    oset(
-                        [
-                            exclude_text.strip() if exclude_text else None
-                            for exclude_text in options.exclude_texts.split(",")
-                        ]
-                    )
-                )
+                self.exclude_texts = uniq([
+                    exclude_text.strip() if exclude_text else None
+                    for exclude_text in options.exclude_texts.split(",")
+                ])
 
             except ValueError:
                 self.exclude_texts = []
@@ -200,14 +183,10 @@ class ArgumentParser(object):
 
         if options.exclude_regexps:
             try:
-                self.exclude_regexps = list(
-                    oset(
-                        [
-                            exclude_regexp.strip() if exclude_regexp else None
-                            for exclude_regexp in options.exclude_regexps.split(",")
-                        ]
-                    )
-                )
+                self.exclude_regexps = uniq([
+                    exclude_regexp.strip() if exclude_regexp else None
+                    for exclude_regexp in options.exclude_regexps.split(",")
+                ])
 
             except ValueError:
                 self.exclude_regexps = []
@@ -216,24 +195,20 @@ class ArgumentParser(object):
 
         if options.exclude_redirects:
             try:
-                self.exclude_redirects = list(
-                    oset(
-                        [
-                            exclude_redirect.strip() if exclude_redirect else None
-                            for exclude_redirect in options.exclude_redirects.split(",")
-                        ]
-                    )
-                )
+                self.exclude_redirects = uniq([
+                    exclude_redirect.strip() if exclude_redirect else None
+                    for exclude_redirect in options.exclude_redirects.split(",")
+                ])
 
             except ValueError:
                 self.exclude_redirects = []
         else:
             self.exclude_redirects = []
 
-        self.prefixes = [] if not options.prefixes else list(oset([prefix.strip() for prefix in options.prefixes.split(",")]))
-        self.suffixes = [] if not options.suffixes else list(oset([suffix.strip() for suffix in options.suffixes.split(",")]))
+        self.prefixes = uniq([prefix.strip() for prefix in options.prefixes.split(",")]) if options.prefixes else []
+        self.suffixes = uniq([suffix.strip() for suffix in options.suffixes.split(",")]) if options.suffixes else []
         if options.wordlist:
-            self.wordlist = list(oset([wordlist.strip() for wordlist in options.wordlist.split(",")]))
+            self.wordlist = uniq([wordlist.strip() for wordlist in options.wordlist.split(",")])
         else:
             print("No wordlist was provided, try using -w <wordlist>")
             exit(1)
@@ -321,7 +296,7 @@ class ArgumentParser(object):
         for status_code in raw_status_codes.split(","):
             try:
                 if "-" in status_code:
-                    status_codes.extend(ParserUtils.get_range(status_code))
+                    status_codes.extend(get_range(status_code))
 
                 else:
                     status_codes.append(int(status_code.strip()))
@@ -330,7 +305,7 @@ class ArgumentParser(object):
                 print("Invalid status code or status code range: {0}".format(status_code))
                 exit(1)
 
-        return status_codes
+        return uniq(status_codes)
 
     def access_file(self, path, name):
         with File(path) as file:
@@ -349,7 +324,7 @@ class ArgumentParser(object):
             return file
 
     def parse_config(self):
-        config = DefaultConfigParser()
+        config = ConfigParser()
         config_path = FileUtils.build_path(self.script_path, "default.conf")
         config.read(config_path)
 

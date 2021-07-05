@@ -17,10 +17,11 @@
 #  Author: Mauro Soria
 
 import sys
-import threading
-import urllib.parse
 
-from lib.utils.file_utils import FileUtils
+from threading import Lock
+from urllib.parse import urlparse
+
+from lib.utils.file import FileUtils
 from thirdparty.colorama import init, Fore, Style
 
 if sys.platform in ["win32", "msys"]:
@@ -87,7 +88,7 @@ class PrintOutput(object):
 
         show_path = "/" + self.base_path + path
 
-        parsed = urllib.parse.urlparse(self.target)
+        parsed = urlparse(self.target)
         show_path = "{0}://{1}{2}".format(parsed.scheme, parsed.netloc, show_path)
 
         message = "{0} - {1} - {2}".format(

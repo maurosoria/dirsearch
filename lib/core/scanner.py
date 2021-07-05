@@ -19,7 +19,8 @@
 import re
 
 from urllib.parse import unquote
-from lib.utils import RandomUtils
+
+from lib.utils.random import rand_string
 from thirdparty.sqlmap import DynamicContentParser
 
 
@@ -59,7 +60,7 @@ class Scanner(object):
     """
     def setup(self):
         first_path = self.prefix + (
-            self.calibration if self.calibration else RandomUtils.rand_string()
+            self.calibration if self.calibration else rand_string()
         ) + self.suffix
         first_response = self.requester.request(first_path)
         self.response = first_response
@@ -78,7 +79,7 @@ class Scanner(object):
             return
 
         second_path = self.prefix + (
-            self.calibration if self.calibration else RandomUtils.rand_string(omit=first_path)
+            self.calibration if self.calibration else rand_string(omit=first_path)
         ) + self.suffix
         second_response = self.requester.request(second_path)
 
@@ -135,7 +136,7 @@ class Scanner(object):
     """
     def generate_redirect_reg_exp(self, first_loc, first_path, second_loc, second_path):
         # Use a unique sign to locate where the path gets reflected in the redirect
-        self.sign = RandomUtils.rand_string(n=20)
+        self.sign = rand_string(n=20)
         first_loc = first_loc.replace(first_path, self.sign)
         second_loc = second_loc.replace(second_path, self.sign)
         reg_exp_start = "^"

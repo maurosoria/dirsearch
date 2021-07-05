@@ -18,11 +18,12 @@
 
 import re
 import sys
-import threading
 import time
-import urllib.parse
 
-from lib.utils.file_utils import FileUtils
+from threading import Lock
+from urllib.parse import urlparse
+
+from lib.utils.file import FileUtils
 from lib.utils.terminal_size import get_terminal_size
 from thirdparty.colorama import init, Fore, Back, Style
 
@@ -42,7 +43,7 @@ class CLIOutput(object):
         self.last_length = 0
         self.last_output = ""
         self.last_in_line = False
-        self.mutex = threading.Lock()
+        self.mutex = Lock()
         self.blacklists = {}
         self.base_path = None
         self.errors = 0

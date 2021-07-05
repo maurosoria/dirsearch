@@ -21,8 +21,8 @@ import os
 import sys
 import time
 
-from lib.reports import FileBaseReport
-from lib.utils import FileUtils
+from lib.reports.base import FileBaseReport
+from lib.utils.file import FileUtils
 from thirdparty.mako.template import Template
 
 

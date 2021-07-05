@@ -21,14 +21,20 @@ import os
 import sys
 import time
 import re
+import threading
 
 from urllib.parse import urljoin, urlparse
-from threading import Lock
 from queue import Queue
 
-from lib.connection import Requester, RequestException
-from lib.core import Dictionary, Fuzzer, Report, ReportManager, Raw
-from lib.utils import FileUtils
+from lib.connection.requester import Requester
+from lib.connection.request_exception import RequestException
+from lib.core.dictionary import Dictionary
+from lib.core.fuzzer import Fuzzer
+from lib.core.raw import Raw
+from lib.core.report_manager import Report, ReportManager
+from lib.utils.file import FileUtils
+from lib.utils.data import cleanfilename
+from lib.utils.timer import Timer
 
 
 class SkipTargetInterrupt(Exception):
@@ -58,6 +64,17 @@ class EmptyReport(object):
         pass
 
     def add_result(self, *args):
+        pass
+
+
+class EmptyTimer(object):
+    def __init__(self):
+        pass
+
+    def pause(self):
+        pass
+
+    def resume(self):
         pass
 
 
@@ -110,19 +127,27 @@ class Controller(object):
                 FileUtils.create_directory(self.logs_path)
 
         if arguments.output_location and self.validate_path(arguments.output_location):
-            self.save_path = FileUtils.build_path(arguments.output_location)
+            self.report_path = FileUtils.build_path(arguments.output_location)
         elif self.validate_path(self.script_path):
-            self.save_path = FileUtils.build_path(self.script_path, "reports")
-            if not FileUtils.exists(self.save_path):
-                FileUtils.create_directory(self.save_path)
+            self.report_path = FileUtils.build_path(self.script_path, "reports")
+            if not FileUtils.exists(self.report_path):
+                FileUtils.create_directory(self.report_path)
 
         self.blacklists = Dictionary.generate_blacklists(arguments.extensions, self.script_path)
+        self.extensions = arguments.extensions
+        self.prefixes = arguments.prefixes
+        self.suffixes = arguments.suffixes
+        self.threads_count = arguments.threads_count
+        self.output_file = arguments.output_file
+        self.output_format = arguments.output_format
         self.include_status_codes = arguments.include_status_codes
         self.exclude_status_codes = arguments.exclude_status_codes
         self.exclude_sizes = arguments.exclude_sizes
         self.exclude_texts = arguments.exclude_texts
         self.exclude_regexps = arguments.exclude_regexps
         self.exclude_redirects = arguments.exclude_redirects
+        self.replay_proxy = arguments.replay_proxy
+        self.recursive = self.arguments.recursive
         self.deep_recursive = arguments.deep_recursive
         self.force_recursive = arguments.force_recursive
         self.recursion_status_codes = arguments.recursion_status_codes
@@ -130,6 +155,11 @@ class Controller(object):
         self.maximum_response_size = arguments.maximum_response_size
         self.scan_subdirs = arguments.scan_subdirs
         self.exclude_subdirs = arguments.exclude_subdirs
+        self.full_url = arguments.full_url
+        self.skip_on_status = arguments.skip_on_status
+        self.exit_on_error = arguments.exit_on_error
+        self.show_rate = arguments.show_rate
+        self.maxtime = arguments.maxtime
 
         self.dictionary = Dictionary(
             paths=arguments.wordlist,
@@ -145,14 +175,19 @@ class Controller(object):
             only_selected=arguments.only_selected
         )
 
-        self.jobs_count = len(self.url_list) * (len(self.scan_subdirs) if self.scan_subdirs else 1)
+        self.jobs_count = len(self.url_list) * (
+            len(self.scan_subdirs) if self.scan_subdirs else 1
+        )
         self.current_job = 0
-        self.start_time = time.time()
         self.error_log = None
         self.error_log_path = None
-        self.threads_lock = Lock()
+        self.threads_lock = threading.Lock()
         self.batch = False
         self.batch_session = None
+
+        self.report_manager = EmptyReportManager()
+        self.report = EmptyReport()
+        self.timer = EmptyTimer()
 
         self.output.header(program_banner)
         self.print_config()
@@ -162,13 +197,15 @@ class Controller(object):
                 FileUtils.build_path(script_path, "db", "user-agents.txt")
             )
 
-        self.report_manager = EmptyReportManager()
-        self.report = EmptyReport()
         if arguments.autosave_report or arguments.output_file:
             self.setup_reports()
 
         self.setup_error_logs()
         self.output.error_log_file(self.error_log_path)
+
+        if self.maxtime:
+            threading.Thread(target=self.time_monitor, daemon=True).start()
+
         try:
             for url in self.url_list:
                 try:
@@ -198,6 +235,7 @@ class Controller(object):
                         if arguments.auth:
                             self.requester.set_auth(arguments.auth_type, arguments.auth)
 
+                        # Test request to see if server is up
                         self.requester.request("")
 
                         if arguments.autosave_report or arguments.output_file:
@@ -260,20 +298,18 @@ class Controller(object):
     # Print dirsearch metadata (threads, HTTP method, ...)
     def print_config(self):
         self.output.config(
-            ', '.join(self.arguments.extensions),
-            ', '.join(self.arguments.prefixes),
-            ', '.join(self.arguments.suffixes),
-            str(self.arguments.threads_count),
+            ', '.join(self.extensions),
+            ', '.join(self.prefixes),
+            ', '.join(self.suffixes),
+            str(self.threads_count),
             str(len(self.dictionary)),
             str(self.httpmethod),
         )
 
-    # Check if the runtime exceeded the maximum runtime set by user
-    def is_timed_out(self):
-        if self.arguments.maxtime and time.time() - self.start_time > self.arguments.maxtime:
-            return True
-
-        return False
+    def time_monitor(self):
+        self.timer = Timer()
+        self.timer.count(self.maxtime)
+        self.close("\nCanceled because the runtime exceeded the maximal set by user")
 
     # Create error log file
     def setup_error_logs(self):
@@ -293,10 +329,10 @@ class Controller(object):
     # Create batch report folder
     def setup_batch_reports(self):
         self.batch = True
-        if not self.arguments.output_file:
+        if not self.output_file:
             self.batch_session = "BATCH-{0}".format(time.strftime("%y-%m-%d_%H-%M-%S"))
             self.batch_directory_path = FileUtils.build_path(
-                self.save_path, self.batch_session
+                self.report_path, self.batch_session
             )
 
             if not FileUtils.exists(self.batch_directory_path):
@@ -310,15 +346,15 @@ class Controller(object):
 
     # Get file extension for report format
     def get_output_extension(self):
-        if self.arguments.output_format and self.arguments.output_format not in ["plain", "simple"]:
-            return ".{0}".format(self.arguments.output_format)
+        if self.output_format and self.output_format not in ["plain", "simple"]:
+            return ".{0}".format(self.output_format)
         else:
             return ".txt"
 
     # Create report file
     def setup_reports(self):
-        if self.arguments.output_file:
-            output_file = FileUtils.get_abs_path(self.arguments.output_file)
+        if self.output_file:
+            output_file = FileUtils.get_abs_path(self.output_file)
             self.output.output_file(output_file)
         else:
             if len(self.url_list) > 1:
@@ -329,12 +365,15 @@ class Controller(object):
             else:
                 parsed = urlparse(self.url_list[0])
                 filename = (
-                    "{}_".format(parsed.path.replace("/", "-"))
+                    "{}_".format(parsed.path)
                 )
                 filename += time.strftime("%y-%m-%d_%H-%M-%S")
                 filename += self.get_output_extension()
-                directory_path = FileUtils.build_path(self.save_path, parsed.netloc)
+                directory_path = FileUtils.build_path(
+                    self.report_path, cleanfilename(parsed.netloc)
+                )
 
+            filename = cleanfilename(filename)
             output_file = FileUtils.build_path(directory_path, filename)
 
             if FileUtils.exists(output_file):
@@ -355,10 +394,10 @@ class Controller(object):
 
             self.output.output_file(output_file)
 
-        if self.arguments.output_file and self.arguments.output_format:
-            self.report_manager = ReportManager(self.arguments.output_format, self.arguments.output_file)
-        elif self.arguments.output_format:
-            self.report_manager = ReportManager(self.arguments.output_format, output_file)
+        if self.output_file and self.output_format:
+            self.report_manager = ReportManager(self.output_format, self.output_file)
+        elif self.output_format:
+            self.report_manager = ReportManager(self.output_format, output_file)
         else:
             self.report_manager = ReportManager("plain", output_file)
 
@@ -428,7 +467,7 @@ class Controller(object):
     def match_callback(self, path):
         self.index += 1
 
-        for status in self.arguments.skip_on_status:
+        for status in self.skip_on_status:
             if path.status == status:
                 self.status_skip = status
                 return
@@ -440,7 +479,7 @@ class Controller(object):
         added_to_queue = False
 
         if (
-                any([self.arguments.recursive, self.deep_recursive, self.force_recursive])
+                any([self.recursive, self.deep_recursive, self.force_recursive])
         ) and (
                 not self.recursion_status_codes or path.status in self.recursion_status_codes
         ):
@@ -450,11 +489,11 @@ class Controller(object):
                 added_to_queue = self.add_directory(path.path)
 
         self.output.status_report(
-            path.path, path.response, self.arguments.full_url, added_to_queue
+            path.path, path.response, self.full_url, added_to_queue
         )
 
-        if self.arguments.replay_proxy:
-            self.requester.request(path.path, proxy=self.arguments.replay_proxy)
+        if self.replay_proxy:
+            self.requester.request(path.path, proxy=self.replay_proxy)
 
         new_path = self.current_directory + path.path
 
@@ -473,16 +512,14 @@ class Controller(object):
             self.current_job,
             self.jobs_count,
             self.fuzzer.stand_rate,
-            self.arguments.show_rate,
+            self.show_rate,
         )
         del path
 
     # Callback for errors while fuzzing
     def error_callback(self, path, error_msg):
-        if self.arguments.exit_on_error:
-            self.fuzzer.stop()
-            self.output.error("\nCanceled due to an error")
-            exit(1)
+        if self.exit_on_error:
+            self.close("\nCanceled due to an error")
 
         else:
             self.output.add_connection_error()
@@ -491,20 +528,17 @@ class Controller(object):
     def append_error_log(self, path, error_msg):
         with self.threads_lock:
             line = time.strftime("[%y-%m-%d %H:%M:%S] - ")
-            line += self.requester.base_url + " - " + self.base_path + self.current_directory + path + " - " + error_msg
+            line += self.requester.base_url + self.base_path + self.current_directory + path + " - " + error_msg
             self.error_log.write(os.linesep + line)
             self.error_log.flush()
 
     # Handle CTRL+C
     def handle_pause(self, message):
         self.output.warning(message)
+        self.timer.pause()
         self.fuzzer.pause()
 
-        # If one of the tasks is broken, don't let the user wait forever
-        for i in range(300):
-            if self.fuzzer.is_stopped():
-                break
-            time.sleep(0.02)
+        Timer.wait(self.fuzzer.is_stopped)
 
         while True:
             msg = "[q]uit / [c]ontinue"
@@ -520,20 +554,20 @@ class Controller(object):
             option = input()
 
             if option.lower() == "q":
-                self.fuzzer.stop()
-                self.output.error("\nCanceled by the user")
-                self.report_manager.update_report(self.report)
-                exit(0)
+                self.close("\nCanceled by the user")
 
             elif option.lower() == "c":
+                self.timer.resume()
                 self.fuzzer.resume()
                 return
 
             elif option.lower() == "n" and not self.directories.empty():
+                self.timer.resume()
                 self.fuzzer.stop()
                 return
 
             elif option.lower() == "s" and len(self.url_list) > 1:
+                self.timer.resume()
                 raise SkipTargetInterrupt
 
     # Monitor the fuzzing process
@@ -543,21 +577,10 @@ class Controller(object):
                 while not self.fuzzer.wait(0.25):
                     # Check if the "skip status code" was returned
                     if self.status_skip:
-                        self.fuzzer.pause()
-                        time.sleep(1.5)
-
-                        self.output.error(
-                            "\nSkipped the target due to {0} status code".format(self.status_skip)
+                        self.close(
+                            "\nSkipped the target due to {0} status code".format(self.status_skip),
+                            skip=True
                         )
-
-                        raise SkipTargetInterrupt
-
-                    elif self.is_timed_out():
-                        self.output.error(
-                            "\nCanceled because the runtime exceeded the maximal set by user"
-                        )
-                        exit(0)
-
                 break
 
             except KeyboardInterrupt:
@@ -605,7 +628,7 @@ class Controller(object):
             if not full_path.endswith("/"):
                 full_path += "/"
             dirs.append(full_path)
-        elif self.arguments.recursive and full_path.endswith("/"):
+        elif self.recursive and full_path.endswith("/"):
             dirs.append(full_path)
 
         for dir in list(set(dirs)):
@@ -636,3 +659,12 @@ class Controller(object):
             return self.add_directory(path)
 
         return False
+
+    def close(self, msg=None, skip=False):
+        self.fuzzer.stop()
+        self.output.error(msg)
+        if skip:
+            raise SkipTargetInterrupt
+
+        self.report_manager.update_report(self.report)
+        exit(0)

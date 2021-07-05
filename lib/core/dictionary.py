@@ -20,7 +20,8 @@ import re
 import threading
 import urllib.parse
 
-from lib.utils.file_utils import File, FileUtils
+from lib.utils.data import safequote
+from lib.utils.file import File, FileUtils
 
 
 class Dictionary(object):
@@ -72,10 +73,6 @@ class Dictionary(object):
     @paths.setter
     def paths(self, paths):
         self._paths = paths
-
-    @classmethod
-    def quote(cls, string):
-        return urllib.parse.quote(string, safe="!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~")
 
     """
     Dictionary.generate() behaviour
@@ -132,13 +129,13 @@ class Dictionary(object):
                     for extension in self._extensions:
                         newline = reext(extension, line)
 
-                        quoted = self.quote(newline)
+                        quoted = safequote(newline)
                         result.append(quoted)
 
                 # If forced extensions is used and the path is not a directory ... (terminated by /)
                 # process line like a forced extension.
                 elif self._force_extensions and not line.rstrip().endswith("/") and "." not in line and force:
-                    quoted = self.quote(line)
+                    quoted = safequote(line)
 
                     for extension in self._extensions:
                         # Why? Check https://github.com/maurosoria/dirsearch/issues/70
@@ -155,7 +152,7 @@ class Dictionary(object):
                     ):
                         continue
 
-                    quoted = self.quote(line)
+                    quoted = safequote(line)
                     result.append(quoted)
 
         # Adding prefixes for finding config files etc
@@ -230,10 +227,6 @@ class Dictionary(object):
                     blacklists[status].append(line)
 
         return blacklists
-
-    def regenerate(self):
-        self.generate()
-        self.reset()
 
     def next_with_index(self, base_path=None):
         self.condition.acquire()
