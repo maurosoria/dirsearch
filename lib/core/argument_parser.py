@@ -356,7 +356,6 @@ class ArgumentParser(object):
         self.full_url = config.safe_getboolean("general", "full-url", False)
         self.color = config.safe_getboolean("general", "color", True)
         self.quiet = config.safe_getboolean("general", "quiet-mode", False)
-        self.show_rate = config.safe_getboolean("general", "show-rate", False)
 
         # Reports
         self.output_location = config.safe_get("reports", "report-output-folder", None)

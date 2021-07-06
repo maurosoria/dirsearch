@@ -21,7 +21,7 @@ import sys
 from threading import Lock
 from urllib.parse import urlparse
 
-from lib.utils.file import FileUtils
+from lib.utils.data import human_size
 from .colors import ColorOutput
 
 if sys.platform in ["win32", "msys"]:
@@ -67,18 +67,8 @@ class PrintOutput(object):
         sys.stdout.flush()
 
     def status_report(self, path, response, full_url, added_to_queue):
-        content_length = None
         status = response.status
-
-        # Format message
-        try:
-            size = int(response.headers["content-length"])
-
-        except (KeyError, ValueError):
-            size = response.length
-
-        finally:
-            content_length = FileUtils.size_human(size)
+        content_length = human_size(response.length)
 
         show_path = "/" + self.base_path + path
 
@@ -115,7 +105,7 @@ class PrintOutput(object):
         with self.mutex:
             self.new_line(message)
 
-    def last_path(self, path, index, length, current_job, all_jobs, rate, show_rate):
+    def last_path(self, index, length, current_job, all_jobs, rate):
         pass
 
     def add_connection_error(self):

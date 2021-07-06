@@ -33,7 +33,7 @@ from lib.core.fuzzer import Fuzzer
 from lib.core.raw import Raw
 from lib.core.report_manager import Report, ReportManager
 from lib.utils.file import FileUtils
-from lib.utils.data import cleanfilename
+from lib.utils.data import clean_filename, human_size
 from lib.utils.timer import Timer
 
 
@@ -158,7 +158,6 @@ class Controller(object):
         self.full_url = arguments.full_url
         self.skip_on_status = arguments.skip_on_status
         self.exit_on_error = arguments.exit_on_error
-        self.show_rate = arguments.show_rate
         self.maxtime = arguments.maxtime
 
         self.dictionary = Dictionary(
@@ -370,10 +369,10 @@ class Controller(object):
                 filename += time.strftime("%y-%m-%d_%H-%M-%S")
                 filename += self.get_output_extension()
                 directory_path = FileUtils.build_path(
-                    self.report_path, cleanfilename(parsed.netloc)
+                    self.report_path, clean_filename(parsed.netloc)
                 )
 
-            filename = cleanfilename(filename)
+            filename = clean_filename(filename)
             output_file = FileUtils.build_path(directory_path, filename)
 
             if FileUtils.exists(output_file):
@@ -431,7 +430,7 @@ class Controller(object):
         if self.blacklists.get(path.status) and path.path in self.blacklists.get(path.status):
             return False
 
-        if self.exclude_sizes and FileUtils.size_human(path.length).strip() in self.exclude_sizes:
+        if self.exclude_sizes and human_size(path.length).strip() in self.exclude_sizes:
             return False
 
         if self.minimum_response_size and self.minimum_response_size > path.length:
@@ -506,13 +505,11 @@ class Controller(object):
     def not_found_callback(self, path):
         self.index += 1
         self.output.last_path(
-            path,
             self.index,
             len(self.dictionary),
             self.current_job,
             self.jobs_count,
             self.fuzzer.stand_rate,
-            self.show_rate,
         )
         del path
 

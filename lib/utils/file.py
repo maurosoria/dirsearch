@@ -146,15 +146,6 @@ class FileUtils(object):
             os.makedirs(directory)
 
     @staticmethod
-    def size_human(num):
-        base = 1024
-        for x in ["B ", "KB", "MB", "GB"]:
-            if num < base and num > -base:
-                return "%3.0f%s" % (num, x)
-            num /= base
-        return "%3.0f %s" % (num, "TB")
-
-    @staticmethod
     def write_lines(file_name, lines):
         if type(lines) is list:
             content = "\n".join(lines)

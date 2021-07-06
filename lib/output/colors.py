@@ -17,6 +17,7 @@
 #  Author: Mauro Soria
 
 from thirdparty.colorama import init, Fore, Back, Style
+from pyparsing import Literal, Word, Combine, Optional, Suppress, delimitedList, oneOf
 
 
 class ColorOutput(object):
@@ -40,7 +41,8 @@ class ColorOutput(object):
             "cyan": Back.CYAN,
             "white": Back.WHITE
         }
-
+        self.escape_seq = None
+        self.prepare_sequence_escaper()
         init()
 
     def color(self, msg, fore=None, back=None, bright=False):
@@ -54,5 +56,16 @@ class ColorOutput(object):
         if back:
             msg = self.back_table[back] + msg
 
-        msg += Style.RESET_ALL
-        return msg
+        return msg + Style.RESET_ALL
+
+    # Credit: https://stackoverflow.com/a/2187024/12238982
+    def prepare_sequence_escaper(self):
+        ESC = Literal("\x1b")
+        integer = Word("0123456789")
+        alphas = list("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
+        self.escape_seq = Combine(
+            ESC + "[" + Optional(delimitedList(integer, ";")) + oneOf(alphas)
+        )
+
+    def clean_color(self, msg):
+        return Suppress(self.escape_seq).transformString(msg)

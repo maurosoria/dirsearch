@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #  This program is free software; you can redistribute it and/or modify
-#  it under the terms of the GNU General Public License as published by
+#  it under the terms of the GNU General Publlic License as published by
 #  the Free Software Foundation; either version 2 of the License, or
 #  (at your option) any later version.
 #
@@ -16,14 +16,13 @@
 #
 #  Author: Mauro Soria
 
-import re
 import sys
 import time
 
 from threading import Lock
 from urllib.parse import urlparse
 
-from lib.utils.file import FileUtils
+from lib.utils.data import human_size
 from lib.utils.terminal_size import get_terminal_size
 from .colors import ColorOutput
 
@@ -43,9 +42,6 @@ class CLIOutput(object):
         self.base_path = None
         self.errors = 0
         self.colorizer = ColorOutput(color)
-
-    def percentage(self, x, y):
-        return float(x) / float(y) * 100
 
     def in_line(self, string):
         self.erase()
@@ -86,18 +82,8 @@ class CLIOutput(object):
         sys.stdout.flush()
 
     def status_report(self, path, response, full_url, added_to_queue):
-        content_length = None
         status = response.status
-
-        # Format message
-        try:
-            size = int(response.headers["content-length"])
-
-        except (KeyError, ValueError):
-            size = response.length
-
-        finally:
-            content_length = FileUtils.size_human(size)
+        content_length = human_size(response.length)
 
         show_path = "/" + self.base_path + path
 
@@ -138,26 +124,32 @@ class CLIOutput(object):
         with self.mutex:
             self.new_line(message)
 
-    def last_path(self, path, index, length, current_job, all_jobs, rate, show_rate):
-        terminal_len, _ = get_terminal_size()
-        if terminal_len <= 45:
-            return
+    def last_path(self, index, length, current_job, all_jobs, rate):
+        percentage = int(index / length * 100)
+        progress = self.colorizer.color("#", fore="cyan", bright=True) * int(percentage / 5)
+        progress += " " * (20 - int(percentage / 5))
 
-        message = "{0:.2f}%{1} - ".format(
-            self.percentage(index, length),
-            " | {} req/s".format(rate) if show_rate else ""
+        message = "[{0}] {1}% {2} {3}/s       ".format(
+            progress,
+            percentage,
+            "{}/{}".format(index, length).rjust(12, " "),
+            str(rate).rjust(9, " "),
         )
 
-        if all_jobs > 1:
-            message += "Job: {0}/{1} - ".format(current_job, all_jobs)
+        message += "{0}:{1}/{2}  ".format(
+            self.colorizer.color("job", fore="green", bright=True),
+            current_job,
+            all_jobs
+        )
 
-        if self.errors:
-            message += "Errors: {0} - ".format(self.errors)
+        message += "{0}:{1}".format(
+            self.colorizer.color("errors", fore="red", bright=True),
+            self.errors
+        )
 
-        message += "Last request to: {0}".format(path)
-
-        if len(message) >= terminal_len:
-            message = message[:terminal_len - 1]
+        l, _ = get_terminal_size()
+        if len(self.colorizer.clean_color(message)) >= l:
+            return
 
         with self.mutex:
             self.in_line(message)
@@ -184,14 +176,12 @@ class CLIOutput(object):
 
     def add_config(self, key, value, msg):
         l, _ = get_terminal_size()
-        # Escape colours in text to get the real length
-        escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])|\n")
         particle = self.colorizer.color(key + ": ", fore="yellow", bright=True)
         particle += self.colorizer.color(value, fore="cyan", bright=True)
 
-        if len(escape.sub("", msg)) == 0:
+        if len(self.colorizer.clean_color(msg)) == 0:
             separator = ""
-        elif len(escape.sub("", msg.splitlines()[-1] + particle)) + 3 > l:
+        elif len(self.colorizer.clean_color(msg.splitlines()[-1] + particle)) + 3 > l:
             separator = "\n"
         else:
             separator = self.colorizer.color(" | ", fore="magenta", bright=True)
