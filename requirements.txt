@@ -4,3 +4,4 @@ urllib3>=1.21.1
 cryptography>=2.8
 PySocks>=1.6.8
 cffi>=1.14.0
+markupsafe>=2.0.1
