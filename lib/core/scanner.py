@@ -25,10 +25,6 @@ from lib.utils.random import rand_string
 from thirdparty.sqlmap import DynamicContentParser
 
 
-class ScannerException(Exception):
-    pass
-
-
 class Scanner(object):
     def __init__(self, requester, calibration=None, suffix=None, prefix=None, tested=None):
         self.calibration = calibration
