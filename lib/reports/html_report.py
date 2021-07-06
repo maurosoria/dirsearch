@@ -23,7 +23,6 @@ import time
 
 from lib.reports.base import FileBaseReport
 from lib.utils.data import human_size
-from lib.utils.file import FileUtils
 from thirdparty.mako.template import Template
 
 
