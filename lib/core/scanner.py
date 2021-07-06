@@ -20,6 +20,7 @@ import re
 
 from urllib.parse import unquote
 
+from lib.parse.similarity import SimilarityParser
 from lib.utils.random import rand_string
 from thirdparty.sqlmap import DynamicContentParser
 
@@ -36,9 +37,9 @@ class Scanner(object):
         self.tested = tested
         self.requester = requester
         self.tester = None
-        self.redirect_reg_exp = None
         self.response = None
         self.dynamic_parser = None
+        self.redirect_parser = None
         self.sign = None
         self.setup()
 
@@ -74,7 +75,7 @@ class Scanner(object):
             # Another test had been performed and shows the same response as this
             self.ratio = duplicate.ratio
             self.dynamic_parser = duplicate.dynamic_parser
-            self.redirect_reg_exp = duplicate.redirect_reg_exp
+            self.redirect_parser = duplicate.redirect_parser
             self.sign = duplicate.sign
             return
 
@@ -83,9 +84,8 @@ class Scanner(object):
         ) + self.suffix
         second_response = self.requester.request(second_path)
 
-        # Look for redirects
         if first_response.redirect and second_response.redirect:
-            self.redirect_reg_exp = self.generate_redirect_reg_exp(
+            self.generate_redirect_reg_exp(
                 first_response.redirect, first_path,
                 second_response.redirect, second_path,
             )
@@ -139,24 +139,9 @@ class Scanner(object):
         self.sign = rand_string(n=20)
         first_loc = first_loc.replace(first_path, self.sign)
         second_loc = second_loc.replace(second_path, self.sign)
-        reg_exp_start = "^"
-        reg_exp_end = "$"
-
-        for f, s in zip(first_loc, second_loc):
-            if f == s:
-                reg_exp_start += re.escape(f)
-            else:
-                reg_exp_start += ".*"
-                break
-
-        if reg_exp_start.endswith(".*"):
-            for f, s in zip(first_loc[::-1], second_loc[::-1]):
-                if f == s:
-                    reg_exp_end = re.escape(f) + reg_exp_end
-                else:
-                    break
-
-        return unquote(reg_exp_start + reg_exp_end)
+        self.redirect_parser = SimilarityParser(first_loc, second_loc)
+        self.redirect_parser.unquote = True
+        self.redirect_parser.ignorecase = True
 
     # Check if redirect matches the wildcard redirect regex or the response
     # has high similarity with wildcard tested at the start
@@ -167,21 +152,18 @@ class Scanner(object):
         if self.response.status != response.status:
             return True
 
-        if self.redirect_reg_exp and response.redirect:
+        if self.redirect_parser and response.redirect:
+            # Remove DOM (#) amd queries (?) before comparing to reduce false positives
+            path = path.split("?")[0].split("#")[0]
+            redirect = response.redirect.split("?")[0].split("#")[0]
+
             path = re.escape(unquote(path))
-            # A lot of times, '#' or '?' will be removed in the redirect, cause false positives
-            for char in ["\\#", "\\?"]:
-                if char in path:
-                    path = path.replace(char, "(|" + char) + ")"
 
-            redirect_reg_exp = self.redirect_reg_exp.replace(self.sign, path)
-
-            # Redirect sometimes encodes/decodes characters in URL, which may confuse the
-            # rule check and make noise in the output, so we need to unquote() everything
-            redirect_to_invalid = re.match(redirect_reg_exp, unquote(response.redirect))
+            regex = self.redirect_parser.regex.replace(self.sign, path)
+            redirect_to_invalid = self.redirect_parser.compare(regex, redirect)
 
             # If redirection doesn't match the rule, mark as found
-            if redirect_to_invalid is None:
+            if not redirect_to_invalid:
                 return True
 
         # Compare 2 responses (wildcard one and given one)

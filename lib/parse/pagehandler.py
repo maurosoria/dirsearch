@@ -39,15 +39,15 @@ class PageHandler(object):
         href = self.soup.find_all(["a", "base", "link"])
         src = self.soup.find_all(["script", "img"])
 
-        for _href in href:
-            _href = _href.get("href")
-            if _href:
-                yield urljoin(self.url, _href)
+        for href_ in href:
+            href_ = href_.get("href")
+            if href_:
+                yield urljoin(self.url, href_)
 
-        for _src in src:
-            _src = _src.get("src")
-            if _src:
-                yield urljoin(self.url, _src)
+        for src_ in src:
+            src_ = src.get("src")
+            if src_:
+                yield urljoin(self.url, src_)
 
     def scrape(self):
         relink = r"https?:\/\/[a-zA-Z0-9\.=\/\?@#&%-_:;\[\]\{\}]{4,70}"

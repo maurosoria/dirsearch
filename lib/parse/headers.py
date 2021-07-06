@@ -25,21 +25,22 @@ from lib.utils.data import lowercase
 
 class HeadersParser(object):
     def __init__(self, headers):
+        self.headers = {}
+        self.raw = None
+
         if isinstance(headers, str):
             self.headers = self.raw_to_headers(headers)
             self.raw = headers
         elif isinstance(headers, (dict, list)):
             self.raw = self.headers_to_raw(headers)
             self.headers = self.raw_to_headers(self.raw)
-        else:
-            raise Exception("Input (headers) is not valid, should be a dictionary, list or raw text")
 
         self.lower_headers = lowercase(self.headers)
 
     @staticmethod
     def raw_to_headers(raw):
-        if ":" not in raw:
-            return None
+        if not raw:
+            return {}
 
         return dict(
             email.message_from_file(StringIO(raw))
@@ -48,7 +49,7 @@ class HeadersParser(object):
     @staticmethod
     def headers_to_raw(headers):
         if not headers:
-            return None
+            return
 
         if isinstance(headers, dict):
             return "\r\n".join(
@@ -57,4 +58,4 @@ class HeadersParser(object):
         elif isinstance(headers, list):
             return "\r\n".join(headers)
         else:
-            return None
+            return
