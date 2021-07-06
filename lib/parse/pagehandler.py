@@ -18,12 +18,8 @@
 
 import re
 
-try:
-    from bs4 import BeautifulSoup
-except ImportError:
-    raise Exception("BeautifulSoup pip package must be installed")
-
 from urllib.parse import urljoin
+from thirdparty.bs4 import BeautifulSoup
 
 
 # This is unused yet

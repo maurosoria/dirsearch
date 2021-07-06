@@ -17,7 +17,7 @@
 #  Author: Mauro Soria
 
 from thirdparty.colorama import init, Fore, Back, Style
-from pyparsing import Literal, Word, Combine, Optional, Suppress, delimitedList, oneOf
+from thirdparty.pyparsing import Literal, Word, Combine, Optional, Suppress, delimitedList, oneOf
 
 
 class ColorOutput(object):
