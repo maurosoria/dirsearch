@@ -20,7 +20,8 @@ import urllib3
 import http.client
 import random
 import socket
-import urllib.parse
+
+from urllib.parse import quote, urlparse, urljoin
 
 import thirdparty.requests as requests
 
@@ -52,11 +53,11 @@ class Requester(object):
         self.data = data
         self.headers = {}
 
-        parsed = urllib.parse.urlparse(url)
+        parsed = urlparse(url)
 
         # If no protocol specified, set http by default
         if "://" not in url:
-            parsed = urllib.parse.urlparse("{0}://{1}".format(scheme, url))
+            parsed = urlparse("{0}://{1}".format(scheme, url))
 
         # If protocol is not supported
         elif parsed.scheme not in ["https", "http"]:
@@ -67,7 +68,7 @@ class Requester(object):
             self.base_path = parsed.path[1:]
 
         # Safe quote all special characters in base_path to prevent from being encoded when performing requests
-        self.base_path = urllib.parse.quote(self.base_path, safe="!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~")
+        self.base_path = quote(self.base_path, safe="!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~")
         self.protocol = parsed.scheme
         self.host = parsed.netloc.split(":")[0]
 
@@ -150,7 +151,7 @@ class Requester(object):
         result = None
         error = None
 
-        for i in range(self.max_retries):
+        for _ in range(self.max_retries):
             try:
                 if not proxy:
                     if self.proxylist:
@@ -176,25 +177,44 @@ class Requester(object):
                 if self.random_agents:
                     self.headers["User-Agent"] = random.choice(self.random_agents)
 
-                request = requests.Request(
-                    self.httpmethod,
-                    url=url,
-                    headers=dict(self.headers),
-                    auth=self.auth,
-                    data=self.data,
-                )
-                prepare = request.prepare()
-                prepare.url = url
-                response = self.session.send(
-                    prepare,
-                    proxies=proxies,
-                    allow_redirects=self.redirect,
-                    timeout=self.timeout,
-                    stream=True,
-                    verify=False,
-                )
+                '''
+                We can't just do `allow_redirects=True` because we set the host header
+                in optional request headers, which will be kept in next requests
+                '''
+                for i in range(6):
+                    headers = self.headers.copy()
+                    if i != 0:
+                        parsed = urlparse(url)
+                        base_url = "{0}://{1}".format(parsed.scheme, parsed.netloc)
+                        url = urljoin(base_url, result.redirect)
+                        headers["Host"] = url.split("/")[2]
 
-                result = Response(response)
+                    request = requests.Request(
+                        self.httpmethod,
+                        url=url,
+                        headers=headers,
+                        auth=self.auth,
+                        data=self.data,
+                    )
+                    prepare = request.prepare()
+                    prepare.url = url
+
+                    response = self.session.send(
+                        prepare,
+                        proxies=proxies,
+                        allow_redirects=False,
+                        timeout=self.timeout,
+                        stream=True,
+                        verify=False,
+                    )
+                    result = Response(response)
+
+                    if self.redirect and result.redirect:
+                        continue
+                    elif i == 5:
+                        raise requests.exceptions.TooManyRedirects
+
+                    break
 
                 break
 
