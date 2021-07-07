@@ -17,6 +17,7 @@ v0.4.2 (2021.7.21)
 - HTML report format
 - Option to force recurse on all found paths (not just the ones end with /)
 - Option to skip target by specified status codes
+- New progress bar
 
 v0.4.1 (2020.12.8)
 ---------

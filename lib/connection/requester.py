@@ -20,7 +20,6 @@ import urllib3
 import http.client
 import random
 import socket
-
 import thirdparty.requests as requests
 
 from urllib.parse import urlparse

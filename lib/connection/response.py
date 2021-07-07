@@ -23,7 +23,6 @@ class Response(object):
     def __init__(self, response):
         self.status = response.status_code
         self.headers = response.headers
-        self.lowerheaders = HeadersParser(dict(self.headers)).lower_headers
         self.body = b""
 
         for chunk in response.iter_content(chunk_size=8192):
@@ -43,11 +42,11 @@ class Response(object):
 
     @property
     def redirect(self):
-        return self.lowerheaders.get("location")
+        return self.headers.get("location")
 
     @property
     def length(self):
-        if "content-length" in self.lowerheaders:
-            return int(self.lowerheaders.get("content-length"))
+        if "content-length" in dict(self.headers):
+            return int(self.headers.get("content-length"))
 
         return len(self.body)

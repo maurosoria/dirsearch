@@ -37,7 +37,7 @@ class Raw(object):
         self.startline = self.parsed[0].splitlines()[0]
 
         try:
-            self.headersparser = HeadersParser(self.parsed[0].splitlines()[1:])
+            self.headers_parser = HeadersParser(self.parsed[0].splitlines()[1:])
         except Exception:
             print("Invalid headers in the raw request")
             exit(1)
@@ -48,7 +48,7 @@ class Raw(object):
             self.body = None
 
         try:
-            self.host = self.headersparser.lower_headers["host"].strip()
+            self.host = self.headers_parser.lower_headers["host"].strip()
         except KeyError:
             print("Can't find the Host header in the raw request")
             exit(1)
@@ -65,4 +65,4 @@ class Raw(object):
 
     @property
     def headers(self):
-        return self.headersparser.headers
+        return self.headers_parser.headers

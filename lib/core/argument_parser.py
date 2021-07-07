@@ -96,15 +96,6 @@ class ArgumentParser(object):
 
         self.headers = {}
 
-        if options.headers:
-            try:
-                self.headers.update(
-                    HeadersParser(options.headers).headers
-                )
-            except Exception:
-                print("Invalid headers")
-                exit(1)
-
         if options.header_list:
             try:
                 file = self.access_file(options.header_list, "header list file")
@@ -113,6 +104,15 @@ class ArgumentParser(object):
                 )
             except Exception as e:
                 print("Error in headers file: " + str(e))
+                exit(1)
+
+        if options.headers:
+            try:
+                self.headers.update(
+                    HeadersParser(options.headers).headers
+                )
+            except Exception:
+                print("Invalid headers")
                 exit(1)
 
         if options.extensions == "*":
