@@ -179,14 +179,12 @@ class Requester(object):
 
                 '''
                 We can't just do `allow_redirects=True` because we set the host header
-                in optional request headers, which will be kept in next requests
+                in request headers, which will be kept in next requests (following redirects)
                 '''
                 for i in range(6):
                     headers = self.headers.copy()
                     if i != 0:
-                        parsed = urlparse(url)
-                        base_url = "{0}://{1}".format(parsed.scheme, parsed.netloc)
-                        url = urljoin(base_url, result.redirect)
+                        url = urljoin(url, result.redirect)
                         headers["Host"] = url.split("/")[2]
 
                     request = requests.Request(
@@ -209,14 +207,14 @@ class Requester(object):
                     )
                     result = Response(response)
 
-                    if self.redirect and result.redirect:
-                        continue
-                    elif i == 5:
+                    if i == 5:
                         raise requests.exceptions.TooManyRedirects
+                    elif self.redirect and result.redirect:
+                        continue
 
                     break
 
-                break
+                error = None
 
             except requests.exceptions.SSLError:
                 self.url = self.base_url
