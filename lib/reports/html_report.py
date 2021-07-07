@@ -16,7 +16,6 @@
 #
 #  Author: Mauro Soria
 
-import json
 import os
 import sys
 import time
@@ -66,7 +65,7 @@ class HTMLReport(FileBaseReport):
                     "redirect": e.response.redirect
                 })
 
-        return template.render(metadata=metadata, results=json.dumps(results))
+        return template.render(metadata=metadata, results=results)
 
     def save(self):
         self.file.seek(0)
