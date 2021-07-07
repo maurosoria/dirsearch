@@ -51,17 +51,13 @@ class HTMLReport(FileBaseReport):
                 elif e.status >= 400 and e.status <= 599:
                     status_color_class = 'text-danger'
 
-                contentType = e.response.headers.get("content-type")
-                if contentType is None:
-                    contentType = ""
-
                 results.append({
                     "url": header_name + e.path,
                     "path": e.path,
                     "status": e.status,
                     "status_color_class": status_color_class,
                     "contentLength": FileUtils.size_human(e.get_content_length()),
-                    "contentType": contentType,
+                    "contentType": e.get_content_type(),
                     "redirect": e.response.redirect
                 })
 

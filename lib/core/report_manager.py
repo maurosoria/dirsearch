@@ -29,6 +29,12 @@ class Result(object):
     def get_content_length(self):
         return self.response.length
 
+    def get_content_type(self):
+        content_type = self.response.headers.get('content-type')
+        if content_type is None:
+            content_type = ""
+        return content_type
+
 
 class Report(object):
     def __init__(self, host, port, protocol, base_path):
