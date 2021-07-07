@@ -23,7 +23,7 @@ import time
 
 from lib.reports.base import FileBaseReport
 from lib.utils.data import human_size
-from thirdparty.mako.template import Template
+from thirdparty.jinja2 import Environment, FileSystemLoader
 
 
 class HTMLReport(FileBaseReport):
@@ -56,7 +56,7 @@ class HTMLReport(FileBaseReport):
                     "status": e.status,
                     "status_color_class": status_color_class,
                     "contentLength": human_size(e.get_content_length()),
-                    "contentType": e.response.headers.get("content-type"),
+                    "contentType": e.get_content_type(),
                     "redirect": e.response.redirect
                 })
 
