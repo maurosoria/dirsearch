@@ -7,31 +7,92 @@
 <script src="https://cdn.jsdelivr.net/npm/vue@2.6.12/dist/vue.js" integrity="sha384-ma9ivURrHX5VOB4tNq+UiGNkJoANH4EAJmhxd1mmDq0gKOv88wkKZOfRDOpXynwh" crossorigin="anonymous"></script>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-wEmeIV1mKuiNpC+IOBjI7aAzPcEZeedi5yW5f2yOq55WWLwNGmvvx4Um1vskeMj0" crossorigin="anonymous">
 <script>
+function openURLs(){
+  var table = document.getElementsByClassName("table")[0];
+  for (let row of table.rows) {
+      let val = row.cells[0].innerText;
+      if (val == "URL" || val == null)
+        continue;
+      window.open(val, '_blank');
+  }
+}
 function search(app, result) {
     return app.searchQuery.toLowerCase().split(" ").every(
       (v) => result.url.toLowerCase().includes(v) ||
-      result.contentType.toLowerCase().includes(v) ||
+      (result.contentType && result.contentType.toLowerCase().includes(v)) ||
       result.contentLength.toLowerCase().includes(v) ||
       result.status.toString().includes(v) ||
       (result.redirect && result.redirect.toLowerCase().includes(v))
     );
 }
+function statusExcludeSearch(app, result){
+    return app.statusExcludeSearchQuery.toLowerCase().split(" ").every(
+      (v) => !result.status.toString().includes(v)
+    );
+}
+function lengthExcludeSearch(app, result){
+    return app.lengthExcludeSearchQuery.toLowerCase().split(" ").every(
+      (v) => !result.contentLength.toLowerCase().includes(v)
+    );
+}
 window.onload = function () {
     var app = new Vue({
       el: '#app',
+      delimiters: ['[[', ']]'],
       data() {
         return {
+            lengthExcludeSearchQuery: null,
+            statusExcludeSearchQuery: null,
             searchQuery: null,
-            resources: ${results}
+            resources: {{ results | tojson }}
         };
       },
       computed: {
         resultQuery(){
+          var arr = null;
           if(this.searchQuery){
-          return this.resources.filter((result)=>{
-            return search(this, result)
-          })
-          }else{
+            arr = this.resources.filter((result)=>{
+              return search(this, result)
+            });
+            
+            if(!this.statusExcludeSearchQuery && !this.lengthExcludeSearchQuery)
+              return arr;
+          }
+          if(this.statusExcludeSearchQuery){
+            var arrStatusExcluded = null;
+            if(arr){
+              arrStatusExcluded = arr.filter((result)=>{
+                return statusExcludeSearch(this, result)
+              });
+              if(!this.lengthExcludeSearchQuery)
+                return arrStatusExcluded;
+            }
+            else{
+              arrStatusExcluded = this.resources.filter((result)=>{
+                return statusExcludeSearch(this, result)
+              });
+              if(!this.lengthExcludeSearchQuery)
+                return arrStatusExcluded; 
+            }
+          }
+          if(this.lengthExcludeSearchQuery){
+            if(arrStatusExcluded){
+              return arrStatusExcluded.filter((result)=>{
+                return lengthExcludeSearch(this, result)
+              })
+            }
+            else if(arr){
+              return arr.filter((result)=>{
+                return lengthExcludeSearch(this, result)
+              })
+            }
+            else{
+              return this.resources.filter((result)=>{
+                return lengthExcludeSearch(this, result)
+              })  
+            }
+          }
+          else{
             return this.resources;
           }
         }
@@ -40,22 +101,33 @@ window.onload = function () {
 }
 </script>
 </head>
-<body>
+<body style="background-color: #3f3f3f;">
     <div id="app">
         <div class="panel panel-default">
             <div class="navbar navbar-expand-lg navbar-light bg-light">
                 <div class="p-3">
-                    <h1><a href="https://github.com/maurosoria/dirsearch" style="text-decoration:none;color:black;">dirsearch</a></h1>
+                    <h1><a href="https://github.com/maurosoria/dirsearch" style="text-decoration:none;color:#c84949;">dirsearch</a></h1>
                 </div>
             </div>
             <br>
             <div class="w-75 p-3 mx-auto">
-                <strong>Command:</strong> <code style="display:inline;background-color:#566573;color:#F7F9F9;border-radius:4px;">${metadata['command']}</code>
+                <strong>Command:</strong> <code style="display:inline;background-color:#566573;color:#F7F9F9;border-radius:4px;">{{metadata['command'] | e}}</code>
                 <br>
-                <strong>Time:</strong> <p style="display:inline;">${metadata['date']}</p>
+                <strong>Time:</strong> <p style="display:inline;">{{metadata['date'] | e}}</p>
                 <br>
                 <br>
                 <div class="row">
+                    <div class="search-wrapper panel-heading col-sm-4">
+                        <input class="form-control" type="text" v-model="statusExcludeSearchQuery" placeholder="Exclude Status(es), separated by space" />
+                    </div>
+                    <div class="search-wrapper panel-heading col-sm-4">
+                        <input class="form-control" type="text" v-model="lengthExcludeSearchQuery" placeholder="Exclude Content Length(s), separated by space" />
+                    </div>
+                    <div class="col-sm-4">
+                      <button onclick="openURLs()" type="button" class="btn btn-danger">Open URLs</button>
+                    </div>
+                    <br>
+                    <br>
                     <div class="search-wrapper panel-heading col-sm-12">
                         <input class="form-control" type="text" v-model="searchQuery" placeholder="Search" />
                     </div>
@@ -64,7 +136,7 @@ window.onload = function () {
                 <div class="table-responsive">
                     <table v-if="resources.length" class="table">
                         <tbody>
-                            <tr>
+                            <tr style="color: aliceblue;">
                                 <th>URL</th>
                                 <th>Status</th>
                                 <th>Content Length</th>
@@ -72,11 +144,11 @@ window.onload = function () {
                                 <th>Redirect</th>
                             </tr>
                             <tr v-for="result in resultQuery">
-                                <td><a class="text-decoration-none" v-bind:href="result.url" target="_blank">{{result.url}}</a></td>
-                                <td><a class="text-decoration-none" v-bind:class="result.statusColorClass" target="_blank">{{result.status}}</a></td>
-                                <td><a target="_blank">{{result.contentLength}}</a></td>
-                                <td><a target="_blank">{{result.contentType}}</a></td>
-                                <td><a class="text-decoration-none" v-bind:href="result.redirect" target="_blank">{{result.redirect}}</a></td>
+                                <td><a class="text-decoration-none" v-bind:href="result.url" target="_blank">[[result.url]]</a></td>
+                                <td><a class="text-decoration-none" v-bind:class="result.statusColorClass" target="_blank">[[result.status]]</a></td>
+                                <td><a target="_blank">[[result.contentLength]]</a></td>
+                                <td><a target="_blank">[[result.contentType]]</a></td>
+                                <td><a class="text-decoration-none" v-bind:href="result.redirect" target="_blank">[[result.redirect]]</a></td>
                             </tr>
                         </tbody>
                     </table>
