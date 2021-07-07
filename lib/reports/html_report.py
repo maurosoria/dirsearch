@@ -16,20 +16,21 @@
 #
 #  Author: Mauro Soria
 
-import json
 import os
 import sys
 import time
 
 from lib.reports import FileBaseReport
 from lib.utils import FileUtils
-from thirdparty.mako.template import Template
+from thirdparty.jinja2 import Environment, FileSystemLoader
 
 
 class HTMLReport(FileBaseReport):
     def generate(self):
-        template_file = os.path.dirname(os.path.realpath(__file__)) + '/templates/html_report_template.html'
-        mytemplate = Template(filename=template_file)
+        file_loader = FileSystemLoader(os.path.dirname(os.path.realpath(__file__)) + '/templates/')
+        env = Environment(loader=file_loader)
+
+        template = env.get_template('html_report_template.html')
 
         metadata = {
             "command": " ".join(sys.argv),
@@ -56,11 +57,11 @@ class HTMLReport(FileBaseReport):
                     "status": e.status,
                     "status_color_class": status_color_class,
                     "contentLength": FileUtils.size_human(e.get_content_length()),
-                    "contentType": e.response.headers.get("content-type"),
+                    "contentType": e.get_content_type(),
                     "redirect": e.response.redirect
                 })
 
-        return mytemplate.render(metadata=metadata, results=json.dumps(results))
+        return template.render(metadata=metadata, results=results)
 
     def save(self):
         self.file.seek(0)

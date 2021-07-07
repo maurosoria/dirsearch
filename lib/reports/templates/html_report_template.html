@@ -38,12 +38,13 @@ function lengthExcludeSearch(app, result){
 window.onload = function () {
     var app = new Vue({
       el: '#app',
+      delimiters: ['[[', ']]'],
       data() {
         return {
             lengthExcludeSearchQuery: null,
             statusExcludeSearchQuery: null,
             searchQuery: null,
-            resources: ${results}
+            resources: {{ results | tojson }}
         };
       },
       computed: {
@@ -110,9 +111,9 @@ window.onload = function () {
             </div>
             <br>
             <div class="w-75 p-3 mx-auto">
-                <strong style="color: #eef1f3;">Command:</strong> <code style="display:inline;background-color:#566573;color:#F7F9F9;border-radius:4px;">${metadata['command']}</code>
+                <strong>Command:</strong> <code style="display:inline;background-color:#566573;color:#F7F9F9;border-radius:4px;">{{metadata['command'] | e}}</code>
                 <br>
-                <span style="color: #eef1f3;"><strong>Time:</strong> <p style="display:inline;">${metadata['date']}</p></span>
+                <strong>Time:</strong> <p style="display:inline;">{{metadata['date'] | e}}</p>
                 <br>
                 <br>
                 <div class="row">
@@ -143,11 +144,11 @@ window.onload = function () {
                                 <th>Redirect</th>
                             </tr>
                             <tr v-for="result in resultQuery">
-                                <td><a v-bind:class="result.status_color_class" class="text-decoration-none" v-bind:href="result.url" target="_blank">{{result.url}}</a></td>
-                                <td><a class="text-decoration-none" v-bind:class="result.status_color_class" target="_blank">{{result.status}}</a></td>
-                                <td style="color: aliceblue;"><a target="_blank">{{result.contentLength}}</a></td>
-                                <td style="color: aliceblue;"><a target="_blank">{{result.contentType}}</a></td>
-                                <td><a class="text-decoration-none" v-bind:href="result.redirect" target="_blank">{{result.redirect}}</a></td>
+                                <td><a class="text-decoration-none" v-bind:href="result.url" target="_blank">[[result.url]]</a></td>
+                                <td><a class="text-decoration-none" v-bind:class="result.statusColorClass" target="_blank">[[result.status]]</a></td>
+                                <td><a target="_blank">[[result.contentLength]]</a></td>
+                                <td><a target="_blank">[[result.contentType]]</a></td>
+                                <td><a class="text-decoration-none" v-bind:href="result.redirect" target="_blank">[[result.redirect]]</a></td>
                             </tr>
                         </tbody>
                     </table>
