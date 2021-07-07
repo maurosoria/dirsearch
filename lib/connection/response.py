@@ -16,14 +16,14 @@
 #
 #  Author: Mauro Soria
 
+from lib.parse.headers import HeadersParser
+
 
 class Response(object):
     def __init__(self, response):
         self.status = response.status_code
         self.headers = response.headers
-        self.interactive_headers = dict(
-            (key.lower(), value) for key, value in self.headers.items()
-        )
+        self.lowerheaders = HeadersParser(dict(self.headers)).lower_headers
         self.body = b""
 
         for chunk in response.iter_content(chunk_size=8192):
@@ -41,29 +41,13 @@ class Response(object):
     def __hash__(self):
         return hash(self.body)
 
-    def __del__(self):
-        del self.body
-        del self.headers
-        del self.status
-
     @property
     def redirect(self):
-        return self.interactive_headers.get("location")
+        return self.lowerheaders.get("location")
 
     @property
     def length(self):
-        if "content-length" in self.interactive_headers:
-            return int(self.interactive_headers.get("content-length"))
+        if "content-length" in self.lowerheaders:
+            return int(self.lowerheaders.get("content-length"))
 
         return len(self.body)
-
-    @property
-    def pretty(self):
-        try:
-            # Python 3 is only able to download BeautifulSoup4
-            from bs4 import BeautifulSoup
-        except ImportError:
-            raise Exception("BeautifulSoup pip package must be installed")
-
-        html = BeautifulSoup(self.body)
-        return html.prettify()

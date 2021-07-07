@@ -19,7 +19,7 @@
 import configparser
 
 
-class DefaultConfigParser(configparser.ConfigParser):
+class ConfigParser(configparser.ConfigParser):
     def __init__(self):
         configparser.ConfigParser.__init__(self)
 

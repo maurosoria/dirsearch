@@ -111,8 +111,3 @@ def _get_terminal_size_linux():
         except Exception:
             return None
     return int(cr[1]), int(cr[0])
-
-
-if __name__ == "__main__":
-    sizex, sizey = get_terminal_size()
-    print("width =", sizex, "height =", sizey)
