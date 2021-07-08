@@ -33,7 +33,8 @@ from lib.core.fuzzer import Fuzzer
 from lib.core.raw import Raw
 from lib.core.report_manager import Report, ReportManager
 from lib.utils.file import FileUtils
-from lib.utils.data import clean_filename, human_size
+from lib.utils.data import clean_filename
+from lib.utils.size import human_size
 from lib.utils.timer import Timer
 
 

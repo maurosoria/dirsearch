@@ -26,7 +26,7 @@ from lib.utils.data import uniq
 from lib.utils.file import File
 from lib.utils.file import FileUtils
 from lib.utils.range import get_range
-from lib.utils.iprange import iprange
+from lib.utils.ip import iprange
 
 
 class ArgumentParser(object):

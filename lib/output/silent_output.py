@@ -21,7 +21,7 @@ import sys
 from threading import Lock
 from urllib.parse import urlparse
 
-from lib.utils.data import human_size
+from lib.utils.size import human_size
 from .colors import ColorOutput
 
 if sys.platform in ["win32", "msys"]:

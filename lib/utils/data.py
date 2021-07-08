@@ -51,12 +51,3 @@ def lowercase(data):
         return tuple(i.lower() for i in data if isinstance(i, str))
     else:
         return data
-
-
-def human_size(num):
-    base = 1024
-    for x in ["B ", "KB", "MB", "GB"]:
-        if num < base and num > -base:
-            return "%3.0f%s" % (num, x)
-        num /= base
-    return "%3.0f %s" % (num, "TB")

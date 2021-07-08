@@ -20,7 +20,7 @@ import time
 import sys
 
 from lib.reports.base import FileBaseReport
-from lib.utils.data import human_size
+from lib.utils.size import human_size
 
 
 class PlainTextReport(FileBaseReport):
