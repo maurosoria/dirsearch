@@ -143,9 +143,7 @@ class Fuzzer(object):
         yield self.default_scanner
 
     def start(self):
-        # Setting up testers
         self.setup_scanners()
-        # Setting up threads
         self.setup_threads()
         self.index = 0
         self.rate = 0
@@ -213,8 +211,12 @@ class Fuzzer(object):
     def increase_threads(self):
         self.running_threads_count += 1
 
-    def reduce_rate(self):
+    def decrease_rate(self):
         self.rate -= 1
+
+    def increase_rate(self):
+        self.rate += 1
+        threading.Timer(1, self.decrease_rate).start()
 
     def thread_proc(self):
         self.play_event.wait()
@@ -227,8 +229,7 @@ class Fuzzer(object):
                     # Pause if the request rate exceeded the maximum
                     while self.maxrate and self.rate >= self.maxrate:
                         pass
-                    self.rate += 1
-                    threading.Timer(1, self.reduce_rate).start()
+                    self.increase_rate()
 
                     status, response = self.scan(path)
                     result = Path(path=path, status=status, response=response)

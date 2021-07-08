@@ -16,8 +16,15 @@
 #
 #  Author: Mauro Soria
 
-import threading
-from lib.reports import CSVReport, HTMLReport, JSONReport, MarkdownReport, PlainTextReport, SimpleReport, XMLReport
+from threading import Lock
+
+from lib.reports.csv_report import CSVReport
+from lib.reports.html_report import HTMLReport
+from lib.reports.json_report import JSONReport
+from lib.reports.markdown_report import MarkdownReport
+from lib.reports.plain_text_report import PlainTextReport
+from lib.reports.simple_report import SimpleReport
+from lib.reports.xml_report import XMLReport
 
 
 class Result(object):
@@ -56,7 +63,7 @@ class ReportManager(object):
         self.reports = []
         self.report_obj = None
         self.output = output_file
-        self.lock = threading.Lock()
+        self.lock = Lock()
 
     def update_report(self, report):
         if report not in self.reports:

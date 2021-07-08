@@ -17,9 +17,7 @@
 #  Author: Mauro Soria
 
 
-class ParserUtils(object):
-    @classmethod
-    def get_range(cls, range_):
-        min_num, max_num = range_.split("-")
-        min_num, max_num = int(min_num), int(max_num)
-        return list(range(min_num, max_num + 1))
+def get_range(range_):
+    min_num, max_num = range_.split("-")
+    min_num, max_num = int(min_num), int(max_num)
+    return list(range(min_num, max_num + 1))

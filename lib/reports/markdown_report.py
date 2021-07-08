@@ -16,9 +16,10 @@
 #
 #  Author: Mauro Soria
 
-from lib.reports import FileBaseReport
 import time
 import sys
+
+from lib.reports.base import FileBaseReport
 
 
 class MarkdownReport(FileBaseReport):

@@ -20,10 +20,11 @@ import urllib3
 import http.client
 import random
 import socket
-import urllib.parse
-
 import thirdparty.requests as requests
 
+from urllib.parse import urlparse
+
+from lib.utils.data import safequote
 from thirdparty.requests.auth import HTTPBasicAuth, HTTPDigestAuth
 from thirdparty.requests_ntlm import HttpNtlmAuth
 from .request_exception import RequestException
@@ -52,11 +53,11 @@ class Requester(object):
         self.data = data
         self.headers = {}
 
-        parsed = urllib.parse.urlparse(url)
+        parsed = urlparse(url)
 
         # If no protocol specified, set http by default
         if "://" not in url:
-            parsed = urllib.parse.urlparse("{0}://{1}".format(scheme, url))
+            parsed = urlparse("{0}://{1}".format(scheme, url))
 
         # If protocol is not supported
         elif parsed.scheme not in ["https", "http"]:
@@ -66,8 +67,8 @@ class Requester(object):
         if parsed.path.startswith("/"):
             self.base_path = parsed.path[1:]
 
-        # Safe quote all special characters in base_path to prevent from being encoded when performing requests
-        self.base_path = urllib.parse.quote(self.base_path, safe="!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~")
+        # Safe quote all special characters in base_path to prevent from being encoded
+        self.base_path = safequote(self.base_path)
         self.protocol = parsed.scheme
         self.host = parsed.netloc.split(":")[0]
 
@@ -195,7 +196,6 @@ class Requester(object):
                 )
 
                 result = Response(response)
-
                 break
 
             except requests.exceptions.SSLError:
