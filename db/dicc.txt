@@ -7765,6 +7765,8 @@ r57shell.php
 r58.php
 r99.php
 rabbitmq/
+rack_session
+rack_session/edit
 radio
 radius/
 radmin
