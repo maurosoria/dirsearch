@@ -22,7 +22,7 @@ import random
 import socket
 import thirdparty.requests as requests
 
-from urllib.parse import quote, urlparse, urljoin
+from urllib.parse import urlparse, urljoin
 
 from lib.utils.data import safequote
 from thirdparty.requests.adapters import HTTPAdapter
