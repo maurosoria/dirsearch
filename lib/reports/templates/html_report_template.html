@@ -111,10 +111,12 @@ window.onload = function () {
             </div>
             <br>
             <div class="w-75 p-3 mx-auto">
-                <strong>Command:</strong> <code style="display:inline;background-color:#566573;color:#F7F9F9;border-radius:4px;">{{metadata['command'] | e}}</code>
-                <br>
-                <strong>Time:</strong> <p style="display:inline;">{{metadata['date'] | e}}</p>
-                <br>
+                <span style="color: #eef1f3;">
+                    <strong>Command:</strong> <code style="display:inline;background-color:#5C6060;color:#F7F9F9;border-radius:4px;">{{metadata['command'] | e}}</code>
+                    <br>
+                    <strong>Time:</strong> <p style="display:inline;">{{metadata['date'] | e}}</p>
+                    <br>
+                </span>
                 <br>
                 <div class="row">
                     <div class="search-wrapper panel-heading col-sm-4">
@@ -144,10 +146,10 @@ window.onload = function () {
                                 <th>Redirect</th>
                             </tr>
                             <tr v-for="result in resultQuery">
-                                <td><a class="text-decoration-none" v-bind:href="result.url" target="_blank">[[result.url]]</a></td>
+                                <td><a class="text-decoration-none" v-bind:class="result.statusColorClass" v-bind:href="result.url" target="_blank">[[result.url]]</a></td>
                                 <td><a class="text-decoration-none" v-bind:class="result.statusColorClass" target="_blank">[[result.status]]</a></td>
-                                <td><a target="_blank">[[result.contentLength]]</a></td>
-                                <td><a target="_blank">[[result.contentType]]</a></td>
+                                <td style="color: aliceblue;"><a target="_blank">[[result.contentLength]]</a></td>
+                                <td style="color: aliceblue;"><a target="_blank">[[result.contentType]]</a></td>
                                 <td><a class="text-decoration-none" v-bind:href="result.redirect" target="_blank">[[result.redirect]]</a></td>
                             </tr>
                         </tbody>
