@@ -47,6 +47,11 @@ window.onload = function () {
             resources: {{ results | tojson }}
         };
       },
+      methods: {
+        urlJoin: function(url, redirect){
+          return new URL(redirect, url).href;
+        }
+      },
       computed: {
         resultQuery(){
           var arr = null;
@@ -120,10 +125,10 @@ window.onload = function () {
                 <br>
                 <div class="row">
                     <div class="search-wrapper panel-heading col-sm-4">
-                        <input class="form-control" type="text" v-model="statusExcludeSearchQuery" placeholder="Exclude Status(es), separated by space" />
+                        <input class="form-control" type="text" v-model="statusExcludeSearchQuery" placeholder="Exclude status codes, separated by space" />
                     </div>
                     <div class="search-wrapper panel-heading col-sm-4">
-                        <input class="form-control" type="text" v-model="lengthExcludeSearchQuery" placeholder="Exclude Content Length(s), separated by space" />
+                        <input class="form-control" type="text" v-model="lengthExcludeSearchQuery" placeholder="Exclude content lengths, separated by space" />
                     </div>
                     <div class="col-sm-4">
                       <button onclick="openURLs()" type="button" class="btn btn-danger">Open URLs</button>
@@ -150,7 +155,7 @@ window.onload = function () {
                                 <td><a class="text-decoration-none" v-bind:class="result.statusColorClass" target="_blank">[[result.status]]</a></td>
                                 <td style="color: aliceblue;"><a target="_blank">[[result.contentLength]]</a></td>
                                 <td style="color: aliceblue;"><a target="_blank">[[result.contentType]]</a></td>
-                                <td><a class="text-decoration-none" v-bind:href="result.redirect" target="_blank">[[result.redirect]]</a></td>
+                                <td><a class="text-decoration-none" v-bind:href="urlJoin(result.url, result.redirect)" target="_blank">[[result.redirect]]</a></td>
                             </tr>
                         </tbody>
                     </table>
