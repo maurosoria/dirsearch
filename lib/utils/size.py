@@ -23,6 +23,15 @@ import platform
 import subprocess
 
 
+def human_size(num):
+    base = 1024
+    for x in ["B ", "KB", "MB", "GB"]:
+        if num < base and num > -base:
+            return "%3.0f%s" % (num, x)
+        num /= base
+    return "%3.0f %s" % (num, "TB")
+
+
 def get_terminal_size():
     """ getTerminalSize()
      - get width and height of console
@@ -111,8 +120,3 @@ def _get_terminal_size_linux():
         except Exception:
             return None
     return int(cr[1]), int(cr[0])
-
-
-if __name__ == "__main__":
-    sizex, sizey = get_terminal_size()
-    print("width =", sizex, "height =", sizey)
