@@ -74,7 +74,7 @@ Wordlists (IMPORTANT)
 **Summary:**
   - Wordlist is a text file, each line is a path.
   - About extensions, unlike other tools, dirsearch only replaces the `%EXT%` keyword with extensions from **-e** flag.
-  - For wordlists without `%EXT%` (like [SecLists](https://github.com/danielmiessler/SecLists)), **-f | --force-extensions** switch is required to append extensions to every word in wordlist, as well as the `/`. And for entries in wordlist that you do not want to append extensions, add `%NOFORCE%` at the end of them.
+  - For wordlists without `%EXT%` (like [SecLists](https://github.com/danielmiessler/SecLists)), **-f | --force-extensions** switch is required to append extensions to every word in wordlist, as well as the `/`.
   - To use multiple wordlists, you can separate your wordlists with commas. Example: `wordlist1.txt,wordlist2.txt`.
 
 **Examples:**
@@ -95,7 +95,6 @@ index.aspx
 - Force extensions
 ```
 admin
-api%NOFORCE%
 ```
 
 Passing "php" and "html" extensions with **-f**/**--force-extensions** flag will generate the following dictionary:
@@ -105,7 +104,6 @@ admin
 admin.php
 admin.html
 admin/
-api
 ```
 
 
@@ -632,7 +630,6 @@ Tips
 ---------------
 - The server has requests limit? That's bad, but feel free to bypass it, by randomizing proxy with `--proxy-list`
 - Want to find out config files or backups? Try `--suffixes ~` and `--prefixes .`
-- For some endpoints that you do not want to force extensions, add `%NOFORCE%` at the end of them
 - Want to find only folders/directories? Why not combine `--remove-extensions` and `--suffixes /`!
 - The mix of `--cidr`, `-F`, `-q` and will reduce most of noises + false negatives when brute-forcing with a CIDR
 - Scan a list of URLs, but don't want to see a 429 flood? `--skip-on-status 429` will help you to skip a target whenever it returns 429

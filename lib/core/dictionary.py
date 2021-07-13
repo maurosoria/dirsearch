@@ -93,7 +93,6 @@ class Dictionary(object):
 
     def generate(self):
         reext = re.compile(r"\%ext\%", re.IGNORECASE).sub
-        renoforce = re.compile(r"\%noforce\%", re.IGNORECASE).sub
         custom = []
         result = []
 
@@ -101,7 +100,7 @@ class Dictionary(object):
         for dict_file in self.dictionary_files:
             for line in uniq(dict_file.get_lines(), filt=True):
                 # Skip comments
-                if line.lstrip().startswith("#"):
+                if line.startswith("#"):
                     continue
 
                 if line.startswith("/"):
@@ -109,14 +108,9 @@ class Dictionary(object):
 
                 if self._no_extension:
                     line = line[0] + line[1:].split(".")[0]
+                    # Skip dummy paths
                     if line == ".":
                         continue
-
-                # Check if the line has the %NOFORCE% keyword
-                force = True
-                if "%noforce%" in line.lower():
-                    force = False
-                    line = renoforce("", line)
 
                 # Skip if the path contains excluded extensions
                 if self._exclude_extensions and (
@@ -128,22 +122,16 @@ class Dictionary(object):
                 if "%ext%" in line.lower():
                     for extension in self._extensions:
                         newline = reext(extension, line)
-
-                        quoted = safequote(newline)
-                        result.append(quoted)
+                        result.append(newline)
 
                 # If forced extensions is used and the path is not a directory ... (terminated by /)
                 # process line like a forced extension.
-                elif self._force_extensions and not line.rstrip().endswith("/") and "." not in line and force:
-                    quoted = safequote(line)
-
+                elif self._force_extensions and not line.rstrip().endswith("/") and "." not in line:
                     for extension in self._extensions:
-                        # Why? Check https://github.com/maurosoria/dirsearch/issues/70
-                        if extension.strip():
-                            result.append(quoted + "." + extension)
+                        result.append(line + "." + extension)
 
-                    result.append(quoted)
-                    result.append(quoted + "/")
+                    result.append(line)
+                    result.append(line + "/")
 
                 # Append line unmodified.
                 else:
@@ -152,37 +140,26 @@ class Dictionary(object):
                     ):
                         continue
 
-                    quoted = safequote(line)
-                    result.append(quoted)
+                    result.append(line)
 
-        # Adding prefixes for finding config files etc
-        if self._prefixes:
-            for res in result:
-                for pref in self._prefixes:
-                    if not res.startswith(pref):
-                        custom.append(pref + res)
+        # Some custom changes
+        for entry in uniq(result):
+            for pref in self._prefixes:
+                if not res.startswith(pref):
+                    entry = pref + entry
+            for suff in self._suffixes:
+                if not entry.endswith("/") and not entry.endswith(suff):
+                    entry = entry + suff
 
-        # Adding suffixes for finding backups etc
-        if self._suffixes:
-            for res in result:
-                if not res.endswith("/"):
-                    for suff in self._suffixes:
-                        if not res.endswith(suff):
-                            custom.append(res + suff)
-
-        result = custom if custom else result
-
-        if self.lowercase:
-            self.entries = uniq(map(lambda l: l.lower(), result))
-
-        elif self.uppercase:
-            self.entries = uniq(map(lambda l: l.upper(), result))
-
-        elif self.capitalization:
-            self.entries = uniq(map(lambda l: l.capitalize(), result))
-
-        else:
-            self.entries = uniq(result)
+            entry = safequote(entry)
+            if self.lowercase:
+                self.entries.append(entry.lower())
+            elif self.uppercase:
+                self.entries.append(entry.upper())
+            elif self.capitalization:
+                self.entries.append(entry.capitalize())
+            else:
+                self.entries.append(entry)
 
         del custom
         del result
