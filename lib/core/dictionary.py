@@ -145,7 +145,7 @@ class Dictionary(object):
         # Some custom changes
         for entry in uniq(result):
             for pref in self._prefixes:
-                if not res.startswith(pref):
+                if not entry.startswith(pref):
                     entry = pref + entry
             for suff in self._suffixes:
                 if not entry.endswith("/") and not entry.endswith(suff):
