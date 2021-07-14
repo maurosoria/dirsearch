@@ -92,7 +92,6 @@ class Dictionary(object):
 
     def generate(self):
         reext = re.compile(r"\%ext\%", re.IGNORECASE).sub
-        custom = []
         result = []
 
         # Enable to use multiple dictionaries at once
