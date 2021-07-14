@@ -119,7 +119,7 @@ class Requester(object):
             self.host if self.request_by_hostname else self.ip,
             self.port,
         )
-        self.base_url = "{0}://{1}:{2}/".format(
+        self.original_url = "{0}://{1}:{2}/".format(
             self.protocol,
             self.host,
             self.port,
@@ -181,10 +181,10 @@ class Requester(object):
             if self.random_agents:
                 self.headers["User-Agent"] = random.choice(self.random_agents)
 
-            '''
-            We can't just do `allow_redirects=True` because we set the host header
-            in request headers, which will be kept in next requests (following redirects)
-            '''
+            """
+            We can't just do `allow_redirects=True` because we set the host header in
+            optional request headers, which will be kept in next requests (follow redirects)
+            """
             for i in range(6):
                 headers = self.headers.copy()
                 if i != 0:
@@ -211,32 +211,40 @@ class Requester(object):
                 )
                 result = Response(response)
 
-                if i == 5:
+                if not self.redirect or not result.redirect:
+                    break
+                elif i == 5:
                     raise requests.exceptions.TooManyRedirects
-                elif self.redirect and result.redirect:
-                    continue
-
-                break
 
         except requests.exceptions.SSLError:
-            self.url = self.base_url
+            self.url = self.original_url
             self.set_adapter()
-            return self.request(path, proxy=proxy)
+            result = self.request(path, proxy=proxy)
 
         except requests.exceptions.TooManyRedirects:
-            error = "Too many redirects: {0}".format(self.base_url)
+            raise RequestException(
+                {"message": "Too many redirects: {0}".format(self.original_url)}
+            )
 
         except requests.exceptions.ProxyError:
-            error = "Error with the proxy: {0}".format(proxy)
+            raise RequestException(
+                {"message": "Error with the proxy: {0}".format(proxy)}
+            )
 
         except requests.exceptions.ConnectionError:
-            error = "Cannot connect to: {0}:{1}".format(self.host, self.port)
+            raise RequestException(
+                {"message": "Cannot connect to: {0}:{1}".format(self.host, self.port)}
+            )
 
         except requests.exceptions.InvalidURL:
-            error = "Invalid URL: {0}".format(self.base_url)
+            raise RequestException(
+                {"message": "Invalid URL: {0}".format(self.original_url)}
+            )
 
         except requests.exceptions.InvalidProxyURL:
-            error = "Invalid proxy URL: {0}".format(proxy)
+            raise RequestException(
+                {"message": "Invalid proxy URL: {0}".format(proxy)}
+            )
 
         except (
             requests.exceptions.ConnectTimeout,
@@ -245,12 +253,13 @@ class Requester(object):
             http.client.IncompleteRead,
             socket.timeout,
         ):
-            error = "Request timeout: {0}".format(self.base_url)
+            raise RequestException(
+                {"message": "Request timeout: {0}".format(self.original_url)}
+            )
 
         except Exception:
-            error = "There was a problem in the request to: {0}".format(self.base_url)
-
-        if error:
-            raise RequestException({"message": error})
+            raise RequestException(
+                {"message": "There was a problem in the request to: {0}".format(self.original_url)}
+            )
 
         return result

@@ -601,10 +601,6 @@ class Controller(object):
             self.process_paths()
 
         self.report.completed = True
-        self.report_manager.update_report(self.report)
-        self.report = None
-
-        return
 
     # Add directory to the recursion queue
     def add_directory(self, path):
