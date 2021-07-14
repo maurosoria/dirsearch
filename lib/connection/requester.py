@@ -154,7 +154,6 @@ class Requester(object):
 
     def request(self, path, proxy=None):
         result = None
-        error = None
 
         try:
             if not proxy:
