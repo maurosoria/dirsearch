@@ -19,8 +19,7 @@
 import re
 import threading
 
-from lib.utils.data import safequote
-from lib.utils.data import uniq
+from lib.utils.data import safequote, uniq, lowercase, uppercase, capitalize
 from lib.utils.file import File, FileUtils
 
 
@@ -135,33 +134,30 @@ class Dictionary(object):
 
                 # Append line unmodified.
                 else:
-                    if self._only_selected and (
-                        not any([line.endswith("." + extension) for extension in self.extensions])
+                    if not self._only_selected or any(
+                        [line.endswith("." + extension) for extension in self.extensions]
                     ):
-                        continue
-
-                    result.append(line)
+                        result.append(line)
 
         # Some custom changes
         for entry in uniq(result):
+            entries = [entry]
             for pref in self._prefixes:
                 if not entry.startswith(pref):
-                    entry = pref + entry
+                    entries.append(pref + entry)
             for suff in self._suffixes:
                 if not entry.endswith("/") and not entry.endswith(suff):
-                    entry = entry + suff
+                    entries.append(entry + suff)
 
-            entry = safequote(entry)
             if self.lowercase:
-                self.entries.append(entry.lower())
+                self.entries.extend(lowercase(entries))
             elif self.uppercase:
-                self.entries.append(entry.upper())
+                self.entries.extend(uppercase(entries))
             elif self.capitalization:
-                self.entries.append(entry.capitalize())
+                self.entries.extend(capitalize(entries))
             else:
-                self.entries.append(entry)
+                self.entries.extend(entries)
 
-        del custom
         del result
 
     # Get ignore paths for status codes.
@@ -222,7 +218,7 @@ class Dictionary(object):
 
     def __next__(self, base_path=None):
         _, path = self.next_with_index(base_path)
-        return path
+        return safequote(path)
 
     def reset(self):
         self.condition.acquire()

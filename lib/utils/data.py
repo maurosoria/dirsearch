@@ -51,3 +51,29 @@ def lowercase(data):
         return tuple(i.lower() for i in data if isinstance(i, str))
     else:
         return data
+
+
+def uppercase(data):
+    if isinstance(data, str):
+        return data.upper()
+    elif isinstance(data, list):
+        return [i.upper() for i in data if isinstance(i, str)]
+    elif isinstance(data, dict):
+        return dict((key.upper(), value) for key, value in data.items())
+    elif isinstance(data, tuple):
+        return tuple(i.upper() for i in data if isinstance(i, str))
+    else:
+        return data
+
+
+def capitalize(data):
+    if isinstance(data, str):
+        return data.capitalize()
+    elif isinstance(data, list):
+        return [i.capitalize() for i in data if isinstance(i, str)]
+    elif isinstance(data, dict):
+        return dict((key.capitalize(), value) for key, value in data.items())
+    elif isinstance(data, tuple):
+        return tuple(i.capitalize() for i in data if isinstance(i, str))
+    else:
+        return data
