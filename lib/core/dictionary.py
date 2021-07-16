@@ -19,9 +19,8 @@
 import re
 import threading
 
-from lib.utils.data import safequote
-from lib.utils.data import uniq
 from lib.utils.file import File, FileUtils
+from lib.utils.fmt import safequote, uniq
 
 
 class Dictionary(object):

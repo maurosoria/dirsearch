@@ -20,7 +20,7 @@ import email
 
 from io import StringIO
 
-from lib.utils.data import lowercase
+from lib.utils.fmt import lowercase
 
 
 class HeadersParser(object):

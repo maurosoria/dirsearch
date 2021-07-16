@@ -24,7 +24,7 @@ import thirdparty.requests as requests
 
 from urllib.parse import urlparse, urljoin
 
-from lib.utils.data import safequote
+from lib.utils.fmt import safequote
 from thirdparty.requests.adapters import HTTPAdapter
 from thirdparty.requests.auth import HTTPBasicAuth, HTTPDigestAuth
 from thirdparty.requests_ntlm import HttpNtlmAuth

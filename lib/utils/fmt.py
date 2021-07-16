@@ -16,11 +16,16 @@
 #
 #  Author: Mauro Soria
 
+from chardet import detect
 from urllib.parse import quote
 
 
 def safequote(string):
     return quote(string, safe="!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~")
+
+
+def get_encoding_type(content):
+    return detect(content)["encoding"]
 
 
 def uniq(string_list, filt=False):

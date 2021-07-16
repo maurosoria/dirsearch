@@ -22,6 +22,7 @@ from ipaddress import IPv4Network, IPv6Network
 def is_ipv6(ip):
     return False if ip.count(":") < 2 else True
 
+
 def iprange(subnet):
     network = IPv4Network(subnet)
     if is_ipv6(subnet):
