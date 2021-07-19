@@ -268,7 +268,7 @@ class Controller(object):
                         self.dictionary,
                         suffixes=arguments.suffixes,
                         prefixes=arguments.prefixes,
-                        exclude_content=arguments.exclude_content,
+                        exclude_response=arguments.exclude_response,
                         threads=arguments.threads_count,
                         delay=arguments.delay,
                         maxrate=arguments.maxrate,

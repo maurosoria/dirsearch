@@ -219,7 +219,7 @@ class ArgumentParser(object):
         self.capitalization = options.capitalization
         self.force_extensions = options.force_extensions
         self.data = options.data
-        self.exclude_content = options.exclude_content
+        self.exclude_response = options.exclude_response
         self.color = options.color
         self.delay = options.delay
         self.timeout = options.timeout
@@ -344,7 +344,7 @@ class ArgumentParser(object):
         self.exclude_texts = config.safe_get("general", "exclude-texts", None)
         self.exclude_regexps = config.safe_get("general", "exclude-regexps", None)
         self.exclude_redirects = config.safe_get("general", "exclude-redirects", None)
-        self.exclude_content = config.safe_get("general", "exclude-content", "")
+        self.exclude_response = config.safe_get("general", "exclude-response", "")
         self.recursive = config.safe_getboolean("general", "recursive", False)
         self.deep_recursive = config.safe_getboolean("general", "deep-recursive", False)
         self.force_recursive = config.safe_getboolean("general", "force-recursive", False)
@@ -475,8 +475,8 @@ information at https://github.com/maurosoria/dirsearch.""")
                            action="store", dest="exclude_regexps", default=self.exclude_regexps, metavar="REGEXPS")
         general.add_option("--exclude-redirects", help="Exclude responses by redirect regexps or texts, separated by commas (Example: 'https://okta.com/*')",
                            action="store", dest="exclude_redirects", default=self.exclude_redirects, metavar="REGEXPS")
-        general.add_option("--exclude-content", help="Exclude responses by response content of this path", action="store",
-                           dest="exclude_content", default=self.exclude_content, metavar="PATH")
+        general.add_option("--exclude-response", help="Exclude responses by response of this page (path as input)", action="store",
+                           dest="exclude_response", default=self.exclude_response, metavar="PATH")
         general.add_option("--skip-on-status", action="store", dest="skip_on_status", default=self.skip_on_status,
                            help="Skip target whenever hit one of these status codes, separated by commas, support ranges", metavar="CODES")
         general.add_option("--minimal", action="store", dest="minimum_response_size", type="int", default=None,
