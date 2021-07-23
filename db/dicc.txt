@@ -4893,6 +4893,7 @@ deps/deps.jl
 DerivedData/
 DerivedDataCache/
 design
+description.json
 desk/
 Desktop.ini
 desktop/
@@ -8435,6 +8436,7 @@ statistics/
 Statistik/
 stats
 stats/
+stats.json
 statsd/
 status
 status.php
