@@ -125,33 +125,36 @@ class CLIOutput(object):
 
     def last_path(self, index, length, current_job, all_jobs, rate):
         percentage = int(index / length * 100)
-        progress = self.colorizer.color("#", fore="cyan", bright=True) * int(percentage / 5)
-        progress += " " * (20 - int(percentage / 5))
+        task = self.colorizer.color("#", fore="cyan", bright=True) * int(percentage / 5)
+        task += " " * (20 - int(percentage / 5))
+        progress = "{}/{}".format(index, length)
 
-        message = "[{0}] {1}% {2} {3}/s       ".format(
-            progress,
-            percentage,
-            "{}/{}".format(index, length).rjust(12, " "),
-            str(rate).rjust(9, " "),
-        )
-
-        message += "{0}:{1}/{2}  ".format(
+        jobs = "{0}:{1}/{2}".format(
             self.colorizer.color("job", fore="green", bright=True),
             current_job,
             all_jobs
         )
 
-        message += "{0}:{1}".format(
+        errors = "{0}:{1}".format(
             self.colorizer.color("errors", fore="red", bright=True),
             self.errors
         )
 
+        progress_bar = "[{0}] {1}% {2} {3}/s       {4} {5}".format(
+            task,
+            percentage,
+            progress.rjust(12, " "),
+            str(rate).rjust(9, " "),
+            jobs.ljust(21, " "),
+            errors
+        )
+
         l, _ = get_terminal_size()
-        if len(self.colorizer.clean_color(message)) >= l:
+        if len(self.colorizer.clean_color(progress_bar)) >= l:
             return
 
         with self.mutex:
-            self.in_line(message)
+            self.in_line(progress_bar)
 
     def add_connection_error(self):
         self.errors += 1
@@ -173,19 +176,25 @@ class CLIOutput(object):
         message = self.colorizer.color(message, fore="magenta", bright=True)
         self.new_line(message)
 
-    def add_config(self, key, value, msg):
+    def print_header(self, entries):
         l, _ = get_terminal_size()
-        particle = self.colorizer.color(key + ": ", fore="yellow", bright=True)
-        particle += self.colorizer.color(value, fore="cyan", bright=True)
+        msg = ""
 
-        if len(self.colorizer.clean_color(msg)) == 0:
-            separator = ""
-        elif len(self.colorizer.clean_color(msg.splitlines()[-1] + particle)) + 3 > l:
-            separator = "\n"
-        else:
-            separator = self.colorizer.color(" | ", fore="magenta", bright=True)
+        for i, entry in enumerate(entries.items()):
+            key, value = entry
+            msg += self.colorizer.color(key + ": ", fore="yellow", bright=True)
+            msg += self.colorizer.color(value, fore="cyan", bright=True)
 
-        return separator + particle
+            if i == len(entries) - 1:
+                break
+
+            last_line_len = len(self.colorizer.clean_color(msg.splitlines()[-1]))
+            if last_line_len + 3 >= l:
+                msg += "\n"
+            else:
+                msg += self.colorizer.color(" | ", fore="magenta", bright=True)
+
+        self.new_line(msg)
 
     def config(
         self,
@@ -197,19 +206,19 @@ class CLIOutput(object):
         method,
     ):
 
-        config = self.add_config("Extensions", extensions, "")
+        config = {}
+        config["Extensions"] = extensions
 
         if prefixes:
-            config += self.add_config("Prefixes", prefixes, config)
-
+            config["Prefixes"] = prefixes
         if suffixes:
-            config += self.add_config("Suffixes", suffixes, config)
+            config["Suffixes"] = suffixes
 
-        config += self.add_config("HTTP method", method.upper(), config)
-        config += self.add_config("Threads", threads, config)
-        config += self.add_config("Wordlist size", wordlist_size, config)
+        config["HTTP method"] = method.upper()
+        config["Threads"] = threads
+        config["Wordlist size"] = wordlist_size
 
-        self.new_line(config)
+        self.print_header(config)
 
     def set_target(self, target, scheme):
         if not target.startswith(("http://", "https://")) and "://" not in target:
@@ -217,10 +226,9 @@ class CLIOutput(object):
 
         self.target = target
 
-        header = "\n" + self.add_config("Target", target, "") + "\n"
-        header = self.colorizer.color(header, bright=True)
-
-        self.new_line(header)
+        self.new_line()
+        self.print_header({"Target": target})
+        self.new_line()
 
     def output_file(self, target):
         self.new_line("\nOutput File: {0}".format(target))
