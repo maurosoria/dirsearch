@@ -31,7 +31,7 @@ class Fuzzer(object):
         dictionary,
         suffixes=None,
         prefixes=None,
-        exclude_content=None,
+        exclude_response=None,
         threads=1,
         delay=0,
         maxrate=0,
@@ -44,7 +44,7 @@ class Fuzzer(object):
         self.dictionary = dictionary
         self.suffixes = suffixes if suffixes else []
         self.prefixes = prefixes if prefixes else []
-        self.exclude_content = exclude_content
+        self.exclude_response = exclude_response
         self.base_path = self.requester.base_path
         self.threads = []
         self.threads_count = (
@@ -105,11 +105,11 @@ class Fuzzer(object):
                     self.requester, suffix="." + extension, tested=self.scanners
                 )
 
-        if self.exclude_content:
-            if self.exclude_content.startswith("/"):
-                self.exclude_content = self.exclude_content[1:]
+        if self.exclude_response:
+            if self.exclude_response.startswith("/"):
+                self.exclude_response = self.exclude_response[1:]
             self.calibration = Scanner(
-                self.requester, calibration=self.exclude_content, tested=self.scanners
+                self.requester, calibration=self.exclude_response, tested=self.scanners
             )
 
     def setup_threads(self):
@@ -125,7 +125,7 @@ class Fuzzer(object):
         # Clean the path, so can check for extensions/suffixes
         path = path.split("?")[0].split("#")[0]
 
-        if self.exclude_content:
+        if self.exclude_response:
             yield self.calibration
 
         for prefix in self.prefixes:
