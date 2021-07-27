@@ -22,6 +22,7 @@ from urllib.parse import unquote
 
 from lib.parse.similarity import SimilarityParser
 from lib.utils.random import rand_string
+from lib.utils.fmt import get_encoding_type
 from thirdparty.sqlmap import DynamicContentParser
 
 
@@ -114,7 +115,8 @@ class Scanner(object):
         If the path is reflected in response, decrease the ratio. Because
         the difference between path lengths can reduce the similarity ratio
         """
-        if first_path in first_response.body.decode():
+        encoding_type = get_encoding_type(first_response.body)
+        if first_path in first_response.body.decode(encoding_type):
             if len(first_response) < 200:
                 self.ratio -= 0.15 + 15 / len(first_response)
             elif len(first_response) < 800:
