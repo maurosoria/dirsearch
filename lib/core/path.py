@@ -25,7 +25,7 @@ class Path(object):
         self.path = path
         self.status = status
         self.redirect = response.redirect
-        self.body = response.body.decode(encoding_type)
+        self.body = response.body.decode(encoding_type, errors="ignore")
         self.length = response.length
         self.response = response
 
