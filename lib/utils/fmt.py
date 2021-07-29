@@ -25,6 +25,9 @@ def safequote(string):
 
 
 def get_encoding_type(content):
+    if not content:
+        return "utf-8"
+
     return detect(content)["encoding"]
 
 
