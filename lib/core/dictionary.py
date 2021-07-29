@@ -19,7 +19,7 @@
 import re
 import threading
 
-from lib.utils.data import safequote, uniq, lowercase, uppercase, capitalize
+from lib.utils.fmt import safequote, uniq, lowercase, uppercase, capitalize
 from lib.utils.file import File, FileUtils
 
 

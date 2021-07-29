@@ -22,9 +22,9 @@ from optparse import OptionParser, OptionGroup
 
 from lib.parse.configparser import ConfigParser
 from lib.parse.headers import HeadersParser
-from lib.utils.data import uniq
 from lib.utils.file import File
 from lib.utils.file import FileUtils
+from lib.utils.fmt import uniq
 from lib.utils.range import get_range
 from lib.utils.ip import iprange
 
