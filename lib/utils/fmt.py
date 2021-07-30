@@ -25,10 +25,7 @@ def safequote(string):
 
 
 def get_encoding_type(content):
-    if not content:
-        return "utf-8"
-
-    return detect(content)["encoding"]
+    return detect(content)["encoding"] or "utf-8"
 
 
 def uniq(string_list, filt=False):
