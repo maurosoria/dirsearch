@@ -119,7 +119,7 @@ class Requester(object):
             self.host if self.request_by_hostname else self.ip,
             self.port,
         )
-        self.original_url = "{0}://{1}:{2}/".format(
+        self.base_url = "{0}://{1}:{2}/".format(
             self.protocol,
             self.host,
             self.port,
@@ -216,13 +216,13 @@ class Requester(object):
                 break
 
         except requests.exceptions.SSLError:
-            self.url = self.original_url
+            self.url = self.base_url
             self.set_adapter()
             result = self.request(path, proxy=proxy)
 
         except requests.exceptions.TooManyRedirects:
             raise RequestException(
-                {"message": "Too many redirects: {0}".format(self.original_url)}
+                {"message": "Too many redirects: {0}".format(self.base_url)}
             )
 
         except requests.exceptions.ProxyError:
@@ -237,7 +237,7 @@ class Requester(object):
 
         except requests.exceptions.InvalidURL:
             raise RequestException(
-                {"message": "Invalid URL: {0}".format(self.original_url)}
+                {"message": "Invalid URL: {0}".format(self.base_url)}
             )
 
         except requests.exceptions.InvalidProxyURL:
@@ -253,12 +253,12 @@ class Requester(object):
             socket.timeout,
         ):
             raise RequestException(
-                {"message": "Request timeout: {0}".format(self.original_url)}
+                {"message": "Request timeout: {0}".format(self.base_url)}
             )
 
         except Exception:
             raise RequestException(
-                {"message": "There was a problem in the request to: {0}".format(self.original_url)}
+                {"message": "There was a problem in the request to: {0}".format(self.base_url)}
             )
 
         return result
