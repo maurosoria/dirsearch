@@ -33,7 +33,7 @@ class HTMLReport(FileBaseReport):
         template = env.get_template('html_report_template.html')
 
         metadata = {
-            "command": " ".join(sys.argv),
+            "command": self.get_command(),
             "date": time.ctime()
         }
         results = []
@@ -62,6 +62,13 @@ class HTMLReport(FileBaseReport):
                 })
 
         return template.render(metadata=metadata, results=results)
+
+    def get_command(self):
+        command = " ".join(sys.argv)
+        if '[[' in command or ']]' in command:
+            return 'Dirsearch'
+        else:
+            return command
 
     def save(self):
         self.file.seek(0)
