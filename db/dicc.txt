@@ -5856,6 +5856,9 @@ index.jsp
 index.old
 index.orig
 index.php
+index.php::$DATA
+index.pHp
+index.php.
 index.php-bak
 index.php.bak
 index.php/login/
