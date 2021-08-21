@@ -240,6 +240,8 @@ class ArgumentParser(object):
                 subdir = subdir.strip(" ")
                 if subdir.startswith("/"):
                     subdir = subdir[1:]
+                if not subdir.endswith("/"):
+                    subdir += "/"
                 self.scan_subdirs.append(subdir)
 
         self.exclude_subdirs = []
@@ -248,6 +250,8 @@ class ArgumentParser(object):
                 subdir = subdir.strip(" ")
                 if subdir.startswith("/"):
                     subdir = subdir[1:]
+                if not subdir.endswith("/"):
+                    subdir += "/"
                 self.exclude_subdirs.append(subdir)
 
         if options.skip_on_status:
