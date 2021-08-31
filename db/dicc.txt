@@ -6040,6 +6040,7 @@ jmx-console
 jmx-console/
 jmx-console/HtmlAdaptor
 jmx-console/HtmlAdaptor?action=inspectMBean&name=jboss.system:type=ServerInfo
+jmxproxy
 JNLP-INF/APPLICATION.JNLP
 jo.php
 jobadmin
@@ -6514,6 +6515,15 @@ manager/login
 manager/login.asp
 manager/status/all
 manager/VERSION
+manager/jmxproxy
+manager/jmxproxy/?qry=STUFF
+manager/jmxproxy/?get=BEANNAME&att=MYATTRIBUTE&key=MYKEY
+manager/jmxproxy/?get=java.lang:type=Memory&att=HeapMemoryUsage
+manager/jmxproxy/?get=java.lang:type=Memory&att=HeapMemoryUsage&key=used
+manager/jmxproxy/?set=BEANNAME&att=MYATTRIBUTE&val=NEWVALUE
+manager/jmxproxy/?set=Catalina%3Atype%3DValve%2Cname%3DErrorReportValve%2Chost%3Dlocalhost&att=debug&val=cow
+manager/jmxproxy/?invoke=BEANNAME&op=METHODNAME&ps=COMMASEPARATEDPARAMETERS
+manager/jmxproxy/?invoke=Catalina%3Atype%3DService&op=findConnectors&ps=
 MANIFEST
 MANIFEST.bak
 manifest.json
