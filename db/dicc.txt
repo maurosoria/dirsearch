@@ -1327,6 +1327,7 @@
 .zuul.yaml
 .zuul.yml
 /show_image_NpAdvCatPG.php?cache=false&cat=1&filename=
+_profiler
 0
 0.htpasswd
 0.php
