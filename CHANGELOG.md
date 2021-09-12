@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.4.2] - 2021.9.12
 - More accurate
 - Exclude responses by redirects
 - URLs from STDIN
