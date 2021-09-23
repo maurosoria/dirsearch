@@ -84,7 +84,7 @@ class Requester(object):
             except socket.gaierror:
                 # Check if hostname resolves to IPv6 address only
                 try:
-                    self.ip = socket.gethostbyname(self.host, None, socket.AF_INET6)
+                    self.ip = socket.getaddrinfo(self.host, None, socket.AF_INET6)[0][4][0]
                 except socket.gaierror:
                     raise RequestException({"message": "Couldn't resolve DNS"})
 
