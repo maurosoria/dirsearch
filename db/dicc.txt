@@ -18,6 +18,7 @@
 +CSCOE+/session_password.html
 +CSCOT+/oem-customization?app=AnyConnect&type=oem&platform=..&resource-type=..&name=%2bCSCOE%2b/portal_inc.lua
 +CSCOT+/translation-table?type=mst&textdomain=/%2bCSCOE%2b/portal_inc.lua&default-language&lang=../
+.%2e/%2e%2e/%2e%2e/%2e%2e/etc/passwd
 ..;/
 .0
 .7z
