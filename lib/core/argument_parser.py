@@ -47,18 +47,15 @@ class ArgumentParser(object):
         elif options.url_list:
             file = self.access_file(options.url_list, "file contains URLs")
             self.url_list = list(file.get_lines())
-
         elif options.cidr:
             self.url_list = iprange(options.cidr)
-
         elif options.stdin_urls:
             self.url_list = sys.stdin.read().splitlines()
 
-        elif options.raw_file:
+        if options.raw_file:
             self.access_file(options.raw_file, "file with raw request")
             self.raw_file = options.raw_file
-
-        if not len(self.url_list):
+        elif not len(self.url_list):
             print("URL target is missing, try using -u <url>")
             exit(1)
 
