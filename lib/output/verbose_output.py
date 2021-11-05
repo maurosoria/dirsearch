@@ -220,12 +220,8 @@ class CLIOutput(object):
 
         self.print_header(config)
 
-    def set_target(self, target, scheme):
-        if not target.startswith(("http://", "https://")) and "://" not in target:
-            target = "{0}://{1}".format(scheme, target)
-
+    def set_target(self, target):
         self.target = target
-
         self.new_line()
         self.print_header({"Target": target})
         self.new_line()

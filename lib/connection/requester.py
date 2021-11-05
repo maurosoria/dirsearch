@@ -115,7 +115,16 @@ class Requester(object):
         self.auth = None
         self.request_by_hostname = request_by_hostname
         self.ip = ip
-        self.session = requests.Session()
+        self.base_url = "{0}://{1}:{2}/".format(
+            self.scheme,
+            self.host,
+            self.port,
+        )
+        self.url = "{0}://{1}:{2}/".format(
+            self.scheme,
+            self.host if self.request_by_hostname else self.ip,
+            self.port,
+        )
 
     def setup(self):
         # A proxy could have a different DNS that would resolve the name. ThereFore.
@@ -131,16 +140,6 @@ class Requester(object):
                     raise RequestException({"message": "Couldn't resolve DNS"})
 
         self.session = requests.Session()
-        self.url = "{0}://{1}:{2}/".format(
-            self.scheme,
-            self.host if self.request_by_hostname else self.ip,
-            self.port,
-        )
-        self.base_url = "{0}://{1}:{2}/".format(
-            self.scheme,
-            self.host,
-            self.port,
-        )
         self.set_adapter()
 
     def get_scheme(self, port):
@@ -148,9 +147,10 @@ class Requester(object):
             return self.scheme
 
         s = socket.socket()
-        conn = ssl.wrap_socket(s)
+        conn = ssl.SSLContext().wrap_socket(s)
         try:
             conn.connect((self.host, port))
+            conn.close()
             return "https"
         except Exception:
             return "http"
