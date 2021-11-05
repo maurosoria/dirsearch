@@ -55,7 +55,7 @@ class Raw(object):
 
     @property
     def url(self):
-        return "{1}{2}".format(self.host, self.path)
+        return "{0}{1}".format(self.host, self.path)
 
     @property
     def method(self):
