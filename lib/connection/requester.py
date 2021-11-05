@@ -20,6 +20,7 @@ import urllib3
 import http.client
 import random
 import socket
+import ssl
 import thirdparty.requests as requests
 
 from urllib.parse import urlparse, urljoin
@@ -56,13 +57,9 @@ class Requester(object):
 
         parsed = urlparse(url)
 
-        # If no protocol specified, set http by default
+        # If no scheme specified, unset it first
         if "://" not in url:
-            parsed = urlparse("{0}://{1}".format(scheme, url))
-
-        # If protocol is not supported
-        elif parsed.scheme not in ["https", "http"]:
-            raise RequestException({"message": "Unsupported URL scheme: {0}".format(parsed.scheme)})
+            parsed = urlparse("{0}://{1}".format(scheme or "unknown", url))
 
         self.base_path = parsed.path
         if parsed.path.startswith("/"):
@@ -70,40 +67,40 @@ class Requester(object):
 
         # Safe quote all special characters in base_path to prevent from being encoded
         self.base_path = safequote(self.base_path)
-        self.protocol = parsed.scheme
         self.host = parsed.netloc.split(":")[0]
 
-        # Resolve DNS to decrease overhead
-        if ip:
-            self.ip = ip
-        # A proxy could have a different DNS that would resolve the name. ThereFore.
-        # resolving the name when using proxy to raise an error is pointless
-        elif not proxy and not proxylist:
-            try:
-                self.ip = socket.gethostbyname(self.host)
-            except socket.gaierror:
-                # Check if hostname resolves to IPv6 address only
-                try:
-                    self.ip = socket.getaddrinfo(self.host, None, socket.AF_INET6)[0][4][0]
-                except socket.gaierror:
-                    raise RequestException({"message": "Couldn't resolve DNS"})
-
+        self.scheme = scheme
         # If no port specified, set default (80, 443)
         try:
             self.port = int(parsed.netloc.split(":")[1])
+            self.scheme = self.get_scheme(self.port)
         except IndexError:
-            self.port = 443 if self.protocol == "https" else 80
+            if parsed.scheme == "https":
+                self.port = 443
+            elif parsed.scheme == "http":
+                self.port = 80
+            elif parsed.scheme == "unknown":
+                if self.get_scheme(443) == "https":
+                    self.port = 443
+                    self.scheme = "https"
+                else:
+                    self.port = 80
+                    self.scheme = "http"
         except ValueError:
             raise RequestException(
                 {"message": "Invalid port number: {0}".format(parsed.netloc.split(":")[1])}
             )
 
+        # If the scheme is not supported
+        if self.scheme not in ["https", "http"]:
+            raise RequestException({"message": "Unsupported URI scheme: {0}".format(self.scheme)})
+
         # Set the Host header, this will be overwritten if the user has already set the header
         self.headers["Host"] = self.host
 
         # Include port in Host header if it's non-standard
-        if (self.protocol == "https" and self.port != 443) or (
-            self.protocol == "http" and self.port != 80
+        if (self.scheme == "https" and self.port != 443) or (
+            self.scheme == "http" and self.port != 80
         ):
             self.headers["Host"] += ":{0}".format(self.port)
 
@@ -117,18 +114,46 @@ class Requester(object):
         self.random_agents = None
         self.auth = None
         self.request_by_hostname = request_by_hostname
+        self.ip = ip
+        self.session = requests.Session()
+
+    def setup(self):
+        # A proxy could have a different DNS that would resolve the name. ThereFore.
+        # resolving the name when using proxy to raise an error is pointless
+        if not self.ip or (not self.proxy and not self.proxylist):
+            try:
+                self.ip = socket.gethostbyname(self.host)
+            except socket.gaierror:
+                # Check if hostname resolves to IPv6 address only
+                try:
+                    self.ip = socket.getaddrinfo(self.host, None, socket.AF_INET6)[0][4][0]
+                except socket.gaierror:
+                    raise RequestException({"message": "Couldn't resolve DNS"})
+
         self.session = requests.Session()
         self.url = "{0}://{1}:{2}/".format(
-            self.protocol,
+            self.scheme,
             self.host if self.request_by_hostname else self.ip,
             self.port,
         )
         self.base_url = "{0}://{1}:{2}/".format(
-            self.protocol,
+            self.scheme,
             self.host,
             self.port,
         )
         self.set_adapter()
+
+    def get_scheme(self, port):
+        if self.scheme:
+            return self.scheme
+
+        s = socket.socket()
+        conn = ssl.wrap_socket(s)
+        try:
+            conn.connect((self.host, port))
+            return "https"
+        except Exception:
+            return "http"
 
     def set_adapter(self):
         self.session.mount(self.url, HTTPAdapter(max_retries=self.max_retries))

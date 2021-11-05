@@ -21,11 +21,9 @@ from lib.utils.file import File
 
 
 class Raw(object):
-    def __init__(self, raw_file, scheme):
+    def __init__(self, raw_file):
         with File(raw_file) as raw_content:
             self.raw_content = raw_content.read()
-
-        self.scheme = scheme
         self.parse()
 
     def parse(self):
@@ -57,7 +55,7 @@ class Raw(object):
 
     @property
     def url(self):
-        return "{0}://{1}{2}".format(self.scheme, self.host, self.path)
+        return "{1}{2}".format(self.host, self.path)
 
     @property
     def method(self):
