@@ -1327,6 +1327,7 @@
 .zshrc
 .zuul.yaml
 .zuul.yml
+;/json
 /show_image_NpAdvCatPG.php?cache=false&cat=1&filename=
 _profiler
 0
