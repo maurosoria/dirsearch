@@ -1328,6 +1328,13 @@
 .zuul.yaml
 .zuul.yml
 ;/json
+;/admin
+;/login
+;json/
+;admin/
+;login/
+admin/
+admin/%3bindex/
 /show_image_NpAdvCatPG.php?cache=false&cat=1&filename=
 _profiler
 0
@@ -2854,7 +2861,6 @@ admin.rb
 admin.shtml
 admin.srf
 admin.woa
-admin/
 admin/.config
 admin/.htaccess
 admin/?/login
