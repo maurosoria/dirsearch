@@ -69,33 +69,35 @@ class Requester(object):
         self.base_path = safequote(self.base_path)
         self.host = parsed.netloc.split(":")[0]
 
-        self.scheme = scheme
+        port_for_scheme = {"http": 80, "https": 443, "unknown": 0}
+
         # If no port specified, set default (80, 443)
         try:
             self.port = int(parsed.netloc.split(":")[1])
-            self.scheme = self.get_scheme(self.port)
         except IndexError:
-            if parsed.scheme == "https":
-                self.port = 443
-            elif parsed.scheme == "http":
-                self.port = 80
-            elif parsed.scheme == "unknown":
-                if self.get_scheme(443) == "https":
-                    self.port = 443
-                    self.scheme = "https"
-                else:
-                    self.port = 80
-                    self.scheme = "http"
+            self.port = port_for_scheme[parsed.scheme]
         except ValueError:
             raise RequestException(
                 {"message": "Invalid port number: {0}".format(parsed.netloc.split(":")[1])}
             )
 
+        # If no scheme is found, detect it by port number
+        self.scheme = parsed.scheme if parsed.scheme != "unknown" else self.get_scheme(self.port)
+
+        # If the user neither provide the port nor scheme, guess them based
+        # on standard website characteristics
+        if not self.scheme:
+            if self.get_scheme(443) == "https":
+                self.port = 443
+                self.scheme = "https"
+            else:
+                self.port = 80
+                self.scheme = "http"
         # If the scheme is not supported
-        if self.scheme not in ["https", "http"]:
+        elif self.scheme not in ["https", "http"]:
             raise RequestException({"message": "Unsupported URI scheme: {0}".format(self.scheme)})
 
-        # Set the Host header, this will be overwritten if the user has already set the header
+        # Set the Host header, read the line 126 to know why
         self.headers["Host"] = self.host
 
         # Include port in Host header if it's non-standard
@@ -115,23 +117,23 @@ class Requester(object):
         self.auth = None
         self.request_by_hostname = request_by_hostname
         self.ip = ip
-        self.base_url = "{0}://{1}:{2}/".format(
+        self.base_url = self.url = "{0}://{1}/".format(
             self.scheme,
-            self.host,
-            self.port,
-        )
-        self.url = "{0}://{1}:{2}/".format(
-            self.scheme,
-            self.host if self.request_by_hostname else self.ip,
-            self.port,
+            self.headers["Host"],
         )
 
     def setup(self):
-        # A proxy could have a different DNS that would resolve the name. ThereFore.
+        # To improve dirsearch performance, we resolve the hostname before scanning
+        # and then send requests by IP instead of hostname, so the library won't have to
+        # resolve it before every request. This also keeps the scan stable despite any
+        # issue with the system DNS resolver (running tools like Amass might cause such
+        # things). If you don't like it, you can disable it with `-b` command-line flag
+        #
+        # Note: A proxy could have a different DNS that would resolve the name. ThereFore.
         # resolving the name when using proxy to raise an error is pointless
-        if not self.ip or (not self.proxy and not self.proxylist):
+        if not self.request_by_hostname and not self.proxy and not self.proxylist:
             try:
-                self.ip = socket.gethostbyname(self.host)
+                self.ip = self.ip or socket.gethostbyname(self.host)
             except socket.gaierror:
                 # Check if hostname resolves to IPv6 address only
                 try:
@@ -139,12 +141,18 @@ class Requester(object):
                 except socket.gaierror:
                     raise RequestException({"message": "Couldn't resolve DNS"})
 
+            self.url = "{0}://{1}:{2}/".format(
+                self.scheme,
+                self.ip,
+                self.port,
+            )
+
         self.session = requests.Session()
         self.set_adapter()
 
     def get_scheme(self, port):
-        if self.scheme:
-            return self.scheme
+        if port == 0:
+            return None
 
         s = socket.socket()
         conn = ssl.SSLContext().wrap_socket(s)
