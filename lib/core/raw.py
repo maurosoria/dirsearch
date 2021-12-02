@@ -16,18 +16,14 @@
 #
 #  Author: Mauro Soria
 
-import email
-from io import StringIO
-
-from lib.utils import File
+from lib.parse.headers import HeadersParser
+from lib.utils.file import File
 
 
 class Raw(object):
-    def __init__(self, raw_file, scheme):
+    def __init__(self, raw_file):
         with File(raw_file) as raw_content:
             self.raw_content = raw_content.read()
-
-        self.scheme = scheme
         self.parse()
 
     def parse(self):
@@ -39,11 +35,7 @@ class Raw(object):
         self.startline = self.parsed[0].splitlines()[0]
 
         try:
-            self.http_headers = dict(
-                email.message_from_file(
-                    StringIO("\r\n".join(self.parsed[0].splitlines()[1:]))
-                )
-            )
+            self.headers_parser = HeadersParser(self.parsed[0].splitlines()[1:])
         except Exception:
             print("Invalid headers in the raw request")
             exit(1)
@@ -53,38 +45,22 @@ class Raw(object):
         except IndexError:
             self.body = None
 
-        self.http_headers_lowercase = dict(
-            (key.lower(), value) for key, value in self.http_headers.items()
-        )
-
         try:
-            self.host = self.http_headers_lowercase["host"].strip()
+            self.host = self.headers_parser.lower_headers["host"].strip()
         except KeyError:
             print("Can't find the Host header in the raw request")
             exit(1)
 
-        self.base_path = self.startline.split(" ")[1]
+        self.path = self.startline.split(" ")[1]
 
+    @property
     def url(self):
-        return "{0}://{1}{2}".format(self.scheme, self.host, self.base_path)
+        return "{0}{1}".format(self.host, self.path)
 
+    @property
     def method(self):
         return self.startline.split(" ")[0]
 
+    @property
     def headers(self):
-        return self.http_headers
-
-    def data(self):
-        return self.body
-
-    def user_agent(self):
-        if "user-agent" in self.http_headers_lowercase.keys():
-            return self.http_headers_lowercase["user-agent"]
-        else:
-            return None
-
-    def cookie(self):
-        if "cookie" in self.http_headers_lowercase.keys():
-            return self.http_headers_lowercase["cookie"]
-        else:
-            return None
+        return self.headers_parser.headers

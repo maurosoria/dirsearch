@@ -1,5 +1,4 @@
-<img src="https://user-images.githubusercontent.com/59408894/120434511-c6aac580-c3a6-11eb-8d93-bf96e529fb94.png" width=675>
-
+<img src="static/logo.png" alt="dirsearch" width="675px">
 
 dirsearch - Web path discovery
 =========
@@ -12,7 +11,7 @@ dirsearch - Web path discovery
     ![Tweet](https://img.shields.io/twitter/url?url=https%3A%2F%2Fgithub.com%2Fmaurosoria%2Fdirsearch)
 </a>
 
-**Current Release: v0.4.2 (2021.7.21)**
+**Current Release: v0.4.2 (2021.9.12)**
 
 An advanced command-line tool designed to brute force directories and files in webservers, AKA web path scanner
 
@@ -21,7 +20,6 @@ An advanced command-line tool designed to brute force directories and files in w
 
 Table of Contents
 ------------
-* [Kali Linux](#Kali-Linux)
 * [Installation](#Installation--Usage)
 * [Wordlists](#Wordlists-IMPORTANT)
 * [Options](#Options)
@@ -47,13 +45,6 @@ Table of Contents
 * [License](#License)
 
 
-Kali Linux
-------------
-#### dirsearch is now available in official Kali Linux packages
-
-![Kali Linux](https://www.redeszone.net/app/uploads-redeszone.net/2020/11/kali-linux-2020-4.jpg)
-
-
 Installation & Usage
 ------------
 
@@ -67,7 +58,7 @@ Choose one of these installation options:
 - Install with Kali Linux: `sudo apt-get install dirsearch`
 - Install with PyPi: `pip3 install dirsearch`
 
-Note: *To can use SOCKS proxy feature, please install packages with **requirements.txt**: `pip3 install -r requirements.txt`*
+Note: *To use SOCKS proxy feature, please install packages with **requirements.txt**: `pip3 install -r requirements.txt`*
 
 **All in one:**
 ```
@@ -83,7 +74,7 @@ Wordlists (IMPORTANT)
 **Summary:**
   - Wordlist is a text file, each line is a path.
   - About extensions, unlike other tools, dirsearch only replaces the `%EXT%` keyword with extensions from **-e** flag.
-  - For wordlists without `%EXT%` (like [SecLists](https://github.com/danielmiessler/SecLists)), **-f | --force-extensions** switch is required to append extensions to every word in wordlist, as well as the `/`. And for entries in wordlist that you do not want to append extensions, add `%NOFORCE%` at the end of them.
+  - For wordlists without `%EXT%` (like [SecLists](https://github.com/danielmiessler/SecLists)), **-f | --force-extensions** switch is required to append extensions to every word in wordlist, as well as the `/`.
   - To use multiple wordlists, you can separate your wordlists with commas. Example: `wordlist1.txt,wordlist2.txt`.
 
 **Examples:**
@@ -104,7 +95,6 @@ index.aspx
 - Force extensions
 ```
 admin
-api%NOFORCE%
 ```
 
 Passing "php" and "html" extensions with **-f**/**--force-extensions** flag will generate the following dictionary:
@@ -114,7 +104,6 @@ admin
 admin.php
 admin.html
 admin/
-api
 ```
 
 
@@ -641,7 +630,6 @@ Tips
 ---------------
 - The server has requests limit? That's bad, but feel free to bypass it, by randomizing proxy with `--proxy-list`
 - Want to find out config files or backups? Try `--suffixes ~` and `--prefixes .`
-- For some endpoints that you do not want to force extensions, add `%NOFORCE%` at the end of them
 - Want to find only folders/directories? Why not combine `--remove-extensions` and `--suffixes /`!
 - The mix of `--cidr`, `-F`, `-q` and will reduce most of noises + false negatives when brute-forcing with a CIDR
 - Scan a list of URLs, but don't want to see a 429 flood? `--skip-on-status 429` will help you to skip a target whenever it returns 429

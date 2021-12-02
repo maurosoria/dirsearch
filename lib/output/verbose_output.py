@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #  This program is free software; you can redistribute it and/or modify
-#  it under the terms of the GNU General Public License as published by
+#  it under the terms of the GNU General Publlic License as published by
 #  the Free Software Foundation; either version 2 of the License, or
 #  (at your option) any later version.
 #
@@ -16,15 +16,14 @@
 #
 #  Author: Mauro Soria
 
-import re
 import sys
-import threading
 import time
-import urllib.parse
 
-from lib.utils.file_utils import FileUtils
-from lib.utils.terminal_size import get_terminal_size
-from thirdparty.colorama import init, Fore, Back, Style
+from threading import Lock
+from urllib.parse import urlparse
+
+from lib.utils.size import human_size, get_terminal_size
+from .colors import ColorOutput
 
 if sys.platform in ["win32", "msys"]:
     from thirdparty.colorama.win32 import (FillConsoleOutputCharacter,
@@ -32,26 +31,16 @@ if sys.platform in ["win32", "msys"]:
                                            STDOUT)
 
 
-class NoColor:
-    RED = GREEN = YELLOW = BLUE = MAGENTA = CYAN = WHITE = BRIGHT = RESET_ALL = ''
-
-
 class CLIOutput(object):
     def __init__(self, color):
-        init()
         self.last_length = 0
         self.last_output = ""
         self.last_in_line = False
-        self.mutex = threading.Lock()
+        self.mutex = Lock()
         self.blacklists = {}
         self.base_path = None
         self.errors = 0
-        if not color:
-            self.disable_colors()
-
-    @staticmethod
-    def percentage(x, y):
-        return float(x) / float(y) * 100
+        self.colorizer = ColorOutput(color)
 
     def in_line(self, string):
         self.erase()
@@ -92,23 +81,13 @@ class CLIOutput(object):
         sys.stdout.flush()
 
     def status_report(self, path, response, full_url, added_to_queue):
-        content_length = None
         status = response.status
-
-        # Format message
-        try:
-            size = int(response.headers["content-length"])
-
-        except (KeyError, ValueError):
-            size = response.length
-
-        finally:
-            content_length = FileUtils.size_human(size)
+        content_length = human_size(response.length)
 
         show_path = "/" + self.base_path + path
 
         if full_url:
-            parsed = urllib.parse.urlparse(self.target)
+            parsed = urlparse(self.target)
             show_path = "{0}://{1}{2}".format(parsed.scheme, parsed.netloc, show_path)
 
         message = "[{0}] {1} - {2} - {3}".format(
@@ -119,54 +98,63 @@ class CLIOutput(object):
         )
 
         if status in [200, 201, 204]:
-            message = Fore.GREEN + message + Style.RESET_ALL
+            message = self.colorizer.color(message, fore="green")
 
         elif status == 401:
-            message = Fore.YELLOW + message + Style.RESET_ALL
+            message = self.colorizer.color(message, fore="yellow")
 
         elif status == 403:
-            message = Fore.BLUE + message + Style.RESET_ALL
+            message = self.colorizer.color(message, fore="blue")
 
         elif status in range(500, 600):
-            message = Fore.RED + message + Style.RESET_ALL
+            message = self.colorizer.color(message, fore="red")
 
         elif status in range(300, 400):
-            message = Fore.CYAN + message + Style.RESET_ALL
-            if "location" in [h.lower() for h in response.headers]:
-                message += "  ->  {0}".format(response.headers["location"])
+            message = self.colorizer.color(message, fore="cyan")
 
         else:
-            message = Fore.MAGENTA + message + Style.RESET_ALL
+            message = self.colorizer.color(message, fore="magenta")
 
+        if response.redirect:
+            message += "  ->  {0}".format(response.redirect)
         if added_to_queue:
             message += "     (Added to queue)"
 
         with self.mutex:
             self.new_line(message)
 
-    def last_path(self, path, index, length, current_job, all_jobs, rate, show_rate):
-        terminal_len, _ = get_terminal_size()
-        if terminal_len <= 45:
-            return
+    def last_path(self, index, length, current_job, all_jobs, rate):
+        percentage = int(index / length * 100)
+        task = self.colorizer.color("#", fore="cyan", bright=True) * int(percentage / 5)
+        task += " " * (20 - int(percentage / 5))
+        progress = "{}/{}".format(index, length)
 
-        message = "{0:.2f}%{1} - ".format(
-            self.percentage(index, length),
-            " | {} req/s".format(rate) if show_rate else ""
+        jobs = "{0}:{1}/{2}".format(
+            self.colorizer.color("job", fore="green", bright=True),
+            current_job,
+            all_jobs
         )
 
-        if all_jobs > 1:
-            message += "Job: {0}/{1} - ".format(current_job, all_jobs)
+        errors = "{0}:{1}".format(
+            self.colorizer.color("errors", fore="red", bright=True),
+            self.errors
+        )
 
-        if self.errors:
-            message += "Errors: {0} - ".format(self.errors)
+        progress_bar = "[{0}] {1}% {2} {3}/s       {4} {5}".format(
+            task,
+            percentage,
+            progress.rjust(12, " "),
+            str(rate).rjust(9, " "),
+            jobs.ljust(21, " "),
+            errors
+        )
 
-        message += "Last request to: {0}".format(path)
-
-        if len(message) >= terminal_len:
-            message = message[:terminal_len - 1]
+        l, _ = get_terminal_size()
+        if len(self.colorizer.clean_color(progress_bar)) >= l:
+            return
 
         with self.mutex:
-            self.in_line(message)
+            self.in_line(progress_bar)
 
     def add_connection_error(self):
         self.errors += 1
@@ -175,33 +163,38 @@ class CLIOutput(object):
         with self.mutex:
             stripped = reason.strip()
             message = "\n" if reason.startswith("\n") else ""
-            message += Style.BRIGHT + Fore.WHITE + Back.RED + stripped + Style.RESET_ALL
+            message += self.colorizer.color(stripped, fore="white", back="red", bright=True)
 
             self.new_line(message)
 
     def warning(self, message):
         with self.mutex:
-            message = Style.BRIGHT + Fore.YELLOW + message + Style.RESET_ALL
+            message = self.colorizer.color(message, fore="yellow", bright=True)
             self.new_line(message)
 
     def header(self, message):
-        message = Style.BRIGHT + Fore.MAGENTA + message + Style.RESET_ALL
+        message = self.colorizer.color(message, fore="magenta", bright=True)
         self.new_line(message)
 
-    def add_config(self, key, value, msg):
+    def print_header(self, entries):
         l, _ = get_terminal_size()
-        # Escape colours in text to get the real length
-        escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])|\n")
-        particle = Fore.YELLOW + key + ": " + Fore.CYAN + value
+        msg = ""
 
-        if len(escape.sub("", msg)) == 0:
-            separator = ""
-        elif len(escape.sub("", msg.splitlines()[-1] + particle)) + 3 > l:
-            separator = "\n"
-        else:
-            separator = Fore.MAGENTA + " | " + Fore.YELLOW
+        for i, entry in enumerate(entries.items()):
+            key, value = entry
+            msg += self.colorizer.color(key + ": ", fore="yellow", bright=True)
+            msg += self.colorizer.color(value, fore="cyan", bright=True)
 
-        return separator + particle
+            if i == len(entries) - 1:
+                break
+
+            last_line_len = len(self.colorizer.clean_color(msg.splitlines()[-1]))
+            if last_line_len + 3 >= l:
+                msg += "\n"
+            else:
+                msg += self.colorizer.color(" | ", fore="magenta", bright=True)
+
+        self.new_line(msg)
 
     def config(
         self,
@@ -213,33 +206,25 @@ class CLIOutput(object):
         method,
     ):
 
-        config = Style.BRIGHT
-        config += self.add_config("Extensions", extensions, config)
+        config = {}
+        config["Extensions"] = extensions
 
         if prefixes:
-            config += self.add_config("Prefixes", prefixes, config)
-
+            config["Prefixes"] = prefixes
         if suffixes:
-            config += self.add_config("Suffixes", suffixes, config)
+            config["Suffixes"] = suffixes
 
-        config += self.add_config("HTTP method", method.upper(), config)
-        config += self.add_config("Threads", threads, config)
-        config += self.add_config("Wordlist size", wordlist_size, config)
-        config += Style.RESET_ALL
+        config["HTTP method"] = method.upper()
+        config["Threads"] = threads
+        config["Wordlist size"] = wordlist_size
 
-        self.new_line(config)
+        self.print_header(config)
 
-    def set_target(self, target, scheme):
-        if not target.startswith(("http://", "https://")) and "://" not in target:
-            target = "{0}://{1}".format(scheme, target)
-
+    def set_target(self, target):
         self.target = target
-
-        config = Style.BRIGHT
-        config += "\n" + self.add_config("Target", target, config) + "\n"
-        config += Style.RESET_ALL
-
-        self.new_line(config)
+        self.new_line()
+        self.print_header({"Target": target})
+        self.new_line()
 
     def output_file(self, target):
         self.new_line("\nOutput File: {0}".format(target))
@@ -251,10 +236,3 @@ class CLIOutput(object):
         with self.mutex:
             line = "[{0}] - {1}".format(time.strftime("%H:%M:%S"), info)
             self.new_line(line)
-
-    def disable_colors(self):
-        global Fore
-        global Style
-        global Back
-
-        Fore = Style = Back = NoColor

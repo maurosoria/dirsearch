@@ -16,7 +16,7 @@
 #
 #  Author: Mauro Soria
 
-from lib.reports import FileBaseReport
+from lib.reports.base import FileBaseReport
 
 
 class SimpleReport(FileBaseReport):

@@ -17,16 +17,16 @@
 #  Author: Mauro Soria
 
 import sys
-import email
 
 from optparse import OptionParser, OptionGroup
-from ipaddress import IPv4Network
-from io import StringIO
 
-from lib.utils.default_config_parser import DefaultConfigParser
-from lib.utils.file_utils import File
-from lib.utils.file_utils import FileUtils
-from thirdparty.oset import oset
+from lib.parse.configparser import ConfigParser
+from lib.parse.headers import HeadersParser
+from lib.utils.file import File
+from lib.utils.file import FileUtils
+from lib.utils.fmt import uniq
+from lib.utils.range import get_range
+from lib.utils.ip import iprange
 
 
 class ArgumentParser(object):
@@ -38,31 +38,28 @@ class ArgumentParser(object):
 
         self.quiet = options.quiet
         self.full_url = options.full_url
-        self.url_list = None
+        self.url_list = []
         self.raw_file = None
 
-        if not options.url:
-
-            if options.url_list:
-                file = self.access_file(options.url_list, "file contains URLs")
-                self.url_list = list(file.get_lines())
-
-            elif options.cidr:
-                self.url_list = [str(ip) for ip in IPv4Network(options.cidr)]
-
-            elif options.stdin_urls:
-                self.url_list = sys.stdin.read().splitlines()
-
-            elif options.raw_file:
-                self.access_file(options.raw_file, "file with raw request")
-                self.raw_file = options.raw_file
-
-            else:
-                print("URL target is missing, try using -u <url>")
-                exit(1)
-
-        else:
+        if options.url:
             self.url_list = [options.url]
+
+        elif options.url_list:
+            file = self.access_file(options.url_list, "file contains URLs")
+            self.url_list = list(file.get_lines())
+        elif options.cidr:
+            self.url_list = iprange(options.cidr)
+        elif options.stdin_urls:
+            self.url_list = sys.stdin.read().splitlines()
+
+        if options.raw_file:
+            self.access_file(options.raw_file, "file with raw request")
+            self.raw_file = options.raw_file
+        elif not len(self.url_list):
+            print("URL target is missing, try using -u <url>")
+            exit(1)
+
+        self.url_list = uniq(self.url_list)
 
         if not options.extensions and not options.no_extension:
             print("WARNING: No extension was specified!")
@@ -93,31 +90,25 @@ class ArgumentParser(object):
         else:
             self.replay_proxy = None
 
-        if options.headers:
-            try:
-                self.headers = dict(
-                    email.message_from_file(StringIO("\r\n".join(options.headers)))
-                )
-            except Exception:
-                print("Invalid headers")
-                exit(1)
-
-        else:
-            self.headers = {}
+        self.headers = {}
 
         if options.header_list:
             try:
                 file = self.access_file(options.header_list, "header list file")
-
-                headers = dict(
-                    email.message_from_file(StringIO(file.read()))
+                self.headers.update(
+                    HeadersParser(file.read()).headers
                 )
-
-                for key, value in headers.items():
-                    self.headers[key] = value
-
             except Exception as e:
                 print("Error in headers file: " + str(e))
+                exit(1)
+
+        if options.headers:
+            try:
+                self.headers.update(
+                    HeadersParser(options.headers).headers
+                )
+            except Exception:
+                print("Invalid headers")
                 exit(1)
 
         if options.extensions == "*":
@@ -129,13 +120,11 @@ class ArgumentParser(object):
             print("A weird extension was provided: 'banner.txt'. Please do not use * as the extension or enclose it in double quotes")
             exit(0)
         else:
-            self.extensions = list(
-                oset([extension.lstrip(' .') for extension in options.extensions.split(",")])
-            )
+            self.extensions = uniq([extension.lstrip(' .') for extension in options.extensions.split(",")])
 
         if options.exclude_extensions:
-            self.exclude_extensions = list(
-                oset([exclude_extension.lstrip(' .') for exclude_extension in options.exclude_extensions.split(",")])
+            self.exclude_extensions = uniq(
+                [exclude_extension.lstrip(' .') for exclude_extension in options.exclude_extensions.split(",")]
             )
         else:
             self.exclude_extensions = []
@@ -167,14 +156,10 @@ class ArgumentParser(object):
 
         if options.exclude_sizes:
             try:
-                self.exclude_sizes = list(
-                    oset(
-                        [
-                            exclude_size.strip().upper() if exclude_size else None
-                            for exclude_size in options.exclude_sizes.split(",")
-                        ]
-                    )
-                )
+                self.exclude_sizes = uniq([
+                    exclude_size.strip().upper() if exclude_size else None
+                    for exclude_size in options.exclude_sizes.split(",")
+                ])
 
             except ValueError:
                 self.exclude_sizes = []
@@ -183,14 +168,10 @@ class ArgumentParser(object):
 
         if options.exclude_texts:
             try:
-                self.exclude_texts = list(
-                    oset(
-                        [
-                            exclude_text.strip() if exclude_text else None
-                            for exclude_text in options.exclude_texts.split(",")
-                        ]
-                    )
-                )
+                self.exclude_texts = uniq([
+                    exclude_text.strip() if exclude_text else None
+                    for exclude_text in options.exclude_texts.split(",")
+                ])
 
             except ValueError:
                 self.exclude_texts = []
@@ -199,14 +180,10 @@ class ArgumentParser(object):
 
         if options.exclude_regexps:
             try:
-                self.exclude_regexps = list(
-                    oset(
-                        [
-                            exclude_regexp.strip() if exclude_regexp else None
-                            for exclude_regexp in options.exclude_regexps.split(",")
-                        ]
-                    )
-                )
+                self.exclude_regexps = uniq([
+                    exclude_regexp.strip() if exclude_regexp else None
+                    for exclude_regexp in options.exclude_regexps.split(",")
+                ])
 
             except ValueError:
                 self.exclude_regexps = []
@@ -215,24 +192,20 @@ class ArgumentParser(object):
 
         if options.exclude_redirects:
             try:
-                self.exclude_redirects = list(
-                    oset(
-                        [
-                            exclude_redirect.strip() if exclude_redirect else None
-                            for exclude_redirect in options.exclude_redirects.split(",")
-                        ]
-                    )
-                )
+                self.exclude_redirects = uniq([
+                    exclude_redirect.strip() if exclude_redirect else None
+                    for exclude_redirect in options.exclude_redirects.split(",")
+                ])
 
             except ValueError:
                 self.exclude_redirects = []
         else:
             self.exclude_redirects = []
 
-        self.prefixes = [] if not options.prefixes else list(oset([prefix.strip() for prefix in options.prefixes.split(",")]))
-        self.suffixes = [] if not options.suffixes else list(oset([suffix.strip() for suffix in options.suffixes.split(",")]))
+        self.prefixes = uniq([prefix.strip() for prefix in options.prefixes.split(",")]) if options.prefixes else []
+        self.suffixes = uniq([suffix.strip() for suffix in options.suffixes.split(",")]) if options.suffixes else []
         if options.wordlist:
-            self.wordlist = list(oset([wordlist.strip() for wordlist in options.wordlist.split(",")]))
+            self.wordlist = uniq([wordlist.strip() for wordlist in options.wordlist.split(",")])
         else:
             print("No wordlist was provided, try using -w <wordlist>")
             exit(1)
@@ -242,7 +215,7 @@ class ArgumentParser(object):
         self.capitalization = options.capitalization
         self.force_extensions = options.force_extensions
         self.data = options.data
-        self.exclude_content = options.exclude_content
+        self.exclude_response = options.exclude_response
         self.color = options.color
         self.delay = options.delay
         self.timeout = options.timeout
@@ -264,6 +237,8 @@ class ArgumentParser(object):
                 subdir = subdir.strip(" ")
                 if subdir.startswith("/"):
                     subdir = subdir[1:]
+                if not subdir.endswith("/"):
+                    subdir += "/"
                 self.scan_subdirs.append(subdir)
 
         self.exclude_subdirs = []
@@ -272,6 +247,8 @@ class ArgumentParser(object):
                 subdir = subdir.strip(" ")
                 if subdir.startswith("/"):
                     subdir = subdir[1:]
+                if not subdir.endswith("/"):
+                    subdir += "/"
                 self.exclude_subdirs.append(subdir)
 
         if options.skip_on_status:
@@ -307,10 +284,6 @@ class ArgumentParser(object):
 
         self.recursion_depth = options.recursion_depth
 
-        if self.scheme not in ["http", "https"]:
-            print("Invalid URI scheme: {0}".format(self.scheme))
-            exit(1)
-
         if self.output_format and self.output_format not in ["simple", "plain", "json", "xml", "md", "csv", "html"]:
             print("Select one of the following output formats: simple, plain, json, xml, md, csv, html")
             exit(1)
@@ -320,12 +293,7 @@ class ArgumentParser(object):
         for status_code in raw_status_codes.split(","):
             try:
                 if "-" in status_code:
-                    status_codes.extend([
-                        i for i in range(
-                            int(status_code.split("-")[0].strip()),
-                            int(status_code.split("-")[1].strip()) + 1
-                        )
-                    ])
+                    status_codes.extend(get_range(status_code))
 
                 else:
                     status_codes.append(int(status_code.strip()))
@@ -334,7 +302,7 @@ class ArgumentParser(object):
                 print("Invalid status code or status code range: {0}".format(status_code))
                 exit(1)
 
-        return status_codes
+        return uniq(status_codes)
 
     def access_file(self, path, name):
         with File(path) as file:
@@ -353,7 +321,7 @@ class ArgumentParser(object):
             return file
 
     def parse_config(self):
-        config = DefaultConfigParser()
+        config = ConfigParser()
         config_path = FileUtils.build_path(self.script_path, "default.conf")
         config.read(config_path)
 
@@ -372,7 +340,7 @@ class ArgumentParser(object):
         self.exclude_texts = config.safe_get("general", "exclude-texts", None)
         self.exclude_regexps = config.safe_get("general", "exclude-regexps", None)
         self.exclude_redirects = config.safe_get("general", "exclude-redirects", None)
-        self.exclude_content = config.safe_get("general", "exclude-content", "")
+        self.exclude_response = config.safe_get("general", "exclude-response", "")
         self.recursive = config.safe_getboolean("general", "recursive", False)
         self.deep_recursive = config.safe_getboolean("general", "deep-recursive", False)
         self.force_recursive = config.safe_getboolean("general", "force-recursive", False)
@@ -385,7 +353,6 @@ class ArgumentParser(object):
         self.full_url = config.safe_getboolean("general", "full-url", False)
         self.color = config.safe_getboolean("general", "color", True)
         self.quiet = config.safe_getboolean("general", "quiet-mode", False)
-        self.show_rate = config.safe_getboolean("general", "show-rate", False)
 
         # Reports
         self.output_location = config.safe_get("reports", "report-output-folder", None)
@@ -419,12 +386,12 @@ class ArgumentParser(object):
 
         # Connection
         self.delay = config.safe_getfloat("connection", "delay", 0)
-        self.timeout = config.safe_getint("connection", "timeout", 10)
-        self.max_retries = config.safe_getint("connection", "retries", 2)
+        self.timeout = config.safe_getfloat("connection", "timeout", 7.5)
+        self.max_retries = config.safe_getint("connection", "retries", 1)
         self.maxrate = config.safe_getint("connection", "max-rate", 0)
         self.proxy = config.safe_get("connection", "proxy", None)
         self.proxylist = config.safe_get("connection", "proxy-list", None)
-        self.scheme = config.safe_get("connection", "scheme", "http", ["http", "https"])
+        self.scheme = config.safe_get("connection", "scheme", None, ["http", "https"])
         self.replay_proxy = config.safe_get("connection", "replay-proxy", None)
         self.request_by_hostname = config.safe_getboolean(
             "connection", "request-by-hostname", False
@@ -505,8 +472,8 @@ information at https://github.com/maurosoria/dirsearch.""")
                            action="store", dest="exclude_regexps", default=self.exclude_regexps, metavar="REGEXPS")
         general.add_option("--exclude-redirects", help="Exclude responses by redirect regexps or texts, separated by commas (Example: 'https://okta.com/*')",
                            action="store", dest="exclude_redirects", default=self.exclude_redirects, metavar="REGEXPS")
-        general.add_option("--exclude-content", help="Exclude responses by response content of this path", action="store",
-                           dest="exclude_content", default=self.exclude_content, metavar="PATH")
+        general.add_option("--exclude-response", help="Exclude responses by response of this page (path as input)", action="store",
+                           dest="exclude_response", default=self.exclude_response, metavar="PATH")
         general.add_option("--skip-on-status", action="store", dest="skip_on_status", default=self.skip_on_status,
                            help="Skip target whenever hit one of these status codes, separated by commas, support ranges", metavar="CODES")
         general.add_option("--minimal", action="store", dest="minimum_response_size", type="int", default=None,
@@ -556,7 +523,7 @@ information at https://github.com/maurosoria/dirsearch.""")
                               default=self.proxylist, help="File contains proxy servers", metavar="FILE")
         connection.add_option("--replay-proxy", action="store", dest="replay_proxy", type="string", default=self.replay_proxy,
                               help="Proxy to replay with found paths", metavar="PROXY")
-        connection.add_option("--scheme", help="Default scheme (for raw request or if there is no scheme in the URL)", action="store",
+        connection.add_option("--scheme", help="Default scheme for raw request or if there is no scheme in the URL (Default: auto-detect)", action="store",
                               default=self.scheme, dest="scheme", metavar="SCHEME")
         connection.add_option("--max-rate", help="Max requests per second", action="store", dest="maxrate",
                               type="int", default=self.maxrate, metavar="RATE")

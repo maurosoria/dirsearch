@@ -18,9 +18,9 @@
 
 import re
 import threading
-import urllib.parse
 
-from lib.utils.file_utils import File, FileUtils
+from lib.utils.fmt import safequote, uniq, lowercase, uppercase, capitalize
+from lib.utils.file import File, FileUtils
 
 
 class Dictionary(object):
@@ -73,10 +73,6 @@ class Dictionary(object):
     def paths(self, paths):
         self._paths = paths
 
-    @classmethod
-    def quote(cls, string):
-        return urllib.parse.quote(string, safe="!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~")
-
     """
     Dictionary.generate() behaviour
 
@@ -96,15 +92,13 @@ class Dictionary(object):
 
     def generate(self):
         reext = re.compile(r"\%ext\%", re.IGNORECASE).sub
-        renoforce = re.compile(r"\%noforce\%", re.IGNORECASE).sub
-        custom = []
         result = []
 
         # Enable to use multiple dictionaries at once
         for dict_file in self.dictionary_files:
-            for line in list(filter(None, dict.fromkeys(dict_file.get_lines()))):
+            for line in uniq(dict_file.get_lines(), filt=True):
                 # Skip comments
-                if line.lstrip().startswith("#"):
+                if line.startswith("#"):
                     continue
 
                 if line.startswith("/"):
@@ -112,14 +106,9 @@ class Dictionary(object):
 
                 if self._no_extension:
                     line = line[0] + line[1:].split(".")[0]
+                    # Skip dummy paths
                     if line == ".":
                         continue
-
-                # Check if the line has the %NOFORCE% keyword
-                force = True
-                if "%noforce%" in line.lower():
-                    force = False
-                    line = renoforce("", line)
 
                 # Skip if the path contains excluded extensions
                 if self._exclude_extensions and (
@@ -131,67 +120,48 @@ class Dictionary(object):
                 if "%ext%" in line.lower():
                     for extension in self._extensions:
                         newline = reext(extension, line)
-
-                        quoted = self.quote(newline)
-                        result.append(quoted)
+                        result.append(newline)
 
                 # If forced extensions is used and the path is not a directory ... (terminated by /)
                 # process line like a forced extension.
-                elif self._force_extensions and not line.rstrip().endswith("/") and "." not in line and force:
-                    quoted = self.quote(line)
-
+                elif self._force_extensions and not line.rstrip().endswith("/") and "." not in line:
                     for extension in self._extensions:
-                        # Why? Check https://github.com/maurosoria/dirsearch/issues/70
-                        if extension.strip():
-                            result.append(quoted + "." + extension)
+                        result.append(line + "." + extension)
 
-                    result.append(quoted)
-                    result.append(quoted + "/")
+                    result.append(line)
+                    result.append(line + "/")
 
                 # Append line unmodified.
                 else:
-                    if self._only_selected and (
-                        not any([line.endswith("." + extension) for extension in self.extensions])
+                    if not self._only_selected or any(
+                        [line.endswith("." + extension) for extension in self.extensions]
                     ):
-                        continue
+                        result.append(line)
 
-                    quoted = self.quote(line)
-                    result.append(quoted)
+        # Some custom changes
+        for entry in uniq(result):
+            entries = [entry]
+            for pref in self._prefixes:
+                if not entry.startswith(pref):
+                    entries.append(pref + entry)
+            for suff in self._suffixes:
+                if not entry.endswith("/") and not entry.endswith(suff):
+                    entries.append(entry + suff)
 
-        # Adding prefixes for finding config files etc
-        if self._prefixes:
-            for res in result:
-                for pref in self._prefixes:
-                    if not res.startswith(pref):
-                        custom.append(pref + res)
+            if self.lowercase:
+                self.entries.extend(lowercase(entries))
+            elif self.uppercase:
+                self.entries.extend(uppercase(entries))
+            elif self.capitalization:
+                self.entries.extend(capitalize(entries))
+            else:
+                self.entries.extend(entries)
 
-        # Adding suffixes for finding backups etc
-        if self._suffixes:
-            for res in result:
-                if not res.endswith("/"):
-                    for suff in self._suffixes:
-                        if not res.endswith(suff):
-                            custom.append(res + suff)
-
-        result = custom if custom else result
-
-        if self.lowercase:
-            self.entries = list(dict.fromkeys(map(lambda l: l.lower(), result)))
-
-        elif self.uppercase:
-            self.entries = list(dict.fromkeys(map(lambda l: l.upper(), result)))
-
-        elif self.capitalization:
-            self.entries = list(dict.fromkeys(map(lambda l: l.capitalize(), result)))
-
-        else:
-            self.entries = list(dict.fromkeys(result))
-
-        del custom
         del result
 
     # Get ignore paths for status codes.
     # More information: https://github.com/maurosoria/dirsearch#Blacklist
+    @staticmethod
     def generate_blacklists(extensions, script_path):
         reext = re.compile(r"\%ext\%", re.IGNORECASE).sub
         blacklists = {}
@@ -230,10 +200,6 @@ class Dictionary(object):
 
         return blacklists
 
-    def regenerate(self):
-        self.generate()
-        self.reset()
-
     def next_with_index(self, base_path=None):
         self.condition.acquire()
 
@@ -251,7 +217,7 @@ class Dictionary(object):
 
     def __next__(self, base_path=None):
         _, path = self.next_with_index(base_path)
-        return path
+        return safequote(path)
 
     def reset(self):
         self.condition.acquire()

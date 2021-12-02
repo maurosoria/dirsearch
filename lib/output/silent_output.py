@@ -17,11 +17,12 @@
 #  Author: Mauro Soria
 
 import sys
-import threading
-import urllib.parse
 
-from lib.utils.file_utils import FileUtils
-from thirdparty.colorama import init, Fore, Style
+from threading import Lock
+from urllib.parse import urlparse
+
+from lib.utils.size import human_size
+from .colors import ColorOutput
 
 if sys.platform in ["win32", "msys"]:
     from thirdparty.colorama.win32 import (FillConsoleOutputCharacter,
@@ -29,20 +30,14 @@ if sys.platform in ["win32", "msys"]:
                                            STDOUT)
 
 
-class NoColor:
-    RED = GREEN = YELLOW = BLUE = MAGENTA = CYAN = WHITE = BRIGHT = RESET_ALL = ''
-
-
 class PrintOutput(object):
     def __init__(self, color):
-        init()
-        self.mutex = threading.Lock()
+        self.mutex = Lock()
         self.blacklists = {}
-        self.mutex_checked_paths = threading.Lock()
+        self.mutex_checked_paths = Lock()
         self.base_path = None
         self.errors = 0
-        if not color:
-            self.disable_colors()
+        self.colorizer = ColorOutput(color)
 
     def header(self, text):
         pass
@@ -72,22 +67,12 @@ class PrintOutput(object):
         sys.stdout.flush()
 
     def status_report(self, path, response, full_url, added_to_queue):
-        content_length = None
         status = response.status
-
-        # Format message
-        try:
-            size = int(response.headers["content-length"])
-
-        except (KeyError, ValueError):
-            size = response.length
-
-        finally:
-            content_length = FileUtils.size_human(size)
+        content_length = human_size(response.length)
 
         show_path = "/" + self.base_path + path
 
-        parsed = urllib.parse.urlparse(self.target)
+        parsed = urlparse(self.target)
         show_path = "{0}://{1}{2}".format(parsed.scheme, parsed.netloc, show_path)
 
         message = "{0} - {1} - {2}".format(
@@ -95,32 +80,32 @@ class PrintOutput(object):
         )
 
         if status in [200, 201, 204]:
-            message = Fore.GREEN + message + Style.RESET_ALL
+            message = self.colorizer.color(message, fore="green")
 
         elif status == 401:
-            message = Fore.YELLOW + message + Style.RESET_ALL
+            message = self.colorizer.color(message, fore="yellow")
 
         elif status == 403:
-            message = Fore.BLUE + message + Style.RESET_ALL
+            message = self.colorizer.color(message, fore="blue")
 
         elif status in range(500, 600):
-            message = Fore.RED + message + Style.RESET_ALL
+            message = self.colorizer.color(message, fore="red")
 
         elif status in range(300, 400):
-            message = Fore.CYAN + message + Style.RESET_ALL
-            if "location" in [h.lower() for h in response.headers]:
-                message += "  ->  {0}".format(response.headers["location"])
+            message = self.colorizer.color(message, fore="cyan")
 
         else:
-            message = Fore.MAGENTA + message + Style.RESET_ALL
+            message = self.colorizer.color(message, fore="magenta")
 
+        if response.redirect:
+            message += "  ->  {0}".format(response.redirect)
         if added_to_queue:
             message += "     (Added to queue)"
 
         with self.mutex:
             self.new_line(message)
 
-    def last_path(self, path, index, length, current_job, all_jobs, rate, show_rate):
+    def last_path(self, index, length, current_job, all_jobs, rate):
         pass
 
     def add_connection_error(self):
@@ -143,10 +128,7 @@ class PrintOutput(object):
     ):
         pass
 
-    def set_target(self, target, scheme):
-        if not target.startswith("http://") and not target.startswith("https://") and "://" not in target:
-            target = "{0}://{1}".format(scheme, target)
-
+    def set_target(self, target):
         self.target = target
 
     def output_file(self, target):
@@ -158,10 +140,3 @@ class PrintOutput(object):
     def debug(self, info):
         with self.mutex:
             self.new_line(info)
-
-    def disable_colors(self):
-        global Fore
-        global Style
-        global Back
-
-        Fore = Style = Back = NoColor

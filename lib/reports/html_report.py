@@ -16,23 +16,24 @@
 #
 #  Author: Mauro Soria
 
-import json
 import os
 import sys
 import time
 
-from lib.reports import FileBaseReport
-from lib.utils import FileUtils
-from thirdparty.mako.template import Template
+from lib.reports.base import FileBaseReport
+from lib.utils.size import human_size
+from thirdparty.jinja2 import Environment, FileSystemLoader
 
 
 class HTMLReport(FileBaseReport):
     def generate(self):
-        template_file = os.path.dirname(os.path.realpath(__file__)) + '/templates/html_report_template.html'
-        mytemplate = Template(filename=template_file)
+        file_loader = FileSystemLoader(os.path.dirname(os.path.realpath(__file__)) + '/templates/')
+        env = Environment(loader=file_loader)
+
+        template = env.get_template('html_report_template.html')
 
         metadata = {
-            "command": " ".join(sys.argv),
+            "command": self.get_command(),
             "date": time.ctime()
         }
         results = []
@@ -54,13 +55,20 @@ class HTMLReport(FileBaseReport):
                     "url": header_name + e.path,
                     "path": e.path,
                     "status": e.status,
-                    "status_color_class": status_color_class,
-                    "contentLength": FileUtils.size_human(e.get_content_length()),
-                    "contentType": e.response.headers.get("content-type"),
+                    "statusColorClass": status_color_class,
+                    "contentLength": human_size(e.get_content_length()),
+                    "contentType": e.get_content_type(),
                     "redirect": e.response.redirect
                 })
 
-        return mytemplate.render(metadata=metadata, results=json.dumps(results))
+        return template.render(metadata=metadata, results=results)
+
+    def get_command(self):
+        command = " ".join(sys.argv)
+        if '[[' in command or ']]' in command:
+            return 'Dirsearch'
+        else:
+            return command
 
     def save(self):
         self.file.seek(0)

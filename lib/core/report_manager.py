@@ -16,8 +16,15 @@
 #
 #  Author: Mauro Soria
 
-import threading
-from lib.reports import CSVReport, HTMLReport, JSONReport, MarkdownReport, PlainTextReport, SimpleReport, XMLReport
+from threading import Lock
+
+from lib.reports.csv_report import CSVReport
+from lib.reports.html_report import HTMLReport
+from lib.reports.json_report import JSONReport
+from lib.reports.markdown_report import MarkdownReport
+from lib.reports.plain_text_report import PlainTextReport
+from lib.reports.simple_report import SimpleReport
+from lib.reports.xml_report import XMLReport
 
 
 class Result(object):
@@ -29,21 +36,21 @@ class Result(object):
     def get_content_length(self):
         return self.response.length
 
+    def get_content_type(self):
+        content_type = self.response.headers.get('content-type')
+        if content_type is None:
+            content_type = ""
+        return content_type
+
 
 class Report(object):
     def __init__(self, host, port, protocol, base_path):
         self.host = host
         self.port = port
         self.protocol = protocol
-        self.base_path = base_path
+        self.base_path = base_path[:-1]
         self.results = []
         self.completed = False
-
-        if self.base_path.endswith("/"):
-            self.base_path = self.base_path[:-1]
-
-        if self.base_path.startswith("/"):
-            self.base_path = self.base_path[1:]
 
     def add_result(self, path, status, response):
         result = Result(path, status, response)
@@ -56,7 +63,7 @@ class ReportManager(object):
         self.reports = []
         self.report_obj = None
         self.output = output_file
-        self.lock = threading.Lock()
+        self.lock = Lock()
 
     def update_report(self, report):
         if report not in self.reports:

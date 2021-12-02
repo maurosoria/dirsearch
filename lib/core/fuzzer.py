@@ -31,7 +31,7 @@ class Fuzzer(object):
         dictionary,
         suffixes=None,
         prefixes=None,
-        exclude_content=None,
+        exclude_response=None,
         threads=1,
         delay=0,
         maxrate=0,
@@ -44,7 +44,7 @@ class Fuzzer(object):
         self.dictionary = dictionary
         self.suffixes = suffixes if suffixes else []
         self.prefixes = prefixes if prefixes else []
-        self.exclude_content = exclude_content
+        self.exclude_response = exclude_response
         self.base_path = self.requester.base_path
         self.threads = []
         self.threads_count = (
@@ -105,11 +105,11 @@ class Fuzzer(object):
                     self.requester, suffix="." + extension, tested=self.scanners
                 )
 
-        if self.exclude_content:
-            if self.exclude_content.startswith("/"):
-                self.exclude_content = self.exclude_content[1:]
+        if self.exclude_response:
+            if self.exclude_response.startswith("/"):
+                self.exclude_response = self.exclude_response[1:]
             self.calibration = Scanner(
-                self.requester, calibration=self.exclude_content, tested=self.scanners
+                self.requester, calibration=self.exclude_response, tested=self.scanners
             )
 
     def setup_threads(self):
@@ -125,7 +125,7 @@ class Fuzzer(object):
         # Clean the path, so can check for extensions/suffixes
         path = path.split("?")[0].split("#")[0]
 
-        if self.exclude_content:
+        if self.exclude_response:
             yield self.calibration
 
         for prefix in self.prefixes:
@@ -143,9 +143,7 @@ class Fuzzer(object):
         yield self.default_scanner
 
     def start(self):
-        # Setting up testers
         self.setup_scanners()
-        # Setting up threads
         self.setup_threads()
         self.index = 0
         self.rate = 0
@@ -213,8 +211,12 @@ class Fuzzer(object):
     def increase_threads(self):
         self.running_threads_count += 1
 
-    def reduce_rate(self):
+    def decrease_rate(self):
         self.rate -= 1
+
+    def increase_rate(self):
+        self.rate += 1
+        threading.Timer(1, self.decrease_rate).start()
 
     def thread_proc(self):
         self.play_event.wait()
@@ -227,8 +229,7 @@ class Fuzzer(object):
                     # Pause if the request rate exceeded the maximum
                     while self.maxrate and self.rate >= self.maxrate:
                         pass
-                    self.rate += 1
-                    threading.Timer(1, self.reduce_rate).start()
+                    self.increase_rate()
 
                     status, response = self.scan(path)
                     result = Path(path=path, status=status, response=response)
