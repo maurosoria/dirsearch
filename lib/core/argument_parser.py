@@ -385,8 +385,8 @@ class ArgumentParser(object):
 
         # Connection
         self.delay = config.safe_getfloat("connection", "delay", 0)
-        self.timeout = config.safe_getint("connection", "timeout", 10)
-        self.max_retries = config.safe_getint("connection", "retries", 2)
+        self.timeout = config.safe_getfloat("connection", "timeout", 7.5)
+        self.max_retries = config.safe_getint("connection", "retries", 1)
         self.maxrate = config.safe_getint("connection", "max-rate", 0)
         self.proxy = config.safe_get("connection", "proxy", None)
         self.proxylist = config.safe_get("connection", "proxy-list", None)
