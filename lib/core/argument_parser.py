@@ -284,10 +284,6 @@ class ArgumentParser(object):
 
         self.recursion_depth = options.recursion_depth
 
-        if self.scheme not in ["http", "https"]:
-            print("Invalid URI scheme: {0}".format(self.scheme))
-            exit(1)
-
         if self.output_format and self.output_format not in ["simple", "plain", "json", "xml", "md", "csv", "html"]:
             print("Select one of the following output formats: simple, plain, json, xml, md, csv, html")
             exit(1)
@@ -394,7 +390,7 @@ class ArgumentParser(object):
         self.maxrate = config.safe_getint("connection", "max-rate", 0)
         self.proxy = config.safe_get("connection", "proxy", None)
         self.proxylist = config.safe_get("connection", "proxy-list", None)
-        self.scheme = config.safe_get("connection", "scheme", "http", ["http", "https"])
+        self.scheme = config.safe_get("connection", "scheme", None, ["http", "https"])
         self.replay_proxy = config.safe_get("connection", "replay-proxy", None)
         self.request_by_hostname = config.safe_getboolean(
             "connection", "request-by-hostname", False
@@ -526,7 +522,7 @@ information at https://github.com/maurosoria/dirsearch.""")
                               default=self.proxylist, help="File contains proxy servers", metavar="FILE")
         connection.add_option("--replay-proxy", action="store", dest="replay_proxy", type="string", default=self.replay_proxy,
                               help="Proxy to replay with found paths", metavar="PROXY")
-        connection.add_option("--scheme", help="Default scheme (for raw request or if there is no scheme in the URL)", action="store",
+        connection.add_option("--scheme", help="Default scheme for raw request or if there is no scheme in the URL (Default: auto-detect)", action="store",
                               default=self.scheme, dest="scheme", metavar="SCHEME")
         connection.add_option("--max-rate", help="Max requests per second", action="store", dest="maxrate",
                               type="int", default=self.maxrate, metavar="RATE")

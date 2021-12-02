@@ -95,7 +95,7 @@ class Controller(object):
         self.pass_dirs = ["/"]
 
         if arguments.raw_file:
-            raw = Raw(arguments.raw_file, arguments.scheme)
+            raw = Raw(arguments.raw_file)
             self.url_list = [raw.url]
             self.httpmethod = raw.method
             self.data = raw.body
@@ -211,7 +211,6 @@ class Controller(object):
                 try:
                     gc.collect()
                     url = url if url.endswith("/") else url + "/"
-                    self.output.set_target(url, arguments.scheme)
 
                     try:
                         self.requester = Requester(
@@ -228,6 +227,8 @@ class Controller(object):
                             data=self.data,
                             scheme=arguments.scheme,
                         )
+                        self.output.set_target(self.requester.base_url)
+                        self.requester.setup()
 
                         for key, value in self.headers.items():
                             self.requester.set_header(key, value)
@@ -239,7 +240,7 @@ class Controller(object):
                         self.requester.request("")
 
                         if arguments.autosave_report or arguments.output_file:
-                            self.report = Report(self.requester.host, self.requester.port, self.requester.protocol, self.requester.base_path)
+                            self.report = Report(self.requester.host, self.requester.port, self.requester.scheme, self.requester.base_path)
 
                     except RequestException as e:
                         self.output.error(e.args[0]["message"])

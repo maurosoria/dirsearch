@@ -1,5 +1,8 @@
 # Changelog
 
+## [0.4.3]
+- Automatically detect the URI scheme (http or https) if no scheme is provided
+
 ## [0.4.2] - 2021.9.12
 - More accurate
 - Exclude responses by redirects
