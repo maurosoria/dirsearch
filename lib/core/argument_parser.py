@@ -346,6 +346,7 @@ class ArgumentParser(object):
         self.force_recursive = config.safe_getboolean("general", "force-recursive", False)
         self.recursion_depth = config.safe_getint("general", "recursion-depth", 0)
         self.recursion_status_codes = config.safe_get("general", "recursion-status", None)
+        self.scan_subdirs = config.safe_get("general", "subdirs", None)
         self.exclude_subdirs = config.safe_get("general", "exclude-subdirs", None)
         self.skip_on_status = config.safe_get("general", "skip-on-status", None)
         self.maxtime = config.safe_getint("general", "max-time", 0)
@@ -456,7 +457,7 @@ information at https://github.com/maurosoria/dirsearch.""")
         general.add_option("--recursion-status", help="Valid status codes to perform recursive scan, support ranges (separated by commas)",
                            action="store", dest="recursion_status_codes", default=self.recursion_status_codes, metavar="CODES")
         general.add_option("--subdirs", help="Scan sub-directories of the given URL[s] (separated by commas)", action="store",
-                           dest="scan_subdirs", default=None, metavar="SUBDIRS")
+                           dest="scan_subdirs", default=self.scan_subdirs, metavar="SUBDIRS")
         general.add_option("--exclude-subdirs", help="Exclude the following subdirectories during recursive scan (separated by commas)",
                            action="store", dest="exclude_subdirs", default=self.exclude_subdirs, metavar="SUBDIRS")
         general.add_option("-i", "--include-status", help="Include status codes, separated by commas, support ranges (Example: 200,300-399)",
