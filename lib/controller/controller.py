@@ -227,7 +227,7 @@ class Controller(object):
                             data=self.data,
                             scheme=arguments.scheme,
                         )
-                        self.output.set_target(self.requester.base_url)
+                        self.output.set_target(self.requester.base_url + self.requester.base_path)
                         self.requester.setup()
 
                         for key, value in self.headers.items():
