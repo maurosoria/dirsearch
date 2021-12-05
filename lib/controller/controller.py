@@ -613,11 +613,10 @@ class Controller(object):
         if any([path.startswith(directory) for directory in self.exclude_subdirs]):
             return False
 
-        # Avoid paths contain consecutive slashes, we haven't had good handler for it yet
-        if self.deep_recursive and "//" not in path:
-            for i in range(1, path.count("/")):
-                dir = self.current_directory + "/".join(path.split("/")[:i]) + "/"
-                dirs.append(dir)
+        if self.deep_recursive:
+            dir_portions = [p for p in path.split("/") if p != ""]
+            for i in range(1, len(dir_portions)):
+                dirs.append(self.current_directory + "/".join(dir_portions[:i]) + "/")
 
         if self.force_recursive:
             if not full_path.endswith("/"):
