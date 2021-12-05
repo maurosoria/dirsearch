@@ -614,10 +614,9 @@ class Controller(object):
             return False
 
         if self.deep_recursive:
-            dirs_tmp = [d for d in path.split("/") if d != ""]
-            for i in range(1, len(dirs_tmp)):
-                dir = self.current_directory + "/".join(dirs_tmp[:i]) + "/"
-                dirs.append(dir)
+            dir_portions = [p for p in path.split("/") if p != ""]
+            for i in range(1, len(dir_portions)):
+                dirs.append(self.current_directory + "/".join(dir_portions[:i]) + "/")
 
         if self.force_recursive:
             if not full_path.endswith("/"):
