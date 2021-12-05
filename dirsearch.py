@@ -20,13 +20,14 @@
 import os
 import sys
 
-if sys.version_info < (3, 0):
-    sys.stdout.write("Sorry, dirsearch requires Python 3.x\n")
+if sys.version_info < (3, 7):
+    sys.stdout.write("Sorry, dirsearch requires Python 3.7 or higher\n")
     sys.exit(1)
 
-from lib.core import ArgumentParser
-from lib.controller import Controller
-from lib.output import CLIOutput, PrintOutput
+from lib.core.argument_parser import ArgumentParser
+from lib.controller.controller import Controller
+from lib.output.verbose_output import CLIOutput
+from lib.output.silent_output import PrintOutput
 
 
 class Program(object):

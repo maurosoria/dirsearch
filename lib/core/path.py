@@ -16,11 +16,17 @@
 #
 #  Author: Mauro Soria
 
+from lib.utils.fmt import get_encoding_type
+
 
 class Path(object):
     def __init__(self, path=None, status=None, response=None):
+        encoding_type = get_encoding_type(response.body)
         self.path = path
         self.status = status
+        self.redirect = response.redirect
+        self.body = response.body.decode(encoding_type, errors="ignore")
+        self.length = response.length
         self.response = response
 
     def __str__(self):

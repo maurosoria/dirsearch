@@ -16,35 +16,41 @@
 #
 #  Author: Mauro Soria
 
-import time
-
-from lib.reports import *
+from lib.reports.base import FileBaseReport
 
 
 class CSVReport(FileBaseReport):
-
-    def addPath(self, path, status, response):
-        contentLength = None
-
-        try:
-            contentLength = int(response.headers["content-length"])
-
-        except (KeyError, ValueError):
-            contentLength = len(response.body)
-
-        self.storeData((path, status, contentLength, response.redirect))
+    def generate_header(self):
+        if self.header_written is False:
+            self.header_written = True
+            return "URL,Status,Size,Redirection\n"
+        else:
+            return ""
 
     def generate(self):
-        result = "Time,URL,Status,Size,Redirection\n"
+        result = self.generate_header()
+        insecure_chars = ("+", "-", "=", "@")
 
-        for path, status, contentLength, redirect in self.pathList:
-            result += "{0},".format(time.ctime())
-            result += "{0}://{1}:{2}/{3}{4},".format(self.protocol, self.host, self.port, self.basePath, path)
-            result += "{0},".format(status)
-            result += "{0},".format(contentLength)
-            if redirect:
-                result += "{0}".format(redirect)
+        for entry in self.entries:
+            for e in entry.results:
+                if (entry.protocol, entry.host, entry.port, entry.base_path, e.path) not in self.written_entries:
+                    path = e.path
+                    status = e.status
+                    content_length = e.get_content_length()
+                    redirect = e.response.redirect
 
-            result += "\n"
+                    result += "{0}://{1}:{2}/{3}{4},".format(entry.protocol, entry.host, entry.port, entry.base_path, path)
+                    result += "{0},".format(status)
+                    result += "{0},".format(content_length)
+                    if redirect:
+                        # Preventing CSV injection. More info: https://www.exploit-db.com/exploits/49370
+                        if redirect.startswith(insecure_chars):
+                            redirect = "'" + redirect
+
+                        redirect = redirect.replace("\"", "\"\"")
+                        result += "\"{0}\"".format(redirect)
+
+                    result += "\n"
+                    self.written_entries.append((entry.protocol, entry.host, entry.port, entry.base_path, e.path))
 
         return result

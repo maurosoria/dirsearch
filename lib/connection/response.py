@@ -18,17 +18,13 @@
 
 
 class Response(object):
-    def __init__(self, status, reason, headers, body):
-        self.status = status
-        self.reason = reason
-        self.headers = headers
-        self.body = body
+    def __init__(self, response):
+        self.status = response.status_code
+        self.headers = response.headers
+        self.body = b""
 
-    def __str__(self):
-        return self.body
-
-    def __int__(self):
-        return self.status
+        for chunk in response.iter_content(chunk_size=8192):
+            self.body += chunk
 
     def __eq__(self, other):
         return self.status == other.status and self.body == other.body
@@ -42,24 +38,13 @@ class Response(object):
     def __hash__(self):
         return hash(self.body)
 
-    def __del__(self):
-        del self.body
-        del self.headers
-        del self.status
-        del self.reason
-
     @property
     def redirect(self):
-        headers = dict((key.lower(), value) for key, value in self.headers.items())
-        return headers.get("location")
+        return self.headers.get("location")
 
     @property
-    def pretty(self):
-        try:
-            # Python 3 is only able to download BeautifulSoup4
-            from bs4 import BeautifulSoup
-        except ImportError:
-            raise Exception("BeautifulSoup pip package must be installed")
+    def length(self):
+        if "content-length" in dict(self.headers):
+            return int(self.headers.get("content-length"))
 
-        html = BeautifulSoup(self.body)
-        return html.prettify()
+        return len(self.body)

@@ -16,46 +16,40 @@
 #
 #  Author: Mauro Soria
 
-from lib.reports import *
-from lib.utils.file_utils import FileUtils
-
 import time
+import sys
+
+from lib.reports.base import FileBaseReport
+from lib.utils.size import human_size
 
 
-class PlainTextReport(TailableFileBaseReport):
-
-    def addPath(self, path, status, response):
-        contentLength = None
-        location = None
-
-        try:
-            contentLength = int(response.headers["content-length"])
-
-        except (KeyError, ValueError):
-            contentLength = len(response.body)
-
-        try:
-            location = response.headers["location"]
-        except(KeyError, ValueError):
-            pass
-
-        self.storeData((path, status, contentLength, location))
+class PlainTextReport(FileBaseReport):
+    def generate_header(self):
+        if self.header_written is False:
+            self.header_written = True
+            return "# Dirsearch started {0} as: {1}\n\n".format(time.ctime(), ' '.join(sys.argv))
+        else:
+            return ""
 
     def generate(self):
-        result = "Time: {0}\n\n".format(time.ctime())
+        result = self.generate_header()
 
-        for path, status, contentLength, location in self.getPathIterator():
-            result += "{0}  ".format(status)
-            result += "{0}  ".format(FileUtils.size_human(contentLength).rjust(6, " "))
-            result += "{0}://{1}:{2}/".format(self.protocol, self.host, self.port)
-            result += (
-                "{0}".format(path)
-                if self.basePath == ""
-                else "{0}/{1}".format(self.basePath, path)
-            )
-            if location:
-                result += "    -> REDIRECTS TO: {0}".format(location)
+        for entry in self.entries:
+            for e in entry.results:
+                if (entry.protocol, entry.host, entry.port, entry.base_path, e.path) not in self.written_entries:
+                    result += "{0}  ".format(e.status)
+                    result += "{0}  ".format(human_size(e.get_content_length()).rjust(6, " "))
+                    result += "{0}://{1}:{2}/".format(entry.protocol, entry.host, entry.port)
+                    result += (
+                        "{0}".format(e.path)
+                        if entry.base_path == ""
+                        else "{0}/{1}".format(entry.base_path, e.path)
+                    )
+                    location = e.response.redirect
+                    if location:
+                        result += "    -> REDIRECTS TO: {0}".format(location)
 
-            result += "\n"
+                    result += "\n"
+                    self.written_entries.append((entry.protocol, entry.host, entry.port, entry.base_path, e.path))
 
         return result

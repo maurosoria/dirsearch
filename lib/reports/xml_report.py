@@ -16,40 +16,37 @@
 #
 #  Author: Mauro Soria
 
-from lib.reports import *
+import xml.etree.cElementTree as ET
 import time
+import sys
+
+from xml.dom import minidom
+
+from lib.reports.base import FileBaseReport
 
 
 class XMLReport(FileBaseReport):
-
-    def addPath(self, path, status, response):
-        contentLength = None
-
-        try:
-            contentLength = int(response.headers["content-length"])
-
-        except (KeyError, ValueError):
-            contentLength = len(response.body)
-
-        self.storeData((path, status, contentLength, response.redirect))
-
     def generate(self):
-        result = "<?xml version=\"1.0\"?>\n"
+        result = ET.Element("dirsearchscan", args=" ".join(sys.argv), time=time.ctime())
 
-        headerName = "{0}://{1}:{2}/{3}".format(
-            self.protocol, self.host, self.port, self.basePath
-        )
+        for entry in self.entries:
+            header_name = "{0}://{1}:{2}/{3}".format(
+                entry.protocol, entry.host, entry.port, entry.base_path
+            )
+            target = ET.SubElement(result, "target", url=header_name)
 
-        result += "<time>{0}</time>\n".format(time.ctime())
-        result += "<target url=\"{0}\">\n".format(headerName)
+            for e in entry.results:
+                path = ET.SubElement(target, "info", path="/" + e.path)
+                ET.SubElement(path, "status").text = str(e.status)
+                ET.SubElement(path, "contentlength").text = str(e.get_content_length())
+                ET.SubElement(path, "redirect").text = e.response.redirect if e.response.redirect else ""
 
-        for path, status, contentLength, redirect in self.pathList:
-            result += " <info path=\"/{0}\">\n".format(path)
-            result += "  <status>{0}</status>\n".format(status)
-            result += "  <contentLength>{0}</contentLength>\n".format(contentLength)
-            result += "  <redirect>{0}</redirect>\n".format(redirect)
-            result += " </info>\n"
+        result = ET.tostring(result, encoding="utf-8", method="xml")
+        return minidom.parseString(result).toprettyxml()
 
-        result += "</target>\n"
-
-        return result
+    def save(self):
+        self.file.seek(0)
+        self.file.truncate(0)
+        self.file.flush()
+        self.file.writelines(self.generate())
+        self.file.flush()

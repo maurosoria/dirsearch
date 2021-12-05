@@ -20,8 +20,8 @@ import threading
 import time
 
 from lib.connection.request_exception import RequestException
-from .path import *
-from .scanner import *
+from .path import Path
+from .scanner import Scanner
 
 
 class Fuzzer(object):
@@ -29,31 +29,40 @@ class Fuzzer(object):
         self,
         requester,
         dictionary,
-        testFailPath=None,
+        suffixes=None,
+        prefixes=None,
+        exclude_response=None,
         threads=1,
         delay=0,
-        matchCallbacks=[],
-        notFoundCallbacks=[],
-        errorCallbacks=[],
+        maxrate=0,
+        match_callbacks=[],
+        not_found_callbacks=[],
+        error_callbacks=[],
     ):
 
         self.requester = requester
         self.dictionary = dictionary
-        self.testFailPath = testFailPath
-        self.basePath = self.requester.basePath
+        self.suffixes = suffixes if suffixes else []
+        self.prefixes = prefixes if prefixes else []
+        self.exclude_response = exclude_response
+        self.base_path = self.requester.base_path
         self.threads = []
-        self.threadsCount = (
+        self.threads_count = (
             threads if len(self.dictionary) >= threads else len(self.dictionary)
         )
         self.delay = delay
+        self.maxrate = maxrate
         self.running = False
-        self.stopped = 0
-        self.scanners = {}
-        self.defaultScanner = None
-        self.matchCallbacks = matchCallbacks
-        self.notFoundCallbacks = notFoundCallbacks
-        self.errorCallbacks = errorCallbacks
+        self.calibration = None
+        self.default_scanner = None
+        self.match_callbacks = match_callbacks
+        self.not_found_callbacks = not_found_callbacks
+        self.error_callbacks = error_callbacks
         self.matches = []
+        self.scanners = {
+            "prefixes": {},
+            "suffixes": {},
+        }
 
     def wait(self, timeout=None):
         for thread in self.threads:
@@ -64,75 +73,108 @@ class Fuzzer(object):
 
         return True
 
-    def setupScanners(self):
+    def rate_adjuster(self):
+        while not self.wait(0.15):
+            self.stand_rate = self.rate
+
+    def setup_scanners(self):
         if len(self.scanners):
-            self.scanners = {}
+            self.scanners = {
+                "prefixes": {},
+                "suffixes": {},
+            }
 
-        self.defaultScanner = Scanner(self.requester, self.testFailPath)
-        self.scanners["/"] = Scanner(self.requester, self.testFailPath, suffix="/")
-        self.scanners["dotfiles"] = Scanner(self.requester, self.testFailPath, preffix=".")
+        # Default scanners (wildcard testers)
+        self.default_scanner = Scanner(self.requester)
+        self.prefixes.append(".")
+        self.suffixes.append("/")
 
-        for extension in self.dictionary.extensions:
-            self.scanners[extension] = Scanner(
-                self.requester, self.testFailPath, "." + extension
+        for prefix in self.prefixes:
+            self.scanners["prefixes"][prefix] = Scanner(
+                self.requester, prefix=prefix, tested=self.scanners
             )
 
-    def setupThreads(self):
+        for suffix in self.suffixes:
+            self.scanners["suffixes"][suffix] = Scanner(
+                self.requester, suffix=suffix, tested=self.scanners
+            )
+
+        for extension in self.dictionary.extensions:
+            if "." + extension not in self.scanners["suffixes"]:
+                self.scanners["suffixes"]["." + extension] = Scanner(
+                    self.requester, suffix="." + extension, tested=self.scanners
+                )
+
+        if self.exclude_response:
+            if self.exclude_response.startswith("/"):
+                self.exclude_response = self.exclude_response[1:]
+            self.calibration = Scanner(
+                self.requester, calibration=self.exclude_response, tested=self.scanners
+            )
+
+    def setup_threads(self):
         if len(self.threads):
             self.threads = []
 
-        for thread in range(self.threadsCount):
-            newThread = threading.Thread(target=self.thread_proc)
-            newThread.daemon = True
-            self.threads.append(newThread)
+        for thread in range(self.threads_count):
+            new_thread = threading.Thread(target=self.thread_proc)
+            new_thread.daemon = True
+            self.threads.append(new_thread)
 
-    def getScannerFor(self, path):
-        if path.endswith("/"):
-            return self.scanners["/"]
+    def get_scanner_for(self, path):
+        # Clean the path, so can check for extensions/suffixes
+        path = path.split("?")[0].split("#")[0]
 
-        if path.startswith('.'):
-            return self.scanners['dotfiles']
+        if self.exclude_response:
+            yield self.calibration
 
-        for extension in list(self.scanners.keys()):
-            if path.endswith(extension):
-                return self.scanners[extension]
+        for prefix in self.prefixes:
+            if path.startswith(prefix):
+                yield self.scanners["prefixes"][prefix]
 
-        # By default, returns empty tester
-        return self.defaultScanner
+        for suffix in self.suffixes:
+            if path.endswith(suffix):
+                yield self.scanners["suffixes"][suffix]
+
+        for extension in self.dictionary.extensions:
+            if path.endswith("." + extension):
+                yield self.scanners["suffixes"]["." + extension]
+
+        yield self.default_scanner
 
     def start(self):
-        # Setting up testers
-        self.setupScanners()
-        # Setting up threads
-        self.setupThreads()
+        self.setup_scanners()
+        self.setup_threads()
         self.index = 0
+        self.rate = 0
+        self.stand_rate = 0
         self.dictionary.reset()
-        self.runningThreadsCount = len(self.threads)
+        self.running_threads_count = len(self.threads)
         self.running = True
         self.paused = False
-        self.playEvent = threading.Event()
-        self.pausedSemaphore = threading.Semaphore(0)
-        self.playEvent.clear()
-        self.exit = False
+        self.play_event = threading.Event()
+        self.paused_semaphore = threading.Semaphore(0)
+        self.play_event.clear()
 
         for thread in self.threads:
             thread.start()
+        threading.Thread(target=self.rate_adjuster, daemon=True).start()
 
         self.play()
 
     def play(self):
-        self.playEvent.set()
+        self.play_event.set()
 
     def pause(self):
         self.paused = True
-        self.playEvent.clear()
+        self.play_event.clear()
         for thread in self.threads:
             if thread.is_alive():
-                self.pausedSemaphore.acquire()
+                self.paused_semaphore.acquire()
 
     def resume(self):
         self.paused = False
-        self.pausedSemaphore.release()
+        self.paused_semaphore.release()
         self.play()
 
     def stop(self):
@@ -141,58 +183,77 @@ class Fuzzer(object):
 
     def scan(self, path):
         response = self.requester.request(path)
-        result = None
-        if self.getScannerFor(path).scan(path, response):
-            result = None if response.status == 404 else response.status
+        result = response.status
+
+        for tester in list(set(self.get_scanner_for(path))):
+            if not tester.scan(path, response):
+                result = None
+                break
+
         return result, response
 
-    def isPaused(self):
+    def is_paused(self):
         return self.paused
 
-    def isRunning(self):
+    def is_running(self):
         return self.running
 
-    def finishThreads(self):
+    def finish_threads(self):
         self.running = False
-        self.finishedEvent.set()
+        self.finished_event.set()
 
-    def isFinished(self):
-        return self.runningThreadsCount == 0
+    def is_stopped(self):
+        return self.running_threads_count == 0
 
-    def stopThread(self):
-        self.runningThreadsCount -= 1
+    def decrease_threads(self):
+        self.running_threads_count -= 1
+
+    def increase_threads(self):
+        self.running_threads_count += 1
+
+    def decrease_rate(self):
+        self.rate -= 1
+
+    def increase_rate(self):
+        self.rate += 1
+        threading.Timer(1, self.decrease_rate).start()
 
     def thread_proc(self):
-        self.playEvent.wait()
+        self.play_event.wait()
 
         try:
             path = next(self.dictionary)
 
             while path:
                 try:
+                    # Pause if the request rate exceeded the maximum
+                    while self.maxrate and self.rate >= self.maxrate:
+                        pass
+                    self.increase_rate()
+
                     status, response = self.scan(path)
                     result = Path(path=path, status=status, response=response)
 
                     if status:
                         self.matches.append(result)
-                        for callback in self.matchCallbacks:
+                        for callback in self.match_callbacks:
                             callback(result)
                     else:
-                        for callback in self.notFoundCallbacks:
+                        for callback in self.not_found_callbacks:
                             callback(result)
 
                 except RequestException as e:
-
-                    for callback in self.errorCallbacks:
+                    for callback in self.error_callbacks:
                         callback(path, e.args[0]["message"])
 
                     continue
 
                 finally:
-                    if not self.playEvent.isSet():
-                        self.stopped += 1
-                        self.pausedSemaphore.release()
-                        self.playEvent.wait()
+                    if not self.play_event.is_set():
+                        self.decrease_threads()
+                        self.paused_semaphore.release()
+                        self.play_event.wait()
+                        self.increase_threads()
 
                     path = next(self.dictionary)  # Raises StopIteration when finishes
 
@@ -202,7 +263,4 @@ class Fuzzer(object):
                     time.sleep(self.delay)
 
         except StopIteration:
-            return
-
-        finally:
-            self.stopThread()
+            pass

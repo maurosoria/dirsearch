@@ -16,37 +16,58 @@
 #
 #  Author: Mauro Soria
 
-from lib.reports import *
 import time
+import sys
+
+from lib.reports.base import FileBaseReport
 
 
 class MarkdownReport(FileBaseReport):
+    def __init__(self, output_file_name, entries=[]):
+        self.output = output_file_name
+        self.entries = entries
+        self.header_written = False
+        self.written_entries = []
+        self.printed_target_header_list = []
+        self.completed_hosts = []
 
-    def addPath(self, path, status, response):
-        contentLength = None
+        self.open()
 
-        try:
-            contentLength = int(response.headers["content-length"])
-
-        except (KeyError, ValueError):
-            contentLength = len(response.body)
-
-        self.storeData((path, status, contentLength, response.redirect))
+    def generate_header(self):
+        if self.header_written is False:
+            self.header_written = True
+            result = "### Info\n"
+            result += "Args: {0}\n".format(' '.join(sys.argv))
+            result += "Time: {0}\n".format(time.ctime())
+            result += "\n"
+            return result
+        else:
+            return ""
 
     def generate(self):
-        headerName = "{0}://{1}:{2}/{3}".format(
-            self.protocol, self.host, self.port, self.basePath
-        )
+        result = self.generate_header()
 
-        result = "### Time: {0}\n".format(time.ctime())
-        result += "### Target: {0}\n\n".format(headerName)
-        result += "Path | Status | Size | Redirection\n"
-        result += "-----|--------|------|------------\n"
+        for entry in self.entries:
+            header_name = "{0}://{1}:{2}/{3}".format(
+                entry.protocol, entry.host, entry.port, entry.base_path
+            )
+            if (entry.protocol, entry.host, entry.port, entry.base_path) not in self.printed_target_header_list:
+                result += "### Target: {0}\n\n".format(header_name)
+                result += "Path | Status | Size | Redirection\n"
+                result += "-----|--------|------|------------\n"
+                self.printed_target_header_list.append((entry.protocol, entry.host, entry.port, entry.base_path))
 
-        for path, status, contentLength, redirect in self.pathList:
-            result += "[/{0}]({1}) | ".format(path, headerName + path)
-            result += "{0} | ".format(status)
-            result += "{0} | ".format(contentLength)
-            result += "{0}\n".format(redirect)
+            for e in entry.results:
+                if (entry.protocol, entry.host, entry.port, entry.base_path, e.path) not in self.written_entries:
+                    result += "[/{0}]({1}) | ".format(e.path, header_name + e.path)
+                    result += "{0} | ".format(e.status)
+                    result += "{0} | ".format(e.get_content_length())
+                    result += "{0}\n".format(e.response.redirect)
+
+                    self.written_entries.append((entry.protocol, entry.host, entry.port, entry.base_path, e.path))
+
+            if entry.completed and entry not in self.completed_hosts:
+                result += "\n"
+                self.completed_hosts.append(entry)
 
         return result
