@@ -18,6 +18,8 @@
 
 import threading
 import time
+import urllib.parse
+from itertools import combinations
 
 from lib.connection.request_exception import RequestException
 from .path import Path
@@ -63,6 +65,17 @@ class Fuzzer(object):
             "prefixes": {},
             "suffixes": {},
         }
+        netloc = urllib.parse.urlparse(self.requester.base_url).netloc
+        domain = netloc.split(":")[0]
+        domain_split = domain.split(".")
+        bak_list = [".rar", ".zip", ".7z", ".tar.gz", ".sql", ".bak", ".z", ".gz", ".tgz", ".tar.bz2"]
+        for i in range(1, len(domain_split) + 1):
+            combination_list = list(combinations(domain_split, i))
+            for j in combination_list:
+                for bak in bak_list:
+                    self.dictionary.entries.append("".join(list(j)) + bak)
+                    if len(list(j)) > 1:
+                        self.dictionary.entries.append(".".join(list(j)) + bak)
 
     def wait(self, timeout=None):
         for thread in self.threads:
