@@ -163,7 +163,7 @@ class Dictionary(object):
     # More information: https://github.com/maurosoria/dirsearch#Blacklist
     @staticmethod
     def generate_blacklists(extensions, script_path):
-        reext = re.compile(r"\%ext\%", re.IGNORECASE).sub
+        reext = re.compile(r"\%ext\%", re.IGNORECASE)
         blacklists = {}
 
         for status in [400, 403, 500]:
