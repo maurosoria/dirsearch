@@ -91,7 +91,7 @@ class Dictionary(object):
     """
 
     def generate(self):
-        reext = re.compile(r"\%ext\%", re.IGNORECASE).sub
+        reext = re.compile(r"\%ext\%", re.IGNORECASE)
         result = []
 
         # Enable to use multiple dictionaries at once
@@ -119,7 +119,7 @@ class Dictionary(object):
                 # Classic dirsearch wordlist processing (with %EXT% keyword)
                 if "%ext%" in line.lower():
                     for extension in self._extensions:
-                        newline = reext(extension, line)
+                        newline = reext.sub(extension, line)
                         result.append(newline)
 
                 # If forced extensions is used and the path is not a directory ... (terminated by /)
@@ -163,7 +163,7 @@ class Dictionary(object):
     # More information: https://github.com/maurosoria/dirsearch#Blacklist
     @staticmethod
     def generate_blacklists(extensions, script_path):
-        reext = re.compile(r"\%ext\%", re.IGNORECASE).sub
+        reext = re.compile(r"\%ext\%", re.IGNORECASE)
         blacklists = {}
 
         for status in [400, 403, 500]:
