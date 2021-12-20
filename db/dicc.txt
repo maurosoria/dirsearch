@@ -2651,6 +2651,7 @@ actuator/events
 actuator/exportRegisteredServices
 actuator/features
 actuator/flyway
+actuator/gateway/routes
 actuator/health
 actuator/healthcheck
 actuator/heapdump
@@ -5532,6 +5533,7 @@ GalleryMenu
 games
 ganglia/
 gateway/
+gateway/routes
 gaza.php
 gb_admin.%EXT%
 gbpass.pl
