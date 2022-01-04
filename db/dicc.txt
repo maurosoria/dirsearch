@@ -5037,6 +5037,11 @@ documentation
 documentation/
 documentation/config.yml
 documents
+docpicker/internal_proxy/https/example.com
+docpicker/internal_proxy/http/example.com
+docpicker/internal_proxy/https/127.0.0.1:9043/ibm/console
+docpicker/internal_proxy/http/127.0.0.1:9100/aa
+docpicker/common_proxy/http/www.redbooks.ibm.com/Redbooks.nsf/RedbookAbstracts/sg247798.html?Logout&RedirectTo=http://example.com
 dokuwiki
 dokuwiki/
 dom.php
@@ -9635,6 +9640,13 @@ wp.zip
 wp/
 wp/wp-login.php
 wpad.dat
+wps/proxy/http/www.redbooks.ibm.com/Redbooks.nsf/RedbookAbstracts/sg247798.html?Logout&RedirectTo=http://example.com
+wps/myproxy/http/www.redbooks.ibm.com/Redbooks.nsf/RedbookAbstracts/sg247798.html?Logout&RedirectTo=http://example.com
+wps/common_proxy/http/www.redbooks.ibm.com/Redbooks.nsf/RedbookAbstracts/sg247798.html?Logout&RedirectTo=http://example.com
+wps/cmis_proxy/http/www.redbooks.ibm.com/Redbooks.nsf/RedbookAbstracts/sg247798.html?Logout&RedirectTo=http://example.com
+wps/contenthandler/!ut/p/digest!8skKFbWr_TwcZcvoc9Dn3g/?uri=http://www.redbooks.ibm.com/Redbooks.nsf/RedbookAbstracts/sg247798.html?Logout&RedirectTo=http://example.com
+wps/PA_WCM_Authoring_UI/proxy/http/example.com
+wps/PA_WCM_Authoring_UI/proxy/https/example.com
 ws.php
 WS_FTP
 ws_ftp.ini
