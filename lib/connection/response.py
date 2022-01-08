@@ -18,9 +18,10 @@
 
 
 class Response(object):
-    def __init__(self, response):
+    def __init__(self, response, redirects):
         self.status = response.status_code
         self.headers = response.headers
+        self.redirects = redirects
         self.body = b""
 
         for chunk in response.iter_content(chunk_size=8192):

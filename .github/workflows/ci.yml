@@ -28,7 +28,7 @@ jobs:
         python3 dirsearch.py -u https://example.com -r -w tmp -q -f -e php,html,js
     - name: Lint
       run: |
-        flake8 . --exclude=thirdparty --count --ignore=E501,F403,F405 --show-source --statistics
+        flake8 . --exclude=thirdparty --count --ignore=F403,F405,E501,E701 --show-source --statistics
         # exit-zero treats all errors as warnings.  Max complexity is currently 77.
         flake8 . --exclude=thirdparty --count --ignore=E501 --exit-zero --max-complexity=10 --statistics
     - name: Codespell

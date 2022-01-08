@@ -101,6 +101,8 @@ class PrintOutput(object):
             message += "  ->  {0}".format(response.redirect)
         if added_to_queue:
             message += "     (Added to queue)"
+        for redirect in response.redirects:
+            message += "\n-->  {0}".format(redirect)
 
         with self.mutex:
             self.new_line(message)

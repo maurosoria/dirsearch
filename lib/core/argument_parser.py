@@ -35,15 +35,17 @@ class ArgumentParser(object):
         self.parse_config()
 
         options = self.parse_arguments()
+        self.__dict__.update(options.__dict__)
+        self.httpmethod = self.httpmethod.lower()
 
-        self.quiet = options.quiet
-        self.full_url = options.full_url
         self.url_list = []
         self.raw_file = None
 
+        for dict_file in options.wordlist.split(","):
+            self.access_file(dict_file, "wordlist")
+
         if options.url:
             self.url_list = [options.url]
-
         elif options.url_list:
             file = self.access_file(options.url_list, "file contains URLs")
             self.url_list = list(file.get_lines())
@@ -54,7 +56,6 @@ class ArgumentParser(object):
 
         if options.raw_file:
             self.access_file(options.raw_file, "file with raw request")
-            self.raw_file = options.raw_file
         elif not len(self.url_list):
             print("URL target is missing, try using -u <url>")
             exit(1)
@@ -64,34 +65,21 @@ class ArgumentParser(object):
         if not options.extensions and not options.no_extension:
             print("WARNING: No extension was specified!")
 
-        if options.no_extension:
-            options.extensions = str()
+        if options.threads_count < 1:
+            print("Threads number must be greater than zero")
+            exit(1)
 
-        for dict_file in options.wordlist.split(","):
-            self.access_file(dict_file, "wordlist")
+        if options.no_extension:
+            self.extensions = str()
 
         if options.proxy_list:
             file = self.access_file(options.proxy_list, "proxylist file")
             self.proxylist = file.read().splitlines()
 
-            options.request_by_hostname = True
-
-        elif options.proxy:
-            self.proxy = options.proxy
-            options.request_by_hostname = True
-
-        else:
-            self.proxy = None
-
-        if options.replay_proxy:
-            self.replay_proxy = options.replay_proxy
-            options.request_by_hostname = True
-
-        else:
-            self.replay_proxy = None
+        if self.proxy or self.proxylist or self.replay_proxy:
+            self.request_by_hostname = True
 
         self.headers = {}
-
         if options.header_list:
             try:
                 file = self.access_file(options.header_list, "header list file")
@@ -126,33 +114,15 @@ class ArgumentParser(object):
             self.exclude_extensions = uniq(
                 [exclude_extension.lstrip(' .') for exclude_extension in options.exclude_extensions.split(",")]
             )
-        else:
-            self.exclude_extensions = []
-
-        self.useragent = options.useragent
-        self.use_random_agents = options.use_random_agents
-        self.cookie = options.cookie
-
-        if options.threads_count < 1:
-            print("Threads number must be greater than zero")
-            exit(1)
-
-        self.threads_count = options.threads_count
 
         if options.include_status_codes:
             self.include_status_codes = self.parse_status_codes(options.include_status_codes)
-        else:
-            self.include_status_codes = []
 
         if options.exclude_status_codes:
             self.exclude_status_codes = self.parse_status_codes(options.exclude_status_codes)
-        else:
-            self.exclude_status_codes = []
 
         if options.recursion_status_codes:
             self.recursion_status_codes = self.parse_status_codes(options.recursion_status_codes)
-        else:
-            self.recursion_status_codes = []
 
         if options.exclude_sizes:
             try:
@@ -162,9 +132,7 @@ class ArgumentParser(object):
                 ])
 
             except ValueError:
-                self.exclude_sizes = []
-        else:
-            self.exclude_sizes = []
+                pass
 
         if options.exclude_texts:
             try:
@@ -174,9 +142,7 @@ class ArgumentParser(object):
                 ])
 
             except ValueError:
-                self.exclude_texts = []
-        else:
-            self.exclude_texts = []
+                pass
 
         if options.exclude_regexps:
             try:
@@ -186,9 +152,7 @@ class ArgumentParser(object):
                 ])
 
             except ValueError:
-                self.exclude_regexps = []
-        else:
-            self.exclude_regexps = []
+                pass
 
         if options.exclude_redirects:
             try:
@@ -198,38 +162,15 @@ class ArgumentParser(object):
                 ])
 
             except ValueError:
-                self.exclude_redirects = []
-        else:
-            self.exclude_redirects = []
+                pass
 
-        self.prefixes = uniq([prefix.strip() for prefix in options.prefixes.split(",")]) if options.prefixes else []
-        self.suffixes = uniq([suffix.strip() for suffix in options.suffixes.split(",")]) if options.suffixes else []
+        self.prefixes = uniq([prefix.strip() for prefix in self.prefixes.split(",")]) if options.prefixes else []
+        self.suffixes = uniq([suffix.strip() for suffix in self.suffixes.split(",")]) if options.suffixes else []
         if options.wordlist:
             self.wordlist = uniq([wordlist.strip() for wordlist in options.wordlist.split(",")])
         else:
             print("No wordlist was provided, try using -w <wordlist>")
             exit(1)
-
-        self.lowercase = options.lowercase
-        self.uppercase = options.uppercase
-        self.capitalization = options.capitalization
-        self.force_extensions = options.force_extensions
-        self.data = options.data
-        self.exclude_response = options.exclude_response
-        self.color = options.color
-        self.delay = options.delay
-        self.timeout = options.timeout
-        self.ip = options.ip
-        self.max_retries = options.max_retries
-        self.recursive = options.recursive
-        self.deep_recursive = options.deep_recursive
-        self.force_recursive = options.force_recursive
-        self.minimum_response_size = options.minimum_response_size
-        self.maximum_response_size = options.maximum_response_size
-        self.no_extension = options.no_extension
-        self.only_selected = options.only_selected
-        self.output_file = options.output_file
-        self.output_format = options.output_format
 
         self.scan_subdirs = []
         if options.scan_subdirs:
@@ -253,38 +194,24 @@ class ArgumentParser(object):
 
         if options.skip_on_status:
             self.skip_on_status = self.parse_status_codes(options.skip_on_status)
-        else:
-            self.skip_on_status = []
 
-        if options.auth and options.auth_type and (
-            options.auth_type not in ["basic", "digest", "bearer", "ntlm"]
-        ):
-            print("'{0}' is not in available authentication types: basic, digest, bearer, ntlm".format(options.auth_type))
-            exit(1)
-        elif options.auth and not options.auth_type:
+        if options.auth and not options.auth_type:
             print("Please select the authentication type with --auth-type")
             exit(1)
         elif options.auth_type and not options.auth:
             print("No authentication credential found")
+            exit(1)
+        elif options.auth and options.auth_type and (
+            options.auth_type not in ["basic", "digest", "bearer", "ntlm"]
+        ):
+            print("'{0}' is not in available authentication types: basic, digest, bearer, ntlm".format(options.auth_type))
             exit(1)
 
         if len(set(self.extensions).intersection(self.exclude_extensions)):
             print("Exclude extension list can not contain any extension that has already in the extension list")
             exit(1)
 
-        self.auth_type = options.auth_type
-        self.auth = options.auth
-        self.redirect = options.follow_redirects
-        self.httpmethod = options.httpmethod
-        self.scheme = options.scheme
-        self.request_by_hostname = options.request_by_hostname
-        self.exit_on_error = options.exit_on_error
-        self.maxrate = options.maxrate
-        self.maxtime = options.maxtime
-
-        self.recursion_depth = options.recursion_depth
-
-        if self.output_format and self.output_format not in ["simple", "plain", "json", "xml", "md", "csv", "html"]:
+        if self.output_format not in [None, "", "simple", "plain", "json", "xml", "md", "csv", "html"]:
             print("Select one of the following output formats: simple, plain, json, xml, md, csv, html")
             exit(1)
 
@@ -327,32 +254,33 @@ class ArgumentParser(object):
 
         # Mandatory
         self.default_extensions = config.safe_get("mandatory", "default-extensions", str())
-        self.exclude_extensions = config.safe_get("mandatory", "exclude-extensions", None)
+        self.exclude_extensions = config.safe_get("mandatory", "exclude-extensions", [])
         self.force_extensions = config.safe_getboolean("mandatory", "force-extensions", False)
 
         # General
         self.threads_count = config.safe_getint(
             "general", "threads", 30, list(range(1, 300))
         )
-        self.include_status_codes = config.safe_get("general", "include-status", None)
-        self.exclude_status_codes = config.safe_get("general", "exclude-status", None)
-        self.exclude_sizes = config.safe_get("general", "exclude-sizes", None)
-        self.exclude_texts = config.safe_get("general", "exclude-texts", None)
-        self.exclude_regexps = config.safe_get("general", "exclude-regexps", None)
-        self.exclude_redirects = config.safe_get("general", "exclude-redirects", None)
+        self.include_status_codes = config.safe_get("general", "include-status", [])
+        self.exclude_status_codes = config.safe_get("general", "exclude-status", [])
+        self.exclude_sizes = config.safe_get("general", "exclude-sizes", [])
+        self.exclude_texts = config.safe_get("general", "exclude-texts", [])
+        self.exclude_regexps = config.safe_get("general", "exclude-regexps", [])
+        self.exclude_redirects = config.safe_get("general", "exclude-redirects", [])
         self.exclude_response = config.safe_get("general", "exclude-response", "")
         self.recursive = config.safe_getboolean("general", "recursive", False)
         self.deep_recursive = config.safe_getboolean("general", "deep-recursive", False)
         self.force_recursive = config.safe_getboolean("general", "force-recursive", False)
         self.recursion_depth = config.safe_getint("general", "recursion-depth", 0)
-        self.recursion_status_codes = config.safe_get("general", "recursion-status", None)
-        self.scan_subdirs = config.safe_get("general", "subdirs", None)
-        self.exclude_subdirs = config.safe_get("general", "exclude-subdirs", None)
-        self.skip_on_status = config.safe_get("general", "skip-on-status", None)
+        self.recursion_status_codes = config.safe_get("general", "recursion-status", [])
+        self.scan_subdirs = config.safe_get("general", "subdirs", [])
+        self.exclude_subdirs = config.safe_get("general", "exclude-subdirs", [])
+        self.skip_on_status = config.safe_get("general", "skip-on-status", [])
         self.maxtime = config.safe_getint("general", "max-time", 0)
         self.full_url = config.safe_getboolean("general", "full-url", False)
         self.color = config.safe_getboolean("general", "color", True)
         self.quiet = config.safe_getboolean("general", "quiet-mode", False)
+        self.redirects_history = config.safe_getboolean("general", "redirects-history", False)
 
         # Reports
         self.output_location = config.safe_get("reports", "report-output-folder", None)
@@ -480,6 +408,8 @@ information at https://github.com/maurosoria/dirsearch.""")
                            help="Minimal response length", metavar="LENGTH")
         general.add_option("--maximal", action="store", dest="maximum_response_size", type="int", default=None,
                            help="Maximal response length", metavar="LENGTH")
+        general.add_option("--redirects-history", action="store_true", dest="redirects_history", default=self.redirects_history,
+                           help="Show redirects history (when following redirects is enabled)")
         general.add_option("--max-time", action="store", dest="maxtime", type="int", default=self.maxtime,
                            help="Maximal runtime for the scan", metavar="SECONDS")
         general.add_option("-q", "--quiet-mode", action="store_true", dest="quiet",
