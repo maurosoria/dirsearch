@@ -188,7 +188,7 @@ class Requester(object):
                 self.auth = HttpNtlmAuth(user, password)
 
     def request(self, path, proxy=None):
-        for _ in range(self.max_retries):
+        for _ in range(self.max_retries + 1):
             result = None
             err_msg = None
             redirects = []
