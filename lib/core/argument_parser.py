@@ -252,24 +252,24 @@ class ArgumentParser(object):
 
         # Mandatory
         options.extensions = options.extensions or config.safe_get(
-             "mandatory", "default-extensions", ""
+            "mandatory", "default-extensions", ""
         )
         options.exclude_extensions = options.exclude_extensions or config.safe_get(
-             "mandatory", "exclude-extensions", []
+            "mandatory", "exclude-extensions", []
         )
         options.force_extensions = options.force_extensions or config.safe_getboolean(
-             "mandatory", "force-extensions", []
+            "mandatory", "force-extensions", []
         )
 
         # General
         options.threads_count = options.threads_count or config.safe_getint(
-             "general", "threads", 25, list(range(1, 300))
+            "general", "threads", 25, list(range(1, 300))
         )
         options.include_status_codes = options.include_status_codes or config.safe_get(
-             "general", "include-status", []
+            "general", "include-status", []
         )
         options.exclude_status_codes = options.exclude_status_codes or config.safe_get(
-             "general", "exclude-status", []
+            "general", "exclude-status", []
         )
         options.exclude_sizes = options.exclude_sizes or config.safe_get("general", "exclude-sizes", [])
         options.exclude_texts = options.exclude_texts or config.safe_get("general", "exclude-texts", [])
