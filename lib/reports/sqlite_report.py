@@ -47,7 +47,8 @@ class SQLiteReport(FileBaseReport):
             CREATE TABLE `{}`
             ([time] TEXT, [path] TEXT, [status_code] INTEGER, [content_length] INTEGER, [redirect] TEXT)
                         '''.format(table)
-        ])
+            ]
+        )
 
         for entry in self.entries:
             for e in entry.results:
