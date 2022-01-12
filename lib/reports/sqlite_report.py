@@ -43,11 +43,10 @@ class SQLiteReport(FileBaseReport):
 
         table = "{}_{}_{}".format(self.entries[0].protocol, self.entries[0].host, self.entries[0].port)
         commands.append(["DROP TABLE IF EXISTS `{}`".format(table)])
-        commands.append(['''
-            CREATE TABLE `{}`
-            ([time] TEXT, [path] TEXT, [status_code] INTEGER, [content_length] INTEGER, [redirect] TEXT)
-                        '''.format(table)
-            ]
+        commands.append(
+            ['''CREATE TABLE `{}`
+                ([time] TEXT, [path] TEXT, [status_code] INTEGER, [content_length] INTEGER, [redirect] TEXT)
+             '''.format(table)]
         )
 
         for entry in self.entries:
