@@ -336,11 +336,7 @@ class ArgumentParser(object):
 
     def parse_arguments(self):
         usage = "Usage: %prog [-u|--url] target [-e|--extensions] extensions [options]"
-        parser = OptionParser(usage, version="dirsearch v0.4.2",
-                              epilog="""
-You can change the dirsearch default configurations (default extensions,
-timeout, wordlist location, ...) by editing the "default.conf" file. More
-information at https://github.com/maurosoria/dirsearch.""")
+        parser = OptionParser(usage, version="dirsearch v0.4.2")
 
         # Mandatory arguments
         mandatory = OptionGroup(parser, "Mandatory")
@@ -357,7 +353,7 @@ information at https://github.com/maurosoria/dirsearch.""")
         mandatory.add_option("-f", "--force-extensions", action="store_true", dest="force_extensions",
                              help="Add extensions to every wordlist entry. By default dirsearch only replaces the %EXT% keyword with extensions")
         mandatory.add_option("--config", action="store", dest="config_file", default=FileUtils.build_path(self.script_path, "default.conf"),
-                             help="Config file, read 'default.conf' for examples (Default: confault.conf)")
+                             help="Full path to config file, see 'default.conf' for example (Default: default.conf)")
 
         # Dictionary Settings
         dictionary = OptionGroup(parser, "Dictionary Settings")
