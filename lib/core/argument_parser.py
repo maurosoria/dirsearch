@@ -210,8 +210,8 @@ class ArgumentParser(object):
             print("Exclude extension list can not contain any extension that has already in the extension list")
             exit(1)
 
-        if self.output_format not in [None, "", "simple", "plain", "json", "xml", "md", "csv", "html"]:
-            print("Select one of the following output formats: simple, plain, json, xml, md, csv, html")
+        if self.output_format not in [None, "", "simple", "plain", "json", "xml", "md", "csv", "html", "sqlite"]:
+            print("Select one of the following output formats: simple, plain, json, xml, md, csv, html, sqlite")
             exit(1)
 
     def parse_status_codes(self, raw_status_codes):
@@ -248,7 +248,7 @@ class ArgumentParser(object):
 
     def parse_config(self, options):
         config = ConfigParser()
-        config.read(options.config_file)
+        config.read(options.config)
 
         # Mandatory
         options.extensions = options.extensions or config.safe_get(
@@ -326,10 +326,10 @@ class ArgumentParser(object):
 
         # Reports
         self.output_location = config.safe_get("reports", "report-output-folder")
-        self.logs_location = config.safe_get("reports", "logs-location")
+        self.logs_location = config.safe_get("reports", "logs-folder")
         self.autosave_report = config.safe_getboolean("reports", "autosave-report")
         options.output_format = options.output_format or config.safe_get(
-            "reports", "report-format", "plain", ["plain", "simple", "json", "xml", "md", "csv", "html"]
+            "reports", "report-format", "plain", ["simple", "plain", "json", "xml", "md", "csv", "html", "sqlite"]
         )
 
         return options
@@ -352,7 +352,7 @@ class ArgumentParser(object):
                              help="Exclude extension list separated by commas (Example: asp,jsp)")
         mandatory.add_option("-f", "--force-extensions", action="store_true", dest="force_extensions",
                              help="Add extensions to every wordlist entry. By default dirsearch only replaces the %EXT% keyword with extensions")
-        mandatory.add_option("--config", action="store", dest="config_file", default=FileUtils.build_path(self.script_path, "default.conf"),
+        mandatory.add_option("--config", action="store", dest="config", default=FileUtils.build_path(self.script_path, "default.conf"), metavar="FILE",
                              help="Full path to config file, see 'default.conf' for example (Default: default.conf)")
 
         # Dictionary Settings
@@ -430,7 +430,7 @@ class ArgumentParser(object):
         request.add_option("--auth-type", action="store", dest="auth_type", metavar="TYPE",
                            help="Authentication type (basic, digest, bearer, ntlm)")
         request.add_option("--auth", action="store", dest="auth", metavar="CREDENTIAL",
-                           help="Authentication credential (user:password or bearer token)")
+                           help="Authentication credential ([user]:[password] or bearer token)")
         request.add_option("--user-agent", action="store", dest="useragent")
         request.add_option("--cookie", action="store", dest="cookie")
 
@@ -458,7 +458,7 @@ class ArgumentParser(object):
         reports = OptionGroup(parser, "Reports")
         reports.add_option("-o", "--output", action="store", dest="output_file", metavar="FILE", help="Output file")
         reports.add_option("--format", action="store", dest="output_format", metavar="FORMAT",
-                           help="Report format (Available: simple, plain, json, xml, md, csv, html)")
+                           help="Report format (Available: simple, plain, json, xml, md, csv, html, sqlite)")
 
         parser.add_option_group(mandatory)
         parser.add_option_group(dictionary)

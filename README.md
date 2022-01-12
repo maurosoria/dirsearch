@@ -250,7 +250,7 @@ Options:
 Configuration
 ---------------
 
-Default values for dirsearch flags can be edited in the configuration file: `default.conf`
+Default values for dirsearch flags can be edited in the configuration file, by default is `default.conf` but you can select another file with the `--config` flag
 
 ```ini
 # If you want to edit dirsearch default configurations, you can
@@ -548,13 +548,9 @@ python3 dirsearch.py -e php -u https://target --format html -o target.json
 ```
 
 ----
-### Some others commands
+### More example commands
 ```
-python3 dirsearch.py -u https://target -t 100 -m POST --data "username=admin"
-```
-
-```
-python3 dirsearch.py -u https://target --random-agent --cookie "isAdmin=1" -F
+cat urls.txt | python3 dirsearch.py -u https://target --stdin
 ```
 
 ```
@@ -569,19 +565,7 @@ python3 dirsearch.py -u https://target --auth admin:pass --auth-type basic
 python3 dirsearch.py -u https://target --header-list rate-limit-bypasses.txt
 ```
 
-```
-python3 dirsearch.py -u https://target -q --stop-on-error --max-time 360
-```
-
-```
-python3 dirsearch.py -u https://target --full-url --max-rate 100
-```
-
-```
-python3 dirsearch.py -u https://target --remove-extensions
-```
-
-**There are more features and you will need to discover them by yourself**
+**There are more to discover, try yourself!**
 
 
 Support Docker
@@ -624,6 +608,7 @@ References
 - [Dirsearch to find Hidden Web Directories](https://medium.com/@irfaanshakeel/dirsearch-to-find-hidden-web-directories-d0357fbe47b0) by Irfan Shakeel
 - [Getting access to 25000 employees details](https://medium.com/@ehsahil/getting-access-to-25k-employees-details-c085d18b73f0) by Sahil Ahamad
 - [Best Tools For Directory Bruteforcing](https://secnhack.in/multiple-ways-to-find-hidden-directory-on-web-server/) by Shubham Goyal
+- [Discover hidden files & directories on a webserver - dirsearch full tutorial](https://www.youtube.com/watch?v=jVxs5at0gxg) by CYBER BYTES
 
 
 Tips

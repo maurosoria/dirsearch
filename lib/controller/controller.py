@@ -325,9 +325,11 @@ class Controller(object):
 
     # Get file extension for report format
     def get_output_extension(self):
-        if self.output_format and self.output_format not in ["plain", "simple"]:
+        if self.output_format and self.output_format not in ["plain", "simple", "sqlite"]:
             return ".{0}".format(self.output_format)
         else:
+            if self.output_format == "sqlite":
+                return ".db"
             return ".txt"
 
     # Create report file

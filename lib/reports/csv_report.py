@@ -36,7 +36,7 @@ class CSVReport(FileBaseReport):
                 if (entry.protocol, entry.host, entry.port, entry.base_path, e.path) not in self.written_entries:
                     path = e.path
                     status = e.status
-                    content_length = e.get_content_length()
+                    content_length = e.response.length
                     redirect = e.response.redirect
 
                     result += "{0}://{1}:{2}/{3}{4},".format(entry.protocol, entry.host, entry.port, entry.base_path, path)
