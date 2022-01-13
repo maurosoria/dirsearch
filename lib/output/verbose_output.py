@@ -186,10 +186,13 @@ class CLIOutput(object):
             new = self.colorizer.color(key + ": ", fore="yellow", bright=True)
             new += self.colorizer.color(value, fore="cyan", bright=True)
 
-            new_line = msg.splitlines()[-1] + " | " + new
             if not msg:
-                pass
-            elif len(self.colorizer.clean(new_line)) >= shutil.get_terminal_size()[0]:
+                msg += new
+                continue
+
+            new_line = msg.splitlines()[-1] + " | " + new
+
+            if len(self.colorizer.clean(new_line)) >= shutil.get_terminal_size()[0]:
                 msg += "\n"
             else:
                 msg += self.colorizer.color(" | ", fore="magenta", bright=True)

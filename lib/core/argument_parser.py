@@ -285,7 +285,7 @@ class ArgumentParser(object):
         options.redirects_history = options.redirects_history or config.safe_getboolean("general", "redirects-history")
 
         # Dictionary
-        options.wordlist = config.safe_get(
+        options.wordlist = options.wordlist or config.safe_get(
             "dictionary", "wordlist", FileUtils.build_path(SCRIPT_PATH, "db", "dicc.txt"),
         )
         options.prefixes = options.prefixes or config.safe_get("dictionary", "prefixes",)
