@@ -169,21 +169,17 @@ class ArgumentParser(object):
         if options.scan_subdirs:
             for subdir in options.scan_subdirs.split(","):
                 subdir = subdir.strip(" ")
-                if subdir.startswith("/"):
-                    subdir = subdir[1:]
                 if not subdir.endswith("/"):
                     subdir += "/"
-                self.scan_subdirs.append(subdir)
+                self.scan_subdirs.append(subdir.lstrip("/"))
 
         self.exclude_subdirs = []
         if options.exclude_subdirs:
             for subdir in options.exclude_subdirs.split(","):
                 subdir = subdir.strip(" ")
-                if subdir.startswith("/"):
-                    subdir = subdir[1:]
                 if not subdir.endswith("/"):
                     subdir += "/"
-                self.exclude_subdirs.append(subdir)
+                self.exclude_subdirs.append(subdir.lstrip("/"))
 
         if options.skip_on_status:
             self.skip_on_status = self.parse_status_codes(options.skip_on_status)
