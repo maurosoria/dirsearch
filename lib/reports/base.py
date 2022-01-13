@@ -16,6 +16,9 @@
 #
 #  Author: Mauro Soria
 
+from lib.core.settings import IS_WINDOWS
+
+
 class BaseReport(object):
     def save(self):
         raise NotImplementedError
@@ -26,6 +29,13 @@ class BaseReport(object):
 
 class FileBaseReport(BaseReport):
     def __init__(self, output_file_name, entries=[]):
+        if IS_WINDOWS:
+            from os.path import normpath, dirname
+            from os import makedirs
+
+            output_file_name = normpath(output_file_name)
+            makedirs(dirname(output_file_name), exist_ok=True)
+
         self.output = output_file_name
         self.entries = entries
         self.header_written = False
@@ -34,17 +44,6 @@ class FileBaseReport(BaseReport):
         self.open()
 
     def open(self):
-        from os import name as os_name
-
-        if os_name == "nt":
-            from os.path import normpath, dirname
-            from os import makedirs
-
-            output = normpath(self.output)
-            makedirs(dirname(output), exist_ok=True)
-
-            self.output = output
-
         self.file = open(self.output, 'w+')
 
     def save(self):

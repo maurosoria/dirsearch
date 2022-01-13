@@ -17,7 +17,6 @@
 #
 #  Author: Mauro Soria
 
-import os
 import sys
 
 if sys.version_info < (3, 7):
@@ -32,16 +31,14 @@ from lib.output.silent_output import PrintOutput
 
 class Program(object):
     def __init__(self):
-        self.script_path = os.path.dirname(os.path.realpath(__file__))
-
-        self.arguments = ArgumentParser(self.script_path)
+        self.arguments = ArgumentParser()
 
         if self.arguments.quiet:
             self.output = PrintOutput(self.arguments.color)
         else:
             self.output = CLIOutput(self.arguments.color)
 
-        self.controller = Controller(self.script_path, self.arguments, self.output)
+        self.controller = Controller(self.arguments, self.output)
 
 
 if __name__ == "__main__":

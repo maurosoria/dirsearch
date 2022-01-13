@@ -18,21 +18,12 @@
 
 import sqlite3
 import time
-from os import makedirs
-from os import name as os_name
-from os.path import normpath, dirname
 
 from lib.reports.base import FileBaseReport
 
 
 class SQLiteReport(FileBaseReport):
     def open(self):
-        if os_name == "nt":
-            output = normpath(self.output)
-            makedirs(dirname(output), exist_ok=True)
-
-            self.output = output
-
         self.file = sqlite3.connect(self.output, check_same_thread=False)
         self.cursor = self.file.cursor()
 

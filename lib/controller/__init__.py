@@ -1,1 +1,1 @@
-from .controller import Controller  # noqa: F401
+from lib.controller.controller import Controller  # noqa: F401

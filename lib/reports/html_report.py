@@ -21,7 +21,7 @@ import sys
 import time
 
 from lib.reports.base import FileBaseReport
-from lib.utils.size import human_size
+from lib.utils.fmt import human_size
 from thirdparty.jinja2 import Environment, FileSystemLoader
 
 

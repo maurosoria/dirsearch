@@ -25,12 +25,13 @@ import thirdparty.requests as requests
 
 from urllib.parse import urlparse, urljoin
 
+from lib.core.settings import PROXY_SCHEMES, MAX_REDIRECTS
+from lib.connection.request_exception import RequestException
+from lib.connection.response import Response
 from lib.utils.fmt import safequote
 from thirdparty.requests.adapters import HTTPAdapter
 from thirdparty.requests.auth import HTTPBasicAuth, HTTPDigestAuth
 from thirdparty.requests_ntlm import HttpNtlmAuth
-from .request_exception import RequestException
-from .response import Response
 
 urllib3.disable_warnings()
 
@@ -88,12 +89,9 @@ class Requester(object):
         # If the user neither provide the port nor scheme, guess them based
         # on standard website characteristics
         if not self.scheme:
-            if self.get_scheme(443) == "https":
-                self.port = 443
-                self.scheme = "https"
-            else:
-                self.port = 80
-                self.scheme = "http"
+            self.scheme = "https" if self.get_scheme(443) == "https" else "http"
+            self.port = port_for_scheme[self.scheme]
+
         # If the scheme is not supported
         elif self.scheme not in ["https", "http"]:
             raise RequestException({"message": "Unsupported URI scheme: {0}".format(self.scheme)})
@@ -201,9 +199,7 @@ class Requester(object):
                         proxy = self.proxy
 
                 if proxy:
-                    if not proxy.startswith(
-                        ("http://", "https://", "socks5://", "socks5h://", "socks4://", "socks4a://")
-                    ):
+                    if not proxy.startswith(PROXY_SCHEMES):
                         proxy = "http://" + proxy
 
                     if proxy.startswith("https://"):
@@ -218,12 +214,12 @@ class Requester(object):
                 if self.random_agents:
                     self.headers["User-Agent"] = random.choice(self.random_agents)
 
-                """
+                '''
                 We can't just do `allow_redirects=True` because we set the host header in
                 optional request headers, which will be kept in next requests (follow redirects)
-                """
+                '''
                 headers = self.headers.copy()
-                for i in range(7):
+                for i in range(MAX_REDIRECTS + 1):
                     request = requests.Request(
                         self.httpmethod,
                         url=url,
@@ -249,7 +245,7 @@ class Requester(object):
                         headers["Host"] = url.split("/")[2]
                         redirects.append(url)
                         continue
-                    elif i == 6:
+                    elif i == MAX_REDIRECTS:
                         raise requests.exceptions.TooManyRedirects
 
                     break

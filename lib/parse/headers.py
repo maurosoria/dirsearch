@@ -20,8 +20,6 @@ import email
 
 from io import StringIO
 
-from lib.utils.fmt import lowercase
-
 
 class HeadersParser(object):
     def __init__(self, headers):
@@ -35,7 +33,7 @@ class HeadersParser(object):
             self.raw = self.headers_to_raw(headers)
             self.headers = self.raw_to_headers(self.raw)
 
-        self.lower_headers = lowercase(self.headers)
+        self.lower_headers = {key.lower(): value for key, value in self.headers.items()}
 
     @staticmethod
     def raw_to_headers(raw):

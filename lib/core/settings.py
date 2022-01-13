@@ -16,8 +16,34 @@
 #
 #  Author: Mauro Soria
 
+import os
+import sys
 
-def get_range(range_):
-    min_num, max_num = range_.split("-")
-    min_num, max_num = int(min_num), int(max_num)
-    return list(range(min_num, max_num + 1))
+
+VERSION = "0.4.2"
+BANNER = f'''
+  _|. _ _  _  _  _ _|_    v{VERSION}
+ (_||| _) (/_(_|| (_| )
+'''
+
+SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__)).rstrip("/lib/core")
+
+IS_WINDOWS = sys.platform in ("win32", "msys")
+
+DEFAULT_ENCODING = "utf-8"
+
+INVALID_CHARS_FOR_WINDOWS_FILENAME = list("\"*<>?\\|/:")
+
+OUTPUT_FORMATS = ("simple", "plain", "json", "xml", "md", "csv", "html", "sqlite")
+
+COMMON_EXTENSIONS = ("php", "jsp", "asp", "aspx", "do", "action", "cgi", "html", "htm", "js", "json", "tar.gz", "bak")
+
+AUTHENTICATION_TYPES = ("basic", "digest", "bearer", "ntlm")
+
+PROXY_SCHEMES = ("http://", "https://", "socks5://", "socks5h://", "socks4://", "socks4a://")
+
+EXTENSION_KEY = "%ext%"
+
+MAX_REDIRECTS = 5
+
+CHUNK_SIZE = 8192

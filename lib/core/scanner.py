@@ -52,10 +52,10 @@ class Scanner(object):
 
         return
 
-    """
+    '''
     Generate wildcard response information containers, this will be
     used to compare with other path responses
-    """
+    '''
     def setup(self):
         first_path = self.prefix + (
             self.calibration if self.calibration else rand_string()
@@ -111,10 +111,10 @@ class Scanner(object):
             self.ratio -= 0.02
         else:
             self.ratio -= 0.01
-        """
+        '''
         If the path is reflected in response, decrease the ratio. Because
         the difference between path lengths can reduce the similarity ratio
-        """
+        '''
         encoding_type = get_encoding_type(first_response.body)
         if first_path in first_response.body.decode(encoding_type, errors="ignore"):
             if len(first_response) < 200:
@@ -128,10 +128,10 @@ class Scanner(object):
             else:
                 self.ratio -= 0.01
 
-    """
+    '''
     From 2 redirects of wildcard responses, generate a regexp that matches
     every wildcard redirect
-    """
+    '''
     def generate_redirect_reg_exp(self, first_loc, first_path, second_loc, second_path):
         # Use a unique sign to locate where the path gets reflected in the redirect
         self.sign = rand_string(n=20)

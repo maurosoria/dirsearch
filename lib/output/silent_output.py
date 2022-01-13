@@ -21,10 +21,11 @@ import sys
 from threading import Lock
 from urllib.parse import urlparse
 
-from lib.utils.size import human_size
-from .colors import ColorOutput
+from lib.core.settings import IS_WINDOWS
+from lib.utils.fmt import human_size
+from lib.output.colors import ColorOutput
 
-if sys.platform in ["win32", "msys"]:
+if IS_WINDOWS:
     from thirdparty.colorama.win32 import (FillConsoleOutputCharacter,
                                            GetConsoleScreenBufferInfo,
                                            STDOUT)
@@ -48,7 +49,7 @@ class PrintOutput(object):
         sys.stdout.flush()
 
     def erase(self):
-        if sys.platform in ["win32", "cygwin", "msys"]:
+        if IS_WINDOWS:
             csbi = GetConsoleScreenBufferInfo()
             line = "\b" * int(csbi.dwCursorPosition.X)
             sys.stdout.write(line)

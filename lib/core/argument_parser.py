@@ -20,19 +20,16 @@ import sys
 
 from optparse import OptionParser, OptionGroup
 
+from lib.core.settings import VERSION, SCRIPT_PATH, COMMON_EXTENSIONS, OUTPUT_FORMATS, AUTHENTICATION_TYPES
 from lib.parse.configparser import ConfigParser
 from lib.parse.headers import HeadersParser
-from lib.utils.file import File
-from lib.utils.file import FileUtils
+from lib.utils.file import File, FileUtils
 from lib.utils.fmt import uniq
-from lib.utils.range import get_range
 from lib.utils.ip import iprange
 
 
 class ArgumentParser(object):
-    def __init__(self, script_path):
-        self.script_path = script_path
-
+    def __init__(self):
         options = self.parse_config(self.parse_arguments())
         self.__dict__.update(options.__dict__)
 
@@ -99,10 +96,7 @@ class ArgumentParser(object):
                 exit(1)
 
         if options.extensions == "*":
-            self.extensions = [
-                "php", "jsp", "asp", "aspx", "do", "action", "cgi",
-                "pl", "html", "htm", "js", "json", "tar.gz", "bak"
-            ]
+            self.extensions = COMMON_EXTENSIONS
         elif options.extensions == "banner.txt":
             print("A weird extension was provided: 'banner.txt'. Please do not use * as the extension or enclose it in double quotes")
             exit(0)
@@ -175,21 +169,17 @@ class ArgumentParser(object):
         if options.scan_subdirs:
             for subdir in options.scan_subdirs.split(","):
                 subdir = subdir.strip(" ")
-                if subdir.startswith("/"):
-                    subdir = subdir[1:]
                 if not subdir.endswith("/"):
                     subdir += "/"
-                self.scan_subdirs.append(subdir)
+                self.scan_subdirs.append(subdir.lstrip("/"))
 
         self.exclude_subdirs = []
         if options.exclude_subdirs:
             for subdir in options.exclude_subdirs.split(","):
                 subdir = subdir.strip(" ")
-                if subdir.startswith("/"):
-                    subdir = subdir[1:]
                 if not subdir.endswith("/"):
                     subdir += "/"
-                self.exclude_subdirs.append(subdir)
+                self.exclude_subdirs.append(subdir.lstrip("/"))
 
         if options.skip_on_status:
             self.skip_on_status = self.parse_status_codes(options.skip_on_status)
@@ -200,18 +190,16 @@ class ArgumentParser(object):
         elif options.auth_type and not options.auth:
             print("No authentication credential found")
             exit(1)
-        elif options.auth and options.auth_type and (
-            options.auth_type not in ["basic", "digest", "bearer", "ntlm"]
-        ):
-            print("'{0}' is not in available authentication types: basic, digest, bearer, ntlm".format(options.auth_type))
+        elif options.auth and options.auth_type not in AUTHENTICATION_TYPES:
+            print("'{}' is not in available authentication types: {}".format(options.auth_type, ", ".join(AUTHENTICATION_TYPES)))
             exit(1)
 
         if len(set(self.extensions).intersection(self.exclude_extensions)):
             print("Exclude extension list can not contain any extension that has already in the extension list")
             exit(1)
 
-        if self.output_format not in [None, "", "simple", "plain", "json", "xml", "md", "csv", "html", "sqlite"]:
-            print("Select one of the following output formats: simple, plain, json, xml, md, csv, html, sqlite")
+        if self.output_format not in [None, ""] + list(OUTPUT_FORMATS):
+            print("Select one of the following output formats: {}".format(", ".join(OUTPUT_FORMATS)))
             exit(1)
 
     def parse_status_codes(self, raw_status_codes):
@@ -219,8 +207,8 @@ class ArgumentParser(object):
         for status_code in raw_status_codes.split(","):
             try:
                 if "-" in status_code:
-                    status_codes.extend(get_range(status_code))
-
+                    s, e = status_code.strip().split("-")
+                    status_codes.extend(range(int(s), int(e) + 1))
                 else:
                     status_codes.append(int(status_code.strip()))
 
@@ -293,8 +281,8 @@ class ArgumentParser(object):
         options.redirects_history = options.redirects_history or config.safe_getboolean("general", "redirects-history")
 
         # Dictionary
-        options.wordlist = config.safe_get(
-            "dictionary", "wordlist", FileUtils.build_path(self.script_path, "db", "dicc.txt"),
+        options.wordlist = options.wordlist or config.safe_get(
+            "dictionary", "wordlist", FileUtils.build_path(SCRIPT_PATH, "db", "dicc.txt"),
         )
         options.prefixes = options.prefixes or config.safe_get("dictionary", "prefixes",)
         options.suffixes = options.suffixes or config.safe_get("dictionary", "suffixes")
@@ -329,14 +317,14 @@ class ArgumentParser(object):
         self.logs_location = config.safe_get("reports", "logs-folder")
         self.autosave_report = config.safe_getboolean("reports", "autosave-report")
         options.output_format = options.output_format or config.safe_get(
-            "reports", "report-format", "plain", ["simple", "plain", "json", "xml", "md", "csv", "html", "sqlite"]
+            "reports", "report-format", "plain", OUTPUT_FORMATS
         )
 
         return options
 
     def parse_arguments(self):
         usage = "Usage: %prog [-u|--url] target [-e|--extensions] extensions [options]"
-        parser = OptionParser(usage, version="dirsearch v0.4.2")
+        parser = OptionParser(usage, version="dirsearch v{}".format(VERSION))
 
         # Mandatory arguments
         mandatory = OptionGroup(parser, "Mandatory")
@@ -352,7 +340,7 @@ class ArgumentParser(object):
                              help="Exclude extension list separated by commas (Example: asp,jsp)")
         mandatory.add_option("-f", "--force-extensions", action="store_true", dest="force_extensions",
                              help="Add extensions to every wordlist entry. By default dirsearch only replaces the %EXT% keyword with extensions")
-        mandatory.add_option("--config", action="store", dest="config", default=FileUtils.build_path(self.script_path, "default.conf"), metavar="FILE",
+        mandatory.add_option("--config", action="store", dest="config", default=FileUtils.build_path(SCRIPT_PATH, "default.conf"), metavar="FILE",
                              help="Full path to config file, see 'default.conf' for example (Default: default.conf)")
 
         # Dictionary Settings

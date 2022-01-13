@@ -18,14 +18,16 @@
 
 import sys
 import time
+import shutil
 
 from threading import Lock
 from urllib.parse import urlparse
 
-from lib.utils.size import human_size, get_terminal_size
-from .colors import ColorOutput
+from lib.core.settings import IS_WINDOWS
+from lib.utils.fmt import human_size
+from lib.output.colors import ColorOutput
 
-if sys.platform in ["win32", "msys"]:
+if IS_WINDOWS:
     from thirdparty.colorama.win32 import (FillConsoleOutputCharacter,
                                            GetConsoleScreenBufferInfo,
                                            STDOUT)
@@ -49,7 +51,7 @@ class CLIOutput(object):
         self.last_in_line = True
 
     def erase(self):
-        if sys.platform in ["win32", "msys"]:
+        if IS_WINDOWS:
             csbi = GetConsoleScreenBufferInfo()
             line = "\b" * int(csbi.dwCursorPosition.X)
             sys.stdout.write(line)
@@ -67,7 +69,7 @@ class CLIOutput(object):
         if self.last_in_line:
             self.erase()
 
-        if sys.platform in ["win32", "msys"]:
+        if IS_WINDOWS:
             sys.stdout.write(string)
             sys.stdout.flush()
             sys.stdout.write("\n")
@@ -151,8 +153,7 @@ class CLIOutput(object):
             errors
         )
 
-        l, _ = get_terminal_size()
-        if len(self.colorizer.clean_color(progress_bar)) >= l:
+        if len(self.colorizer.clean(progress_bar)) >= shutil.get_terminal_size()[0]:
             return
 
         with self.mutex:
@@ -179,22 +180,24 @@ class CLIOutput(object):
         self.new_line(message)
 
     def print_header(self, entries):
-        l, _ = get_terminal_size()
         msg = ""
 
-        for i, entry in enumerate(entries.items()):
-            key, value = entry
-            msg += self.colorizer.color(key + ": ", fore="yellow", bright=True)
-            msg += self.colorizer.color(value, fore="cyan", bright=True)
+        for key, value in entries.items():
+            new = self.colorizer.color(key + ": ", fore="yellow", bright=True)
+            new += self.colorizer.color(value, fore="cyan", bright=True)
 
-            if i == len(entries) - 1:
-                break
+            if not msg:
+                msg += new
+                continue
 
-            last_line_len = len(self.colorizer.clean_color(msg.splitlines()[-1]))
-            if last_line_len + 3 >= l:
+            new_line = msg.splitlines()[-1] + " | " + new
+
+            if len(self.colorizer.clean(new_line)) >= shutil.get_terminal_size()[0]:
                 msg += "\n"
             else:
                 msg += self.colorizer.color(" | ", fore="magenta", bright=True)
+
+            msg += new
 
         self.new_line(msg)
 

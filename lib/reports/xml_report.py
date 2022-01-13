@@ -22,6 +22,7 @@ import sys
 
 from xml.dom import minidom
 
+from lib.core.settings import DEFAULT_ENCODING
 from lib.reports.base import FileBaseReport
 
 
@@ -39,9 +40,9 @@ class XMLReport(FileBaseReport):
                 path = ET.SubElement(target, "info", path="/" + e.path)
                 ET.SubElement(path, "status").text = str(e.status)
                 ET.SubElement(path, "contentlength").text = str(e.response.length)
-                ET.SubElement(path, "redirect").text = e.response.redirect if e.response.redirect else ""
+                ET.SubElement(path, "redirect").text = e.response.redirect or ""
 
-        result = ET.tostring(result, encoding="utf-8", method="xml")
+        result = ET.tostring(result, encoding=DEFAULT_ENCODING, method="xml")
         return minidom.parseString(result).toprettyxml()
 
     def save(self):
