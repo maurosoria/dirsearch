@@ -50,6 +50,7 @@ class Requester(object):
         httpmethod="get",
         data=None,
         scheme=None,
+        random_agents=None,
     ):
         self.httpmethod = httpmethod
         self.data = data
@@ -113,7 +114,7 @@ class Requester(object):
         self.proxy = proxy
         self.proxylist = proxylist
         self.redirect = redirect
-        self.random_agents = None
+        self.random_agents = random_agents
         self.auth = None
         self.request_by_hostname = request_by_hostname
         self.ip = ip
@@ -164,13 +165,10 @@ class Requester(object):
             return "http"
 
     def set_adapter(self):
-        self.session.mount(self.url, HTTPAdapter(max_retries=self.max_retries))
+        self.session.mount(self.url, HTTPAdapter(max_retries=0))
 
     def set_header(self, key, value):
         self.headers[key.strip()] = value.strip() if value else value
-
-    def set_random_agents(self, agents):
-        self.random_agents = list(agents)
 
     def set_auth(self, type, credential):
         if type == "bearer":
@@ -190,112 +188,104 @@ class Requester(object):
                 self.auth = HttpNtlmAuth(user, password)
 
     def request(self, path, proxy=None):
-        result = None
+        for _ in range(self.max_retries + 1):
+            result = None
+            err_msg = None
+            redirects = []
 
-        try:
-            if not proxy:
-                if self.proxylist:
-                    proxy = random.choice(self.proxylist)
-                elif self.proxy:
-                    proxy = self.proxy
+            try:
+                if not proxy:
+                    if self.proxylist:
+                        proxy = random.choice(self.proxylist)
+                    elif self.proxy:
+                        proxy = self.proxy
 
-            if proxy:
-                if not proxy.startswith(
-                    ("http://", "https://", "socks5://", "socks5h://", "socks4://", "socks4a://")
-                ):
-                    proxy = "http://" + proxy
+                if proxy:
+                    if not proxy.startswith(
+                        ("http://", "https://", "socks5://", "socks5h://", "socks4://", "socks4a://")
+                    ):
+                        proxy = "http://" + proxy
 
-                if proxy.startswith("https://"):
-                    proxies = {"https": proxy}
+                    if proxy.startswith("https://"):
+                        proxies = {"https": proxy}
+                    else:
+                        proxies = {"https": proxy, "http": proxy}
                 else:
-                    proxies = {"https": proxy, "http": proxy}
-            else:
-                proxies = None
+                    proxies = None
 
-            url = self.url + self.base_path + path
+                url = self.url + self.base_path + path
 
-            if self.random_agents:
-                self.headers["User-Agent"] = random.choice(self.random_agents)
+                if self.random_agents:
+                    self.headers["User-Agent"] = random.choice(self.random_agents)
 
-            """
-            We can't just do `allow_redirects=True` because we set the host header in
-            optional request headers, which will be kept in next requests (follow redirects)
-            """
-            headers = self.headers.copy()
-            for i in range(6):
-                request = requests.Request(
-                    self.httpmethod,
-                    url=url,
-                    headers=headers,
-                    auth=self.auth,
-                    data=self.data,
-                )
-                prepare = request.prepare()
-                prepare.url = url
+                """
+                We can't just do `allow_redirects=True` because we set the host header in
+                optional request headers, which will be kept in next requests (follow redirects)
+                """
+                headers = self.headers.copy()
+                for i in range(7):
+                    request = requests.Request(
+                        self.httpmethod,
+                        url=url,
+                        headers=headers,
+                        auth=self.auth,
+                        data=self.data,
+                    )
+                    prepare = request.prepare()
+                    prepare.url = url
 
-                response = self.session.send(
-                    prepare,
-                    proxies=proxies,
-                    allow_redirects=False,
-                    timeout=self.timeout,
-                    stream=True,
-                    verify=False,
-                )
-                result = Response(response)
+                    response = self.session.send(
+                        prepare,
+                        proxies=proxies,
+                        allow_redirects=False,
+                        timeout=self.timeout,
+                        stream=True,
+                        verify=False,
+                    )
+                    result = Response(response, redirects)
 
-                if self.redirect and result.redirect:
-                    url = urljoin(url, result.redirect)
-                    headers["Host"] = url.split("/")[2]
-                    continue
-                elif i == 5:
-                    raise requests.exceptions.TooManyRedirects
+                    if self.redirect and result.redirect:
+                        url = urljoin(url, result.redirect)
+                        headers["Host"] = url.split("/")[2]
+                        redirects.append(url)
+                        continue
+                    elif i == 6:
+                        raise requests.exceptions.TooManyRedirects
 
-                break
+                    break
 
-        except requests.exceptions.SSLError:
-            self.url = self.base_url
-            self.set_adapter()
-            result = self.request(path, proxy=proxy)
+            except requests.exceptions.SSLError:
+                self.url = self.base_url
+                self.set_adapter()
+                result = self.request(path, proxy=proxy)
 
-        except requests.exceptions.TooManyRedirects:
-            raise RequestException(
-                {"message": "Too many redirects: {0}".format(self.base_url)}
-            )
+            except requests.exceptions.TooManyRedirects:
+                err_msg = "Too many redirects: {0}".format(self.base_url)
 
-        except requests.exceptions.ProxyError:
-            raise RequestException(
-                {"message": "Error with the proxy: {0}".format(proxy)}
-            )
+            except requests.exceptions.ProxyError:
+                err_msg = "Error with the proxy: {0}".format(proxy)
 
-        except requests.exceptions.ConnectionError:
-            raise RequestException(
-                {"message": "Cannot connect to: {0}:{1}".format(self.host, self.port)}
-            )
+            except requests.exceptions.ConnectionError:
+                err_msg = "Cannot connect to: {0}:{1}".format(self.host, self.port)
 
-        except requests.exceptions.InvalidURL:
-            raise RequestException(
-                {"message": "Invalid URL: {0}".format(self.base_url)}
-            )
+            except requests.exceptions.InvalidURL:
+                err_msg = "Invalid URL: {0}".format(self.base_url)
 
-        except requests.exceptions.InvalidProxyURL:
-            raise RequestException(
-                {"message": "Invalid proxy URL: {0}".format(proxy)}
-            )
+            except requests.exceptions.InvalidProxyURL:
+                err_msg = "Invalid proxy URL: {0}".format(proxy)
 
-        except (
-            requests.exceptions.ConnectTimeout,
-            requests.exceptions.ReadTimeout,
-            requests.exceptions.Timeout,
-            http.client.IncompleteRead,
-            socket.timeout,
-        ):
-            raise RequestException(
-                {"message": "Request timeout: {0}".format(self.base_url)}
-            )
+            except (
+                requests.exceptions.ConnectTimeout,
+                requests.exceptions.ReadTimeout,
+                requests.exceptions.Timeout,
+                http.client.IncompleteRead,
+                socket.timeout,
+            ):
+                err_msg = "Request timeout: {0}".format(self.base_url)
 
-        except Exception:
-            raise RequestException(
-                {"message": "There was a problem in the request to: {0}".format(self.base_url)}
-            )
+            except Exception:
+                err_msg = "There was a problem in the request to: {0}".format(self.base_url)
 
-        return result
+            if result: return result
+
+        raise RequestException({"message": err_msg})

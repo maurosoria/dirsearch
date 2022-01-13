@@ -38,7 +38,7 @@ class XMLReport(FileBaseReport):
             for e in entry.results:
                 path = ET.SubElement(target, "info", path="/" + e.path)
                 ET.SubElement(path, "status").text = str(e.status)
-                ET.SubElement(path, "contentlength").text = str(e.get_content_length())
+                ET.SubElement(path, "contentlength").text = str(e.response.length)
                 ET.SubElement(path, "redirect").text = e.response.redirect if e.response.redirect else ""
 
         result = ET.tostring(result, encoding="utf-8", method="xml")

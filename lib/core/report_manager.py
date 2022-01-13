@@ -25,6 +25,7 @@ from lib.reports.markdown_report import MarkdownReport
 from lib.reports.plain_text_report import PlainTextReport
 from lib.reports.simple_report import SimpleReport
 from lib.reports.xml_report import XMLReport
+from lib.reports.sqlite_report import SQLiteReport
 
 
 class Result(object):
@@ -32,9 +33,6 @@ class Result(object):
         self.path = path
         self.status = status
         self.response = response
-
-    def get_content_length(self):
-        return self.response.length
 
     def get_content_type(self):
         content_type = self.response.headers.get('content-type')
@@ -72,8 +70,8 @@ class ReportManager(object):
 
     def write_report(self):
         if self.report_obj is None:
-            if self.format == "simple":
-                report = SimpleReport(self.output, self.reports)
+            if self.format == "plain":
+                report = PlainTextReport(self.output, self.reports)
             elif self.format == "json":
                 report = JSONReport(self.output, self.reports)
             elif self.format == "xml":
@@ -84,8 +82,10 @@ class ReportManager(object):
                 report = CSVReport(self.output, self.reports)
             elif self.format == "html":
                 report = HTMLReport(self.output, self.reports)
+            elif self.format == "sqlite":
+                report = SQLiteReport(self.output, self.reports)
             else:
-                report = PlainTextReport(self.output, self.reports)
+                report = SimpleReport(self.output, self.reports)
 
             self.report_obj = report
 

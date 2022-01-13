@@ -38,7 +38,7 @@ class PlainTextReport(FileBaseReport):
             for e in entry.results:
                 if (entry.protocol, entry.host, entry.port, entry.base_path, e.path) not in self.written_entries:
                     result += "{0}  ".format(e.status)
-                    result += "{0}  ".format(human_size(e.get_content_length()).rjust(6, " "))
+                    result += "{0}  ".format(human_size(e.response.length).rjust(6, " "))
                     result += "{0}://{1}:{2}/".format(entry.protocol, entry.host, entry.port)
                     result += (
                         "{0}".format(e.path)
