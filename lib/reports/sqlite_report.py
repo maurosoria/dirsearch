@@ -18,21 +18,12 @@
 
 import sqlite3
 import time
-from os import makedirs
-from os import name as os_name
-from os.path import normpath, dirname
 
 from lib.reports.base import FileBaseReport
 
 
 class SQLiteReport(FileBaseReport):
     def open(self):
-        if os_name == "nt":
-            output = normpath(self.output)
-            makedirs(dirname(output), exist_ok=True)
-
-            self.output = output
-
         self.file = sqlite3.connect(self.output, check_same_thread=False)
         self.cursor = self.file.cursor()
 
@@ -43,11 +34,11 @@ class SQLiteReport(FileBaseReport):
 
         table = "{}_{}_{}".format(self.entries[0].protocol, self.entries[0].host, self.entries[0].port)
         commands.append(["DROP TABLE IF EXISTS `{}`".format(table)])
-        commands.append(['''
-            CREATE TABLE `{}`
-            ([time] TEXT, [path] TEXT, [status_code] INTEGER, [content_length] INTEGER, [redirect] TEXT)
-                        '''.format(table)
-        ])
+        commands.append(
+            ['''CREATE TABLE `{}`
+                ([time] TEXT, [path] TEXT, [status_code] INTEGER, [content_length] INTEGER, [redirect] TEXT)
+             '''.format(table)]
+        )
 
         for entry in self.entries:
             for e in entry.results:

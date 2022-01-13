@@ -16,16 +16,20 @@
 #
 #  Author: Mauro Soria
 
+import string
+
 from chardet import detect
 from urllib.parse import quote
 
+from lib.core.settings import INVALID_CHARS_FOR_WINDOWS_FILENAME, DEFAULT_ENCODING
 
-def safequote(string):
-    return quote(string, safe="!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~")
+
+def safequote(string_):
+    return quote(string_, safe=string.punctuation)
 
 
 def get_encoding_type(content):
-    return detect(content)["encoding"] or "utf-8"
+    return detect(content)["encoding"] or DEFAULT_ENCODING
 
 
 def uniq(string_list, filt=False):
@@ -38,47 +42,16 @@ def uniq(string_list, filt=False):
 
 # Some characters are denied in file name by Windows
 def clean_filename(string):
-    special_chars = ["\\", "/", "*", "?", ":", '"', "<", ">", "|"]
-    for char in special_chars:
+    for char in INVALID_CHARS_FOR_WINDOWS_FILENAME:
         string = string.replace(char, "-")
 
     return string
 
 
-def lowercase(data):
-    if isinstance(data, str):
-        return data.lower()
-    elif isinstance(data, list):
-        return [i.lower() for i in data if isinstance(i, str)]
-    elif isinstance(data, dict):
-        return dict((key.lower(), value) for key, value in data.items())
-    elif isinstance(data, tuple):
-        return tuple(i.lower() for i in data if isinstance(i, str))
-    else:
-        return data
-
-
-def uppercase(data):
-    if isinstance(data, str):
-        return data.upper()
-    elif isinstance(data, list):
-        return [i.upper() for i in data if isinstance(i, str)]
-    elif isinstance(data, dict):
-        return dict((key.upper(), value) for key, value in data.items())
-    elif isinstance(data, tuple):
-        return tuple(i.upper() for i in data if isinstance(i, str))
-    else:
-        return data
-
-
-def capitalize(data):
-    if isinstance(data, str):
-        return data.capitalize()
-    elif isinstance(data, list):
-        return [i.capitalize() for i in data if isinstance(i, str)]
-    elif isinstance(data, dict):
-        return dict((key.capitalize(), value) for key, value in data.items())
-    elif isinstance(data, tuple):
-        return tuple(i.capitalize() for i in data if isinstance(i, str))
-    else:
-        return data
+def human_size(num):
+    base = 1024
+    for x in ["B ", "KB", "MB", "GB"]:
+        if num < base and num > -base:
+            return "%3.0f%s" % (num, x)
+        num /= base
+    return "%3.0f %s" % (num, "TB")

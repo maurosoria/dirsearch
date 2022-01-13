@@ -19,7 +19,8 @@
 import re
 import threading
 
-from lib.utils.fmt import safequote, uniq, lowercase, uppercase, capitalize
+from lib.core.settings import SCRIPT_PATH, EXTENSION_KEY
+from lib.utils.fmt import safequote, uniq
 from lib.utils.file import File, FileUtils
 
 
@@ -29,8 +30,8 @@ class Dictionary(object):
         self,
         paths,
         extensions,
-        suffixes=None,
-        prefixes=None,
+        suffixes=[],
+        prefixes=[],
         lowercase=False,
         uppercase=False,
         capitalization=False,
@@ -40,7 +41,7 @@ class Dictionary(object):
         only_selected=False,
     ):
 
-        self.entries = []
+        self.entries = ()
         self.current_index = 0
         self.condition = threading.Lock()
         self._extensions = extensions
@@ -73,7 +74,7 @@ class Dictionary(object):
     def paths(self, paths):
         self._paths = paths
 
-    """
+    '''
     Dictionary.generate() behaviour
 
     Classic dirsearch wordlist:
@@ -88,10 +89,10 @@ class Dictionary(object):
             append one with each extension APPENDED (line.ext) and ONLYE ONE with a slash.
           3. If the line does not include the special word and IS ALREADY terminated by slash,
             append line unmodified.
-    """
+    '''
 
     def generate(self):
-        reext = re.compile(r"\%ext\%", re.IGNORECASE)
+        reext = re.compile(EXTENSION_KEY, re.IGNORECASE)
         result = []
 
         # Enable to use multiple dictionaries at once
@@ -117,7 +118,7 @@ class Dictionary(object):
                     continue
 
                 # Classic dirsearch wordlist processing (with %EXT% keyword)
-                if "%ext%" in line.lower():
+                if EXTENSION_KEY in line.lower():
                     for extension in self._extensions:
                         newline = reext.sub(extension, line)
                         result.append(newline)
@@ -138,36 +139,34 @@ class Dictionary(object):
                     ):
                         result.append(line)
 
-        # Some custom changes
-        for entry in uniq(result):
-            entries = [entry]
-            for pref in self._prefixes:
-                if not entry.startswith(pref):
-                    entries.append(pref + entry)
-            for suff in self._suffixes:
-                if not entry.endswith("/") and not entry.endswith(suff):
-                    entries.append(entry + suff)
+        # Re-add dictionary with prefixes
+        result.extend(
+            [pref + path for path in result for pref in self._prefixes if not path.startswith(pref)]
+        )
+        # Re-add dictionary with suffixes
+        result.extend(
+            [path + suff for path in result for suff in self._suffixes if not path.endswith(("/", suff))]
+        )
 
-            if self.lowercase:
-                self.entries.extend(lowercase(entries))
-            elif self.uppercase:
-                self.entries.extend(uppercase(entries))
-            elif self.capitalization:
-                self.entries.extend(capitalize(entries))
-            else:
-                self.entries.extend(entries)
+        if self.lowercase:
+            self.entries = (entry.lower() for entry in uniq(result))
+        elif self.uppercase:
+            self.entries = (entry.upper() for entry in uniq(result))
+        elif self.capitalization:
+            self.entries = (entry.capitalize() for entry in uniq(result))
+        else:
+            self.entries = tuple(uniq(result))
 
         del result
 
     # Get ignore paths for status codes.
     # More information: https://github.com/maurosoria/dirsearch#Blacklist
     @staticmethod
-    def generate_blacklists(extensions, script_path):
-        reext = re.compile(r"\%ext\%", re.IGNORECASE)
+    def generate_blacklists(extensions):
         blacklists = {}
 
         for status in [400, 403, 500]:
-            blacklist_file_name = FileUtils.build_path(script_path, "db")
+            blacklist_file_name = FileUtils.build_path(SCRIPT_PATH, "db")
             blacklist_file_name = FileUtils.build_path(
                 blacklist_file_name, "{}_blacklist.txt".format(status)
             )
@@ -176,27 +175,7 @@ class Dictionary(object):
                 # Skip if cannot read file
                 continue
 
-            blacklists[status] = []
-
-            for line in FileUtils.get_lines(blacklist_file_name):
-                # Skip comments
-                if line.lstrip().startswith("#"):
-                    continue
-
-                if line.startswith("/"):
-                    line = line[1:]
-
-                # Classic dirsearch blacklist processing (with %EXT% keyword)
-                if "%ext%" in line.lower():
-                    for extension in extensions:
-                        entry = reext.sub(extension, line)
-                        blacklists[status].append(entry)
-
-                # Forced extensions is not used here because -r is only used for wordlist,
-                # applying in blacklist may create false negatives
-
-                else:
-                    blacklists[status].append(line)
+            blacklists[status] = list(Dictionary([blacklist_file_name], extensions))
 
         return blacklists
 
@@ -215,14 +194,17 @@ class Dictionary(object):
         self.condition.release()
         return current_index, result
 
-    def __next__(self, base_path=None):
-        _, path = self.next_with_index(base_path)
-        return safequote(path)
-
     def reset(self):
         self.condition.acquire()
         self.current_index = 0
         self.condition.release()
+
+    def __iter__(self):
+        return iter(self.entries)
+
+    def __next__(self, base_path=None):
+        _, path = self.next_with_index(base_path)
+        return safequote(path)
 
     def __len__(self):
         return len(self.entries)

@@ -16,6 +16,8 @@
 #
 #  Author: Mauro Soria
 
+import string
+
 from thirdparty.colorama import init, Fore, Back, Style
 from thirdparty.pyparsing import Literal, Word, Combine, Optional, Suppress, delimitedList, oneOf
 
@@ -61,11 +63,11 @@ class ColorOutput(object):
     # Credit: https://stackoverflow.com/a/2187024/12238982
     def prepare_sequence_escaper(self):
         ESC = Literal("\x1b")
-        integer = Word("0123456789")
-        alphas = list("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
         self.escape_seq = Combine(
-            ESC + "[" + Optional(delimitedList(integer, ";")) + oneOf(alphas)
+            ESC + "[" + Optional(
+                delimitedList(Word(string.digits), ";")
+            ) + oneOf(list(string.ascii_letters))
         )
 
-    def clean_color(self, msg):
+    def clean(self, msg):
         return Suppress(self.escape_seq).transformString(msg)

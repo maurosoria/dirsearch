@@ -16,6 +16,8 @@
 #
 #  Author: Mauro Soria
 
+from lib.core.settings import CHUNK_SIZE
+
 
 class Response(object):
     def __init__(self, response, redirects):
@@ -24,7 +26,7 @@ class Response(object):
         self.redirects = redirects
         self.body = b""
 
-        for chunk in response.iter_content(chunk_size=8192):
+        for chunk in response.iter_content(chunk_size=CHUNK_SIZE):
             self.body += chunk
 
     def __eq__(self, other):

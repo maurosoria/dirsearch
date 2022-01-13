@@ -19,9 +19,9 @@
 import threading
 import time
 
+from lib.core.path import Path
+from lib.core.scanner import Scanner
 from lib.connection.request_exception import RequestException
-from .path import Path
-from .scanner import Scanner
 
 
 class Fuzzer(object):

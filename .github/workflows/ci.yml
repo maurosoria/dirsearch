@@ -25,7 +25,7 @@ jobs:
     - name: Test
       run: |
         echo index.html > tmp
-        python3 dirsearch.py -u https://example.com -r -w tmp -q -f -e php,html,js
+        python3 dirsearch.py -u https://example.com --subdirs /,a/ -o tmp.txt --format json -r -w tmp -q -f -e html
     - name: Lint
       run: |
         flake8 . --exclude=thirdparty --count --ignore=F403,F405,E501,E701 --show-source --statistics

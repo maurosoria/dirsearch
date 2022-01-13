@@ -18,7 +18,6 @@
 
 import gc
 import os
-import sys
 import time
 import re
 import threading
@@ -32,24 +31,14 @@ from lib.core.dictionary import Dictionary
 from lib.core.fuzzer import Fuzzer
 from lib.core.raw import Raw
 from lib.core.report_manager import Report, ReportManager
+from lib.core.settings import SCRIPT_PATH, BANNER
 from lib.utils.file import FileUtils
-from lib.utils.fmt import clean_filename
-from lib.utils.size import human_size
+from lib.utils.fmt import clean_filename, human_size
 from lib.utils.timer import Timer
 
 
 class SkipTargetInterrupt(Exception):
     pass
-
-
-MAJOR_VERSION = 0
-MINOR_VERSION = 4
-REVISION = 2
-VERSION = {
-    "MAYOR_VERSION": MAJOR_VERSION,
-    "MINOR_VERSION": MINOR_VERSION,
-    "REVISION": REVISION,
-}
 
 
 class EmptyReportManager(object):
@@ -80,16 +69,8 @@ class EmptyTimer(object):
 
 
 class Controller(object):
-    def __init__(self, script_path, arguments, output):
-        global VERSION
-        program_banner = (
-            open(FileUtils.build_path(script_path, "banner.txt"))
-            .read()
-            .format(**VERSION)
-        )
-
+    def __init__(self, arguments, output):
         self.directories = Queue()
-        self.script_path = script_path
         self.output = output
         self.pass_dirs = ["/"]
 
@@ -120,7 +101,7 @@ class Controller(object):
         if self.use_random_agents:
             self.random_agents = list(
                 FileUtils.get_lines(
-                    FileUtils.build_path(script_path, "db", "user-agents.txt")
+                    FileUtils.build_path(SCRIPT_PATH, "db", "user-agents.txt")
                 )
             )
 
@@ -128,19 +109,19 @@ class Controller(object):
             self.validate_path(self.logs_location)
             self.logs_path = FileUtils.build_path(self.logs_location)
         else:
-            self.validate_path(script_path)
-            self.logs_path = FileUtils.build_path(self.script_path, "logs")
+            self.validate_path(SCRIPT_PATH)
+            self.logs_path = FileUtils.build_path(SCRIPT_PATH, "logs")
             FileUtils.create_directory(self.logs_path)
 
         if self.output_location:
             self.validate_path(self.output_location)
             self.report_path = FileUtils.build_path(self.output_location)
         else:
-            self.validate_path(script_path)
-            self.report_path = FileUtils.build_path(self.script_path, "reports")
+            self.validate_path(SCRIPT_PATH)
+            self.report_path = FileUtils.build_path(SCRIPT_PATH, "reports")
             FileUtils.create_directory(self.report_path)
 
-        self.blacklists = Dictionary.generate_blacklists(self.extensions, script_path)
+        self.blacklists = Dictionary.generate_blacklists(self.extensions)
 
         self.dictionary = Dictionary(
             paths=self.wordlist,
@@ -171,7 +152,7 @@ class Controller(object):
         self.report = EmptyReport()
         self.timer = EmptyTimer()
 
-        self.output.header(program_banner)
+        self.output.header(BANNER)
         self.print_config()
 
         if self.autosave_report or self.output_file:
@@ -303,7 +284,7 @@ class Controller(object):
             self.output.error(
                 "Couldn't create the error log. Try running again with highest permission"
             )
-            sys.exit(1)
+            exit(1)
 
     # Create batch report folder
     def setup_batch_reports(self):
@@ -321,7 +302,7 @@ class Controller(object):
                     self.output.error(
                         "Couldn't create batch folder at {}".format(self.batch_directory_path)
                     )
-                    sys.exit(1)
+                    exit(1)
 
     # Get file extension for report format
     def get_output_extension(self):
@@ -371,7 +352,7 @@ class Controller(object):
                     self.output.error(
                         "Couldn't create the reports folder at {}".format(directory_path)
                     )
-                    sys.exit(1)
+                    exit(1)
 
             self.output.output_file(output_file)
 
@@ -590,19 +571,17 @@ class Controller(object):
         if any([path.startswith(directory) for directory in self.exclude_subdirs]):
             return False
 
-        if self.deep_recursive:
-            dir_portions = [p for p in path.split("/") if p != ""]
-            for i in range(1, len(dir_portions)):
-                dirs.append(self.current_directory + "/".join(dir_portions[:i]) + "/")
+        if self.force_recursive and not full_path.endswith("/"):
+            full_path += "/"
 
-        if self.force_recursive:
-            if not full_path.endswith("/"):
-                full_path += "/"
-            dirs.append(full_path)
+        if self.deep_recursive:
+            for i in range(path.count("/")):
+                p = path.index("/", i + 1)
+                dirs.append(self.current_directory + path[:p + 1])
         elif self.recursive and full_path.endswith("/"):
             dirs.append(full_path)
 
-        for dir in list(set(dirs)):
+        for dir in dirs:
             if dir in self.pass_dirs:
                 continue
             elif self.recursion_depth and dir.count("/") > self.recursion_depth:
