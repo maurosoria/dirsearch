@@ -1,7 +1,9 @@
 # Changelog
 
-## [0.4.3]
-- Automatically detect the URI scheme (http or https) if no scheme is provided
+## 0.4.3
+- Automatically detect the URI scheme (`http` or `https`) if no scheme is provided
+- SQLite report format
+- Option to view redirects history when following redirects
 
 ## [0.4.2] - 2021.9.12
 - More accurate
@@ -123,6 +125,7 @@
 - Initial public release
 
 [Unreleased]: https://github.com/maurosoria/dirsearch/tree/master
+[0.4.2]: https://github.com/maurosoria/dirsearch/tree/v0.4.2
 [0.4.1]: https://github.com/maurosoria/dirsearch/tree/v0.4.1
 [0.4.0]: https://github.com/maurosoria/dirsearch/tree/v0.4.0
 [0.3.9]: https://github.com/maurosoria/dirsearch/tree/v0.3.9
