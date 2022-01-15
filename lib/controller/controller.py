@@ -17,7 +17,6 @@
 #  Author: Mauro Soria
 
 import gc
-import os
 import time
 import re
 import threading
@@ -145,7 +144,7 @@ class Controller(object):
         self.logger = None
         self.batch = False
         self.batch_session = None
-        self.timeover = False
+        self.exit = None
 
         self.threads_lock = threading.Lock()
         self.report_manager = EmptyReportManager()
@@ -208,7 +207,7 @@ class Controller(object):
 
                     # Initialize directories Queue with start Path
                     self.base_path = self.requester.base_path
-                    self.status_skip = None
+                    self.skip = None
 
                     if not self.scan_subdirs:
                         self.directories.put("")
@@ -271,7 +270,7 @@ class Controller(object):
 
         self.timer = Timer()
         self.timer.count(self.maxtime)
-        self.timeover = True
+        self.exit = "\nCanceled because the runtime exceeded the maximum set by user"
 
     # Create log file
     def setup_log(self):
@@ -409,7 +408,7 @@ class Controller(object):
         self.index += 1
 
         if response.status in self.skip_on_status:
-            self.status_skip = status
+            self.skip = "\nSkipped the target due to {} status code".format(response.status)
             return
 
         if not self.is_valid(path, response):
@@ -518,13 +517,10 @@ class Controller(object):
             try:
                 while not self.fuzzer.wait(0.25):
                     # Check if the "skip status code" was returned
-                    if self.status_skip:
-                        self.close(
-                            "\nSkipped the target due to {0} status code".format(self.status_skip),
-                            skip=True
-                        )
-                    if self.timeover:
-                        self.close("\nCanceled because the runtime exceeded the maximum set by user")
+                    if self.skip:
+                        self.close(self.skip, skip=True)
+                    elif self.exit:
+                        self.close(self.exit)
                         break
                 break
 
