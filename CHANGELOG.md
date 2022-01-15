@@ -19,6 +19,9 @@
 - Option to skip target by specified status codes
 - Bug fixes
 
+## [0.4.2] -  2021.9.8
+- LibDirSearch. Allows dirsearch to be used as a library.
+
 ## [0.4.1] - 2020.12.8
 - Faster
 - Allow to brute force through a CIDR notation
