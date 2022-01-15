@@ -19,6 +19,7 @@
 import time
 import sys
 
+from lib.core.settings import NEW_LINE
 from lib.reports.base import FileBaseReport
 
 
@@ -36,10 +37,10 @@ class MarkdownReport(FileBaseReport):
     def generate_header(self):
         if self.header_written is False:
             self.header_written = True
-            result = "### Info\n"
-            result += "Args: {0}\n".format(' '.join(sys.argv))
-            result += "Time: {0}\n".format(time.ctime())
-            result += "\n"
+            result = "### Info" + NEW_LINE
+            result += "Args: {0}".format(' '.join(sys.argv)) + NEW_LINE
+            result += "Time: {0}".format(time.ctime()) + NEW_LINE
+            result += NEW_LINE
             return result
         else:
             return ""
@@ -52,9 +53,9 @@ class MarkdownReport(FileBaseReport):
                 entry.protocol, entry.host, entry.port, entry.base_path
             )
             if (entry.protocol, entry.host, entry.port, entry.base_path) not in self.printed_target_header_list:
-                result += "### Target: {0}\n\n".format(header_name)
-                result += "Path | Status | Size | Redirection\n"
-                result += "-----|--------|------|------------\n"
+                result += "### Target: {0}".format(header_name) + NEW_LINE * 2
+                result += "Path | Status | Size | Redirection" + NEW_LINE
+                result += "-----|--------|------|------------" + NEW_LINE
                 self.printed_target_header_list.append((entry.protocol, entry.host, entry.port, entry.base_path))
 
             for e in entry.results:
@@ -62,12 +63,12 @@ class MarkdownReport(FileBaseReport):
                     result += "[/{0}]({1}) | ".format(e.path, header_name + e.path)
                     result += "{0} | ".format(e.status)
                     result += "{0} | ".format(e.response.length)
-                    result += "{0}\n".format(e.response.redirect)
+                    result += "{0}".format(e.response.redirect) + NEW_LINE
 
                     self.written_entries.append((entry.protocol, entry.host, entry.port, entry.base_path, e.path))
 
             if entry.completed and entry not in self.completed_hosts:
-                result += "\n"
+                result += NEW_LINE
                 self.completed_hosts.append(entry)
 
         return result

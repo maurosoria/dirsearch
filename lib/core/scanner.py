@@ -22,7 +22,6 @@ from urllib.parse import unquote
 
 from lib.parse.similarity import SimilarityParser
 from lib.utils.random import rand_string
-from lib.utils.fmt import get_encoding_type
 from thirdparty.sqlmap import DynamicContentParser
 
 
@@ -111,12 +110,12 @@ class Scanner(object):
             self.ratio -= 0.02
         else:
             self.ratio -= 0.01
+
         '''
         If the path is reflected in response, decrease the ratio. Because
         the difference between path lengths can reduce the similarity ratio
         '''
-        encoding_type = get_encoding_type(first_response.body)
-        if first_path in first_response.body.decode(encoding_type, errors="ignore"):
+        if first_path in first_response.content:
             if len(first_response) < 200:
                 self.ratio -= 0.15 + 15 / len(first_response)
             elif len(first_response) < 800:
@@ -141,8 +140,10 @@ class Scanner(object):
         self.redirect_parser.unquote = True
         self.redirect_parser.ignorecase = True
 
-    # Check if redirect matches the wildcard redirect regex or the response
-    # has high similarity with wildcard tested at the start
+    '''
+    Check if redirect matches the wildcard redirect regex or the response
+    has high similarity with wildcard tested at the start
+    '''
     def scan(self, path, response):
         if self.response.status == response.status == 404:
             return False

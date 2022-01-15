@@ -21,7 +21,6 @@ import time
 import shutil
 
 from threading import Lock
-from urllib.parse import urlparse
 
 from lib.core.settings import IS_WINDOWS
 from lib.utils.fmt import human_size
@@ -89,8 +88,7 @@ class CLIOutput(object):
         show_path = "/" + self.base_path + path
 
         if full_url:
-            parsed = urlparse(self.target)
-            show_path = "{0}://{1}{2}".format(parsed.scheme, parsed.netloc, show_path)
+            show_path = response.url
 
         message = "[{0}] {1} - {2} - {3}".format(
             time.strftime("%H:%M:%S"),
@@ -121,7 +119,7 @@ class CLIOutput(object):
             message += "  ->  {0}".format(response.redirect)
         if added_to_queue:
             message += "     (Added to queue)"
-        for redirect in response.redirects:
+        for redirect in response.history:
             message += "\n-->  {0}".format(redirect)
 
         with self.mutex:
@@ -219,7 +217,7 @@ class CLIOutput(object):
         if suffixes:
             config["Suffixes"] = suffixes
 
-        config["HTTP method"] = method.upper()
+        config["HTTP method"] = method
         config["Threads"] = threads
         config["Wordlist size"] = wordlist_size
 
@@ -234,8 +232,8 @@ class CLIOutput(object):
     def output_file(self, target):
         self.new_line("\nOutput File: {0}".format(target))
 
-    def error_log_file(self, target):
-        self.new_line("\nError Log: {0}".format(target))
+    def log_file(self, target):
+        self.new_line("\nLog File: {0}".format(target))
 
     def debug(self, info):
         with self.mutex:

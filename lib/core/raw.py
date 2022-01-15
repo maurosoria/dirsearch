@@ -27,11 +27,7 @@ class Raw(object):
         self.parse()
 
     def parse(self):
-        # Parse for 2 situations: \n as a newline or \r\n as a newline
-        self.parsed = self.raw_content.split("\n\n")
-        if len(self.parsed) == 1:
-            self.parsed = self.raw_content.split("\r\n\r\n")
-
+        self.parsed = self.raw_content.splitlines(0)
         self.startline = self.parsed[0].splitlines()[0]
 
         try:

@@ -20,6 +20,8 @@ import email
 
 from io import StringIO
 
+from lib.core.settings import NEW_LINE
+
 
 class HeadersParser(object):
     def __init__(self, headers):
@@ -50,10 +52,10 @@ class HeadersParser(object):
             return
 
         if isinstance(headers, dict):
-            return "\r\n".join(
+            return NEW_LINE.join(
                 "{0}: {1}".format(key, value) for key, value in headers.items()
             )
         elif isinstance(headers, list):
-            return "\r\n".join(headers)
+            return NEW_LINE.join(headers)
         else:
             return

@@ -122,14 +122,16 @@ class Requester(object):
         )
 
     def setup(self):
-        # To improve dirsearch performance, we resolve the hostname before scanning
-        # and then send requests by IP instead of hostname, so the library won't have to
-        # resolve it before every request. This also keeps the scan stable despite any
-        # issue with the system DNS resolver (running tools like Amass might cause such
-        # things). If you don't like it, you can disable it with `-b` command-line flag
-        #
-        # Note: A proxy could have a different DNS that would resolve the name. ThereFore.
-        # resolving the name when using proxy to raise an error is pointless
+        '''
+        To improve dirsearch performance, we resolve the hostname before scanning
+        and then send requests by IP instead of hostname, so the library won't have to
+        resolve it before every request. This also keeps the scan stable despite any
+        issue with the system DNS resolver (running tools like Amass might cause such
+        things). If you don't like it, you can disable it with `-b` command-line flag
+
+        Note: A proxy could have a different DNS that would resolve the name. ThereFore.
+        resolving the name when using proxy to raise an error is pointless
+        '''
         if not self.request_by_hostname and not self.proxy and not self.proxylist:
             try:
                 self.ip = self.ip or socket.gethostbyname(self.host)
@@ -219,7 +221,7 @@ class Requester(object):
                 optional request headers, which will be kept in next requests (follow redirects)
                 '''
                 headers = self.headers.copy()
-                for i in range(MAX_REDIRECTS + 1):
+                for i in range(MAX_REDIRECTS):
                     request = requests.Request(
                         self.httpmethod,
                         url=url,
@@ -245,7 +247,7 @@ class Requester(object):
                         headers["Host"] = url.split("/")[2]
                         redirects.append(url)
                         continue
-                    elif i == MAX_REDIRECTS:
+                    elif i == MAX_REDIRECTS - 1:
                         raise requests.exceptions.TooManyRedirects
 
                     break
@@ -279,8 +281,15 @@ class Requester(object):
             ):
                 err_msg = "Request timeout: {0}".format(self.base_url)
 
-            except Exception:
-                err_msg = "There was a problem in the request to: {0}".format(self.base_url)
+            except Exception as msg:
+                err_msg = str(msg)
+
+                '''
+                dirsearch prints out error message returned from test request, so if it's test request,
+                only return a simple message to print because users can't understand debug message anyway :-)
+                '''
+                if not path:
+                    err_msg = "There was a problem in the request to: {0}".format(self.base_url)
 
             if result: return result
 

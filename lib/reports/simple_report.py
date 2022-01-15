@@ -16,6 +16,7 @@
 #
 #  Author: Mauro Soria
 
+from lib.core.settings import NEW_LINE
 from lib.reports.base import FileBaseReport
 
 
@@ -28,10 +29,11 @@ class SimpleReport(FileBaseReport):
                 if (entry.protocol, entry.host, entry.port, entry.base_path, e.path) not in self.written_entries:
                     result += "{0}://{1}:{2}/".format(entry.protocol, entry.host, entry.port)
                     result += (
-                        "{0}\n".format(e.path)
+                        "{0}".format(e.path)
                         if entry.base_path == ""
-                        else "{0}/{1}\n".format(entry.base_path, e.path)
+                        else "{0}/{1}".format(entry.base_path, e.path)
                     )
+                    result += NEW_LINE
                     self.written_entries.append((entry.protocol, entry.host, entry.port, entry.base_path, e.path))
 
         return result

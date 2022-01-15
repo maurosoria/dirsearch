@@ -19,6 +19,7 @@
 import time
 import sys
 
+from lib.core.settings import NEW_LINE
 from lib.reports.base import FileBaseReport
 from lib.utils.fmt import human_size
 
@@ -27,7 +28,7 @@ class PlainTextReport(FileBaseReport):
     def generate_header(self):
         if self.header_written is False:
             self.header_written = True
-            return "# Dirsearch started {0} as: {1}\n\n".format(time.ctime(), ' '.join(sys.argv))
+            return "# Dirsearch started {0} as: {1}".format(time.ctime(), ' '.join(sys.argv)) + NEW_LINE * 2
         else:
             return ""
 
@@ -49,7 +50,7 @@ class PlainTextReport(FileBaseReport):
                     if location:
                         result += "    -> REDIRECTS TO: {0}".format(location)
 
-                    result += "\n"
+                    result += NEW_LINE
                     self.written_entries.append((entry.protocol, entry.host, entry.port, entry.base_path, e.path))
 
         return result

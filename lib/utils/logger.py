@@ -16,18 +16,20 @@
 #
 #  Author: Mauro Soria
 
-from lib.utils.fmt import get_encoding_type
+import time
+
+from lib.core.settings import NEW_LINE
 
 
-class Path(object):
-    def __init__(self, path=None, status=None, response=None):
-        encoding_type = get_encoding_type(response.body)
-        self.path = path
-        self.status = status
-        self.redirect = response.redirect
-        self.body = response.body.decode(encoding_type, errors="ignore")
-        self.length = response.length
-        self.response = response
+class Logger(object):
+    def __init__(self, path):
+        self.file = open(path, "w")
 
-    def __str__(self):
-        return self.path
+    def log(self, msg):
+        line = time.strftime("[%y-%m-%d %H:%M:%S] ")
+        line += msg
+        self.file.write(line + NEW_LINE)
+        self.file.flush()
+
+    def close(self):
+        self.file.close()

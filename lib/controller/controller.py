@@ -31,9 +31,10 @@ from lib.core.dictionary import Dictionary
 from lib.core.fuzzer import Fuzzer
 from lib.core.raw import Raw
 from lib.core.report_manager import Report, ReportManager
-from lib.core.settings import SCRIPT_PATH, BANNER
+from lib.core.settings import SCRIPT_PATH, BANNER, NEW_LINE
 from lib.utils.file import FileUtils
 from lib.utils.fmt import clean_filename, human_size
+from lib.utils.logger import Logger
 from lib.utils.timer import Timer
 
 
@@ -107,11 +108,11 @@ class Controller(object):
 
         if self.logs_location:
             self.validate_path(self.logs_location)
-            self.logs_path = FileUtils.build_path(self.logs_location)
+            self.log_path = FileUtils.build_path(self.logs_location)
         else:
             self.validate_path(SCRIPT_PATH)
-            self.logs_path = FileUtils.build_path(SCRIPT_PATH, "logs")
-            FileUtils.create_directory(self.logs_path)
+            self.log_path = FileUtils.build_path(SCRIPT_PATH, "logs")
+            FileUtils.create_directory(self.log_path)
 
         if self.output_location:
             self.validate_path(self.output_location)
@@ -141,8 +142,7 @@ class Controller(object):
             len(self.scan_subdirs) if self.scan_subdirs else 1
         )
         self.current_job = 0
-        self.error_log = None
-        self.error_log_path = None
+        self.logger = None
         self.batch = False
         self.batch_session = None
         self.timeover = False
@@ -158,8 +158,8 @@ class Controller(object):
         if self.autosave_report or self.output_file:
             self.setup_reports()
 
-        self.setup_error_logs()
-        self.output.error_log_file(self.error_log_path)
+        self.setup_log()
+        self.output.log_file(self.log_path)
 
         threading.Thread(target=self.time_monitor, daemon=True).start()
 
@@ -185,6 +185,7 @@ class Controller(object):
                             scheme=self.scheme,
                             random_agents=self.random_agents,
                         )
+
                         self.output.set_target(self.requester.base_url + self.requester.base_path)
                         self.requester.setup()
 
@@ -196,6 +197,7 @@ class Controller(object):
 
                         # Test request to see if server is up
                         self.requester.request("")
+                        self.logger.log("Test request sent for: {}".format(self.requester.base_url))
 
                         if self.autosave_report or self.output_file:
                             self.report = Report(self.requester.host, self.requester.port, self.requester.scheme, self.requester.base_path)
@@ -215,10 +217,9 @@ class Controller(object):
                         self.directories.put(subdir)
                         self.pass_dirs.append(subdir)
 
-                    match_callbacks = [self.match_callback]
-                    not_found_callbacks = [self.not_found_callback]
+                    match_callbacks = [self.match_callback, self.append_log]
+                    not_found_callbacks = [self.not_found_callback, self.append_log]
                     error_callbacks = [self.error_callback, self.append_error_log]
-
                     self.fuzzer = Fuzzer(
                         self.requester,
                         self.dictionary,
@@ -232,6 +233,7 @@ class Controller(object):
                         not_found_callbacks=not_found_callbacks,
                         error_callbacks=error_callbacks,
                     )
+
                     try:
                         self.prepare()
                     except RequestException as e:
@@ -247,7 +249,7 @@ class Controller(object):
             exit(0)
 
         finally:
-            self.error_log.close()
+            self.logger.close()
 
         self.output.warning("\nTask Completed")
 
@@ -271,20 +273,11 @@ class Controller(object):
         self.timer.count(self.maxtime)
         self.timeover = True
 
-    # Create error log file
-    def setup_error_logs(self):
-        file_name = "errors-{0}.log".format(time.strftime("%y-%m-%d_%H-%M-%S"))
-        self.error_log_path = FileUtils.build_path(
-            self.logs_path, file_name
-        )
-
-        try:
-            self.error_log = open(self.error_log_path, "w")
-        except PermissionError:
-            self.output.error(
-                "Couldn't create the error log. Try running again with highest permission"
-            )
-            exit(1)
+    # Create log file
+    def setup_log(self):
+        file_name = time.strftime("%y-%m-%d_%H-%M-%S") + ".log"
+        self.log_path = FileUtils.build_path(self.log_path, file_name)
+        self.logger = Logger(self.log_path)
 
     # Create batch report folder
     def setup_batch_reports(self):
@@ -374,45 +367,37 @@ class Controller(object):
             exit(1)
 
     # Validate the response by different filters
-    def is_valid(self, path):
-        if not path:
+    def is_valid(self, path, res):
+        if res.status in self.exclude_status_codes:
             return False
 
-        if path.status in self.exclude_status_codes:
+        if self.include_status_codes and res.status not in self.include_status_codes:
             return False
 
-        if self.include_status_codes and path.status not in self.include_status_codes:
+        if self.blacklists.get(res.status) and path in self.blacklists.get(res.status):
             return False
 
-        if self.blacklists.get(path.status) and path.path in self.blacklists.get(path.status):
+        if self.exclude_sizes and human_size(res.length) in self.exclude_sizes:
             return False
 
-        if self.exclude_sizes and human_size(path.length).strip() in self.exclude_sizes:
+        if self.minimum_response_size and self.minimum_response_size > res.length:
             return False
 
-        if self.minimum_response_size and self.minimum_response_size > path.length:
-            return False
-
-        if self.maximum_response_size and self.maximum_response_size < path.length:
+        if self.maximum_response_size and self.maximum_response_size < res.length:
             return False
 
         for exclude_text in self.exclude_texts:
-            if exclude_text in path.body:
+            if exclude_text in res.content:
                 return False
 
         for exclude_regexp in self.exclude_regexps:
-            if (
-                re.search(exclude_regexp, path.body)
-                is not None
-            ):
+            if re.search(exclude_regexp, res.content) is not None:
                 return False
 
         for exclude_redirect in self.exclude_redirects:
-            if path.redirect and (
-                (
-                    re.match(exclude_redirect, path.redirect) is not None
-                ) or (
-                    exclude_redirect in path.redirect
+            if res.redirect and (
+                exclude_redirect in res.redirect or (
+                    re.match(exclude_redirect, res.redirect)
                 )
             ):
                 return False
@@ -420,46 +405,38 @@ class Controller(object):
         return True
 
     # Callback for found paths
-    def match_callback(self, path):
+    def match_callback(self, path, response):
         self.index += 1
 
-        for status in self.skip_on_status:
-            if path.status == status:
-                self.status_skip = status
-                return
+        if response.status in self.skip_on_status:
+            self.status_skip = status
+            return
 
-        if not self.is_valid(path):
-            del path
+        if not self.is_valid(path, response):
             return
 
         added_to_queue = False
 
-        if (
-                any([self.recursive, self.deep_recursive, self.force_recursive])
-        ) and (
-                not self.recursion_status_codes or path.status in self.recursion_status_codes
+        if any([self.recursive, self.deep_recursive, self.force_recursive]) and (
+                not self.recursion_status_codes or response.status in self.recursion_status_codes
         ):
-            if path.redirect:
-                added_to_queue = self.add_redirect_directory(path)
+            if response.redirect:
+                added_to_queue = self.add_redirect_directory(path, response.redirect)
             else:
-                added_to_queue = self.add_directory(path.path)
+                added_to_queue = self.add_directory(path)
 
-        self.output.status_report(
-            path.path, path.response, self.full_url, added_to_queue
-        )
+        self.output.status_report(path, response, self.full_url, added_to_queue)
 
         if self.replay_proxy:
-            self.requester.request(path.path, proxy=self.replay_proxy)
+            self.requester.request(path, proxy=self.replay_proxy)
 
-        new_path = self.current_directory + path.path
+        new_path = self.current_directory + path
 
-        self.report.add_result(new_path, path.status, path.response)
+        self.report.add_result(new_path, response)
         self.report_manager.update_report(self.report)
 
-        del path
-
     # Callback for invalid paths
-    def not_found_callback(self, path):
+    def not_found_callback(self, *args):
         self.index += 1
         self.output.last_path(
             self.index,
@@ -468,23 +445,34 @@ class Controller(object):
             self.jobs_count,
             self.fuzzer.stand_rate,
         )
-        del path
 
     # Callback for errors while fuzzing
     def error_callback(self, path, error_msg):
         if self.exit_on_error:
             self.close("\nCanceled due to an error")
-
         else:
             self.output.add_connection_error()
 
+    # Write request to log file
+    def append_log(self, path, response):
+        msg = "{} {} {} {}".format(
+            self.requester.ip or "0", response.status, self.httpmethod, response.url
+        )
+
+        if response.redirect:
+            msg += " - REDIRECT TO: {}".format(response.redirect)
+        msg += " (LENGTH: {})".format(response.length)
+
+        with self.threads_lock:
+            self.logger.log(msg)
+
     # Write error to log file
     def append_error_log(self, path, error_msg):
+        url = self.requester.base_url + self.base_path + self.current_directory + path
+        msg = "ERROR: {} {}".format(self.httpmethod, url)
+        msg += NEW_LINE + " " * 4 + error_msg
         with self.threads_lock:
-            line = time.strftime("[%y-%m-%d %H:%M:%S] - ")
-            line += self.requester.base_url + self.base_path + self.current_directory + path + " - " + error_msg
-            self.error_log.write(os.linesep + line)
-            self.error_log.flush()
+            self.logger.log(msg)
 
     # Handle CTRL+C
     def handle_pause(self, message):
@@ -597,15 +585,14 @@ class Controller(object):
 
     # Resolve the redirect and add the path to the recursion queue
     # if it's a subdirectory of the current URL
-    def add_redirect_directory(self, path):
-        base_path = "/" + self.base_path + self.current_directory + path.path
+    def add_redirect_directory(self, path, redirect):
+        base_path = "/" + self.base_path + self.current_directory + path
 
-        redirect_url = urljoin(self.requester.base_url, path.redirect)
+        redirect_url = urljoin(self.requester.base_url, redirect)
         redirect_path = urlparse(redirect_url).path
 
         if redirect_path == base_path + "/":
             path = redirect_path[len(self.base_path + self.current_directory) + 1:]
-
             return self.add_directory(path)
 
         return False
