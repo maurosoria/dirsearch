@@ -19,6 +19,8 @@
 import os
 import sys
 
+from pathlib import Path
+
 
 VERSION = "0.4.2"
 BANNER = f'''
@@ -26,7 +28,7 @@ BANNER = f'''
  (_||| _) (/_(_|| (_| )
 '''
 
-SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__)).rstrip("/lib/core")
+SCRIPT_PATH = Path(__file__).resolve().parents[2]
 
 IS_WINDOWS = sys.platform in ("win32", "msys")
 
