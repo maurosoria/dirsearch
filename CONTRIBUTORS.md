@@ -65,6 +65,7 @@
 - [Ivan Fedotov](https://github.com/qumusabel)
 - [Manuel Poisson](https://github.com/ManuelPOISSON)
 - [XinRoom](https://github.com/XinRoom)
+- [godspeedcurry](https://github.com/godspeedcurry)
 
 Special thanks to all the people who are named here!
 
