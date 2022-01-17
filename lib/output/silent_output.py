@@ -19,7 +19,6 @@
 import sys
 
 from threading import Lock
-from urllib.parse import urlparse
 
 from lib.core.settings import IS_WINDOWS
 from lib.utils.fmt import human_size
@@ -71,13 +70,8 @@ class PrintOutput(object):
         status = response.status
         content_length = human_size(response.length)
 
-        show_path = "/" + self.base_path + path
-
-        parsed = urlparse(self.target)
-        show_path = "{0}://{1}{2}".format(parsed.scheme, parsed.netloc, show_path)
-
         message = "{0} - {1} - {2}".format(
-            status, content_length.rjust(6, " "), show_path
+            status, content_length.rjust(6, " "), response.url
         )
 
         if status in [200, 201, 204]:
@@ -102,7 +96,7 @@ class PrintOutput(object):
             message += "  ->  {0}".format(response.redirect)
         if added_to_queue:
             message += "     (Added to queue)"
-        for redirect in response.redirects:
+        for redirect in response.history:
             message += "\n-->  {0}".format(redirect)
 
         with self.mutex:
@@ -137,7 +131,7 @@ class PrintOutput(object):
     def output_file(self, target):
         pass
 
-    def error_log_file(self, target):
+    def log_file(self, target):
         pass
 
     def debug(self, info):

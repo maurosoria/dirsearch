@@ -16,6 +16,7 @@
 #
 #  Author: Mauro Soria
 
+from lib.core.settings import NEW_LINE
 from lib.reports.base import FileBaseReport
 
 
@@ -23,7 +24,7 @@ class CSVReport(FileBaseReport):
     def generate_header(self):
         if self.header_written is False:
             self.header_written = True
-            return "URL,Status,Size,Redirection\n"
+            return "URL,Status,Size,Redirection" + NEW_LINE
         else:
             return ""
 
@@ -50,7 +51,7 @@ class CSVReport(FileBaseReport):
                         redirect = redirect.replace("\"", "\"\"")
                         result += "\"{0}\"".format(redirect)
 
-                    result += "\n"
+                    result += NEW_LINE
                     self.written_entries.append((entry.protocol, entry.host, entry.port, entry.base_path, e.path))
 
         return result

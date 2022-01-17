@@ -29,9 +29,9 @@ from lib.reports.sqlite_report import SQLiteReport
 
 
 class Result(object):
-    def __init__(self, path, status, response):
+    def __init__(self, path, response):
         self.path = path
-        self.status = status
+        self.status = response.status
         self.response = response
 
     def get_content_type(self):
@@ -50,8 +50,8 @@ class Report(object):
         self.results = []
         self.completed = False
 
-    def add_result(self, path, status, response):
-        result = Result(path, status, response)
+    def add_result(self, path, response):
+        result = Result(path, response)
         self.results.append(result)
 
 

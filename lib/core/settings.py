@@ -32,7 +32,9 @@ IS_WINDOWS = sys.platform in ("win32", "msys")
 
 DEFAULT_ENCODING = "utf-8"
 
-INVALID_CHARS_FOR_WINDOWS_FILENAME = list("\"*<>?\\|/:")
+NEW_LINE = os.linesep
+
+INVALID_CHARS_FOR_WINDOWS_FILENAME = ("\"", "*", "<", ">", "?", "\\", "|", "/", ":")
 
 OUTPUT_FORMATS = ("simple", "plain", "json", "xml", "md", "csv", "html", "sqlite")
 

@@ -18,26 +18,20 @@
 
 import string
 
-from chardet import detect
 from urllib.parse import quote
 
-from lib.core.settings import INVALID_CHARS_FOR_WINDOWS_FILENAME, DEFAULT_ENCODING
+from lib.core.settings import INVALID_CHARS_FOR_WINDOWS_FILENAME
 
 
 def safequote(string_):
     return quote(string_, safe=string.punctuation)
 
 
-def get_encoding_type(content):
-    return detect(content)["encoding"] or DEFAULT_ENCODING
-
-
 def uniq(string_list, filt=False):
     if not string_list:
         return string_list
 
-    unique = dict.fromkeys(string_list)
-    return list(filter(None, unique)) if filt else list(unique)
+    return list(filter(None, dict.fromkeys(string_list)))
 
 
 # Some characters are denied in file name by Windows

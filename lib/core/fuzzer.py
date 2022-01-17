@@ -19,7 +19,6 @@
 import threading
 import time
 
-from lib.core.path import Path
 from lib.core.scanner import Scanner
 from lib.connection.request_exception import RequestException
 
@@ -58,7 +57,6 @@ class Fuzzer(object):
         self.match_callbacks = match_callbacks
         self.not_found_callbacks = not_found_callbacks
         self.error_callbacks = error_callbacks
-        self.matches = []
         self.scanners = {
             "prefixes": {},
             "suffixes": {},
@@ -182,15 +180,15 @@ class Fuzzer(object):
         self.play()
 
     def scan(self, path):
+        wildcard = False
         response = self.requester.request(path)
-        result = response.status
 
         for tester in list(set(self.get_scanner_for(path))):
             if not tester.scan(path, response):
-                result = None
+                wildcard = True
                 break
 
-        return result, response
+        return wildcard, response
 
     def is_paused(self):
         return self.paused
@@ -229,18 +227,19 @@ class Fuzzer(object):
                     # Pause if the request rate exceeded the maximum
                     while self.maxrate and self.rate >= self.maxrate:
                         pass
+
                     self.increase_rate()
 
-                    status, response = self.scan(path)
-                    result = Path(path=path, status=status, response=response)
+                    wildcard, response = self.scan(path)
 
-                    if status:
-                        self.matches.append(result)
+                    if not wildcard:
                         for callback in self.match_callbacks:
-                            callback(result)
+                            callback(path, response)
                     else:
                         for callback in self.not_found_callbacks:
-                            callback(result)
+                            callback(path, response)
+
+                    del response
 
                 except RequestException as e:
                     for callback in self.error_callbacks:

@@ -97,7 +97,7 @@ class Dictionary(object):
 
         # Enable to use multiple dictionaries at once
         for dict_file in self.dictionary_files:
-            for line in uniq(dict_file.get_lines(), filt=True):
+            for line in uniq(dict_file.get_lines()):
                 # Skip comments
                 if line.startswith("#"):
                     continue

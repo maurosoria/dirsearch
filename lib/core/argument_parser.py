@@ -33,7 +33,7 @@ class ArgumentParser(object):
         options = self.parse_config(self.parse_arguments())
         self.__dict__.update(options.__dict__)
 
-        self.httpmethod = self.httpmethod.lower()
+        self.httpmethod = self.httpmethod.upper()
         self.url_list = []
         self.raw_file = None
 
@@ -45,7 +45,7 @@ class ArgumentParser(object):
         elif options.cidr:
             self.url_list = iprange(options.cidr)
         elif options.stdin_urls:
-            self.url_list = sys.stdin.read().splitlines()
+            self.url_list = sys.stdin.read().splitlines(0)
 
         if options.raw_file:
             self.access_file(options.raw_file, "file with raw request")
@@ -65,17 +65,15 @@ class ArgumentParser(object):
             print("Threads number must be greater than zero")
             exit(1)
 
-        if options.no_extension:
-            self.extensions = ""
-
         if options.proxy_list:
             file = self.access_file(options.proxy_list, "proxylist file")
-            self.proxylist = file.read().splitlines()
+            self.proxylist = list(file.get_lines())
 
         if self.proxy or self.proxylist or self.replay_proxy:
             self.request_by_hostname = True
 
         self.headers = {}
+
         if options.header_list:
             try:
                 file = self.access_file(options.header_list, "header list file")
@@ -100,89 +98,46 @@ class ArgumentParser(object):
         elif options.extensions == "banner.txt":
             print("A weird extension was provided: 'banner.txt'. Please do not use * as the extension or enclose it in double quotes")
             exit(0)
-        else:
-            self.extensions = uniq([extension.lstrip(' .') for extension in options.extensions.split(",")])
 
-        if options.exclude_extensions:
-            self.exclude_extensions = uniq(
-                [exclude_extension.lstrip(' .') for exclude_extension in options.exclude_extensions.split(",")]
-            )
+        if options.no_extension:
+            self.extensions = ""
 
-        if options.include_status_codes:
-            self.include_status_codes = self.parse_status_codes(options.include_status_codes)
+        self.include_status_codes = self.parse_status_codes(options.include_status_codes)
+        self.exclude_status_codes = self.parse_status_codes(options.exclude_status_codes)
+        self.recursion_status_codes = self.parse_status_codes(options.recursion_status_codes)
+        self.skip_on_status = self.parse_status_codes(options.skip_on_status)
+        self.prefixes = uniq([prefix.strip() for prefix in self.prefixes.split(",")])
+        self.suffixes = uniq([suffix.strip() for suffix in self.suffixes.split(",")])
+        self.extensions = uniq([extension.lstrip(' .') for extension in options.extensions.split(",")])
+        self.exclude_extensions = uniq([
+            exclude_extension.lstrip(' .') for exclude_extension in options.exclude_extensions.split(",")
+        ])
+        self.exclude_sizes = uniq([
+            exclude_size.strip().upper() for exclude_size in options.exclude_sizes.split(",")
+        ])
+        self.exclude_texts = uniq([
+            exclude_text.strip() for exclude_text in options.exclude_texts.split(",")
+        ])
+        self.exclude_regexps = uniq([
+            exclude_regexp.strip() for exclude_regexp in options.exclude_regexps.split(",")
+        ])
+        self.exclude_redirects = uniq([
+            exclude_redirect.strip() for exclude_redirect in options.exclude_redirects.split(",")
+        ])
+        self.scan_subdirs = [
+            subdir.strip().ljust(2, "/").lstrip("/")
+            for subdir in options.scan_subdirs.split(",")
+        ]
+        self.exclude_subdirs = [
+            subdir.strip().ljust(2, "/").lstrip("/")
+            for subdir in options.exclude_subdirs.split(",")
+        ]
 
-        if options.exclude_status_codes:
-            self.exclude_status_codes = self.parse_status_codes(options.exclude_status_codes)
-
-        if options.recursion_status_codes:
-            self.recursion_status_codes = self.parse_status_codes(options.recursion_status_codes)
-
-        if options.exclude_sizes:
-            try:
-                self.exclude_sizes = uniq([
-                    exclude_size.strip().upper() if exclude_size else None
-                    for exclude_size in options.exclude_sizes.split(",")
-                ])
-
-            except ValueError:
-                pass
-
-        if options.exclude_texts:
-            try:
-                self.exclude_texts = uniq([
-                    exclude_text.strip() if exclude_text else None
-                    for exclude_text in options.exclude_texts.split(",")
-                ])
-
-            except ValueError:
-                pass
-
-        if options.exclude_regexps:
-            try:
-                self.exclude_regexps = uniq([
-                    exclude_regexp.strip() if exclude_regexp else None
-                    for exclude_regexp in options.exclude_regexps.split(",")
-                ])
-
-            except ValueError:
-                pass
-
-        if options.exclude_redirects:
-            try:
-                self.exclude_redirects = uniq([
-                    exclude_redirect.strip() if exclude_redirect else None
-                    for exclude_redirect in options.exclude_redirects.split(",")
-                ])
-
-            except ValueError:
-                pass
-
-        self.prefixes = uniq([prefix.strip() for prefix in self.prefixes.split(",")]) if options.prefixes else []
-        self.suffixes = uniq([suffix.strip() for suffix in self.suffixes.split(",")]) if options.suffixes else []
-        if options.wordlist:
-            self.wordlist = uniq([wordlist.strip() for wordlist in options.wordlist.split(",")])
-        else:
+        if not options.wordlist:
             print("No wordlist was provided, try using -w <wordlist>")
             exit(1)
 
-        self.scan_subdirs = []
-        if options.scan_subdirs:
-            for subdir in options.scan_subdirs.split(","):
-                subdir = subdir.strip(" ")
-                if not subdir.endswith("/"):
-                    subdir += "/"
-                self.scan_subdirs.append(subdir.lstrip("/"))
-
-        self.exclude_subdirs = []
-        if options.exclude_subdirs:
-            for subdir in options.exclude_subdirs.split(","):
-                subdir = subdir.strip(" ")
-                if not subdir.endswith("/"):
-                    subdir += "/"
-                self.exclude_subdirs.append(subdir.lstrip("/"))
-
-        if options.skip_on_status:
-            self.skip_on_status = self.parse_status_codes(options.skip_on_status)
+        self.wordlist = uniq([wordlist.strip() for wordlist in options.wordlist.split(",")])
 
         if options.auth and not options.auth_type:
             print("Please select the authentication type with --auth-type")
@@ -198,20 +153,23 @@ class ArgumentParser(object):
             print("Exclude extension list can not contain any extension that has already in the extension list")
             exit(1)
 
-        if self.output_format not in [None, ""] + list(OUTPUT_FORMATS):
+        if self.output_format not in [""] + list(OUTPUT_FORMATS):
             print("Select one of the following output formats: {}".format(", ".join(OUTPUT_FORMATS)))
             exit(1)
 
-    def parse_status_codes(self, raw_status_codes):
+    def parse_status_codes(self, str_):
+        if not str_:
+            return []
+
         status_codes = []
-        for status_code in raw_status_codes.split(","):
+
+        for status_code in str_.split(","):
             try:
                 if "-" in status_code:
                     s, e = status_code.strip().split("-")
                     status_codes.extend(range(int(s), int(e) + 1))
                 else:
                     status_codes.append(int(status_code.strip()))
-
             except ValueError:
                 print("Invalid status code or status code range: {0}".format(status_code))
                 exit(1)
@@ -240,13 +198,13 @@ class ArgumentParser(object):
 
         # Mandatory
         options.extensions = options.extensions or config.safe_get(
-            "mandatory", "default-extensions", ""
+            "mandatory", "default-extensions"
         )
         options.exclude_extensions = options.exclude_extensions or config.safe_get(
-            "mandatory", "exclude-extensions", []
+            "mandatory", "exclude-extensions"
         )
         options.force_extensions = options.force_extensions or config.safe_getboolean(
-            "mandatory", "force-extensions", []
+            "mandatory", "force-extensions"
         )
 
         # General
@@ -254,26 +212,26 @@ class ArgumentParser(object):
             "general", "threads", 25, list(range(1, 300))
         )
         options.include_status_codes = options.include_status_codes or config.safe_get(
-            "general", "include-status", []
+            "general", "include-status"
         )
         options.exclude_status_codes = options.exclude_status_codes or config.safe_get(
-            "general", "exclude-status", []
+            "general", "exclude-status"
         )
-        options.exclude_sizes = options.exclude_sizes or config.safe_get("general", "exclude-sizes", [])
-        options.exclude_texts = options.exclude_texts or config.safe_get("general", "exclude-texts", [])
-        options.exclude_regexps = options.exclude_regexps or config.safe_get("general", "exclude-regexps", [])
-        options.exclude_redirects = options.exclude_regexps or config.safe_get("general", "exclude-redirects", [])
-        options.exclude_response = options.exclude_response or config.safe_get("general", "exclude-response", "")
+        options.exclude_sizes = options.exclude_sizes or config.safe_get("general", "exclude-sizes")
+        options.exclude_texts = options.exclude_texts or config.safe_get("general", "exclude-texts")
+        options.exclude_regexps = options.exclude_regexps or config.safe_get("general", "exclude-regexps")
+        options.exclude_redirects = options.exclude_regexps or config.safe_get("general", "exclude-redirects")
+        options.exclude_response = options.exclude_response or config.safe_get("general", "exclude-response")
         options.recursive = options.recursive or config.safe_getboolean("general", "recursive")
         options.deep_recursive = options.deep_recursive or config.safe_getboolean("general", "deep-recursive")
         options.force_recursive = options.force_recursive or config.safe_getboolean("general", "force-recursive")
         options.recursion_depth = options.recursion_depth or config.safe_getint("general", "recursion-depth")
         options.recursion_status_codes = options.recursion_status_codes or config.safe_get(
-            "general", "recursion-status", []
+            "general", "recursion-status"
         )
         options.scan_subdirs = options.scan_subdirs or config.safe_get("general", "subdirs")
         options.exclude_subdirs = options.exclude_subdirs or config.safe_get("general", "exclude-subdirs")
-        options.skip_on_status = options.skip_on_status or config.safe_get("general", "skip-on-status", [])
+        options.skip_on_status = options.skip_on_status or config.safe_get("general", "skip-on-status")
         options.maxtime = options.maxtime or config.safe_getint("general", "max-time")
         options.full_url = options.full_url or config.safe_getboolean("general", "full-url")
         options.color = options.color or config.safe_getboolean("general", "color", True)

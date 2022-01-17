@@ -21,13 +21,16 @@ from lib.core.settings import CHUNK_SIZE
 
 class Response(object):
     def __init__(self, response, redirects):
+        self.url = response.url
         self.status = response.status_code
         self.headers = response.headers
-        self.redirects = redirects
+        self.history = redirects
         self.body = b""
 
         for chunk in response.iter_content(chunk_size=CHUNK_SIZE):
             self.body += chunk
+
+        self.content = self.body.decode(response.encoding, errors="ignore")
 
     def __eq__(self, other):
         return self.status == other.status and self.body == other.body
