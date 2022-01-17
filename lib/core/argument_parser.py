@@ -329,8 +329,8 @@ class ArgumentParser(object):
         # Mandatory arguments
         mandatory = OptionGroup(parser, "Mandatory")
         mandatory.add_option("-u", "--url", action="store", dest="url", help="Target URL")
-        mandatory.add_option("-l", "--url-list", action="store", dest="url_list", metavar="FILE", help="Target URL list file")
-        mandatory.add_option("--stdin", action="store_true", dest="stdin_urls", help="Target URL list from STDIN")
+        mandatory.add_option("-l", "--url-list", action="store", dest="url_list", metavar="FILE", help="URL list file")
+        mandatory.add_option("--stdin", action="store_true", dest="stdin_urls", help="Read URL(s) from STDIN")
         mandatory.add_option("--cidr", action="store", dest="cidr", help="Target CIDR")
         mandatory.add_option("--raw", action="store", dest="raw_file", metavar="FILE",
                              help="Load raw HTTP request from file (use `--scheme` flag to set the scheme)")
@@ -366,8 +366,8 @@ class ArgumentParser(object):
         general.add_option("--deep-recursive", action="store_true", dest="deep_recursive",
                            help="Perform recursive scan on every directory depth (Example: api/users -> api/)")
         general.add_option("--force-recursive", action="store_true", dest="force_recursive",
-                           help="Do recursive brute-force for every found path, not only paths end with slash")
-        general.add_option("-R", "--recursion-depth", action="store", type="int", dest="recursion_depth", metavar="DEPTH",
+                           help="Do recursive brute-force for every found path, not only directories")
+        general.add_option("-R", "--max-recursion-depth", action="store", type="int", dest="recursion_depth", metavar="DEPTH",
                            help="Maximum recursion depth")
         general.add_option("--recursion-status", action="store", dest="recursion_status_codes", metavar="CODES",
                            help="Valid status codes to perform recursive scan, support ranges (separated by commas)")
@@ -380,7 +380,7 @@ class ArgumentParser(object):
         general.add_option("-x", "--exclude-status", action="store", dest="exclude_status_codes", metavar="CODES",
                            help="Exclude status codes, separated by commas, support ranges (Example: 301,500-599)")
         general.add_option("--exclude-sizes", action="store", dest="exclude_sizes", metavar="SIZES",
-                           help="Exclude responses by sizes, separated by commas (Example: 123B,4KB)")
+                           help="Exclude responses by sizes, separated by commas (Example: 0B,4KB)")
         general.add_option("--exclude-texts", action="store", dest="exclude_texts", metavar="TEXTS",
                            help="Exclude responses by texts, separated by commas (Example: 'Not found', 'Error')")
         general.add_option("--exclude-regexps", action="store", dest="exclude_regexps", metavar="REGEXPS",
@@ -388,17 +388,17 @@ class ArgumentParser(object):
         general.add_option("--exclude-redirects", action="store", dest="exclude_redirects", metavar="REGEXPS",
                            help="Exclude responses by redirect regexps or texts, separated by commas (Example: 'https://okta.com/*')",)
         general.add_option("--exclude-response", action="store", dest="exclude_response", metavar="PATH",
-                           help="Exclude responses by response of this page (path as input)")
+                           help="Exclude responses similar to response of this page, path as input (Example: 404.html)")
         general.add_option("--skip-on-status", action="store", dest="skip_on_status", metavar="CODES",
                            help="Skip target whenever hit one of these status codes, separated by commas, support ranges")
-        general.add_option("--minimal", action="store", type="int", dest="minimum_response_size",
-                           help="Minimal response length", metavar="LENGTH")
-        general.add_option("--maximal", action="store", type="int", dest="maximum_response_size",
-                           help="Maximal response length", metavar="LENGTH")
+        general.add_option("--min-response-size", action="store", type="int", dest="minimum_response_size",
+                           help="Minimum response length", metavar="LENGTH")
+        general.add_option("--max-response-size", action="store", type="int", dest="maximum_response_size",
+                           help="Maximum response length", metavar="LENGTH")
         general.add_option("--redirects-history", action="store_true", dest="redirects_history",
                            help="Show redirects history (when following redirects is enabled)")
         general.add_option("--max-time", action="store", type="int", dest="maxtime", metavar="SECONDS",
-                           help="Maximal runtime for the scan")
+                           help="Maximum runtime for the scan")
         general.add_option("-q", "--quiet-mode", action="store_true", dest="quiet", help="Quiet mode")
         general.add_option("--full-url", action="store_true", dest="full_url",
                            help="Full URLs in the output (enabled automatically in quiet mode)")
@@ -433,7 +433,7 @@ class ArgumentParser(object):
         connection.add_option("--replay-proxy", action="store", dest="replay_proxy", metavar="PROXY",
                               help="Proxy to replay with found paths")
         connection.add_option("--scheme", action="store", dest="scheme", metavar="SCHEME",
-                              help="Default scheme for raw request or if there is no scheme in the URL (Default: auto-detect)")
+                              help="Scheme for raw request or if there is no scheme in the URL (Default: auto-detect)")
         connection.add_option("--max-rate", action="store", type="int", dest="maxrate", metavar="RATE", help="Max requests per second")
         connection.add_option("--retries", action="store", type="int", dest="max_retries", metavar="RETRIES",
                               help="Number of retries for failed requests")
