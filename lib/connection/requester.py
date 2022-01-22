@@ -255,7 +255,7 @@ class Requester(object):
             except requests.exceptions.SSLError:
                 self.url = self.base_url
                 self.set_adapter()
-                result = self.request(path, proxy=proxy)
+                self.request(path, proxy=proxy)
 
             except Exception as e:
                 err_msg = str(e)
