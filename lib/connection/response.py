@@ -17,6 +17,7 @@
 #  Author: Mauro Soria
 
 from urllib.parse import urlparse
+
 from lib.core.settings import CHUNK_SIZE, DEFAULT_ENCODING
 
 

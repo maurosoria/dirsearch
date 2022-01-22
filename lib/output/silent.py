@@ -113,7 +113,7 @@ class PrintOutput(object):
             stripped = reason.strip()
             message = self.colorizer.color(stripped, fore="white", back="red", bright=True)
 
-            self.new_line('\n' + message)
+            self.new_line(message)
 
     def warning(self, reason):
         pass

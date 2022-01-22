@@ -34,7 +34,6 @@ class Options(object):
 
         self.httpmethod = self.httpmethod.upper()
         self.url_list = []
-        self.raw_file = None
 
         if options.url:
             self.url_list = [options.url]

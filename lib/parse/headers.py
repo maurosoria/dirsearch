@@ -35,7 +35,7 @@ class HeadersParser(object):
         # Dictionary but with lowercase keys for easier calls
         self.headers = {key.lower(): value for key, value in self.dict.items()}
 
-    def get_header(self, key):
+    def get(self, key):
         return self.headers[key]
 
     @staticmethod
@@ -59,8 +59,8 @@ class HeadersParser(object):
         elif isinstance(headers, list):
             return NEW_LINE.join(headers)
 
-    def __dict__(self):
-        return self.dict
+    def __iter__(self):
+        return iter(self.dict.items())
 
     def __str__(self):
         return self.str

@@ -16,6 +16,7 @@
 #
 #  Author: Mauro Soria
 
+from lib.core.settings import NEW_LINE
 from lib.parse.headers import HeadersParser
 from lib.utils.file import File
 
@@ -24,39 +25,35 @@ class Raw(object):
     def __init__(self, raw_file):
         with File(raw_file) as raw_content:
             self.raw_content = raw_content.read()
+
         self.parse()
 
     def parse(self):
-        self.parsed = self.raw_content.splitlines(0)
-        self.startline = self.parsed[0].splitlines()[0]
+        self.head = self.raw_content.split(NEW_LINE * 2)[0].splitlines(0)
 
         try:
-            self.headers_parser = HeadersParser(self.parsed[0].splitlines()[1:])
+            self.headers_ = HeadersParser(self.head[1:])
         except Exception:
             print("Invalid headers in the raw request")
             exit(1)
 
         try:
-            self.body = self.parsed[1] if self.parsed[1] else None
+            self.body = self.raw_content.split(NEW_LINE * 2)[1]
         except IndexError:
             self.body = None
 
         try:
-            self.host = self.headers_parser.lower_headers["host"].strip()
+            self.host = self.headers_.get("host").strip()
         except KeyError:
             print("Can't find the Host header in the raw request")
             exit(1)
 
-        self.path = self.startline.split(" ")[1]
+        self.method, self.path = self.head[0].split()[:2]
 
     @property
     def url(self):
         return "{0}{1}".format(self.host, self.path)
 
     @property
-    def method(self):
-        return self.startline.split(" ")[0]
-
-    @property
     def headers(self):
-        return self.headers_parser.headers
+        return dict(self.headers_)

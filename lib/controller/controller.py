@@ -60,7 +60,7 @@ class Controller(object):
         self.pass_dirs = ["/"]
 
         if options.raw_file:
-            raw = Raw(arguments.raw_file)
+            raw = Raw(options.raw_file)
             self.url_list = [raw.url]
             self.httpmethod = raw.method
             self.data = raw.body
