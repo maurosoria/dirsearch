@@ -114,8 +114,8 @@ class FileUtils(object):
         return True
 
     @staticmethod
-    def can_write(file_name):
-        return os.access(file_name, os.W_OK)
+    def can_write(path):
+        return os.access(path, os.W_OK)
 
     @staticmethod
     def read(file_name):
@@ -135,12 +135,18 @@ class FileUtils(object):
             return fd.read().splitlines()
 
     @staticmethod
-    def is_dir(file_name):
-        return os.path.isdir(file_name)
+    def is_dir(path):
+        return os.path.isdir(path)
 
     @staticmethod
-    def is_file(file_name):
-        return os.path.isfile(file_name)
+    def is_file(path):
+        return os.path.isfile(path)
+
+    @staticmethod
+    def parent(path, depth=1):
+        for _ in range(depth):
+            path = os.path.dirname(path)
+        return path
 
     @staticmethod
     def create_directory(directory):
@@ -149,9 +155,7 @@ class FileUtils(object):
 
     @staticmethod
     def write_lines(file_name, lines):
-        if type(lines) is list:
-            content = NEW_LINE.join(lines)
-        else:
-            content = lines
-        with open(file_name, "w") as f:
-            f.writelines(content)
+        if isinstance(lines, list):
+            lines = NEW_LINE.join(lines)
+        with open(file_name, 'a') as f:
+            f.writelines(lines)

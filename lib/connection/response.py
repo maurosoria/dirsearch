@@ -16,12 +16,14 @@
 #
 #  Author: Mauro Soria
 
-from lib.core.settings import CHUNK_SIZE
+from urllib.parse import urlparse
+from lib.core.settings import CHUNK_SIZE, DEFAULT_ENCODING
 
 
 class Response(object):
     def __init__(self, response, redirects):
         self.url = response.url
+        self.path = urlparse(self.url).path
         self.status = response.status_code
         self.headers = response.headers
         self.history = redirects
@@ -30,7 +32,7 @@ class Response(object):
         for chunk in response.iter_content(chunk_size=CHUNK_SIZE):
             self.body += chunk
 
-        self.content = self.body.decode(response.encoding, errors="ignore")
+        self.content = self.body.decode(response.encoding or DEFAULT_ENCODING, errors="ignore")
 
     def __eq__(self, other):
         return self.status == other.status and self.body == other.body

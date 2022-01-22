@@ -16,32 +16,5 @@
 #
 #  Author: Mauro Soria
 
-import time
-
-
-class Timer(object):
-    def __init__(self):
-        self.paused = False
-
-    def pause(self):
-        self.paused = True
-
-    def resume(self):
-        self.paused = False
-
-    def count(self, maxtime):
-        while maxtime:
-            if self.paused:
-                continue
-
-            time.sleep(1)
-            maxtime -= 1
-
-        return True
-
-    @staticmethod
-    def wait(function, maxtime=7):
-        start = time.time()
-        while not function():
-            if time.time() - start > maxtime:
-                break
+class SkipTargetInterrupt(Exception):
+    pass

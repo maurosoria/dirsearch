@@ -20,7 +20,7 @@ import threading
 import time
 
 from lib.core.scanner import Scanner
-from lib.connection.request_exception import RequestException
+from lib.connection.exception import RequestException
 
 
 class Fuzzer(object):
@@ -44,7 +44,6 @@ class Fuzzer(object):
         self.suffixes = suffixes if suffixes else []
         self.prefixes = prefixes if prefixes else []
         self.exclude_response = exclude_response
-        self.base_path = self.requester.base_path
         self.threads = []
         self.threads_count = (
             threads if len(self.dictionary) >= threads else len(self.dictionary)
@@ -239,11 +238,9 @@ class Fuzzer(object):
                         for callback in self.not_found_callbacks:
                             callback(path, response)
 
-                    del response
-
                 except RequestException as e:
                     for callback in self.error_callbacks:
-                        callback(path, e.args[0]["message"])
+                        callback(path, e.args[1])
 
                     continue
 

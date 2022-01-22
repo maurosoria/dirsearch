@@ -113,7 +113,7 @@ class Dictionary(object):
 
                 # Skip if the path contains excluded extensions
                 if self._exclude_extensions and (
-                    any(["." + extension in line for extension in self._exclude_extensions])
+                    any(("." + extension in line for extension in self._exclude_extensions))
                 ):
                     continue
 

@@ -4,6 +4,7 @@
 - Automatically detect the URI scheme (`http` or `https`) if no scheme is provided
 - SQLite report format
 - Option to view redirects history when following redirects
+- HTTP traffic is saved inside log file
 
 ## [0.4.2] - 2021.9.12
 - More accurate

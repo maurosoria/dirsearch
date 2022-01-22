@@ -66,7 +66,7 @@ class PrintOutput(object):
         sys.stdout.write(string + "\n")
         sys.stdout.flush()
 
-    def status_report(self, path, response, full_url, added_to_queue):
+    def status_report(self, response, full_url, added_to_queue):
         status = response.status
         content_length = human_size(response.length)
 
@@ -109,7 +109,11 @@ class PrintOutput(object):
         self.errors += 1
 
     def error(self, reason):
-        pass
+        with self.mutex:
+            stripped = reason.strip()
+            message = self.colorizer.color(stripped, fore="white", back="red", bright=True)
+
+            self.new_line('\n' + message)
 
     def warning(self, reason):
         pass

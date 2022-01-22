@@ -32,7 +32,7 @@ class SQLiteReport(FileBaseReport):
         if not self.entries:
             return []
 
-        table = "{}_{}_{}".format(self.entries[0].protocol, self.entries[0].host, self.entries[0].port)
+        table = "{}_{}:{}/{}".format(self.entries[0].protocol, self.entries[0].host, self.entries[0].port, self.entries[0].base_path)
         commands.append(["DROP TABLE IF EXISTS `{}`".format(table)])
         commands.append(
             ['''CREATE TABLE `{}`

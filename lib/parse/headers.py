@@ -25,29 +25,30 @@ from lib.core.settings import NEW_LINE
 
 class HeadersParser(object):
     def __init__(self, headers):
-        self.headers = {}
-        self.raw = None
-
+        self.str = self.dict = headers
         if isinstance(headers, str):
-            self.headers = self.raw_to_headers(headers)
-            self.raw = headers
+            self.dict = self.str_to_dict(headers)
         elif isinstance(headers, (dict, list)):
-            self.raw = self.headers_to_raw(headers)
-            self.headers = self.raw_to_headers(self.raw)
+            self.str = self.dict_list_to_str(headers)
+            self.dict = self.str_to_dict(self.str)
 
-        self.lower_headers = {key.lower(): value for key, value in self.headers.items()}
+        # Dictionary but with lowercase keys for easier calls
+        self.headers = {key.lower(): value for key, value in self.dict.items()}
+
+    def get_header(self, key):
+        return self.headers[key]
 
     @staticmethod
-    def raw_to_headers(raw):
-        if not raw:
+    def str_to_dict(headers):
+        if not headers:
             return {}
 
         return dict(
-            email.message_from_file(StringIO(raw))
+            email.message_from_file(StringIO(headers))
         )
 
     @staticmethod
-    def headers_to_raw(headers):
+    def dict_list_to_str(headers):
         if not headers:
             return
 
@@ -57,5 +58,9 @@ class HeadersParser(object):
             )
         elif isinstance(headers, list):
             return NEW_LINE.join(headers)
-        else:
-            return
+
+    def __dict__(self):
+        return self.dict
+
+    def __str__(self):
+        return self.str
