@@ -74,7 +74,7 @@ class PrintOutput(object):
             status, content_length.rjust(6, " "), response.url
         )
 
-        if status in [200, 201, 204]:
+        if status in (200, 201, 204):
             message = self.colorizer.color(message, fore="green")
 
         elif status == 401:

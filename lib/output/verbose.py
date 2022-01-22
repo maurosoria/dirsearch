@@ -94,7 +94,7 @@ class CLIOutput(object):
             show_path,
         )
 
-        if status in [200, 201, 204]:
+        if status in (200, 201, 204):
             message = self.colorizer.color(message, fore="green")
 
         elif status == 401:

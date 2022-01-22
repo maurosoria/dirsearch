@@ -73,7 +73,7 @@ class Requester(object):
 
         port_for_scheme = {"http": 80, "https": 443, "unknown": 0}
 
-        if parsed.scheme not in ["unknown", "https", "http"]:
+        if parsed.scheme not in ("unknown", "https", "http"):
             raise RequestException("Unsupported URI scheme: {0}".format(self.scheme))
 
         # If no port specified, set default (80, 443)
@@ -170,7 +170,7 @@ class Requester(object):
         self.headers[key.strip()] = value.strip() if value else value
 
     def set_auth(self, type, credential):
-        if type == "bearer":
+        if type in ("bearer", "jwt"):
             self.set_header("Authorization", "Bearer {0}".format(credential))
         else:
             user = credential.split(":")[0]

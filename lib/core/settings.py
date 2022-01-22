@@ -50,7 +50,7 @@ DEFAULT_HEADERS = {
     "Cache-Control": "max-age=0",
 }
 
-AUTHENTICATION_TYPES = ("basic", "digest", "bearer", "ntlm")
+AUTHENTICATION_TYPES = ("basic", "digest", "bearer", "ntlm", "jwt")
 
 PROXY_SCHEMES = ("http://", "https://", "socks5://", "socks5h://", "socks4://", "socks4a://")
 

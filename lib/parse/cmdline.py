@@ -18,7 +18,7 @@
 
 from optparse import OptionParser, OptionGroup
 
-from lib.core.settings import VERSION, SCRIPT_PATH
+from lib.core.settings import VERSION, SCRIPT_PATH, AUTHENTICATION_TYPES
 from lib.utils.file import FileUtils
 
 
@@ -116,7 +116,7 @@ def arguments_parser():
     request.add_option("--random-agent", action="store_true", dest="use_random_agents",
                        help="Choose a random User-Agent for each request")
     request.add_option("--auth-type", action="store", dest="auth_type", metavar="TYPE",
-                       help="Authentication type (basic, digest, bearer, ntlm)")
+                       help="Authentication type ({})".format(*AUTHENTICATION_TYPES))
     request.add_option("--auth", action="store", dest="auth", metavar="CREDENTIAL",
                        help="Authentication credential ([user]:[password] or bearer token)")
     request.add_option("--user-agent", action="store", dest="useragent")
