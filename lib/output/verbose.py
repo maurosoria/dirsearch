@@ -81,14 +81,11 @@ class CLIOutput(object):
         self.last_in_line = False
         sys.stdout.flush()
 
-    def status_report(self, path, response, full_url, added_to_queue):
+    def status_report(self, response, full_url, added_to_queue):
         status = response.status
         content_length = human_size(response.length)
 
-        show_path = "/" + self.base_path + path
-
-        if full_url:
-            show_path = response.url
+        show_path = response.url if full_url else response.path
 
         message = "[{0}] {1} - {2} - {3}".format(
             time.strftime("%H:%M:%S"),
@@ -97,7 +94,7 @@ class CLIOutput(object):
             show_path,
         )
 
-        if status in [200, 201, 204]:
+        if status in (200, 201, 204):
             message = self.colorizer.color(message, fore="green")
 
         elif status == 401:
@@ -163,10 +160,9 @@ class CLIOutput(object):
     def error(self, reason):
         with self.mutex:
             stripped = reason.strip()
-            message = "\n" if reason.startswith("\n") else ""
-            message += self.colorizer.color(stripped, fore="white", back="red", bright=True)
+            message = self.colorizer.color(stripped, fore="white", back="red", bright=True)
 
-            self.new_line(message)
+            self.new_line('\n' + message)
 
     def warning(self, message):
         with self.mutex:
@@ -227,7 +223,6 @@ class CLIOutput(object):
         self.target = target
         self.new_line()
         self.print_header({"Target": target})
-        self.new_line()
 
     def output_file(self, target):
         self.new_line("\nOutput File: {0}".format(target))

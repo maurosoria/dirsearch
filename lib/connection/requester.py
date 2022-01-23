@@ -26,7 +26,7 @@ import thirdparty.requests as requests
 from urllib.parse import urlparse, urljoin
 
 from lib.core.settings import PROXY_SCHEMES, MAX_REDIRECTS
-from lib.connection.request_exception import RequestException
+from lib.connection.exception import RequestException
 from lib.connection.response import Response
 from lib.utils.fmt import safequote
 from thirdparty.requests.adapters import HTTPAdapter
@@ -73,15 +73,16 @@ class Requester(object):
 
         port_for_scheme = {"http": 80, "https": 443, "unknown": 0}
 
+        if parsed.scheme not in ("unknown", "https", "http"):
+            raise RequestException("Unsupported URI scheme: {0}".format(self.scheme))
+
         # If no port specified, set default (80, 443)
         try:
             self.port = int(parsed.netloc.split(":")[1])
         except IndexError:
             self.port = port_for_scheme[parsed.scheme]
         except ValueError:
-            raise RequestException(
-                {"message": "Invalid port number: {0}".format(parsed.netloc.split(":")[1])}
-            )
+            raise RequestException("Invalid port number: {0}".format(parsed.netloc.split(":")[1]))
 
         # If no scheme is found, detect it by port number
         self.scheme = parsed.scheme if parsed.scheme != "unknown" else self.get_scheme(self.port)
@@ -91,10 +92,6 @@ class Requester(object):
         if not self.scheme:
             self.scheme = "https" if self.get_scheme(443) == "https" else "http"
             self.port = port_for_scheme[self.scheme]
-
-        # If the scheme is not supported
-        elif self.scheme not in ["https", "http"]:
-            raise RequestException({"message": "Unsupported URI scheme: {0}".format(self.scheme)})
 
         # Set the Host header, read the line 126 to know why
         self.headers["Host"] = self.host
@@ -140,7 +137,7 @@ class Requester(object):
                 try:
                     self.ip = socket.getaddrinfo(self.host, None, socket.AF_INET6)[0][4][0]
                 except socket.gaierror:
-                    raise RequestException({"message": "Couldn't resolve DNS"})
+                    raise RequestException("Couldn't resolve DNS")
 
             self.url = "{0}://{1}:{2}/".format(
                 self.scheme,
@@ -156,7 +153,9 @@ class Requester(object):
             return None
 
         s = socket.socket()
+        s.settimeout(7)
         conn = ssl.SSLContext().wrap_socket(s)
+
         try:
             conn.connect((self.host, port))
             conn.close()
@@ -171,7 +170,7 @@ class Requester(object):
         self.headers[key.strip()] = value.strip() if value else value
 
     def set_auth(self, type, credential):
-        if type == "bearer":
+        if type in ("bearer", "jwt"):
             self.set_header("Authorization", "Bearer {0}".format(credential))
         else:
             user = credential.split(":")[0]
@@ -191,6 +190,7 @@ class Requester(object):
         for _ in range(self.max_retries + 1):
             result = None
             err_msg = None
+            simple_msg = None
             redirects = []
 
             try:
@@ -255,42 +255,42 @@ class Requester(object):
             except requests.exceptions.SSLError:
                 self.url = self.base_url
                 self.set_adapter()
-                result = self.request(path, proxy=proxy)
+                self.request(path, proxy=proxy)
 
-            except requests.exceptions.TooManyRedirects:
-                err_msg = "Too many redirects: {0}".format(self.base_url)
-
-            except requests.exceptions.ProxyError:
-                err_msg = "Error with the proxy: {0}".format(proxy)
-
-            except requests.exceptions.ConnectionError:
-                err_msg = "Cannot connect to: {0}:{1}".format(self.host, self.port)
-
-            except requests.exceptions.InvalidURL:
-                err_msg = "Invalid URL: {0}".format(self.base_url)
-
-            except requests.exceptions.InvalidProxyURL:
-                err_msg = "Invalid proxy URL: {0}".format(proxy)
-
-            except (
-                requests.exceptions.ConnectTimeout,
-                requests.exceptions.ReadTimeout,
-                requests.exceptions.Timeout,
-                http.client.IncompleteRead,
-                socket.timeout,
-            ):
-                err_msg = "Request timeout: {0}".format(self.base_url)
-
-            except Exception as msg:
-                err_msg = str(msg)
+            except Exception as e:
+                err_msg = str(e)
 
                 '''
                 dirsearch prints out error message returned from test request, so if it's test request,
                 only return a simple message to print because users can't understand debug message anyway :-)
                 '''
-                if not path:
-                    err_msg = "There was a problem in the request to: {0}".format(self.base_url)
+                if e == requests.exceptions.TooManyRedirects:
+                    simple_msg = "Too many redirects: {0}".format(self.base_url)
+                elif e == requests.exceptions.ProxyError:
+                    simple_msg = "Error with the proxy: {0}".format(proxy)
+                elif e == requests.exceptions.ConnectionError:
+                    simple_msg = "Cannot connect to: {0}:{1}".format(self.host, self.port)
+                elif e == requests.exceptions.InvalidURL:
+                    simple_msg = "Invalid URL: {0}".format(self.base_url)
+                elif e == requests.exceptions.InvalidProxyURL:
+                    simple_msg = "Invalid proxy URL: {0}".format(proxy)
+                elif e in (
+                    requests.exceptions.ConnectTimeout,
+                    requests.exceptions.ReadTimeout,
+                    requests.exceptions.Timeout,
+                    http.client.IncompleteRead,
+                    socket.timeout,
+                ):
+                    simple_msg = "Request timeout: {0}".format(self.base_url)
+                elif e in (
+                    requests.exceptions.ChunkedEncodingError,
+                    requests.exceptions.StreamConsumedError,
+                    requests.exceptions.UnrewindableBodyError,
+                ):
+                    simple_msg = "Failed to read response body: {0}".format(self.base_url)
+                else:
+                    simple_msg = "There was a problem in the request to: {0}".format(self.base_url)
 
             if result: return result
 
-        raise RequestException({"message": err_msg})
+        raise RequestException(simple_msg, err_msg)

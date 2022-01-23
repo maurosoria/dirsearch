@@ -23,22 +23,23 @@ if sys.version_info < (3, 7):
     sys.stdout.write("Sorry, dirsearch requires Python 3.7 or higher\n")
     sys.exit(1)
 
-from lib.core.argument_parser import ArgumentParser
-from lib.controller.controller import Controller
-from lib.output.verbose_output import CLIOutput
-from lib.output.silent_output import PrintOutput
-
 
 class Program(object):
     def __init__(self):
-        self.arguments = ArgumentParser()
+        from lib.core.options import Options
 
-        if self.arguments.quiet:
-            self.output = PrintOutput(self.arguments.color)
+        options = Options()
+
+        from lib.controller.controller import Controller
+        from lib.output.verbose import CLIOutput
+        from lib.output.silent import PrintOutput
+
+        if options.quiet:
+            output = PrintOutput(options.color)
         else:
-            self.output = CLIOutput(self.arguments.color)
+            output = CLIOutput(options.color)
 
-        self.controller = Controller(self.arguments, self.output)
+        Controller(options, output)
 
 
 if __name__ == "__main__":

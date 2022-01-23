@@ -20,7 +20,7 @@ import re
 
 from urllib.parse import unquote
 
-from lib.parse.similarity import SimilarityParser
+from lib.parse.content import SimilarityParser
 from lib.utils.random import rand_string
 from thirdparty.sqlmap import DynamicContentParser
 

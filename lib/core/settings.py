@@ -21,8 +21,8 @@ import sys
 
 from pathlib import Path
 
-
-VERSION = "0.4.2"
+# Version format: <mayor version>.<minor version>.<revision>[.<month>]
+VERSION = "0.4.2.1"
 BANNER = f'''
   _|. _ _  _  _  _ _|_    v{VERSION}
  (_||| _) (/_(_|| (_| )
@@ -36,13 +36,21 @@ DEFAULT_ENCODING = "utf-8"
 
 NEW_LINE = os.linesep
 
-INVALID_CHARS_FOR_WINDOWS_FILENAME = ("\"", "*", "<", ">", "?", "\\", "|", "/", ":")
+INVALID_CHARS_FOR_WINDOWS_FILENAME = ('"', '*', '<', '>', '?', '\\', '|', '/', ':')
 
 OUTPUT_FORMATS = ("simple", "plain", "json", "xml", "md", "csv", "html", "sqlite")
 
 COMMON_EXTENSIONS = ("php", "jsp", "asp", "aspx", "do", "action", "cgi", "html", "htm", "js", "json", "tar.gz", "bak")
 
-AUTHENTICATION_TYPES = ("basic", "digest", "bearer", "ntlm")
+DEFAULT_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36",
+    "Accept-Language": "*",
+    "Accept-Encoding": "*",
+    "Keep-Alive": "timeout=15, max=1000",
+    "Cache-Control": "max-age=0",
+}
+
+AUTHENTICATION_TYPES = ("basic", "digest", "bearer", "ntlm", "jwt")
 
 PROXY_SCHEMES = ("http://", "https://", "socks5://", "socks5h://", "socks4://", "socks4a://")
 
