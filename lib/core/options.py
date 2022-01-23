@@ -93,8 +93,8 @@ class Options(object):
 
         if options.extensions == "*":
             self.extensions = COMMON_EXTENSIONS
-        elif options.extensions == "banner.txt":
-            print("A weird extension was provided: 'banner.txt'. Please do not use * as the extension or enclose it in double quotes")
+        elif options.extensions == "CHANGELOG.md":
+            print("A weird extension was provided: 'CHANGELOG.md'. Please do not use * as the extension or enclose it in double quotes")
             exit(0)
 
         if options.no_extension:
