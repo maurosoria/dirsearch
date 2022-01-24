@@ -21,7 +21,7 @@ from lib.parse.headers import HeadersParser
 from lib.utils.file import File
 
 
-class Raw(object):
+class RawParser(object):
     def __init__(self, raw_file):
         with File(raw_file) as raw_content:
             self.raw_content = raw_content.read()
