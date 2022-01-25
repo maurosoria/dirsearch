@@ -3,7 +3,7 @@ import sys
 # This code exists for backwards compatibility reasons.
 # I don't like it either. Just look the other way. :)
 
-for package in ('urllib3', 'idna', 'chardet'):
+for package in ('urllib3', 'idna', 'thirdparty.chardet'):
     locals()[package] = __import__(package)
     # This traversal is apparently necessary such that the identities are
     # preserved (requests.packages.urllib3.* is urllib3.*)

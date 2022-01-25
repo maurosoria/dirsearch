@@ -29,9 +29,9 @@ from lib.connection.exception import RequestException
 from lib.controller.exception import SkipTargetInterrupt
 from lib.core.dictionary import Dictionary
 from lib.core.fuzzer import Fuzzer
-from lib.core.raw import Raw
 from lib.core.report_manager import Report, ReportManager
 from lib.core.settings import SCRIPT_PATH, BANNER, NEW_LINE, DEFAULT_HEADERS
+from lib.parse.raw import RawParser
 from lib.utils.file import FileUtils
 from lib.utils.fmt import clean_filename, human_size
 
@@ -60,7 +60,7 @@ class Controller(object):
         self.pass_dirs = ["/"]
 
         if options.raw_file:
-            raw = Raw(options.raw_file)
+            raw = RawParser(options.raw_file)
             self.url_list = [raw.url]
             self.httpmethod = raw.method
             self.data = raw.body

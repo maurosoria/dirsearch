@@ -218,7 +218,7 @@ class Requester(object):
 
                 '''
                 We can't just do `allow_redirects=True` because we set the host header in
-                optional request headers, which will be kept in next requests (follow redirects)
+                request headers, which will be kept in next requests (follow redirects)
                 '''
                 headers = self.headers.copy()
                 for i in range(MAX_REDIRECTS):
@@ -251,6 +251,8 @@ class Requester(object):
                         raise requests.exceptions.TooManyRedirects
 
                     break
+
+                return result
 
             except requests.exceptions.SSLError:
                 self.url = self.base_url
@@ -290,7 +292,5 @@ class Requester(object):
                     simple_msg = "Failed to read response body: {0}".format(self.base_url)
                 else:
                     simple_msg = "There was a problem in the request to: {0}".format(self.base_url)
-
-            if result: return result
 
         raise RequestException(simple_msg, err_msg)
