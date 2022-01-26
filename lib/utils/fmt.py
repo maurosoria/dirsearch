@@ -35,7 +35,7 @@ def uniq(string_list, filt=False):
 
 
 # Some characters are denied in file name by Windows
-def clean_filename(string):
+def get_valid_filename(string):
     for char in INVALID_CHARS_FOR_WINDOWS_FILENAME:
         string = string.replace(char, "-")
 
