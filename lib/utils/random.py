@@ -28,4 +28,5 @@ def rand_string(n=12, omit=None, numonly=False):
 
     if omit:
         seq = list(set(seq) - set(omit))
+
     return "".join(random.choice(seq) for _ in range(n))

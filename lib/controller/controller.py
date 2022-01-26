@@ -33,7 +33,7 @@ from lib.core.report_manager import Report, ReportManager
 from lib.core.settings import SCRIPT_PATH, BANNER, NEW_LINE, DEFAULT_HEADERS
 from lib.parse.raw import RawParser
 from lib.utils.file import FileUtils
-from lib.utils.fmt import clean_filename, human_size
+from lib.utils.fmt import get_valid_filename, human_size
 
 
 class EmptyReportManager:
@@ -115,13 +115,12 @@ class Controller(object):
         if options.autosave_report or options.output_file:
             if options.autosave_report:
                 self.report_path = options.output_location or FileUtils.build_path(SCRIPT_PATH, "reports")
-                self.validate_dir(self.report_path)
+                self.create_dir(self.report_path)
 
             self.setup_reports()
 
         if options.log_file:
-            self.validate_dir(FileUtils.parent(options.log_file))
-            FileUtils.create_directory(FileUtils.parent(options.log_file))
+            self.create_dir(FileUtils.parent(options.log_file))
             self.output.log_file(FileUtils.get_abs_path(options.log_file))
 
         try:
@@ -262,10 +261,10 @@ class Controller(object):
                 filename += time.strftime("%y-%m-%d_%H-%M-%S")
                 filename += self.get_output_extension()
                 directory_path = FileUtils.build_path(
-                    self.report_path, clean_filename(parsed.netloc)
+                    self.report_path, get_valid_filename(parsed.netloc)
                 )
 
-            filename = clean_filename(filename)
+            filename = get_valid_filename(filename)
             output_file = FileUtils.build_path(directory_path, filename)
 
             if FileUtils.exists(output_file):
@@ -291,16 +290,18 @@ class Controller(object):
         else:
             self.report_manager = ReportManager("plain", output_file)
 
-    # Check if output directory is writable
-    def validate_dir(self, path):
+    # Create and check if output directory is writable
+    def create_dir(self, path):
         if not FileUtils.exists(path):
-            self.validate_output_loc(FileUtils.parent(path))
+            self.create_dir(FileUtils.parent(path))
         if not FileUtils.is_dir(path):
             self.output.error("{0} is a file, should be a directory".format(path))
             exit(1)
         if not FileUtils.can_write(path):
             self.output.error("Directory {0} is not writable".format(path))
             exit(1)
+
+        FileUtils.create_directory(path)
 
     # Validate the response by different filters
     def is_valid(self, path, res):
