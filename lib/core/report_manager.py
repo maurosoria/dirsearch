@@ -37,7 +37,7 @@ class Result(object):
     def get_content_type(self):
         content_type = self.response.headers.get('content-type')
         if content_type is None:
-            content_type = ""
+            content_type = ''
         return content_type
 
 

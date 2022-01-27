@@ -20,6 +20,7 @@ import re
 
 from urllib.parse import unquote
 
+from lib.core.settings import TEST_PATH_LENGTH
 from lib.parse.content import SimilarityParser
 from lib.utils.random import rand_string
 from thirdparty.sqlmap import DynamicContentParser
@@ -28,8 +29,8 @@ from thirdparty.sqlmap import DynamicContentParser
 class Scanner(object):
     def __init__(self, requester, calibration=None, suffix=None, prefix=None, tested=[]):
         self.calibration = calibration
-        self.suffix = suffix if suffix else ""
-        self.prefix = prefix if prefix else ""
+        self.suffix = suffix if suffix else ''
+        self.prefix = prefix if prefix else ''
         self.tested = tested
         self.requester = requester
         self.tester = None
@@ -55,7 +56,7 @@ class Scanner(object):
     '''
     def setup(self):
         first_path = self.prefix + (
-            self.calibration if self.calibration else rand_string()
+            self.calibration if self.calibration else rand_string(TEST_PATH_LENGTH)
         ) + self.suffix
         first_response = self.requester.request(first_path)
         self.response = first_response
@@ -74,7 +75,7 @@ class Scanner(object):
             return
 
         second_path = self.prefix + (
-            self.calibration if self.calibration else rand_string(omit=first_path)
+            self.calibration if self.calibration else rand_string(TEST_PATH_LENGTH, omit=first_path)
         ) + self.suffix
         second_response = self.requester.request(second_path)
 
@@ -111,7 +112,7 @@ class Scanner(object):
 
         '''
         If the path is reflected in response, decrease the ratio. Because
-        the difference between path lengths can reduce the similarity ratio
+        the difference between path lengths can affect the similarity ratio
         '''
         if first_path in first_response.content:
             if len(first_response) < 200:
@@ -131,7 +132,7 @@ class Scanner(object):
     '''
     def generate_redirect_reg_exp(self, first_loc, first_path, second_loc, second_path):
         # Use a unique sign to locate where the path gets reflected in the redirect
-        self.mark = rand_string(n=20)
+        self.mark = rand_string(20)
         first_loc = first_loc.replace(first_path, self.mark)
         second_loc = second_loc.replace(second_path, self.mark)
         self.redirect_parser = SimilarityParser(first_loc, second_loc)

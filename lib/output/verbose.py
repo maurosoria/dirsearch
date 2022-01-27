@@ -32,16 +32,16 @@ if IS_WINDOWS:
                                            STDOUT)
 
 
-class CLIOutput(object):
-    def __init__(self, color):
+class Output(object):
+    def __init__(self, colors):
         self.last_length = 0
-        self.last_output = ""
+        self.last_output = ''
         self.last_in_line = False
         self.mutex = Lock()
         self.blacklists = {}
-        self.base_path = None
+        self.url = None
         self.errors = 0
-        self.colorizer = ColorOutput(color)
+        self.colorizer = ColorOutput(colors)
 
     def in_line(self, string):
         self.erase()
@@ -52,11 +52,11 @@ class CLIOutput(object):
     def erase(self):
         if IS_WINDOWS:
             csbi = GetConsoleScreenBufferInfo()
-            line = "\b" * int(csbi.dwCursorPosition.X)
+            line = '\b' * int(csbi.dwCursorPosition.X)
             sys.stdout.write(line)
             width = csbi.dwCursorPosition.X
             csbi.dwCursorPosition.X = 0
-            FillConsoleOutputCharacter(STDOUT, " ", width, csbi.dwCursorPosition)
+            FillConsoleOutputCharacter(STDOUT, ' ', width, csbi.dwCursorPosition)
             sys.stdout.write(line)
             sys.stdout.flush()
 
@@ -71,11 +71,11 @@ class CLIOutput(object):
         if IS_WINDOWS:
             sys.stdout.write(string)
             sys.stdout.flush()
-            sys.stdout.write("\n")
+            sys.stdout.write('\n')
             sys.stdout.flush()
 
         else:
-            sys.stdout.write(string + "\n")
+            sys.stdout.write(string + '\n')
 
         sys.stdout.flush()
         self.last_in_line = False
@@ -85,12 +85,12 @@ class CLIOutput(object):
         status = response.status
         content_length = human_size(response.length)
 
-        show_path = response.url if full_url else response.path
+        show_path = self.url + response.path if full_url else response.path
 
         message = "[{0}] {1} - {2} - {3}".format(
             time.strftime("%H:%M:%S"),
             status,
-            content_length.rjust(6, " "),
+            content_length.rjust(6, ' '),
             show_path,
         )
 
@@ -124,8 +124,8 @@ class CLIOutput(object):
 
     def last_path(self, index, length, current_job, all_jobs, rate):
         percentage = int(index / length * 100)
-        task = self.colorizer.color("#", fore="cyan", bright=True) * int(percentage / 5)
-        task += " " * (20 - int(percentage / 5))
+        task = self.colorizer.color('#', fore="cyan", bright=True) * int(percentage / 5)
+        task += ' ' * (20 - int(percentage / 5))
         progress = "{}/{}".format(index, length)
 
         jobs = "{0}:{1}/{2}".format(
@@ -142,9 +142,9 @@ class CLIOutput(object):
         progress_bar = "[{0}] {1}% {2} {3}/s       {4} {5}".format(
             task,
             percentage,
-            progress.rjust(12, " "),
-            str(rate).rjust(9, " "),
-            jobs.ljust(21, " "),
+            progress.rjust(12, ' '),
+            str(rate).rjust(9, ' '),
+            jobs.ljust(21, ' '),
             errors
         )
 
@@ -174,7 +174,7 @@ class CLIOutput(object):
         self.new_line(message)
 
     def print_header(self, entries):
-        msg = ""
+        msg = ''
 
         for key, value in entries.items():
             new = self.colorizer.color(key + ": ", fore="yellow", bright=True)
@@ -187,7 +187,7 @@ class CLIOutput(object):
             new_line = msg.splitlines()[-1] + " | " + new
 
             if len(self.colorizer.clean(new_line)) >= shutil.get_terminal_size()[0]:
-                msg += "\n"
+                msg += '\n'
             else:
                 msg += self.colorizer.color(" | ", fore="magenta", bright=True)
 

@@ -43,7 +43,7 @@ class MarkdownReport(FileBaseReport):
             result += NEW_LINE
             return result
         else:
-            return ""
+            return ''
 
     def generate(self):
         result = self.generate_header()

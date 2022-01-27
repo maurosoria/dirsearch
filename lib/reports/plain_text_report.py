@@ -30,7 +30,7 @@ class PlainTextReport(FileBaseReport):
             self.header_written = True
             return "# Dirsearch started {0} as: {1}".format(time.ctime(), ' '.join(sys.argv)) + NEW_LINE * 2
         else:
-            return ""
+            return ''
 
     def generate(self):
         result = self.generate_header()
@@ -39,11 +39,11 @@ class PlainTextReport(FileBaseReport):
             for e in entry.results:
                 if (entry.protocol, entry.host, entry.port, entry.base_path, e.path) not in self.written_entries:
                     result += "{0}  ".format(e.status)
-                    result += "{0}  ".format(human_size(e.response.length).rjust(6, " "))
+                    result += "{0}  ".format(human_size(e.response.length).rjust(6, ' '))
                     result += "{0}://{1}:{2}/".format(entry.protocol, entry.host, entry.port)
                     result += (
                         "{0}".format(e.path)
-                        if entry.base_path == ""
+                        if entry.base_path == ''
                         else "{0}/{1}".format(entry.base_path, e.path)
                     )
                     location = e.response.redirect

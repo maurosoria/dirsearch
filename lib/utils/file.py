@@ -85,7 +85,7 @@ class FileUtils(object):
         if path_components:
             path = os.path.join(*path_components)
         else:
-            path = ""
+            path = ''
         return path
 
     @staticmethod

@@ -42,20 +42,30 @@ OUTPUT_FORMATS = ("simple", "plain", "json", "xml", "md", "csv", "html", "sqlite
 
 COMMON_EXTENSIONS = ("php", "jsp", "asp", "aspx", "do", "action", "cgi", "html", "htm", "js", "json", "tar.gz", "bak")
 
+AUTHENTICATION_TYPES = ("basic", "digest", "bearer", "ntlm", "jwt", "oauth2")
+
+PROXY_SCHEMES = ("http://", "https://", "socks5://", "socks5h://", "socks4://", "socks4a://")
+
+INSECURE_CSV_CHARS = ('+', '-', '=', '@')
+
+DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36"
+
 DEFAULT_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36",
+    "User-Agent": DEFAULT_USER_AGENT,
     "Accept-Language": "*",
     "Accept-Encoding": "*",
     "Keep-Alive": "timeout=15, max=1000",
     "Cache-Control": "max-age=0",
 }
 
-AUTHENTICATION_TYPES = ("basic", "digest", "bearer", "ntlm", "jwt")
-
-PROXY_SCHEMES = ("http://", "https://", "socks5://", "socks5h://", "socks4://", "socks4a://")
-
-EXTENSION_KEY = "%ext%"
+EXTENSION_TAG = "%ext%"
 
 MAX_REDIRECTS = 5
 
+MAX_NUMBER_OF_THREADS = 100
+
+SOCKET_TIMEOUT = 6
+
 CHUNK_SIZE = 8192
+
+TEST_PATH_LENGTH = 6

@@ -21,39 +21,26 @@ from lib.parse.headers import HeadersParser
 from lib.utils.file import File
 
 
-class RawParser(object):
-    def __init__(self, raw_file):
-        with File(raw_file) as raw_content:
-            self.raw_content = raw_content.read()
+def parse_raw(raw_file):
+    with File(raw_file) as content:
+        raw_content = content.read()
 
-        self.parse()
+    head = raw_content.split(NEW_LINE * 2)[0].splitlines(0)
+    method, path = head[0].split()[:2]
 
-    def parse(self):
-        self.head = self.raw_content.split(NEW_LINE * 2)[0].splitlines(0)
+    try:
+        headers = HeadersParser(head[1:])
+        host = headers.get("host").strip()
+    except KeyError:
+        print("Can't find the Host header in the raw request")
+        exit(1)
+    except Exception:
+        print("Invalid headers in the raw request")
+        exit(1)
 
-        try:
-            self.headers_ = HeadersParser(self.head[1:])
-        except Exception:
-            print("Invalid headers in the raw request")
-            exit(1)
+    try:
+        body = raw_content.split(NEW_LINE * 2)[1]
+    except IndexError:
+        body = None
 
-        try:
-            self.body = self.raw_content.split(NEW_LINE * 2)[1]
-        except IndexError:
-            self.body = None
-
-        try:
-            self.host = self.headers_.get("host").strip()
-        except KeyError:
-            print("Can't find the Host header in the raw request")
-            exit(1)
-
-        self.method, self.path = self.head[0].split()[:2]
-
-    @property
-    def url(self):
-        return "{0}{1}".format(self.host, self.path)
-
-    @property
-    def headers(self):
-        return dict(self.headers_)
+    return [host + path], method, dict(headers), body

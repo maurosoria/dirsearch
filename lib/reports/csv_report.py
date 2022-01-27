@@ -16,7 +16,7 @@
 #
 #  Author: Mauro Soria
 
-from lib.core.settings import NEW_LINE
+from lib.core.settings import NEW_LINE, INSECURE_CSV_CHARS
 from lib.reports.base import FileBaseReport
 
 
@@ -26,11 +26,10 @@ class CSVReport(FileBaseReport):
             self.header_written = True
             return "URL,Status,Size,Redirection" + NEW_LINE
         else:
-            return ""
+            return ''
 
     def generate(self):
         result = self.generate_header()
-        insecure_chars = ("+", "-", "=", "@")
 
         for entry in self.entries:
             for e in entry.results:
@@ -43,13 +42,14 @@ class CSVReport(FileBaseReport):
                     result += "{0}://{1}:{2}/{3}{4},".format(entry.protocol, entry.host, entry.port, entry.base_path, path)
                     result += "{0},".format(status)
                     result += "{0},".format(content_length)
+
                     if redirect:
                         # Preventing CSV injection. More info: https://www.exploit-db.com/exploits/49370
-                        if redirect.startswith(insecure_chars):
+                        if redirect.startswith(INSECURE_CSV_CHARS):
                             redirect = "'" + redirect
 
-                        redirect = redirect.replace("\"", "\"\"")
-                        result += "\"{0}\"".format(redirect)
+                        redirect = redirect.replace('"', '""')
+                        result += '"{0}"'.format(redirect)
 
                     result += NEW_LINE
                     self.written_entries.append((entry.protocol, entry.host, entry.port, entry.base_path, e.path))
