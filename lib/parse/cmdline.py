@@ -83,10 +83,10 @@ def parse_arguments():
                        help="Exclude responses by sizes, separated by commas (Example: 0B,4KB)")
     general.add_option("--exclude-texts", action="store", dest="exclude_texts", metavar="TEXTS",
                        help="Exclude responses by texts, separated by commas (Example: 'Not found', 'Error')")
-    general.add_option("--exclude-regexps", action="store", dest="exclude_regexps", metavar="REGEXPS",
-                       help="Exclude responses by regexps, separated by commas (Example: 'Not foun[a-z]{1}', '^Error$')")
-    general.add_option("--exclude-redirects", action="store", dest="exclude_redirects", metavar="REGEXPS",
-                       help="Exclude responses by redirect regexps or texts, separated by commas (Example: 'https://okta.com/*')",)
+    general.add_option("--exclude-regex", action="store", dest="exclude_regex", metavar="REGEX",
+                       help="Exclude responses by regex (Example: '^Error$')")
+    general.add_option("--exclude-redirect", action="store", dest="exclude_redirect", metavar="STRING",
+                       help="Exclude responses if this regex (or text) matches redirect URL (Example: '/index.html')",)
     general.add_option("--exclude-response", action="store", dest="exclude_response", metavar="PATH",
                        help="Exclude responses similar to response of this page, path as input (Example: 404.html)")
     general.add_option("--skip-on-status", action="store", dest="skip_on_status", metavar="CODES",
@@ -110,13 +110,13 @@ def parse_arguments():
                        help="HTTP method (default: GET)")
     request.add_option("-d", "--data", action="store", dest="data", help="HTTP request data")
     request.add_option("-H", "--header", action="append", dest="headers",
-                       help="HTTP request header, support multiple flags (Example: -H 'Referer: example.com')")
+                       help="HTTP request header, support multiple flags")
     request.add_option("--header-list", dest="header_list", metavar="FILE", help="File contains HTTP request headers")
     request.add_option("-F", "--follow-redirects", action="store_true", dest="follow_redirects", help="Follow HTTP redirects")
     request.add_option("--random-agent", action="store_true", dest="use_random_agents",
                        help="Choose a random User-Agent for each request")
     request.add_option("--auth-type", action="store", dest="auth_type", metavar="TYPE",
-                       help="Authentication type ({})".format(*AUTHENTICATION_TYPES))
+                       help="Authentication type ({})".format(", ".join(AUTHENTICATION_TYPES)))
     request.add_option("--auth", action="store", dest="auth", metavar="CREDENTIAL",
                        help="Authentication credential ([user]:[password] or bearer token)")
     request.add_option("--user-agent", action="store", dest="useragent")

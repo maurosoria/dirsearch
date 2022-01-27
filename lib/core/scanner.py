@@ -29,8 +29,8 @@ from thirdparty.sqlmap import DynamicContentParser
 class Scanner(object):
     def __init__(self, requester, calibration=None, suffix=None, prefix=None, tested=[]):
         self.calibration = calibration
-        self.suffix = suffix if suffix else ""
-        self.prefix = prefix if prefix else ""
+        self.suffix = suffix if suffix else ''
+        self.prefix = prefix if prefix else ''
         self.tested = tested
         self.requester = requester
         self.tester = None

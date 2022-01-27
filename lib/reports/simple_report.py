@@ -22,7 +22,7 @@ from lib.reports.base import FileBaseReport
 
 class SimpleReport(FileBaseReport):
     def generate(self):
-        result = ""
+        result = ''
 
         for entry in self.entries:
             for e in entry.results:
@@ -30,7 +30,7 @@ class SimpleReport(FileBaseReport):
                     result += "{0}://{1}:{2}/".format(entry.protocol, entry.host, entry.port)
                     result += (
                         "{0}".format(e.path)
-                        if entry.base_path == ""
+                        if entry.base_path == ''
                         else "{0}/{1}".format(entry.base_path, e.path)
                     )
                     result += NEW_LINE

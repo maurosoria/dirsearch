@@ -98,7 +98,7 @@ class Options(object):
             exit(0)
 
         if options.no_extension:
-            self.extensions = ""
+            self.extensions = ''
 
         self.include_status_codes = self.parse_status_codes(options.include_status_codes)
         self.exclude_status_codes = self.parse_status_codes(options.exclude_status_codes)
@@ -115,12 +115,6 @@ class Options(object):
         ])
         self.exclude_texts = uniq([
             exclude_text.strip() for exclude_text in options.exclude_texts.split(",")
-        ])
-        self.exclude_regexps = uniq([
-            exclude_regexp.strip() for exclude_regexp in options.exclude_regexps.split(",")
-        ])
-        self.exclude_redirects = uniq([
-            exclude_redirect.strip() for exclude_redirect in options.exclude_redirects.split(",")
         ])
         self.scan_subdirs = [
             subdir.strip().ljust(len(subdir) + 1, "/").lstrip("/")
@@ -147,7 +141,7 @@ class Options(object):
             print("'{}' is not in available authentication types: {}".format(options.auth_type, ", ".join(AUTHENTICATION_TYPES)))
             exit(1)
 
-        if len(set(self.extensions).intersection(self.exclude_extensions)):
+        if set(self.extensions).intersection(self.exclude_extensions):
             print("Exclude extension list can not contain any extension that has already in the extension list")
             exit(1)
 
@@ -207,7 +201,7 @@ class Options(object):
 
         # General
         options.threads_count = options.threads_count or config.safe_getint(
-            "general", "threads", 25, set(range(1, MAX_NUMBER_OF_THREADS))
+            "general", "threads", 25, range(1, MAX_NUMBER_OF_THREADS)
         )
         options.include_status_codes = options.include_status_codes or config.safe_get(
             "general", "include-status"
@@ -217,8 +211,8 @@ class Options(object):
         )
         options.exclude_sizes = options.exclude_sizes or config.safe_get("general", "exclude-sizes")
         options.exclude_texts = options.exclude_texts or config.safe_get("general", "exclude-texts")
-        options.exclude_regexps = options.exclude_regexps or config.safe_get("general", "exclude-regexps")
-        options.exclude_redirects = options.exclude_regexps or config.safe_get("general", "exclude-redirects")
+        options.exclude_regex = options.exclude_regex or config.safe_get("general", "exclude-regex")
+        options.exclude_redirect = options.exclude_redirect or config.safe_get("general", "exclude-redirect")
         options.exclude_response = options.exclude_response or config.safe_get("general", "exclude-response")
         options.recursive = options.recursive or config.safe_getboolean("general", "recursive")
         options.deep_recursive = options.deep_recursive or config.safe_getboolean("general", "deep-recursive")

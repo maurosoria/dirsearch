@@ -150,7 +150,7 @@ class Controller(object):
                             self.requester.set_auth(options.auth_type, options.auth)
 
                         # Test request to check if server is up
-                        self.requester.request("")
+                        self.requester.request('')
                         self.write_log("Test request sent for: {}".format(self.requester.base_url))
 
                         self.output.url = self.requester.base_url[:-1]
@@ -165,7 +165,7 @@ class Controller(object):
                     self.skip = None
 
                     if not options.scan_subdirs:
-                        self.directories.put("")
+                        self.directories.put('')
 
                     for subdir in options.scan_subdirs:
                         self.directories.put(subdir)
@@ -320,19 +320,18 @@ class Controller(object):
         if res.length > self.options.maximum_response_size != 0:
             return False
 
-        for exclude_text in self.options.exclude_texts:
-            if exclude_text in res.content:
-                return False
+        if any(ex_text in res.content for ex_text in self.options.exclude_texts):
+            return False
 
-        for exclude_regexp in self.options.exclude_regexps:
-            if re.search(exclude_regexp, res.content) is not None:
-                return False
+        if self.options.exclude_regex and re.search(self.options.exclude_regex, res.content) is not None:
+            return False
 
-        for exclude_redirect in self.options.exclude_redirects:
-            if res.redirect and exclude_redirect in res.redirect or (
-                    re.match(exclude_redirect, res.redirect)
-            ):
-                return False
+        if self.options.exclude_redirect and (
+            self.options.exclude_redirect in res.redirect or re.search(
+                self.options.exclude_redirect, res.redirect
+            ) is not None
+        ):
+            return False
 
         return True
 
@@ -411,7 +410,7 @@ class Controller(object):
     def append_error_log(self, path, error_msg):
         url = self.requester.base_url + self.requester.base_path + self.current_directory + path
         msg = "ERROR: {} {}".format(self.options.httpmethod, url)
-        msg += NEW_LINE + " " * 4 + error_msg
+        msg += NEW_LINE + ' ' * 4 + error_msg
         with self.threads_lock:
             self.write_log(msg)
 
@@ -441,18 +440,18 @@ class Controller(object):
 
             option = input()
 
-            if option.lower() == "q":
+            if option.lower() == 'q':
                 self.close("Canceled by the user")
 
-            elif option.lower() == "c":
+            elif option.lower() == 'c':
                 self.fuzzer.resume()
                 return
 
-            elif option.lower() == "n" and not self.directories.empty():
+            elif option.lower() == 'n' and not self.directories.empty():
                 self.fuzzer.stop()
                 return
 
-            elif option.lower() == "s" and len(self.options.url_list) > 1:
+            elif option.lower() == 's' and len(self.options.url_list) > 1:
                 raise SkipTargetInterrupt
 
     # Monitor the fuzzing process

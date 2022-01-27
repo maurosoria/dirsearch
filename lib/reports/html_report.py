@@ -27,10 +27,10 @@ from thirdparty.jinja2 import Environment, FileSystemLoader
 
 class HTMLReport(FileBaseReport):
     def generate(self):
-        file_loader = FileSystemLoader(os.path.dirname(os.path.realpath(__file__)) + '/templates/')
+        file_loader = FileSystemLoader(os.path.dirname(os.path.realpath(__file__)) + "/templates/")
         env = Environment(loader=file_loader)
 
-        template = env.get_template('html_report_template.html')
+        template = env.get_template("html_report_template.html")
 
         metadata = {
             "command": self.get_command(),
@@ -45,11 +45,11 @@ class HTMLReport(FileBaseReport):
 
                 status_color_class = ''
                 if e.status >= 200 and e.status <= 299:
-                    status_color_class = 'text-success'
+                    status_color_class = "text-success"
                 elif e.status >= 300 and e.status <= 399:
-                    status_color_class = 'text-warning'
+                    status_color_class = "text-warning"
                 elif e.status >= 400 and e.status <= 599:
-                    status_color_class = 'text-danger'
+                    status_color_class = "text-danger"
 
                 results.append({
                     "url": header_name + e.path,
@@ -64,9 +64,9 @@ class HTMLReport(FileBaseReport):
         return template.render(metadata=metadata, results=results)
 
     def get_command(self):
-        command = " ".join(sys.argv)
-        if '[[' in command or ']]' in command:
-            return 'Dirsearch'
+        command = ' '.join(sys.argv)
+        if "[[" in command or "]]" in command:
+            return "Dirsearch"
         else:
             return command
 

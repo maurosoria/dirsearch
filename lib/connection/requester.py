@@ -177,7 +177,7 @@ class Requester(object):
             try:
                 password = ":".join(credential.split(":")[1:])
             except IndexError:
-                password = ""
+                password = ''
 
             if type == "basic":
                 self.auth = HTTPBasicAuth(user, password)

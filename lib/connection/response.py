@@ -27,7 +27,7 @@ class Response(object):
         self.status = response.status_code
         self.headers = response.headers
         self.history = redirects
-        self.body = b""
+        self.body = b''
 
         for chunk in response.iter_content(chunk_size=CHUNK_SIZE):
             self.body += chunk

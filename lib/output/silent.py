@@ -50,11 +50,11 @@ class Output(object):
     def erase(self):
         if IS_WINDOWS:
             csbi = GetConsoleScreenBufferInfo()
-            line = "\b" * int(csbi.dwCursorPosition.X)
+            line = '\b' * int(csbi.dwCursorPosition.X)
             sys.stdout.write(line)
             width = csbi.dwCursorPosition.X
             csbi.dwCursorPosition.X = 0
-            FillConsoleOutputCharacter(STDOUT, " ", width, csbi.dwCursorPosition)
+            FillConsoleOutputCharacter(STDOUT, ' ', width, csbi.dwCursorPosition)
             sys.stdout.write(line)
             sys.stdout.flush()
 
@@ -63,7 +63,7 @@ class Output(object):
             sys.stdout.write("\033[0G")
 
     def new_line(self, string=''):
-        sys.stdout.write(string + "\n")
+        sys.stdout.write(string + '\n')
         sys.stdout.flush()
 
     def status_report(self, response, full_url, added_to_queue):
@@ -71,7 +71,7 @@ class Output(object):
         content_length = human_size(response.length)
 
         message = "{0} - {1} - {2}".format(
-            status, content_length.rjust(6, " "), self.url + response.path
+            status, content_length.rjust(6, ' '), self.url + response.path
         )
 
         if status in (200, 201, 204):
