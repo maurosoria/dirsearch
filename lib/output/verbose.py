@@ -33,7 +33,7 @@ if IS_WINDOWS:
 
 
 class Output(object):
-    def __init__(self, color):
+    def __init__(self, colors):
         self.last_length = 0
         self.last_output = ""
         self.last_in_line = False
@@ -41,7 +41,7 @@ class Output(object):
         self.blacklists = {}
         self.url = None
         self.errors = 0
-        self.colorizer = ColorOutput(color)
+        self.colorizer = ColorOutput(colors)
 
     def in_line(self, string):
         self.erase()

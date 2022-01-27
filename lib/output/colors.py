@@ -22,27 +22,30 @@ from thirdparty.colorama import init, Fore, Back, Style
 from thirdparty.pyparsing import Literal, Word, Combine, Optional, Suppress, delimitedList, oneOf
 
 
+FORE_TABLE = {
+    "red": Fore.RED,
+    "green": Fore.GREEN,
+    "yellow": Fore.YELLOW,
+    "blue": Fore.BLUE,
+    "magenta": Fore.MAGENTA,
+    "cyan": Fore.CYAN,
+    "white": Fore.WHITE
+}
+
+BACK_TABLE = {
+    "red": Back.RED,
+    "green": Back.GREEN,
+    "yellow": Back.YELLOW,
+    "blue": Back.BLUE,
+    "magenta": Back.MAGENTA,
+    "cyan": Back.CYAN,
+    "white": Back.WHITE
+}
+
+
 class ColorOutput(object):
     def __init__(self, colors=True):
         self.colors = colors
-        self.fore_table = {
-            "red": Fore.RED,
-            "green": Fore.GREEN,
-            "yellow": Fore.YELLOW,
-            "blue": Fore.BLUE,
-            "magenta": Fore.MAGENTA,
-            "cyan": Fore.CYAN,
-            "white": Fore.WHITE
-        }
-        self.back_table = {
-            "red": Back.RED,
-            "green": Back.GREEN,
-            "yellow": Back.YELLOW,
-            "blue": Back.BLUE,
-            "magenta": Back.MAGENTA,
-            "cyan": Back.CYAN,
-            "white": Back.WHITE
-        }
         self.escape_seq = None
         self.prepare_sequence_escaper()
         init()
@@ -54,9 +57,9 @@ class ColorOutput(object):
         if bright:
             msg = Style.BRIGHT + msg
         if fore:
-            msg = self.fore_table[fore] + msg
+            msg = FORE_TABLE[fore] + msg
         if back:
-            msg = self.back_table[back] + msg
+            msg = BACK_TABLE[back] + msg
 
         return msg + Style.RESET_ALL
 

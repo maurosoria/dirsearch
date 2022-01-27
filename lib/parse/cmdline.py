@@ -22,7 +22,7 @@ from lib.core.settings import VERSION, SCRIPT_PATH, AUTHENTICATION_TYPES
 from lib.utils.file import FileUtils
 
 
-def arguments_parser():
+def parse_arguments():
     usage = "Usage: %prog [-u|--url] target [-e|--extensions] extensions [options]"
     parser = OptionParser(usage, version="dirsearch v{}".format(VERSION))
 
@@ -96,7 +96,7 @@ def arguments_parser():
     general.add_option("--max-response-size", action="store", type="int", dest="maximum_response_size",
                        help="Maximum response length", metavar="LENGTH", default=0)
     general.add_option("--redirects-history", action="store_true", dest="redirects_history",
-                       help="Show redirects history (when following redirects is enabled)")
+                       help="Show redirects history")
     general.add_option("--max-time", action="store", type="int", dest="maxtime", metavar="SECONDS",
                        help="Maximum runtime for the scan")
     general.add_option("--full-url", action="store_true", dest="full_url",

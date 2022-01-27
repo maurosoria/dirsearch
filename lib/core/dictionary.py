@@ -19,7 +19,7 @@
 import re
 import threading
 
-from lib.core.settings import SCRIPT_PATH, EXTENSION_KEY
+from lib.core.settings import SCRIPT_PATH, EXTENSION_TAG
 from lib.utils.fmt import safequote, uniq
 from lib.utils.file import File, FileUtils
 
@@ -92,7 +92,7 @@ class Dictionary(object):
     '''
 
     def generate(self):
-        reext = re.compile(EXTENSION_KEY, re.IGNORECASE)
+        reext = re.compile(EXTENSION_TAG, re.IGNORECASE)
         result = []
 
         # Enable to use multiple dictionaries at once
@@ -118,7 +118,7 @@ class Dictionary(object):
                     continue
 
                 # Classic dirsearch wordlist processing (with %EXT% keyword)
-                if EXTENSION_KEY in line.lower():
+                if EXTENSION_TAG in line.lower():
                     for extension in self._extensions:
                         newline = reext.sub(extension, line)
                         result.append(newline)

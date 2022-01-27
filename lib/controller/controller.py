@@ -31,7 +31,7 @@ from lib.core.dictionary import Dictionary
 from lib.core.fuzzer import Fuzzer
 from lib.core.report_manager import Report, ReportManager
 from lib.core.settings import SCRIPT_PATH, BANNER, NEW_LINE, DEFAULT_HEADERS
-from lib.parse.raw import RawParser
+from lib.parse.raw import parse_raw
 from lib.utils.file import FileUtils
 from lib.utils.fmt import get_valid_filename, human_size
 
@@ -60,20 +60,15 @@ class Controller(object):
         self.pass_dirs = ["/"]
 
         if options.raw_file:
-            raw = RawParser(options.raw_file)
-            self.url_list = [raw.url]
-            self.httpmethod = raw.method
-            self.data = raw.body
-            self.headers = raw.headers
+            options.__dict__.update(
+                zip(["url_list", "httpmethod", "headers", "data"], parse_raw(options.raw_file))
+            )
         else:
-            self.url_list = options.url_list
-            self.httpmethod = options.httpmethod
-            self.data = options.httpmethod
-            self.headers = {**DEFAULT_HEADERS, **options.headers}
+            options.headers = {**DEFAULT_HEADERS, **options.headers}
             if options.cookie:
-                self.headers["Cookie"] = options.cookie
+                options.headers["Cookie"] = options.cookie
             if options.useragent:
-                self.headers["User-Agent"] = options.useragent
+                options.headers["User-Agent"] = options.useragent
 
         self.random_agents = None
         if options.use_random_agents:
@@ -96,7 +91,7 @@ class Controller(object):
             only_selected=options.only_selected
         )
 
-        self.jobs_count = len(self.url_list) * (
+        self.jobs_count = len(self.options.url_list) * (
             len(options.scan_subdirs) if options.scan_subdirs else 1
         )
         self.current_job = 0
@@ -124,7 +119,7 @@ class Controller(object):
             self.output.log_file(FileUtils.get_abs_path(options.log_file))
 
         try:
-            for url in self.url_list:
+            for url in self.options.url_list:
                 try:
                     gc.collect()
 
@@ -139,8 +134,8 @@ class Controller(object):
                             proxylist=options.proxylist,
                             redirect=options.follow_redirects,
                             request_by_hostname=options.request_by_hostname,
-                            httpmethod=self.httpmethod,
-                            data=self.data,
+                            httpmethod=options.httpmethod,
+                            data=options.data,
                             scheme=options.scheme,
                             random_agents=self.random_agents,
                         )
@@ -148,7 +143,7 @@ class Controller(object):
                         self.output.set_target(self.requester.base_url + self.requester.base_path)
                         self.requester.setup()
 
-                        for key, value in self.headers.items():
+                        for key, value in options.headers.items():
                             self.requester.set_header(key, value)
 
                         if options.auth:
@@ -216,7 +211,7 @@ class Controller(object):
             ', '.join(self.options.suffixes),
             str(self.options.threads_count),
             str(len(self.dictionary)),
-            str(self.httpmethod),
+            str(self.options.httpmethod),
         )
 
     # Create batch report folder
@@ -250,13 +245,13 @@ class Controller(object):
             output_file = FileUtils.get_abs_path(self.options.output_file)
             self.output.output_file(output_file)
         else:
-            if len(self.url_list) > 1:
+            if len(self.options.url_list) > 1:
                 self.setup_batch_reports()
                 filename = "BATCH"
                 filename += self.get_output_extension()
                 directory_path = self.batch_directory_path
             else:
-                parsed = urlparse(self.url_list[0])
+                parsed = urlparse(self.options.url_list[0])
                 filename = (
                     "{}_".format(parsed.path)
                 )
@@ -401,7 +396,7 @@ class Controller(object):
         msg = "{} {} {} {}".format(
             self.requester.ip or "0",
             response.status,
-            self.httpmethod,
+            self.options.httpmethod,
             self.requester.base_url[:-1] + response.path
         )
 
@@ -415,7 +410,7 @@ class Controller(object):
     # Write error to log file
     def append_error_log(self, path, error_msg):
         url = self.requester.base_url + self.requester.base_path + self.current_directory + path
-        msg = "ERROR: {} {}".format(self.httpmethod, url)
+        msg = "ERROR: {} {}".format(self.options.httpmethod, url)
         msg += NEW_LINE + " " * 4 + error_msg
         with self.threads_lock:
             self.write_log(msg)
@@ -439,7 +434,7 @@ class Controller(object):
             if not self.directories.empty():
                 msg += " / [n]ext"
 
-            if len(self.url_list) > 1:
+            if len(self.options.url_list) > 1:
                 msg += " / [s]kip target"
 
             self.output.in_line(msg + ": ")
@@ -457,7 +452,7 @@ class Controller(object):
                 self.fuzzer.stop()
                 return
 
-            elif option.lower() == "s" and len(self.url_list) > 1:
+            elif option.lower() == "s" and len(self.options.url_list) > 1:
                 raise SkipTargetInterrupt
 
     # Monitor the fuzzing process

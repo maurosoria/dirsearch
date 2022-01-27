@@ -51,13 +51,18 @@ DEFAULT_HEADERS = {
     "Cache-Control": "max-age=0",
 }
 
-AUTHENTICATION_TYPES = ("basic", "digest", "bearer", "ntlm", "jwt")
+AUTHENTICATION_TYPES = ("basic", "digest", "bearer", "ntlm", "jwt", "oauth2")
 
 PROXY_SCHEMES = ("http://", "https://", "socks5://", "socks5h://", "socks4://", "socks4a://")
 
-EXTENSION_KEY = "%ext%"
+EXTENSION_TAG = "%ext%"
 
 MAX_REDIRECTS = 5
-MAX_THREADS = 100
+
+MAX_NUMBER_OF_THREADS = 100
+
+SOCKET_TIMEOUT = 6
 
 CHUNK_SIZE = 8192
+
+TEST_PATH_LENGTH = 6

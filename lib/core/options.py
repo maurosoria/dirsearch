@@ -18,8 +18,8 @@
 
 import sys
 
-from lib.core.settings import SCRIPT_PATH, COMMON_EXTENSIONS, OUTPUT_FORMATS, AUTHENTICATION_TYPES, MAX_THREADS
-from lib.parse.cmdline import arguments_parser
+from lib.core.settings import SCRIPT_PATH, COMMON_EXTENSIONS, OUTPUT_FORMATS, AUTHENTICATION_TYPES, MAX_NUMBER_OF_THREADS
+from lib.parse.cmdline import parse_arguments
 from lib.parse.config import ConfigParser
 from lib.parse.headers import HeadersParser
 from lib.utils.file import File, FileUtils
@@ -29,7 +29,7 @@ from lib.utils.ip import iprange
 
 class Options(object):
     def __init__(self):
-        options = self.parse_config(arguments_parser())
+        options = self.parse_config(parse_arguments())
         self.__dict__.update(options.__dict__)
 
         self.httpmethod = self.httpmethod.upper()
@@ -207,7 +207,7 @@ class Options(object):
 
         # General
         options.threads_count = options.threads_count or config.safe_getint(
-            "general", "threads", 25, set(range(1, MAX_THREADS))
+            "general", "threads", 25, set(range(1, MAX_NUMBER_OF_THREADS))
         )
         options.include_status_codes = options.include_status_codes or config.safe_get(
             "general", "include-status"

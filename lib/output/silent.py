@@ -31,13 +31,13 @@ if IS_WINDOWS:
 
 
 class Output(object):
-    def __init__(self, color):
+    def __init__(self, colors):
         self.mutex = Lock()
         self.blacklists = {}
         self.mutex_checked_paths = Lock()
         self.url = None
         self.errors = 0
-        self.colorizer = ColorOutput(color)
+        self.colorizer = ColorOutput(colors)
 
     def header(self, text):
         pass

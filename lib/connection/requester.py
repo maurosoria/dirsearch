@@ -25,7 +25,7 @@ import thirdparty.requests as requests
 
 from urllib.parse import urlparse, urljoin
 
-from lib.core.settings import PROXY_SCHEMES, MAX_REDIRECTS
+from lib.core.settings import PROXY_SCHEMES, MAX_REDIRECTS, SOCKET_TIMEOUT
 from lib.connection.exception import RequestException
 from lib.connection.response import Response
 from lib.utils.fmt import safequote
@@ -153,7 +153,7 @@ class Requester(object):
             return None
 
         s = socket.socket()
-        s.settimeout(7)
+        s.settimeout(SOCKET_TIMEOUT)
         conn = ssl.SSLContext().wrap_socket(s)
 
         try:
@@ -170,7 +170,7 @@ class Requester(object):
         self.headers[key.strip()] = value.strip() if value else value
 
     def set_auth(self, type, credential):
-        if type in ("bearer", "jwt"):
+        if type in ("bearer", "jwt", "oath2"):
             self.set_header("Authorization", "Bearer {0}".format(credential))
         else:
             user = credential.split(":")[0]
@@ -187,10 +187,10 @@ class Requester(object):
                 self.auth = HttpNtlmAuth(user, password)
 
     def request(self, path, proxy=None):
+        err_msg = None
+        simple_err_msg = None
         for _ in range(self.max_retries + 1):
             result = None
-            err_msg = None
-            simple_msg = None
             redirects = []
 
             try:
@@ -262,20 +262,16 @@ class Requester(object):
             except Exception as e:
                 err_msg = str(e)
 
-                '''
-                dirsearch prints out error message returned from test request, so if it's test request,
-                only return a simple message to print because users can't understand debug message anyway :-)
-                '''
                 if e == requests.exceptions.TooManyRedirects:
-                    simple_msg = "Too many redirects: {0}".format(self.base_url)
+                    simple_err_msg = "Too many redirects: {0}".format(self.base_url)
                 elif e == requests.exceptions.ProxyError:
-                    simple_msg = "Error with the proxy: {0}".format(proxy)
+                    simple_err_msg = "Error with the proxy: {0}".format(proxy)
                 elif e == requests.exceptions.ConnectionError:
-                    simple_msg = "Cannot connect to: {0}:{1}".format(self.host, self.port)
+                    simple_err_msg = "Cannot connect to: {0}:{1}".format(self.host, self.port)
                 elif e == requests.exceptions.InvalidURL:
-                    simple_msg = "Invalid URL: {0}".format(self.base_url)
+                    simple_err_msg = "Invalid URL: {0}".format(self.base_url)
                 elif e == requests.exceptions.InvalidProxyURL:
-                    simple_msg = "Invalid proxy URL: {0}".format(proxy)
+                    simple_err_msg = "Invalid proxy URL: {0}".format(proxy)
                 elif e in (
                     requests.exceptions.ConnectTimeout,
                     requests.exceptions.ReadTimeout,
@@ -283,14 +279,14 @@ class Requester(object):
                     http.client.IncompleteRead,
                     socket.timeout,
                 ):
-                    simple_msg = "Request timeout: {0}".format(self.base_url)
+                    simple_err_msg = "Request timeout: {0}".format(self.base_url)
                 elif e in (
                     requests.exceptions.ChunkedEncodingError,
                     requests.exceptions.StreamConsumedError,
                     requests.exceptions.UnrewindableBodyError,
                 ):
-                    simple_msg = "Failed to read response body: {0}".format(self.base_url)
+                    simple_err_msg = "Failed to read response body: {0}".format(self.base_url)
                 else:
-                    simple_msg = "There was a problem in the request to: {0}".format(self.base_url)
+                    simple_err_msg = "There was a problem in the request to: {0}".format(self.base_url)
 
-        raise RequestException(simple_msg, err_msg)
+        raise RequestException(simple_err_msg, err_msg)
