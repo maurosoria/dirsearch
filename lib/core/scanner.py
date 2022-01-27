@@ -111,7 +111,7 @@ class Scanner(object):
 
         '''
         If the path is reflected in response, decrease the ratio. Because
-        the difference between path lengths can reduce the similarity ratio
+        the difference between path lengths can affect the similarity ratio
         '''
         if first_path in first_response.content:
             if len(first_response) < 200:

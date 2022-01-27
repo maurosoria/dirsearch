@@ -32,14 +32,14 @@ if IS_WINDOWS:
                                            STDOUT)
 
 
-class CLIOutput(object):
+class Output(object):
     def __init__(self, color):
         self.last_length = 0
         self.last_output = ""
         self.last_in_line = False
         self.mutex = Lock()
         self.blacklists = {}
-        self.base_path = None
+        self.url = None
         self.errors = 0
         self.colorizer = ColorOutput(color)
 
@@ -85,7 +85,7 @@ class CLIOutput(object):
         status = response.status
         content_length = human_size(response.length)
 
-        show_path = response.url if full_url else response.path
+        show_path = self.url + response.path if full_url else response.path
 
         message = "[{0}] {1} - {2} - {3}".format(
             time.strftime("%H:%M:%S"),

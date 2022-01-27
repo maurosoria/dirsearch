@@ -31,13 +31,13 @@ class Program(object):
         options = Options()
 
         from lib.controller.controller import Controller
-        from lib.output.verbose import CLIOutput
-        from lib.output.silent import PrintOutput
 
         if options.quiet:
-            output = PrintOutput(options.color)
+            from lib.output.silent import Output
         else:
-            output = CLIOutput(options.color)
+            from lib.output.verbose import Output
+
+        output = Output(options.color)
 
         Controller(options, output)
 

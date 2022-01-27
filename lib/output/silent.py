@@ -30,12 +30,12 @@ if IS_WINDOWS:
                                            STDOUT)
 
 
-class PrintOutput(object):
+class Output(object):
     def __init__(self, color):
         self.mutex = Lock()
         self.blacklists = {}
         self.mutex_checked_paths = Lock()
-        self.base_path = None
+        self.url = None
         self.errors = 0
         self.colorizer = ColorOutput(color)
 
@@ -71,7 +71,7 @@ class PrintOutput(object):
         content_length = human_size(response.length)
 
         message = "{0} - {1} - {2}".format(
-            status, content_length.rjust(6, " "), response.url
+            status, content_length.rjust(6, " "), self.url + response.path
         )
 
         if status in (200, 201, 204):

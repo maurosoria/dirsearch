@@ -18,7 +18,7 @@
 
 import sys
 
-from lib.core.settings import SCRIPT_PATH, COMMON_EXTENSIONS, OUTPUT_FORMATS, AUTHENTICATION_TYPES
+from lib.core.settings import SCRIPT_PATH, COMMON_EXTENSIONS, OUTPUT_FORMATS, AUTHENTICATION_TYPES, MAX_THREADS
 from lib.parse.cmdline import arguments_parser
 from lib.parse.config import ConfigParser
 from lib.parse.headers import HeadersParser
@@ -151,7 +151,7 @@ class Options(object):
             print("Exclude extension list can not contain any extension that has already in the extension list")
             exit(1)
 
-        if self.output_format and self.output_format not in list(OUTPUT_FORMATS):
+        if self.output_format and self.output_format not in OUTPUT_FORMATS:
             print("Select one of the following output formats: {}".format(", ".join(OUTPUT_FORMATS)))
             exit(1)
 
@@ -207,7 +207,7 @@ class Options(object):
 
         # General
         options.threads_count = options.threads_count or config.safe_getint(
-            "general", "threads", 25, list(range(1, 300))
+            "general", "threads", 25, set(range(1, MAX_THREADS))
         )
         options.include_status_codes = options.include_status_codes or config.safe_get(
             "general", "include-status"

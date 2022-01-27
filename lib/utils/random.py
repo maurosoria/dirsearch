@@ -20,7 +20,7 @@ import random
 import string
 
 
-def rand_string(n=12, omit=None, numonly=False):
+def rand_string(n=6, omit=None, numonly=False):
     if numonly:
         seq = string.digits
     else:

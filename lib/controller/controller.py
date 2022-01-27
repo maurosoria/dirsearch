@@ -158,6 +158,8 @@ class Controller(object):
                         self.requester.request("")
                         self.write_log("Test request sent for: {}".format(self.requester.base_url))
 
+                        self.output.url = self.requester.base_url[:-1]
+
                         if options.autosave_report or options.output_file:
                             self.report = Report(self.requester.host, self.requester.port, self.requester.scheme, self.requester.base_path)
 
@@ -397,7 +399,10 @@ class Controller(object):
     # Write request to log file
     def append_log(self, path, response):
         msg = "{} {} {} {}".format(
-            self.requester.ip or "0", response.status, self.httpmethod, response.url
+            self.requester.ip or "0",
+            response.status,
+            self.httpmethod,
+            self.requester.base_url[:-1] + response.path
         )
 
         if response.redirect:
