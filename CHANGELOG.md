@@ -5,6 +5,7 @@
 - SQLite report format
 - Option to view redirects history when following redirects
 - HTTP traffic is saved inside log file
+- Capability to save progress and resume later
 
 ## [0.4.2] - 2021.9.12
 - More accurate

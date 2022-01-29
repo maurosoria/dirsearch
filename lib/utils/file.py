@@ -59,8 +59,7 @@ class File(object):
         return self.content()
 
     def get_lines(self):
-        for line in FileUtils.get_lines(self.path):
-            yield line
+        return FileUtils.get_lines(self.path)
 
     def __cmp__(self, other):
         if not isinstance(other, File):
@@ -154,8 +153,8 @@ class FileUtils(object):
             os.makedirs(directory)
 
     @staticmethod
-    def write_lines(file_name, lines):
+    def write_lines(file_name, lines, overwrite=False):
         if isinstance(lines, list):
             lines = NEW_LINE.join(lines)
-        with open(file_name, 'a') as f:
+        with open(file_name, 'w' if overwrite else 'a') as f:
             f.writelines(lines)

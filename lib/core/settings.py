@@ -58,7 +58,11 @@ DEFAULT_HEADERS = {
     "Cache-Control": "max-age=0",
 }
 
+EXCLUDED_EXPORT_VARIABLES = ("output", "threads_lock", "report", "report_manager", "requester", "fuzzer")
+
 EXTENSION_TAG = "%ext%"
+
+DEFAULT_SESSION_FILE = "session.json"
 
 MAX_REDIRECTS = 5
 

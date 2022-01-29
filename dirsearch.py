@@ -26,18 +26,18 @@ if sys.version_info < (3, 7):
 
 class Program(object):
     def __init__(self):
-        from lib.core.options import Options
+        from lib.core.options import options
 
-        options = Options()
+        options = options()
 
         from lib.controller.controller import Controller
 
-        if options.quiet:
+        if options["quiet"]:
             from lib.output.silent import Output
         else:
             from lib.output.verbose import Output
 
-        output = Output(options.color)
+        output = Output(options["color"])
 
         Controller(options, output)
 

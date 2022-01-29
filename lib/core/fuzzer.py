@@ -145,7 +145,6 @@ class Fuzzer(object):
         self.index = 0
         self.rate = 0
         self.stand_rate = 0
-        self.dictionary.reset()
         self.running_threads_count = len(self.threads)
         self.running = True
         self.paused = False
