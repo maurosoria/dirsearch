@@ -80,7 +80,7 @@ class Controller(object):
         )
 
         self.setup_reports()
-        self.output.log_file(FileUtils.get_abs_path(options["log_file"]))
+        self.output.log_file(options["log_file"])
 
         try:
             self.run()
@@ -139,6 +139,7 @@ class Controller(object):
                 self.create_dir(self.report_path)
 
         if options["log_file"]:
+            options["log_file"] = FileUtils.get_abs_path(options["log_file"])
             self.create_dir(FileUtils.parent(options["log_file"]))
 
     def _import(self, data):
@@ -263,14 +264,12 @@ class Controller(object):
             self.current_job += 1
 
             if not self.from_export or not first:
-                if first:
-                    self.output.new_line()
-
-                self.output.warning(
-                    "[{0}] Starting: {1}".format(
-                        time.strftime("%H:%M:%S"), self.current_directory
-                    )
+                msg = '\n' if first else ''
+                msg += "[{0}] Starting: {1}".format(
+                    time.strftime("%H:%M:%S"), self.current_directory
                 )
+
+                self.output.warning(msg)
 
             self.fuzzer.requester.base_path = self.requester.base_path + self.current_directory
             self.fuzzer.start()
@@ -356,6 +355,9 @@ class Controller(object):
 
     # Create and check if output directory is writable
     def create_dir(self, path):
+        if path == '/':
+            return
+
         if not FileUtils.exists(path):
             self.create_dir(FileUtils.parent(path))
         if not FileUtils.is_dir(path):

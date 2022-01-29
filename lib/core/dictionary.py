@@ -149,11 +149,11 @@ class Dictionary(object):
         )
 
         if self.lowercase:
-            self.entries = (entry.lower() for entry in uniq(result))
+            self.entries = tuple(entry.lower() for entry in uniq(result))
         elif self.uppercase:
-            self.entries = (entry.upper() for entry in uniq(result))
+            self.entries = tuple(entry.upper() for entry in uniq(result))
         elif self.capitalization:
-            self.entries = (entry.capitalize() for entry in uniq(result))
+            self.entries = tuple(entry.capitalize() for entry in uniq(result))
         else:
             self.entries = tuple(uniq(result))
 
