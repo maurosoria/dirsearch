@@ -40,7 +40,7 @@ is at <https://requests.readthedocs.io>.
 :license: Apache 2.0, see LICENSE for more details.
 """
 
-import .packages.urllib3 as urllib3
+from .packages import urllib3
 import warnings
 from .exceptions import RequestsDependencyWarning
 

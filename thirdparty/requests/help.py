@@ -7,7 +7,7 @@ import sys
 import ssl
 
 import idna
-import .packages.urllib3 as urllib3
+from .packages import urllib3
 
 from . import __version__ as requests_version
 

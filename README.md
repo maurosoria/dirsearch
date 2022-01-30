@@ -346,7 +346,7 @@ python3 dirsearch.py -e php,html,js -u https://target -w /path/to/wordlist
 ### Pausing progress
 dirsearch allows you to pause the scanning progress with CTRL+C, from here, you can save the progress (and continue later), skip the current target, or skip the current sub-directory.
 
-<img src="static/pause.png" alt="Pausing dirsearch" width="375px">
+<img src="static/pause.png" alt="Pausing dirsearch" width="475px">
 
 ----
 ### Recursive scan
