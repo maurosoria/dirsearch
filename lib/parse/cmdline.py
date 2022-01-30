@@ -28,7 +28,7 @@ def parse_arguments():
 
     # Mandatory arguments
     mandatory = OptionGroup(parser, "Mandatory")
-    mandatory.add_option("-u", "--url", action="store", dest="url", help="Target URL")
+    mandatory.add_option("-u", "--url", action="append", dest="urls", metavar="URL", help="Target URL(s), support multiple flags")
     mandatory.add_option("-l", "--url-list", action="store", dest="url_list", metavar="FILE", help="URL list file")
     mandatory.add_option("--stdin", action="store_true", dest="stdin_urls", help="Read URL(s) from STDIN")
     mandatory.add_option("--cidr", action="store", dest="cidr", help="Target CIDR")

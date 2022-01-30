@@ -1,7 +1,5 @@
 certifi>=2020.11.8
-chardet>=3.0.2
 urllib3>=1.21.1
 cryptography>=2.8
-PySocks>=1.6.8
 cffi>=1.14.0
 markupsafe>=2.0.1

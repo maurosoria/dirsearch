@@ -40,13 +40,21 @@ is at <https://requests.readthedocs.io>.
 :license: Apache 2.0, see LICENSE for more details.
 """
 
-import urllib3
-from thirdparty import chardet
+from .packages import urllib3
 import warnings
 from .exceptions import RequestsDependencyWarning
 
+try:
+    from charset_normalizer import __version__ as charset_normalizer_version
+except ImportError:
+    charset_normalizer_version = None
 
-def check_compatibility(urllib3_version, chardet_version):
+try:
+    from thirdparty.chardet import __version__ as chardet_version
+except ImportError:
+    chardet_version = None
+
+def check_compatibility(urllib3_version, chardet_version, charset_normalizer_version):
     urllib3_version = urllib3_version.split('.')
     assert urllib3_version != ['dev']  # Verify urllib3 isn't installed from git.
 
@@ -62,13 +70,19 @@ def check_compatibility(urllib3_version, chardet_version):
     assert minor >= 21
     assert minor <= 26
 
-    # Check chardet for compatibility.
-    major, minor, patch = chardet_version.split('.')[:3]
-    major, minor, patch = int(major), int(minor), int(patch)
-    # chardet >= 3.0.2, < 5.0.0
-    assert (3, 0, 2) <= (major, minor, patch) < (5, 0, 0)
-
-
+    # Check charset_normalizer for compatibility.
+    if chardet_version:
+        major, minor, patch = chardet_version.split('.')[:3]
+        major, minor, patch = int(major), int(minor), int(patch)
+        # chardet_version >= 3.0.2, < 5.0.0
+        assert (3, 0, 2) <= (major, minor, patch) < (5, 0, 0)
+    elif charset_normalizer_version:
+        major, minor, patch = charset_normalizer_version.split('.')[:3]
+        major, minor, patch = int(major), int(minor), int(patch)
+        # charset_normalizer >= 2.0.0 < 3.0.0
+        assert (2, 0, 0) <= (major, minor, patch) < (3, 0, 0)
+    else:
+        raise Exception("You need either charset_normalizer or chardet installed")
 
 def _check_cryptography(cryptography_version):
     # cryptography < 1.3.4
@@ -83,10 +97,10 @@ def _check_cryptography(cryptography_version):
 
 # Check imported dependencies for compatibility.
 try:
-    check_compatibility(urllib3.__version__, chardet.__version__)
+    check_compatibility(urllib3.__version__, chardet_version, charset_normalizer_version)
 except (AssertionError, ValueError):
-    warnings.warn("urllib3 ({}) or chardet ({}) doesn't match a supported "
-                  "version!".format(urllib3.__version__, chardet.__version__),
+    warnings.warn("urllib3 ({}) or chardet ({})/charset_normalizer ({}) doesn't match a supported "
+                  "version!".format(urllib3.__version__, chardet_version, charset_normalizer_version),
                   RequestsDependencyWarning)
 
 # Attempt to enable urllib3's fallback for SNI support
@@ -99,7 +113,7 @@ try:
         ssl = None
 
     if not getattr(ssl, "HAS_SNI", False):
-        from urllib3.contrib import pyopenssl
+        from .packages.urllib3.contrib import pyopenssl
         pyopenssl.inject_into_urllib3()
 
         # Check cryptography version
@@ -109,7 +123,7 @@ except ImportError:
     pass
 
 # urllib3's DependencyWarnings should be silenced.
-from urllib3.exceptions import DependencyWarning
+from .packages.urllib3.exceptions import DependencyWarning
 warnings.simplefilter('ignore', DependencyWarning)
 
 from .__version__ import __title__, __description__, __url__, __version__
@@ -125,7 +139,7 @@ from .status_codes import codes
 from .exceptions import (
     RequestException, Timeout, URLRequired,
     TooManyRedirects, HTTPError, ConnectionError,
-    FileModeWarning, ConnectTimeout, ReadTimeout
+    FileModeWarning, ConnectTimeout, ReadTimeout, JSONDecodeError
 )
 
 # Set default logging handler to avoid "No handler found" warnings.

@@ -9,7 +9,7 @@ import sys
 # ipaddress has been backported to 2.6+ in pypi.  If it is installed on the
 # system, use it to handle IPAddress ServerAltnames (this was added in
 # python-3.5) otherwise only do DNS matching.  This allows
-# backports.ssl_match_hostname to continue to be used in Python 2.7.
+# util.ssl_match_hostname to continue to be used in Python 2.7.
 try:
     import ipaddress
 except ImportError:
@@ -78,7 +78,8 @@ def _dnsname_match(dn, hostname, max_wildcards=1):
 
 def _to_unicode(obj):
     if isinstance(obj, str) and sys.version_info < (3,):
-        obj = unicode(obj, encoding="ascii", errors="strict")
+        # ignored flake8 # F821 to support python 2.7 function
+        obj = unicode(obj, encoding="ascii", errors="strict")  # noqa: F821
     return obj
 
 

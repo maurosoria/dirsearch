@@ -6,7 +6,9 @@ requests.exceptions
 
 This module contains the set of Requests' exceptions.
 """
-from urllib3.exceptions import HTTPError as BaseHTTPError
+from .packages.urllib3.exceptions import HTTPError as BaseHTTPError
+
+from .compat import JSONDecodeError as CompatJSONDecodeError
 
 
 class RequestException(IOError):
@@ -23,6 +25,24 @@ class RequestException(IOError):
                 hasattr(response, 'request')):
             self.request = self.response.request
         super(RequestException, self).__init__(*args, **kwargs)
+
+
+class InvalidJSONError(RequestException):
+    """A JSON error occurred."""
+
+
+class JSONDecodeError(InvalidJSONError, CompatJSONDecodeError):
+    """Couldn't decode the text into json"""
+
+    def __init__(self, *args, **kwargs):
+        """
+        Construct the JSONDecodeError instance first with all
+        args. Then use it's args to construct the IOError so that
+        the json specific args aren't used as IOError specific args
+        and the error message from JSONDecodeError is preserved.
+        """
+        CompatJSONDecodeError.__init__(self, *args)
+        InvalidJSONError.__init__(self, *self.args, **kwargs)
 
 
 class HTTPError(RequestException):
@@ -70,11 +90,11 @@ class TooManyRedirects(RequestException):
 
 
 class MissingSchema(RequestException, ValueError):
-    """The URL schema (e.g. http or https) is missing."""
+    """The URL scheme (e.g. http or https) is missing."""
 
 
 class InvalidSchema(RequestException, ValueError):
-    """See defaults.py for valid schemas."""
+    """The URL scheme provided is either invalid or unsupported."""
 
 
 class InvalidURL(RequestException, ValueError):

@@ -26,6 +26,7 @@ Table of Contents
 * [Configuration](#configuration)
 * [How to use](#how-to-use)
   * [Simple usage](#simple-usage)
+  * [Pausing progress](#pausing-progress)
   * [Recursive scan](#recursive-scan)
   * [Threads](#threads)
   * [Prefixes / Suffixes](#prefixes--suffixes)
@@ -60,8 +61,6 @@ Choose one of these installation options:
 - Install with Docker: `docker build -t "dirsearch:v0.4.1"` ([more information](https://github.com/maurosoria/dirsearch#support-docker))
 - Install with Kali Linux: `sudo apt-get install dirsearch`
 - Install with PyPi: `pip3 install dirsearch`
-
-Note: *To use SOCKS proxy feature, please install packages with **requirements.txt**: `pip3 install -r requirements.txt`*
 
 **All in one:**
 ```
@@ -342,6 +341,12 @@ python3 dirsearch.py -e php,html,js -u https://target
 ```
 python3 dirsearch.py -e php,html,js -u https://target -w /path/to/wordlist
 ```
+
+---
+### Pausing progress
+dirsearch allows you to pause the scanning progress with CTRL+C, from here, you can save the progress (and continue later), skip the current target, or skip the current sub-directory.
+
+<img src="static/pause.png" alt="Pausing dirsearch" width="475px">
 
 ----
 ### Recursive scan
