@@ -21,7 +21,6 @@ import http.client
 import random
 import socket
 import ssl
-import thirdparty.requests as requests
 
 from urllib.parse import urlparse, urljoin
 
@@ -29,6 +28,7 @@ from lib.core.settings import PROXY_SCHEMES, MAX_REDIRECTS, SOCKET_TIMEOUT
 from lib.connection.exception import RequestException
 from lib.connection.response import Response
 from lib.utils.fmt import safequote
+from thirdparty import requests
 from thirdparty.requests.adapters import HTTPAdapter
 from thirdparty.requests.auth import HTTPBasicAuth, HTTPDigestAuth
 from thirdparty.requests_ntlm import HttpNtlmAuth

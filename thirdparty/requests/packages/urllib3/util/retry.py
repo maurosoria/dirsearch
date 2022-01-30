@@ -37,7 +37,7 @@ class _RetryMeta(type):
     def DEFAULT_METHOD_WHITELIST(cls):
         warnings.warn(
             "Using 'Retry.DEFAULT_METHOD_WHITELIST' is deprecated and "
-            "will be removed in v2.0. Use 'Retry.DEFAULT_METHODS_ALLOWED' instead",
+            "will be removed in v2.0. Use 'Retry.DEFAULT_ALLOWED_METHODS' instead",
             DeprecationWarning,
         )
         return cls.DEFAULT_ALLOWED_METHODS
@@ -68,6 +68,24 @@ class _RetryMeta(type):
             DeprecationWarning,
         )
         cls.DEFAULT_REMOVE_HEADERS_ON_REDIRECT = value
+
+    @property
+    def BACKOFF_MAX(cls):
+        warnings.warn(
+            "Using 'Retry.BACKOFF_MAX' is deprecated and "
+            "will be removed in v2.0. Use 'Retry.DEFAULT_BACKOFF_MAX' instead",
+            DeprecationWarning,
+        )
+        return cls.DEFAULT_BACKOFF_MAX
+
+    @BACKOFF_MAX.setter
+    def BACKOFF_MAX(cls, value):
+        warnings.warn(
+            "Using 'Retry.BACKOFF_MAX' is deprecated and "
+            "will be removed in v2.0. Use 'Retry.DEFAULT_BACKOFF_MAX' instead",
+            DeprecationWarning,
+        )
+        cls.DEFAULT_BACKOFF_MAX = value
 
 
 @six.add_metaclass(_RetryMeta)
@@ -181,7 +199,7 @@ class Retry(object):
 
         seconds. If the backoff_factor is 0.1, then :func:`.sleep` will sleep
         for [0.0s, 0.2s, 0.4s, ...] between retries. It will never be longer
-        than :attr:`Retry.BACKOFF_MAX`.
+        than :attr:`Retry.DEFAULT_BACKOFF_MAX`.
 
         By default, backoff is disabled (set to 0).
 
@@ -220,7 +238,7 @@ class Retry(object):
     DEFAULT_REMOVE_HEADERS_ON_REDIRECT = frozenset(["Authorization"])
 
     #: Maximum backoff time.
-    BACKOFF_MAX = 120
+    DEFAULT_BACKOFF_MAX = 120
 
     def __init__(
         self,
@@ -253,6 +271,7 @@ class Retry(object):
                 "Using 'method_whitelist' with Retry is deprecated and "
                 "will be removed in v2.0. Use 'allowed_methods' instead",
                 DeprecationWarning,
+                stacklevel=2,
             )
             allowed_methods = method_whitelist
         if allowed_methods is _Default:
@@ -320,7 +339,7 @@ class Retry(object):
 
     @classmethod
     def from_int(cls, retries, redirect=True, default=None):
-        """ Backwards-compatibility for the old retries format."""
+        """Backwards-compatibility for the old retries format."""
         if retries is None:
             retries = default if default is not None else cls.DEFAULT
 
@@ -347,7 +366,7 @@ class Retry(object):
             return 0
 
         backoff_value = self.backoff_factor * (2 ** (consecutive_errors_len - 1))
-        return min(self.BACKOFF_MAX, backoff_value)
+        return min(self.DEFAULT_BACKOFF_MAX, backoff_value)
 
     def parse_retry_after(self, retry_after):
         # Whitespace: https://tools.ietf.org/html/rfc7230#section-3.2.4
@@ -373,7 +392,7 @@ class Retry(object):
         return seconds
 
     def get_retry_after(self, response):
-        """ Get the value of Retry-After in seconds. """
+        """Get the value of Retry-After in seconds."""
 
         retry_after = response.getheader("Retry-After")
 
@@ -467,7 +486,7 @@ class Retry(object):
         )
 
     def is_exhausted(self):
-        """ Are we out of retries? """
+        """Are we out of retries?"""
         retry_counts = (
             self.total,
             self.connect,

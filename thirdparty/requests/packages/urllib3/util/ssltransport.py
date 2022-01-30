@@ -2,8 +2,8 @@ import io
 import socket
 import ssl
 
-from urllib3.exceptions import ProxySchemeUnsupported
-from urllib3.packages import six
+from ..exceptions import ProxySchemeUnsupported
+from ..packages import six
 
 SSL_BLOCKSIZE = 16384
 
@@ -193,7 +193,7 @@ class SSLTransport:
                 raise
 
     def _ssl_io_loop(self, func, *args):
-        """ Performs an I/O loop between incoming/outgoing and the socket."""
+        """Performs an I/O loop between incoming/outgoing and the socket."""
         should_loop = True
         ret = None
 
