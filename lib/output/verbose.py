@@ -88,7 +88,7 @@ class Output(object):
     def status_report(self, response, full_url, added_to_queue):
         status = response.status
         content_length = human_size(response.length)
-        show_path = self.url + response.path if full_url else response.path
+        show_path = self.url + response.full_path if full_url else response.full_path
         message = "[{0}] {1} - {2} - {3}".format(
             time.strftime("%H:%M:%S"),
             status,

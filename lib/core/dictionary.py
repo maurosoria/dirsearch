@@ -105,6 +105,9 @@ class Dictionary(object):
                 if line.startswith("/"):
                     line = line[1:]
 
+                if not line:
+                    continue
+
                 if self._no_extension:
                     line = line[0] + line[1:].split(".")[0]
                     # Skip dummy paths

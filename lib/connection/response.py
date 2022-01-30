@@ -24,6 +24,7 @@ from lib.core.settings import CHUNK_SIZE, DEFAULT_ENCODING
 class Response(object):
     def __init__(self, response, redirects):
         self.path = urlparse(response.url).path
+        self.full_path = '/'.join(response.url.split('/')[3:])
         self.status = response.status_code
         self.headers = response.headers
         self.history = redirects

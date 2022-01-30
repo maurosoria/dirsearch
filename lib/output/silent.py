@@ -35,7 +35,6 @@ class Output(object):
         self.buffer = ''
         self.mutex = Lock()
         self.blacklists = {}
-        self.mutex_checked_paths = Lock()
         self.url = None
         self.errors = 0
         self.colorizer = ColorOutput(colors)
@@ -74,7 +73,7 @@ class Output(object):
         status = response.status
         content_length = human_size(response.length)
         message = "{0} - {1} - {2}".format(
-            status, content_length.rjust(6, ' '), self.url + response.path
+            status, content_length.rjust(6, ' '), self.url + response.full_path
         )
 
         if status in (200, 201, 204):

@@ -170,11 +170,11 @@ class Controller(object):
         while not self.url_list.empty():
             try:
                 self.skip = None
-                self.url = self.url_list.get()
+                url = self.url_list.get()
 
                 try:
                     self.requester = Requester(
-                        self.url + ('' if self.url.endswith('/') else '/'),
+                        url + ('' if url.endswith('/') else '/'),
                         max_pool=self.options["threads_count"],
                         max_retries=self.options["max_retries"],
                         timeout=self.options["timeout"],
@@ -188,6 +188,7 @@ class Controller(object):
                         scheme=self.options["scheme"],
                         random_agents=self.random_agents,
                     )
+                    self.url = self.requester.base_url + self.requester.base_path
 
                     for key, value in self.options["headers"].items():
                         self.requester.set_header(key, value)
@@ -199,7 +200,7 @@ class Controller(object):
                         # Rewrite the output from the last scan
                         print(self.last_output)
                     else:
-                        self.output.set_target(self.requester.base_url + self.requester.base_path)
+                        self.output.set_target(self.url)
 
                     self.requester.setup()
 
@@ -473,7 +474,7 @@ class Controller(object):
 
     # Write error to log file
     def append_error_log(self, path, error_msg):
-        url = self.requester.base_url + self.requester.base_path + self.current_directory + path
+        url = self.url + self.current_directory + path
         msg = "ERROR: {} {}".format(self.options["httpmethod"], url)
         msg += NEW_LINE + ' ' * 4 + error_msg
         with self.threads_lock:
