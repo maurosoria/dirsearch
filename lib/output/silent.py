@@ -32,9 +32,9 @@ if IS_WINDOWS:
 
 class Output(object):
     def __init__(self, colors):
+        self.buffer = ''
         self.mutex = Lock()
         self.blacklists = {}
-        self.mutex_checked_paths = Lock()
         self.url = None
         self.errors = 0
         self.colorizer = ColorOutput(colors)
@@ -63,32 +63,29 @@ class Output(object):
             sys.stdout.write("\033[0G")
 
     def new_line(self, string=''):
+        self.buffer += string
+        self.buffer += '\n'
+
         sys.stdout.write(string + '\n')
         sys.stdout.flush()
 
     def status_report(self, response, full_url, added_to_queue):
         status = response.status
         content_length = human_size(response.length)
-
         message = "{0} - {1} - {2}".format(
-            status, content_length.rjust(6, ' '), self.url + response.path
+            status, content_length.rjust(6, ' '), self.url + response.full_path
         )
 
         if status in (200, 201, 204):
             message = self.colorizer.color(message, fore="green")
-
         elif status == 401:
             message = self.colorizer.color(message, fore="yellow")
-
         elif status == 403:
             message = self.colorizer.color(message, fore="blue")
-
         elif status in range(500, 600):
             message = self.colorizer.color(message, fore="red")
-
         elif status in range(300, 400):
             message = self.colorizer.color(message, fore="cyan")
-
         else:
             message = self.colorizer.color(message, fore="magenta")
 
@@ -96,6 +93,7 @@ class Output(object):
             message += "  ->  {0}".format(response.redirect)
         if added_to_queue:
             message += "     (Added to queue)"
+
         for redirect in response.history:
             message += "\n-->  {0}".format(redirect)
 
@@ -115,7 +113,7 @@ class Output(object):
 
             self.new_line(message)
 
-    def warning(self, reason):
+    def warning(self, reason, save=True):
         pass
 
     def config(
@@ -138,6 +136,5 @@ class Output(object):
     def log_file(self, target):
         pass
 
-    def debug(self, info):
-        with self.mutex:
-            self.new_line(info)
+    def export(self):
+        return self.buffer.rstrip()

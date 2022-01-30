@@ -35,8 +35,8 @@ if IS_WINDOWS:
 class Output(object):
     def __init__(self, colors):
         self.last_length = 0
-        self.last_output = ''
         self.last_in_line = False
+        self.buffer = ''
         self.mutex = Lock()
         self.blacklists = {}
         self.url = None
@@ -64,7 +64,11 @@ class Output(object):
             sys.stdout.write("\033[1K")
             sys.stdout.write("\033[0G")
 
-    def new_line(self, string=''):
+    def new_line(self, string='', save=True):
+        if save:
+            self.buffer += string
+            self.buffer += '\n'
+
         if self.last_in_line:
             self.erase()
 
@@ -84,9 +88,7 @@ class Output(object):
     def status_report(self, response, full_url, added_to_queue):
         status = response.status
         content_length = human_size(response.length)
-
-        show_path = self.url + response.path if full_url else response.path
-
+        show_path = self.url + response.full_path if full_url else response.full_path
         message = "[{0}] {1} - {2} - {3}".format(
             time.strftime("%H:%M:%S"),
             status,
@@ -96,19 +98,14 @@ class Output(object):
 
         if status in (200, 201, 204):
             message = self.colorizer.color(message, fore="green")
-
         elif status == 401:
             message = self.colorizer.color(message, fore="yellow")
-
         elif status == 403:
             message = self.colorizer.color(message, fore="blue")
-
         elif status in range(500, 600):
             message = self.colorizer.color(message, fore="red")
-
         elif status in range(300, 400):
             message = self.colorizer.color(message, fore="cyan")
-
         else:
             message = self.colorizer.color(message, fore="magenta")
 
@@ -116,6 +113,7 @@ class Output(object):
             message += "  ->  {0}".format(response.redirect)
         if added_to_queue:
             message += "     (Added to queue)"
+
         for redirect in response.history:
             message += "\n-->  {0}".format(redirect)
 
@@ -141,7 +139,7 @@ class Output(object):
 
         progress_bar = "[{0}] {1}% {2} {3}/s       {4} {5}".format(
             task,
-            percentage,
+            str(percentage).rjust(2, ' '),
             progress.rjust(12, ' '),
             str(rate).rjust(9, ' '),
             jobs.ljust(21, ' '),
@@ -164,16 +162,16 @@ class Output(object):
 
             self.new_line('\n' + message)
 
-    def warning(self, message):
+    def warning(self, message, save=True):
         with self.mutex:
             message = self.colorizer.color(message, fore="yellow", bright=True)
-            self.new_line(message)
+            self.new_line(message, save=save)
 
     def header(self, message):
         message = self.colorizer.color(message, fore="magenta", bright=True)
-        self.new_line(message)
+        self.new_line(message, save=False)
 
-    def print_header(self, entries):
+    def print_header(self, entries, save=False):
         msg = ''
 
         for key, value in entries.items():
@@ -193,7 +191,7 @@ class Output(object):
 
             msg += new
 
-        self.new_line(msg)
+        self.new_line(msg, save=save)
 
     def config(
         self,
@@ -222,15 +220,13 @@ class Output(object):
     def set_target(self, target):
         self.target = target
         self.new_line()
-        self.print_header({"Target": target})
+        self.print_header({"Target": target}, save=True)
 
     def output_file(self, target):
-        self.new_line("\nOutput File: {0}".format(target))
+        self.new_line("\nOutput File: {0}".format(target), save=False)
 
     def log_file(self, target):
-        self.new_line("\nLog File: {0}".format(target))
+        self.new_line("\nLog File: {0}".format(target), save=False)
 
-    def debug(self, info):
-        with self.mutex:
-            line = "[{0}] - {1}".format(time.strftime("%H:%M:%S"), info)
-            self.new_line(line)
+    def export(self):
+        return self.buffer.rstrip()

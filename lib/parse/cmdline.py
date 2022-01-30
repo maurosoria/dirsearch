@@ -34,6 +34,7 @@ def parse_arguments():
     mandatory.add_option("--cidr", action="store", dest="cidr", help="Target CIDR")
     mandatory.add_option("--raw", action="store", dest="raw_file", metavar="FILE",
                          help="Load raw HTTP request from file (use `--scheme` flag to set the scheme)")
+    mandatory.add_option("-s", "--session", action="store", dest="session_file", help="Session file")
     mandatory.add_option("-e", "--extensions", action="store", dest="extensions",
                          help="Extension list separated by commas (Example: php,asp)")
     mandatory.add_option("-X", "--exclude-extensions", action="store", dest="exclude_extensions", metavar="EXTENSIONS",
@@ -125,10 +126,10 @@ def parse_arguments():
     # Connection Settings
     connection = OptionGroup(parser, "Connection Settings")
     connection.add_option("--timeout", action="store", type="float", dest="timeout", help="Connection timeout")
-    connection.add_option("-s", "--delay", action="store", type="float", dest="delay", help="Delay between requests")
+    connection.add_option("--delay", action="store", type="float", dest="delay", help="Delay between requests")
     connection.add_option("--proxy", action="store", dest="proxy", metavar="PROXY",
                           help="Proxy URL, support HTTP and SOCKS proxies (Example: localhost:8080, socks5://localhost:8088)")
-    connection.add_option("--proxy-list", action="store", type="string", dest="proxy_list",
+    connection.add_option("--proxy-list", action="store", type="string", dest="proxylist",
                           help="File contains proxy servers", metavar="FILE")
     connection.add_option("--replay-proxy", action="store", dest="replay_proxy", metavar="PROXY",
                           help="Proxy to replay with found paths")

@@ -28,8 +28,8 @@ class Dictionary(object):
 
     def __init__(
         self,
-        paths,
-        extensions,
+        paths=[],
+        extensions=[],
         suffixes=[],
         prefixes=[],
         lowercase=False,
@@ -42,7 +42,7 @@ class Dictionary(object):
     ):
 
         self.entries = ()
-        self.current_index = 0
+        self.index = 0
         self.condition = threading.Lock()
         self._extensions = extensions
         self._exclude_extensions = exclude_extensions
@@ -55,7 +55,7 @@ class Dictionary(object):
         self.lowercase = lowercase
         self.uppercase = uppercase
         self.capitalization = capitalization
-        self.dictionary_files = [File(path) for path in self.paths]
+        self.dictionary_files = (File(path) for path in self.paths)
         self.generate()
 
     @property
@@ -105,6 +105,9 @@ class Dictionary(object):
                 if line.startswith("/"):
                     line = line[1:]
 
+                if not line:
+                    continue
+
                 if self._no_extension:
                     line = line[0] + line[1:].split(".")[0]
                     # Skip dummy paths
@@ -149,11 +152,11 @@ class Dictionary(object):
         )
 
         if self.lowercase:
-            self.entries = (entry.lower() for entry in uniq(result))
+            self.entries = tuple(entry.lower() for entry in uniq(result))
         elif self.uppercase:
-            self.entries = (entry.upper() for entry in uniq(result))
+            self.entries = tuple(entry.upper() for entry in uniq(result))
         elif self.capitalization:
-            self.entries = (entry.capitalize() for entry in uniq(result))
+            self.entries = tuple(entry.capitalize() for entry in uniq(result))
         else:
             self.entries = tuple(uniq(result))
 
@@ -179,32 +182,30 @@ class Dictionary(object):
 
         return blacklists
 
-    def next_with_index(self, base_path=None):
+    def reset(self):
+        self.condition.acquire()
+        self.index = 0
+        self.condition.release()
+
+    def export(self):
+        return self.entries, self.index
+
+    def __next__(self):
         self.condition.acquire()
 
         try:
-            result = self.entries[self.current_index]
-
+            path = self.entries[self.index]
         except IndexError:
             self.condition.release()
             raise StopIteration
 
-        self.current_index = self.current_index + 1
-        current_index = self.current_index
+        self.index += 1
         self.condition.release()
-        return current_index, result
 
-    def reset(self):
-        self.condition.acquire()
-        self.current_index = 0
-        self.condition.release()
+        return safequote(path)
 
     def __iter__(self):
         return iter(self.entries)
-
-    def __next__(self, base_path=None):
-        _, path = self.next_with_index(base_path)
-        return safequote(path)
 
     def __len__(self):
         return len(self.entries)

@@ -24,8 +24,11 @@ jobs:
         pip install codespell flake8 -r requirements.txt
     - name: Test
       run: |
-        echo index.html > tmp
-        python3 dirsearch.py -u https://example.com --subdirs /,a/ -o tmp.txt --format json -r -w tmp -q -f -e html
+        echo index.%EXT% > tmp_wordlist.txt
+        echo testphp.vulnweb.com > tmp_targets.txt
+        python3 dirsearch.py -u https://example.com -o tmp_report.txt --format json --force-recursive -R 3 --full-url -w tmp_wordlist.txt
+        python3 dirsearch.py -l tmp_targets.txt --subdirs /,admin/ -X conf -q -L -f -i 200 --user-agent a --log tmp_log.txt -w tmp_wordlist.txt
+        echo example.com | python3 dirsearch.py --stdin --max-time 9 --random-agent --auth u:p --auth-type basic --scheme http -w tmp_wordlist.txt
     - name: Lint
       run: |
         flake8 . --exclude=thirdparty --count --ignore=F403,F405,E501,E701 --show-source --statistics
