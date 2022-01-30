@@ -55,7 +55,7 @@ class EmptyReport:
 
 class Controller(object):
     def __init__(self, options, output):
-        self.url_list = Queue()
+        self.targets = Queue()
         self.directories = Queue()
         self.threads_lock = threading.Lock()
         self.report_manager = EmptyReportManager()
@@ -89,12 +89,11 @@ class Controller(object):
 
     def setup(self, options):
         self.options = options
-        self.url_list.queue = deque(options["url_list"])
         self.pass_dirs = ['']
 
         if options["raw_file"]:
             self.options.update(
-                zip(["url_list", "httpmethod", "headers", "data"], parse_raw(options["raw_file"]))
+                zip(["urls", "httpmethod", "headers", "data"], parse_raw(options["raw_file"]))
             )
         else:
             self.options["headers"] = {**DEFAULT_HEADERS, **options["headers"]}
@@ -109,6 +108,7 @@ class Controller(object):
                 FileUtils.build_path(SCRIPT_PATH, "db", "user-agents.txt")
             )
 
+        self.targets.queue = deque(options["urls"])
         self.blacklists = Dictionary.generate_blacklists(options["extensions"])
         self.dictionary = Dictionary(
             paths=options["wordlist"],
@@ -129,7 +129,7 @@ class Controller(object):
         self.batch_session = None
         self.exit = None
         self.start_time = time.time()
-        self.jobs_count = len(options["url_list"]) * (
+        self.jobs_count = self.targets.qsize() * (
             len(options["scan_subdirs"]) if options["scan_subdirs"] else 1
         )
 
@@ -144,7 +144,7 @@ class Controller(object):
 
     def _import(self, data):
         export = ast.literal_eval(data)
-        self.url_list.queue = deque(export["url_list"])
+        self.targets.queue = deque(export["targets"])
         self.directories.queue = deque(export["directories"])
         self.dictionary = Dictionary()
         self.dictionary.entries = export["dictionary"]
@@ -152,10 +152,11 @@ class Controller(object):
         self.__dict__ = {**export, **self.__dict__}
 
     def _export(self, session_file):
-        self.url_list.queue.insert(0, self.url)
+        self.targets.queue.insert(0, self.url)
         self.directories.queue.insert(0, self.current_directory)
 
-        for item in ("url_list", "directories"):
+        # Queue() objects, convert them to list
+        for item in ("targets", "directories"):
             self.__dict__[item] = list(self.__dict__[item].queue)
 
         self.dictionary, self.dictionary_index = self.dictionary.export()
@@ -167,10 +168,10 @@ class Controller(object):
         FileUtils.write_lines(session_file, str(data), overwrite=True)
 
     def run(self):
-        while not self.url_list.empty():
+        while not self.targets.empty():
             try:
                 self.skip = None
-                url = self.url_list.get()
+                url = self.targets.get()
 
                 try:
                     self.requester = Requester(
@@ -312,13 +313,13 @@ class Controller(object):
             output_file = FileUtils.get_abs_path(self.options["output_file"])
             self.output.output_file(output_file)
         else:
-            if self.url_list.qsize() > 1:
+            if self.targets.qsize() > 1:
                 self.setup_batch_reports()
                 filename = "BATCH"
                 filename += self.get_output_extension()
                 directory_path = self.batch_directory_path
             else:
-                parsed = urlparse(self.url_list.queue[0])
+                parsed = urlparse(self.targets.queue[0])
                 filename = (
                     "{}_".format(parsed.path)
                 )
@@ -499,7 +500,7 @@ class Controller(object):
             if not self.directories.empty():
                 msg += " / [n]ext"
 
-            if not self.url_list.empty():
+            if not self.targets.empty():
                 msg += " / [s]kip target"
 
             self.output.in_line(msg + ": ")
@@ -528,7 +529,7 @@ class Controller(object):
             elif option.lower() == 'n' and not self.directories.empty():
                 self.fuzzer.stop()
                 return
-            elif option.lower() == 's' and not self.url_list.empty():
+            elif option.lower() == 's' and not self.targets.empty():
                 raise SkipTargetInterrupt
 
     # Monitor the fuzzing process

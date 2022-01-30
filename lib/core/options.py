@@ -34,23 +34,20 @@ def options():
         return vars(opt)
 
     opt.httpmethod = opt.httpmethod.upper()
-    url_list = []
 
-    if opt.url:
-        url_list = [opt.url]
-    elif opt.url_list:
+    if opt.url_list:
         file = access_file(opt.url_list, "file contains URLs")
-        url_list = file.get_lines()
+        opt.urls = file.get_lines()
     elif opt.cidr:
-        url_list = iprange(opt.cidr)
+        opt.urls = iprange(opt.cidr)
     elif opt.stdin_urls:
-        url_list = sys.stdin.read().splitlines(0)
+        opt.urls = sys.stdin.read().splitlines(0)
 
-    opt.url_list = uniq(url_list)
+    opt.urls = uniq(opt.urls)
 
     if opt.raw_file:
         access_file(opt.raw_file, "file with raw request")
-    elif not len(opt.url_list):
+    elif not len(opt.urls):
         print("URL target is missing, try using -u <url>")
         exit(1)
 
