@@ -23,7 +23,7 @@ from lib.core.settings import SOCKET_TIMEOUT
 
 
 def detect_scheme(host, port):
-    if not port in range(1, 65536):
+    if port not in range(1, 65536):
         return None
 
     s = socket.socket()
