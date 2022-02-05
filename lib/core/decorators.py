@@ -18,8 +18,8 @@
 
 import threading
 
-
 _lock = threading.Lock()
+
 
 def locked(func):
     def with_locking(*args, **kwargs):

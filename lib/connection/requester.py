@@ -35,8 +35,8 @@ from thirdparty.requests_ntlm import HttpNtlmAuth
 
 # Disable InsecureRequestWarning from urllib3
 disable_warnings()
-#Add support for all cipher suites
-requests.packages.urllib3.util.ssl_.DEFAULT_CIPHERS='ALL'
+# Add support for all cipher suites
+requests.packages.urllib3.util.ssl_.DEFAULT_CIPHERS = "ALL"
 
 
 # I was forced to make this because of https://github.com/psf/requests/issues/3829
