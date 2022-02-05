@@ -16,6 +16,7 @@
 #
 #  Author: Mauro Soria
 
+from functools import cached_property
 from urllib.parse import urlparse
 
 from lib.core.settings import CHUNK_SIZE, DEFAULT_ENCODING
@@ -27,6 +28,7 @@ class Response(object):
         self.full_path = '/' + '/'.join(response.url.split('/')[3:])
         self.status = response.status_code
         self.headers = response.headers
+        self.redirect = self.headers.get("location")
         self.history = redirects
         self.body = b''
 
@@ -47,11 +49,7 @@ class Response(object):
     def __hash__(self):
         return hash(self.body)
 
-    @property
-    def redirect(self):
-        return self.headers.get("location")
-
-    @property
+    @cached_property
     def length(self):
         if "content-length" in dict(self.headers):
             return int(self.headers.get("content-length"))

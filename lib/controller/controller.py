@@ -30,6 +30,7 @@ from lib.connection.exception import RequestException
 from lib.controller.exception import SkipTargetInterrupt
 from lib.core.dictionary import Dictionary
 from lib.core.fuzzer import Fuzzer
+from lib.core.logger import log
 from lib.core.report_manager import Report, ReportManager
 from lib.core.settings import SCRIPT_PATH, BANNER, NEW_LINE, DEFAULT_HEADERS, EXCLUDED_EXPORT_VARIABLES, DEFAULT_SESSION_FILE
 from lib.parse.raw import parse_raw
@@ -37,29 +38,11 @@ from lib.utils.file import FileUtils
 from lib.utils.fmt import get_valid_filename, human_size
 
 
-class EmptyReportManager:
-    def __init__(self):
-        pass
-
-    def update_report(self, *args):
-        pass
-
-
-class EmptyReport:
-    def __init__(self):
-        pass
-
-    def add_result(self, *args):
-        pass
-
-
 class Controller(object):
     def __init__(self, options, output):
         self.targets = Queue()
         self.directories = Queue()
         self.threads_lock = threading.Lock()
-        self.report_manager = EmptyReportManager()
-        self.report = EmptyReport()
         self.output = output
 
         if options["session_file"]:
@@ -68,6 +51,24 @@ class Controller(object):
         else:
             self.setup(options)
             self.from_export = False
+
+        if not self.options["autosave_report"] and not self.options["output_file"]:
+            global Report
+            global ReportManager
+
+            class Report:
+                def __init__(*args):
+                    pass
+
+                def add_result(*args):
+                    pass
+
+            class ReportManager:
+                def __init__(*args):
+                    pass
+
+                def update_report(*args):
+                    pass
 
         self.output.header(BANNER)
         self.output.config(
@@ -80,7 +81,7 @@ class Controller(object):
         )
 
         self.setup_reports()
-        self.output.log_file(options["log_file"])
+        self.output.log_file(self.options["log_file"])
 
         try:
             self.run()
@@ -97,12 +98,14 @@ class Controller(object):
             )
         else:
             self.options["headers"] = {**DEFAULT_HEADERS, **options["headers"]}
+
             if options["cookie"]:
                 self.options["headers"]["Cookie"] = options["cookie"]
             if options["useragent"]:
                 self.options["headers"]["User-Agent"] = options["useragent"]
 
         self.random_agents = None
+
         if options["use_random_agents"]:
             self.random_agents = FileUtils.get_lines(
                 FileUtils.build_path(SCRIPT_PATH, "db", "user-agents.txt")
@@ -123,31 +126,30 @@ class Controller(object):
             no_extension=options["no_extension"],
             only_selected=options["only_selected"]
         )
-
         self.current_job = 0
         self.batch = False
         self.batch_session = None
         self.exit = None
+        self.report = None
         self.start_time = time.time()
         self.jobs_count = self.targets.qsize() * (
             len(options["scan_subdirs"]) if options["scan_subdirs"] else 1
         )
 
-        if options["autosave_report"] or options["output_file"]:
-            if options["autosave_report"]:
-                self.report_path = options["output_location"] or FileUtils.build_path(SCRIPT_PATH, "reports")
-                self.create_dir(self.report_path)
+        if options["autosave_report"]:
+            self.report_path = options["output_location"] or FileUtils.build_path(SCRIPT_PATH, "reports")
+            self.create_dir(self.report_path)
 
         if options["log_file"]:
-            options["log_file"] = FileUtils.get_abs_path(options["log_file"])
-            self.create_dir(FileUtils.parent(options["log_file"]))
+            self.options["log_file"] = FileUtils.get_abs_path(options["log_file"])
+            self.create_dir(FileUtils.parent(self.options["log_file"]))
 
     def _import(self, data):
         export = ast.literal_eval(data)
         self.targets.queue = deque(export["targets"])
         self.directories.queue = deque(export["directories"])
         self.dictionary = Dictionary()
-        self.dictionary.entries = export["dictionary"]
+        self.dictionary.entries = export["dictionary_items"]
         self.dictionary.index = export["dictionary_index"]
         self.__dict__ = {**export, **self.__dict__}
 
@@ -159,8 +161,9 @@ class Controller(object):
         for item in ("targets", "directories"):
             self.__dict__[item] = list(self.__dict__[item].queue)
 
-        self.dictionary, self.dictionary_index = self.dictionary.export()
-        self.last_output = self.output.export()
+        self.dictionary_items = self.dictionary.entries
+        self.dictionary_index = self.dictionary.index
+        self.last_output = self.output.buffer.rstrip()
         self.current_job -= 1
 
         data = {k: v for k, v in self.__dict__.items() if k not in EXCLUDED_EXPORT_VARIABLES}
@@ -207,25 +210,24 @@ class Controller(object):
 
                     # Test request to check if server is up
                     self.requester.request('')
-                    self.write_log("Test request sent for: {}".format(self.requester.base_url))
+                    log(self.options["log_file"], "info", "Test request sent for: {}".format(self.requester.base_url))
 
                     self.output.url = self.requester.base_url[:-1]
-
-                    if self.options["autosave_report"] or self.options["output_file"]:
-                        self.report = Report(
-                            self.requester.host, self.requester.port, self.requester.scheme, self.requester.base_path
-                        )
+                    self.report = Report(
+                        self.requester.host, self.requester.port, self.requester.scheme, self.requester.base_path
+                    )
 
                 except RequestException as e:
                     self.output.error(e.args[0])
+                    self.append_error_log('', e.args[1])
                     raise SkipTargetInterrupt
 
                 if self.directories.empty():
                     self.directories.queue = deque(self.options["scan_subdirs"])
                     self.pass_dirs.extend(self.options["scan_subdirs"])
 
-                match_callbacks = (self.match_callback, self.append_log)
-                not_found_callbacks = (self.not_found_callback, self.append_log)
+                match_callbacks = (self.match_callback, self.append_traffic_log)
+                not_found_callbacks = (self.not_found_callback, self.append_traffic_log)
                 error_callbacks = (self.error_callback, self.append_error_log)
                 self.fuzzer = Fuzzer(
                     self.requester,
@@ -245,13 +247,17 @@ class Controller(object):
                     self.start()
                 except RequestException as e:
                     self.output.error(e.args[0])
+                    self.append_error_log('', e.args[1])
                     raise SkipTargetInterrupt
 
             except SkipTargetInterrupt:
                 self.jobs_count -= self.directories.qsize()
                 self.directories = Queue()
-                self.report.completed = True
                 self.dictionary.reset()
+
+                if self.report:
+                    self.report.completed = True
+
                 continue
 
         self.output.warning("\nTask Completed")
@@ -312,7 +318,7 @@ class Controller(object):
         if self.options["output_file"]:
             output_file = FileUtils.get_abs_path(self.options["output_file"])
             self.output.output_file(output_file)
-        else:
+        elif self.options["autosave_report"]:
             if self.targets.qsize() > 1:
                 self.setup_batch_reports()
                 filename = "BATCH"
@@ -449,16 +455,8 @@ class Controller(object):
 
         self.output.add_connection_error()
 
-    def write_log(self, msg):
-        if not self.options["log_file"]:
-            return
-
-        line = time.strftime("[%y-%m-%d %H:%M:%S] ")
-        line += msg + NEW_LINE
-        FileUtils.write_lines(self.options["log_file"], line)
-
     # Write request to log file
-    def append_log(self, path, response):
+    def append_traffic_log(self, path, response):
         msg = "{} {} {} {}".format(
             self.requester.ip or "0",
             response.status,
@@ -471,15 +469,16 @@ class Controller(object):
         msg += " (LENGTH: {})".format(response.length)
 
         with self.threads_lock:
-            self.write_log(msg)
+            log(self.options["log_file"], "traffic", msg)
 
     # Write error to log file
     def append_error_log(self, path, error_msg):
         url = self.url + self.current_directory + path
-        msg = "ERROR: {} {}".format(self.options["httpmethod"], url)
-        msg += NEW_LINE + ' ' * 4 + error_msg
+        msg = "{} {}".format(self.options["httpmethod"], url)
+        msg += NEW_LINE + ' ' * 4
+        msg += error_msg
         with self.threads_lock:
-            self.write_log(msg)
+            log(self.options["log_file"], "error", msg)
 
     # Handle CTRL+C
     def handle_pause(self):
@@ -532,12 +531,15 @@ class Controller(object):
             elif option.lower() == 's' and not self.targets.empty():
                 raise SkipTargetInterrupt
 
+    def is_timed_out(self):
+        return time.time() - self.start_time > self.options["maxtime"] != 0
+
     # Monitor the fuzzing process
     def process(self):
         while 1:
             try:
                 while not self.fuzzer.wait(0.3):
-                    if time.time() - self.start_time > self.options["maxtime"] != 0:
+                    if self.is_timed_out():
                         self.skip = "Canceled because the runtime exceeded the maximum set by user"
 
                     if self.skip:

@@ -135,6 +135,3 @@ class Output(object):
 
     def log_file(self, target):
         pass
-
-    def export(self):
-        return self.buffer.rstrip()

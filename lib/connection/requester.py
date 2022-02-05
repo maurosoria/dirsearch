@@ -31,17 +31,28 @@ from thirdparty import requests
 from thirdparty.requests.adapters import HTTPAdapter
 from thirdparty.requests.auth import HTTPBasicAuth, HTTPDigestAuth
 from thirdparty.requests.packages.urllib3 import disable_warnings
+from thirdparty.requests.packages.urllib3.contrib import pyopenssl
 from thirdparty.requests_ntlm import HttpNtlmAuth
 
 # Disable InsecureRequestWarning from urllib3
 disable_warnings()
+#Exclude use of pyopenssl (pyopenssl module may need to be installed first $pip install pyopenssl)
+pyopenssl.extract_from_urllib3()
+#Add support for all cipher suites
+requests.packages.urllib3.util.ssl_.DEFAULT_CIPHERS='ALL'
+
+
+# I was forced to make this because of https://github.com/psf/requests/issues/3829
+class Session(requests.Session):
+    def merge_environment_settings(self, url, proxies, stream, verify, *args, **kwargs):
+        return super(Session, self).merge_environment_settings(url, proxies, stream, self.verify, *args, **kwargs)
 
 
 class Requester(object):
     def __init__(
         self,
         url,
-        max_pool=1,
+        max_pool=100,
         max_retries=5,
         timeout=20,
         ip=None,
@@ -56,6 +67,7 @@ class Requester(object):
     ):
         self.httpmethod = httpmethod
         self.data = data
+        self.max_pool = max_pool
         self.headers = {}
 
         parsed = urlparse(url)
@@ -70,12 +82,18 @@ class Requester(object):
 
         # Safe quote all special characters in base_path to prevent from being encoded
         self.base_path = safequote(self.base_path)
+
+        # Credentials in URL (https://[user]:[password]@website.com)
+        if "@" in parsed.netloc:
+            cred, parsed.netloc = parsed.netloc.split("@")
+            self.set_auth("basic", cred)
+
         self.host = parsed.netloc.split(":")[0]
 
         port_for_scheme = {"http": 80, "https": 443, "unknown": 0}
 
         if parsed.scheme not in ("unknown", "https", "http"):
-            raise RequestException("Unsupported URI scheme: {0}".format(self.scheme))
+            raise RequestException("Unsupported URI scheme: {0}".format(parsed.scheme))
 
         # If no port specified, set default (80, 443)
         try:
@@ -104,9 +122,7 @@ class Requester(object):
             self.headers["Host"] += ":{0}".format(self.port)
 
         self.max_retries = max_retries
-        self.max_pool = max_pool
         self.timeout = timeout
-        self.pool = None
         self.proxy = proxy
         self.proxylist = proxylist
         self.redirect = redirect
@@ -146,8 +162,9 @@ class Requester(object):
                 self.port,
             )
 
-        self.session = requests.Session()
-        self.set_adapter()
+        self.session = Session()
+        self.session.verify = False
+        self.session.mount(self.scheme + "://", HTTPAdapter(max_retries=0, pool_maxsize=self.max_pool))
 
     def get_scheme(self, port):
         if port == 0:
@@ -163,9 +180,6 @@ class Requester(object):
             return "https"
         except Exception:
             return "http"
-
-    def set_adapter(self):
-        self.session.mount(self.url, HTTPAdapter(max_retries=0))
 
     def set_header(self, key, value):
         self.headers[key.strip()] = value.strip() if value else value
@@ -225,7 +239,7 @@ class Requester(object):
                 for i in range(MAX_REDIRECTS):
                     request = requests.Request(
                         self.httpmethod,
-                        url=url,
+                        url,
                         headers=headers,
                         auth=self.auth,
                         data=self.data,
@@ -239,7 +253,6 @@ class Requester(object):
                         allow_redirects=False,
                         timeout=self.timeout,
                         stream=True,
-                        verify=False,
                     )
                     result = Response(response, redirects)
 
@@ -248,45 +261,37 @@ class Requester(object):
                         headers["Host"] = url.split("/")[2]
                         redirects.append(url)
                         continue
-                    elif i == MAX_REDIRECTS - 1:
-                        raise requests.exceptions.TooManyRedirects
+                    else:
+                        return result
 
-                    break
-
-                return result
-
-            except requests.exceptions.SSLError:
-                self.url = self.base_url
-                self.set_adapter()
-                self.request(path, proxy=proxy)
+                raise requests.exceptions.TooManyRedirects
 
             except Exception as e:
                 err_msg = str(e)
 
-                if e == requests.exceptions.TooManyRedirects:
-                    simple_err_msg = "Too many redirects: {0}".format(self.base_url)
-                elif e == requests.exceptions.ProxyError:
+                if "SSLError" in err_msg:
+                    simple_err_msg = "Unexpected SSL error, probably the server is broken or try updating your OpenSSL"
+                elif "ProxyError" in err_msg:
                     simple_err_msg = "Error with the proxy: {0}".format(proxy)
-                elif e == requests.exceptions.ConnectionError:
+                elif "ConnectionError" in err_msg:
                     simple_err_msg = "Cannot connect to: {0}:{1}".format(self.host, self.port)
-                elif e == requests.exceptions.InvalidURL:
+                elif "InvalidURL" in err_msg:
                     simple_err_msg = "Invalid URL: {0}".format(self.base_url)
-                elif e == requests.exceptions.InvalidProxyURL:
+                elif "InvalidProxyURL" in err_msg:
                     simple_err_msg = "Invalid proxy URL: {0}".format(proxy)
-                elif e in (
-                    requests.exceptions.ConnectTimeout,
-                    requests.exceptions.ReadTimeout,
-                    requests.exceptions.Timeout,
-                    http.client.IncompleteRead,
-                    socket.timeout,
-                ):
-                    simple_err_msg = "Request timeout: {0}".format(self.base_url)
+                elif e == requests.exceptions.TooManyRedirects:
+                    simple_err_msg = "Too many redirects: {0}".format(self.base_url)
                 elif e in (
                     requests.exceptions.ChunkedEncodingError,
                     requests.exceptions.StreamConsumedError,
                     requests.exceptions.UnrewindableBodyError,
                 ):
                     simple_err_msg = "Failed to read response body: {0}".format(self.base_url)
+                elif "Timeout" in err_msg or e in (
+                    http.client.IncompleteRead,
+                    socket.timeout,
+                ):
+                    simple_err_msg = "Request timeout: {0}".format(self.base_url)
                 else:
                     simple_err_msg = "There was a problem in the request to: {0}".format(self.base_url)
 

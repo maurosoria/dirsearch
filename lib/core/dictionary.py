@@ -187,9 +187,6 @@ class Dictionary(object):
         self.index = 0
         self.condition.release()
 
-    def export(self):
-        return self.entries, self.index
-
     def __next__(self):
         self.condition.acquire()
 

@@ -22,7 +22,8 @@ import sys
 from pathlib import Path
 
 # Version format: <mayor version>.<minor version>.<revision>[.<month>]
-VERSION = "0.4.2.1"
+VERSION = "0.4.2.2"
+
 BANNER = f'''
   _|. _ _  _  _  _ _|_    v{VERSION}
  (_||| _) (/_(_|| (_| )

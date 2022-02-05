@@ -227,6 +227,3 @@ class Output(object):
 
     def log_file(self, target):
         self.new_line("\nLog File: {0}".format(target), save=False)
-
-    def export(self):
-        return self.buffer.rstrip()
