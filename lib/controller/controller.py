@@ -129,6 +129,7 @@ class Controller(object):
         self.batch_session = None
         self.exit = None
         self.report = None
+        self.current_directory = ''
         self.start_time = time.time()
         self.jobs_count = self.targets.qsize() * (
             len(options["scan_subdirs"]) if options["scan_subdirs"] else 1

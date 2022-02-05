@@ -19,14 +19,14 @@
 import http.client
 import random
 import socket
-import ssl
 
 from urllib.parse import urlparse, urljoin
 
-from lib.core.settings import PROXY_SCHEMES, MAX_REDIRECTS, SOCKET_TIMEOUT
+from lib.core.settings import PROXY_SCHEMES, MAX_REDIRECTS
 from lib.connection.exception import RequestException
 from lib.connection.response import Response
 from lib.utils.fmt import safequote
+from lib.utils.schemedet import detect_scheme
 from thirdparty import requests
 from thirdparty.requests.adapters import HTTPAdapter
 from thirdparty.requests.auth import HTTPBasicAuth, HTTPDigestAuth
@@ -101,12 +101,12 @@ class Requester(object):
             raise RequestException("Invalid port number: {0}".format(parsed.netloc.split(":")[1]))
 
         # If no scheme is found, detect it by port number
-        self.scheme = parsed.scheme if parsed.scheme != "unknown" else self.get_scheme(self.port)
+        self.scheme = parsed.scheme if parsed.scheme != "unknown" else detect_scheme(self.host, self.port)
 
         # If the user neither provide the port nor scheme, guess them based
         # on standard website characteristics
         if not self.scheme:
-            self.scheme = "https" if self.get_scheme(443) == "https" else "http"
+            self.scheme = detect_scheme(self.host, 443)
             self.port = port_for_scheme[self.scheme]
 
         # Set the Host header, read the line 126 to know why
@@ -162,21 +162,6 @@ class Requester(object):
         self.session = Session()
         self.session.verify = False
         self.session.mount(self.scheme + "://", HTTPAdapter(max_retries=0, pool_maxsize=self.max_pool))
-
-    def get_scheme(self, port):
-        if port == 0:
-            return None
-
-        s = socket.socket()
-        s.settimeout(SOCKET_TIMEOUT)
-        conn = ssl.SSLContext().wrap_socket(s)
-
-        try:
-            conn.connect((self.host, port))
-            conn.close()
-            return "https"
-        except Exception:
-            return "http"
 
     def set_header(self, key, value):
         self.headers[key.strip()] = value.strip() if value else value
