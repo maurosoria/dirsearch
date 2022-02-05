@@ -22,6 +22,7 @@ import sys
 
 from xml.dom import minidom
 
+from lib.core.decorators import locked
 from lib.core.settings import DEFAULT_ENCODING
 from lib.reports.base import FileBaseReport
 
@@ -45,6 +46,7 @@ class XMLReport(FileBaseReport):
         result = ET.tostring(result, encoding=DEFAULT_ENCODING, method="xml")
         return minidom.parseString(result).toprettyxml()
 
+    @locked
     def save(self):
         self.file.seek(0)
         self.file.truncate(0)

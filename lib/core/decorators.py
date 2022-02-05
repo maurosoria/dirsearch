@@ -16,17 +16,14 @@
 #
 #  Author: Mauro Soria
 
-import time
-
-from lib.core.decorators import locked
-from lib.core.settings import NEW_LINE
-from lib.utils.file import FileUtils
+import threading
 
 
-@locked
-def log(file, type, msg):
-    line = time.strftime("[%y-%m-%d %H:%M:%S]")
-    line += "[{}] ".format(type.upper())
-    line += msg
-    line += NEW_LINE
-    FileUtils.write_lines(file, line)
+_lock = threading.Lock()
+
+def locked(func):
+    def with_locking(*args, **kwargs):
+        with _lock:
+            return func(*args, **kwargs)
+
+    return with_locking

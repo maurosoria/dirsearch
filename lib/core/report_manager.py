@@ -16,8 +16,7 @@
 #
 #  Author: Mauro Soria
 
-from threading import Lock
-
+from lib.core.decorators import locked
 from lib.reports.csv_report import CSVReport
 from lib.reports.html_report import HTMLReport
 from lib.reports.json_report import JSONReport
@@ -61,7 +60,6 @@ class ReportManager(object):
         self.reports = []
         self.report_obj = None
         self.output = output_file
-        self.lock = Lock()
 
     def update_report(self, report):
         if report not in self.reports:
@@ -89,12 +87,11 @@ class ReportManager(object):
 
             self.report_obj = report
 
-        with self.lock:
-            self.report_obj.save()
+        self.report_obj.save()
 
+    @locked
     def save(self):
-        with self.lock:
-            self.output.save()
+        self.output.save()
 
     def close(self):
         self.output.close()

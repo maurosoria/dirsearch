@@ -20,6 +20,7 @@ import os
 import sys
 import time
 
+from lib.core.decorators import locked
 from lib.reports.base import FileBaseReport
 from lib.utils.fmt import human_size
 from thirdparty.jinja2 import Environment, FileSystemLoader
@@ -70,6 +71,7 @@ class HTMLReport(FileBaseReport):
         else:
             return command
 
+    @locked
     def save(self):
         self.file.seek(0)
         self.file.truncate(0)

@@ -19,6 +19,7 @@
 import sqlite3
 import time
 
+from lib.core.decorators import locked
 from lib.reports.base import FileBaseReport
 
 
@@ -53,6 +54,7 @@ class SQLiteReport(FileBaseReport):
 
         return commands
 
+    @locked
     def save(self):
         for command in self.generate():
             self.cursor.execute(*command)

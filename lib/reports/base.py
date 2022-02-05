@@ -16,6 +16,7 @@
 #
 #  Author: Mauro Soria
 
+from lib.core.decorators import locked
 from lib.core.settings import IS_WINDOWS
 
 
@@ -46,6 +47,7 @@ class FileBaseReport(BaseReport):
     def open(self):
         self.file = open(self.output, 'w+')
 
+    @locked
     def save(self):
         self.file.writelines(self.generate())
         self.file.flush()

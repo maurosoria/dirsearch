@@ -17,8 +17,8 @@
 #  Author: Mauro Soria
 
 import re
-import threading
 
+from lib.core.decorators import locked
 from lib.core.settings import SCRIPT_PATH, EXTENSION_TAG
 from lib.utils.fmt import safequote, uniq
 from lib.utils.file import File, FileUtils
@@ -43,7 +43,6 @@ class Dictionary(object):
 
         self.entries = ()
         self.index = 0
-        self.condition = threading.Lock()
         self._extensions = extensions
         self._exclude_extensions = exclude_extensions
         self._prefixes = prefixes
@@ -183,21 +182,16 @@ class Dictionary(object):
         return blacklists
 
     def reset(self):
-        self.condition.acquire()
         self.index = 0
-        self.condition.release()
 
+    @locked
     def __next__(self):
-        self.condition.acquire()
-
         try:
             path = self.entries[self.index]
         except IndexError:
-            self.condition.release()
             raise StopIteration
 
         self.index += 1
-        self.condition.release()
 
         return safequote(path)
 

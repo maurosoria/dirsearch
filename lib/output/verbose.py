@@ -20,8 +20,7 @@ import sys
 import time
 import shutil
 
-from threading import Lock
-
+from lib.core.decorators import locked
 from lib.core.settings import IS_WINDOWS
 from lib.utils.fmt import human_size
 from lib.output.colors import ColorOutput
@@ -37,17 +36,10 @@ class Output(object):
         self.last_length = 0
         self.last_in_line = False
         self.buffer = ''
-        self.mutex = Lock()
         self.blacklists = {}
         self.url = None
         self.errors = 0
         self.colorizer = ColorOutput(colors)
-
-    def in_line(self, string):
-        self.erase()
-        sys.stdout.write(string)
-        sys.stdout.flush()
-        self.last_in_line = True
 
     def erase(self):
         if IS_WINDOWS:
@@ -64,6 +56,14 @@ class Output(object):
             sys.stdout.write("\033[1K")
             sys.stdout.write("\033[0G")
 
+    @locked
+    def in_line(self, string):
+        self.erase()
+        sys.stdout.write(string)
+        sys.stdout.flush()
+        self.last_in_line = True
+
+    @locked
     def new_line(self, string='', save=True):
         if save:
             self.buffer += string
@@ -117,8 +117,7 @@ class Output(object):
         for redirect in response.history:
             message += "\n-->  {0}".format(redirect)
 
-        with self.mutex:
-            self.new_line(message)
+        self.new_line(message)
 
     def last_path(self, index, length, current_job, all_jobs, rate):
         percentage = int(index / length * 100)
@@ -149,23 +148,20 @@ class Output(object):
         if len(self.colorizer.clean(progress_bar)) >= shutil.get_terminal_size()[0]:
             return
 
-        with self.mutex:
-            self.in_line(progress_bar)
+        self.in_line(progress_bar)
 
     def add_connection_error(self):
         self.errors += 1
 
     def error(self, reason):
-        with self.mutex:
-            stripped = reason.strip()
-            message = self.colorizer.color(stripped, fore="white", back="red", bright=True)
+        stripped = reason.strip()
+        message = self.colorizer.color(stripped, fore="white", back="red", bright=True)
 
-            self.new_line('\n' + message)
+        self.new_line('\n' + message)
 
     def warning(self, message, save=True):
-        with self.mutex:
-            message = self.colorizer.color(message, fore="yellow", bright=True)
-            self.new_line(message, save=save)
+        message = self.colorizer.color(message, fore="yellow", bright=True)
+        self.new_line(message, save=save)
 
     def header(self, message):
         message = self.colorizer.color(message, fore="magenta", bright=True)

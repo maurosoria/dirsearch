@@ -20,6 +20,7 @@ import json
 import time
 import sys
 
+from lib.core.decorators import locked
 from lib.reports.base import FileBaseReport
 
 
@@ -47,6 +48,7 @@ class JSONReport(FileBaseReport):
 
         return json.dumps(report, sort_keys=True, indent=4)
 
+    @locked
     def save(self):
         self.file.seek(0)
         self.file.truncate(0)

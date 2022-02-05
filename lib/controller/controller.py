@@ -20,7 +20,6 @@ import ast
 import gc
 import time
 import re
-import threading
 
 from urllib.parse import urljoin, urlparse
 from queue import Queue, deque
@@ -42,7 +41,6 @@ class Controller(object):
     def __init__(self, options, output):
         self.targets = Queue()
         self.directories = Queue()
-        self.threads_lock = threading.Lock()
         self.output = output
 
         if options["session_file"]:
@@ -468,8 +466,7 @@ class Controller(object):
             msg += " - REDIRECT TO: {}".format(response.redirect)
         msg += " (LENGTH: {})".format(response.length)
 
-        with self.threads_lock:
-            log(self.options["log_file"], "traffic", msg)
+        log(self.options["log_file"], "traffic", msg)
 
     # Write error to log file
     def append_error_log(self, path, error_msg):
@@ -477,8 +474,7 @@ class Controller(object):
         msg = "{} {}".format(self.options["httpmethod"], url)
         msg += NEW_LINE + ' ' * 4
         msg += error_msg
-        with self.threads_lock:
-            log(self.options["log_file"], "error", msg)
+        log(self.options["log_file"], "error", msg)
 
     # Handle CTRL+C
     def handle_pause(self):
