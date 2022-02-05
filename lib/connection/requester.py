@@ -31,13 +31,10 @@ from thirdparty import requests
 from thirdparty.requests.adapters import HTTPAdapter
 from thirdparty.requests.auth import HTTPBasicAuth, HTTPDigestAuth
 from thirdparty.requests.packages.urllib3 import disable_warnings
-from thirdparty.requests.packages.urllib3.contrib import pyopenssl
 from thirdparty.requests_ntlm import HttpNtlmAuth
 
 # Disable InsecureRequestWarning from urllib3
 disable_warnings()
-#Exclude use of pyopenssl (pyopenssl module may need to be installed first $pip install pyopenssl)
-pyopenssl.extract_from_urllib3()
 #Add support for all cipher suites
 requests.packages.urllib3.util.ssl_.DEFAULT_CIPHERS='ALL'
 
