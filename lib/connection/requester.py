@@ -16,9 +16,10 @@
 #
 #  Author: Mauro Soria
 
-import http.client
+import re
 import random
 import socket
+import http.client
 
 from urllib.parse import urlparse, urljoin
 
@@ -261,14 +262,10 @@ class Requester(object):
                     simple_err_msg = "Invalid URL: {0}".format(self.base_url)
                 elif "InvalidProxyURL" in err_msg:
                     simple_err_msg = "Invalid proxy URL: {0}".format(proxy)
+                elif re.search("ChunkedEncodingError|StreamConsumedError|UnrewindableBodyError", err_msg):
+                    simple_err_msg = "Failed to read response body: {0}".format(self.base_url)
                 elif e == requests.exceptions.TooManyRedirects:
                     simple_err_msg = "Too many redirects: {0}".format(self.base_url)
-                elif e in (
-                    requests.exceptions.ChunkedEncodingError,
-                    requests.exceptions.StreamConsumedError,
-                    requests.exceptions.UnrewindableBodyError,
-                ):
-                    simple_err_msg = "Failed to read response body: {0}".format(self.base_url)
                 elif "Timeout" in err_msg or e in (
                     http.client.IncompleteRead,
                     socket.timeout,
