@@ -21,7 +21,7 @@ import sys
 
 from pathlib import Path
 
-# Version format: <mayor version>.<minor version>.<revision>[.<month>]
+# Version format: <major version>.<minor version>.<revision>[.<month>]
 VERSION = "0.4.2.2"
 
 BANNER = f'''
@@ -29,7 +29,7 @@ BANNER = f'''
  (_||| _) (/_(_|| (_| )
 '''
 
-SCRIPT_PATH = Path(__file__).resolve().parents[2]
+SCRIPT_PATH = Path(__file__).parents[2]
 
 IS_WINDOWS = sys.platform in ("win32", "msys")
 
