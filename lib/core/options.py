@@ -47,7 +47,7 @@ def options():
 
     if opt.raw_file:
         access_file(opt.raw_file, "file with raw request")
-    elif not len(opt.urls):
+    elif not opt.urls:
         print("URL target is missing, try using -u <url>")
         exit(1)
 
