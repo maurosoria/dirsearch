@@ -179,6 +179,10 @@ class Fuzzer(object):
 
     def scan(self, path):
         wildcard = False
+        if path.find(".") != -1:
+            suffix = path.split(".")[-1]
+            if suffix in "zip,tar,rar,bz2,sql,gz":
+                self.requester.set_header("Range", "bytes=0-8096")
         response = self.requester.request(path)
 
         for tester in list(set(self.get_scanner_for(path))):
