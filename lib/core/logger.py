@@ -25,6 +25,9 @@ from lib.utils.file import FileUtils
 
 @locked
 def log(file, type, msg):
+    if not file:
+        return
+
     line = time.strftime("[%y-%m-%d %H:%M:%S]")
     line += "[{}] ".format(type.upper())
     line += msg

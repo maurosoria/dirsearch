@@ -21,7 +21,7 @@ import gc
 import time
 import re
 
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urlparse
 from queue import Queue, deque
 
 from lib.connection.requester import Requester
@@ -77,9 +77,10 @@ class Controller(object):
             str(len(self.dictionary)),
             str(self.options["httpmethod"]),
         )
-
         self.setup_reports()
-        self.output.log_file(self.options["log_file"])
+
+        if self.options["log_file"]:
+            self.output.log_file(self.options["log_file"])
 
         try:
             self.run()
@@ -126,7 +127,6 @@ class Controller(object):
         )
         self.current_job = 0
         self.batch = False
-        self.batch_session = None
         self.exit = None
         self.report = None
         self.current_directory = ''
@@ -141,7 +141,9 @@ class Controller(object):
 
         if options["log_file"]:
             self.options["log_file"] = FileUtils.get_abs_path(options["log_file"])
-            self.create_dir(FileUtils.parent(self.options["log_file"]))
+            if not self.create_dir(FileUtils.parent(self.options["log_file"])):
+                self.output.error("Couldn't create log file at {}".format(self.options["log_file"]))
+                exit(1)
 
     def _import(self, data):
         export = ast.literal_eval(data)
@@ -164,7 +166,6 @@ class Controller(object):
         self.dictionary_index = self.dictionary.index
         self.last_output = self.output.buffer.rstrip()
         self.current_job -= 1
-
         data = {k: v for k, v in self.__dict__.items() if k not in EXCLUDED_EXPORT_VARIABLES}
 
         FileUtils.write_lines(session_file, str(data), overwrite=True)
@@ -290,91 +291,75 @@ class Controller(object):
     # Create batch report folder
     def setup_batch_reports(self):
         self.batch = True
-        if not self.options["output_file"]:
-            self.batch_session = "BATCH-{0}".format(time.strftime("%y-%m-%d_%H-%M-%S"))
-            self.batch_directory_path = FileUtils.build_path(
-                self.report_path, self.batch_session
-            )
+        batch_session = "BATCH-{}".format(time.strftime("%y-%m-%d_%H-%M-%S"))
+        batch_directory_path = FileUtils.build_path(self.report_path, batch_session)
 
-            if not FileUtils.exists(self.batch_directory_path):
-                FileUtils.create_directory(self.batch_directory_path)
+        if not self.create_dir(batch_directory_path):
+            self.output.error("Couldn't create batch folder at {}".format(directory_path))
+            exit(1)
 
-                if not FileUtils.exists(self.batch_directory_path):
-                    self.output.error(
-                        "Couldn't create batch folder at {}".format(self.batch_directory_path)
-                    )
-                    exit(1)
+        return batch_directory_path
 
     # Get file extension for report format
     def get_output_extension(self):
         if self.options["output_format"] not in ("plain", "simple"):
-            return ".{0}".format(self.options["output_format"])
+            return ".{}".format(self.options["output_format"])
         else:
             return ".txt"
 
     # Create report file
     def setup_reports(self):
+        output_file = None
+
         if self.options["output_file"]:
             output_file = FileUtils.get_abs_path(self.options["output_file"])
-            self.output.output_file(output_file)
         elif self.options["autosave_report"]:
             if self.targets.qsize() > 1:
-                self.setup_batch_reports()
-                filename = "BATCH"
-                filename += self.get_output_extension()
-                directory_path = self.batch_directory_path
+                directory_path = self.setup_batch_reports()
+                filename = "BATCH" + self.get_output_extension()
             else:
                 parsed = urlparse(self.targets.queue[0])
-                filename = (
-                    "{}_".format(parsed.path)
-                )
+                filename = get_valid_filename("{}_".format(parsed.path))
                 filename += time.strftime("%y-%m-%d_%H-%M-%S")
                 filename += self.get_output_extension()
                 directory_path = FileUtils.build_path(
                     self.report_path, get_valid_filename(parsed.netloc)
                 )
 
-            filename = get_valid_filename(filename)
             output_file = FileUtils.build_path(directory_path, filename)
 
             if FileUtils.exists(output_file):
                 i = 2
-                while FileUtils.exists(output_file + "_" + str(i)):
+                while FileUtils.exists("{}_{}".format(output_file, i)):
                     i += 1
 
                 output_file += "_" + str(i)
 
-            if not FileUtils.exists(directory_path):
-                FileUtils.create_directory(directory_path)
+            if not self.create_dir(directory_path):
+                self.output.error(
+                    "Couldn't create the reports folder at {}".format(directory_path)
+                )
+                exit(1)
 
-                if not FileUtils.exists(directory_path):
-                    self.output.error(
-                        "Couldn't create the reports folder at {}".format(directory_path)
-                    )
-                    exit(1)
+        self.report_manager = ReportManager(self.options["output_format"], output_file)
 
+        if output_file:
             self.output.output_file(output_file)
 
-        if self.options["output_format"]:
-            self.report_manager = ReportManager(self.options["output_format"], self.options["output_file"] or output_file)
-        else:
-            self.report_manager = ReportManager("plain", output_file)
-
-    # Create and check if output directory is writable
+    # Create and check if directory is writable
     def create_dir(self, path):
         if path == '/':
-            return
+            return True
 
         if not FileUtils.exists(path):
             self.create_dir(FileUtils.parent(path))
-        if not FileUtils.is_dir(path):
-            self.output.error("{0} is a file, should be a directory".format(path))
-            exit(1)
-        if not FileUtils.can_write(path):
-            self.output.error("Directory {0} is not writable".format(path))
-            exit(1)
+        elif not FileUtils.is_dir(path):
+            return False
+        elif not FileUtils.can_write(path):
+            return False
 
         FileUtils.create_directory(path)
+        return True
 
     # Validate the response by different filters
     def is_valid(self, path, res):
@@ -588,8 +573,7 @@ class Controller(object):
     # Resolve the redirect and add the path to the recursion queue
     # if it's a subdirectory of the current URL
     def add_redirect_directory(self, path, response):
-        redirect_url = urljoin(self.requester.base_url, response.redirect)
-        redirect_path = urlparse(redirect_url).path
+        redirect_path = urlparse(response.redirect).path
 
         if redirect_path == response.path + '/':
             path = redirect_path[len(self.requester.base_path + self.current_directory) + 1:]

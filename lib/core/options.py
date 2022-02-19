@@ -145,7 +145,7 @@ def options():
         print("Exclude extension list can not contain any extension that has already in the extension list")
         exit(1)
 
-    if opt.output_format and opt.output_format not in OUTPUT_FORMATS:
+    if opt.output_format not in OUTPUT_FORMATS:
         print("Select one of the following output formats: {}".format(", ".join(OUTPUT_FORMATS)))
         exit(1)
 
