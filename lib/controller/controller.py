@@ -295,7 +295,7 @@ class Controller(object):
         batch_directory_path = FileUtils.build_path(self.report_path, batch_session)
 
         if not self.create_dir(batch_directory_path):
-            self.output.error("Couldn't create batch folder at {}".format(directory_path))
+            self.output.error("Couldn't create batch folder at {}".format(batch_directory_path))
             exit(1)
 
         return batch_directory_path
