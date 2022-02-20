@@ -21,8 +21,8 @@ import gc
 import time
 import re
 
-from urllib.parse import urlparse
 from queue import Queue, deque
+from urllib.parse import urlparse
 
 from lib.connection.requester import Requester
 from lib.connection.exception import RequestException
@@ -31,8 +31,9 @@ from lib.core.dictionary import Dictionary
 from lib.core.fuzzer import Fuzzer
 from lib.core.logger import log
 from lib.core.report_manager import Report, ReportManager
-from lib.core.settings import SCRIPT_PATH, BANNER, NEW_LINE, DEFAULT_HEADERS, EXCLUDED_EXPORT_VARIABLES, DEFAULT_SESSION_FILE
-from lib.parse.raw import parse_raw
+from lib.core.settings import SCRIPT_PATH, BANNER, NEW_LINE, DEFAULT_HEADERS, EXCLUDED_EXPORT_VARIABLES, DEFAULT_SESSION_FILE, EXTENSION_REGEX
+from lib.parse.rawrequest import parse_raw
+from lib.parse.url import clean_path, parse_path
 from lib.utils.file import FileUtils
 from lib.utils.fmt import get_valid_filename, human_size
 
@@ -348,17 +349,17 @@ class Controller(object):
 
     # Create and check if directory is writable
     def create_dir(self, path):
-        if path == '/':
-            return True
-
         if not FileUtils.exists(path):
-            self.create_dir(FileUtils.parent(path))
+            ok = self.create_dir(FileUtils.parent(path))
+            if ok:
+                FileUtils.create_directory(path)
+
+            return ok
         elif not FileUtils.is_dir(path):
             return False
         elif not FileUtils.can_write(path):
             return False
 
-        FileUtils.create_directory(path)
         return True
 
     # Validate the response by different filters
@@ -411,9 +412,9 @@ class Controller(object):
             (self.options["recursive"], self.options["deep_recursive"], self.options["force_recursive"])
         ):
             if response.redirect:
-                added_to_queue = self.add_redirect_directory(path, response)
+                added_to_queue = self.recur_for_redirect(path, response)
             else:
-                added_to_queue = self.add_directory(path)
+                added_to_queue = self.recur(path)
 
         if self.options["replay_proxy"]:
             self.requester.request(path, proxy=self.options["replay_proxy"])
@@ -536,48 +537,49 @@ class Controller(object):
 
     # Add directory to the recursion queue
     def add_directory(self, path):
-        dirs = []
-        added = False
-        # Remove parameters and fragment from the URL
-        path = path.split('?')[0].split('#')[0]
-        full_path = self.current_directory + path
-
-        if any(path.startswith(directory) for directory in self.options["exclude_subdirs"]):
+        # Pass if path is in "exclusive directories" or if it has an extension (means it's a file)
+        if any(
+            path.startswith(directory) for directory in self.options["exclude_subdirs"]
+        ) or re.search(EXTENSION_REGEX, path[:-1]):
             return False
 
-        if self.options["force_recursive"] and not full_path.endswith('/'):
-            full_path += '/'
+        dir = self.current_directory + path
+
+        if dir in self.pass_dirs or dir.count('/') > self.options["recursion_depth"] != 0:
+            return False
+
+        self.directories.put(dir)
+        self.pass_dirs.append(dir)
+        self.jobs_count += 1
+
+        return True
+
+    # Check for recursion
+    def recur(self, path):
+        added = False
+        path = clean_path(path)
+
+        if self.options["force_recursive"] and not path.endswith('/'):
+            path += '/'
 
         if self.options["deep_recursive"]:
             i = 0
             for _ in range(path.count('/')):
                 i = path.index('/', i) + 1
-                dirs.append(self.current_directory + path[:i])
-        elif self.options["recursive"] and full_path.endswith('/'):
-            dirs.append(full_path)
-
-        for dir in dirs:
-            if dir in self.pass_dirs:
-                continue
-            elif dir.count('/') > self.options["recursion_depth"] != 0:
-                continue
-
-            self.directories.put(dir)
-            self.pass_dirs.append(dir)
-
-            self.jobs_count += 1
-            added = True
+                added = self.add_directory(path[:i]) or added
+        elif self.options["recursive"] and path.endswith('/'):
+            added = self.add_directory(path) or added
 
         return added
 
     # Resolve the redirect and add the path to the recursion queue
     # if it's a subdirectory of the current URL
-    def add_redirect_directory(self, path, response):
-        redirect_path = urlparse(response.redirect).path
+    def recur_for_redirect(self, path, response):
+        redirect_path = parse_path(response.redirect)
 
         if redirect_path == response.path + '/':
             path = redirect_path[len(self.requester.base_path + self.current_directory) + 1:]
-            return self.add_directory(path)
+            return self.recur(path)
 
         return False
 

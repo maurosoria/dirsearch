@@ -19,7 +19,7 @@
 import re
 
 from lib.core.decorators import locked
-from lib.core.settings import SCRIPT_PATH, EXTENSION_TAG
+from lib.core.settings import SCRIPT_PATH, EXTENSION_TAG, EXTENSION_REGEX
 from lib.utils.fmt import safequote, uniq
 from lib.utils.file import File, FileUtils
 
@@ -97,14 +97,11 @@ class Dictionary(object):
         # Enable to use multiple dictionaries at once
         for dict_file in self.dictionary_files:
             for line in uniq(dict_file.get_lines()):
-                # Skip comments
-                if line.startswith("#"):
-                    continue
-
                 if line.startswith("/"):
                     line = line[1:]
 
-                if not line:
+                # Skip empty lines and comments
+                if not line or line.startswith("#"):
                     continue
 
                 if self._no_extension:
@@ -125,9 +122,9 @@ class Dictionary(object):
                         newline = reext.sub(extension, line)
                         result.append(newline)
 
-                # If forced extensions is used and the path is not a directory ... (terminated by /)
-                # process line like a forced extension.
-                elif self._force_extensions and not line.rstrip().endswith("/") and "." not in line:
+                # If "forced extensions" is used and the path is not a directory (terminated by /) or has
+                # had an extension already, append extensions to the path
+                elif self._force_extensions and not line.endswith("/") and not re.search(EXTENSION_REGEX, line):
                     for extension in self._extensions:
                         result.append(line + "." + extension)
 

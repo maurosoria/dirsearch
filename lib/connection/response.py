@@ -17,15 +17,15 @@
 #  Author: Mauro Soria
 
 from functools import cached_property
-from urllib.parse import urlparse
 
 from lib.core.settings import CHUNK_SIZE, DEFAULT_ENCODING
+from lib.parse.url import parse_path, parse_full_path
 
 
 class Response(object):
     def __init__(self, response, redirects):
-        self.path = urlparse(response.url).path
-        self.full_path = '/' + '/'.join(response.url.split('/')[3:])
+        self.path = parse_path(response.url)
+        self.full_path = parse_full_path(response.url)
         self.status = response.status_code
         self.headers = response.headers
         self.redirect = self.headers.get("location")

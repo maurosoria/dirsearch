@@ -63,6 +63,8 @@ EXCLUDED_EXPORT_VARIABLES = ("output", "threads_lock", "report", "report_manager
 
 EXTENSION_TAG = "%ext%"
 
+EXTENSION_REGEX = r"\w[.][a-zA-Z0-9]{2,5}"
+
 DEFAULT_SESSION_FILE = "session.json"
 
 MAX_REDIRECTS = 5

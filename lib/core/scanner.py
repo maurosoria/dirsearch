@@ -22,6 +22,7 @@ from urllib.parse import unquote
 
 from lib.core.settings import TEST_PATH_LENGTH
 from lib.parse.content import SimilarityParser
+from lib.parse.url import clean_path
 from lib.utils.random import rand_string
 from thirdparty.sqlmap import DynamicContentParser
 
@@ -151,11 +152,9 @@ class Scanner(object):
             return True
 
         if self.redirect_parser and response.redirect:
-            # Remove DOM (#) amd queries (?) before comparing to reduce false positives
-            path = path.split("?")[0].split("#")[0]
-            redirect = response.redirect.split("?")[0].split("#")[0]
-
-            path = re.escape(unquote(path))
+            # Remove DOM (#) / queries (?), unquote before comparing to reduce false positives
+            path = re.escape(unquote(clean_path(path)))
+            redirect = clean_path(response.redirect)
 
             regex = self.redirect_parser.regex.replace(self.mark, path)
             redirect_to_invalid = self.redirect_parser.compare(regex, redirect)

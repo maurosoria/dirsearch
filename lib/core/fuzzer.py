@@ -21,6 +21,7 @@ import time
 
 from lib.core.scanner import Scanner
 from lib.connection.exception import RequestException
+from lib.parse.url import clean_path
 
 
 class Fuzzer(object):
@@ -120,7 +121,7 @@ class Fuzzer(object):
 
     def get_scanner_for(self, path):
         # Clean the path, so can check for extensions/suffixes
-        path = path.split("?")[0].split("#")[0]
+        path = clean_path(path)
 
         if self.exclude_response:
             yield self.calibration
