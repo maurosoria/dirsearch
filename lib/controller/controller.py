@@ -33,7 +33,7 @@ from lib.core.logger import log
 from lib.core.report_manager import Report, ReportManager
 from lib.core.settings import SCRIPT_PATH, BANNER, NEW_LINE, DEFAULT_HEADERS, EXCLUDED_EXPORT_VARIABLES, DEFAULT_SESSION_FILE, EXTENSION_REGEX
 from lib.parse.rawrequest import parse_raw
-from lib.parse.url import clean_path, parse_path
+from lib.parse.url import clean_path, parse_path, join_path
 from lib.utils.file import FileUtils
 from lib.utils.fmt import get_valid_filename, human_size
 
@@ -151,8 +151,7 @@ class Controller(object):
         self.targets.queue = deque(export["targets"])
         self.directories.queue = deque(export["directories"])
         self.dictionary = Dictionary()
-        self.dictionary.entries = export["dictionary_items"]
-        self.dictionary.index = export["dictionary_index"]
+        self.dictionary.set_state(export["dictionary_items"], export["dictionary_index"])
         self.__dict__ = {**export, **self.__dict__}
 
     def _export(self, session_file):
@@ -163,8 +162,7 @@ class Controller(object):
         for item in ("targets", "directories"):
             self.__dict__[item] = list(self.__dict__[item].queue)
 
-        self.dictionary_items = self.dictionary.entries
-        self.dictionary_index = self.dictionary.index
+        self.dictionary_items, self.dictionary_index = self.dictionary.get_state()
         self.last_output = self.output.buffer.rstrip()
         self.current_job -= 1
         data = {k: v for k, v in self.__dict__.items() if k not in EXCLUDED_EXPORT_VARIABLES}
@@ -172,6 +170,10 @@ class Controller(object):
         FileUtils.write_lines(session_file, str(data), overwrite=True)
 
     def run(self):
+        match_callbacks = (self.match_callback, self.append_traffic_log)
+        not_found_callbacks = (self.not_found_callback, self.append_traffic_log)
+        error_callbacks = (self.error_callback, self.append_error_log)
+
         while not self.targets.empty():
             try:
                 self.skip = None
@@ -213,7 +215,7 @@ class Controller(object):
                     self.requester.request('')
                     log(self.options["log_file"], "info", "Test request sent for: {}".format(self.requester.base_url))
 
-                    self.output.url = self.requester.base_url[:-1]
+                    self.output.url = self.requester.base_url
                     self.report = Report(
                         self.requester.host, self.requester.port, self.requester.scheme, self.requester.base_path
                     )
@@ -227,9 +229,6 @@ class Controller(object):
                     self.directories.queue = deque(self.options["scan_subdirs"])
                     self.pass_dirs.extend(self.options["scan_subdirs"])
 
-                match_callbacks = (self.match_callback, self.append_traffic_log)
-                not_found_callbacks = (self.not_found_callback, self.append_traffic_log)
-                error_callbacks = (self.error_callback, self.append_error_log)
                 self.fuzzer = Fuzzer(
                     self.requester,
                     self.dictionary,
@@ -280,10 +279,9 @@ class Controller(object):
 
                 self.output.warning(msg)
 
-            self.fuzzer.requester.base_path = self.requester.base_path + self.current_directory
+            self.fuzzer.set_base_path(self.requester.base_path + self.current_directory)
             self.fuzzer.start()
             self.process()
-            self.dictionary.reset()
 
             first = False
 
@@ -430,7 +428,7 @@ class Controller(object):
             len(self.dictionary),
             self.current_job,
             self.jobs_count,
-            self.fuzzer.stand_rate,
+            self.fuzzer.get_rate(),
         )
 
     # Callback for errors while fuzzing
@@ -446,7 +444,7 @@ class Controller(object):
             self.requester.ip or "0",
             response.status,
             self.options["httpmethod"],
-            self.requester.base_url[:-1] + response.path
+            join_path(self.requester.base_url, response.path)
         )
 
         if response.redirect:
@@ -468,13 +466,12 @@ class Controller(object):
         self.output.warning("CTRL+C detected: Pausing threads, please wait...", save=False)
         self.fuzzer.pause()
 
-        _ = 0
-        while _ < 7:
+        # Wait maximum 7 seconds
+        for _ in range(20):
             if self.fuzzer.is_stopped():
                 break
 
             time.sleep(0.35)
-            _ += 0.35
 
         while True:
             msg = "[q]uit / [c]ontinue"

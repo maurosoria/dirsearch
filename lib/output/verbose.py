@@ -22,6 +22,7 @@ import shutil
 
 from lib.core.decorators import locked
 from lib.core.settings import IS_WINDOWS
+from lib.parse.url import join_path
 from lib.utils.fmt import human_size
 from lib.output.colors import ColorOutput
 
@@ -88,7 +89,7 @@ class Output(object):
     def status_report(self, response, full_url, added_to_queue):
         status = response.status
         content_length = human_size(response.length)
-        show_path = self.url + response.full_path if full_url else response.full_path
+        show_path = join_path(self.url, response.full_path) if full_url else response.full_path
         message = "[{0}] {1} - {2} - {3}".format(
             time.strftime("%H:%M:%S"),
             status,

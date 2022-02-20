@@ -22,7 +22,6 @@ def clean_path(path):
     return path.split('?')[0].split('#')[0]
 
 
-# Get path of URL (if it's an URL)
 def parse_full_path(url):
     if url.startswith('/') and not url.startswith("//"):
         return url
@@ -32,6 +31,19 @@ def parse_full_path(url):
     return '/' + '/'.join(url.split('/')[3:])
 
 
-# Get cleaned path of URL (if it's an URL)
 def parse_path(url):
     return clean_path(parse_full_path(url))
+
+
+def join_path(*components):
+    result = ''
+
+    for component in [*components]:
+        if result and result.endswith('/'):
+            result = result[:-1]
+        if result and not component.startswith('/'):
+            result += '/'
+
+        result += component
+
+    return result

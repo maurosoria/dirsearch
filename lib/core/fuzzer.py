@@ -20,6 +20,7 @@ import threading
 import time
 
 from lib.core.scanner import Scanner
+from lib.core.settings import RATE_UPDATE_DELAY
 from lib.connection.exception import RequestException
 from lib.parse.url import clean_path
 
@@ -72,8 +73,8 @@ class Fuzzer(object):
         return True
 
     def rate_adjuster(self):
-        while not self.wait(0.15):
-            self.stand_rate = self.rate
+        while not self.wait(RATE_UPDATE_DELAY):
+            self.rate = self._rate
 
     def setup_scanners(self):
         if len(self.scanners):
@@ -144,8 +145,9 @@ class Fuzzer(object):
         self.setup_scanners()
         self.setup_threads()
         self.index = 0
-        self.rate = 0
-        self.stand_rate = 0
+        # `_rate` reflects requests rate, `rate` updates information from `_rate`
+        # every after an amount of time
+        self.rate = self._rate = 0
         self.running_threads_count = len(self.threads)
         self.running = True
         self.paused = False
@@ -189,18 +191,14 @@ class Fuzzer(object):
 
         return wildcard, response
 
-    def is_paused(self):
-        return self.paused
-
-    def is_running(self):
-        return self.running
-
-    def finish_threads(self):
-        self.running = False
-        self.finished_event.set()
+    def get_rate(self):
+        return self.rate
 
     def is_stopped(self):
         return self.running_threads_count == 0
+
+    def is_rate_exceeded(self):
+        return self._rate >= self.maxrate != 0
 
     def decrease_threads(self):
         self.running_threads_count -= 1
@@ -209,54 +207,51 @@ class Fuzzer(object):
         self.running_threads_count += 1
 
     def decrease_rate(self):
-        self.rate -= 1
+        self._rate -= 1
 
     def increase_rate(self):
-        self.rate += 1
+        self._rate += 1
         threading.Timer(1, self.decrease_rate).start()
+
+    def set_base_path(self, path):
+        self.requester.base_path = path
 
     def thread_proc(self):
         self.play_event.wait()
 
-        try:
-            path = next(self.dictionary)
+        while 1:
+            try:
+                path = next(self.dictionary)
 
-            while path:
-                try:
-                    # Pause if the request rate exceeded the maximum
-                    while self.maxrate and self.rate >= self.maxrate:
-                        pass
+                # Pause if the request rate exceeded the maximum
+                while self.is_rate_exceeded():
+                    time.sleep(0.1)
 
-                    self.increase_rate()
+                self.increase_rate()
 
-                    wildcard, response = self.scan(path)
+                wildcard, response = self.scan(path)
 
-                    if not wildcard:
-                        for callback in self.match_callbacks:
-                            callback(path, response)
-                    else:
-                        for callback in self.not_found_callbacks:
-                            callback(path, response)
+                if not wildcard:
+                    for callback in self.match_callbacks:
+                        callback(path, response)
+                else:
+                    for callback in self.not_found_callbacks:
+                        callback(path, response)
+            except StopIteration:
+                break
+            except RequestException as e:
+                for callback in self.error_callbacks:
+                    callback(path, e.args[1])
 
-                except RequestException as e:
-                    for callback in self.error_callbacks:
-                        callback(path, e.args[1])
+                continue
+            finally:
+                if not self.play_event.is_set():
+                    self.decrease_threads()
+                    self.paused_semaphore.release()
+                    self.play_event.wait()
+                    self.increase_threads()
 
-                    continue
+                if not self.running:
+                    break
 
-                finally:
-                    if not self.play_event.is_set():
-                        self.decrease_threads()
-                        self.paused_semaphore.release()
-                        self.play_event.wait()
-                        self.increase_threads()
-
-                    path = next(self.dictionary)  # Raises StopIteration when finishes
-
-                    if not self.running:
-                        break
-
-                    time.sleep(self.delay)
-
-        except StopIteration:
-            pass
+                time.sleep(self.delay)

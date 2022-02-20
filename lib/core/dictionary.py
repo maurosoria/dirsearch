@@ -181,11 +181,18 @@ class Dictionary(object):
     def reset(self):
         self.index = 0
 
+    def get_state(self):
+        return self.entries, self.index
+
+    def set_state(self, items, index):
+        self.entries, self.index = items, index
+
     @locked
     def __next__(self):
         try:
             path = self.entries[self.index]
         except IndexError:
+            self.reset()
             raise StopIteration
 
         self.index += 1

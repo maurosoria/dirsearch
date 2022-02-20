@@ -59,19 +59,21 @@ DEFAULT_HEADERS = {
     "Cache-Control": "max-age=0",
 }
 
+DEFAULT_SESSION_FILE = "session.json"
+
 EXCLUDED_EXPORT_VARIABLES = ("output", "threads_lock", "report", "report_manager", "requester", "fuzzer")
 
 EXTENSION_TAG = "%ext%"
 
 EXTENSION_REGEX = r"\w[.][a-zA-Z0-9]{2,5}"
 
-DEFAULT_SESSION_FILE = "session.json"
-
 MAX_REDIRECTS = 5
 
 MAX_NUMBER_OF_THREADS = 100
 
 SOCKET_TIMEOUT = 6
+
+RATE_UPDATE_DELAY = 0.15
 
 CHUNK_SIZE = 8192
 

@@ -65,7 +65,7 @@ def options():
         file = access_file(opt.proxylist, "proxylist file")
         opt.proxylist = file.get_lines()
 
-    if opt.proxy or opt.proxylist or opt.replay_proxy:
+    if opt.proxy or opt.proxylist:
         opt.request_by_hostname = True
 
     headers = {}

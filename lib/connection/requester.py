@@ -140,11 +140,8 @@ class Requester(object):
         resolve it before every request. This also keeps the scan stable despite any
         issue with the system DNS resolver (running tools like Amass might cause such
         things). If you don't like it, you can disable it with `-b` command-line flag
-
-        Note: A proxy could have a different DNS that would resolve the name. ThereFore.
-        resolving the name when using proxy to raise an error is pointless
         '''
-        if not self.request_by_hostname and not self.proxy and not self.proxylist:
+        if not self.request_by_hostname:
             try:
                 self.ip = self.ip or socket.gethostbyname(self.host)
             except socket.gaierror:
@@ -192,6 +189,8 @@ class Requester(object):
             redirects = []
 
             try:
+                url = self.url + self.base_path + path
+
                 if not proxy:
                     if self.proxylist:
                         proxy = random.choice(self.proxylist)
@@ -199,6 +198,8 @@ class Requester(object):
                         proxy = self.proxy
 
                 if proxy:
+                    url = self.base_url + self.base_path + path
+
                     if not proxy.startswith(PROXY_SCHEMES):
                         proxy = "http://" + proxy
 
@@ -208,8 +209,6 @@ class Requester(object):
                         proxies = {"https": proxy, "http": proxy}
                 else:
                     proxies = None
-
-                url = self.url + self.base_path + path
 
                 if self.random_agents:
                     self.headers["User-Agent"] = random.choice(self.random_agents)
