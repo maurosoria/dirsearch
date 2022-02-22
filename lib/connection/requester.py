@@ -55,7 +55,7 @@ class Requester(object):
         self.timeout = kwargs.get("timeout", 10)
         self.proxy = kwargs.get("proxy", None)
         self.proxylist = kwargs.get("proxylist", None)
-        self.follow_redirect = kwargs.get("redirect", False)
+        self.follow_redirects = kwargs.get("follow_redirects", False)
         self.random_agents = kwargs.get("random_agents", None)
         self.request_by_hostname = kwargs.get("request_by_hostname", False)
         self.ip = kwargs.get("ip", None)
@@ -83,7 +83,8 @@ class Requester(object):
 
         self.host = parsed.netloc.split(":")[0]
 
-        port_for_scheme = {"http": 80, "https": 443, "unknown": 0}
+        # Standard ports for different schemes
+        port_for_scheme = {"http": 80, "https": 443, "unknown": None}
 
         if parsed.scheme not in ("unknown", "https", "http"):
             raise InvalidURLException(f"Unsupported URI scheme: {parsed.scheme}")
@@ -97,14 +98,15 @@ class Requester(object):
         except IndexError:
             self.port = port_for_scheme[parsed.scheme]
         except ValueError:
-            raise InvalidURLException(f"Invalid port number: {parsed.netloc.split(':')[1]}")
+            invalid_port = parsed.netloc.split(':')[1]
+            raise InvalidURLException(f"Invalid port number: {invalid_port}")
 
-        # If no scheme is found, detect it by port number
-        self.scheme = parsed.scheme if parsed.scheme != "unknown" else detect_scheme(self.host, self.port)
-
-        # If the user neither provide the port nor scheme, guess them based
-        # on standard website characteristics
-        if not self.scheme:
+        try:
+            # If no scheme is found, detect it by port number
+            self.scheme = parsed.scheme if parsed.scheme != "unknown" else detect_scheme(self.host, self.port)
+        except ValueError:
+            # If the user neither provides the port nor scheme, guess them based
+            # on standard website characteristics
             self.scheme = detect_scheme(self.host, 443)
             self.port = port_for_scheme[self.scheme]
 
@@ -112,9 +114,7 @@ class Requester(object):
         self.headers["Host"] = self.host
 
         # Include port in Host header if it's non-standard
-        if (self.scheme == "https" and self.port != 443) or (
-            self.scheme == "http" and self.port != 80
-        ):
+        if self.port != port_for_scheme[self.scheme]:
             self.headers["Host"] += f":{self.port}"
 
         self.base_url = self.url = f"{self.scheme}://{self.headers['Host']}/"
@@ -220,7 +220,7 @@ class Requester(object):
                     )
                     result = Response(response, redirects)
 
-                    if self.follow_redirect and result.redirect:
+                    if self.follow_redirects and result.redirect:
                         url = urljoin(url, result.redirect)
                         headers["Host"] = url.split("/")[2]
                         redirects.append(url)

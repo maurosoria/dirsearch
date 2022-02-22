@@ -37,14 +37,8 @@ class Response(object):
 
         self.content = self.body.decode(response.encoding or DEFAULT_ENCODING, errors="ignore")
 
-    def __eq__(self, other):
-        return self.status == other.status and self.body == other.body
-
-    def __cmp__(self, other):
-        return (self.body > other) - (self.body < other)
-
     def __len__(self):
-        return len(self.body)
+        return self.length
 
     def __hash__(self):
         return hash(self.body)

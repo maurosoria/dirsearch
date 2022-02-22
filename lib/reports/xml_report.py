@@ -32,7 +32,7 @@ class XMLReport(FileBaseReport):
         result = ET.Element("scan", args=' '.join(sys.argv), time=time.ctime())
 
         for entry in self.entries:
-            header_name = "{.protocol}://{.host}:{.port}/{.base_path}".format(entry)
+            header_name = f"{entry.protocol}://{entry.host}:{entry.port}/{entry.base_path}"
             target = ET.SubElement(result, "target", url=header_name)
 
             for result in entry.results:

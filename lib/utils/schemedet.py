@@ -23,6 +23,9 @@ from lib.core.settings import SOCKET_TIMEOUT
 
 
 def detect_scheme(host, port):
+    if not port:
+        raise ValueError
+
     s = socket.socket()
     s.settimeout(SOCKET_TIMEOUT)
     conn = ssl.SSLContext().wrap_socket(s)

@@ -39,7 +39,7 @@ class HTMLReport(FileBaseReport):
         }
         results = []
         for entry in self.entries:
-            header_name = "{.protocol}://{.host}:{.port}/{.base_path}".format(entry)
+            header_name = f"{entry.protocol}://{entry.host}:{entry.port}/{entry.base_path}"
 
             for result in entry.results:
                 status_color_class = ''

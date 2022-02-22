@@ -16,31 +16,25 @@
 #
 #  Author: Mauro Soria
 
-from lib.core.settings import NEW_LINE
-from lib.parse.headers import HeadersParser
-from lib.utils.file import File
+import re
 
 
-def parse_raw(raw_file):
-    with File(raw_file) as file:
-        raw_content = file.read()
+def generate_matching_regex(string1, string2):
+    start = "^"
+    end = "$"
 
-    head = raw_content.split(NEW_LINE * 2)[0].splitlines(0)
-    method, path = head[0].split()[:2]
+    for char1, char2 in zip(string1, string2):
+        if char1 != char2:
+            start += ".*"
+            break
 
-    try:
-        headers = HeadersParser(head[1:])
-        host = headers.get("host").strip()
-    except KeyError:
-        print("Can't find the Host header in the raw request")
-        exit(1)
-    except Exception:
-        print("Invalid headers in the raw request")
-        exit(1)
+        start += re.escape(char1)
 
-    try:
-        body = raw_content.split(NEW_LINE * 2)[1]
-    except IndexError:
-        body = None
+    if start.endswith(".*"):
+        for char1, char2 in zip(string1[::-1], string2[::-1]):
+            if char1 != char2:
+                break
 
-    return [host + path], method, dict(headers), body
+            end = re.escape(char1) + end
+
+    return start + end

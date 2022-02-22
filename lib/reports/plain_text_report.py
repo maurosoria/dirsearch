@@ -35,25 +35,25 @@ class PlainTextReport(FileBaseReport):
             return ''
 
     def generate(self):
-        result = self.generate_header()
+        output = self.generate_header()
 
         for entry in self.entries:
             for result in entry.results:
                 if (entry.protocol, entry.host, entry.port, entry.base_path, result.path) not in self.written_entries:
                     readable_length = human_size(result.response.length)
-                    result += f"{result.status}  "
-                    result += f"{readable_length.rjust(6, chr(32))}  "
-                    result += "{.protocol}://{.host}:{.port}/".format(entry)
-                    result += (
+                    output += f"{result.status}  "
+                    output += f"{readable_length.rjust(6, chr(32))}  "
+                    output += f"{entry.protocol}://{entry.host}:{entry.port}/"
+                    output += (
                         result.path
                         if not entry.base_path
                         else f"{entry.base_path}/{result.path}"
                     )
                     location = result.response.redirect
                     if location:
-                        result += f"    -> REDIRECTS TO: {location}"
+                        output += f"    -> REDIRECTS TO: {location}"
 
-                    result += NEW_LINE
+                    output += NEW_LINE
                     self.written_entries.append((entry.protocol, entry.host, entry.port, entry.base_path, result.path))
 
-        return result
+        return output

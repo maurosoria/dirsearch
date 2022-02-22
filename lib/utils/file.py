@@ -25,7 +25,6 @@ from lib.core.settings import NEW_LINE
 class File(object):
     def __init__(self, *path_components):
         self._path = FileUtils.build_path(*path_components)
-        self.content = None
 
     @property
     def path(self):
@@ -50,27 +49,8 @@ class File(object):
     def read(self):
         return FileUtils.read(self.path)
 
-    def update(self):
-        self.content = self.read()
-
-    def content(self):
-        if not self.content:
-            self.content = FileUtils.read()
-
-        return self.content()
-
     def get_lines(self):
         return FileUtils.get_lines(self.path)
-
-    def __cmp__(self, other):
-        if not isinstance(other, File):
-            raise NotImplementedError
-        if self.content() < other.content():
-            return -1
-        elif self.content() > other.content():
-            return 1
-        else:
-            return 0
 
     def __enter__(self):
         return self

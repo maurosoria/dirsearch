@@ -30,7 +30,7 @@ class JSONReport(FileBaseReport):
 
         for entry in self.entries:
             result = {}
-            header_name = "{.protocol}://{.host}:{.port}/{.base_path}".format(entry)
+            header_name = f"{entry.protocol}://{entry.host}:{entry.port}/{entry.base_path}"
             result[header_name] = []
 
             for result in entry.results:

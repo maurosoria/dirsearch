@@ -164,7 +164,7 @@ class Controller(object):
         self.directories.queue = deque(export["directories"])
         self.dictionary = Dictionary()
         self.dictionary.set_state(export["dictionary_items"], export["dictionary_index"])
-        self.__dict__ = {**export, **self.__dict__}
+        self.__dict__ = {**export, **vars(self)}
 
     def _export(self, session_file):
         self.targets.queue.insert(0, self.url)
@@ -172,13 +172,13 @@ class Controller(object):
 
         # Queue() objects, convert them to list
         for item in ("targets", "directories"):
-            self.__dict__[item] = list(self.__dict__[item].queue)
+            self.__dict__[item] = list(vars(self)[item].queue)
 
         self.dictionary_items, self.dictionary_index = self.dictionary.get_state()
         self.last_output = self.output.buffer.rstrip()
         self.current_job -= 1
         data = {
-            key: value for key, value in self.__dict__.items() if key not in EXCLUDED_EXPORT_VARIABLES
+            key: value for key, value in vars(self).items() if key not in EXCLUDED_EXPORT_VARIABLES
         }
 
         FileUtils.write_lines(session_file, str(data), overwrite=True)
@@ -194,14 +194,14 @@ class Controller(object):
 
                 try:
                     self.requester = Requester(
-                        url + ('' if url.endswith('/') else '/'),
+                        url if url.endswith('/') else url + '/',
                         max_pool=self.options["threads_count"],
                         max_retries=self.options["max_retries"],
                         timeout=self.options["timeout"],
                         ip=self.options["ip"],
                         proxy=self.options["proxy"],
                         proxylist=self.options["proxylist"],
-                        redirect=self.options["follow_redirects"],
+                        follow_redirects=self.options["follow_redirects"],
                         request_by_hostname=self.options["request_by_hostname"],
                         httpmethod=self.options["httpmethod"],
                         data=self.options["data"],

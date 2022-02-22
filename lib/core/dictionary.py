@@ -69,23 +69,18 @@ class Dictionary(object):
         # Enable to use multiple dictionaries at once
         for dict_file in self._dictionary_files:
             for line in uniq(dict_file.get_lines()):
-                if line.startswith("/"):
+                if line.startswith('/'):
                     line = line[1:]
 
+                if self.no_extension:
+                    line = line.split('.')[0]
+
                 # Skip empty lines and comments
-                if not line or line.startswith("#"):
+                if not line or line.startswith('#'):
                     continue
 
-                if self.no_extension:
-                    line = line[0] + line[1:].split(".")[0]
-                    # Skip dummy paths
-                    if line == ".":
-                        continue
-
                 # Skip if the path contains excluded extensions
-                if self.exclude_extensions and (
-                    any(("." + extension in line for extension in self.exclude_extensions))
-                ):
+                if any('.' + extension in line for extension in self.exclude_extensions):
                     continue
 
                 # Classic dirsearch wordlist processing (with %EXT% keyword)
@@ -93,22 +88,19 @@ class Dictionary(object):
                     for extension in self.extensions:
                         newline = reext.sub(extension, line)
                         result.append(newline)
-
                 # If "forced extensions" is used and the path is not a directory (terminated by /) or has
                 # had an extension already, append extensions to the path
-                elif self.force_extensions and not line.endswith("/") and not re.search(EXTENSION_REGEX, line):
+                elif self.force_extensions and not line.endswith('/') and not re.search(EXTENSION_REGEX, line):
                     for extension in self.extensions:
-                        result.append(line + "." + extension)
+                        result.append(line + f".{extension}")
 
                     result.append(line)
-                    result.append(line + "/")
-
+                    result.append(line + '/')
                 # Append line unmodified.
-                else:
-                    if not self.only_selected or any(
-                        [line.endswith("." + extension) for extension in self.extensions]
-                    ):
-                        result.append(line)
+                elif not self.only_selected or any(
+                    line.endswith(f".{extension}") for extension in self.extensions
+                ):
+                    result.append(line)
 
         # Re-add dictionary with prefixes
         result.extend(
