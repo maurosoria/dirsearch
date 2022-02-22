@@ -33,8 +33,9 @@ class Result(object):
         self.status = response.status
         self.response = response
 
-    def get_content_type(self):
-        return self.response.headers.get('content-type') or ''
+    @property
+    def content_type(self):
+        return self.response.headers.get('content-type', '')
 
 
 class Report(object):

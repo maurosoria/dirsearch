@@ -25,15 +25,15 @@ class SimpleReport(FileBaseReport):
         result = ''
 
         for entry in self.entries:
-            for e in entry.results:
-                if (entry.protocol, entry.host, entry.port, entry.base_path, e.path) not in self.written_entries:
-                    result += "{0}://{1}:{2}/".format(entry.protocol, entry.host, entry.port)
+            for result in entry.results:
+                if (entry.protocol, entry.host, entry.port, entry.base_path, result.path) not in self.written_entries:
+                    result += "{.protocol}://{.host}:{.port}/".format(entry)
                     result += (
-                        "{0}".format(e.path)
-                        if entry.base_path == ''
-                        else "{0}/{1}".format(entry.base_path, e.path)
+                        result.path
+                        if not entry.base_path
+                        else f"{entry.base_path}/{result.path}"
                     )
                     result += NEW_LINE
-                    self.written_entries.append((entry.protocol, entry.host, entry.port, entry.base_path, e.path))
+                    self.written_entries.append((entry.protocol, entry.host, entry.port, entry.base_path, result.path))
 
         return result

@@ -25,53 +25,25 @@ from lib.utils.file import File, FileUtils
 
 
 class Dictionary(object):
-
-    def __init__(
-        self,
-        paths=[],
-        extensions=[],
-        suffixes=[],
-        prefixes=[],
-        lowercase=False,
-        uppercase=False,
-        capitalization=False,
-        force_extensions=False,
-        exclude_extensions=[],
-        no_extension=False,
-        only_selected=False,
-    ):
-
-        self.entries = ()
-        self.index = 0
-        self._extensions = extensions
-        self._exclude_extensions = exclude_extensions
-        self._prefixes = prefixes
-        self._suffixes = suffixes
-        self._paths = paths
-        self._force_extensions = force_extensions
-        self._no_extension = no_extension
-        self._only_selected = only_selected
-        self.lowercase = lowercase
-        self.uppercase = uppercase
-        self.capitalization = capitalization
-        self.dictionary_files = (File(path) for path in self.paths)
+    def __init__(self, **kwargs):
+        self._entries = ()
+        self._index = 0
+        self._dictionary_files = (File(path) for path in kwargs.get("paths", []))
+        self.extensions = kwargs.get("extensions", [])
+        self.exclude_extensions = kwargs.get("exclude_extensions", [])
+        self.prefixes = kwargs.get("prefixes", [])
+        self.suffixes = kwargs.get("suffixes", [])
+        self.force_extensions = kwargs.get("force_extensions", False)
+        self.no_extension = kwargs.get("no_extension", False)
+        self.only_selected = kwargs.get("only_selected", False)
+        self.lowercase = kwargs.get("lowercase", False)
+        self.uppercase = kwargs.get("uppercase", False)
+        self.capitalization = kwargs.get("capitalization", False)
         self.generate()
 
     @property
-    def extensions(self):
-        return self._extensions
-
-    @extensions.setter
-    def extensions(self, value):
-        self._extensions = value
-
-    @property
-    def paths(self):
-        return self._paths
-
-    @paths.setter
-    def paths(self, paths):
-        self._paths = paths
+    def index(self):
+        return self._index
 
     '''
     Dictionary.generate() behaviour
@@ -95,7 +67,7 @@ class Dictionary(object):
         result = []
 
         # Enable to use multiple dictionaries at once
-        for dict_file in self.dictionary_files:
+        for dict_file in self._dictionary_files:
             for line in uniq(dict_file.get_lines()):
                 if line.startswith("/"):
                     line = line[1:]
@@ -104,28 +76,28 @@ class Dictionary(object):
                 if not line or line.startswith("#"):
                     continue
 
-                if self._no_extension:
+                if self.no_extension:
                     line = line[0] + line[1:].split(".")[0]
                     # Skip dummy paths
                     if line == ".":
                         continue
 
                 # Skip if the path contains excluded extensions
-                if self._exclude_extensions and (
-                    any(("." + extension in line for extension in self._exclude_extensions))
+                if self.exclude_extensions and (
+                    any(("." + extension in line for extension in self.exclude_extensions))
                 ):
                     continue
 
                 # Classic dirsearch wordlist processing (with %EXT% keyword)
                 if EXTENSION_TAG in line.lower():
-                    for extension in self._extensions:
+                    for extension in self.extensions:
                         newline = reext.sub(extension, line)
                         result.append(newline)
 
                 # If "forced extensions" is used and the path is not a directory (terminated by /) or has
                 # had an extension already, append extensions to the path
-                elif self._force_extensions and not line.endswith("/") and not re.search(EXTENSION_REGEX, line):
-                    for extension in self._extensions:
+                elif self.force_extensions and not line.endswith("/") and not re.search(EXTENSION_REGEX, line):
+                    for extension in self.extensions:
                         result.append(line + "." + extension)
 
                     result.append(line)
@@ -133,28 +105,28 @@ class Dictionary(object):
 
                 # Append line unmodified.
                 else:
-                    if not self._only_selected or any(
+                    if not self.only_selected or any(
                         [line.endswith("." + extension) for extension in self.extensions]
                     ):
                         result.append(line)
 
         # Re-add dictionary with prefixes
         result.extend(
-            [pref + path for path in result for pref in self._prefixes if not path.startswith(pref)]
+            [pref + path for path in result for pref in self.prefixes if not path.startswith(pref)]
         )
         # Re-add dictionary with suffixes
         result.extend(
-            [path + suff for path in result for suff in self._suffixes if not path.endswith(("/", suff))]
+            [path + suff for path in result for suff in self.suffixes if not path.endswith(("/", suff))]
         )
 
         if self.lowercase:
-            self.entries = tuple(entry.lower() for entry in uniq(result))
+            self._entries = tuple(entry.lower() for entry in uniq(result))
         elif self.uppercase:
-            self.entries = tuple(entry.upper() for entry in uniq(result))
+            self._entries = tuple(entry.upper() for entry in uniq(result))
         elif self.capitalization:
-            self.entries = tuple(entry.capitalize() for entry in uniq(result))
+            self._entries = tuple(entry.capitalize() for entry in uniq(result))
         else:
-            self.entries = tuple(uniq(result))
+            self._entries = tuple(uniq(result))
 
         del result
 
@@ -167,40 +139,40 @@ class Dictionary(object):
         for status in [400, 403, 500]:
             blacklist_file_name = FileUtils.build_path(SCRIPT_PATH, "db")
             blacklist_file_name = FileUtils.build_path(
-                blacklist_file_name, "{}_blacklist.txt".format(status)
+                blacklist_file_name, f"{status}_blacklist.txt"
             )
 
             if not FileUtils.can_read(blacklist_file_name):
                 # Skip if cannot read file
                 continue
 
-            blacklists[status] = list(Dictionary([blacklist_file_name], extensions))
+            blacklists[status] = set(Dictionary(paths=[blacklist_file_name], extensions=extensions))
 
         return blacklists
 
     def reset(self):
-        self.index = 0
+        self._index = 0
 
     def get_state(self):
-        return self.entries, self.index
+        return self._entries, self._index
 
     def set_state(self, items, index):
-        self.entries, self.index = items, index
+        self._entries, self._index = items, index
 
     @locked
     def __next__(self):
         try:
-            path = self.entries[self.index]
+            path = self._entries[self._index]
         except IndexError:
             self.reset()
             raise StopIteration
 
-        self.index += 1
+        self._index += 1
 
         return safequote(path)
 
     def __iter__(self):
-        return iter(self.entries)
+        return iter(self._entries)
 
     def __len__(self):
-        return len(self.entries)
+        return len(self._entries)

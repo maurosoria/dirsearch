@@ -28,11 +28,11 @@ from thirdparty.sqlmap import DynamicContentParser
 
 
 class Scanner(object):
-    def __init__(self, requester, calibration=None, suffix=None, prefix=None, tested=[]):
-        self.calibration = calibration
-        self.suffix = suffix if suffix else ''
-        self.prefix = prefix if prefix else ''
-        self.tested = tested
+    def __init__(self, requester, **kwargs):
+        self.calibration = kwargs.get("calibration", None)
+        self.suffix = kwargs.get("suffix", '')
+        self.prefix = kwargs.get("prefix", '')
+        self.tested = kwargs.get("tested", [])
         self.requester = requester
         self.tester = None
         self.response = None
@@ -94,9 +94,7 @@ class Scanner(object):
         else:
             self.dynamic_parser = None
 
-        self.ratio = float(
-            "{0:.2f}".format(self.dynamic_parser.comparisonRatio)
-        )  # Rounding to 2 decimals
+        self.ratio = round(self.dynamic_parser.comparisonRatio, 2)
 
         # The wildcard response is static
         if self.ratio == 1:

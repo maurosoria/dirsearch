@@ -72,9 +72,8 @@ class Output(object):
     def status_report(self, response, full_url, added_to_queue):
         status = response.status
         content_length = human_size(response.length)
-        message = "{0} - {1} - {2}".format(
-            status, content_length.rjust(6, ' '), join_path(self.url, response.full_path)
-        )
+        url = join_path(self.url, response.full_path)
+        message = f"{status} - {content_length.rjust(6, ' ')} - {url}"
 
         if status in (200, 201, 204):
             message = self.colorizer.color(message, fore="green")
@@ -90,12 +89,12 @@ class Output(object):
             message = self.colorizer.color(message, fore="magenta")
 
         if response.redirect:
-            message += "  ->  {0}".format(response.redirect)
+            message += f"  ->  {response.redirect}"
         if added_to_queue:
             message += "     (Added to queue)"
 
         for redirect in response.history:
-            message += "\n-->  {0}".format(redirect)
+            message += f"\n-->  {redirect}"
 
         self.new_line(message)
 

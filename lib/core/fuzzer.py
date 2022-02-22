@@ -19,49 +19,36 @@
 import threading
 import time
 
+from lib.core.exceptions import RequestException
 from lib.core.scanner import Scanner
 from lib.core.settings import RATE_UPDATE_DELAY
-from lib.connection.exception import RequestException
 from lib.parse.url import clean_path
 
 
 class Fuzzer(object):
-    def __init__(
-        self,
-        requester,
-        dictionary,
-        suffixes=None,
-        prefixes=None,
-        exclude_response=None,
-        threads=1,
-        delay=0,
-        maxrate=0,
-        match_callbacks=[],
-        not_found_callbacks=[],
-        error_callbacks=[],
-    ):
-
+    def __init__(self, requester, dictionary, **kwargs):
         self.requester = requester
         self.dictionary = dictionary
-        self.suffixes = suffixes if suffixes else []
-        self.prefixes = prefixes if prefixes else []
-        self.exclude_response = exclude_response
+        self.suffixes = kwargs.get("suffixes", [])
+        self.prefixes = kwargs.get("prefixes", [])
+        self.exclude_response = kwargs.get("exclude_response", None)
         self.threads = []
-        self.threads_count = (
-            threads if len(self.dictionary) >= threads else len(self.dictionary)
-        )
-        self.delay = delay
-        self.maxrate = maxrate
+        self.threads_count = kwargs.get("threads", 15)
+        self.delay = kwargs.get("delay", 0)
+        self.maxrate = kwargs.get("maxrate", 0)
         self.running = False
         self.calibration = None
         self.default_scanner = None
-        self.match_callbacks = match_callbacks
-        self.not_found_callbacks = not_found_callbacks
-        self.error_callbacks = error_callbacks
+        self.match_callbacks = kwargs.get("match_callbacks", [])
+        self.not_found_callbacks = kwargs.get("not_found_callbacks", [])
+        self.error_callbacks = kwargs.get("error_callbacks", [])
         self.scanners = {
             "prefixes": {},
             "suffixes": {},
         }
+
+        if len(self.dictionary) < self.threads_count:
+            self.threads_count = len(self.dictionary)
 
     def wait(self, timeout=None):
         for thread in self.threads:

@@ -51,7 +51,7 @@ class Response(object):
 
     @cached_property
     def length(self):
-        if "content-length" in dict(self.headers):
+        try:
             return int(self.headers.get("content-length"))
-
-        return len(self.body)
+        except TypeError:
+            return len(self.body)

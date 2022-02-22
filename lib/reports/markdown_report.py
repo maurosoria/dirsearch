@@ -35,40 +35,40 @@ class MarkdownReport(FileBaseReport):
         self.open()
 
     def generate_header(self):
-        if self.header_written is False:
-            self.header_written = True
-            result = "### Info" + NEW_LINE
-            result += "Args: {0}".format(' '.join(sys.argv)) + NEW_LINE
-            result += "Time: {0}".format(time.ctime()) + NEW_LINE
-            result += NEW_LINE
-            return result
-        else:
+        if self.header_written:
             return ''
 
+        self.header_written = True
+        header = "### Info" + NEW_LINE
+        header += f"Args: {chr(32).join(sys.argv)}"
+        header += NEW_LINE
+        header += f"Time: {time.ctime()}"
+        header += NEW_LINE * 2
+        return header
+
     def generate(self):
-        result = self.generate_header()
+        output = self.generate_header()
 
         for entry in self.entries:
-            header_name = "{0}://{1}:{2}/{3}".format(
-                entry.protocol, entry.host, entry.port, entry.base_path
-            )
+            header = "{.protocol}://{.host}:{.port}/{.base_path}".format(entry)
+
             if (entry.protocol, entry.host, entry.port, entry.base_path) not in self.printed_target_header_list:
-                result += "### Target: {0}".format(header_name) + NEW_LINE * 2
-                result += "Path | Status | Size | Redirection" + NEW_LINE
-                result += "-----|--------|------|------------" + NEW_LINE
+                output += f"### Target: {header_name}"
+                output += NEW_LINE * 2
+                output += "Path | Status | Size | Content Type | Redirection" + NEW_LINE
+                output += "-----|--------|------|--------------|------------" + NEW_LINE
                 self.printed_target_header_list.append((entry.protocol, entry.host, entry.port, entry.base_path))
 
-            for e in entry.results:
-                if (entry.protocol, entry.host, entry.port, entry.base_path, e.path) not in self.written_entries:
-                    result += "[/{0}]({1}) | ".format(e.path, header_name + e.path)
-                    result += "{0} | ".format(e.status)
-                    result += "{0} | ".format(e.response.length)
-                    result += "{0}".format(e.response.redirect) + NEW_LINE
+            for result in entry.results:
+                if (entry.protocol, entry.host, entry.port, entry.base_path, result.path) not in self.written_entries:
+                    output += "[/{.path}]({header}{.path}) | {.status} | {.response.length} ".format(result, header=header)
+                    output += "| {.content_type} | {.response.redirect}".format(result)
+                    output += NEW_LINE
 
-                    self.written_entries.append((entry.protocol, entry.host, entry.port, entry.base_path, e.path))
+                    self.written_entries.append((entry.protocol, entry.host, entry.port, entry.base_path, result.path))
 
             if entry.completed and entry not in self.completed_hosts:
-                result += NEW_LINE
+                output += NEW_LINE
                 self.completed_hosts.append(entry)
 
-        return result
+        return output

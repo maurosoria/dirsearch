@@ -24,7 +24,7 @@ from lib.utils.file import FileUtils
 
 def parse_arguments():
     usage = "Usage: %prog [-u|--url] target [-e|--extensions] extensions [options]"
-    parser = OptionParser(usage, version="dirsearch v{}".format(VERSION))
+    parser = OptionParser(usage, version=f"dirsearch v{VERSION}")
 
     # Mandatory arguments
     mandatory = OptionGroup(parser, "Mandatory")
@@ -117,7 +117,7 @@ def parse_arguments():
     request.add_option("--random-agent", action="store_true", dest="use_random_agents",
                        help="Choose a random User-Agent for each request")
     request.add_option("--auth-type", action="store", dest="auth_type", metavar="TYPE",
-                       help="Authentication type ({})".format(", ".join(AUTHENTICATION_TYPES)))
+                       help=f"Authentication type ({', '.join(AUTHENTICATION_TYPES)})")
     request.add_option("--auth", action="store", dest="auth", metavar="CREDENTIAL",
                        help="Authentication credential ([user]:[password] or bearer token)")
     request.add_option("--user-agent", action="store", dest="useragent")

@@ -39,27 +39,25 @@ class HTMLReport(FileBaseReport):
         }
         results = []
         for entry in self.entries:
-            for e in entry.results:
-                header_name = "{0}://{1}:{2}/{3}".format(
-                    entry.protocol, entry.host, entry.port, entry.base_path
-                )
+            header_name = "{.protocol}://{.host}:{.port}/{.base_path}".format(entry)
 
+            for result in entry.results:
                 status_color_class = ''
-                if e.status >= 200 and e.status <= 299:
+                if result.status >= 200 and result.status <= 299:
                     status_color_class = "text-success"
-                elif e.status >= 300 and e.status <= 399:
+                elif result.status >= 300 and result.status <= 399:
                     status_color_class = "text-warning"
-                elif e.status >= 400 and e.status <= 599:
+                elif result.status >= 400 and result.status <= 599:
                     status_color_class = "text-danger"
 
                 results.append({
-                    "url": header_name + e.path,
-                    "path": e.path,
-                    "status": e.status,
+                    "url": header_name + result.path,
+                    "path": result.path,
+                    "status": result.status,
                     "statusColorClass": status_color_class,
-                    "contentLength": human_size(e.response.length),
-                    "contentType": e.get_content_type(),
-                    "redirect": e.response.redirect
+                    "contentLength": human_size(result.response.length),
+                    "contentType": result.content_type,
+                    "redirect": result.response.redirect
                 })
 
         return template.render(metadata=metadata, results=results)

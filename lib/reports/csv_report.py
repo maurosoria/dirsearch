@@ -28,30 +28,32 @@ class CSVReport(FileBaseReport):
         else:
             return ''
 
+    # Preventing CSV injection. More info: https://www.exploit-db.com/exploits/49370
+    def clear_csv_attr(self, text):
+        if text.startswith(INSECURE_CSV_CHARS):
+            text = "'" + text
+
+        return text.replace('"', '""')
+
     def generate(self):
         result = self.generate_header()
 
         for entry in self.entries:
-            for e in entry.results:
-                if (entry.protocol, entry.host, entry.port, entry.base_path, e.path) not in self.written_entries:
-                    path = e.path
-                    status = e.status
-                    content_length = e.response.length
-                    redirect = e.response.redirect
+            for result in entry.results:
+                if (entry.protocol, entry.host, entry.port, entry.base_path, result.path) not in self.written_entries:
+                    path = result.path
+                    status = result.status
+                    content_length = result.response.length
+                    redirect = result.response.redirect
 
-                    result += "{0}://{1}:{2}/{3}{4},".format(entry.protocol, entry.host, entry.port, entry.base_path, path)
-                    result += "{0},".format(status)
-                    result += "{0},".format(content_length)
+                    result += "{.protocol}://{.host}:{.port}/{.base_path}{path},".format(entry, path=path)
+                    result += f"{status},"
+                    result += f"{content_length},"
 
                     if redirect:
-                        # Preventing CSV injection. More info: https://www.exploit-db.com/exploits/49370
-                        if redirect.startswith(INSECURE_CSV_CHARS):
-                            redirect = "'" + redirect
-
-                        redirect = redirect.replace('"', '""')
-                        result += '"{0}"'.format(redirect)
+                        result += f'"{self.clean_csv_attr(redirect)}"'
 
                     result += NEW_LINE
-                    self.written_entries.append((entry.protocol, entry.host, entry.port, entry.base_path, e.path))
+                    self.written_entries.append((entry.protocol, entry.host, entry.port, entry.base_path, result.path))
 
         return result

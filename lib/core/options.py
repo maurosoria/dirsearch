@@ -138,7 +138,7 @@ def options():
         print("No authentication credential found")
         exit(1)
     elif opt.auth and opt.auth_type not in AUTHENTICATION_TYPES:
-        print("'{}' is not in available authentication types: {}".format(opt.auth_type, ", ".join(AUTHENTICATION_TYPES)))
+        print(f"'{opt.auth_type}' is not in available authentication types: {', '.join(AUTHENTICATION_TYPES)}")
         exit(1)
 
     if set(opt.extensions).intersection(opt.exclude_extensions):
@@ -146,7 +146,7 @@ def options():
         exit(1)
 
     if opt.output_format not in OUTPUT_FORMATS:
-        print("Select one of the following output formats: {}".format(", ".join(OUTPUT_FORMATS)))
+        print(f"Select one of the following output formats: {', '.join(OUTPUT_FORMATS)}")
         exit(1)
 
     return vars(opt)
@@ -156,34 +156,36 @@ def parse_status_codes(str_):
     if not str_:
         return []
 
-    status_codes = []
+    status_codes = set()
 
     for status_code in str_.split(","):
         try:
             if "-" in status_code:
-                s, e = status_code.strip().split("-")
-                status_codes.extend(range(int(s), int(e) + 1))
+                start, end = status_code.strip().split("-")
+                status_codes.update(
+                    range(int(start), int(end) + 1)
+                )
             else:
-                status_codes.append(int(status_code.strip()))
+                status_codes.add(int(status_code.strip()))
         except ValueError:
-            print("Invalid status code or status code range: {0}".format(status_code))
+            print(f"Invalid status code or status code range: {status_code}")
             exit(1)
 
-    return uniq(status_codes)
+    return status_codes
 
 
 def access_file(path, name):
     with File(path) as file:
         if not file.exists():
-            print("The {} does not exist".format(name))
+            print(f"The {name} does not exist")
             exit(1)
 
         if not file.is_valid():
-            print("The {} is invalid".format(name))
+            print(f"The {name} is invalid")
             exit(1)
 
         if not file.can_read():
-            print("The {} cannot be read".format(name))
+            print(f"The {name} cannot be read")
             exit(1)
 
         return file

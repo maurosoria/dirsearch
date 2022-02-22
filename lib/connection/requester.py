@@ -23,8 +23,8 @@ import http.client
 
 from urllib.parse import urlparse, urljoin
 
+from lib.core.exceptions import InvalidURLException, RequestException, DNSError
 from lib.core.settings import PROXY_SCHEMES, MAX_REDIRECTS
-from lib.connection.exception import RequestException
 from lib.connection.response import Response
 from lib.utils.fmt import safequote
 from lib.utils.schemedet import detect_scheme
@@ -47,32 +47,27 @@ class Session(requests.Session):
 
 
 class Requester(object):
-    def __init__(
-        self,
-        url,
-        max_pool=100,
-        max_retries=5,
-        timeout=20,
-        ip=None,
-        proxy=None,
-        proxylist=None,
-        redirect=False,
-        request_by_hostname=False,
-        httpmethod="get",
-        data=None,
-        scheme=None,
-        random_agents=None,
-    ):
-        self.httpmethod = httpmethod
-        self.data = data
-        self.max_pool = max_pool
+    def __init__(self, url, **kwargs):
+        self.httpmethod = kwargs.get("httpmethod", "get")
+        self.data = kwargs.get("data", None)
+        self.max_pool = kwargs.get("max_pool", 100)
+        self.max_retries = kwargs.get("max_retries", 3)
+        self.timeout = kwargs.get("timeout", 10)
+        self.proxy = kwargs.get("proxy", None)
+        self.proxylist = kwargs.get("proxylist", None)
+        self.follow_redirect = kwargs.get("redirect", False)
+        self.random_agents = kwargs.get("random_agents", None)
+        self.request_by_hostname = kwargs.get("request_by_hostname", False)
+        self.ip = kwargs.get("ip", None)
+        self.auth = None
         self.headers = {}
 
         parsed = urlparse(url)
+        scheme = kwargs.get("scheme", None)
 
         # If no scheme specified, unset it first
         if "://" not in url:
-            parsed = urlparse("{0}://{1}".format(scheme or "unknown", url))
+            parsed = urlparse(f"{scheme or 'unknown'}://{url}")
 
         self.base_path = parsed.path
         if parsed.path.startswith("/"):
@@ -91,15 +86,18 @@ class Requester(object):
         port_for_scheme = {"http": 80, "https": 443, "unknown": 0}
 
         if parsed.scheme not in ("unknown", "https", "http"):
-            raise RequestException("Unsupported URI scheme: {0}".format(parsed.scheme))
+            raise InvalidURLException(f"Unsupported URI scheme: {parsed.scheme}")
 
         # If no port specified, set default (80, 443)
         try:
             self.port = int(parsed.netloc.split(":")[1])
+
+            if not 0 < self.port < 65536:
+                raise ValueError
         except IndexError:
             self.port = port_for_scheme[parsed.scheme]
         except ValueError:
-            raise RequestException("Invalid port number: {0}".format(parsed.netloc.split(":")[1]))
+            raise InvalidURLException(f"Invalid port number: {parsed.netloc.split(':')[1]}")
 
         # If no scheme is found, detect it by port number
         self.scheme = parsed.scheme if parsed.scheme != "unknown" else detect_scheme(self.host, self.port)
@@ -117,21 +115,9 @@ class Requester(object):
         if (self.scheme == "https" and self.port != 443) or (
             self.scheme == "http" and self.port != 80
         ):
-            self.headers["Host"] += ":{0}".format(self.port)
+            self.headers["Host"] += f":{self.port}"
 
-        self.max_retries = max_retries
-        self.timeout = timeout
-        self.proxy = proxy
-        self.proxylist = proxylist
-        self.redirect = redirect
-        self.random_agents = random_agents
-        self.auth = None
-        self.request_by_hostname = request_by_hostname
-        self.ip = ip
-        self.base_url = self.url = "{0}://{1}/".format(
-            self.scheme,
-            self.headers["Host"],
-        )
+        self.base_url = self.url = f"{self.scheme}://{self.headers['Host']}/"
 
     def setup(self):
         '''
@@ -149,13 +135,9 @@ class Requester(object):
                 try:
                     self.ip = socket.getaddrinfo(self.host, None, socket.AF_INET6)[0][4][0]
                 except socket.gaierror:
-                    raise RequestException("Couldn't resolve DNS")
+                    raise DNSException
 
-            self.url = "{0}://{1}:{2}/".format(
-                self.scheme,
-                self.ip,
-                self.port,
-            )
+            self.url = f"{self.scheme}://{self.ip}:{self.port}/"
 
         self.session = Session()
         self.session.verify = False
@@ -166,11 +148,11 @@ class Requester(object):
 
     def set_auth(self, type, credential):
         if type in ("bearer", "jwt", "oath2"):
-            self.set_header("Authorization", "Bearer {0}".format(credential))
+            self.set_header("Authorization", f"Bearer {credential}")
         else:
             user = credential.split(":")[0]
             try:
-                password = ":".join(credential.split(":")[1:])
+                password = ':'.join(credential.split(':')[1:])
             except IndexError:
                 password = ''
 
@@ -201,7 +183,7 @@ class Requester(object):
                     url = self.base_url + self.base_path + path
 
                     if not proxy.startswith(PROXY_SCHEMES):
-                        proxy = "http://" + proxy
+                        proxy = f"http://{proxy}"
 
                     if proxy.startswith("https://"):
                         proxies = {"https": proxy}
@@ -218,7 +200,7 @@ class Requester(object):
                 request headers, which will be kept in next requests (follow redirects)
                 '''
                 headers = self.headers.copy()
-                for i in range(MAX_REDIRECTS):
+                for _ in range(MAX_REDIRECTS):
                     request = requests.Request(
                         self.httpmethod,
                         url,
@@ -238,7 +220,7 @@ class Requester(object):
                     )
                     result = Response(response, redirects)
 
-                    if self.redirect and result.redirect:
+                    if self.follow_redirect and result.redirect:
                         url = urljoin(url, result.redirect)
                         headers["Host"] = url.split("/")[2]
                         redirects.append(url)
@@ -254,23 +236,23 @@ class Requester(object):
                 if "SSLError" in err_msg:
                     simple_err_msg = "Unexpected SSL error, probably the server is broken or try updating your OpenSSL"
                 elif "ProxyError" in err_msg:
-                    simple_err_msg = "Error with the proxy: {0}".format(proxy)
-                elif "ConnectionError" in err_msg:
-                    simple_err_msg = "Cannot connect to: {0}:{1}".format(self.host, self.port)
+                    simple_err_msg = f"Error with the proxy: {proxy}"
                 elif "InvalidURL" in err_msg:
-                    simple_err_msg = "Invalid URL: {0}".format(self.base_url)
+                    simple_err_msg = f"Invalid URL: {self.base_url}"
                 elif "InvalidProxyURL" in err_msg:
-                    simple_err_msg = "Invalid proxy URL: {0}".format(proxy)
+                    simple_err_msg = f"Invalid proxy URL: {proxy}"
+                elif "ConnectionError" in err_msg:
+                    simple_err_msg = f"Cannot connect to: {self.host}:{self.port}"
                 elif re.search("ChunkedEncodingError|StreamConsumedError|UnrewindableBodyError", err_msg):
-                    simple_err_msg = "Failed to read response body: {0}".format(self.base_url)
+                    simple_err_msg = f"Failed to read response body: {self.base_url}"
                 elif e == requests.exceptions.TooManyRedirects:
-                    simple_err_msg = "Too many redirects: {0}".format(self.base_url)
+                    simple_err_msg = f"Too many redirects: {self.base_url}"
                 elif "Timeout" in err_msg or e in (
                     http.client.IncompleteRead,
                     socket.timeout,
                 ):
-                    simple_err_msg = "Request timeout: {0}".format(self.base_url)
+                    simple_err_msg = f"Request timeout: {self.base_url}"
                 else:
-                    simple_err_msg = "There was a problem in the request to: {0}".format(self.base_url)
+                    simple_err_msg = f"There was a problem in the request to: {self.base_url}"
 
         raise RequestException(simple_err_msg, err_msg)

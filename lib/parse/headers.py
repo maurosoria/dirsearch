@@ -54,7 +54,7 @@ class HeadersParser(object):
 
         if isinstance(headers, dict):
             return NEW_LINE.join(
-                "{0}: {1}".format(key, value) for key, value in headers.items()
+                f"{key}: {value}" for key, value in headers.items()
             )
         elif isinstance(headers, list):
             return NEW_LINE.join(headers)

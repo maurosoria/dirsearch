@@ -33,23 +33,23 @@ class SQLiteReport(FileBaseReport):
         if not self.entries:
             return []
 
-        table = "{}_{}:{}/{}".format(self.entries[0].protocol, self.entries[0].host, self.entries[0].port, self.entries[0].base_path)
-        commands.append(["DROP TABLE IF EXISTS `{}`".format(table)])
+        table = "{.protocol}_{.host}:{.port}/{.base_path}".format(self.entries[0])
+        commands.append([f"DROP TABLE IF EXISTS `{table}`"])
         commands.append(
-            ['''CREATE TABLE `{}`
-                ([time] TEXT, [path] TEXT, [status_code] INTEGER, [content_length] INTEGER, [redirect] TEXT)
-             '''.format(table)]
+            [f'''CREATE TABLE `{table}`
+                ([time] TEXT, [path] TEXT, [status_code] INTEGER, [content_length] INTEGER, [content_type] TEXT, [redirect] TEXT)
+             ''']
         )
 
         for entry in self.entries:
-            for e in entry.results:
-                path = "/" + entry.base_path + e.path
-                commands.append(['''
-                    INSERT INTO `{}` (time, path, status_code, content_length, redirect)
+            for result in entry.results:
+                path = "/" + entry.base_path + result.path
+                commands.append([f'''
+                    INSERT INTO `{table}` (time, path, status_code, content_length, content_type, redirect)
                         VALUES
-                        (?, ?, ?, ?, ?)
-                                '''.format(table), (
-                    time.ctime(), path, e.status, e.response.length, e.response.redirect
+                        (?, ?, ?, ?, ?, ?)
+                                ''', (
+                    time.ctime(), path, result.status, result.response.length, result.content_type, result.response.redirect
                 )])
 
         return commands
@@ -58,4 +58,5 @@ class SQLiteReport(FileBaseReport):
     def save(self):
         for command in self.generate():
             self.cursor.execute(*command)
+
         self.file.commit()

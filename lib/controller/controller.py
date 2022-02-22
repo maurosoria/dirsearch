@@ -25,9 +25,8 @@ from queue import Queue, deque
 from urllib.parse import urlparse
 
 from lib.connection.requester import Requester
-from lib.connection.exception import RequestException
-from lib.controller.exception import SkipTargetInterrupt
 from lib.core.dictionary import Dictionary
+from lib.core.exceptions import InvalidURLException, RequestException, SkipTargetInterrupt, QuitInterrupt, DNSError
 from lib.core.fuzzer import Fuzzer
 from lib.core.logger import log
 from lib.core.report_manager import Report, ReportManager
@@ -90,7 +89,7 @@ class Controller(object):
 
     def setup(self, options):
         self.options = options
-        self.pass_dirs = ['']
+        self.pass_dirs = {''}
 
         if options["raw_file"]:
             self.options.update(
@@ -128,7 +127,6 @@ class Controller(object):
         )
         self.current_job = 0
         self.batch = False
-        self.exit = None
         self.report = None
         self.current_directory = ''
         self.start_time = time.time()
@@ -138,12 +136,26 @@ class Controller(object):
 
         if options["autosave_report"]:
             self.report_path = options["output_location"] or FileUtils.build_path(SCRIPT_PATH, "reports")
-            self.create_dir(self.report_path)
+
+            try:
+                FileUtils.create_dir(self.report_path)
+
+                if not FileUtils.can_write(self.report_path):
+                    raise Exception
+            except Exception:
+                self.output.error(f"Couldn't create report folder at {self.report_path}")
+                exit(1)
 
         if options["log_file"]:
             self.options["log_file"] = FileUtils.get_abs_path(options["log_file"])
-            if not self.create_dir(FileUtils.parent(self.options["log_file"])):
-                self.output.error("Couldn't create log file at {}".format(self.options["log_file"]))
+
+            try:
+                FileUtils.create_dir(FileUtils.parent(self.options["log_file"]))
+
+                if not FileUtils.can_write(self.options["log_file"]):
+                    raise Exception
+            except Exception:
+                self.output.error(f"Couldn't create log file at {self.options['log_file']}")
                 exit(1)
 
     def _import(self, data):
@@ -165,7 +177,9 @@ class Controller(object):
         self.dictionary_items, self.dictionary_index = self.dictionary.get_state()
         self.last_output = self.output.buffer.rstrip()
         self.current_job -= 1
-        data = {k: v for k, v in self.__dict__.items() if k not in EXCLUDED_EXPORT_VARIABLES}
+        data = {
+            key: value for key, value in self.__dict__.items() if key not in EXCLUDED_EXPORT_VARIABLES
+        }
 
         FileUtils.write_lines(session_file, str(data), overwrite=True)
 
@@ -176,7 +190,6 @@ class Controller(object):
 
         while not self.targets.empty():
             try:
-                self.skip = None
                 url = self.targets.get()
 
                 try:
@@ -213,21 +226,23 @@ class Controller(object):
 
                     # Test request to check if server is up
                     self.requester.request('')
-                    log(self.options["log_file"], "info", "Test request sent for: {}".format(self.requester.base_url))
+                    log(self.options["log_file"], "info", f"Test request sent for: {self.requester.base_url}")
 
                     self.output.url = self.requester.base_url
                     self.report = Report(
                         self.requester.host, self.requester.port, self.requester.scheme, self.requester.base_path
                     )
+                except (DNSError, InvalidURLException, RequestException) as e:
+                    if e == DNSError:
+                        e.args[0] = e.args[1] = "Couldn't resolve DNS"
 
-                except RequestException as e:
                     self.output.error(e.args[0])
                     self.append_error_log('', e.args[1])
                     raise SkipTargetInterrupt
 
                 if self.directories.empty():
                     self.directories.queue = deque(self.options["scan_subdirs"])
-                    self.pass_dirs.extend(self.options["scan_subdirs"])
+                    self.pass_dirs.update(self.options["scan_subdirs"])
 
                 self.fuzzer = Fuzzer(
                     self.requester,
@@ -272,10 +287,9 @@ class Controller(object):
             self.current_job += 1
 
             if not self.from_export or not first:
+                current_time = time.strftime('%H:%M:%S')
                 msg = '\n' if first else ''
-                msg += "[{0}] Starting: {1}".format(
-                    time.strftime("%H:%M:%S"), self.current_directory
-                )
+                msg += f"[{current_time}] Starting: {self.current_directory}"
 
                 self.output.warning(msg)
 
@@ -290,11 +304,14 @@ class Controller(object):
     # Create batch report folder
     def setup_batch_reports(self):
         self.batch = True
-        batch_session = "BATCH-{}".format(time.strftime("%y-%m-%d_%H-%M-%S"))
+        current_time = time.strftime("%y-%m-%d_%H-%M-%S")
+        batch_session = f"BATCH-{current_time}"
         batch_directory_path = FileUtils.build_path(self.report_path, batch_session)
 
-        if not self.create_dir(batch_directory_path):
-            self.output.error("Couldn't create batch folder at {}".format(batch_directory_path))
+        try:
+            FileUtils.create_dir(batch_directory_path)
+        except Exception:
+            self.output.error(f"Couldn't create batch folder at {batch_directory_path}")
             exit(1)
 
         return batch_directory_path
@@ -302,7 +319,7 @@ class Controller(object):
     # Get file extension for report format
     def get_output_extension(self):
         if self.options["output_format"] not in ("plain", "simple"):
-            return ".{}".format(self.options["output_format"])
+            return f".{self.options['output_format']}"
         else:
             return ".txt"
 
@@ -318,7 +335,7 @@ class Controller(object):
                 filename = "BATCH" + self.get_output_extension()
             else:
                 parsed = urlparse(self.targets.queue[0])
-                filename = get_valid_filename("{}_".format(parsed.path))
+                filename = get_valid_filename(f"{parsed.path}_")
                 filename += time.strftime("%y-%m-%d_%H-%M-%S")
                 filename += self.get_output_extension()
                 directory_path = FileUtils.build_path(
@@ -329,36 +346,21 @@ class Controller(object):
 
             if FileUtils.exists(output_file):
                 i = 2
-                while FileUtils.exists("{}_{}".format(output_file, i)):
+                while FileUtils.exists(f"{output_file}_{i}"):
                     i += 1
 
-                output_file += "_" + str(i)
+                output_file += f"_{i}"
 
-            if not self.create_dir(directory_path):
-                self.output.error(
-                    "Couldn't create the reports folder at {}".format(directory_path)
-                )
+            try:
+                FileUtils.create_dir(directory_path)
+            except Exception:
+                self.output.error(f"Couldn't create the reports folder at {directory_path}")
                 exit(1)
 
         self.report_manager = ReportManager(self.options["output_format"], output_file)
 
         if output_file:
             self.output.output_file(output_file)
-
-    # Create and check if directory is writable
-    def create_dir(self, path):
-        if not FileUtils.exists(path):
-            ok = self.create_dir(FileUtils.parent(path))
-            if ok:
-                FileUtils.create_directory(path)
-
-            return ok
-        elif not FileUtils.is_dir(path):
-            return False
-        elif not FileUtils.can_write(path):
-            return False
-
-        return True
 
     # Validate the response by different filters
     def is_valid(self, path, res):
@@ -398,8 +400,7 @@ class Controller(object):
     # Callback for found paths
     def match_callback(self, path, response):
         if response.status in self.options["skip_on_status"]:
-            self.skip = "Skipped the target due to {} status code".format(response.status)
-            return
+            raise SkipTargetInterrupt(f"Skipped the target due to {response.status} status code")
 
         if not self.is_valid(path, response):
             return
@@ -434,30 +435,28 @@ class Controller(object):
     # Callback for errors while fuzzing
     def error_callback(self, path, error_msg):
         if self.options["exit_on_error"]:
-            self.exit = "Canceled due to an error"
+            raise QuitInterrupt("Canceled due to an error")
 
         self.output.add_connection_error()
 
     # Write request to log file
     def append_traffic_log(self, path, response):
-        msg = "{} {} {} {}".format(
-            self.requester.ip or "0",
-            response.status,
-            self.options["httpmethod"],
-            join_path(self.requester.base_url, response.path)
-        )
+        url = join_path(self.requester.base_url, response.path)
+        msg = f"{self.requester.ip or '0'} {response.status} "
+        msg += f"{self.options['httpmethod']} {url}"
 
         if response.redirect:
-            msg += " - REDIRECT TO: {}".format(response.redirect)
-        msg += " (LENGTH: {})".format(response.length)
+            msg += f" - REDIRECT TO: {response.redirect}"
+        msg += f" (LENGTH: {response.length})"
 
         log(self.options["log_file"], "traffic", msg)
 
     # Write error to log file
     def append_error_log(self, path, error_msg):
         url = self.url + self.current_directory + path
-        msg = "{} {}".format(self.options["httpmethod"], url)
-        msg += NEW_LINE + ' ' * 4
+        msg = f"{self.options['httpmethod']} {url}"
+        msg += NEW_LINE
+        msg += ' ' * 4
         msg += error_msg
         log(self.options["log_file"], "error", msg)
 
@@ -494,14 +493,14 @@ class Controller(object):
                 if option.lower() == 'q':
                     self.close("Canceled by the user")
                 elif option.lower() == 's':
-                    msg = "Save to file [{}]: ".format(DEFAULT_SESSION_FILE)
+                    msg = f"Save to file [{DEFAULT_SESSION_FILE}]: "
 
                     self.output.in_line(msg)
 
                     session_file = input() or DEFAULT_SESSION_FILE
 
                     self._export(session_file)
-                    self.close("Session saved to: {}".format(session_file))
+                    self.close(f"Session saved to: {session_file}")
             elif option.lower() == 'c':
                 self.fuzzer.resume()
                 return
@@ -516,21 +515,23 @@ class Controller(object):
 
     # Monitor the fuzzing process
     def process(self):
-        while 1:
+        while True:
             try:
                 while not self.fuzzer.wait(0.3):
                     if self.is_timed_out():
-                        self.skip = "Canceled because the runtime exceeded the maximum set by user"
+                        raise SkipTargetInterrupt("Canceled because the runtime exceeded the maximum set by user")
 
-                    if self.skip:
-                        self.close(self.skip, skip=True)
-                    elif self.exit:
-                        self.close(self.exit)
-                        break
                 break
 
             except KeyboardInterrupt:
                 self.handle_pause()
+
+            except SkipTargetInterrupt as e:
+                self.output.error(e.args[0])
+                raise e
+
+            except QuitInterrupt as e:
+                self.close(e.args[0])
 
     # Add directory to the recursion queue
     def add_directory(self, path):
@@ -546,7 +547,7 @@ class Controller(object):
             return False
 
         self.directories.put(dir)
-        self.pass_dirs.append(dir)
+        self.pass_dirs.add(dir)
         self.jobs_count += 1
 
         return True
@@ -580,11 +581,8 @@ class Controller(object):
 
         return False
 
-    def close(self, msg=None, skip=False):
+    def close(self, msg):
         self.fuzzer.stop()
         self.output.error(msg)
-        if skip:
-            raise SkipTargetInterrupt
-
         self.report_manager.update_report(self.report)
         exit(0)

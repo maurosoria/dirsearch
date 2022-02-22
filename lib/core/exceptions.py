@@ -16,5 +16,22 @@
 #
 #  Author: Mauro Soria
 
+
+class RequestException(Exception):
+    pass
+
+
+class InvalidURLException(Exception):
+    pass
+
+
+class DNSError(Exception):
+    pass
+
+
 class SkipTargetInterrupt(Exception):
+    pass
+
+
+class QuitInterrupt(Exception):
     pass

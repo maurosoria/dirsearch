@@ -29,7 +29,7 @@ def log(file, type, msg):
         return
 
     line = time.strftime("[%y-%m-%d %H:%M:%S]")
-    line += "[{}] ".format(type.upper())
+    line += f"[{type.upper()}] "
     line += msg
     line += NEW_LINE
     FileUtils.write_lines(file, line)

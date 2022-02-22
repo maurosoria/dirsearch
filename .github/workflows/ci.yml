@@ -31,7 +31,7 @@ jobs:
         echo https://self-signed.badssl.com/ | python3 dirsearch.py --stdin --max-time 9 --random-agent --auth u:p --auth-type basic --scheme http -w tmp_wordlist.txt
     - name: Lint
       run: |
-        flake8 . --exclude=thirdparty --count --ignore=F403,F405,E501,E701 --show-source --statistics
+        flake8 . --exclude=thirdparty --count --ignore=E501,E701,F403,F405,F524 --show-source --statistics
         # exit-zero treats all errors as warnings.  Max complexity is currently 77.
         flake8 . --exclude=thirdparty --count --ignore=E501 --exit-zero --max-complexity=10 --show-source --statistics
     - name: Codespell

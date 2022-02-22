@@ -90,12 +90,8 @@ class Output(object):
         status = response.status
         content_length = human_size(response.length)
         show_path = join_path(self.url, response.full_path) if full_url else response.full_path
-        message = "[{0}] {1} - {2} - {3}".format(
-            time.strftime("%H:%M:%S"),
-            status,
-            content_length.rjust(6, ' '),
-            show_path,
-        )
+        current_time = time.strftime("%H:%M:%S")
+        message = f"[{current_time}] {status} - {content_length.rjust(6, ' ')} - {shot_path}"
 
         if status in (200, 201, 204):
             message = self.colorizer.color(message, fore="green")
@@ -111,12 +107,12 @@ class Output(object):
             message = self.colorizer.color(message, fore="magenta")
 
         if response.redirect:
-            message += "  ->  {0}".format(response.redirect)
+            message += f"  ->  {response.redirect}"
         if added_to_queue:
             message += "     (Added to queue)"
 
         for redirect in response.history:
-            message += "\n-->  {0}".format(redirect)
+            message += f"\n-->  {redirect}"
 
         self.new_line(message)
 
@@ -124,27 +120,17 @@ class Output(object):
         percentage = int(index / length * 100)
         task = self.colorizer.color('#', fore="cyan", bright=True) * int(percentage / 5)
         task += ' ' * (20 - int(percentage / 5))
-        progress = "{}/{}".format(index, length)
+        progress = f"{index}/{length}"
 
-        jobs = "{0}:{1}/{2}".format(
-            self.colorizer.color("job", fore="green", bright=True),
-            current_job,
-            all_jobs
-        )
+        grean_job = self.colorizer.color("job", fore="green", bright=True)
+        jobs = f"{grean_job}:{current_job}/{all_jobs}"
 
-        errors = "{0}:{1}".format(
-            self.colorizer.color("errors", fore="red", bright=True),
-            self.errors
-        )
+        red_error = self.colorizer.color("errors", fore="red", bright=True)
+        errors = f"{red_error}:{self.errors}"
 
-        progress_bar = "[{0}] {1}% {2} {3}/s       {4} {5}".format(
-            task,
-            str(percentage).rjust(2, ' '),
-            progress.rjust(12, ' '),
-            str(rate).rjust(9, ' '),
-            jobs.ljust(21, ' '),
-            errors
-        )
+        progress_bar = f"[{task}] {str(percentage).rjust(2, chr(32))}% "
+        progress_bar += f"{progress.rjust(12, chr(32))} {str(rate).rjust(9, chr(32))}/s       "
+        progress_bar += f"{jobs.ljust(21, chr(32))} {errors}"
 
         if len(self.colorizer.clean(progress_bar)) >= shutil.get_terminal_size()[0]:
             return
@@ -220,7 +206,7 @@ class Output(object):
         self.print_header({"Target": target}, save=True)
 
     def output_file(self, target):
-        self.new_line("\nOutput File: {0}".format(target), save=False)
+        self.new_line(f"\nOutput File: {target}", save=False)
 
     def log_file(self, target):
-        self.new_line("\nLog File: {0}".format(target), save=False)
+        self.new_line(f"\nLog File: {target}", save=False)
