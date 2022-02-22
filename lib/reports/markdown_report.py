@@ -50,7 +50,7 @@ class MarkdownReport(FileBaseReport):
         output = self.generate_header()
 
         for entry in self.entries:
-            header = "{.protocol}://{.host}:{.port}/{.base_path}".format(entry)
+            header_name = "{.protocol}://{.host}:{.port}/{.base_path}".format(entry)
 
             if (entry.protocol, entry.host, entry.port, entry.base_path) not in self.printed_target_header_list:
                 output += f"### Target: {header_name}"
@@ -61,7 +61,7 @@ class MarkdownReport(FileBaseReport):
 
             for result in entry.results:
                 if (entry.protocol, entry.host, entry.port, entry.base_path, result.path) not in self.written_entries:
-                    output += "[/{.path}]({header}{.path}) | {.status} | {.response.length} ".format(result, header=header)
+                    output += "[/{.path}]({header}{.path}) | {.status} | {.response.length} ".format(result, header=header_name)
                     output += "| {.content_type} | {.response.redirect}".format(result)
                     output += NEW_LINE
 

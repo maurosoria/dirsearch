@@ -91,7 +91,7 @@ class Output(object):
         content_length = human_size(response.length)
         show_path = join_path(self.url, response.full_path) if full_url else response.full_path
         current_time = time.strftime("%H:%M:%S")
-        message = f"[{current_time}] {status} - {content_length.rjust(6, ' ')} - {shot_path}"
+        message = f"[{current_time}] {status} - {content_length.rjust(6, ' ')} - {show_path}"
 
         if status in (200, 201, 204):
             message = self.colorizer.color(message, fore="green")

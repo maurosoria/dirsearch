@@ -135,7 +135,7 @@ class Requester(object):
                 try:
                     self.ip = socket.getaddrinfo(self.host, None, socket.AF_INET6)[0][4][0]
                 except socket.gaierror:
-                    raise DNSException
+                    raise DNSError
 
             self.url = f"{self.scheme}://{self.ip}:{self.port}/"
 
