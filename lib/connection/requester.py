@@ -21,7 +21,7 @@ import random
 import socket
 import http.client
 
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urlparse
 
 from lib.core.exceptions import InvalidURLException, RequestException
 from lib.core.settings import PROXY_SCHEMES
@@ -153,7 +153,6 @@ class Requester(object):
 
         # Why using a loop instead of max_retries argument? Check issue #1009
         for _ in range(self.max_retries + 1):
-            result = None
             redirects = []
 
             try:

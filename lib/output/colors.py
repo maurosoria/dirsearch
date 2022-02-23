@@ -51,6 +51,8 @@ _escape_seq = Combine(
     ) + oneOf(list(string.ascii_letters))
 )
 
+init()
+
 
 def set_color(msg, fore="none", back="none", bright=False):
     if bright:

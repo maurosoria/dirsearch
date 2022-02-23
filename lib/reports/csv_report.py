@@ -44,7 +44,7 @@ class CSVReport(FileBaseReport):
                     output += f"{entry.protocol}://{entry.host}:{entry.port}/{entry.base_path}{result.path},"
                     output += f"{result.status},{result.response.length},{result.content_type}"
 
-                    if redirect:
+                    if result.response.redirect:
                         output += f'"{self.clean_csv_attr(result.response.redirect)}"'
 
                     output += NEW_LINE
