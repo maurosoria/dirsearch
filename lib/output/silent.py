@@ -22,7 +22,7 @@ from lib.core.decorators import locked
 from lib.core.settings import IS_WINDOWS
 from lib.parse.url import join_path
 from lib.utils.common import human_size
-from lib.output.colors import ColorOutput
+from lib.output.colors import set_color
 
 if IS_WINDOWS:
     from thirdparty.colorama.win32 import (FillConsoleOutputCharacter,
@@ -36,7 +36,6 @@ class Output(object):
         self.blacklists = {}
         self.url = None
         self.errors = 0
-        self.colorizer = ColorOutput(colors)
 
     def header(self, text):
         pass
@@ -76,17 +75,17 @@ class Output(object):
         message = f"{status} - {content_length.rjust(6, ' ')} - {url}"
 
         if status in (200, 201, 204):
-            message = self.colorizer.color(message, fore="green")
+            message = set_color(message, fore="green")
         elif status == 401:
-            message = self.colorizer.color(message, fore="yellow")
+            message = set_color(message, fore="yellow")
         elif status == 403:
-            message = self.colorizer.color(message, fore="blue")
+            message = set_color(message, fore="blue")
         elif status in range(500, 600):
-            message = self.colorizer.color(message, fore="red")
+            message = set_color(message, fore="red")
         elif status in range(300, 400):
-            message = self.colorizer.color(message, fore="cyan")
+            message = set_color(message, fore="cyan")
         else:
-            message = self.colorizer.color(message, fore="magenta")
+            message = set_color(message, fore="magenta")
 
         if response.redirect:
             message += f"  ->  {response.redirect}"
@@ -106,7 +105,7 @@ class Output(object):
 
     def error(self, reason):
         stripped = reason.strip()
-        message = self.colorizer.color(stripped, fore="white", back="red", bright=True)
+        message = set_color(stripped, fore="white", back="red", bright=True)
 
         self.new_line(message)
 

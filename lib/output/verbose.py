@@ -24,7 +24,7 @@ from lib.core.decorators import locked
 from lib.core.settings import IS_WINDOWS
 from lib.parse.url import join_path
 from lib.utils.common import human_size
-from lib.output.colors import ColorOutput
+from lib.output.colors import set_color, clean_color
 
 if IS_WINDOWS:
     from thirdparty.colorama.win32 import (FillConsoleOutputCharacter,
@@ -40,7 +40,6 @@ class Output(object):
         self.blacklists = {}
         self.url = None
         self.errors = 0
-        self.colorizer = ColorOutput(colors)
 
     def erase(self):
         if IS_WINDOWS:
@@ -94,17 +93,17 @@ class Output(object):
         message = f"[{current_time}] {status} - {content_length.rjust(6, ' ')} - {show_path}"
 
         if status in (200, 201, 204):
-            message = self.colorizer.color(message, fore="green")
+            message = set_color(message, fore="green")
         elif status == 401:
-            message = self.colorizer.color(message, fore="yellow")
+            message = set_color(message, fore="yellow")
         elif status == 403:
-            message = self.colorizer.color(message, fore="blue")
+            message = set_color(message, fore="blue")
         elif status in range(500, 600):
-            message = self.colorizer.color(message, fore="red")
+            message = set_color(message, fore="red")
         elif status in range(300, 400):
-            message = self.colorizer.color(message, fore="cyan")
+            message = set_color(message, fore="cyan")
         else:
-            message = self.colorizer.color(message, fore="magenta")
+            message = set_color(message, fore="magenta")
 
         if response.redirect:
             message += f"  ->  {response.redirect}"
@@ -118,21 +117,21 @@ class Output(object):
 
     def last_path(self, index, length, current_job, all_jobs, rate):
         percentage = int(index / length * 100)
-        task = self.colorizer.color('#', fore="cyan", bright=True) * int(percentage / 5)
+        task = set_color('#', fore="cyan", bright=True) * int(percentage / 5)
         task += ' ' * (20 - int(percentage / 5))
         progress = f"{index}/{length}"
 
-        grean_job = self.colorizer.color("job", fore="green", bright=True)
+        grean_job = set_color("job", fore="green", bright=True)
         jobs = f"{grean_job}:{current_job}/{all_jobs}"
 
-        red_error = self.colorizer.color("errors", fore="red", bright=True)
+        red_error = set_color("errors", fore="red", bright=True)
         errors = f"{red_error}:{self.errors}"
 
         progress_bar = f"[{task}] {str(percentage).rjust(2, chr(32))}% "
         progress_bar += f"{progress.rjust(12, chr(32))} {str(rate).rjust(9, chr(32))}/s       "
         progress_bar += f"{jobs.ljust(21, chr(32))} {errors}"
 
-        if len(self.colorizer.clean(progress_bar)) >= shutil.get_terminal_size()[0]:
+        if len(clean_color(progress_bar)) >= shutil.get_terminal_size()[0]:
             return
 
         self.in_line(progress_bar)
@@ -141,25 +140,23 @@ class Output(object):
         self.errors += 1
 
     def error(self, reason):
-        stripped = reason.strip()
-        message = self.colorizer.color(stripped, fore="white", back="red", bright=True)
-
+        message = set_color(reason, fore="white", back="red", bright=True)
         self.new_line('\n' + message)
 
     def warning(self, message, save=True):
-        message = self.colorizer.color(message, fore="yellow", bright=True)
+        message = set_color(message, fore="yellow", bright=True)
         self.new_line(message, save=save)
 
     def header(self, message):
-        message = self.colorizer.color(message, fore="magenta", bright=True)
+        message = set_color(message, fore="magenta", bright=True)
         self.new_line(message, save=False)
 
     def print_header(self, entries, save=False):
         msg = ''
 
         for key, value in entries.items():
-            new = self.colorizer.color(key + ": ", fore="yellow", bright=True)
-            new += self.colorizer.color(value, fore="cyan", bright=True)
+            new = set_color(key + ": ", fore="yellow", bright=True)
+            new += set_color(value, fore="cyan", bright=True)
 
             if not msg:
                 msg += new
@@ -167,10 +164,10 @@ class Output(object):
 
             new_line = msg.splitlines()[-1] + " | " + new
 
-            if len(self.colorizer.clean(new_line)) >= shutil.get_terminal_size()[0]:
+            if len(clean_color(new_line)) >= shutil.get_terminal_size()[0]:
                 msg += '\n'
             else:
-                msg += self.colorizer.color(" | ", fore="magenta", bright=True)
+                msg += set_color(" | ", fore="magenta", bright=True)
 
             msg += new
 

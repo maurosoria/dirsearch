@@ -294,6 +294,7 @@ class Controller(object):
             self.fuzzer.set_base_path(self.requester.base_path + self.current_directory)
             self.fuzzer.start()
             self.process()
+            self.dictionary.reset()
 
             first = False
 
@@ -427,7 +428,7 @@ class Controller(object):
             len(self.dictionary),
             self.current_job,
             self.jobs_count,
-            self.fuzzer.get_rate(),
+            self.fuzzer.rate,
         )
 
     # Callback for errors while fuzzing

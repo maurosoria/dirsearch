@@ -29,7 +29,8 @@ FORE_TABLE = {
     "blue": Fore.BLUE,
     "magenta": Fore.MAGENTA,
     "cyan": Fore.CYAN,
-    "white": Fore.WHITE
+    "white": Fore.WHITE,
+    "none": ''
 }
 
 BACK_TABLE = {
@@ -39,38 +40,27 @@ BACK_TABLE = {
     "blue": Back.BLUE,
     "magenta": Back.MAGENTA,
     "cyan": Back.CYAN,
-    "white": Back.WHITE
+    "white": Back.WHITE,
+    "none": ''
 }
 
+# Credit: https://stackoverflow.com/a/2187024/12238982
+_escape_seq = Combine(
+    Literal("\x1b") + "[" + Optional(
+        delimitedList(Word(string.digits), ";")
+    ) + oneOf(list(string.ascii_letters))
+)
 
-class ColorOutput(object):
-    def __init__(self, colors=True):
-        self.colors = colors
-        self.escape_seq = None
-        self.prepare_sequence_escaper()
-        init()
 
-    def color(self, msg, fore=None, back=None, bright=False):
-        if not self.colors:
-            return msg
+def set_color(msg, fore="none", back="none", bright=False):
+    if bright:
+        msg = Style.BRIGHT + msg
 
-        if bright:
-            msg = Style.BRIGHT + msg
-        if fore:
-            msg = FORE_TABLE[fore] + msg
-        if back:
-            msg = BACK_TABLE[back] + msg
+    msg = FORE_TABLE[fore] + BACK_TABLE[back] + msg
+    msg += Style.RESET_ALL
 
-        return msg + Style.RESET_ALL
+    return msg
 
-    # Credit: https://stackoverflow.com/a/2187024/12238982
-    def prepare_sequence_escaper(self):
-        ESC = Literal("\x1b")
-        self.escape_seq = Combine(
-            ESC + "[" + Optional(
-                delimitedList(Word(string.digits), ";")
-            ) + oneOf(list(string.ascii_letters))
-        )
 
-    def clean(self, msg):
-        return Suppress(self.escape_seq).transformString(msg)
+def clean_color(msg):
+    return Suppress(_escape_seq).transformString(msg)

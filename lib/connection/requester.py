@@ -24,7 +24,7 @@ import http.client
 from urllib.parse import urlparse, urljoin
 
 from lib.core.exceptions import InvalidURLException, RequestException
-from lib.core.settings import PROXY_SCHEMES, MAX_REDIRECTS
+from lib.core.settings import PROXY_SCHEMES
 from lib.connection.response import Response
 from lib.utils.common import safequote
 from lib.utils.dns import cached_getaddrinfo, set_default_addr
@@ -37,8 +37,6 @@ from thirdparty.requests_ntlm import HttpNtlmAuth
 
 # Disable InsecureRequestWarning from urllib3
 disable_warnings()
-# Add support for all cipher suites
-requests.packages.urllib3.util.ssl_.DEFAULT_CIPHERS = "ALL"
 # Use custom `socket.getaddrinfo` for `requests` which supports DNS caching
 socket.getaddrinfo = cached_getaddrinfo
 

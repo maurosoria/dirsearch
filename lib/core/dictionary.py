@@ -156,7 +156,6 @@ class Dictionary(object):
         try:
             path = self._entries[self._index]
         except IndexError:
-            self.reset()
             raise StopIteration
 
         self._index += 1

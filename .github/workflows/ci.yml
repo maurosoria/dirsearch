@@ -28,7 +28,7 @@ jobs:
         echo testphp.vulnweb.com > tmp_targets.txt
         python3 dirsearch.py -u https://example.com -o tmp_report.json --format json --force-recursive -R 3 --full-url -w tmp_wordlist.txt
         python3 dirsearch.py -l tmp_targets.txt --subdirs /,admin/ -X conf -q -L -f -i 200 --user-agent a --log tmp_log.txt -w tmp_wordlist.txt
-        python3 dirsearch.py -u https://localhost --ip 93.184.216.34 --max-rate 2 -H K:V --random-agent --log tmp_log.log --only-selected
+        python3 dirsearch.py -u https://localhost --ip 93.184.216.34 --max-rate 2 -H K:V --random-agent --log tmp.log --only-selected -w tmp_wordlist.txt
         echo https://self-signed.badssl.com | python3 dirsearch.py --stdin --max-time 9 --auth u:p --auth-type basic --scheme http -w tmp_wordlist.txt
 
     - name: Lint
