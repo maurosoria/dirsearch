@@ -29,7 +29,7 @@ def set_default_addr(addr):
 
 
 # Replacement for socket.getaddrinfo, they are the same but this function does cache
-# the asnwer to improve the performance
+# the answer to improve the performance
 def cached_getaddrinfo(*args):
     host = args[0]
 
