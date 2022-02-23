@@ -61,7 +61,7 @@ DEFAULT_HEADERS = {
 
 DEFAULT_SESSION_FILE = "session.json"
 
-EXCLUDED_EXPORT_VARIABLES = ("output", "threads_lock", "report", "report_manager", "requester", "fuzzer")
+EXCLUDE_EXPORT_VARIABLES = ("output", "threads_lock", "report", "report_manager", "requester", "fuzzer")
 
 EXTENSION_TAG = "%ext%"
 

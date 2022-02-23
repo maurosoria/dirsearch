@@ -23,7 +23,7 @@ import shutil
 from lib.core.decorators import locked
 from lib.core.settings import IS_WINDOWS
 from lib.parse.url import join_path
-from lib.utils.fmt import human_size
+from lib.utils.common import human_size
 from lib.output.colors import ColorOutput
 
 if IS_WINDOWS:

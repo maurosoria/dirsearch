@@ -23,10 +23,11 @@ import http.client
 
 from urllib.parse import urlparse, urljoin
 
-from lib.core.exceptions import InvalidURLException, RequestException, DNSError
+from lib.core.exceptions import InvalidURLException, RequestException
 from lib.core.settings import PROXY_SCHEMES, MAX_REDIRECTS
 from lib.connection.response import Response
-from lib.utils.fmt import safequote
+from lib.utils.common import safequote
+from lib.utils.dns import cached_getaddrinfo, set_default_addr
 from lib.utils.schemedet import detect_scheme
 from thirdparty import requests
 from thirdparty.requests.adapters import HTTPAdapter
@@ -38,6 +39,8 @@ from thirdparty.requests_ntlm import HttpNtlmAuth
 disable_warnings()
 # Add support for all cipher suites
 requests.packages.urllib3.util.ssl_.DEFAULT_CIPHERS = "ALL"
+# Use custom `socket.getaddrinfo` for `requests` which supports DNS caching
+socket.getaddrinfo = cached_getaddrinfo
 
 
 # I was forced to make this because of https://github.com/psf/requests/issues/3829
@@ -47,38 +50,39 @@ class Session(requests.Session):
 
 
 class Requester(object):
-    def __init__(self, url, **kwargs):
+    def __init__(self, **kwargs):
         self.httpmethod = kwargs.get("httpmethod", "get")
         self.data = kwargs.get("data", None)
         self.max_pool = kwargs.get("max_pool", 100)
         self.max_retries = kwargs.get("max_retries", 3)
         self.timeout = kwargs.get("timeout", 10)
+        self.ip = kwargs.get("ip", None)
         self.proxy = kwargs.get("proxy", None)
         self.proxylist = kwargs.get("proxylist", None)
+        self.default_scheme = kwargs.get("scheme", None)
         self.follow_redirects = kwargs.get("follow_redirects", False)
         self.random_agents = kwargs.get("random_agents", None)
-        self.request_by_hostname = kwargs.get("request_by_hostname", False)
-        self.ip = kwargs.get("ip", None)
         self.auth = None
         self.headers = {}
+        self.session = Session()
+        self.session.verify = False
 
+        set_default_addr(self.ip)
+
+    def set_target(self, url):
         parsed = urlparse(url)
-        scheme = kwargs.get("scheme", None)
 
         # If no scheme specified, unset it first
         if "://" not in url:
-            parsed = urlparse(f"{scheme or 'unknown'}://{url}")
+            parsed = urlparse(f"{self.default_scheme or 'unknown'}://{url}")
 
         self.base_path = parsed.path
-        if parsed.path.startswith("/"):
+        if parsed.path.startswith('/'):
             self.base_path = parsed.path[1:]
-
-        # Safe quote all special characters in base_path to prevent from being encoded
-        self.base_path = safequote(self.base_path)
 
         # Credentials in URL (https://[user]:[password]@website.com)
         if "@" in parsed.netloc:
-            cred, parsed.netloc = parsed.netloc.split("@")
+            cred, parsed.netloc = parsed.netloc.split('@')
             self.set_auth("basic", cred)
 
         self.host = parsed.netloc.split(":")[0]
@@ -105,46 +109,28 @@ class Requester(object):
             # If no scheme is found, detect it by port number
             self.scheme = parsed.scheme if parsed.scheme != "unknown" else detect_scheme(self.host, self.port)
         except ValueError:
-            # If the user neither provides the port nor scheme, guess them based
-            # on standard website characteristics
+            '''
+            If the user neither provides the port nor scheme, guess them based
+            on standard website characteristics
+            '''
             self.scheme = detect_scheme(self.host, 443)
             self.port = port_for_scheme[self.scheme]
 
-        # Set the Host header, read the line 126 to know why
-        self.headers["Host"] = self.host
+        self.netloc = f"{self.host}:{self.port}"
+        self.url = f"{self.scheme}://{self.host}"
 
-        # Include port in Host header if it's non-standard
         if self.port != port_for_scheme[self.scheme]:
-            self.headers["Host"] += f":{self.port}"
+            self.url += f":{self.port}"
 
-        self.base_url = self.url = f"{self.scheme}://{self.headers['Host']}/"
+        self.url += "/"
 
-    def setup(self):
-        '''
-        To improve dirsearch performance, we resolve the hostname before scanning
-        and then send requests by IP instead of hostname, so the library won't have to
-        resolve it before every request. This also keeps the scan stable despite any
-        issue with the system DNS resolver (running tools like Amass might cause such
-        things). If you don't like it, you can disable it with `-b` command-line flag
-        '''
-        if not self.request_by_hostname:
-            try:
-                self.ip = self.ip or socket.gethostbyname(self.host)
-            except socket.gaierror:
-                # Check if hostname resolves to IPv6 address only
-                try:
-                    self.ip = socket.getaddrinfo(self.host, None, socket.AF_INET6)[0][4][0]
-                except socket.gaierror:
-                    raise DNSError
-
-            self.url = f"{self.scheme}://{self.ip}:{self.port}/"
-
-        self.session = Session()
-        self.session.verify = False
         self.session.mount(self.scheme + "://", HTTPAdapter(max_retries=0, pool_maxsize=self.max_pool))
 
     def set_header(self, key, value):
-        self.headers[key.strip()] = value.strip() if value else value
+        try:
+            self.headers[key.strip()] = value.strip()
+        except AttributeError:
+            pass
 
     def set_auth(self, type, credential):
         if type in ("bearer", "jwt", "oath2"):
@@ -166,13 +152,13 @@ class Requester(object):
     def request(self, path, proxy=None):
         err_msg = None
         simple_err_msg = None
+
+        # Why using a loop instead of max_retries argument? Check issue #1009
         for _ in range(self.max_retries + 1):
             result = None
             redirects = []
 
             try:
-                url = self.url + self.base_path + path
-
                 if not proxy:
                     if self.proxylist:
                         proxy = random.choice(self.proxylist)
@@ -180,8 +166,6 @@ class Requester(object):
                         proxy = self.proxy
 
                 if proxy:
-                    url = self.base_url + self.base_path + path
-
                     if not proxy.startswith(PROXY_SCHEMES):
                         proxy = f"http://{proxy}"
 
@@ -195,64 +179,56 @@ class Requester(object):
                 if self.random_agents:
                     self.headers["User-Agent"] = random.choice(self.random_agents)
 
-                '''
-                We can't just do `allow_redirects=True` because we set the host header in
-                request headers, which will be kept in next requests (follow redirects)
-                '''
+                # Safe quote all special characters to prevent them from being encoded
+                url = safequote(self.url + self.base_path + path)
                 headers = self.headers.copy()
-                for _ in range(MAX_REDIRECTS):
-                    request = requests.Request(
-                        self.httpmethod,
-                        url,
-                        headers=headers,
-                        auth=self.auth,
-                        data=self.data,
-                    )
-                    prepare = request.prepare()
-                    prepare.url = url
+                request = requests.Request(
+                    self.httpmethod,
+                    url,
+                    headers=headers,
+                    auth=self.auth,
+                    data=self.data,
+                )
 
-                    response = self.session.send(
-                        prepare,
-                        proxies=proxies,
-                        allow_redirects=False,
-                        timeout=self.timeout,
-                        stream=True,
-                    )
-                    result = Response(response, redirects)
+                prepare = request.prepare()
+                prepare.url = url
+                response = self.session.send(
+                    prepare,
+                    proxies=proxies,
+                    allow_redirects=self.follow_redirects,
+                    timeout=self.timeout,
+                    stream=True,
+                )
 
-                    if self.follow_redirects and result.redirect:
-                        url = urljoin(url, result.redirect)
-                        headers["Host"] = url.split("/")[2]
-                        redirects.append(url)
-                        continue
-                    else:
-                        return result
+                if self.follow_redirects and len(response.history):
+                    # Ignore the first response because it's for original request
+                    redirects = [response.url for response in response.history[1:]]
 
-                raise requests.exceptions.TooManyRedirects
+                return Response(response, redirects)
 
             except Exception as e:
                 err_msg = str(e)
 
                 if "SSLError" in err_msg:
                     simple_err_msg = "Unexpected SSL error, probably the server is broken or try updating your OpenSSL"
+                elif "TooManyRedirects" in err_msg:
+                    simple_err_msg = f"Too many redirects: {self.url}"
                 elif "ProxyError" in err_msg:
                     simple_err_msg = f"Error with the proxy: {proxy}"
                 elif "InvalidURL" in err_msg:
-                    simple_err_msg = f"Invalid URL: {self.base_url}"
+                    simple_err_msg = f"Invalid URL: {self.url}"
                 elif "InvalidProxyURL" in err_msg:
                     simple_err_msg = f"Invalid proxy URL: {proxy}"
                 elif "ConnectionError" in err_msg:
-                    simple_err_msg = f"Cannot connect to: {self.host}:{self.port}"
+                    simple_err_msg = f"Cannot connect to: {self.netloc}"
                 elif re.search("ChunkedEncodingError|StreamConsumedError|UnrewindableBodyError", err_msg):
-                    simple_err_msg = f"Failed to read response body: {self.base_url}"
-                elif e == requests.exceptions.TooManyRedirects:
-                    simple_err_msg = f"Too many redirects: {self.base_url}"
+                    simple_err_msg = f"Failed to read response body: {self.url}"
                 elif "Timeout" in err_msg or e in (
                     http.client.IncompleteRead,
                     socket.timeout,
                 ):
-                    simple_err_msg = f"Request timeout: {self.base_url}"
+                    simple_err_msg = f"Request timeout: {self.url}"
                 else:
-                    simple_err_msg = f"There was a problem in the request to: {self.base_url}"
+                    simple_err_msg = f"There was a problem in the request to: {self.url}"
 
         raise RequestException(simple_err_msg, err_msg)

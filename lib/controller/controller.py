@@ -1,3 +1,4 @@
+
 # -*- coding: utf-8 -*-
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -20,21 +21,22 @@ import ast
 import gc
 import time
 import re
+import socket
 
 from queue import Queue, deque
 from urllib.parse import urlparse
 
 from lib.connection.requester import Requester
 from lib.core.dictionary import Dictionary
-from lib.core.exceptions import InvalidURLException, RequestException, SkipTargetInterrupt, QuitInterrupt, DNSError
+from lib.core.exceptions import InvalidURLException, RequestException, SkipTargetInterrupt, QuitInterrupt
 from lib.core.fuzzer import Fuzzer
 from lib.core.logger import log
 from lib.core.report_manager import Report, ReportManager
-from lib.core.settings import SCRIPT_PATH, BANNER, NEW_LINE, DEFAULT_HEADERS, EXCLUDED_EXPORT_VARIABLES, DEFAULT_SESSION_FILE, EXTENSION_REGEX
+from lib.core.settings import SCRIPT_PATH, BANNER, NEW_LINE, DEFAULT_HEADERS, EXCLUDE_EXPORT_VARIABLES, DEFAULT_SESSION_FILE, EXTENSION_REGEX
 from lib.parse.rawrequest import parse_raw
 from lib.parse.url import clean_path, parse_path, join_path
+from lib.utils.common import get_valid_filename, human_size
 from lib.utils.file import FileUtils
-from lib.utils.fmt import get_valid_filename, human_size
 
 
 class Controller(object):
@@ -178,7 +180,7 @@ class Controller(object):
         self.last_output = self.output.buffer.rstrip()
         self.current_job -= 1
         data = {
-            key: value for key, value in vars(self).items() if key not in EXCLUDED_EXPORT_VARIABLES
+            key: value for key, value in vars(self).items() if key not in EXCLUDE_EXPORT_VARIABLES
         }
 
         FileUtils.write_lines(session_file, str(data), overwrite=True)
@@ -187,28 +189,27 @@ class Controller(object):
         match_callbacks = (self.match_callback, self.append_traffic_log)
         not_found_callbacks = (self.not_found_callback, self.append_traffic_log)
         error_callbacks = (self.error_callback, self.append_error_log)
+        self.requester = Requester(
+            max_pool=self.options["threads_count"],
+            max_retries=self.options["max_retries"],
+            timeout=self.options["timeout"],
+            ip=self.options["ip"],
+            proxy=self.options["proxy"],
+            proxylist=self.options["proxylist"],
+            follow_redirects=self.options["follow_redirects"],
+            httpmethod=self.options["httpmethod"],
+            data=self.options["data"],
+            scheme=self.options["scheme"],
+            random_agents=self.random_agents,
+        )
 
         while not self.targets.empty():
             try:
                 url = self.targets.get()
 
                 try:
-                    self.requester = Requester(
-                        url if url.endswith('/') else url + '/',
-                        max_pool=self.options["threads_count"],
-                        max_retries=self.options["max_retries"],
-                        timeout=self.options["timeout"],
-                        ip=self.options["ip"],
-                        proxy=self.options["proxy"],
-                        proxylist=self.options["proxylist"],
-                        follow_redirects=self.options["follow_redirects"],
-                        request_by_hostname=self.options["request_by_hostname"],
-                        httpmethod=self.options["httpmethod"],
-                        data=self.options["data"],
-                        scheme=self.options["scheme"],
-                        random_agents=self.random_agents,
-                    )
-                    self.url = self.requester.base_url + self.requester.base_path
+                    self.requester.set_target(url if url.endswith('/') else url + '/')
+                    self.url = self.requester.url + self.requester.base_path
 
                     for key, value in self.options["headers"].items():
                         self.requester.set_header(key, value)
@@ -222,18 +223,16 @@ class Controller(object):
                     else:
                         self.output.set_target(self.url)
 
-                    self.requester.setup()
-
                     # Test request to check if server is up
                     self.requester.request('')
-                    log(self.options["log_file"], "info", f"Test request sent for: {self.requester.base_url}")
+                    log(self.options["log_file"], "info", f"Test request sent for: {self.url}")
 
-                    self.output.url = self.requester.base_url
+                    self.output.url = self.requester.url
                     self.report = Report(
                         self.requester.host, self.requester.port, self.requester.scheme, self.requester.base_path
                     )
-                except (DNSError, InvalidURLException, RequestException) as e:
-                    if e == DNSError:
+                except (InvalidURLException, RequestException, socket.gaierror) as e:
+                    if e == socket.gaierror:
                         e.args[0] = e.args[1] = "Couldn't resolve DNS"
 
                     self.output.error(e.args[0])
@@ -441,7 +440,7 @@ class Controller(object):
 
     # Write request to log file
     def append_traffic_log(self, path, response):
-        url = join_path(self.requester.base_url, response.path)
+        url = join_path(self.requester.url, response.path)
         msg = f"{self.requester.ip or '0'} {response.status} "
         msg += f"{self.options['httpmethod']} {url}"
 

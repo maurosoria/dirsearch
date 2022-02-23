@@ -22,9 +22,8 @@ from lib.core.settings import SCRIPT_PATH, COMMON_EXTENSIONS, OUTPUT_FORMATS, AU
 from lib.parse.cmdline import parse_arguments
 from lib.parse.config import ConfigParser
 from lib.parse.headers import HeadersParser
+from lib.utils.common import iprange, uniq
 from lib.utils.file import File, FileUtils
-from lib.utils.fmt import uniq
-from lib.utils.ip import iprange
 
 
 def options():
@@ -64,9 +63,6 @@ def options():
     if opt.proxylist:
         file = access_file(opt.proxylist, "proxylist file")
         opt.proxylist = file.get_lines()
-
-    if opt.proxy or opt.proxylist:
-        opt.request_by_hostname = True
 
     headers = {}
 
@@ -267,9 +263,6 @@ def parse_config(options):
     options.scheme = options.scheme or config.safe_get("connection", "scheme", None, ["http", "https"])
     options.replay_proxy = options.replay_proxy or config.safe_get("connection", "replay-proxy")
     options.exit_on_error = options.exit_on_error or config.safe_getboolean("connection", "exit-on-error")
-    options.request_by_hostname = options.request_by_hostname or config.safe_getboolean(
-        "connection", "request-by-hostname"
-    )
 
     # Output
     options.output_location = config.safe_get("output", "report-output-folder")

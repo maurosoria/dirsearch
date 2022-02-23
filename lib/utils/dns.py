@@ -16,15 +16,25 @@
 #
 #  Author: Mauro Soria
 
-from ipaddress import IPv4Network, IPv6Network
+from socket import getaddrinfo
+
+_dns_cache = {}
+_default_addr = None
 
 
-def is_ipv6(ip):
-    return False if ip.count(":") < 2 else True
+def set_default_addr(addr):
+    global _default_addr
+
+    _default_addr = addr
 
 
-def iprange(subnet):
-    network = IPv4Network(subnet)
-    if is_ipv6(subnet):
-        network = IPv6Network(subnet)
-    return [str(ip) for ip in network]
+# Replacement for socket.getaddrinfo, they are the same but this function does cache
+# the asnwer to improve the performance
+def cached_getaddrinfo(*args):
+    host = args[0]
+
+    try:
+        return getaddrinfo(_default_addr, *args[1:]) if _default_addr else _dns_cache[host]
+    except KeyError:
+        _dns_cache[host] = getaddrinfo(*args)
+        return cached_getaddrinfo(*args)

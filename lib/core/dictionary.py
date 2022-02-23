@@ -20,7 +20,7 @@ import re
 
 from lib.core.decorators import locked
 from lib.core.settings import SCRIPT_PATH, EXTENSION_TAG, EXTENSION_REGEX
-from lib.utils.fmt import safequote, uniq
+from lib.utils.common import safequote, uniq
 from lib.utils.file import File, FileUtils
 
 

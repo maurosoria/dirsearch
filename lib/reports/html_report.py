@@ -22,7 +22,7 @@ import time
 
 from lib.core.decorators import locked
 from lib.reports.base import FileBaseReport
-from lib.utils.fmt import human_size
+from lib.utils.common import human_size
 from thirdparty.jinja2 import Environment, FileSystemLoader
 
 

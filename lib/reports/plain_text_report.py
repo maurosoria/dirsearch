@@ -21,7 +21,7 @@ import sys
 
 from lib.core.settings import NEW_LINE
 from lib.reports.base import FileBaseReport
-from lib.utils.fmt import human_size
+from lib.utils.common import human_size
 
 
 class PlainTextReport(FileBaseReport):

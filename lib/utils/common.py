@@ -18,6 +18,7 @@
 
 import string
 
+from ipaddress import IPv4Network, IPv6Network
 from urllib.parse import quote
 
 from lib.core.settings import INVALID_CHARS_FOR_WINDOWS_FILENAME
@@ -49,3 +50,14 @@ def human_size(num):
             return "%3.0f%s" % (num, x)
         num /= base
     return "%3.0f %s" % (num, "TB")
+
+
+def is_ipv6(ip):
+    return False if ip.count(":") < 2 else True
+
+
+def iprange(subnet):
+    network = IPv4Network(subnet)
+    if is_ipv6(subnet):
+        network = IPv6Network(subnet)
+    return [str(ip) for ip in network]

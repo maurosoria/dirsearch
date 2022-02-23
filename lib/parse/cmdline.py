@@ -138,8 +138,6 @@ def parse_arguments():
     connection.add_option("--max-rate", action="store", type="int", dest="maxrate", metavar="RATE", help="Max requests per second")
     connection.add_option("--retries", action="store", type="int", dest="max_retries", metavar="RETRIES",
                           help="Number of retries for failed requests")
-    connection.add_option("-b", "--request-by-hostname", action="store_true", dest="request_by_hostname",
-                          help="By default dirsearch requests by IP for speed. This will force dirsearch to request by hostname")
     connection.add_option("--ip", action="store", dest="ip", help="Server IP address")
     connection.add_option("--exit-on-error", action="store_true", dest="exit_on_error", help="Exit whenever an error occurs")
 
