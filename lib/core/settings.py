@@ -61,13 +61,9 @@ DEFAULT_HEADERS = {
 
 DEFAULT_SESSION_FILE = "session.json"
 
-EXCLUDE_EXPORT_VARIABLES = ("output", "threads_lock", "report", "report_manager", "requester", "fuzzer")
-
 EXTENSION_TAG = "%ext%"
 
 EXTENSION_REGEX = r"\w[.][a-zA-Z0-9]{2,5}"
-
-THREAD_LIMIT = 100
 
 SOCKET_TIMEOUT = 6
 

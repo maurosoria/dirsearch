@@ -25,10 +25,6 @@ class InvalidURLException(Exception):
     pass
 
 
-class DNSError(Exception):
-    pass
-
-
 class SkipTargetInterrupt(Exception):
     pass
 

@@ -38,7 +38,7 @@ class JSONReport(FileBaseReport):
                     "status": result_.status,
                     "path": "/" + result_.path,
                     "content-length": result_.response.length,
-                    "content-type": result_.content_type,
+                    "content-type": result_.response.type,
                     "redirect": result_.response.redirect,
                 }
                 result[header_name].append(path_entry)

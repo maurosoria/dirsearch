@@ -37,11 +37,9 @@ class Response(object):
 
         self.content = self.body.decode(response.encoding or DEFAULT_ENCODING, errors="ignore")
 
-    def __len__(self):
-        return self.length
-
-    def __hash__(self):
-        return hash(self.body)
+    @property
+    def type(self):
+        return self.headers.get("content-type")
 
     @cached_property
     def length(self):
@@ -49,3 +47,12 @@ class Response(object):
             return int(self.headers.get("content-length"))
         except TypeError:
             return len(self.body)
+
+    def __len__(self):
+        return self.length
+
+    def __hash__(self):
+        return hash(self.body)
+
+    def __eq__(self, other):
+        return (self.status, self.body, self.redirect) == (other.status, other.body, other.redirect)

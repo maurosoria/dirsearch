@@ -42,14 +42,10 @@ class Scanner(object):
         self.setup()
 
     def get_duplicate(self, response):
-        for t in self.tested:
-            for tester in self.tested[t].values():
-                if (response.status, response.body, response.redirect) == (
-                    tester.response.status, tester.response.body, tester.response.redirect
-                ):
+        for category in self.tested:
+            for tester in self.tested[category].values():
+                if response == tester.response:
                     return tester
-
-        return
 
     '''
     Generate wildcard response information containers, this will be

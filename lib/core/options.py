@@ -18,7 +18,8 @@
 
 import sys
 
-from lib.core.settings import SCRIPT_PATH, COMMON_EXTENSIONS, OUTPUT_FORMATS, AUTHENTICATION_TYPES, THREAD_LIMIT
+from lib.core.objects import AttributeDict
+from lib.core.settings import SCRIPT_PATH, COMMON_EXTENSIONS, OUTPUT_FORMATS, AUTHENTICATION_TYPES
 from lib.parse.cmdline import parse_arguments
 from lib.parse.config import ConfigParser
 from lib.parse.headers import HeadersParser
@@ -145,7 +146,7 @@ def options():
         print(f"Select one of the following output formats: {', '.join(OUTPUT_FORMATS)}")
         exit(1)
 
-    return vars(opt)
+    return AttributeDict(vars(opt))
 
 
 def parse_status_codes(str_):
@@ -204,7 +205,7 @@ def parse_config(options):
 
     # General
     options.threads_count = options.threads_count or config.safe_getint(
-        "general", "threads", 25, range(1, THREAD_LIMIT)
+        "general", "threads", 25
     )
     options.include_status_codes = options.include_status_codes or config.safe_get(
         "general", "include-status"

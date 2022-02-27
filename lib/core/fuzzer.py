@@ -131,11 +131,11 @@ class Fuzzer(object):
     def start(self):
         self.setup_scanners()
         self.setup_threads()
-        self.index = 0
-        # `_rate` reflects requests rate, `rate` updates information from `_rate`
+        self._running_threads_count = len(self.threads)
+        self._rate = 0
+        # Approximate rate, `rate` updates information from `_rate`
         # every after an amount of time
-        self.rate = self._rate = 0
-        self.running_threads_count = len(self.threads)
+        self.rate = 0
         self.running = True
         self.paused = False
         self.play_event = threading.Event()
@@ -178,20 +178,17 @@ class Fuzzer(object):
 
         return wildcard, response
 
-    def get_rate(self):
-        return self.rate
-
     def is_stopped(self):
-        return self.running_threads_count == 0
+        return self._running_threads_count == 0
 
     def is_rate_exceeded(self):
-        return self._rate >= self.maxrate != 0
+        return self._rate >= self.maxrate > 0
 
     def decrease_threads(self):
-        self.running_threads_count -= 1
+        self._running_threads_count -= 1
 
     def increase_threads(self):
-        self.running_threads_count += 1
+        self._running_threads_count += 1
 
     def decrease_rate(self):
         self._rate -= 1
@@ -224,13 +221,16 @@ class Fuzzer(object):
                 else:
                     for callback in self.not_found_callbacks:
                         callback(path, response)
+
             except StopIteration:
                 break
+
             except RequestException as e:
                 for callback in self.error_callbacks:
                     callback(path, e.args[1])
 
                 continue
+
             finally:
                 if not self.play_event.is_set():
                     self.decrease_threads()

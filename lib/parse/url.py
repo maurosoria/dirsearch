@@ -39,10 +39,14 @@ def join_path(*components):
     result = ''
 
     for component in [*components]:
-        if result and result.endswith('/'):
-            result = result[:-1]
-        if result and not component.startswith('/'):
-            result += '/'
+        if not component:
+            continue
+
+        if result:
+            if result.endswith('/'):
+                result = result[:-1]
+            if not component.startswith('/'):
+                result += '/'
 
         result += component
 

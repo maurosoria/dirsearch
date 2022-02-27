@@ -50,7 +50,7 @@ class SQLiteReport(FileBaseReport):
                         VALUES
                         (?, ?, ?, ?, ?, ?)
                                 ''', (
-                    time.ctime(), path, result.status, result.response.length, result.content_type, result.response.redirect
+                    time.ctime(), path, result.status, result.response.length, result.response.type, result.response.redirect
                 )])
 
         return commands

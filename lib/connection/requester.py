@@ -206,7 +206,9 @@ class Requester(object):
             except Exception as e:
                 err_msg = str(e)
 
-                if "SSLError" in err_msg:
+                if e == socket.gaierror:
+                    simple_err_msg = "Couldn't resolve DNS"
+                elif "SSLError" in err_msg:
                     simple_err_msg = "Unexpected SSL error, probably the server is broken or try updating your OpenSSL"
                 elif "TooManyRedirects" in err_msg:
                     simple_err_msg = f"Too many redirects: {self.url}"

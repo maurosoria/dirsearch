@@ -62,7 +62,7 @@ class MarkdownReport(FileBaseReport):
             for result in entry.results:
                 if (entry.protocol, entry.host, entry.port, entry.base_path, result.path) not in self.written_entries:
                     output += f"[{result.path}]({header_name}{result.path}) | {result.status} "
-                    output += f"| {result.response.length} | {result.content_type} | {result.response.redirect}"
+                    output += f"| {result.response.length} | {result.response.type} | {result.response.redirect}"
                     output += NEW_LINE
 
                     self.written_entries.append((entry.protocol, entry.host, entry.port, entry.base_path, result.path))

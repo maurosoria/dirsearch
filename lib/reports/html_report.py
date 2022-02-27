@@ -56,7 +56,7 @@ class HTMLReport(FileBaseReport):
                     "status": result.status,
                     "statusColorClass": status_color_class,
                     "contentLength": human_size(result.response.length),
-                    "contentType": result.content_type,
+                    "contentType": result.response.type,
                     "redirect": result.response.redirect
                 })
 

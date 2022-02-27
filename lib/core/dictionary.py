@@ -20,7 +20,7 @@ import re
 
 from lib.core.decorators import locked
 from lib.core.settings import SCRIPT_PATH, EXTENSION_TAG, EXTENSION_REGEX
-from lib.utils.common import safequote, uniq
+from lib.utils.common import uniq
 from lib.utils.file import File, FileUtils
 
 
@@ -145,11 +145,11 @@ class Dictionary(object):
     def reset(self):
         self._index = 0
 
-    def get_state(self):
+    def __getstate__(self):
         return self._entries, self._index
 
-    def set_state(self, items, index):
-        self._entries, self._index = items, index
+    def __setstate__(self, entries, index):
+        self._entries, self._index = entries, index
 
     @locked
     def __next__(self):
@@ -160,7 +160,7 @@ class Dictionary(object):
 
         self._index += 1
 
-        return safequote(path)
+        return path
 
     def __iter__(self):
         return iter(self._entries)

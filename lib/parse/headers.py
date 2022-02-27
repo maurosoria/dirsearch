@@ -20,6 +20,7 @@ import email
 
 from io import StringIO
 
+from lib.core.objects import CaseInsensitiveDict
 from lib.core.settings import NEW_LINE
 
 
@@ -32,8 +33,7 @@ class HeadersParser(object):
             self.str = self.dict_list_to_str(headers)
             self.dict = self.str_to_dict(self.str)
 
-        # Dictionary but with lowercase keys for easier calls
-        self.headers = {key.lower(): value for key, value in self.dict.items()}
+        self.headers = CaseInsensitiveDict(self.dict)
 
     def get(self, key):
         return self.headers[key]
@@ -60,7 +60,7 @@ class HeadersParser(object):
             return NEW_LINE.join(headers)
 
     def __iter__(self):
-        return iter(self.dict.items())
+        return iter(self.headers)
 
     def __str__(self):
         return self.str

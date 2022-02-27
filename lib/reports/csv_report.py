@@ -42,7 +42,7 @@ class CSVReport(FileBaseReport):
             for result in entry.results:
                 if (entry.protocol, entry.host, entry.port, entry.base_path, result.path) not in self.written_entries:
                     output += f"{entry.protocol}://{entry.host}:{entry.port}/{entry.base_path}{result.path},"
-                    output += f"{result.status},{result.response.length},{result.content_type}"
+                    output += f"{result.status},{result.response.length},{result.response.type}"
 
                     if result.response.redirect:
                         output += f'"{self.clean_csv_attr(result.response.redirect)}"'

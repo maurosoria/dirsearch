@@ -16,58 +16,13 @@
 #
 #  Author: Mauro Soria
 
-import sys
-
-from lib.core.decorators import locked
-from lib.core.settings import IS_WINDOWS
 from lib.parse.url import join_path
 from lib.utils.common import human_size
 from lib.output.colors import set_color
-
-if IS_WINDOWS:
-    from thirdparty.colorama.win32 import (FillConsoleOutputCharacter,
-                                           GetConsoleScreenBufferInfo,
-                                           STDOUT)
+from lib.output.verbose import Output as _Output
 
 
-class Output(object):
-    def __init__(self, colors):
-        self.buffer = ''
-        self.blacklists = {}
-        self.url = None
-        self.errors = 0
-
-    def header(self, text):
-        pass
-
-    def erase(self):
-        if IS_WINDOWS:
-            csbi = GetConsoleScreenBufferInfo()
-            line = '\b' * int(csbi.dwCursorPosition.X)
-            sys.stdout.write(line)
-            width = csbi.dwCursorPosition.X
-            csbi.dwCursorPosition.X = 0
-            FillConsoleOutputCharacter(STDOUT, ' ', width, csbi.dwCursorPosition)
-            sys.stdout.write(line)
-            sys.stdout.flush()
-
-        else:
-            sys.stdout.write("\033[1K")
-            sys.stdout.write("\033[0G")
-
-    def in_line(self, string):
-        self.erase()
-        sys.stdout.write(string)
-        sys.stdout.flush()
-
-    @locked
-    def new_line(self, string=''):
-        self.buffer += string
-        self.buffer += '\n'
-
-        sys.stdout.write(string + '\n')
-        sys.stdout.flush()
-
+class Output(_Output):
     def status_report(self, response, full_url, added_to_queue):
         status = response.status
         content_length = human_size(response.length)
@@ -97,30 +52,16 @@ class Output(object):
 
         self.new_line(message)
 
-    def last_path(self, index, length, current_job, all_jobs, rate):
+    def last_path(self, *args):
         pass
-
-    def add_connection_error(self):
-        self.errors += 1
-
-    def error(self, reason):
-        stripped = reason.strip()
-        message = set_color(stripped, fore="white", back="red", bright=True)
-
-        self.new_line(message)
 
     def warning(self, reason, save=True):
         pass
 
-    def config(
-        self,
-        extensions,
-        prefixes,
-        suffixes,
-        threads,
-        wordlist_size,
-        method,
-    ):
+    def header(self, message):
+        pass
+
+    def config(self, *args):
         pass
 
     def set_target(self, target):

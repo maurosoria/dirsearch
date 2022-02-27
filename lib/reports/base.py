@@ -20,15 +20,7 @@ from lib.core.decorators import locked
 from lib.core.settings import IS_WINDOWS
 
 
-class BaseReport(object):
-    def save(self):
-        raise NotImplementedError
-
-    def close(self):
-        raise NotImplementedError
-
-
-class FileBaseReport(BaseReport):
+class FileBaseReport(object):
     def __init__(self, output_file_name, entries=[]):
         if IS_WINDOWS:
             from os.path import normpath, dirname

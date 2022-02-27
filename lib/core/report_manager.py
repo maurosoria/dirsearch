@@ -16,7 +16,6 @@
 #
 #  Author: Mauro Soria
 
-from lib.core.decorators import locked
 from lib.reports.csv_report import CSVReport
 from lib.reports.html_report import HTMLReport
 from lib.reports.json_report import JSONReport
@@ -27,18 +26,27 @@ from lib.reports.xml_report import XMLReport
 from lib.reports.sqlite_report import SQLiteReport
 
 
+class BaseReport(object):
+    def __init__(*args):
+        pass
+
+    def add_result(*args):
+        pass
+
+
+class BaseReportManager(object):
+    def __init__(*args):
+        pass
+
+
 class Result(object):
     def __init__(self, path, response):
         self.path = path
         self.status = response.status
         self.response = response
 
-    @property
-    def content_type(self):
-        return self.response.headers.get('content-type', '')
 
-
-class Report(object):
+class Report(BaseReport):
     def __init__(self, host, port, protocol, base_path):
         self.host = host
         self.port = port
@@ -52,44 +60,41 @@ class Report(object):
         self.results.append(result)
 
 
-class ReportManager(object):
+class ReportManager(BaseReportManager):
     def __init__(self, save_format, output_file):
         self.format = save_format
         self.reports = []
         self.report_obj = None
-        self.output = output_file
+        self.file = output_file
 
     def update_report(self, report):
+        if not self.file:
+            return
+
         if report not in self.reports:
             self.reports.append(report)
+
         self.write_report()
 
     def write_report(self):
         if self.report_obj is None:
             if self.format == "plain":
-                report = PlainTextReport(self.output, self.reports)
+                report = PlainTextReport(self.file, self.reports)
             elif self.format == "json":
-                report = JSONReport(self.output, self.reports)
+                report = JSONReport(self.file, self.reports)
             elif self.format == "xml":
-                report = XMLReport(self.output, self.reports)
+                report = XMLReport(self.file, self.reports)
             elif self.format == "md":
-                report = MarkdownReport(self.output, self.reports)
+                report = MarkdownReport(self.file, self.reports)
             elif self.format == "csv":
-                report = CSVReport(self.output, self.reports)
+                report = CSVReport(self.file, self.reports)
             elif self.format == "html":
-                report = HTMLReport(self.output, self.reports)
+                report = HTMLReport(self.file, self.reports)
             elif self.format == "sqlite":
-                report = SQLiteReport(self.output, self.reports)
+                report = SQLiteReport(self.file, self.reports)
             else:
-                report = SimpleReport(self.output, self.reports)
+                report = SimpleReport(self.file, self.reports)
 
             self.report_obj = report
 
         self.report_obj.save()
-
-    @locked
-    def save(self):
-        self.output.save()
-
-    def close(self):
-        self.output.close()
