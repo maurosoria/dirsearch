@@ -21,7 +21,7 @@ import re
 from lib.core.decorators import locked
 from lib.core.settings import SCRIPT_PATH, EXTENSION_TAG, EXTENSION_REGEX
 from lib.utils.common import uniq
-from lib.utils.file import File, FileUtils
+from lib.utils.file import FileUtils
 
 
 class Dictionary(object):
