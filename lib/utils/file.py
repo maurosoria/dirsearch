@@ -19,8 +19,6 @@
 import os
 import os.path
 
-from lib.core.settings import NEW_LINE
-
 
 class File(object):
     def __init__(self, *path_components):
@@ -138,6 +136,6 @@ class FileUtils(object):
     @staticmethod
     def write_lines(file_name, lines, overwrite=False):
         if isinstance(lines, list):
-            lines = NEW_LINE.join(lines)
+            lines = os.linesep.join(lines)
         with open(file_name, 'w' if overwrite else 'a') as f:
             f.writelines(lines)

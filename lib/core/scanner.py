@@ -20,7 +20,7 @@ import re
 
 from urllib.parse import unquote
 
-from lib.core.settings import TEST_PATH_LENGTH
+from lib.core.settings import REFLECTED_PATH_MARKER, TEST_PATH_LENGTH
 from lib.parse.url import clean_path
 from lib.utils.matcher import generate_matching_regex
 from lib.utils.random import rand_string
@@ -38,7 +38,6 @@ class Scanner(object):
         self.response = None
         self.dynamic_parser = None
         self.wildcard_redirect_regex = None
-        self.mark = None
         self.setup()
 
     def get_duplicate(self, response):
@@ -68,7 +67,6 @@ class Scanner(object):
             self.ratio = duplicate.ratio
             self.dynamic_parser = duplicate.dynamic_parser
             self.wildcard_redirect_regex = duplicate.wildcard_redirect_regex
-            self.mark = duplicate.mark
             return
 
         second_path = self.prefix + (
@@ -83,12 +81,9 @@ class Scanner(object):
             )
 
         # Analyze response bodies
-        if first_response.body is not None and second_response.body is not None:
-            self.dynamic_parser = DynamicContentParser(
-                self.requester, first_path, first_response.body, second_response.body
-            )
-        else:
-            self.dynamic_parser = None
+        self.dynamic_parser = DynamicContentParser(
+            self.requester, first_path, first_response.body, second_response.body
+        )
 
         self.ratio = round(self.dynamic_parser.comparisonRatio, 2)
 
@@ -126,7 +121,7 @@ class Scanner(object):
     every wildcard redirect.
 
     How it works:
-    1. Replace path in 2 redirect URLs (if it gets reflected in) with an unique mark
+    1. Replace path in 2 redirect URLs (if it gets reflected in) with a mark
     (e.g. /path1 -> /foo/path1 and /path2 -> /foo/path2 will become /foo/[mark] for both)
     2. Compare 2 redirects and generate a regex that matches both
     (e.g. /foo/[mark]?a=1 and /foo/[mark]?a=2 will have the regex: ^/foo/[mark]?a=(.*)$)
@@ -134,9 +129,8 @@ class Scanner(object):
     (e.g. /path3 -> /foo/path3?a=5, the regex becomes ^/foo/path3?a=(.*)$, which matches)
     '''
     def generate_redirect_regex(self, first_loc, first_path, second_loc, second_path):
-        self.mark = rand_string(20)
-        first_loc = unquote(first_loc).replace(first_path, self.mark)
-        second_loc = unquote(second_loc).replace(second_path, self.mark)
+        first_loc = unquote(first_loc).replace(first_path, REFLECTED_PATH_MARKER)
+        second_loc = unquote(second_loc).replace(second_path, REFLECTED_PATH_MARKER)
         return generate_matching_regex(first_loc, second_loc)
 
     '''
@@ -160,7 +154,7 @@ class Scanner(object):
             '''
             path = re.escape(unquote(clean_path(path)))
             redirect = unquote(clean_path(response.redirect))
-            regex_to_compare = self.wildcard_redirect_regex.replace(self.mark, path)
+            regex_to_compare = self.wildcard_redirect_regex.replace(REFLECTED_PATH_MARKER, path)
             is_wildcard_redirect = re.match(regex_to_compare, redirect, re.IGNORECASE)
 
             # If redirection doesn't match the rule, mark as found

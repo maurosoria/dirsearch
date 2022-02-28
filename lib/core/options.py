@@ -63,7 +63,7 @@ def options():
 
     if opt.proxylist:
         fd = access_file(opt.proxylist, "proxylist file")
-        opt.proxylist = fd.get_lines()
+        opt.proxylist = set(fd.get_lines())
 
     headers = {}
 

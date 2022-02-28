@@ -18,8 +18,10 @@
 
 from functools import cached_property
 
-from lib.core.settings import CHUNK_SIZE, DEFAULT_ENCODING
+from lib.core.settings import DEFAULT_ENCODING, ITER_CHUNK_SIZE
 from lib.parse.url import parse_path, parse_full_path
+from lib.utils.common import is_binary
+from thirdparty import magic
 
 
 class Response(object):
@@ -30,16 +32,21 @@ class Response(object):
         self.headers = response.headers
         self.redirect = self.headers.get("location")
         self.history = redirects
+        self.content = ''
         self.body = b''
 
-        for chunk in response.iter_content(chunk_size=CHUNK_SIZE):
+        for chunk in response.iter_content(chunk_size=ITER_CHUNK_SIZE):
             self.body += chunk
 
-        self.content = self.body.decode(response.encoding or DEFAULT_ENCODING, errors="ignore")
+        if not is_binary(self.body):
+            self.content = self.body.decode(response.encoding or DEFAULT_ENCODING)
 
-    @property
+    @cached_property
     def type(self):
-        return self.headers.get("content-type")
+        if "content-type" in self.headers:
+            return self.headers.get("content-type")
+        else:
+            return magic.from_buffer(self.body)
 
     @cached_property
     def length(self):

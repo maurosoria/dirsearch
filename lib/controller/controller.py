@@ -29,7 +29,11 @@ from lib.core.exceptions import InvalidURLException, RequestException, SkipTarge
 from lib.core.fuzzer import Fuzzer
 from lib.core.logger import log
 from lib.core.report_manager import Report, ReportManager
-from lib.core.settings import SCRIPT_PATH, BANNER, NEW_LINE, DEFAULT_HEADERS, DEFAULT_SESSION_FILE, EXTENSION_REGEX, ERROR_LIMIT
+from lib.core.settings import (
+    SCRIPT_PATH, BANNER, DEFAULT_HEADERS, DEFAULT_SESSION_FILE,
+    EXTENSION_REGEX, MAX_CONSECUTIVE_REQUEST_ERRORS, NEW_LINE,
+    PAUSING_WAIT_TIMEOUT
+)
 from lib.parse.rawrequest import parse_raw
 from lib.parse.url import clean_path, parse_path, join_path
 from lib.utils.common import get_valid_filename, human_size, pickle, unpickle
@@ -128,6 +132,7 @@ class Controller(object):
         self.start_time = time.time()
         self.jobs_count = 0
         self.errors = 0
+        self.consecutive_errors = 0
 
         if options.log_file:
             self.options.log_file = FileUtils.get_abs_path(options.log_file)
@@ -206,7 +211,11 @@ class Controller(object):
                         self.requester.host, self.requester.port, self.requester.scheme, self.requester.base_path
                     )
 
-                except (InvalidURLException, RequestException) as e:
+                except InvalidURLException as e:
+                    self.output.error(e.args[0])
+                    raise SkipTargetInterrupt
+
+                except RequestException as e:
                     self.output.error(e.args[0])
                     self.append_error_log('', e.args[1])
                     raise SkipTargetInterrupt
@@ -365,7 +374,9 @@ class Controller(object):
 
         return True
 
-    # Callback for found paths
+    def reset_consecutive_errors(self):
+        self.consecutive_errors = 0
+
     def match_callback(self, path, response):
         if response.status in self.options.skip_on_status:
             raise SkipTargetInterrupt(f"Skipped the target due to {response.status} status code")
@@ -389,8 +400,8 @@ class Controller(object):
         self.output.status_report(response, self.options.full_url, added_to_queue)
         self.report.add_result(self.current_directory + path, response)
         self.report_manager.update_report(self.report)
+        self.reset_consecutive_errors()
 
-    # Callback for invalid paths
     def not_found_callback(self, *args):
         self.output.last_path(
             self.dictionary.index,
@@ -400,15 +411,17 @@ class Controller(object):
             self.fuzzer.rate,
             self.errors
         )
+        self.reset_consecutive_errors()
 
-    # Callback for errors while fuzzing
     def error_callback(self, path, error_msg):
         if self.options.exit_on_error:
             raise QuitInterrupt("Canceled due to an error")
 
         self.errors += 1
-        if self.errors > ERROR_LIMIT:
-            self.close("Too many request errors")
+        self.consecutive_errors += 1
+
+        if self.consecutive_errors > MAX_CONSECUTIVE_REQUEST_ERRORS:
+            raise SkipTargetInterrupt("Too many request errors")
 
     # Write request to log file
     def append_traffic_log(self, path, response):
@@ -436,12 +449,13 @@ class Controller(object):
         self.output.warning("CTRL+C detected: Pausing threads, please wait...", do_save=False)
         self.fuzzer.pause()
 
-        # Wait maximum 7 seconds
-        for _ in range(20):
-            if self.fuzzer.is_stopped():
+        start_time = time.time()
+        while 1:
+            is_timed_out = time.time() - start_time > PAUSING_WAIT_TIMEOUT
+            if self.fuzzer.is_stopped() or is_timed_out:
                 break
 
-            time.sleep(0.35)
+            time.sleep(0.2)
 
         while True:
             msg = "[q]uit / [c]ontinue"

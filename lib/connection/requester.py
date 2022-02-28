@@ -24,11 +24,12 @@ import http.client
 from urllib.parse import urlparse
 
 from lib.core.exceptions import InvalidURLException, RequestException
-from lib.core.settings import PROXY_SCHEMES
+from lib.core.settings import PROXY_SCHEMES, UNKNOWN
 from lib.connection.response import Response
 from lib.utils.common import safequote
 from lib.utils.dns import cached_getaddrinfo, set_default_addr
 from lib.utils.schemedet import detect_scheme
+from thirdparty import magic
 from thirdparty import requests
 from thirdparty.requests.adapters import HTTPAdapter
 from thirdparty.requests.auth import HTTPBasicAuth, HTTPDigestAuth
@@ -72,7 +73,7 @@ class Requester(object):
 
         # If no scheme specified, unset it first
         if "://" not in url:
-            parsed = urlparse(f"{self.default_scheme or 'unknown'}://{url}")
+            parsed = urlparse(f"{self.default_scheme or UNKNOWN}://{url}")
 
         self.base_path = parsed.path
         if parsed.path.startswith('/'):
@@ -86,9 +87,9 @@ class Requester(object):
         self.host = parsed.netloc.split(":")[0]
 
         # Standard ports for different schemes
-        port_for_scheme = {"http": 80, "https": 443, "unknown": None}
+        port_for_scheme = {"http": 80, "https": 443, UNKNOWN: None}
 
-        if parsed.scheme not in ("unknown", "https", "http"):
+        if parsed.scheme not in (UNKNOWN, "https", "http"):
             raise InvalidURLException(f"Unsupported URI scheme: {parsed.scheme}")
 
         # If no port specified, set default (80, 443)
@@ -105,7 +106,7 @@ class Requester(object):
 
         try:
             # If no scheme is found, detect it by port number
-            self.scheme = parsed.scheme if parsed.scheme != "unknown" else detect_scheme(self.host, self.port)
+            self.scheme = parsed.scheme if parsed.scheme != UNKNOWN else detect_scheme(self.host, self.port)
         except ValueError:
             '''
             If the user neither provides the port nor scheme, guess them based
@@ -126,7 +127,7 @@ class Requester(object):
 
     def set_header(self, key, value):
         try:
-            self.headers[key.strip()] = value.strip()
+            self.headers[key.lower()] = value.strip()
         except AttributeError:
             pass
 
@@ -147,9 +148,24 @@ class Requester(object):
             else:
                 self.auth = HttpNtlmAuth(user, password)
 
+    def set_proxy(self, proxy):
+        if not proxy:
+            return
+
+        if not proxy.startswith(PROXY_SCHEMES):
+            proxy = f"http://{proxy}"
+
+        self.session.proxies = {"https": proxy}
+        if not proxy.startswith("https://"):
+            self.session.proxies["http"] = proxy
+
     def request(self, path, proxy=None):
         err_msg = None
         simple_err_msg = None
+
+        # Guess the mime type of request data if not specified
+        if self.data and "content-type" not in self.headers:
+            self.set_header("content-type", magic.from_buffer(self.data.encode()))
 
         # Why using a loop instead of max_retries argument? Check issue #1009
         for _ in range(self.max_retries + 1):
@@ -158,23 +174,13 @@ class Requester(object):
             try:
                 if not proxy:
                     if self.proxylist:
-                        proxy = random.choice(self.proxylist)
-                    elif self.proxy:
-                        proxy = self.proxy
+                        self.proxy = random.choice(self.proxylist)
 
-                if proxy:
-                    if not proxy.startswith(PROXY_SCHEMES):
-                        proxy = f"http://{proxy}"
-
-                    if proxy.startswith("https://"):
-                        proxies = {"https": proxy}
-                    else:
-                        proxies = {"https": proxy, "http": proxy}
-                else:
-                    proxies = None
+                    proxy = proxy or self.proxy
+                    self.set_proxy(proxy)
 
                 if self.random_agents:
-                    self.headers["User-Agent"] = random.choice(self.random_agents)
+                    self.set_header("user-agent", random.choice(self.random_agents))
 
                 # Safe quote all special characters to prevent them from being encoded
                 url = safequote(self.url + self.base_path + path)
@@ -191,7 +197,6 @@ class Requester(object):
                 prepare.url = url
                 response = self.session.send(
                     prepare,
-                    proxies=proxies,
                     allow_redirects=self.follow_redirects,
                     timeout=self.timeout,
                     stream=True,
@@ -214,6 +219,9 @@ class Requester(object):
                     simple_err_msg = f"Too many redirects: {self.url}"
                 elif "ProxyError" in err_msg:
                     simple_err_msg = f"Error with the proxy: {proxy}"
+                    # Prevent from re-using it in the future
+                    if proxy in self.proxylist:
+                        self.proxylist.remove(proxy)
                 elif "InvalidURL" in err_msg:
                     simple_err_msg = f"Invalid URL: {self.url}"
                 elif "InvalidProxyURL" in err_msg:

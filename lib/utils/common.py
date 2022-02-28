@@ -16,17 +16,19 @@
 #
 #  Author: Mauro Soria
 
-import string
 import pickle as _pickle
 
 from ipaddress import IPv4Network, IPv6Network
 from urllib.parse import quote
 
-from lib.core.settings import INVALID_CHARS_FOR_WINDOWS_FILENAME, SAFE_BUILTINS
+from lib.core.settings import (
+    INVALID_CHARS_FOR_WINDOWS_FILENAME, INVALID_FILENAME_CHAR_REPLACEMENT,
+    SAFE_BUILTINS, TEXT_CHARS, URL_SAFE_CHARS
+)
 
 
 def safequote(string_):
-    return quote(string_, safe=string.punctuation)
+    return quote(string_, safe=URL_SAFE_CHARS)
 
 
 def uniq(string_list, filt=False):
@@ -39,7 +41,7 @@ def uniq(string_list, filt=False):
 # Some characters are denied in file name by Windows
 def get_valid_filename(string):
     for char in INVALID_CHARS_FOR_WINDOWS_FILENAME:
-        string = string.replace(char, "-")
+        string = string.replace(char, INVALID_FILENAME_CHAR_REPLACEMENT)
 
     return string
 
@@ -61,10 +63,15 @@ def iprange(subnet):
     network = IPv4Network(subnet)
     if is_ipv6(subnet):
         network = IPv6Network(subnet)
+
     return [str(ip) for ip in network]
 
 
-# Documentation: https://docs.python.org/3.4/library/pickle.html#restricting-globals
+def is_binary(bytes):
+    return bool(bytes.translate(None, TEXT_CHARS))
+
+
+# Reference: https://docs.python.org/3.4/library/pickle.html#restricting-globals
 class RestrictedUnpickler(_pickle.Unpickler):
     def find_class(self, module, name):
         if module.startswith(("lib.", "thirdparty.")) or (
