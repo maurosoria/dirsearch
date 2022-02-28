@@ -22,8 +22,8 @@ from lib.utils.file import File
 
 
 def parse_raw(raw_file):
-    with File(raw_file) as file:
-        raw_content = file.read()
+    with File(raw_file) as fd:
+        raw_content = fd.read()
 
     head = raw_content.split(NEW_LINE * 2)[0].splitlines(0)
     method, path = head[0].split()[:2]

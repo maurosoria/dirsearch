@@ -37,6 +37,8 @@ DEFAULT_ENCODING = "utf-8"
 
 NEW_LINE = os.linesep
 
+SAFE_BUILTINS = ("range", "complex", "set", "frozenset", "slice")
+
 INVALID_CHARS_FOR_WINDOWS_FILENAME = ('"', '*', '<', '>', '?', '\\', '|', '/', ':')
 
 OUTPUT_FORMATS = ("simple", "plain", "json", "xml", "md", "csv", "html", "sqlite")
@@ -49,6 +51,10 @@ PROXY_SCHEMES = ("http://", "https://", "socks5://", "socks5h://", "socks4://", 
 
 INSECURE_CSV_CHARS = ('+', '-', '=', '@')
 
+DEFAULT_SCAN_PREFIXES = ('.',)
+
+DEFAULT_SCAN_SUFFIXES = ('/',)
+
 DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36"
 
 DEFAULT_HEADERS = {
@@ -59,7 +65,7 @@ DEFAULT_HEADERS = {
     "Cache-Control": "max-age=0",
 }
 
-DEFAULT_SESSION_FILE = "session.json"
+DEFAULT_SESSION_FILE = "session.pickle"
 
 EXTENSION_TAG = "%ext%"
 
@@ -72,3 +78,5 @@ RATE_UPDATE_DELAY = 0.15
 CHUNK_SIZE = 8192
 
 TEST_PATH_LENGTH = 6
+
+ERROR_LIMIT = 350

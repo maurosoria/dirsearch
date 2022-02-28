@@ -16,11 +16,9 @@
 #
 #  Author: Mauro Soria
 
-import ast
 import gc
 import time
 import re
-import pickle
 
 from collections import deque
 from urllib.parse import urlparse
@@ -31,48 +29,49 @@ from lib.core.exceptions import InvalidURLException, RequestException, SkipTarge
 from lib.core.fuzzer import Fuzzer
 from lib.core.logger import log
 from lib.core.report_manager import Report, ReportManager
-from lib.core.settings import SCRIPT_PATH, BANNER, NEW_LINE, DEFAULT_HEADERS, DEFAULT_SESSION_FILE, EXTENSION_REGEX
+from lib.core.settings import SCRIPT_PATH, BANNER, NEW_LINE, DEFAULT_HEADERS, DEFAULT_SESSION_FILE, EXTENSION_REGEX, ERROR_LIMIT
 from lib.parse.rawrequest import parse_raw
 from lib.parse.url import clean_path, parse_path, join_path
-from lib.utils.common import get_valid_filename, human_size
+from lib.utils.common import get_valid_filename, human_size, pickle, unpickle
 from lib.utils.file import FileUtils
-
-PICKLE_VARIABLES = ("targets", "directories", "dictionary")
-EXCLUDE_EXPORT_VARIABLES = ("output", "threads_lock", "report", "report_manager", "requester", "fuzzer")
 
 
 class Controller(object):
     def __init__(self, options, output):
-        self.output = output
-
         if options.session_file:
-            self._import(FileUtils.read(options.session_file))
+            self._import(options.session_file)
             self.from_export = True
         else:
-            self.setup(options)
+            self.setup(options, output)
             self.from_export = False
-
-        self.output.header(BANNER)
-        self.output.config(
-            ", ".join(self.options.extensions),
-            ", ".join(self.options.prefixes),
-            ", ".join(self.options.suffixes),
-            str(self.options.threads_count),
-            str(len(self.dictionary)),
-            str(self.options.httpmethod),
-        )
-        self.setup_reports()
-
-        if self.options.log_file:
-            self.output.log_file(self.options.log_file)
 
         try:
             self.run()
         except KeyboardInterrupt:
             self.close("Canceled by the user")
 
-    def setup(self, options):
-        self.options = options
+    def _import(self, session_file):
+        with open(session_file, "rb") as fd:
+            export = unpickle(fd)
+
+        self.__dict__ = {**export, **vars(self)}
+
+    def _export(self, session_file):
+        # Add the current item back to the queue
+        self.targets.insert(0, self.url)
+        self.directories.insert(0, self.current_directory)
+        self.current_job -= 1
+        # Save written output
+        self.last_output = self.output.buffer.rstrip()
+
+        # This attribute doesn't need to be saved
+        del self.fuzzer
+
+        with open(session_file, "wb") as fd:
+            pickle(vars(self), fd)
+
+    def setup(self, options, output):
+        self.options, self.output = options, output
 
         if options.raw_file:
             self.options.update(
@@ -92,83 +91,6 @@ class Controller(object):
                 FileUtils.build_path(SCRIPT_PATH, "db", "user-agents.txt")
             )
 
-        self.targets = deque(options.urls)
-        self.blacklists = Dictionary.generate_blacklists(options.extensions)
-        self.dictionary = Dictionary(
-            paths=options.wordlist,
-            extensions=options.extensions,
-            suffixes=options.suffixes,
-            prefixes=options.prefixes,
-            lowercase=options.lowercase,
-            uppercase=options.uppercase,
-            capitalization=options.capitalization,
-            force_extensions=options.force_extensions,
-            exclude_extensions=options.exclude_extensions,
-            no_extension=options.no_extension,
-            only_selected=options.only_selected
-        )
-        self.current_job = 0
-        self.batch = False
-        self.report = None
-        self.current_directory = None
-        self.directories = deque()
-        self.passed_urls = set()
-        self.start_time = time.time()
-        self.jobs_count = 0
-
-        if options.autosave_report:
-            self.report_path = options.output_location or FileUtils.build_path(SCRIPT_PATH, "reports")
-
-            try:
-                FileUtils.create_dir(self.report_path)
-
-                if not FileUtils.can_write(self.report_path):
-                    raise Exception
-            except Exception:
-                self.output.error(f"Couldn't create report folder at {self.report_path}")
-                exit(1)
-
-        if options.log_file:
-            self.options.log_file = FileUtils.get_abs_path(options.log_file)
-
-            try:
-                FileUtils.create_dir(FileUtils.parent(self.options.log_file))
-
-                if not FileUtils.can_write(self.options.log_file):
-                    raise Exception
-            except Exception:
-                self.output.error(f"Couldn't create log file at {self.options['log_file']}")
-                exit(1)
-
-    def _import(self, data):
-        export = ast.literal_eval(data)
-
-        for item in PICKLE_VARIABLES:
-            self.__dict__[item] = pickle.loads(self.__dict__[item])
-
-        self.__dict__ = {**export, **vars(self)}
-
-    def _export(self, session_file):
-        # Add the current item back to the queue
-        self.targets.insert(0, self.url)
-        self.directories.insert(0, self.current_directory)
-
-        # Pickle non-iterable objects
-        for item in PICKLE_VARIABLES:
-            self.__dict__[item] = pickle.dumps(self.__dict__[item])
-
-        self.last_output = self.output.buffer.rstrip()
-        self.current_job -= 1
-        data = {
-            key: value for key, value in vars(self).items() if key not in EXCLUDE_EXPORT_VARIABLES
-        }
-
-        FileUtils.write_lines(session_file, str(data), overwrite=True)
-
-    def run(self):
-        match_callbacks = (self.match_callback, self.append_traffic_log)
-        not_found_callbacks = (self.not_found_callback, self.append_traffic_log)
-        error_callbacks = (self.error_callback, self.append_error_log)
         self.requester = Requester(
             max_pool=self.options.threads_count,
             max_retries=self.options.max_retries,
@@ -182,6 +104,74 @@ class Controller(object):
             scheme=self.options.scheme,
             random_agents=self.random_agents,
         )
+        self.dictionary = Dictionary(
+            paths=options.wordlist,
+            extensions=options.extensions,
+            suffixes=options.suffixes,
+            prefixes=options.prefixes,
+            lowercase=options.lowercase,
+            uppercase=options.uppercase,
+            capitalization=options.capitalization,
+            force_extensions=options.force_extensions,
+            exclude_extensions=options.exclude_extensions,
+            no_extension=options.no_extension,
+            only_selected=options.only_selected
+        )
+        self.blacklists = Dictionary.generate_blacklists(options.extensions)
+        self.targets = deque(options.urls)
+        self.current_job = 0
+        self.batch = False
+        self.report = None
+        self.current_directory = None
+        self.directories = deque()
+        self.passed_urls = set()
+        self.start_time = time.time()
+        self.jobs_count = 0
+        self.errors = 0
+
+        if options.log_file:
+            self.options.log_file = FileUtils.get_abs_path(options.log_file)
+
+            try:
+                FileUtils.create_dir(FileUtils.parent(self.options.log_file))
+
+                if not FileUtils.can_write(self.options.log_file):
+                    raise Exception
+            except Exception:
+                self.output.error(f"Couldn't create log file at {self.options.log_file}")
+                exit(1)
+
+        if options.autosave_report:
+            self.report_path = options.output_path or FileUtils.build_path(SCRIPT_PATH, "reports")
+
+            try:
+                FileUtils.create_dir(self.report_path)
+
+                if not FileUtils.can_write(self.report_path):
+                    raise Exception
+            except Exception:
+                self.output.error(f"Couldn't create report folder at {self.report_path}")
+                exit(1)
+
+        self.output.header(BANNER)
+        self.output.config(
+            ', '.join(self.options["extensions"]),
+            ', '.join(self.options["prefixes"]),
+            ', '.join(self.options["suffixes"]),
+            str(self.options["threads_count"]),
+            str(len(self.dictionary)),
+            str(self.options["httpmethod"]),
+        )
+
+        self.setup_reports()
+
+        if self.options.log_file:
+            self.output.log_file(self.options.log_file)
+
+    def run(self):
+        match_callbacks = (self.match_callback, self.append_traffic_log)
+        not_found_callbacks = (self.not_found_callback, self.append_traffic_log)
+        error_callbacks = (self.error_callback, self.append_error_log)
 
         while len(self.targets):
             try:
@@ -190,9 +180,6 @@ class Controller(object):
                 try:
                     self.requester.set_target(url if url.endswith('/') else url + '/')
                     self.url = self.requester.url + self.requester.base_path
-
-                    if self.url in self.passed_urls:
-                        break
 
                     if not self.directories:
                         for subdir in self.options.scan_subdirs:
@@ -215,7 +202,7 @@ class Controller(object):
                     log(self.options.log_file, "info", f"Test request sent for: {self.url}")
 
                     self.output.url = self.requester.url
-                    self.report = Report(
+                    self.report = self.report or Report(
                         self.requester.host, self.requester.port, self.requester.scheme, self.requester.base_path
                     )
 
@@ -300,7 +287,7 @@ class Controller(object):
     # Get file extension for report format
     def get_output_extension(self):
         if self.options.output_format not in ("plain", "simple"):
-            return f".{self.options['output_format']}"
+            return f".{self.options.output_format}"
         else:
             return ".txt"
 
@@ -411,6 +398,7 @@ class Controller(object):
             self.current_job,
             self.jobs_count,
             self.fuzzer.rate,
+            self.errors
         )
 
     # Callback for errors while fuzzing
@@ -418,13 +406,15 @@ class Controller(object):
         if self.options.exit_on_error:
             raise QuitInterrupt("Canceled due to an error")
 
-        self.output.add_connection_error()
+        self.errors += 1
+        if self.errors > ERROR_LIMIT:
+            self.close("Too many request errors")
 
     # Write request to log file
     def append_traffic_log(self, path, response):
         url = join_path(self.requester.url, response.path)
         msg = f"{self.requester.ip or '0'} {response.status} "
-        msg += f"{self.options['httpmethod']} {url}"
+        msg += f"{self.options.httpmethod} {url}"
 
         if response.redirect:
             msg += f" - REDIRECT TO: {response.redirect}"
@@ -435,7 +425,7 @@ class Controller(object):
     # Write error to log file
     def append_error_log(self, path, error_msg):
         url = join_path(self.url, self.current_directory, path)
-        msg = f"{self.options['httpmethod']} {url}"
+        msg = f"{self.options.httpmethod} {url}"
         msg += NEW_LINE
         msg += ' ' * 4
         msg += error_msg
@@ -443,7 +433,7 @@ class Controller(object):
 
     # Handle CTRL+C
     def handle_pause(self):
-        self.output.warning("CTRL+C detected: Pausing threads, please wait...", save=False)
+        self.output.warning("CTRL+C detected: Pausing threads, please wait...", do_save=False)
         self.fuzzer.pause()
 
         # Wait maximum 7 seconds
@@ -474,7 +464,7 @@ class Controller(object):
                 if option.lower() == 'q':
                     self.close("Canceled by the user")
                 elif option.lower() == 's':
-                    msg = f"Save to file [{DEFAULT_SESSION_FILE}]: "
+                    msg = f"Save to file [{self.options.session_file or DEFAULT_SESSION_FILE}]: "
 
                     self.output.in_line(msg)
 
@@ -500,7 +490,7 @@ class Controller(object):
             try:
                 while not self.fuzzer.wait(0.3):
                     if self.is_timed_out():
-                        raise SkipTargetInterrupt("Canceled because the runtime exceeded the maximum set by user")
+                        raise SkipTargetInterrupt("Runtime exceeded the maximum set by the user")
 
                 break
 
@@ -564,7 +554,6 @@ class Controller(object):
         return False
 
     def close(self, msg):
-        self.fuzzer.stop()
         self.output.error(msg)
         self.report_manager.update_report(self.report)
         exit(0)

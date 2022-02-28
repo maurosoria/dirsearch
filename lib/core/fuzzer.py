@@ -21,7 +21,7 @@ import time
 
 from lib.core.exceptions import RequestException
 from lib.core.scanner import Scanner
-from lib.core.settings import RATE_UPDATE_DELAY
+from lib.core.settings import DEFAULT_SCAN_PREFIXES, DEFAULT_SCAN_SUFFIXES, RATE_UPDATE_DELAY
 from lib.parse.url import clean_path
 
 
@@ -72,15 +72,13 @@ class Fuzzer(object):
 
         # Default scanners (wildcard testers)
         self.default_scanner = Scanner(self.requester)
-        self.prefixes.append(".")
-        self.suffixes.append("/")
 
-        for prefix in self.prefixes:
+        for prefix in self.prefixes.union(DEFAULT_SCAN_PREFIXES):
             self.scanners["prefixes"][prefix] = Scanner(
                 self.requester, prefix=prefix, tested=self.scanners
             )
 
-        for suffix in self.suffixes:
+        for suffix in self.suffixes.union(DEFAULT_SCAN_SUFFIXES):
             self.scanners["suffixes"][suffix] = Scanner(
                 self.requester, suffix=suffix, tested=self.scanners
             )

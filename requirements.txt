@@ -1,6 +1,9 @@
-certifi>=2020.11.8
+certifi>=2017.4.17
 urllib3>=1.21.1
 cryptography>=2.8
 cffi>=1.14.0
 markupsafe>=2.0.1
 pyopenssl>=21.0.0
+idna>=2.5
+chardet>=3.0.2
+charset_normalizer~=2.0.0

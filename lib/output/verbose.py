@@ -39,7 +39,6 @@ class Output(object):
         self.buffer = ''
         self.blacklists = {}
         self.url = None
-        self.errors = 0
 
     def erase(self):
         if IS_WINDOWS:
@@ -64,11 +63,7 @@ class Output(object):
         self.last_in_line = True
 
     @locked
-    def new_line(self, string='', save=True):
-        if save:
-            self.buffer += string
-            self.buffer += '\n'
-
+    def new_line(self, string='', do_save=True):
         if self.last_in_line:
             self.erase()
 
@@ -84,6 +79,10 @@ class Output(object):
         sys.stdout.flush()
         self.last_in_line = False
         sys.stdout.flush()
+
+        if do_save:
+            self.buffer += string
+            self.buffer += '\n'
 
     def status_report(self, response, full_url, added_to_queue):
         status = response.status
@@ -115,7 +114,7 @@ class Output(object):
 
         self.new_line(message)
 
-    def last_path(self, index, length, current_job, all_jobs, rate):
+    def last_path(self, index, length, current_job, all_jobs, rate, errors):
         percentage = int(index / length * 100)
         task = set_color('#', fore="cyan", bright=True) * int(percentage / 5)
         task += ' ' * (20 - int(percentage / 5))
@@ -125,7 +124,7 @@ class Output(object):
         jobs = f"{grean_job}:{current_job}/{all_jobs}"
 
         red_error = set_color("errors", fore="red", bright=True)
-        errors = f"{red_error}:{self.errors}"
+        errors = f"{red_error}:{errors}"
 
         progress_bar = f"[{task}] {str(percentage).rjust(2, chr(32))}% "
         progress_bar += f"{progress.rjust(12, chr(32))} {str(rate).rjust(9, chr(32))}/s       "
@@ -136,22 +135,19 @@ class Output(object):
 
         self.in_line(progress_bar)
 
-    def add_connection_error(self):
-        self.errors += 1
-
     def error(self, reason):
         message = set_color(reason, fore="white", back="red", bright=True)
         self.new_line('\n' + message)
 
-    def warning(self, message, save=True):
+    def warning(self, message, do_save=True):
         message = set_color(message, fore="yellow", bright=True)
-        self.new_line(message, save=save)
+        self.new_line(message, do_save=do_save)
 
     def header(self, message):
         message = set_color(message, fore="magenta", bright=True)
-        self.new_line(message, save=False)
+        self.new_line(message)
 
-    def print_header(self, entries, save=False):
+    def print_header(self, entries):
         msg = ''
 
         for key, value in entries.items():
@@ -171,7 +167,7 @@ class Output(object):
 
             msg += new
 
-        self.new_line(msg, save=save)
+        self.new_line(msg)
 
     def config(
         self,
@@ -200,10 +196,10 @@ class Output(object):
     def set_target(self, target):
         self.target = target
         self.new_line()
-        self.print_header({"Target": target}, save=True)
+        self.print_header({"Target": target})
 
-    def output_file(self, target):
-        self.new_line(f"\nOutput File: {target}", save=False)
+    def output_file(self, file):
+        self.new_line(f"\nOutput File: {file}")
 
-    def log_file(self, target):
-        self.new_line(f"\nLog File: {target}", save=False)
+    def log_file(self, file):
+        self.new_line(f"\nLog File: {file}")

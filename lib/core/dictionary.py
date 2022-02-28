@@ -28,7 +28,7 @@ class Dictionary(object):
     def __init__(self, **kwargs):
         self._entries = ()
         self._index = 0
-        self._dictionary_files = (File(path) for path in kwargs.get("paths", []))
+        self._dictionary_files = kwargs.get("paths", [])
         self.extensions = kwargs.get("extensions", [])
         self.exclude_extensions = kwargs.get("exclude_extensions", [])
         self.prefixes = kwargs.get("prefixes", [])
@@ -68,7 +68,7 @@ class Dictionary(object):
 
         # Enable to use multiple dictionaries at once
         for dict_file in self._dictionary_files:
-            for line in uniq(dict_file.get_lines()):
+            for line in FileUtils.get_lines(dict_file):
                 if line.startswith('/'):
                     line = line[1:]
 
@@ -146,10 +146,10 @@ class Dictionary(object):
         self._index = 0
 
     def __getstate__(self):
-        return self._entries, self._index
+        return (self._entries, self._index, self.extensions)
 
-    def __setstate__(self, entries, index):
-        self._entries, self._index = entries, index
+    def __setstate__(self, state):
+        self._entries, self._index, self.extensions = state
 
     @locked
     def __next__(self):

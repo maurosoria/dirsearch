@@ -17,11 +17,12 @@
 #  Author: Mauro Soria
 
 import string
+import pickle as _pickle
 
 from ipaddress import IPv4Network, IPv6Network
 from urllib.parse import quote
 
-from lib.core.settings import INVALID_CHARS_FOR_WINDOWS_FILENAME
+from lib.core.settings import INVALID_CHARS_FOR_WINDOWS_FILENAME, SAFE_BUILTINS
 
 
 def safequote(string_):
@@ -61,3 +62,21 @@ def iprange(subnet):
     if is_ipv6(subnet):
         network = IPv6Network(subnet)
     return [str(ip) for ip in network]
+
+
+# Documentation: https://docs.python.org/3.4/library/pickle.html#restricting-globals
+class RestrictedUnpickler(_pickle.Unpickler):
+    def find_class(self, module, name):
+        # Only allow safe builtins
+        if module == "builtins" and name not in SAFE_BUILTINS:
+            raise _pickle.UnpicklingError()
+
+        return super(RestrictedUnpickler, self).find_class(module, name)
+
+
+def unpickle(*args, **kwargs):
+    return RestrictedUnpickler(*args, **kwargs).load()
+
+
+def pickle(obj, *args, **kwargs):
+    return _pickle.Pickler(*args, **kwargs).dump(obj)

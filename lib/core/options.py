@@ -31,13 +31,13 @@ def options():
     opt = parse_config(parse_arguments())
 
     if opt.session_file:
-        return vars(opt)
+        return AttributeDict(vars(opt))
 
     opt.httpmethod = opt.httpmethod.upper()
 
     if opt.url_list:
-        file = access_file(opt.url_list, "file contains URLs")
-        opt.urls = file.get_lines()
+        fd = access_file(opt.url_list, "file contains URLs")
+        opt.urls = fd.get_lines()
     elif opt.cidr:
         opt.urls = iprange(opt.cidr)
     elif opt.stdin_urls:
@@ -62,16 +62,16 @@ def options():
         exit(1)
 
     if opt.proxylist:
-        file = access_file(opt.proxylist, "proxylist file")
-        opt.proxylist = file.get_lines()
+        fd = access_file(opt.proxylist, "proxylist file")
+        opt.proxylist = fd.get_lines()
 
     headers = {}
 
     if opt.header_list:
         try:
-            file = access_file(opt.header_list, "header list file")
+            fd = access_file(opt.header_list, "header list file")
             headers.update(
-                HeadersParser(file.read()).headers
+                HeadersParser(fd.read()).headers
             )
         except Exception as e:
             print("Error in headers file: " + str(e))
@@ -101,8 +101,8 @@ def options():
     opt.exclude_status_codes = parse_status_codes(opt.exclude_status_codes)
     opt.recursion_status_codes = parse_status_codes(opt.recursion_status_codes)
     opt.skip_on_status = parse_status_codes(opt.skip_on_status)
-    opt.prefixes = uniq([prefix.strip() for prefix in opt.prefixes.split(",")])
-    opt.suffixes = uniq([suffix.strip() for suffix in opt.suffixes.split(",")])
+    opt.prefixes = set(prefix.strip() for prefix in opt.prefixes.split(","))
+    opt.suffixes = set(suffix.strip() for suffix in opt.suffixes.split(","))
     opt.extensions = uniq([extension.lstrip(" .") for extension in opt.extensions.split(",")])
     opt.exclude_extensions = uniq([
         exclude_extension.lstrip(" .") for exclude_extension in opt.exclude_extensions.split(",")
@@ -172,20 +172,20 @@ def parse_status_codes(str_):
 
 
 def access_file(path, name):
-    with File(path) as file:
-        if not file.exists():
+    with File(path) as fd:
+        if not fd.exists():
             print(f"The {name} does not exist")
             exit(1)
 
-        if not file.is_valid():
+        if not fd.is_valid():
             print(f"The {name} is invalid")
             exit(1)
 
-        if not file.can_read():
+        if not fd.can_read():
             print(f"The {name} cannot be read")
             exit(1)
 
-        return file
+        return fd
 
 
 def parse_config(options):
@@ -266,7 +266,7 @@ def parse_config(options):
     options.exit_on_error = options.exit_on_error or config.safe_getboolean("connection", "exit-on-error")
 
     # Output
-    options.output_location = config.safe_get("output", "report-output-folder")
+    options.output_path = config.safe_get("output", "report-output-folder")
     options.autosave_report = config.safe_getboolean("output", "autosave-report")
     options.log_file = options.log_file or config.safe_get("output", "log-file")
     options.output_format = options.output_format or config.safe_get(

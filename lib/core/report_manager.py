@@ -26,19 +26,6 @@ from lib.reports.xml_report import XMLReport
 from lib.reports.sqlite_report import SQLiteReport
 
 
-class BaseReport(object):
-    def __init__(*args):
-        pass
-
-    def add_result(*args):
-        pass
-
-
-class BaseReportManager(object):
-    def __init__(*args):
-        pass
-
-
 class Result(object):
     def __init__(self, path, response):
         self.path = path
@@ -46,7 +33,7 @@ class Result(object):
         self.response = response
 
 
-class Report(BaseReport):
+class Report(object):
     def __init__(self, host, port, protocol, base_path):
         self.host = host
         self.port = port
@@ -60,7 +47,7 @@ class Report(BaseReport):
         self.results.append(result)
 
 
-class ReportManager(BaseReportManager):
+class ReportManager(object):
     def __init__(self, save_format, output_file):
         self.format = save_format
         self.reports = []

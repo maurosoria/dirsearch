@@ -95,7 +95,7 @@ class FileUtils(object):
 
     @staticmethod
     def read(file_name):
-        return open(file_name, "r").read()
+        return open(file_name, 'r').read()
 
     @staticmethod
     def read_dir(directory):
