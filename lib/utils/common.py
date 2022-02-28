@@ -67,10 +67,9 @@ def iprange(subnet):
 # Documentation: https://docs.python.org/3.4/library/pickle.html#restricting-globals
 class RestrictedUnpickler(_pickle.Unpickler):
     def find_class(self, module, name):
-        if (module == "builtins" and name in SAFE_BUILTINS or
-            module == "collections" or
-            module.startswith(("lib.", "thirdparty."))
-           ):
+        if module.startswith(("lib.", "thirdparty.")) or (
+            module == "builtins" and name in SAFE_BUILTINS
+        ) or module == "collections":
             return super(RestrictedUnpickler, self).find_class(module, name)
 
         raise _pickle.UnpicklingError()
