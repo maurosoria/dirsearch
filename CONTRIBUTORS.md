@@ -66,6 +66,7 @@
 - [Manuel Poisson](https://github.com/ManuelPOISSON)
 - [XinRoom](https://github.com/XinRoom)
 - [godspeedcurry](https://github.com/godspeedcurry)
+- [0x08](https://github.com/its0x08)
 
 Special thanks to all the people who are named here!
 

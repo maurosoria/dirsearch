@@ -47,7 +47,7 @@ def options():
 
     if opt.raw_file:
         access_file(opt.raw_file, "file with raw request")
-    elif not len(opt.urls):
+    elif not opt.urls:
         print("URL target is missing, try using -u <url>")
         exit(1)
 
@@ -88,22 +88,12 @@ def options():
 
     opt.headers = headers
 
-    if opt.extensions == "*":
-        opt.extensions = COMMON_EXTENSIONS
-    elif opt.extensions == "CHANGELOG.md":
-        print("A weird extension was provided: 'CHANGELOG.md'. Please do not use * as the extension or enclose it in double quotes")
-        exit(0)
-
-    if opt.no_extension:
-        opt.extensions = ''
-
     opt.include_status_codes = parse_status_codes(opt.include_status_codes)
     opt.exclude_status_codes = parse_status_codes(opt.exclude_status_codes)
     opt.recursion_status_codes = parse_status_codes(opt.recursion_status_codes)
     opt.skip_on_status = parse_status_codes(opt.skip_on_status)
     opt.prefixes = set(prefix.strip() for prefix in opt.prefixes.split(","))
     opt.suffixes = set(suffix.strip() for suffix in opt.suffixes.split(","))
-    opt.extensions = uniq([extension.lstrip(" .") for extension in opt.extensions.split(",")])
     opt.exclude_extensions = uniq([
         exclude_extension.lstrip(" .") for exclude_extension in opt.exclude_extensions.split(",")
     ])
@@ -121,6 +111,16 @@ def options():
         subdir.lstrip(" /") + ('' if not subdir or subdir.endswith('/') else '/')
         for subdir in opt.exclude_subdirs.split(',')
     ]
+
+    if opt.no_extension:
+        opt.extensions = ''
+    elif opt.extensions == '*':
+        opt.extensions = COMMON_EXTENSIONS
+    elif opt.extensions == "CHANGELOG.md":
+        print("A weird extension was provided: 'CHANGELOG.md'. Please do not use * as the extension or enclose it in double quotes")
+        exit(0)
+    else:
+        opt.extensions = uniq([extension.lstrip(" .") for extension in opt.extensions.split(",")])
 
     if not opt.wordlist:
         print("No wordlist was provided, try using -w <wordlist>")

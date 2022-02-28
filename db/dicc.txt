@@ -3694,6 +3694,8 @@ app-admin
 app.config
 app.js
 app.php
+app.py
+app.%EXT%
 app/
 app/.htaccess
 app/Config/core.php
