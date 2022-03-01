@@ -19,7 +19,10 @@
 import sys
 
 from lib.core.objects import AttributeDict
-from lib.core.settings import SCRIPT_PATH, COMMON_EXTENSIONS, OUTPUT_FORMATS, AUTHENTICATION_TYPES
+from lib.core.settings import (
+    AUTHENTICATION_TYPES, COMMON_EXTENSIONS, DEFAULT_TOR_PROXIES,
+    OUTPUT_FORMATS, SCRIPT_PATH
+)
 from lib.parse.cmdline import parse_arguments
 from lib.parse.config import ConfigParser
 from lib.parse.headers import HeadersParser
@@ -61,9 +64,11 @@ def options():
         print("Threads number must be greater than zero")
         exit(1)
 
-    if opt.proxylist:
+    if opt.tor:
+        opt.proxylist = DEFAULT_TOR_PROXIES
+    elif opt.proxylist:
         fd = access_file(opt.proxylist, "proxylist file")
-        opt.proxylist = set(fd.get_lines())
+        opt.proxylist = fd.get_lines()
 
     headers = {}
 

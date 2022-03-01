@@ -50,6 +50,7 @@ class Session(requests.Session):
 
 class Requester(object):
     def __init__(self, **kwargs):
+        self._proxy_cred = None
         self.httpmethod = kwargs.get("httpmethod", "get")
         self.data = kwargs.get("data", None)
         self.max_pool = kwargs.get("max_pool", 100)
@@ -61,7 +62,6 @@ class Requester(object):
         self.default_scheme = kwargs.get("scheme", None)
         self.follow_redirects = kwargs.get("follow_redirects", False)
         self.random_agents = kwargs.get("random_agents", None)
-        self.auth = None
         self.headers = {}
         self.session = Session()
         self.session.verify = False
@@ -133,7 +133,7 @@ class Requester(object):
 
     def set_auth(self, type, credential):
         if type in ("bearer", "jwt", "oath2"):
-            self.set_header("Authorization", f"Bearer {credential}")
+            self.set_header("authorization", f"Bearer {credential}")
         else:
             user = credential.split(":")[0]
             try:
@@ -142,11 +142,11 @@ class Requester(object):
                 password = ''
 
             if type == "basic":
-                self.auth = HTTPBasicAuth(user, password)
+                self.session.auth = HTTPBasicAuth(user, password)
             elif type == "digest":
-                self.auth = HTTPDigestAuth(user, password)
+                self.session.auth = HTTPDigestAuth(user, password)
             else:
-                self.auth = HttpNtlmAuth(user, password)
+                self.session.auth = HttpNtlmAuth(user, password)
 
     def set_proxy(self, proxy):
         if not proxy:
@@ -155,9 +155,16 @@ class Requester(object):
         if not proxy.startswith(PROXY_SCHEMES):
             proxy = f"http://{proxy}"
 
+        if self._proxy_cred and '@' not in proxy:
+            # socks5://localhost:9050 => socks5://[credential]@localhost:9050
+            proxy = proxy.replace("://", f"://{self._proxy_cred}@", 1)
+
         self.session.proxies = {"https": proxy}
         if not proxy.startswith("https://"):
             self.session.proxies["http"] = proxy
+
+    def set_proxy_auth(self, credential):
+        self._proxy_cred = credential
 
     def request(self, path, proxy=None):
         err_msg = None
@@ -165,7 +172,7 @@ class Requester(object):
 
         # Guess the mime type of request data if not specified
         if self.data and "content-type" not in self.headers:
-            self.set_header("content-type", magic.from_buffer(self.data.encode()))
+            self.set_header("content-type", magic.from_buffer(self.data.encode(), mime=True))
 
         # Why using a loop instead of max_retries argument? Check issue #1009
         for _ in range(self.max_retries + 1):
@@ -189,7 +196,6 @@ class Requester(object):
                     self.httpmethod,
                     url,
                     headers=headers,
-                    auth=self.auth,
                     data=self.data,
                 )
 

@@ -38,7 +38,7 @@ DEFAULT_ENCODING = "utf-8"
 
 NEW_LINE = os.linesep
 
-SAFE_BUILTINS = ("range", "complex", "set", "frozenset", "slice")
+SAFE_BUILTINS = ("bytearray", "range", "iter", "open", "set")
 
 INVALID_CHARS_FOR_WINDOWS_FILENAME = ('"', '*', '<', '>', '?', '\\', '|', '/', ':')
 
@@ -57,6 +57,8 @@ INSECURE_CSV_CHARS = ('+', '-', '=', '@')
 DEFAULT_SCAN_PREFIXES = ('.',)
 
 DEFAULT_SCAN_SUFFIXES = ('/',)
+
+DEFAULT_TOR_PROXIES = ("socks5://127.0.0.1:9050", "socks5://127.0.0.1:9150")
 
 DEFAULT_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36",

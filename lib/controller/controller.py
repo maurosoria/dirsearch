@@ -134,6 +134,15 @@ class Controller(object):
         self.errors = 0
         self.consecutive_errors = 0
 
+        for key, value in options.headers.items():
+            self.requester.set_header(key, value)
+
+        if options.auth:
+            self.requester.set_auth(options.auth_type, options.auth)
+
+        if options.proxy_auth:
+            self.requester.set_proxy_auth(options.proxy_auth)
+
         if options.log_file:
             self.options.log_file = FileUtils.get_abs_path(options.log_file)
 
@@ -189,12 +198,6 @@ class Controller(object):
                     if not self.directories:
                         for subdir in self.options.scan_subdirs:
                             self.add_directory(subdir)
-
-                    for key, value in self.options.headers.items():
-                        self.requester.set_header(key, value)
-
-                    if self.options.auth:
-                        self.requester.set_auth(self.options.auth_type, self.options.auth)
 
                     if self.from_export:
                         # Rewrite the output from the last scan
