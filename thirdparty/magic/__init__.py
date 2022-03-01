@@ -430,7 +430,7 @@ MAGIC_PARAM_BYTES_MAX = 6  # Max number of bytes to read from file
 # wrapped in deprecation warnings.
 def _add_compat(to_module):
     import warnings, re
-    from magic import compat
+    from thirdparty.magic import compat
 
     def deprecation_wrapper(fn):
         def _(*args, **kwargs):
