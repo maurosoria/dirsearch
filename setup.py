@@ -17,6 +17,9 @@ shutil.copytree(os.path.abspath(os.getcwd()),
 
 os.chdir(env_dir)
 
+with open('requirements.txt') as fd:
+    required_dependencies = fd.read().splitlines()
+
 setuptools.setup(
     name="dirsearch",
     version=VERSION,
@@ -35,7 +38,7 @@ setuptools.setup(
     },
     include_package_data=True,
     python_requires=">=3.7",
-    install_requires=["certifi>=2020.11.8", "chardet>=3.0.2", "urllib3>=1.21.1", "cryptography>=2.8", "PySocks>=1.6.8", "cffi>=1.14.0"],
+    install_requires=required_dependencies,
     classifiers=[
         "Programming Language :: Python",
         "Environment :: Console",

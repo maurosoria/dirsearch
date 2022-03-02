@@ -38,7 +38,9 @@ DEFAULT_ENCODING = "utf-8"
 
 NEW_LINE = os.linesep
 
-SAFE_BUILTINS = ("bytearray", "range", "iter", "open", "set")
+ALLOWED_PICKLE_MODULES = ("collections", "requests", "http", "urllib3", "lib")
+
+UNSAFE_PICKLE_BUILTINS = ("eval", "exec")
 
 INVALID_CHARS_FOR_WINDOWS_FILENAME = ('"', '*', '<', '>', '?', '\\', '|', '/', ':')
 
@@ -70,13 +72,13 @@ DEFAULT_HEADERS = {
 
 DEFAULT_SESSION_FILE = "session.pickle"
 
-EXTENSION_REGEX = r"\w[.][a-zA-Z0-9]{2,5}"
+REFLECTED_PATH_MARKER = "__REFLECTED_PATH__"
 
 EXTENSION_TAG = "%ext%"
 
-UNKNOWN = "unknown"
+EXTENSION_REGEX = r"\w[.][a-zA-Z0-9]{2,5}"
 
-REFLECTED_PATH_MARKER = "__REFLECTED_PATH__"
+UNKNOWN = "unknown"
 
 SOCKET_TIMEOUT = 6
 

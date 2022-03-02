@@ -19,9 +19,27 @@
 
 import sys
 
+from pkg_resources import DistributionNotFound, VersionConflict
+
+from lib.core.exceptions import FailedDependenciesInstallation
+from lib.core.installation import check_dependencies, install_dependencies
+
 if sys.version_info < (3, 7):
     sys.stdout.write("Sorry, dirsearch requires Python 3.7 or higher\n")
     sys.exit(1)
+
+try:
+    check_dependencies()
+except (DistributionNotFound, VersionConflict):
+    print("Installing required dependencies to run dirsearch...")
+
+    try:
+        install_dependencies()
+    except FailedDependenciesInstallation:
+        msg = "Failed to install required dependencies, try doing "
+        msg += "it manually by: pip install -r requirements.txt"
+        print(msg)
+        exit(1)
 
 
 class Program(object):

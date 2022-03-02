@@ -17,6 +17,14 @@
 #  Author: Mauro Soria
 
 
+class FailedDependenciesInstallation(Exception):
+    pass
+
+
+class MissingProxy(Exception):
+    pass
+
+
 class RequestException(Exception):
     pass
 

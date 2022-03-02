@@ -18,11 +18,14 @@
 
 import string
 
-from thirdparty.colorama import init, Fore, Back, Style
-from thirdparty.pyparsing import Literal, Word, Combine, Optional, Suppress, delimitedList, oneOf
+from colorama import init, Fore, Back, Style
+from pyparsing import (
+    Literal, Word, Combine, Optional,
+    Suppress, delimitedList, oneOf
+)
 
 
-FORE_TABLE = {
+FORE_COLORS = {
     "red": Fore.RED,
     "green": Fore.GREEN,
     "yellow": Fore.YELLOW,
@@ -33,7 +36,7 @@ FORE_TABLE = {
     "none": ''
 }
 
-BACK_TABLE = {
+BACK_COLORS = {
     "red": Back.RED,
     "green": Back.GREEN,
     "yellow": Back.YELLOW,
@@ -58,7 +61,7 @@ def set_color(msg, fore="none", back="none", bright=False):
     if bright:
         msg = Style.BRIGHT + msg
 
-    msg = FORE_TABLE[fore] + BACK_TABLE[back] + msg
+    msg = FORE_COLORS[fore] + BACK_COLORS[back] + msg
     msg += Style.RESET_ALL
 
     return msg

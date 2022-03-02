@@ -22,9 +22,8 @@ from urllib.parse import unquote
 
 from lib.core.settings import REFLECTED_PATH_MARKER, TEST_PATH_LENGTH
 from lib.parse.url import clean_path
-from lib.utils.matcher import generate_matching_regex
+from lib.utils.diff import generate_matching_regex, DynamicContentParser
 from lib.utils.random import rand_string
-from thirdparty.sqlmap import DynamicContentParser
 
 
 class Scanner(object):
@@ -36,15 +35,8 @@ class Scanner(object):
         self.requester = requester
         self.tester = None
         self.response = None
-        self.dynamic_parser = None
         self.wildcard_redirect_regex = None
         self.setup()
-
-    def get_duplicate(self, response):
-        for category in self.tested:
-            for tester in self.tested[category].values():
-                if response == tester.response:
-                    return tester
 
     '''
     Generate wildcard response information containers, this will be
@@ -64,8 +56,7 @@ class Scanner(object):
         duplicate = self.get_duplicate(first_response)
         # Another test was performed before and has the same response as this
         if duplicate:
-            self.ratio = duplicate.ratio
-            self.dynamic_parser = duplicate.dynamic_parser
+            self.content_parser = duplicate.content_parser
             self.wildcard_redirect_regex = duplicate.wildcard_redirect_regex
             return
 
@@ -80,41 +71,15 @@ class Scanner(object):
                 second_response.redirect, second_path,
             )
 
-        # Analyze response bodies
-        self.dynamic_parser = DynamicContentParser(
-            self.requester, first_path, first_response.body, second_response.body
+        self.content_parser = DynamicContentParser(
+            first_response.content, second_response.content
         )
 
-        self.ratio = round(self.dynamic_parser.comparisonRatio, 2)
-
-        # The wildcard response is static
-        if self.ratio == 1:
-            pass
-        # Adjusting ratio based on response length
-        elif len(first_response) < 100:
-            self.ratio -= 0.1
-        elif len(first_response) < 500:
-            self.ratio -= 0.05
-        elif len(first_response) < 2000:
-            self.ratio -= 0.02
-        else:
-            self.ratio -= 0.01
-
-        '''
-        If the path is reflected in response, decrease the ratio. Because
-        the difference between path lengths can affect the similarity ratio
-        '''
-        if first_path in first_response.content:
-            if len(first_response) < 200:
-                self.ratio -= 0.15 + 15 / len(first_response)
-            elif len(first_response) < 800:
-                self.ratio -= 0.06 + 30 / len(first_response)
-            elif len(first_response) < 5000:
-                self.ratio -= 0.03 + 80 / len(first_response)
-            elif len(first_response) < 20000:
-                self.ratio -= 0.02 + 200 / len(first_response)
-            else:
-                self.ratio -= 0.01
+    def get_duplicate(self, response):
+        for category in self.tested:
+            for tester in self.tested[category].values():
+                if response == tester.response:
+                    return tester
 
     '''
     From 2 redirects of wildcard responses, generate a regexp that matches
@@ -133,6 +98,14 @@ class Scanner(object):
         second_loc = unquote(second_loc).replace(second_path, REFLECTED_PATH_MARKER)
         return generate_matching_regex(first_loc, second_loc)
 
+    # Check if response is similar to wildcard response
+    def is_wildcard(self, response, path):
+        # Compare 2 binary responses (Response.content is empty if the body is binary)
+        if not self.response.content and not response.content:
+            return self.response.body == response.body
+
+        return self.dynamic_parser.compare_to(response.content)
+
     '''
     Check if redirect matches the wildcard redirect regex or the response
     has high similarity with wildcard tested at the start
@@ -147,9 +120,10 @@ class Scanner(object):
         # Read from line 129 to 138 to understand the workflow of this.
         if self.wildcard_redirect_regex and response.redirect:
             '''
-            - unquote(): Sometimes, some path characters get encoded or decoded in the response redirect
+            unquote(): Sometimes, some path characters get encoded or decoded in the response redirect
             but it's still a wildcard redirect, so unquote everything to prevent false positives
-            - clean_path(): Get rid of queries and DOM in URL because of weird behaviours could happen
+
+            clean_path(): Get rid of queries and DOM in URL because of weird behaviours could happen
             with them, so messy that I give up on finding a way to test them
             '''
             path = re.escape(unquote(clean_path(path)))
@@ -161,13 +135,7 @@ class Scanner(object):
             if not is_wildcard_redirect:
                 return True
 
-        # Compare 2 responses (wildcard one and given one)
-        ratio = self.dynamic_parser.compareTo(response.body)
-
-        # If the similarity ratio is high enough to proof it's wildcard
-        if ratio >= self.ratio:
-            return False
-        elif "is_wildcard_redirect" in locals() and ratio >= (self.ratio - 0.18):
+        if self.is_wildcard(response, path):
             return False
 
         return True

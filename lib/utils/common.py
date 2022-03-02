@@ -16,14 +16,17 @@
 #
 #  Author: Mauro Soria
 
-import pickle as _pickle
+try:
+    import cPickle as _pickle
+except ModuleNotFoundError:
+    import pickle as _pickle
 
 from ipaddress import IPv4Network, IPv6Network
 from urllib.parse import quote
 
 from lib.core.settings import (
     INVALID_CHARS_FOR_WINDOWS_FILENAME, INVALID_FILENAME_CHAR_REPLACEMENT,
-    SAFE_BUILTINS, TEXT_CHARS, URL_SAFE_CHARS
+    ALLOWED_PICKLE_MODULES, UNSAFE_PICKLE_BUILTINS, URL_SAFE_CHARS, TEXT_CHARS
 )
 
 
@@ -74,9 +77,11 @@ def is_binary(bytes):
 # Reference: https://docs.python.org/3.4/library/pickle.html#restricting-globals
 class RestrictedUnpickler(_pickle.Unpickler):
     def find_class(self, module, name):
-        if module.startswith(("lib.", "thirdparty.")) or (
-            module == "builtins" and name in SAFE_BUILTINS
-        ) or module == "collections":
+        if module in ALLOWED_PICKLE_MODULES or any(
+            module.startswith(f"{module_}.") for module_ in ALLOWED_PICKLE_MODULES
+        ) or (
+            module == "builtins" and name not in UNSAFE_PICKLE_BUILTINS
+        ):
             return super(RestrictedUnpickler, self).find_class(module, name)
 
         raise _pickle.UnpicklingError()

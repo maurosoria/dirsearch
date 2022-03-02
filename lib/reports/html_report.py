@@ -20,10 +20,11 @@ import os
 import sys
 import time
 
+from jinja2 import Environment, FileSystemLoader
+
 from lib.core.decorators import locked
 from lib.reports.base import FileBaseReport
 from lib.utils.common import human_size
-from thirdparty.jinja2 import Environment, FileSystemLoader
 
 
 class HTMLReport(FileBaseReport):

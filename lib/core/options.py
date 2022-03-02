@@ -18,11 +18,11 @@
 
 import sys
 
-from lib.core.objects import AttributeDict
 from lib.core.settings import (
     AUTHENTICATION_TYPES, COMMON_EXTENSIONS, DEFAULT_TOR_PROXIES,
     OUTPUT_FORMATS, SCRIPT_PATH
 )
+from lib.core.structures import AttributeDict
 from lib.parse.cmdline import parse_arguments
 from lib.parse.config import ConfigParser
 from lib.parse.headers import HeadersParser

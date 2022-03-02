@@ -16,12 +16,13 @@
 #
 #  Author: Mauro Soria
 
+import magic
+
 from functools import cached_property
 
 from lib.core.settings import DEFAULT_ENCODING, ITER_CHUNK_SIZE
 from lib.parse.url import parse_path, parse_full_path
 from lib.utils.common import is_binary
-from thirdparty import magic
 
 
 class Response(object):
@@ -54,9 +55,6 @@ class Response(object):
             return int(self.headers.get("content-length"))
         except TypeError:
             return len(self.body)
-
-    def __len__(self):
-        return self.length
 
     def __hash__(self):
         return hash(self.body)

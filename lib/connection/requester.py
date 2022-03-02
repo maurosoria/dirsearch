@@ -16,25 +16,26 @@
 #
 #  Author: Mauro Soria
 
-import re
+import magic
 import random
+import re
+import requests
 import socket
 import http.client
 
+from requests.adapters import HTTPAdapter
+from requests.auth import HTTPBasicAuth, HTTPDigestAuth
+from requests.packages.urllib3 import disable_warnings
+from requests_ntlm import HttpNtlmAuth
 from urllib.parse import urlparse
 
-from lib.core.exceptions import InvalidURLException, RequestException
+from lib.core.exceptions import MissingProxy, InvalidURLException, RequestException
 from lib.core.settings import PROXY_SCHEMES, UNKNOWN
+from lib.core.structures import CaseInsensitiveDict
+from lib.connection.dns import cached_getaddrinfo, set_default_addr
 from lib.connection.response import Response
 from lib.utils.common import safequote
-from lib.utils.dns import cached_getaddrinfo, set_default_addr
 from lib.utils.schemedet import detect_scheme
-from thirdparty import magic
-from thirdparty import requests
-from thirdparty.requests.adapters import HTTPAdapter
-from thirdparty.requests.auth import HTTPBasicAuth, HTTPDigestAuth
-from thirdparty.requests.packages.urllib3 import disable_warnings
-from thirdparty.requests_ntlm import HttpNtlmAuth
 
 # Disable InsecureRequestWarning from urllib3
 disable_warnings()
@@ -62,7 +63,7 @@ class Requester(object):
         self.default_scheme = kwargs.get("scheme", None)
         self.follow_redirects = kwargs.get("follow_redirects", False)
         self.random_agents = kwargs.get("random_agents", None)
-        self.headers = {}
+        self.headers = CaseInsensitiveDict()
         self.session = Session()
         self.session.verify = False
 
@@ -127,7 +128,7 @@ class Requester(object):
 
     def set_header(self, key, value):
         try:
-            self.headers[key.lower()] = value.strip()
+            self.headers[key.strip()] = value.strip()
         except AttributeError:
             pass
 
@@ -181,7 +182,10 @@ class Requester(object):
             try:
                 if not proxy:
                     if self.proxylist:
-                        self.proxy = random.choice(self.proxylist)
+                        try:
+                            self.proxy = random.choice(self.proxylist)
+                        except IndexError:
+                            raise MissingProxy
 
                     proxy = proxy or self.proxy
                     self.set_proxy(proxy)
@@ -219,6 +223,8 @@ class Requester(object):
 
                 if e == socket.gaierror:
                     simple_err_msg = "Couldn't resolve DNS"
+                elif e == MissingProxy:
+                    simple_err_msg = "No working proxy found inside proxy file"
                 elif "SSLError" in err_msg:
                     simple_err_msg = "Unexpected SSL error, probably the server is broken or try updating your OpenSSL"
                 elif "TooManyRedirects" in err_msg:

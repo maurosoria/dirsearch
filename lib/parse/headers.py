@@ -20,8 +20,8 @@ import email
 
 from io import StringIO
 
-from lib.core.objects import CaseInsensitiveDict
 from lib.core.settings import NEW_LINE
+from lib.core.structures import CaseInsensitiveDict
 
 
 class HeadersParser(object):

@@ -27,9 +27,9 @@ from lib.utils.common import human_size
 from lib.output.colors import set_color, clean_color
 
 if IS_WINDOWS:
-    from thirdparty.colorama.win32 import (FillConsoleOutputCharacter,
-                                           GetConsoleScreenBufferInfo,
-                                           STDOUT)
+    from colorama.win32 import (FillConsoleOutputCharacter,
+                                GetConsoleScreenBufferInfo,
+                                STDOUT)
 
 
 class Output(object):

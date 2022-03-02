@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -16,25 +17,31 @@
 #
 #  Author: Mauro Soria
 
+import subprocess
+import sys
 import re
+import pkg_resources
+
+from lib.core.exceptions import FailedDependenciesInstallation
+from lib.core.settings import SCRIPT_PATH
+from lib.utils.file import FileUtils
+
+REQUIREMENTS_FILE = f"{SCRIPT_PATH}/requirements.txt"
+
+DEPENDENCIES = (dep for dep in FileUtils.get_lines(REQUIREMENTS_FILE))
 
 
-def generate_matching_regex(string1, string2):
-    start = "^"
-    end = "$"
+# Check if all dependencies are satisfied
+def check_dependencies():
+    pkg_resources.require(DEPENDENCIES)
 
-    for char1, char2 in zip(string1, string2):
-        if char1 != char2:
-            start += ".*"
-            break
 
-        start += re.escape(char1)
-
-    if start.endswith(".*"):
-        for char1, char2 in zip(string1[::-1], string2[::-1]):
-            if char1 != char2:
-                break
-
-            end = re.escape(char1) + end
-
-    return start + end
+# Install required dependencies
+def install_dependencies():
+    try:
+        subprocess.check_output(
+            [sys.executable, "-m", "pip", "install", "-r", REQUIREMENTS_FILE],
+            stderr=subprocess.STDOUT
+        )
+    except subprocess.CalledProcessError:
+        raise FailedDependenciesInstallation
