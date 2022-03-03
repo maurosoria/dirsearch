@@ -19,13 +19,10 @@
 import os
 import os.path
 
-from lib.core.settings import NEW_LINE
-
 
 class File(object):
     def __init__(self, *path_components):
         self._path = FileUtils.build_path(*path_components)
-        self.content = None
 
     @property
     def path(self):
@@ -50,26 +47,8 @@ class File(object):
     def read(self):
         return FileUtils.read(self.path)
 
-    def update(self):
-        self.content = self.read()
-
-    def content(self):
-        if not self.content:
-            self.content = FileUtils.read()
-        return self.content()
-
     def get_lines(self):
         return FileUtils.get_lines(self.path)
-
-    def __cmp__(self, other):
-        if not isinstance(other, File):
-            raise NotImplementedError
-        if self.content() < other.content():
-            return -1
-        elif self.content() > other.content():
-            return 1
-        else:
-            return 0
 
     def __enter__(self):
         return self
@@ -85,6 +64,7 @@ class FileUtils(object):
             path = os.path.join(*path_components)
         else:
             path = ''
+
         return path
 
     @staticmethod
@@ -105,20 +85,15 @@ class FileUtils(object):
         return True
 
     @staticmethod
-    def can_read_dir(directory):
-        for root, _, files in os.walk(directory):
-            for file in files:
-                if not FileUtils.can_read(os.path.join(root, file)):
-                    return False
-        return True
-
-    @staticmethod
     def can_write(path):
+        while not FileUtils.is_dir(path):
+            path = FileUtils.parent(path)
+
         return os.access(path, os.W_OK)
 
     @staticmethod
     def read(file_name):
-        return open(file_name, "r").read()
+        return open(file_name, 'r').read()
 
     @staticmethod
     def read_dir(directory):
@@ -126,6 +101,7 @@ class FileUtils(object):
         for root, _, files in os.walk(directory):
             for file in files:
                 data[file] = FileUtils.read(os.path.join(root, file))
+
         return data
 
     @staticmethod
@@ -145,16 +121,21 @@ class FileUtils(object):
     def parent(path, depth=1):
         for _ in range(depth):
             path = os.path.dirname(path)
+
         return path
 
     @staticmethod
-    def create_directory(directory):
+    def create_dir(directory):
         if not FileUtils.exists(directory):
             os.makedirs(directory)
 
     @staticmethod
+    def create_file(file):
+        open(file, 'w').close()
+
+    @staticmethod
     def write_lines(file_name, lines, overwrite=False):
         if isinstance(lines, list):
-            lines = NEW_LINE.join(lines)
+            lines = os.linesep.join(lines)
         with open(file_name, 'w' if overwrite else 'a') as f:
             f.writelines(lines)

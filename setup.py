@@ -4,10 +4,12 @@ import io
 import tempfile
 import shutil
 
+from lib.core.settings import VERSION
+
 
 current_dir = os.path.abspath(os.path.dirname(__file__))
-with io.open(os.path.join(current_dir, "README.md"), encoding="utf-8") as f:
-    desc = f.read()
+with io.open(os.path.join(current_dir, "README.md"), encoding="utf-8") as fd:
+    desc = fd.read()
 
 env_dir = tempfile.mkdtemp(prefix="dirsearch-install-")
 shutil.copytree(os.path.abspath(os.getcwd()),
@@ -15,9 +17,12 @@ shutil.copytree(os.path.abspath(os.getcwd()),
 
 os.chdir(env_dir)
 
+with open('requirements.txt') as fd:
+    required_dependencies = fd.read().splitlines()
+
 setuptools.setup(
     name="dirsearch",
-    version="0.4.2",
+    version=VERSION,
     author="Mauro Soria",
     author_email="maurosoria@protonmail.com",
     description="Advanced web path scanner",
@@ -33,7 +38,7 @@ setuptools.setup(
     },
     include_package_data=True,
     python_requires=">=3.7",
-    install_requires=["certifi>=2020.11.8", "chardet>=3.0.2", "urllib3>=1.21.1", "cryptography>=2.8", "PySocks>=1.6.8", "cffi>=1.14.0"],
+    install_requires=required_dependencies,
     classifiers=[
         "Programming Language :: Python",
         "Environment :: Console",

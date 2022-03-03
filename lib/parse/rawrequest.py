@@ -17,23 +17,30 @@
 #  Author: Mauro Soria
 
 from lib.core.settings import NEW_LINE
-from lib.reports.base import FileBaseReport
+from lib.parse.headers import HeadersParser
+from lib.utils.file import File
 
 
-class SimpleReport(FileBaseReport):
-    def generate(self):
-        output = ''
+def parse_raw(raw_file):
+    with File(raw_file) as fd:
+        raw_content = fd.read()
 
-        for entry in self.entries:
-            for result in entry.results:
-                if (entry.protocol, entry.host, entry.port, entry.base_path, result.path) not in self.written_entries:
-                    output += f"{entry.protocol}://{entry.host}:{entry.port}/"
-                    output += (
-                        result.path
-                        if not entry.base_path
-                        else f"{entry.base_path}/{result.path}"
-                    )
-                    output += NEW_LINE
-                    self.written_entries.append((entry.protocol, entry.host, entry.port, entry.base_path, result.path))
+    head = raw_content.split(NEW_LINE * 2)[0].splitlines(0)
+    method, path = head[0].split()[:2]
 
-        return output
+    try:
+        headers = HeadersParser(head[1:])
+        host = headers.get("host").strip()
+    except KeyError:
+        print("Can't find the Host header in the raw request")
+        exit(1)
+    except Exception:
+        print("Invalid headers in the raw request")
+        exit(1)
+
+    try:
+        body = raw_content.split(NEW_LINE * 2)[1]
+    except IndexError:
+        body = None
+
+    return [host + path], method, dict(headers), body

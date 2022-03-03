@@ -20,16 +20,16 @@ import sys
 import time
 import shutil
 
-from threading import Lock
-
+from lib.core.decorators import locked
 from lib.core.settings import IS_WINDOWS
-from lib.utils.fmt import human_size
-from lib.output.colors import ColorOutput
+from lib.parse.url import join_path
+from lib.utils.common import human_size
+from lib.output.colors import set_color, clean_color
 
 if IS_WINDOWS:
-    from thirdparty.colorama.win32 import (FillConsoleOutputCharacter,
-                                           GetConsoleScreenBufferInfo,
-                                           STDOUT)
+    from colorama.win32 import (FillConsoleOutputCharacter,
+                                GetConsoleScreenBufferInfo,
+                                STDOUT)
 
 
 class Output(object):
@@ -37,17 +37,8 @@ class Output(object):
         self.last_length = 0
         self.last_in_line = False
         self.buffer = ''
-        self.mutex = Lock()
         self.blacklists = {}
         self.url = None
-        self.errors = 0
-        self.colorizer = ColorOutput(colors)
-
-    def in_line(self, string):
-        self.erase()
-        sys.stdout.write(string)
-        sys.stdout.flush()
-        self.last_in_line = True
 
     def erase(self):
         if IS_WINDOWS:
@@ -64,11 +55,15 @@ class Output(object):
             sys.stdout.write("\033[1K")
             sys.stdout.write("\033[0G")
 
-    def new_line(self, string='', save=True):
-        if save:
-            self.buffer += string
-            self.buffer += '\n'
+    @locked
+    def in_line(self, string):
+        self.erase()
+        sys.stdout.write(string)
+        sys.stdout.flush()
+        self.last_in_line = True
 
+    @locked
+    def new_line(self, string='', do_save=True):
         if self.last_in_line:
             self.erase()
 
@@ -85,98 +80,83 @@ class Output(object):
         self.last_in_line = False
         sys.stdout.flush()
 
-    def status_report(self, response, full_url, added_to_queue):
+        if do_save:
+            self.buffer += string
+            self.buffer += '\n'
+
+    def status_report(self, response, full_url):
         status = response.status
         content_length = human_size(response.length)
-        show_path = self.url + response.full_path if full_url else response.full_path
-        message = "[{0}] {1} - {2} - {3}".format(
-            time.strftime("%H:%M:%S"),
-            status,
-            content_length.rjust(6, ' '),
-            show_path,
-        )
+        show_path = join_path(self.url, response.full_path) if full_url else response.full_path
+        current_time = time.strftime("%H:%M:%S")
+        message = f"[{current_time}] {status} - {content_length.rjust(6, ' ')} - {show_path}"
 
         if status in (200, 201, 204):
-            message = self.colorizer.color(message, fore="green")
+            message = set_color(message, fore="green")
         elif status == 401:
-            message = self.colorizer.color(message, fore="yellow")
+            message = set_color(message, fore="yellow")
         elif status == 403:
-            message = self.colorizer.color(message, fore="blue")
+            message = set_color(message, fore="blue")
         elif status in range(500, 600):
-            message = self.colorizer.color(message, fore="red")
+            message = set_color(message, fore="red")
         elif status in range(300, 400):
-            message = self.colorizer.color(message, fore="cyan")
+            message = set_color(message, fore="cyan")
         else:
-            message = self.colorizer.color(message, fore="magenta")
+            message = set_color(message, fore="magenta")
 
         if response.redirect:
-            message += "  ->  {0}".format(response.redirect)
-        if added_to_queue:
-            message += "     (Added to queue)"
+            message += f"  ->  {response.redirect}"
 
         for redirect in response.history:
-            message += "\n-->  {0}".format(redirect)
+            message += f"\n-->  {redirect}"
 
-        with self.mutex:
-            self.new_line(message)
+        self.new_line(message)
 
-    def last_path(self, index, length, current_job, all_jobs, rate):
+    def last_path(self, index, length, current_job, all_jobs, rate, errors):
         percentage = int(index / length * 100)
-        task = self.colorizer.color('#', fore="cyan", bright=True) * int(percentage / 5)
+        task = set_color('#', fore="cyan", bright=True) * int(percentage / 5)
         task += ' ' * (20 - int(percentage / 5))
-        progress = "{}/{}".format(index, length)
+        progress = f"{index}/{length}"
 
-        jobs = "{0}:{1}/{2}".format(
-            self.colorizer.color("job", fore="green", bright=True),
-            current_job,
-            all_jobs
-        )
+        grean_job = set_color("job", fore="green", bright=True)
+        jobs = f"{grean_job}:{current_job}/{all_jobs}"
 
-        errors = "{0}:{1}".format(
-            self.colorizer.color("errors", fore="red", bright=True),
-            self.errors
-        )
+        red_error = set_color("errors", fore="red", bright=True)
+        errors = f"{red_error}:{errors}"
 
-        progress_bar = "[{0}] {1}% {2} {3}/s       {4} {5}".format(
-            task,
-            str(percentage).rjust(2, ' '),
-            progress.rjust(12, ' '),
-            str(rate).rjust(9, ' '),
-            jobs.ljust(21, ' '),
-            errors
-        )
+        progress_bar = f"[{task}] {str(percentage).rjust(2, chr(32))}% "
+        progress_bar += f"{progress.rjust(12, chr(32))} {str(rate).rjust(9, chr(32))}/s       "
+        progress_bar += f"{jobs.ljust(21, chr(32))} {errors}"
 
-        if len(self.colorizer.clean(progress_bar)) >= shutil.get_terminal_size()[0]:
+        if len(clean_color(progress_bar)) >= shutil.get_terminal_size()[0]:
             return
 
-        with self.mutex:
-            self.in_line(progress_bar)
+        self.in_line(progress_bar)
 
-    def add_connection_error(self):
-        self.errors += 1
+    def new_directories(self, directories):
+        directories_string = ', '.join(directories)
+        if directories_string:
+            message = set_color(f"Added to the queue: {directories_string}", fore="white", bright=True)
+            self.new_line(message)
 
     def error(self, reason):
-        with self.mutex:
-            stripped = reason.strip()
-            message = self.colorizer.color(stripped, fore="white", back="red", bright=True)
+        message = set_color(reason, fore="white", back="red", bright=True)
+        self.new_line('\n' + message)
 
-            self.new_line('\n' + message)
-
-    def warning(self, message, save=True):
-        with self.mutex:
-            message = self.colorizer.color(message, fore="yellow", bright=True)
-            self.new_line(message, save=save)
+    def warning(self, message, do_save=True):
+        message = set_color(message, fore="yellow", bright=True)
+        self.new_line(message, do_save=do_save)
 
     def header(self, message):
-        message = self.colorizer.color(message, fore="magenta", bright=True)
-        self.new_line(message, save=False)
+        message = set_color(message, fore="magenta", bright=True)
+        self.new_line(message)
 
-    def print_header(self, entries, save=False):
+    def print_header(self, entries):
         msg = ''
 
         for key, value in entries.items():
-            new = self.colorizer.color(key + ": ", fore="yellow", bright=True)
-            new += self.colorizer.color(value, fore="cyan", bright=True)
+            new = set_color(key + ": ", fore="yellow", bright=True)
+            new += set_color(value, fore="cyan", bright=True)
 
             if not msg:
                 msg += new
@@ -184,14 +164,14 @@ class Output(object):
 
             new_line = msg.splitlines()[-1] + " | " + new
 
-            if len(self.colorizer.clean(new_line)) >= shutil.get_terminal_size()[0]:
+            if len(clean_color(new_line)) >= shutil.get_terminal_size()[0]:
                 msg += '\n'
             else:
-                msg += self.colorizer.color(" | ", fore="magenta", bright=True)
+                msg += set_color(" | ", fore="magenta", bright=True)
 
             msg += new
 
-        self.new_line(msg, save=save)
+        self.new_line(msg)
 
     def config(
         self,
@@ -220,13 +200,10 @@ class Output(object):
     def set_target(self, target):
         self.target = target
         self.new_line()
-        self.print_header({"Target": target}, save=True)
+        self.print_header({"Target": target})
 
-    def output_file(self, target):
-        self.new_line("\nOutput File: {0}".format(target), save=False)
+    def output_file(self, file):
+        self.new_line(f"\nOutput File: {file}")
 
-    def log_file(self, target):
-        self.new_line("\nLog File: {0}".format(target), save=False)
-
-    def export(self):
-        return self.buffer.rstrip()
+    def log_file(self, file):
+        self.new_line(f"\nLog File: {file}")

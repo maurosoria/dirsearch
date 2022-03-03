@@ -16,24 +16,20 @@
 #
 #  Author: Mauro Soria
 
+import time
+
+from lib.core.decorators import locked
 from lib.core.settings import NEW_LINE
-from lib.reports.base import FileBaseReport
+from lib.utils.file import FileUtils
 
 
-class SimpleReport(FileBaseReport):
-    def generate(self):
-        output = ''
+@locked
+def log(file, type, msg):
+    if not file:
+        return
 
-        for entry in self.entries:
-            for result in entry.results:
-                if (entry.protocol, entry.host, entry.port, entry.base_path, result.path) not in self.written_entries:
-                    output += f"{entry.protocol}://{entry.host}:{entry.port}/"
-                    output += (
-                        result.path
-                        if not entry.base_path
-                        else f"{entry.base_path}/{result.path}"
-                    )
-                    output += NEW_LINE
-                    self.written_entries.append((entry.protocol, entry.host, entry.port, entry.base_path, result.path))
-
-        return output
+    line = time.strftime("[%y-%m-%d %H:%M:%S]")
+    line += f"[{type.upper()}] "
+    line += msg
+    line += NEW_LINE
+    FileUtils.write_lines(file, line)

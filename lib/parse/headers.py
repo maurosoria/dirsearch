@@ -21,6 +21,7 @@ import email
 from io import StringIO
 
 from lib.core.settings import NEW_LINE
+from lib.core.structures import CaseInsensitiveDict
 
 
 class HeadersParser(object):
@@ -32,8 +33,7 @@ class HeadersParser(object):
             self.str = self.dict_list_to_str(headers)
             self.dict = self.str_to_dict(self.str)
 
-        # Dictionary but with lowercase keys for easier calls
-        self.headers = {key.lower(): value for key, value in self.dict.items()}
+        self.headers = CaseInsensitiveDict(self.dict)
 
     def get(self, key):
         return self.headers[key]
@@ -54,13 +54,13 @@ class HeadersParser(object):
 
         if isinstance(headers, dict):
             return NEW_LINE.join(
-                "{0}: {1}".format(key, value) for key, value in headers.items()
+                f"{key}: {value}" for key, value in headers.items()
             )
         elif isinstance(headers, list):
             return NEW_LINE.join(headers)
 
     def __iter__(self):
-        return iter(self.dict.items())
+        return iter(self.headers)
 
     def __str__(self):
         return self.str

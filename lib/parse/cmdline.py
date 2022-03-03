@@ -24,7 +24,7 @@ from lib.utils.file import FileUtils
 
 def parse_arguments():
     usage = "Usage: %prog [-u|--url] target [-e|--extensions] extensions [options]"
-    parser = OptionParser(usage, version="dirsearch v{}".format(VERSION))
+    parser = OptionParser(usage, version=f"dirsearch v{VERSION}")
 
     # Mandatory arguments
     mandatory = OptionGroup(parser, "Mandatory")
@@ -36,9 +36,9 @@ def parse_arguments():
                          help="Load raw HTTP request from file (use `--scheme` flag to set the scheme)")
     mandatory.add_option("-s", "--session", action="store", dest="session_file", help="Session file")
     mandatory.add_option("-e", "--extensions", action="store", dest="extensions",
-                         help="Extension list separated by commas (Example: php,asp)")
+                         help="Extension list separated by commas (e.g. php,asp)")
     mandatory.add_option("-X", "--exclude-extensions", action="store", dest="exclude_extensions", metavar="EXTENSIONS",
-                         help="Exclude extension list separated by commas (Example: asp,jsp)")
+                         help="Exclude extension list separated by commas (e.g. asp,jsp)")
     mandatory.add_option("-f", "--force-extensions", action="store_true", dest="force_extensions",
                          help="Add extensions to every wordlist entry. By default dirsearch only replaces the %EXT% keyword with extensions")
     mandatory.add_option("--config", action="store", dest="config", default=FileUtils.build_path(SCRIPT_PATH, "default.conf"), metavar="FILE",
@@ -54,7 +54,7 @@ def parse_arguments():
     dictionary.add_option("--only-selected", action="store_true", dest="only_selected",
                           help="Remove paths have different extensions from selected ones via `-e` (keep entries don't have extensions)")
     dictionary.add_option("--remove-extensions", action="store_true", dest="no_extension",
-                          help="Remove extensions in all paths (Example: admin.php -> admin)")
+                          help="Remove extensions in all paths (e.g. admin.php -> admin)")
     dictionary.add_option("-U", "--uppercase", action="store_true", dest="uppercase", help="Uppercase wordlist")
     dictionary.add_option("-L", "--lowercase", action="store_true", dest="lowercase", help="Lowercase wordlist")
     dictionary.add_option("-C", "--capital", action="store_true", dest="capitalization", help="Capital wordlist")
@@ -65,7 +65,7 @@ def parse_arguments():
                        help="Number of threads")
     general.add_option("-r", "--recursive", action="store_true", dest="recursive", help="Brute-force recursively")
     general.add_option("--deep-recursive", action="store_true", dest="deep_recursive",
-                       help="Perform recursive scan on every directory depth (Example: api/users -> api/)")
+                       help="Perform recursive scan on every directory depth (e.g. api/users -> api/)")
     general.add_option("--force-recursive", action="store_true", dest="force_recursive",
                        help="Do recursive brute-force for every found path, not only directories")
     general.add_option("-R", "--max-recursion-depth", action="store", type="int", dest="recursion_depth", metavar="DEPTH",
@@ -77,19 +77,19 @@ def parse_arguments():
     general.add_option("--exclude-subdirs", action="store", dest="exclude_subdirs", metavar="SUBDIRS",
                        help="Exclude the following subdirectories during recursive scan (separated by commas)")
     general.add_option("-i", "--include-status", action="store", dest="include_status_codes", metavar="CODES",
-                       help="Include status codes, separated by commas, support ranges (Example: 200,300-399)")
+                       help="Include status codes, separated by commas, support ranges (e.g. 200,300-399)")
     general.add_option("-x", "--exclude-status", action="store", dest="exclude_status_codes", metavar="CODES",
-                       help="Exclude status codes, separated by commas, support ranges (Example: 301,500-599)")
+                       help="Exclude status codes, separated by commas, support ranges (e.g. 301,500-599)")
     general.add_option("--exclude-sizes", action="store", dest="exclude_sizes", metavar="SIZES",
-                       help="Exclude responses by sizes, separated by commas (Example: 0B,4KB)")
+                       help="Exclude responses by sizes, separated by commas (e.g. 0B,4KB)")
     general.add_option("--exclude-texts", action="store", dest="exclude_texts", metavar="TEXTS",
-                       help="Exclude responses by texts, separated by commas (Example: 'Not found', 'Error')")
+                       help="Exclude responses by texts, separated by commas (e.g. 'Not found', 'Error')")
     general.add_option("--exclude-regex", action="store", dest="exclude_regex", metavar="REGEX",
-                       help="Exclude responses by regex (Example: '^Error$')")
+                       help="Exclude responses by regex (e.g. '^Error$')")
     general.add_option("--exclude-redirect", action="store", dest="exclude_redirect", metavar="STRING",
-                       help="Exclude responses if this regex (or text) matches redirect URL (Example: '/index.html')",)
+                       help="Exclude responses if this regex (or text) matches redirect URL (e.g. '/index.html')",)
     general.add_option("--exclude-response", action="store", dest="exclude_response", metavar="PATH",
-                       help="Exclude responses similar to response of this page, path as input (Example: 404.html)")
+                       help="Exclude responses similar to response of this page, path as input (e.g. 404.html)")
     general.add_option("--skip-on-status", action="store", dest="skip_on_status", metavar="CODES",
                        help="Skip target whenever hit one of these status codes, separated by commas, support ranges")
     general.add_option("--min-response-size", action="store", type="int", dest="minimum_response_size",
@@ -116,10 +116,10 @@ def parse_arguments():
     request.add_option("-F", "--follow-redirects", action="store_true", dest="follow_redirects", help="Follow HTTP redirects")
     request.add_option("--random-agent", action="store_true", dest="use_random_agents",
                        help="Choose a random User-Agent for each request")
-    request.add_option("--auth-type", action="store", dest="auth_type", metavar="TYPE",
-                       help="Authentication type ({})".format(", ".join(AUTHENTICATION_TYPES)))
     request.add_option("--auth", action="store", dest="auth", metavar="CREDENTIAL",
-                       help="Authentication credential ([user]:[password] or bearer token)")
+                       help="Authentication credential (e.g. user:password or bearer token)")
+    request.add_option("--auth-type", action="store", dest="auth_type", metavar="TYPE",
+                       help=f"Authentication type ({', '.join(AUTHENTICATION_TYPES)})")
     request.add_option("--user-agent", action="store", dest="useragent")
     request.add_option("--cookie", action="store", dest="cookie")
 
@@ -128,18 +128,19 @@ def parse_arguments():
     connection.add_option("--timeout", action="store", type="float", dest="timeout", help="Connection timeout")
     connection.add_option("--delay", action="store", type="float", dest="delay", help="Delay between requests")
     connection.add_option("--proxy", action="store", dest="proxy", metavar="PROXY",
-                          help="Proxy URL, support HTTP and SOCKS proxies (Example: localhost:8080, socks5://localhost:8088)")
+                          help="Proxy URL, support HTTP and SOCKS proxies (e.g. localhost:8080, socks5://localhost:8088)")
     connection.add_option("--proxy-list", action="store", type="string", dest="proxylist",
                           help="File contains proxy servers", metavar="FILE")
+    connection.add_option("--proxy-auth", action="store", dest="proxy_auth", metavar="CREDENTIAL",
+                          help="Proxy authentication credential")
     connection.add_option("--replay-proxy", action="store", dest="replay_proxy", metavar="PROXY",
                           help="Proxy to replay with found paths")
+    connection.add_option("--tor", action="store_true", dest="tor", help="Use Tor network as proxy")
     connection.add_option("--scheme", action="store", dest="scheme", metavar="SCHEME",
                           help="Scheme for raw request or if there is no scheme in the URL (Default: auto-detect)")
     connection.add_option("--max-rate", action="store", type="int", dest="maxrate", metavar="RATE", help="Max requests per second")
     connection.add_option("--retries", action="store", type="int", dest="max_retries", metavar="RETRIES",
                           help="Number of retries for failed requests")
-    connection.add_option("-b", "--request-by-hostname", action="store_true", dest="request_by_hostname",
-                          help="By default dirsearch requests by IP for speed. This will force dirsearch to request by hostname")
     connection.add_option("--ip", action="store", dest="ip", help="Server IP address")
     connection.add_option("--exit-on-error", action="store_true", dest="exit_on_error", help="Exit whenever an error occurs")
 

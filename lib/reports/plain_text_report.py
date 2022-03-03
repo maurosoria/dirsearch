@@ -21,36 +21,39 @@ import sys
 
 from lib.core.settings import NEW_LINE
 from lib.reports.base import FileBaseReport
-from lib.utils.fmt import human_size
+from lib.utils.common import human_size
 
 
 class PlainTextReport(FileBaseReport):
     def generate_header(self):
         if self.header_written is False:
             self.header_written = True
-            return "# Dirsearch started {0} as: {1}".format(time.ctime(), ' '.join(sys.argv)) + NEW_LINE * 2
+            header = f"# Dirsearch started {time.ctime()} as: {chr(32).join(sys.argv)}"
+            header += NEW_LINE * 2
+            return header
         else:
             return ''
 
     def generate(self):
-        result = self.generate_header()
+        output = self.generate_header()
 
         for entry in self.entries:
-            for e in entry.results:
-                if (entry.protocol, entry.host, entry.port, entry.base_path, e.path) not in self.written_entries:
-                    result += "{0}  ".format(e.status)
-                    result += "{0}  ".format(human_size(e.response.length).rjust(6, ' '))
-                    result += "{0}://{1}:{2}/".format(entry.protocol, entry.host, entry.port)
-                    result += (
-                        "{0}".format(e.path)
-                        if entry.base_path == ''
-                        else "{0}/{1}".format(entry.base_path, e.path)
+            for result in entry.results:
+                if (entry.protocol, entry.host, entry.port, entry.base_path, result.path) not in self.written_entries:
+                    readable_length = human_size(result.response.length)
+                    output += f"{result.status}  "
+                    output += f"{readable_length.rjust(6, chr(32))}  "
+                    output += f"{entry.protocol}://{entry.host}:{entry.port}/"
+                    output += (
+                        result.path
+                        if not entry.base_path
+                        else f"{entry.base_path}/{result.path}"
                     )
-                    location = e.response.redirect
+                    location = result.response.redirect
                     if location:
-                        result += "    -> REDIRECTS TO: {0}".format(location)
+                        output += f"    -> REDIRECTS TO: {location}"
 
-                    result += NEW_LINE
-                    self.written_entries.append((entry.protocol, entry.host, entry.port, entry.base_path, e.path))
+                    output += NEW_LINE
+                    self.written_entries.append((entry.protocol, entry.host, entry.port, entry.base_path, result.path))
 
-        return result
+        return output

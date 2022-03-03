@@ -19,47 +19,36 @@
 import threading
 import time
 
+from lib.core.exceptions import RequestException
 from lib.core.scanner import Scanner
-from lib.connection.exception import RequestException
+from lib.core.settings import DEFAULT_SCAN_PREFIXES, DEFAULT_SCAN_SUFFIXES, RATE_UPDATE_DELAY
+from lib.parse.url import clean_path
 
 
 class Fuzzer(object):
-    def __init__(
-        self,
-        requester,
-        dictionary,
-        suffixes=None,
-        prefixes=None,
-        exclude_response=None,
-        threads=1,
-        delay=0,
-        maxrate=0,
-        match_callbacks=[],
-        not_found_callbacks=[],
-        error_callbacks=[],
-    ):
-
+    def __init__(self, requester, dictionary, **kwargs):
         self.requester = requester
         self.dictionary = dictionary
-        self.suffixes = suffixes if suffixes else []
-        self.prefixes = prefixes if prefixes else []
-        self.exclude_response = exclude_response
+        self.suffixes = kwargs.get("suffixes", [])
+        self.prefixes = kwargs.get("prefixes", [])
+        self.exclude_response = kwargs.get("exclude_response", None)
         self.threads = []
-        self.threads_count = (
-            threads if len(self.dictionary) >= threads else len(self.dictionary)
-        )
-        self.delay = delay
-        self.maxrate = maxrate
+        self.threads_count = kwargs.get("threads", 15)
+        self.delay = kwargs.get("delay", 0)
+        self.maxrate = kwargs.get("maxrate", 0)
         self.running = False
         self.calibration = None
         self.default_scanner = None
-        self.match_callbacks = match_callbacks
-        self.not_found_callbacks = not_found_callbacks
-        self.error_callbacks = error_callbacks
+        self.match_callbacks = kwargs.get("match_callbacks", [])
+        self.not_found_callbacks = kwargs.get("not_found_callbacks", [])
+        self.error_callbacks = kwargs.get("error_callbacks", [])
         self.scanners = {
             "prefixes": {},
             "suffixes": {},
         }
+
+        if len(self.dictionary) < self.threads_count:
+            self.threads_count = len(self.dictionary)
 
     def wait(self, timeout=None):
         for thread in self.threads:
@@ -71,8 +60,8 @@ class Fuzzer(object):
         return True
 
     def rate_adjuster(self):
-        while not self.wait(0.15):
-            self.stand_rate = self.rate
+        while not self.wait(RATE_UPDATE_DELAY):
+            self.rate = self._rate
 
     def setup_scanners(self):
         if len(self.scanners):
@@ -83,15 +72,13 @@ class Fuzzer(object):
 
         # Default scanners (wildcard testers)
         self.default_scanner = Scanner(self.requester)
-        self.prefixes.append(".")
-        self.suffixes.append("/")
 
-        for prefix in self.prefixes:
+        for prefix in self.prefixes.union(DEFAULT_SCAN_PREFIXES):
             self.scanners["prefixes"][prefix] = Scanner(
                 self.requester, prefix=prefix, tested=self.scanners
             )
 
-        for suffix in self.suffixes:
+        for suffix in self.suffixes.union(DEFAULT_SCAN_SUFFIXES):
             self.scanners["suffixes"][suffix] = Scanner(
                 self.requester, suffix=suffix, tested=self.scanners
             )
@@ -120,7 +107,7 @@ class Fuzzer(object):
 
     def get_scanner_for(self, path):
         # Clean the path, so can check for extensions/suffixes
-        path = path.split("?")[0].split("#")[0]
+        path = clean_path(path)
 
         if self.exclude_response:
             yield self.calibration
@@ -142,10 +129,11 @@ class Fuzzer(object):
     def start(self):
         self.setup_scanners()
         self.setup_threads()
-        self.index = 0
+        self._running_threads_count = len(self.threads)
+        self._rate = 0
+        # Approximate rate, `rate` updates information from `_rate`
+        # every after an amount of time
         self.rate = 0
-        self.stand_rate = 0
-        self.running_threads_count = len(self.threads)
         self.running = True
         self.paused = False
         self.play_event = threading.Event()
@@ -188,74 +176,67 @@ class Fuzzer(object):
 
         return wildcard, response
 
-    def is_paused(self):
-        return self.paused
-
-    def is_running(self):
-        return self.running
-
-    def finish_threads(self):
-        self.running = False
-        self.finished_event.set()
-
     def is_stopped(self):
-        return self.running_threads_count == 0
+        return self._running_threads_count == 0
+
+    def is_rate_exceeded(self):
+        return self._rate >= self.maxrate > 0
 
     def decrease_threads(self):
-        self.running_threads_count -= 1
+        self._running_threads_count -= 1
 
     def increase_threads(self):
-        self.running_threads_count += 1
+        self._running_threads_count += 1
 
     def decrease_rate(self):
-        self.rate -= 1
+        self._rate -= 1
 
     def increase_rate(self):
-        self.rate += 1
+        self._rate += 1
         threading.Timer(1, self.decrease_rate).start()
+
+    def set_base_path(self, path):
+        self.requester.base_path = path
 
     def thread_proc(self):
         self.play_event.wait()
 
-        try:
-            path = next(self.dictionary)
+        while 1:
+            try:
+                path = next(self.dictionary)
 
-            while path:
-                try:
-                    # Pause if the request rate exceeded the maximum
-                    while self.maxrate and self.rate >= self.maxrate:
-                        pass
+                # Pause if the request rate exceeded the maximum
+                while self.is_rate_exceeded():
+                    time.sleep(0.1)
 
-                    self.increase_rate()
+                self.increase_rate()
 
-                    wildcard, response = self.scan(path)
+                wildcard, response = self.scan(path)
 
-                    if not wildcard:
-                        for callback in self.match_callbacks:
-                            callback(path, response)
-                    else:
-                        for callback in self.not_found_callbacks:
-                            callback(path, response)
+                if not wildcard:
+                    for callback in self.match_callbacks:
+                        callback(path, response)
+                else:
+                    for callback in self.not_found_callbacks:
+                        callback(path, response)
 
-                except RequestException as e:
-                    for callback in self.error_callbacks:
-                        callback(path, e.args[1])
+            except StopIteration:
+                break
 
-                    continue
+            except RequestException as e:
+                for callback in self.error_callbacks:
+                    callback(path, e.args[1])
 
-                finally:
-                    if not self.play_event.is_set():
-                        self.decrease_threads()
-                        self.paused_semaphore.release()
-                        self.play_event.wait()
-                        self.increase_threads()
+                continue
 
-                    path = next(self.dictionary)  # Raises StopIteration when finishes
+            finally:
+                if not self.play_event.is_set():
+                    self.decrease_threads()
+                    self.paused_semaphore.release()
+                    self.play_event.wait()
+                    self.increase_threads()
 
-                    if not self.running:
-                        break
+                if not self.running:
+                    break
 
-                    time.sleep(self.delay)
-
-        except StopIteration:
-            pass
+                time.sleep(self.delay)

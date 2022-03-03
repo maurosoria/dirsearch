@@ -24,34 +24,30 @@ class CSVReport(FileBaseReport):
     def generate_header(self):
         if self.header_written is False:
             self.header_written = True
-            return "URL,Status,Size,Redirection" + NEW_LINE
+            return "URL,Status,Size,Content Type,Redirection" + NEW_LINE
         else:
             return ''
 
+    # Preventing CSV injection. More info: https://www.exploit-db.com/exploits/49370
+    def clear_csv_attr(self, text):
+        if text.startswith(INSECURE_CSV_CHARS):
+            text = "'" + text
+
+        return text.replace('"', '""')
+
     def generate(self):
-        result = self.generate_header()
+        output = self.generate_header()
 
         for entry in self.entries:
-            for e in entry.results:
-                if (entry.protocol, entry.host, entry.port, entry.base_path, e.path) not in self.written_entries:
-                    path = e.path
-                    status = e.status
-                    content_length = e.response.length
-                    redirect = e.response.redirect
+            for result in entry.results:
+                if (entry.protocol, entry.host, entry.port, entry.base_path, result.path) not in self.written_entries:
+                    output += f"{entry.protocol}://{entry.host}:{entry.port}/{entry.base_path}{result.path},"
+                    output += f"{result.status},{result.response.length},{result.response.type}"
 
-                    result += "{0}://{1}:{2}/{3}{4},".format(entry.protocol, entry.host, entry.port, entry.base_path, path)
-                    result += "{0},".format(status)
-                    result += "{0},".format(content_length)
+                    if result.response.redirect:
+                        output += f'"{self.clean_csv_attr(result.response.redirect)}"'
 
-                    if redirect:
-                        # Preventing CSV injection. More info: https://www.exploit-db.com/exploits/49370
-                        if redirect.startswith(INSECURE_CSV_CHARS):
-                            redirect = "'" + redirect
+                    output += NEW_LINE
+                    self.written_entries.append((entry.protocol, entry.host, entry.port, entry.base_path, result.path))
 
-                        redirect = redirect.replace('"', '""')
-                        result += '"{0}"'.format(redirect)
-
-                    result += NEW_LINE
-                    self.written_entries.append((entry.protocol, entry.host, entry.port, entry.base_path, e.path))
-
-        return result
+        return output

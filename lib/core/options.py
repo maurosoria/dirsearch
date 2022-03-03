@@ -18,26 +18,29 @@
 
 import sys
 
-from lib.core.settings import SCRIPT_PATH, COMMON_EXTENSIONS, OUTPUT_FORMATS, AUTHENTICATION_TYPES, MAX_NUMBER_OF_THREADS
+from lib.core.settings import (
+    AUTHENTICATION_TYPES, COMMON_EXTENSIONS, DEFAULT_TOR_PROXIES,
+    OUTPUT_FORMATS, SCRIPT_PATH
+)
+from lib.core.structures import AttributeDict
 from lib.parse.cmdline import parse_arguments
 from lib.parse.config import ConfigParser
 from lib.parse.headers import HeadersParser
+from lib.utils.common import iprange, uniq
 from lib.utils.file import File, FileUtils
-from lib.utils.fmt import uniq
-from lib.utils.ip import iprange
 
 
 def options():
     opt = parse_config(parse_arguments())
 
     if opt.session_file:
-        return vars(opt)
+        return AttributeDict(vars(opt))
 
     opt.httpmethod = opt.httpmethod.upper()
 
     if opt.url_list:
-        file = access_file(opt.url_list, "file contains URLs")
-        opt.urls = file.get_lines()
+        fd = access_file(opt.url_list, "file contains URLs")
+        opt.urls = fd.get_lines()
     elif opt.cidr:
         opt.urls = iprange(opt.cidr)
     elif opt.stdin_urls:
@@ -61,20 +64,19 @@ def options():
         print("Threads number must be greater than zero")
         exit(1)
 
-    if opt.proxylist:
-        file = access_file(opt.proxylist, "proxylist file")
-        opt.proxylist = file.get_lines()
-
-    if opt.proxy or opt.proxylist or opt.replay_proxy:
-        opt.request_by_hostname = True
+    if opt.tor:
+        opt.proxylist = DEFAULT_TOR_PROXIES
+    elif opt.proxylist:
+        fd = access_file(opt.proxylist, "proxylist file")
+        opt.proxylist = fd.get_lines()
 
     headers = {}
 
     if opt.header_list:
         try:
-            file = access_file(opt.header_list, "header list file")
+            fd = access_file(opt.header_list, "header list file")
             headers.update(
-                HeadersParser(file.read()).headers
+                HeadersParser(fd.read()).headers
             )
         except Exception as e:
             print("Error in headers file: " + str(e))
@@ -95,8 +97,8 @@ def options():
     opt.exclude_status_codes = parse_status_codes(opt.exclude_status_codes)
     opt.recursion_status_codes = parse_status_codes(opt.recursion_status_codes)
     opt.skip_on_status = parse_status_codes(opt.skip_on_status)
-    opt.prefixes = uniq([prefix.strip() for prefix in opt.prefixes.split(",")])
-    opt.suffixes = uniq([suffix.strip() for suffix in opt.suffixes.split(",")])
+    opt.prefixes = set(prefix.strip() for prefix in opt.prefixes.split(","))
+    opt.suffixes = set(suffix.strip() for suffix in opt.suffixes.split(","))
     opt.exclude_extensions = uniq([
         exclude_extension.lstrip(" .") for exclude_extension in opt.exclude_extensions.split(",")
     ])
@@ -138,55 +140,57 @@ def options():
         print("No authentication credential found")
         exit(1)
     elif opt.auth and opt.auth_type not in AUTHENTICATION_TYPES:
-        print("'{}' is not in available authentication types: {}".format(opt.auth_type, ", ".join(AUTHENTICATION_TYPES)))
+        print(f"'{opt.auth_type}' is not in available authentication types: {', '.join(AUTHENTICATION_TYPES)}")
         exit(1)
 
     if set(opt.extensions).intersection(opt.exclude_extensions):
         print("Exclude extension list can not contain any extension that has already in the extension list")
         exit(1)
 
-    if opt.output_format and opt.output_format not in OUTPUT_FORMATS:
-        print("Select one of the following output formats: {}".format(", ".join(OUTPUT_FORMATS)))
+    if opt.output_format not in OUTPUT_FORMATS:
+        print(f"Select one of the following output formats: {', '.join(OUTPUT_FORMATS)}")
         exit(1)
 
-    return vars(opt)
+    return AttributeDict(vars(opt))
 
 
 def parse_status_codes(str_):
     if not str_:
         return []
 
-    status_codes = []
+    status_codes = set()
 
     for status_code in str_.split(","):
         try:
             if "-" in status_code:
-                s, e = status_code.strip().split("-")
-                status_codes.extend(range(int(s), int(e) + 1))
+                start, end = status_code.strip().split("-")
+                status_codes.update(
+                    range(int(start), int(end) + 1)
+                )
             else:
-                status_codes.append(int(status_code.strip()))
+                status_codes.add(int(status_code.strip()))
         except ValueError:
-            print("Invalid status code or status code range: {0}".format(status_code))
+            print(f"Invalid status code or status code range: {status_code}")
             exit(1)
 
-    return uniq(status_codes)
+    return status_codes
 
 
 def access_file(path, name):
-    with File(path) as file:
-        if not file.exists():
-            print("The {} does not exist".format(name))
+    with File(path) as fd:
+        if not fd.exists():
+            print(f"The {name} does not exist")
             exit(1)
 
-        if not file.is_valid():
-            print("The {} is invalid".format(name))
+        if not fd.is_valid():
+            print(f"The {name} is invalid")
             exit(1)
 
-        if not file.can_read():
-            print("The {} cannot be read".format(name))
+        if not fd.can_read():
+            print(f"The {name} cannot be read")
             exit(1)
 
-        return file
+        return fd
 
 
 def parse_config(options):
@@ -206,7 +210,7 @@ def parse_config(options):
 
     # General
     options.threads_count = options.threads_count or config.safe_getint(
-        "general", "threads", 25, range(1, MAX_NUMBER_OF_THREADS)
+        "general", "threads", 25
     )
     options.include_status_codes = options.include_status_codes or config.safe_get(
         "general", "include-status"
@@ -265,12 +269,9 @@ def parse_config(options):
     options.scheme = options.scheme or config.safe_get("connection", "scheme", None, ["http", "https"])
     options.replay_proxy = options.replay_proxy or config.safe_get("connection", "replay-proxy")
     options.exit_on_error = options.exit_on_error or config.safe_getboolean("connection", "exit-on-error")
-    options.request_by_hostname = options.request_by_hostname or config.safe_getboolean(
-        "connection", "request-by-hostname"
-    )
 
     # Output
-    options.output_location = config.safe_get("output", "report-output-folder")
+    options.output_path = config.safe_get("output", "report-output-folder")
     options.autosave_report = config.safe_getboolean("output", "autosave-report")
     options.log_file = options.log_file or config.safe_get("output", "log-file")
     options.output_format = options.output_format or config.safe_get(

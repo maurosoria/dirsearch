@@ -16,115 +16,55 @@
 #
 #  Author: Mauro Soria
 
-import sys
-
-from threading import Lock
-
-from lib.core.settings import IS_WINDOWS
-from lib.utils.fmt import human_size
-from lib.output.colors import ColorOutput
-
-if IS_WINDOWS:
-    from thirdparty.colorama.win32 import (FillConsoleOutputCharacter,
-                                           GetConsoleScreenBufferInfo,
-                                           STDOUT)
+from lib.parse.url import join_path
+from lib.utils.common import human_size
+from lib.output.colors import set_color
+from lib.output.verbose import Output as _Output
 
 
-class Output(object):
-    def __init__(self, colors):
-        self.buffer = ''
-        self.mutex = Lock()
-        self.blacklists = {}
-        self.url = None
-        self.errors = 0
-        self.colorizer = ColorOutput(colors)
-
-    def header(self, text):
-        pass
-
-    def in_line(self, string):
-        self.erase()
-        sys.stdout.write(string)
-        sys.stdout.flush()
-
-    def erase(self):
-        if IS_WINDOWS:
-            csbi = GetConsoleScreenBufferInfo()
-            line = '\b' * int(csbi.dwCursorPosition.X)
-            sys.stdout.write(line)
-            width = csbi.dwCursorPosition.X
-            csbi.dwCursorPosition.X = 0
-            FillConsoleOutputCharacter(STDOUT, ' ', width, csbi.dwCursorPosition)
-            sys.stdout.write(line)
-            sys.stdout.flush()
-
-        else:
-            sys.stdout.write("\033[1K")
-            sys.stdout.write("\033[0G")
-
-    def new_line(self, string=''):
-        self.buffer += string
-        self.buffer += '\n'
-
-        sys.stdout.write(string + '\n')
-        sys.stdout.flush()
-
+class Output(_Output):
     def status_report(self, response, full_url, added_to_queue):
         status = response.status
         content_length = human_size(response.length)
-        message = "{0} - {1} - {2}".format(
-            status, content_length.rjust(6, ' '), self.url + response.full_path
-        )
+        url = join_path(self.url, response.full_path)
+        message = f"{status} - {content_length.rjust(6, ' ')} - {url}"
 
         if status in (200, 201, 204):
-            message = self.colorizer.color(message, fore="green")
+            message = set_color(message, fore="green")
         elif status == 401:
-            message = self.colorizer.color(message, fore="yellow")
+            message = set_color(message, fore="yellow")
         elif status == 403:
-            message = self.colorizer.color(message, fore="blue")
+            message = set_color(message, fore="blue")
         elif status in range(500, 600):
-            message = self.colorizer.color(message, fore="red")
+            message = set_color(message, fore="red")
         elif status in range(300, 400):
-            message = self.colorizer.color(message, fore="cyan")
+            message = set_color(message, fore="cyan")
         else:
-            message = self.colorizer.color(message, fore="magenta")
+            message = set_color(message, fore="magenta")
 
         if response.redirect:
-            message += "  ->  {0}".format(response.redirect)
+            message += f"  ->  {response.redirect}"
         if added_to_queue:
             message += "     (Added to queue)"
 
         for redirect in response.history:
-            message += "\n-->  {0}".format(redirect)
+            message += f"\n-->  {redirect}"
 
-        with self.mutex:
-            self.new_line(message)
+        self.new_line(message)
 
-    def last_path(self, index, length, current_job, all_jobs, rate):
+    def last_path(self, *args):
         pass
 
-    def add_connection_error(self):
-        self.errors += 1
-
-    def error(self, reason):
-        with self.mutex:
-            stripped = reason.strip()
-            message = self.colorizer.color(stripped, fore="white", back="red", bright=True)
-
-            self.new_line(message)
+    def new_directories(self, directories):
+        pass
 
     def warning(self, reason, save=True):
         pass
 
-    def config(
-        self,
-        extensions,
-        prefixes,
-        suffixes,
-        threads,
-        wordlist_size,
-        method,
-    ):
+    def header(self, message):
+        pass
+
+    def config(self, *args):
         pass
 
     def set_target(self, target):
@@ -135,6 +75,3 @@ class Output(object):
 
     def log_file(self, target):
         pass
-
-    def export(self):
-        return self.buffer.rstrip()

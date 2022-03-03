@@ -18,17 +18,19 @@
 
 import os
 import sys
+import string
 
-from pathlib import Path
+from lib.utils.file import FileUtils
 
-# Version format: <mayor version>.<minor version>.<revision>[.<month>]
-VERSION = "0.4.2.1"
+# Version format: <major version>.<minor version>.<revision>[.<month>]
+VERSION = "0.4.2.3"
+
 BANNER = f'''
   _|. _ _  _  _  _ _|_    v{VERSION}
  (_||| _) (/_(_|| (_| )
 '''
 
-SCRIPT_PATH = Path(__file__).resolve().parents[2]
+SCRIPT_PATH = FileUtils.parent(__file__, 3)
 
 IS_WINDOWS = sys.platform in ("win32", "msys")
 
@@ -36,7 +38,13 @@ DEFAULT_ENCODING = "utf-8"
 
 NEW_LINE = os.linesep
 
+ALLOWED_PICKLE_MODULES = ("collections", "requests", "http", "urllib3", "lib")
+
+UNSAFE_PICKLE_BUILTINS = ("eval", "exec")
+
 INVALID_CHARS_FOR_WINDOWS_FILENAME = ('"', '*', '<', '>', '?', '\\', '|', '/', ':')
+
+INVALID_FILENAME_CHAR_REPLACEMENT = '_'
 
 OUTPUT_FORMATS = ("simple", "plain", "json", "xml", "md", "csv", "html", "sqlite")
 
@@ -48,28 +56,42 @@ PROXY_SCHEMES = ("http://", "https://", "socks5://", "socks5h://", "socks4://", 
 
 INSECURE_CSV_CHARS = ('+', '-', '=', '@')
 
-DEFAULT_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36"
+DEFAULT_SCAN_PREFIXES = ('.',)
+
+DEFAULT_SCAN_SUFFIXES = ('/',)
+
+DEFAULT_TOR_PROXIES = ("socks5://127.0.0.1:9050", "socks5://127.0.0.1:9150")
 
 DEFAULT_HEADERS = {
-    "User-Agent": DEFAULT_USER_AGENT,
-    "Accept-Language": "*",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36",
+    "Accept": "*/*",
     "Accept-Encoding": "*",
     "Keep-Alive": "timeout=15, max=1000",
     "Cache-Control": "max-age=0",
 }
 
-EXCLUDED_EXPORT_VARIABLES = ("output", "threads_lock", "report", "report_manager", "requester", "fuzzer")
+DEFAULT_SESSION_FILE = "session.pickle"
+
+REFLECTED_PATH_MARKER = "__REFLECTED_PATH__"
 
 EXTENSION_TAG = "%ext%"
 
-DEFAULT_SESSION_FILE = "session.json"
+EXTENSION_REGEX = r"\w[.][a-zA-Z0-9]{2,5}"
 
-MAX_REDIRECTS = 5
-
-MAX_NUMBER_OF_THREADS = 100
+UNKNOWN = "unknown"
 
 SOCKET_TIMEOUT = 6
 
-CHUNK_SIZE = 8192
+RATE_UPDATE_DELAY = 0.15
+
+ITER_CHUNK_SIZE = 1024 * 8
 
 TEST_PATH_LENGTH = 6
+
+MAX_CONSECUTIVE_REQUEST_ERRORS = 60
+
+PAUSING_WAIT_TIMEOUT = 7
+
+URL_SAFE_CHARS = string.punctuation
+
+TEXT_CHARS = bytearray({7, 8, 9, 10, 12, 13, 27} | set(range(0x20, 0x100)) - {0x7f})

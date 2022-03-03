@@ -16,44 +16,48 @@
 #
 #  Author: Mauro Soria
 
-from urllib.parse import urlparse
+import magic
 
-from lib.core.settings import CHUNK_SIZE, DEFAULT_ENCODING
+from functools import cached_property
+
+from lib.core.settings import DEFAULT_ENCODING, ITER_CHUNK_SIZE
+from lib.parse.url import parse_path, parse_full_path
+from lib.utils.common import is_binary
 
 
 class Response(object):
     def __init__(self, response, redirects):
-        self.path = urlparse(response.url).path
-        self.full_path = '/' + '/'.join(response.url.split('/')[3:])
+        self.path = parse_path(response.url)
+        self.full_path = parse_full_path(response.url)
         self.status = response.status_code
         self.headers = response.headers
+        self.redirect = self.headers.get("location")
         self.history = redirects
+        self.content = ''
         self.body = b''
 
-        for chunk in response.iter_content(chunk_size=CHUNK_SIZE):
+        for chunk in response.iter_content(chunk_size=ITER_CHUNK_SIZE):
             self.body += chunk
 
-        self.content = self.body.decode(response.encoding or DEFAULT_ENCODING, errors="ignore")
+        if not is_binary(self.body):
+            self.content = self.body.decode(response.encoding or DEFAULT_ENCODING)
 
-    def __eq__(self, other):
-        return self.status == other.status and self.body == other.body
+    @cached_property
+    def type(self):
+        if "content-type" in self.headers:
+            return self.headers.get("content-type")
+        else:
+            return magic.from_buffer(self.body)
 
-    def __cmp__(self, other):
-        return (self.body > other) - (self.body < other)
-
-    def __len__(self):
-        return len(self.body)
+    @cached_property
+    def length(self):
+        try:
+            return int(self.headers.get("content-length"))
+        except TypeError:
+            return len(self.body)
 
     def __hash__(self):
         return hash(self.body)
 
-    @property
-    def redirect(self):
-        return self.headers.get("location")
-
-    @property
-    def length(self):
-        if "content-length" in dict(self.headers):
-            return int(self.headers.get("content-length"))
-
-        return len(self.body)
+    def __eq__(self, other):
+        return (self.status, self.body, self.redirect) == (other.status, other.body, other.redirect)

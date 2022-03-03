@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.3
+## Developing
 - Automatically detect the URI scheme (`http` or `https`) if no scheme is provided
 - SQLite report format
 - Option to view redirects history when following redirects

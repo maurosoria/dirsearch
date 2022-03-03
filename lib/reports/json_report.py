@@ -20,6 +20,7 @@ import json
 import time
 import sys
 
+from lib.core.decorators import locked
 from lib.reports.base import FileBaseReport
 
 
@@ -29,17 +30,16 @@ class JSONReport(FileBaseReport):
 
         for entry in self.entries:
             result = {}
-            header_name = "{0}://{1}:{2}/{3}".format(
-                entry.protocol, entry.host, entry.port, entry.base_path
-            )
+            header_name = f"{entry.protocol}://{entry.host}:{entry.port}/{entry.base_path}"
             result[header_name] = []
 
-            for e in entry.results:
+            for result_ in entry.results:
                 path_entry = {
-                    "status": e.status,
-                    "path": "/" + e.path,
-                    "content-length": e.response.length,
-                    "redirect": e.response.redirect,
+                    "status": result_.status,
+                    "path": "/" + result_.path,
+                    "content-length": result_.response.length,
+                    "content-type": result_.response.type,
+                    "redirect": result_.response.redirect,
                 }
                 result[header_name].append(path_entry)
 
@@ -47,6 +47,7 @@ class JSONReport(FileBaseReport):
 
         return json.dumps(report, sort_keys=True, indent=4)
 
+    @locked
     def save(self):
         self.file.seek(0)
         self.file.truncate(0)
