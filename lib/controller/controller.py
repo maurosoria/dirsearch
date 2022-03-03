@@ -25,7 +25,10 @@ from urllib.parse import urlparse
 
 from lib.connection.requester import Requester
 from lib.core.dictionary import Dictionary
-from lib.core.exceptions import InvalidURLException, RequestException, SkipTargetInterrupt, QuitInterrupt
+from lib.core.exceptions import (
+    InvalidURLException, RequestException, SkipTargetInterrupt,
+    GenericException, QuitInterrupt
+)
 from lib.core.fuzzer import Fuzzer
 from lib.core.logger import log
 from lib.core.report_manager import Report, ReportManager
@@ -387,7 +390,7 @@ class Controller(object):
         if not self.is_valid(path, response):
             return
 
-        added_to_queue = False
+        self.output.status_report(response, self.options.full_url)
 
         if response.status in self.options.recursion_status_codes and any(
             (self.options.recursive, self.options.deep_recursive, self.options.force_recursive)
@@ -397,10 +400,11 @@ class Controller(object):
             else:
                 added_to_queue = self.recur(path)
 
+            self.output.new_directories(added_to_queue)
+
         if self.options.replay_proxy:
             self.requester.request(path, proxy=self.options.replay_proxy)
 
-        self.output.status_report(response, self.options.full_url, added_to_queue)
         self.report.add_result(self.current_directory + path, response)
         self.report_manager.update_report(self.report)
         self.reset_consecutive_errors()
@@ -525,23 +529,21 @@ class Controller(object):
     def add_directory(self, path):
         # Pass if path is in exclusive directories
         if any(path.startswith(directory) for directory in self.options.exclude_subdirs):
-            return False
+            raise GenericException
 
         dir = join_path(self.current_directory, path)
         url = join_path(self.url, dir)
 
         if url in self.passed_urls or dir.count('/') > self.options.recursion_depth > 0:
-            return False
+            raise GenericException
 
         self.directories.append(dir)
         self.passed_urls.add(url)
         self.jobs_count += 1
 
-        return True
-
     # Check for recursion
     def recur(self, path):
-        added = False
+        dirs = []
         path = clean_path(path)
 
         if self.options.force_recursive and not path.endswith('/'):
@@ -551,13 +553,18 @@ class Controller(object):
             i = 0
             for _ in range(path.count('/')):
                 i = path.index('/', i) + 1
-                added = self.add_directory(path[:i]) or added
+                dirs.append(path[:i])
         elif self.options.recursive and path.endswith('/') and re.search(
             EXTENSION_REGEX, path[:-1]
         ):
-            added = self.add_directory(path) or added
+            dirs.append(path)
 
-        return added
+        for dir in dirs:
+            try:
+                self.add_directory(dir)
+                yield dir
+            except GenericException:
+                pass
 
     # Resolve the redirect and add the path to the recursion queue
     # if it's a subdirectory of the current URL
@@ -567,8 +574,6 @@ class Controller(object):
         if redirect_path == response.path + '/':
             path = redirect_path[len(self.requester.base_path + self.current_directory) + 1:]
             return self.recur(path)
-
-        return False
 
     def close(self, msg):
         self.output.error(msg)

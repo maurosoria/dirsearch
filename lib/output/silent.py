@@ -55,6 +55,9 @@ class Output(_Output):
     def last_path(self, *args):
         pass
 
+    def new_directories(self, directories):
+        pass
+
     def warning(self, reason, save=True):
         pass
 

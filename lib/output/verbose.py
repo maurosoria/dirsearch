@@ -84,7 +84,7 @@ class Output(object):
             self.buffer += string
             self.buffer += '\n'
 
-    def status_report(self, response, full_url, added_to_queue):
+    def status_report(self, response, full_url):
         status = response.status
         content_length = human_size(response.length)
         show_path = join_path(self.url, response.full_path) if full_url else response.full_path
@@ -106,8 +106,6 @@ class Output(object):
 
         if response.redirect:
             message += f"  ->  {response.redirect}"
-        if added_to_queue:
-            message += "     (Added to queue)"
 
         for redirect in response.history:
             message += f"\n-->  {redirect}"
@@ -134,6 +132,12 @@ class Output(object):
             return
 
         self.in_line(progress_bar)
+
+    def new_directories(self, directories):
+        directories_string = ', '.join(directories)
+        if directories_string:
+            message = set_color(f"Added to the queue: {directories_string}", fore="white", bright=True)
+            self.new_line(message)
 
     def error(self, reason):
         message = set_color(reason, fore="white", back="red", bright=True)
