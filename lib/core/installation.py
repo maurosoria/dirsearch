@@ -19,7 +19,6 @@
 
 import subprocess
 import sys
-import re
 import pkg_resources
 
 from lib.core.exceptions import FailedDependenciesInstallation
