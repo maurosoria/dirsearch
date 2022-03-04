@@ -16,9 +16,7 @@
 #
 #  Author: Mauro Soria
 
-import email
-
-from io import StringIO
+from email.parser import BytesParser
 
 from lib.core.settings import NEW_LINE
 from lib.core.structures import CaseInsensitiveDict
@@ -27,10 +25,11 @@ from lib.core.structures import CaseInsensitiveDict
 class HeadersParser(object):
     def __init__(self, headers):
         self.str = self.dict = headers
+
         if isinstance(headers, str):
             self.dict = self.str_to_dict(headers)
-        elif isinstance(headers, (dict, list)):
-            self.str = self.dict_list_to_str(headers)
+        elif isinstance(headers, dict):
+            self.str = self.dict_to_str(headers)
             self.dict = self.str_to_dict(self.str)
 
         self.headers = CaseInsensitiveDict(self.dict)
@@ -43,21 +42,16 @@ class HeadersParser(object):
         if not headers:
             return {}
 
-        return dict(
-            email.message_from_file(StringIO(headers))
-        )
+        return BytesParser().parsebytes(headers.encode())
 
     @staticmethod
-    def dict_list_to_str(headers):
+    def dict_to_str(headers):
         if not headers:
             return
 
-        if isinstance(headers, dict):
-            return NEW_LINE.join(
-                f"{key}: {value}" for key, value in headers.items()
-            )
-        elif isinstance(headers, list):
-            return NEW_LINE.join(headers)
+        return NEW_LINE.join(
+            f"{key}: {value}" for key, value in headers.items()
+        )
 
     def __iter__(self):
         return iter(self.headers)
