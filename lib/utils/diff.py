@@ -23,8 +23,9 @@ import re
 class DynamicContentParser(object):
     def __init__(self, content1, content2):
         self._differ = difflib.Differ()
-        diff = self._differ.compare(content1.split(), content2.split())
-        self._static_patterns = self.remove_dynamic_patterns(diff)
+        self._static_patterns = self.remove_dynamic_patterns(
+            self._differ.compare(content1.split(), content2.split())
+        )
         self.base_content = content1
 
     def remove_dynamic_patterns(self, patterns):
