@@ -16,11 +16,11 @@
 #
 #  Author: Mauro Soria
 
-import xml.etree.cElementTree as ET
 import time
 import sys
 
 from xml.dom import minidom
+from xml.etree import ElementTree as ET
 
 from lib.core.decorators import locked
 from lib.core.settings import DEFAULT_ENCODING
@@ -35,12 +35,12 @@ class XMLReport(FileBaseReport):
             header_name = f"{entry.protocol}://{entry.host}:{entry.port}/{entry.base_path}"
             target = ET.SubElement(result, "target", url=header_name)
 
-            for result in entry.results:
-                path = ET.SubElement(target, "info", path='/' + result.path)
-                ET.SubElement(path, "status").text = str(result.status)
-                ET.SubElement(path, "contentLength").text = str(result.response.length)
-                ET.SubElement(path, "contentType").text = result.response.type
-                ET.SubElement(path, "redirect").text = result.response.redirect or ''
+            for result_ in entry.results:
+                path = ET.SubElement(target, "info", path='/' + result_.path)
+                ET.SubElement(path, "status").text = str(result_.status)
+                ET.SubElement(path, "contentLength").text = str(result_.response.length)
+                ET.SubElement(path, "contentType").text = result_.response.type
+                ET.SubElement(path, "redirect").text = result_.response.redirect or ''
 
         result = ET.tostring(result, encoding=DEFAULT_ENCODING, method="xml")
         return minidom.parseString(result).toprettyxml()

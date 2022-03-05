@@ -16,11 +16,9 @@
 #
 #  Author: Mauro Soria
 
-import magic
-
 from functools import cached_property
 
-from lib.core.settings import DEFAULT_ENCODING, ITER_CHUNK_SIZE
+from lib.core.settings import DEFAULT_ENCODING, ITER_CHUNK_SIZE, UNKNOWN
 from lib.parse.url import parse_path, parse_full_path
 from lib.utils.common import is_binary
 
@@ -40,14 +38,11 @@ class Response(object):
             self.body += chunk
 
         if not is_binary(self.body):
-            self.content = self.body.decode(response.encoding or DEFAULT_ENCODING)
+            self.content = self.body.decode(response.encoding or DEFAULT_ENCODING, errors="ignore")
 
     @cached_property
     def type(self):
-        if "content-type" in self.headers:
-            return self.headers.get("content-type")
-        else:
-            return magic.from_buffer(self.body)
+        return self.headers.get("content-type") or UNKNOWN
 
     @cached_property
     def length(self):

@@ -16,7 +16,6 @@
 #
 #  Author: Mauro Soria
 
-import magic
 import random
 import re
 import requests
@@ -35,6 +34,7 @@ from lib.core.structures import CaseInsensitiveDict
 from lib.connection.dns import cached_getaddrinfo, set_default_addr
 from lib.connection.response import Response
 from lib.utils.common import safequote
+from lib.utils.mimetype import guess_mimetype
 from lib.utils.schemedet import detect_scheme
 
 # Disable InsecureRequestWarning from urllib3
@@ -70,7 +70,7 @@ class Requester(object):
         set_default_addr(self.ip)
         # Guess the mime type of request data if not specified
         if self.data and "content-type" not in self.headers:
-            self.set_header("content-type", magic.from_buffer(self.data.encode(), mime=True))
+            self.set_header("content-type", guess_mimetype(self.data))
 
     def set_target(self, url):
         parsed = urlparse(url)

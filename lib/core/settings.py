@@ -78,6 +78,8 @@ EXTENSION_TAG = "%ext%"
 
 EXTENSION_REGEX = r"\w[.][a-zA-Z0-9]{2,5}"
 
+QUERY_STRING_REGEX = r"^(\&?(\w+)\=([^&]+)){1,300}$"
+
 UNKNOWN = "unknown"
 
 SOCKET_TIMEOUT = 6
