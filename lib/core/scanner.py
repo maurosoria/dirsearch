@@ -104,7 +104,7 @@ class Scanner(object):
         if not self.response.content and not response.content:
             return self.response.body == response.body
 
-        return self.dynamic_parser.compare_to(response.content)
+        return self.content_parser.compare_to(response.content)
 
     '''
     Check if redirect matches the wildcard redirect regex or the response

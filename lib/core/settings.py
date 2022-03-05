@@ -60,7 +60,7 @@ DEFAULT_SCAN_PREFIXES = ('.',)
 
 DEFAULT_SCAN_SUFFIXES = ('/',)
 
-DEFAULT_TOR_PROXIES = ("socks5://127.0.0.1:9050", "socks5://127.0.0.1:9150")
+DEFAULT_TOR_PROXIES = list(("socks5://127.0.0.1:9050", "socks5://127.0.0.1:9150"))
 
 DEFAULT_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36",
@@ -77,6 +77,8 @@ REFLECTED_PATH_MARKER = "__REFLECTED_PATH__"
 EXTENSION_TAG = "%ext%"
 
 EXTENSION_REGEX = r"\w[.][a-zA-Z0-9]{2,5}"
+
+QUERY_STRING_REGEX = r"^(\&?(\w+)\=([^&]+)){1,300}$"
 
 UNKNOWN = "unknown"
 

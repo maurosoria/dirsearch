@@ -23,7 +23,7 @@ from lib.output.verbose import Output as _Output
 
 
 class Output(_Output):
-    def status_report(self, response, full_url, added_to_queue):
+    def status_report(self, response, full_url):
         status = response.status
         content_length = human_size(response.length)
         url = join_path(self.url, response.full_path)
@@ -44,8 +44,6 @@ class Output(_Output):
 
         if response.redirect:
             message += f"  ->  {response.redirect}"
-        if added_to_queue:
-            message += "     (Added to queue)"
 
         for redirect in response.history:
             message += f"\n-->  {redirect}"
@@ -58,7 +56,7 @@ class Output(_Output):
     def new_directories(self, directories):
         pass
 
-    def warning(self, reason, save=True):
+    def warning(self, reason, do_save=True):
         pass
 
     def header(self, message):

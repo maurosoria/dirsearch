@@ -80,20 +80,20 @@ class Controller(object):
     def setup(self, options, output):
         self.options, self.output = options, output
 
-        if options.raw_file:
+        if self.options.raw_file:
             self.options.update(
-                zip(["urls", "httpmethod", "headers", "data"], parse_raw(options.raw_file))
+                zip(["urls", "httpmethod", "headers", "data"], parse_raw(self.options.raw_file))
             )
         else:
-            self.options.headers = {**DEFAULT_HEADERS, **options.headers}
+            self.options.headers = {**DEFAULT_HEADERS, **self.options.headers}
 
-            if options.cookie:
-                self.options.headers["Cookie"] = options.cookie
-            if options.useragent:
-                self.options.headers["User-Agent"] = options.useragent
+            if self.options.cookie:
+                self.options.headers["Cookie"] = self.options.cookie
+            if self.options.useragent:
+                self.options.headers["User-Agent"] = self.options.useragent
 
         self.random_agents = None
-        if options.use_random_agents:
+        if self.options.use_random_agents:
             self.random_agents = FileUtils.get_lines(
                 FileUtils.build_path(SCRIPT_PATH, "db", "user-agents.txt")
             )
@@ -107,25 +107,26 @@ class Controller(object):
             proxylist=self.options.proxylist,
             follow_redirects=self.options.follow_redirects,
             httpmethod=self.options.httpmethod,
+            headers=self.options.headers,
             data=self.options.data,
             scheme=self.options.scheme,
             random_agents=self.random_agents,
         )
         self.dictionary = Dictionary(
-            paths=options.wordlist,
-            extensions=options.extensions,
-            suffixes=options.suffixes,
-            prefixes=options.prefixes,
-            lowercase=options.lowercase,
-            uppercase=options.uppercase,
-            capitalization=options.capitalization,
-            force_extensions=options.force_extensions,
-            exclude_extensions=options.exclude_extensions,
-            no_extension=options.no_extension,
-            only_selected=options.only_selected
+            paths=self.options.wordlist,
+            extensions=self.options.extensions,
+            suffixes=self.options.suffixes,
+            prefixes=self.options.prefixes,
+            lowercase=self.options.lowercase,
+            uppercase=self.options.uppercase,
+            capitalization=self.options.capitalization,
+            force_extensions=self.options.force_extensions,
+            exclude_extensions=self.options.exclude_extensions,
+            no_extension=self.options.no_extension,
+            only_selected=self.options.only_selected
         )
-        self.blacklists = Dictionary.generate_blacklists(options.extensions)
-        self.targets = deque(options.urls)
+        self.blacklists = Dictionary.generate_blacklists(self.options.extensions)
+        self.targets = deque(self.options.urls)
         self.current_job = 0
         self.batch = False
         self.report = None
@@ -137,35 +138,32 @@ class Controller(object):
         self.errors = 0
         self.consecutive_errors = 0
 
-        for key, value in options.headers.items():
-            self.requester.set_header(key, value)
+        if self.options.auth:
+            self.requester.set_auth(self.options.auth_type, self.options.auth)
 
-        if options.auth:
-            self.requester.set_auth(options.auth_type, options.auth)
+        if self.options.proxy_auth:
+            self.requester.set_proxy_auth(self.options.proxy_auth)
 
-        if options.proxy_auth:
-            self.requester.set_proxy_auth(options.proxy_auth)
-
-        if options.log_file:
-            self.options.log_file = FileUtils.get_abs_path(options.log_file)
+        if self.options.log_file:
+            self.options.log_file = FileUtils.get_abs_path(self.options.log_file)
 
             try:
                 FileUtils.create_dir(FileUtils.parent(self.options.log_file))
-
                 if not FileUtils.can_write(self.options.log_file):
                     raise Exception
+
             except Exception:
                 self.output.error(f"Couldn't create log file at {self.options.log_file}")
                 exit(1)
 
-        if options.autosave_report:
-            self.report_path = options.output_path or FileUtils.build_path(SCRIPT_PATH, "reports")
+        if self.options.autosave_report:
+            self.report_path = self.options.output_path or FileUtils.build_path(SCRIPT_PATH, "reports")
 
             try:
                 FileUtils.create_dir(self.report_path)
-
                 if not FileUtils.can_write(self.report_path):
                     raise Exception
+
             except Exception:
                 self.output.error(f"Couldn't create report folder at {self.report_path}")
                 exit(1)
@@ -214,7 +212,8 @@ class Controller(object):
 
                     self.output.url = self.requester.url
                     self.report = self.report or Report(
-                        self.requester.host, self.requester.port, self.requester.scheme, self.requester.base_path
+                        self.requester.host, self.requester.port,
+                        self.requester.scheme, self.requester.base_path
                     )
 
                 except InvalidURLException as e:
