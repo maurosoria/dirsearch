@@ -11,12 +11,7 @@ RUN apk add \
     openssl-dev \
     libffi-dev
 
-RUN pip install cryptography==2.8 \
-    chardet \
-    markupsafe \
-    PySocks \
-    urllib3 \
-    certifi
+RUN pip install -r requirements.txt
 
 ENTRYPOINT ["./dirsearch.py"]
 CMD ["--help"]
