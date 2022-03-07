@@ -67,8 +67,8 @@ class HTMLReport(FileBaseReport):
         command = ' '.join(sys.argv)
         if "[[" in command or "]]" in command:
             return "Dirsearch"
-        else:
-            return command
+
+        return command
 
     @locked
     def save(self):

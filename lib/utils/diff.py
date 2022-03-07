@@ -20,7 +20,7 @@ import difflib
 import re
 
 
-class DynamicContentParser(object):
+class DynamicContentParser:
     def __init__(self, content1, content2):
         self._differ = difflib.Differ()
         self._diff = self.differ.compare(content1.split(), content2.split())

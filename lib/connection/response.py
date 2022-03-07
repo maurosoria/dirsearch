@@ -25,13 +25,13 @@ from lib.parse.url import parse_path, parse_full_path
 from lib.utils.common import is_binary
 
 
-class Response(object):
+class Response:
     def __init__(self, response, redirects):
         self.path = parse_path(response.url)
         self.full_path = parse_full_path(response.url)
         self.status = response.status_code
         self.headers = response.headers
-        self.redirect = self.headers.get("location")
+        self.redirect = self.headers.get("location") or ''
         self.history = redirects
         self.content = ''
         self.body = b''
@@ -46,8 +46,8 @@ class Response(object):
     def type(self):
         if "content-type" in self.headers:
             return self.headers.get("content-type")
-        else:
-            return magic.from_buffer(self.body)
+
+        return magic.from_buffer(self.body)
 
     @cached_property
     def length(self):

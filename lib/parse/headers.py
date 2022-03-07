@@ -24,7 +24,7 @@ from lib.core.settings import NEW_LINE
 from lib.core.structures import CaseInsensitiveDict
 
 
-class HeadersParser(object):
+class HeadersParser:
     def __init__(self, headers):
         self.str = self.dict = headers
         if isinstance(headers, str):

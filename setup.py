@@ -1,8 +1,8 @@
-import setuptools
-import os
 import io
-import tempfile
+import os
+import setuptools
 import shutil
+import tempfile
 
 from lib.core.settings import VERSION
 

@@ -16,41 +16,12 @@
 #
 #  Author: Mauro Soria
 
-from lib.parse.url import join_path
-from lib.utils.common import human_size
-from lib.output.colors import set_color
 from lib.output.verbose import Output as _Output
 
 
 class Output(_Output):
     def status_report(self, response, full_url, added_to_queue):
-        status = response.status
-        content_length = human_size(response.length)
-        url = join_path(self.url, response.full_path)
-        message = f"{status} - {content_length.rjust(6, ' ')} - {url}"
-
-        if status in (200, 201, 204):
-            message = set_color(message, fore="green")
-        elif status == 401:
-            message = set_color(message, fore="yellow")
-        elif status == 403:
-            message = set_color(message, fore="blue")
-        elif status in range(500, 600):
-            message = set_color(message, fore="red")
-        elif status in range(300, 400):
-            message = set_color(message, fore="cyan")
-        else:
-            message = set_color(message, fore="magenta")
-
-        if response.redirect:
-            message += f"  ->  {response.redirect}"
-        if added_to_queue:
-            message += "     (Added to queue)"
-
-        for redirect in response.history:
-            message += f"\n-->  {redirect}"
-
-        self.new_line(message)
+        super().status_report(response, True, added_to_queue)
 
     def last_path(self, *args):
         pass
@@ -68,10 +39,10 @@ class Output(_Output):
         pass
 
     def set_target(self, target):
-        self.target = target
-
-    def output_file(self, target):
         pass
 
-    def log_file(self, target):
+    def output_file(self, file):
+        pass
+
+    def log_file(self, file):
         pass

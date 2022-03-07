@@ -57,6 +57,12 @@ _escape_seq = Combine(
 init()
 
 
+def disable_color():
+    for table in (FORE_COLORS, BACK_COLORS):
+        for color in ("red", "green", "yellow", "blue", "magenta", "cyan", "white"):
+            table[color] = table["none"]
+
+
 def set_color(msg, fore="none", back="none", bright=False):
     if bright:
         msg = Style.BRIGHT + msg

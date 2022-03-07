@@ -25,8 +25,9 @@ from ipaddress import IPv4Network, IPv6Network
 from urllib.parse import quote
 
 from lib.core.settings import (
-    INVALID_CHARS_FOR_WINDOWS_FILENAME, INVALID_FILENAME_CHAR_REPLACEMENT,
-    ALLOWED_PICKLE_MODULES, UNSAFE_PICKLE_BUILTINS, URL_SAFE_CHARS, TEXT_CHARS
+    INVALID_CHARS_FOR_WINDOWS_FILENAME, INSECURE_CSV_CHARS,
+    INVALID_FILENAME_CHAR_REPLACEMENT, ALLOWED_PICKLE_MODULES,
+    UNSAFE_PICKLE_BUILTINS, URL_SAFE_CHARS, TEXT_CHARS
 )
 
 
@@ -34,7 +35,7 @@ def safequote(string_):
     return quote(string_, safe=URL_SAFE_CHARS)
 
 
-def uniq(string_list, filt=False):
+def uniq(string_list):
     if not string_list:
         return string_list
 
@@ -52,14 +53,14 @@ def get_valid_filename(string):
 def human_size(num):
     base = 1024
     for x in ["B ", "KB", "MB", "GB"]:
-        if num < base and num > -base:
+        if -base < num < base:
             return "%3.0f%s" % (num, x)
         num /= base
     return "%3.0f %s" % (num, "TB")
 
 
 def is_ipv6(ip):
-    return False if ip.count(":") < 2 else True
+    return ip.count(":") >= 2
 
 
 def iprange(subnet):
@@ -74,15 +75,25 @@ def is_binary(bytes):
     return bool(bytes.translate(None, TEXT_CHARS))
 
 
+# Prevent CSV injection. Reference: https://www.exploit-db.com/exploits/49370
+def escape_csv(text):
+    if text.startswith(INSECURE_CSV_CHARS):
+        text = "'" + text
+
+    return text.replace('"', '""')
+
+
 # Reference: https://docs.python.org/3.4/library/pickle.html#restricting-globals
 class RestrictedUnpickler(_pickle.Unpickler):
     def find_class(self, module, name):
-        if module in ALLOWED_PICKLE_MODULES or any(
-            module.startswith(f"{module_}.") for module_ in ALLOWED_PICKLE_MODULES
-        ) or (
-            module == "builtins" and name not in UNSAFE_PICKLE_BUILTINS
+        if (
+            module in ALLOWED_PICKLE_MODULES
+            or module == "builtins" and name not in UNSAFE_PICKLE_BUILTINS
+            or any(
+                module.startswith(f"{module_}.") for module_ in ALLOWED_PICKLE_MODULES
+            )
         ):
-            return super(RestrictedUnpickler, self).find_class(module, name)
+            return super().find_class(module, name)
 
         raise _pickle.UnpicklingError()
 

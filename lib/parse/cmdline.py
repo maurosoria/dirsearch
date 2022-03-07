@@ -157,6 +157,6 @@ def parse_arguments():
     parser.add_option_group(request)
     parser.add_option_group(connection)
     parser.add_option_group(output)
-    options, arguments = parser.parse_args()
+    options, _ = parser.parse_args()
 
     return options

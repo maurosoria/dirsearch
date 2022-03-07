@@ -26,7 +26,7 @@ from lib.utils.diff import generate_matching_regex, DynamicContentParser
 from lib.utils.random import rand_string
 
 
-class Scanner(object):
+class Scanner:
     def __init__(self, requester, **kwargs):
         self.calibration = kwargs.get("calibration", None)
         self.suffix = kwargs.get("suffix", '')
@@ -38,11 +38,31 @@ class Scanner(object):
         self.wildcard_redirect_regex = None
         self.setup()
 
-    '''
-    Generate wildcard response information containers, this will be
-    used to compare with other path responses
-    '''
+    @staticmethod
+    def generate_redirect_regex(first_loc, first_path, second_loc, second_path):
+        '''
+        From 2 redirects of wildcard responses, generate a regexp that matches
+        every wildcard redirect.
+
+        How it works:
+        1. Replace path in 2 redirect URLs (if it gets reflected in) with a mark
+           (e.g. /path1 -> /foo/path1 and /path2 -> /foo/path2 will become /foo/[mark] for both)
+        2. Compare 2 redirects and generate a regex that matches both
+           (e.g. /foo/[mark]?a=1 and /foo/[mark]?a=2 will have the regex: ^/foo/[mark]?a=(.*)$)
+        3. Next time if it redirects, replace mark in regex with the path and check if it matches
+           (e.g. /path3 -> /foo/path3?a=5, the regex becomes ^/foo/path3?a=(.*)$, which matches)
+        '''
+
+        first_loc = unquote(first_loc).replace(first_path, REFLECTED_PATH_MARKER)
+        second_loc = unquote(second_loc).replace(second_path, REFLECTED_PATH_MARKER)
+        return generate_matching_regex(first_loc, second_loc)
+
     def setup(self):
+        '''
+        Generate wildcard response information containers, this will be
+        used to compare with other path responses
+        '''
+
         first_path = self.prefix + (
             self.calibration if self.calibration else rand_string(TEST_PATH_LENGTH)
         ) + self.suffix
@@ -81,36 +101,23 @@ class Scanner(object):
                 if response == tester.response:
                     return tester
 
-    '''
-    From 2 redirects of wildcard responses, generate a regexp that matches
-    every wildcard redirect.
+        return None
 
-    How it works:
-    1. Replace path in 2 redirect URLs (if it gets reflected in) with a mark
-    (e.g. /path1 -> /foo/path1 and /path2 -> /foo/path2 will become /foo/[mark] for both)
-    2. Compare 2 redirects and generate a regex that matches both
-    (e.g. /foo/[mark]?a=1 and /foo/[mark]?a=2 will have the regex: ^/foo/[mark]?a=(.*)$)
-    3. Next time if it redirects, replace mark in regex with the path and check if it matches
-    (e.g. /path3 -> /foo/path3?a=5, the regex becomes ^/foo/path3?a=(.*)$, which matches)
-    '''
-    def generate_redirect_regex(self, first_loc, first_path, second_loc, second_path):
-        first_loc = unquote(first_loc).replace(first_path, REFLECTED_PATH_MARKER)
-        second_loc = unquote(second_loc).replace(second_path, REFLECTED_PATH_MARKER)
-        return generate_matching_regex(first_loc, second_loc)
+    def is_wildcard(self, response):
+        '''Check if response is similar to wildcard response'''
 
-    # Check if response is similar to wildcard response
-    def is_wildcard(self, response, path):
         # Compare 2 binary responses (Response.content is empty if the body is binary)
         if not self.response.content and not response.content:
             return self.response.body == response.body
 
-        return self.dynamic_parser.compare_to(response.content)
+        return self.content_parser.compare_to(response.content)
 
-    '''
-    Check if redirect matches the wildcard redirect regex or the response
-    has high similarity with wildcard tested at the start
-    '''
     def scan(self, path, response):
+        '''
+        Check if redirect matches the wildcard redirect regex or the response
+        has high similarity with wildcard tested at the start
+        '''
+
         if self.response.status == response.status == 404:
             return False
 
@@ -119,13 +126,10 @@ class Scanner(object):
 
         # Read from line 129 to 138 to understand the workflow of this.
         if self.wildcard_redirect_regex and response.redirect:
-            '''
-            unquote(): Sometimes, some path characters get encoded or decoded in the response redirect
-            but it's still a wildcard redirect, so unquote everything to prevent false positives
-
-            clean_path(): Get rid of queries and DOM in URL because of weird behaviours could happen
-            with them, so messy that I give up on finding a way to test them
-            '''
+            # unquote(): Sometimes, some path characters get encoded or decoded in the response redirect
+            # but it's still a wildcard redirect, so unquote everything to prevent false positives
+            # clean_path(): Get rid of queries and DOM in URL because of weird behaviours could happen
+            # with them, so messy that I give up on finding a way to test them
             path = re.escape(unquote(clean_path(path)))
             redirect = unquote(clean_path(response.redirect))
             regex_to_compare = self.wildcard_redirect_regex.replace(REFLECTED_PATH_MARKER, path)
@@ -135,7 +139,7 @@ class Scanner(object):
             if not is_wildcard_redirect:
                 return True
 
-        if self.is_wildcard(response, path):
+        if self.is_wildcard(response):
             return False
 
         return True

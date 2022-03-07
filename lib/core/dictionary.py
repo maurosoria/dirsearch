@@ -24,7 +24,7 @@ from lib.utils.common import uniq
 from lib.utils.file import FileUtils
 
 
-class Dictionary(object):
+class Dictionary:
     def __init__(self, **kwargs):
         self._entries = ()
         self._index = 0
@@ -45,24 +45,24 @@ class Dictionary(object):
     def index(self):
         return self._index
 
-    '''
-    Dictionary.generate() behaviour
-
-    Classic dirsearch wordlist:
-      1. If %EXT% keyword is present, append one with each extension REPLACED.
-      2. If the special word is no present, append line unmodified.
-
-    Forced extensions wordlist (NEW):
-      This type of wordlist processing is a mix between classic processing
-      and DirBuster processing.
-          1. If %EXT% keyword is present in the line, immediately process as "classic dirsearch" (1).
-          2. If the line does not include the special word AND is NOT terminated by a slash,
-            append one with each extension APPENDED (line.ext) and ONLYE ONE with a slash.
-          3. If the line does not include the special word and IS ALREADY terminated by slash,
-            append line unmodified.
-    '''
-
     def generate(self):
+        '''
+        Dictionary.generate() behaviour
+
+        Classic dirsearch wordlist:
+          1. If %EXT% keyword is present, append one with each extension REPLACED.
+          2. If the special word is no present, append line unmodified.
+
+        Forced extensions wordlist (NEW):
+          This type of wordlist processing is a mix between classic processing
+          and DirBuster processing.
+              1. If %EXT% keyword is present in the line, immediately process as "classic dirsearch" (1).
+              2. If the line does not include the special word AND is NOT terminated by a slash,
+                append one with each extension APPENDED (line.ext) and ONLYE ONE with a slash.
+              3. If the line does not include the special word and IS ALREADY terminated by slash,
+                append line unmodified.
+        '''
+
         reext = re.compile(EXTENSION_TAG, re.IGNORECASE)
         result = []
 
@@ -75,8 +75,8 @@ class Dictionary(object):
                 if self.no_extension:
                     line = line.split('.')[0]
 
-                # Skip empty lines and comments
-                if not line or line.startswith('#'):
+                # Skip comments
+                if line.lstrip().startswith('#'):
                     continue
 
                 # Skip if the path contains excluded extensions

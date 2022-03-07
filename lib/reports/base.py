@@ -20,8 +20,8 @@ from lib.core.decorators import locked
 from lib.core.settings import IS_WINDOWS
 
 
-class FileBaseReport(object):
-    def __init__(self, output_file_name, entries=[]):
+class FileBaseReport:
+    def __init__(self, output_file_name, entries=None):
         if IS_WINDOWS:
             from os.path import normpath, dirname
             from os import makedirs
@@ -30,7 +30,7 @@ class FileBaseReport(object):
             makedirs(dirname(output_file_name), exist_ok=True)
 
         self.output = output_file_name
-        self.entries = entries
+        self.entries = entries or []
         self.header_written = False
         self.written_entries = []
 

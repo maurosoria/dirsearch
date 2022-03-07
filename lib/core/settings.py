@@ -78,6 +78,8 @@ EXTENSION_TAG = "%ext%"
 
 EXTENSION_REGEX = r"\w[.][a-zA-Z0-9]{2,5}"
 
+READ_RESPONSE_ERROR_REGEX = r"ChunkedEncodingError|StreamConsumedError|UnrewindableBodyError"
+
 UNKNOWN = "unknown"
 
 SOCKET_TIMEOUT = 6

@@ -20,7 +20,6 @@ import gc
 import time
 import re
 
-from collections import deque
 from urllib.parse import urlparse
 
 from lib.connection.requester import Requester
@@ -43,7 +42,7 @@ from lib.utils.common import get_valid_filename, human_size, pickle, unpickle
 from lib.utils.file import FileUtils
 
 
-class Controller(object):
+class Controller:
     def __init__(self, options, output):
         if options.session_file:
             self._import(options.session_file)
@@ -59,23 +58,21 @@ class Controller(object):
 
     def _import(self, session_file):
         with open(session_file, "rb") as fd:
-            export = unpickle(fd)
+            indict, last_output = unpickle(fd)
 
-        self.__dict__ = {**export, **vars(self)}
+        self.__dict__ = {**indict, **vars(self)}
+        print(last_output)
 
     def _export(self, session_file):
-        # Add the current item back to the queue
-        self.targets.insert(0, self.url)
-        self.directories.insert(0, self.current_directory)
         self.current_job -= 1
         # Save written output
-        self.last_output = self.output.buffer.rstrip()
+        last_output = self.output.buffer.rstrip()
 
         # This attribute doesn't need to be saved
         del self.fuzzer
 
         with open(session_file, "wb") as fd:
-            pickle(vars(self), fd)
+            pickle((vars(self), last_output), fd)
 
     def setup(self, options, output):
         self.options, self.output = options, output
@@ -125,14 +122,14 @@ class Controller(object):
             only_selected=options.only_selected
         )
         self.blacklists = Dictionary.generate_blacklists(options.extensions)
-        self.targets = deque(options.urls)
-        self.current_job = 0
-        self.batch = False
+        self.targets = options.urls
+        self.start_time = time.time()
+        self.passed_urls = set()
+        self.directories = []
         self.report = None
         self.current_directory = None
-        self.directories = deque()
-        self.passed_urls = set()
-        self.start_time = time.time()
+        self.batch = False
+        self.current_job = 0
         self.jobs_count = 0
         self.errors = 0
         self.consecutive_errors = 0
@@ -190,9 +187,9 @@ class Controller(object):
         not_found_callbacks = (self.not_found_callback, self.append_traffic_log)
         error_callbacks = (self.error_callback, self.append_error_log)
 
-        while len(self.targets):
+        while self.targets:
             try:
-                url = self.targets.popleft()
+                url = self.targets[0]
 
                 try:
                     self.requester.set_target(url if url.endswith('/') else url + '/')
@@ -202,10 +199,7 @@ class Controller(object):
                         for subdir in self.options.scan_subdirs:
                             self.add_directory(subdir)
 
-                    if self.from_export:
-                        # Rewrite the output from the last scan
-                        print(self.last_output)
-                    else:
+                    if not self.from_export or "fuzzer" in vars(self):
                         self.output.set_target(self.url)
 
                     # Test request to check if server is up
@@ -255,17 +249,18 @@ class Controller(object):
                 if self.report:
                     self.report.completed = True
 
-                continue
+            finally:
+                self.targets.pop(0)
 
         self.output.warning("\nTask Completed")
 
     def start(self):
         first = True
 
-        while len(self.directories):
+        while self.directories:
             gc.collect()
 
-            self.current_directory = self.directories.popleft()
+            self.current_directory = self.directories[0]
             self.current_job += 1
 
             if not self.from_export or not first:
@@ -279,13 +274,15 @@ class Controller(object):
             self.fuzzer.start()
             self.process()
             self.dictionary.reset()
+            self.directories.pop(0)
 
             first = False
 
         self.report.completed = True
 
-    # Create batch report folder
     def setup_batch_reports(self):
+        '''Create batch report folder'''
+
         self.batch = True
         current_time = time.strftime("%y-%m-%d_%H-%M-%S")
         batch_session = f"BATCH-{current_time}"
@@ -299,15 +296,15 @@ class Controller(object):
 
         return batch_directory_path
 
-    # Get file extension for report format
     def get_output_extension(self):
-        if self.options.output_format not in ("plain", "simple"):
-            return f".{self.options.output_format}"
-        else:
+        if self.options.output_format in ("plain", "simple"):
             return ".txt"
 
-    # Create report file
+        return f".{self.options.output_format}"
+
     def setup_reports(self):
+        '''Create report file'''
+
         output_file = None
 
         if self.options.output_file:
@@ -345,8 +342,9 @@ class Controller(object):
         if output_file:
             self.output.output_file(output_file)
 
-    # Validate the response by different filters
     def is_valid(self, path, res):
+        '''Validate the response by different filters'''
+
         if res.status in self.options.exclude_status_codes:
             return False
 
@@ -368,13 +366,13 @@ class Controller(object):
         if any(ex_text in res.content for ex_text in self.options.exclude_texts):
             return False
 
-        if self.options.exclude_regex and re.search(self.options.exclude_regex, res.content) is not None:
+        if self.options.exclude_regex and re.search(self.options.exclude_regex, res.content):
             return False
 
-        if self.options.exclude_redirect and (
-            self.options.exclude_redirect in res.redirect or re.search(
-                self.options.exclude_redirect, res.redirect
-            ) is not None
+        if (
+            self.options.exclude_redirect
+            and self.options.exclude_redirect in res.redirect
+            or re.search(self.options.exclude_redirect, res.redirect)
         ):
             return False
 
@@ -392,8 +390,9 @@ class Controller(object):
 
         self.output.status_report(response, self.options.full_url)
 
-        if response.status in self.options.recursion_status_codes and any(
-            (self.options.recursive, self.options.deep_recursive, self.options.force_recursive)
+        if (
+            response.status in self.options.recursion_status_codes
+            and any((self.options.recursive, self.options.deep_recursive, self.options.force_recursive))
         ):
             if response.redirect:
                 added_to_queue = self.recur_for_redirect(path, response)
@@ -420,7 +419,7 @@ class Controller(object):
         )
         self.reset_consecutive_errors()
 
-    def error_callback(self, path, error_msg):
+    def error_callback(self, *args):
         if self.options.exit_on_error:
             raise QuitInterrupt("Canceled due to an error")
 
@@ -430,20 +429,22 @@ class Controller(object):
         if self.consecutive_errors > MAX_CONSECUTIVE_REQUEST_ERRORS:
             raise SkipTargetInterrupt("Too many request errors")
 
-    # Write request to log file
     def append_traffic_log(self, path, response):
+        '''Write request to log file'''
+
         url = join_path(self.requester.url, response.path)
-        msg = f"{self.requester.ip or '0'} {response.status} "
-        msg += f"{self.options.httpmethod} {url}"
+        msg = f"{response.status} {self.options.httpmethod} {url}"
 
         if response.redirect:
             msg += f" - REDIRECT TO: {response.redirect}"
+
         msg += f" (LENGTH: {response.length})"
 
         log(self.options.log_file, "traffic", msg)
 
-    # Write error to log file
     def append_error_log(self, path, error_msg):
+        '''Write error to log file'''
+
         url = join_path(self.url, self.current_directory, path)
         msg = f"{self.options.httpmethod} {url}"
         msg += NEW_LINE
@@ -451,7 +452,6 @@ class Controller(object):
         msg += error_msg
         log(self.options.log_file, "error", msg)
 
-    # Handle CTRL+C
     def handle_pause(self):
         self.output.warning("CTRL+C detected: Pausing threads, please wait...", do_save=False)
         self.fuzzer.pause()
@@ -467,10 +467,10 @@ class Controller(object):
         while True:
             msg = "[q]uit / [c]ontinue"
 
-            if len(self.directories):
+            if len(self.directories) > 1:
                 msg += " / [n]ext"
 
-            if len(self.targets):
+            if len(self.targets) > 1:
                 msg += " / [s]kip target"
 
             self.output.in_line(msg + ": ")
@@ -493,19 +493,21 @@ class Controller(object):
 
                     self._export(session_file)
                     self.close(f"Session saved to: {session_file}")
+
             elif option.lower() == 'c':
                 self.fuzzer.resume()
                 return
-            elif option.lower() == 'n' and len(self.directories):
+
+            elif option.lower() == 'n' and len(self.directories) > 1:
                 self.fuzzer.stop()
                 return
-            elif option.lower() == 's' and len(self.targets):
+
+            elif option.lower() == 's' and len(self.targets) > 1:
                 raise SkipTargetInterrupt
 
     def is_timed_out(self):
         return time.time() - self.start_time > self.options.maxtime > 0
 
-    # Monitor the fuzzing process
     def process(self):
         while True:
             try:
@@ -525,8 +527,9 @@ class Controller(object):
             except QuitInterrupt as e:
                 self.close(e.args[0])
 
-    # Add directory to the recursion queue
     def add_directory(self, path):
+        '''Add directory to the recursion queue'''
+
         # Pass if path is in exclusive directories
         if any(path.startswith(directory) for directory in self.options.exclude_subdirs):
             raise GenericException
@@ -541,7 +544,6 @@ class Controller(object):
         self.passed_urls.add(url)
         self.jobs_count += 1
 
-    # Check for recursion
     def recur(self, path):
         dirs = []
         path = clean_path(path)
@@ -554,8 +556,10 @@ class Controller(object):
             for _ in range(path.count('/')):
                 i = path.index('/', i) + 1
                 dirs.append(path[:i])
-        elif self.options.recursive and path.endswith('/') and re.search(
-            EXTENSION_REGEX, path[:-1]
+        elif (
+            self.options.recursive
+            and path.endswith('/')
+            and re.search(EXTENSION_REGEX, path[:-1]) is None
         ):
             dirs.append(path)
 
@@ -566,8 +570,6 @@ class Controller(object):
             except GenericException:
                 pass
 
-    # Resolve the redirect and add the path to the recursion queue
-    # if it's a subdirectory of the current URL
     def recur_for_redirect(self, path, response):
         redirect_path = parse_path(response.redirect)
 
@@ -578,4 +580,5 @@ class Controller(object):
     def close(self, msg):
         self.output.error(msg)
         self.report_manager.update_report(self.report)
+        self.report_manager.close()
         exit(0)

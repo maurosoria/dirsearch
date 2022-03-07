@@ -20,7 +20,7 @@ import os
 import os.path
 
 
-class File(object):
+class File:
     def __init__(self, *path_components):
         self._path = FileUtils.build_path(*path_components)
 
@@ -57,7 +57,7 @@ class File(object):
         pass
 
 
-class FileUtils(object):
+class FileUtils:
     @staticmethod
     def build_path(*path_components):
         if path_components:

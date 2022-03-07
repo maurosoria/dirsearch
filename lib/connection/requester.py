@@ -16,12 +16,12 @@
 #
 #  Author: Mauro Soria
 
-import magic
+import http.client
+import socket
 import random
 import re
 import requests
-import socket
-import http.client
+import magic
 
 from requests.adapters import HTTPAdapter
 from requests.auth import HTTPBasicAuth, HTTPDigestAuth
@@ -30,7 +30,7 @@ from requests_ntlm import HttpNtlmAuth
 from urllib.parse import urlparse
 
 from lib.core.exceptions import MissingProxy, InvalidURLException, RequestException
-from lib.core.settings import PROXY_SCHEMES, UNKNOWN
+from lib.core.settings import READ_RESPONSE_ERROR_REGEX, PROXY_SCHEMES, UNKNOWN
 from lib.core.structures import CaseInsensitiveDict
 from lib.connection.dns import cached_getaddrinfo, set_default_addr
 from lib.connection.response import Response
@@ -43,13 +43,13 @@ disable_warnings()
 socket.getaddrinfo = cached_getaddrinfo
 
 
-# I was forced to make this because of https://github.com/psf/requests/issues/3829
 class Session(requests.Session):
     def merge_environment_settings(self, url, proxies, stream, verify, *args, **kwargs):
-        return super(Session, self).merge_environment_settings(url, proxies, stream, self.verify, *args, **kwargs)
+        # Reference: https://github.com/psf/requests/issues/3829
+        return super().merge_environment_settings(url, proxies, stream, self.verify, *args, **kwargs)
 
 
-class Requester(object):
+class Requester:
     def __init__(self, **kwargs):
         self._proxy_cred = None
         self.httpmethod = kwargs.get("httpmethod", "get")
@@ -109,10 +109,8 @@ class Requester(object):
             # If no scheme is found, detect it by port number
             self.scheme = parsed.scheme if parsed.scheme != UNKNOWN else detect_scheme(self.host, self.port)
         except ValueError:
-            '''
-            If the user neither provides the port nor scheme, guess them based
-            on standard website characteristics
-            '''
+            # If the user neither provides the port nor scheme, guess them based
+            # on standard website characteristics
             self.scheme = detect_scheme(self.host, 443)
             self.port = port_for_scheme[self.scheme]
 
@@ -240,7 +238,7 @@ class Requester(object):
                     simple_err_msg = f"Invalid proxy URL: {proxy}"
                 elif "ConnectionError" in err_msg:
                     simple_err_msg = f"Cannot connect to: {self.netloc}"
-                elif re.search("ChunkedEncodingError|StreamConsumedError|UnrewindableBodyError", err_msg):
+                elif re.search(READ_RESPONSE_ERROR_REGEX, err_msg):
                     simple_err_msg = f"Failed to read response body: {self.url}"
                 elif "Timeout" in err_msg or e in (
                     http.client.IncompleteRead,

@@ -193,89 +193,89 @@ def access_file(path, name):
         return fd
 
 
-def parse_config(options):
+def parse_config(opt):
     config = ConfigParser()
-    config.read(options.config)
+    config.read(opt.config)
 
     # Mandatory
-    options.extensions = options.extensions or config.safe_get(
+    opt.extensions = opt.extensions or config.safe_get(
         "mandatory", "default-extensions"
     )
-    options.exclude_extensions = options.exclude_extensions or config.safe_get(
+    opt.exclude_extensions = opt.exclude_extensions or config.safe_get(
         "mandatory", "exclude-extensions"
     )
-    options.force_extensions = options.force_extensions or config.safe_getboolean(
+    opt.force_extensions = opt.force_extensions or config.safe_getboolean(
         "mandatory", "force-extensions"
     )
 
     # General
-    options.threads_count = options.threads_count or config.safe_getint(
+    opt.threads_count = opt.threads_count or config.safe_getint(
         "general", "threads", 25
     )
-    options.include_status_codes = options.include_status_codes or config.safe_get(
+    opt.include_status_codes = opt.include_status_codes or config.safe_get(
         "general", "include-status"
     )
-    options.exclude_status_codes = options.exclude_status_codes or config.safe_get(
+    opt.exclude_status_codes = opt.exclude_status_codes or config.safe_get(
         "general", "exclude-status"
     )
-    options.exclude_sizes = options.exclude_sizes or config.safe_get("general", "exclude-sizes")
-    options.exclude_texts = options.exclude_texts or config.safe_get("general", "exclude-texts")
-    options.exclude_regex = options.exclude_regex or config.safe_get("general", "exclude-regex")
-    options.exclude_redirect = options.exclude_redirect or config.safe_get("general", "exclude-redirect")
-    options.exclude_response = options.exclude_response or config.safe_get("general", "exclude-response")
-    options.recursive = options.recursive or config.safe_getboolean("general", "recursive")
-    options.deep_recursive = options.deep_recursive or config.safe_getboolean("general", "deep-recursive")
-    options.force_recursive = options.force_recursive or config.safe_getboolean("general", "force-recursive")
-    options.recursion_depth = options.recursion_depth or config.safe_getint("general", "recursion-depth")
-    options.recursion_status_codes = options.recursion_status_codes or config.safe_get(
+    opt.exclude_sizes = opt.exclude_sizes or config.safe_get("general", "exclude-sizes")
+    opt.exclude_texts = opt.exclude_texts or config.safe_get("general", "exclude-texts")
+    opt.exclude_regex = opt.exclude_regex or config.safe_get("general", "exclude-regex")
+    opt.exclude_redirect = opt.exclude_redirect or config.safe_get("general", "exclude-redirect")
+    opt.exclude_response = opt.exclude_response or config.safe_get("general", "exclude-response")
+    opt.recursive = opt.recursive or config.safe_getboolean("general", "recursive")
+    opt.deep_recursive = opt.deep_recursive or config.safe_getboolean("general", "deep-recursive")
+    opt.force_recursive = opt.force_recursive or config.safe_getboolean("general", "force-recursive")
+    opt.recursion_depth = opt.recursion_depth or config.safe_getint("general", "recursion-depth")
+    opt.recursion_status_codes = opt.recursion_status_codes or config.safe_get(
         "general", "recursion-status", "100-999"
     )
-    options.scan_subdirs = options.scan_subdirs or config.safe_get("general", "subdirs")
-    options.exclude_subdirs = options.exclude_subdirs or config.safe_get("general", "exclude-subdirs")
-    options.skip_on_status = options.skip_on_status or config.safe_get("general", "skip-on-status")
-    options.maxtime = options.maxtime or config.safe_getint("general", "max-time")
-    options.full_url = options.full_url or config.safe_getboolean("general", "full-url")
-    options.color = options.color or config.safe_getboolean("general", "color", True)
-    options.quiet = options.quiet or config.safe_getboolean("general", "quiet-mode")
-    options.redirects_history = options.redirects_history or config.safe_getboolean(
+    opt.scan_subdirs = opt.scan_subdirs or config.safe_get("general", "subdirs")
+    opt.exclude_subdirs = opt.exclude_subdirs or config.safe_get("general", "exclude-subdirs")
+    opt.skip_on_status = opt.skip_on_status or config.safe_get("general", "skip-on-status")
+    opt.maxtime = opt.maxtime or config.safe_getint("general", "max-time")
+    opt.full_url = opt.full_url or config.safe_getboolean("general", "full-url")
+    opt.color = opt.color or config.safe_getboolean("general", "color", True)
+    opt.quiet = opt.quiet or config.safe_getboolean("general", "quiet-mode")
+    opt.redirects_history = opt.redirects_history or config.safe_getboolean(
         "general", "show-redirects-history"
     )
 
     # Dictionary
-    options.wordlist = options.wordlist or config.safe_get(
+    opt.wordlist = opt.wordlist or config.safe_get(
         "dictionary", "wordlist", FileUtils.build_path(SCRIPT_PATH, "db", "dicc.txt"),
     )
-    options.prefixes = options.prefixes or config.safe_get("dictionary", "prefixes",)
-    options.suffixes = options.suffixes or config.safe_get("dictionary", "suffixes")
-    options.lowercase = options.lowercase or config.safe_getboolean("dictionary", "lowercase")
-    options.uppercase = options.uppercase or config.safe_getboolean("dictionary", "uppercase")
-    options.capitalization = options.capitalization or config.safe_getboolean("dictionary", "capitalization")
+    opt.prefixes = opt.prefixes or config.safe_get("dictionary", "prefixes",)
+    opt.suffixes = opt.suffixes or config.safe_get("dictionary", "suffixes")
+    opt.lowercase = opt.lowercase or config.safe_getboolean("dictionary", "lowercase")
+    opt.uppercase = opt.uppercase or config.safe_getboolean("dictionary", "uppercase")
+    opt.capitalization = opt.capitalization or config.safe_getboolean("dictionary", "capitalization")
 
     # Request
-    options.httpmethod = options.httpmethod or config.safe_get("request", "httpmethod", "get")
-    options.header_list = options.header_list or config.safe_get("request", "headers-file")
-    options.follow_redirects = options.follow_redirects or config.safe_getboolean("request", "follow-redirects")
-    options.use_random_agents = options.use_random_agents or config.safe_getboolean("request", "random-user-agents")
-    options.useragent = options.useragent or config.safe_get("request", "user-agent")
-    options.cookie = options.cookie or config.safe_get("request", "cookie")
+    opt.httpmethod = opt.httpmethod or config.safe_get("request", "httpmethod", "get")
+    opt.header_list = opt.header_list or config.safe_get("request", "headers-file")
+    opt.follow_redirects = opt.follow_redirects or config.safe_getboolean("request", "follow-redirects")
+    opt.use_random_agents = opt.use_random_agents or config.safe_getboolean("request", "random-user-agents")
+    opt.useragent = opt.useragent or config.safe_get("request", "user-agent")
+    opt.cookie = opt.cookie or config.safe_get("request", "cookie")
 
     # Connection
-    options.delay = options.delay or config.safe_getfloat("connection", "delay")
-    options.timeout = options.timeout or config.safe_getfloat("connection", "timeout", 7.5)
-    options.max_retries = options.max_retries or config.safe_getint("connection", "retries", 1)
-    options.maxrate = options.maxrate or config.safe_getint("connection", "max-rate")
-    options.proxy = options.proxy or config.safe_get("connection", "proxy")
-    options.proxylist = config.safe_get("connection", "proxy-list")
-    options.scheme = options.scheme or config.safe_get("connection", "scheme", None, ["http", "https"])
-    options.replay_proxy = options.replay_proxy or config.safe_get("connection", "replay-proxy")
-    options.exit_on_error = options.exit_on_error or config.safe_getboolean("connection", "exit-on-error")
+    opt.delay = opt.delay or config.safe_getfloat("connection", "delay")
+    opt.timeout = opt.timeout or config.safe_getfloat("connection", "timeout", 7.5)
+    opt.max_retries = opt.max_retries or config.safe_getint("connection", "retries", 1)
+    opt.maxrate = opt.maxrate or config.safe_getint("connection", "max-rate")
+    opt.proxy = opt.proxy or config.safe_get("connection", "proxy")
+    opt.proxylist = config.safe_get("connection", "proxy-list")
+    opt.scheme = opt.scheme or config.safe_get("connection", "scheme", None, ["http", "https"])
+    opt.replay_proxy = opt.replay_proxy or config.safe_get("connection", "replay-proxy")
+    opt.exit_on_error = opt.exit_on_error or config.safe_getboolean("connection", "exit-on-error")
 
     # Output
-    options.output_path = config.safe_get("output", "report-output-folder")
-    options.autosave_report = config.safe_getboolean("output", "autosave-report")
-    options.log_file = options.log_file or config.safe_get("output", "log-file")
-    options.output_format = options.output_format or config.safe_get(
+    opt.output_path = config.safe_get("output", "report-output-folder")
+    opt.autosave_report = config.safe_getboolean("output", "autosave-report")
+    opt.log_file = opt.log_file or config.safe_get("output", "log-file")
+    opt.output_format = opt.output_format or config.safe_get(
         "output", "report-format", "plain", OUTPUT_FORMATS
     )
 
-    return options
+    return opt

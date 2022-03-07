@@ -24,9 +24,9 @@ from lib.reports.base import FileBaseReport
 
 
 class MarkdownReport(FileBaseReport):
-    def __init__(self, output_file_name, entries=[]):
+    def __init__(self, output_file_name, entries=None):
         self.output = output_file_name
-        self.entries = entries
+        self.entries = entries or []
         self.header_written = False
         self.written_entries = []
         self.printed_target_header_list = []

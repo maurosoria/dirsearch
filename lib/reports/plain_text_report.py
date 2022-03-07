@@ -31,8 +31,8 @@ class PlainTextReport(FileBaseReport):
             header = f"# Dirsearch started {time.ctime()} as: {chr(32).join(sys.argv)}"
             header += NEW_LINE * 2
             return header
-        else:
-            return ''
+
+        return ''
 
     def generate(self):
         output = self.generate_header()

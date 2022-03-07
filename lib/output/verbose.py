@@ -24,7 +24,7 @@ from lib.core.decorators import locked
 from lib.core.settings import IS_WINDOWS
 from lib.parse.url import join_path
 from lib.utils.common import human_size
-from lib.output.colors import set_color, clean_color
+from lib.output.colors import set_color, clean_color, disable_color
 
 if IS_WINDOWS:
     from colorama.win32 import (FillConsoleOutputCharacter,
@@ -32,7 +32,7 @@ if IS_WINDOWS:
                                 STDOUT)
 
 
-class Output(object):
+class Output:
     def __init__(self, colors):
         self.last_length = 0
         self.last_in_line = False
@@ -40,7 +40,11 @@ class Output(object):
         self.blacklists = {}
         self.url = None
 
-    def erase(self):
+        if not colors:
+            disable_color()
+
+    @staticmethod
+    def erase():
         if IS_WINDOWS:
             csbi = GetConsoleScreenBufferInfo()
             line = '\b' * int(csbi.dwCursorPosition.X)
@@ -198,7 +202,6 @@ class Output(object):
         self.print_header(config)
 
     def set_target(self, target):
-        self.target = target
         self.new_line()
         self.print_header({"Target": target})
 
