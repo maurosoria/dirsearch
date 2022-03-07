@@ -21,7 +21,6 @@ import socket
 import random
 import re
 import requests
-import magic
 
 from requests.adapters import HTTPAdapter
 from requests.auth import HTTPBasicAuth, HTTPDigestAuth
@@ -35,6 +34,7 @@ from lib.core.structures import CaseInsensitiveDict
 from lib.connection.dns import cached_getaddrinfo, set_default_addr
 from lib.connection.response import Response
 from lib.utils.common import safequote
+from lib.utils.mimetype import guess_mimetype
 from lib.utils.schemedet import detect_scheme
 
 # Disable InsecureRequestWarning from urllib3
@@ -63,11 +63,14 @@ class Requester:
         self.default_scheme = kwargs.get("scheme", None)
         self.follow_redirects = kwargs.get("follow_redirects", False)
         self.random_agents = kwargs.get("random_agents", None)
-        self.headers = CaseInsensitiveDict()
+        self.headers = CaseInsensitiveDict(kwargs.get("headers", {}))
         self.session = Session()
         self.session.verify = False
 
         set_default_addr(self.ip)
+        # Guess the mime type of request data if not specified
+        if self.data and "content-type" not in self.headers:
+            self.set_header("content-type", guess_mimetype(self.data))
 
     def set_target(self, url):
         parsed = urlparse(url)
@@ -125,10 +128,7 @@ class Requester:
         self.session.mount(self.scheme + "://", HTTPAdapter(max_retries=0, pool_maxsize=self.max_pool))
 
     def set_header(self, key, value):
-        try:
-            self.headers[key.strip()] = value.strip()
-        except AttributeError:
-            pass
+        self.headers[key] = value.lstrip()
 
     def set_auth(self, type, credential):
         if type in ("bearer", "jwt", "oath2"):
@@ -168,10 +168,6 @@ class Requester:
     def request(self, path, proxy=None):
         err_msg = None
         simple_err_msg = None
-
-        # Guess the mime type of request data if not specified
-        if self.data and "content-type" not in self.headers:
-            self.set_header("content-type", magic.from_buffer(self.data.encode(), mime=True))
 
         # Why using a loop instead of max_retries argument? Check issue #1009
         for _ in range(self.max_retries + 1):

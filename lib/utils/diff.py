@@ -23,17 +23,19 @@ import re
 class DynamicContentParser:
     def __init__(self, content1, content2):
         self._differ = difflib.Differ()
-        self._diff = self.differ.compare(content1.split(), content2.split())
+        self._static_patterns = self.remove_dynamic_patterns(
+            self._differ.compare(content1.split(), content2.split())
+        )
         self.base_content = content1
 
     def remove_dynamic_patterns(self, patterns):
-        return (
+        return [
             pattern for pattern in patterns if not pattern.startswith(('-', '+'))
-        )
+        ]
 
     def compare_to(self, content):
         diff = self._differ.compare(self.base_content.split(), content.split())
-        return self.remove_dynamic_patterns(self._diff) == self.remove_dynamic_patterns(diff)
+        return self._static_patterns == self.remove_dynamic_patterns(diff)
 
 
 def generate_matching_regex(string1, string2):

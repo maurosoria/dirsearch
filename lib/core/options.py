@@ -85,7 +85,7 @@ def options():
     if opt.headers:
         try:
             headers.update(
-                HeadersParser(opt.headers).headers
+                HeadersParser('\n'.join(opt.headers)).headers
             )
         except Exception:
             print("Invalid headers")

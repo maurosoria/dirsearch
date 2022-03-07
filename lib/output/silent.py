@@ -20,8 +20,8 @@ from lib.output.verbose import Output as _Output
 
 
 class Output(_Output):
-    def status_report(self, response, full_url, added_to_queue):
-        super().status_report(response, True, added_to_queue)
+    def status_report(self, response, full_url):
+        super().status_report(response, True)
 
     def last_path(self, *args):
         pass
@@ -29,7 +29,7 @@ class Output(_Output):
     def new_directories(self, directories):
         pass
 
-    def warning(self, reason, save=True):
+    def warning(self, reason, do_save=True):
         pass
 
     def header(self, message):

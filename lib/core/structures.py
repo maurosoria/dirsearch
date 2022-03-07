@@ -19,28 +19,28 @@
 
 class AttributeDict(dict):
     def __init__(self, *args, **kwargs):
-        super(AttributeDict, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.__dict__ = self
 
 
 class CaseInsensitiveDict(dict):
     def __init__(self, *args, **kwargs):
-        super(CaseInsensitiveDict, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self._convert_keys()
 
     def __setitem__(self, key, value):
         if isinstance(key, str):
             key = key.lower()
 
-        super(CaseInsensitiveDict, self).__setitem__(key.lower(), value)
+        super().__setitem__(key.lower(), value)
 
     def __getitem__(self, key):
         if isinstance(key, str):
             key = key.lower()
 
-        return super(CaseInsensitiveDict, self).__getitem__(key.lower())
+        return super().__getitem__(key.lower())
 
     def _convert_keys(self):
         for key in list(self.keys()):
-            value = super(CaseInsensitiveDict, self).pop(key)
+            value = super().pop(key)
             self.__setitem__(key, value)
