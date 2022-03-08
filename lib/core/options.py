@@ -122,7 +122,7 @@ def options():
         opt.extensions = COMMON_EXTENSIONS
     elif opt.extensions == "CHANGELOG.md":
         print("A weird extension was provided: 'CHANGELOG.md'. Please do not use * as the "
-              "extention or enclose it in double quotes")
+              "extension or enclose it in double quotes")
         exit(0)
     else:
         opt.extensions = uniq(
