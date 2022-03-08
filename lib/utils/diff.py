@@ -29,9 +29,7 @@ class DynamicContentParser:
         self.base_content = content1
 
     def remove_dynamic_patterns(self, patterns):
-        return [
-            pattern for pattern in patterns if not pattern.startswith(('-', '+'))
-        ]
+        return [pattern for pattern in patterns if not pattern.startswith(("-", "+"))]
 
     def compare_to(self, content):
         diff = self._differ.compare(self.base_content.split(), content.split())

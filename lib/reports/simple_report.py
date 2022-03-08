@@ -22,11 +22,17 @@ from lib.reports.base import FileBaseReport
 
 class SimpleReport(FileBaseReport):
     def generate(self):
-        output = ''
+        output = ""
 
         for entry in self.entries:
             for result in entry.results:
-                if (entry.protocol, entry.host, entry.port, entry.base_path, result.path) not in self.written_entries:
+                if (
+                    entry.protocol,
+                    entry.host,
+                    entry.port,
+                    entry.base_path,
+                    result.path,
+                ) not in self.written_entries:
                     output += f"{entry.protocol}://{entry.host}:{entry.port}/"
                     output += (
                         result.path
@@ -34,6 +40,14 @@ class SimpleReport(FileBaseReport):
                         else f"{entry.base_path}/{result.path}"
                     )
                     output += NEW_LINE
-                    self.written_entries.append((entry.protocol, entry.host, entry.port, entry.base_path, result.path))
+                    self.written_entries.append(
+                        (
+                            entry.protocol,
+                            entry.host,
+                            entry.port,
+                            entry.base_path,
+                            result.path,
+                        )
+                    )
 
         return output

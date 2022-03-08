@@ -37,7 +37,7 @@ class FileBaseReport:
         self.open()
 
     def open(self):
-        self.file = open(self.output, 'w+')
+        self.file = open(self.output, "w+")
 
     @locked
     def save(self):

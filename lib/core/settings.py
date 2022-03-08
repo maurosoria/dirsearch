@@ -25,10 +25,10 @@ from lib.utils.file import FileUtils
 # Version format: <major version>.<minor version>.<revision>[.<month>]
 VERSION = "0.4.2.3"
 
-BANNER = f'''
+BANNER = f"""
   _|. _ _  _  _  _ _|_    v{VERSION}
  (_||| _) (/_(_|| (_| )
-'''
+"""
 
 SCRIPT_PATH = FileUtils.parent(__file__, 3)
 
@@ -42,9 +42,9 @@ ALLOWED_PICKLE_MODULES = ("collections", "requests", "http", "urllib3", "lib")
 
 UNSAFE_PICKLE_BUILTINS = ("eval", "exec")
 
-INVALID_CHARS_FOR_WINDOWS_FILENAME = ('"', '*', '<', '>', '?', '\\', '|', '/', ':')
+INVALID_CHARS_FOR_WINDOWS_FILENAME = ('"', "*", "<", ">", "?", "\\", "|", "/", ":")
 
-INVALID_FILENAME_CHAR_REPLACEMENT = '_'
+INVALID_FILENAME_CHAR_REPLACEMENT = "_"
 
 OUTPUT_FORMATS = ("simple", "plain", "json", "xml", "md", "csv", "html", "sqlite")
 
@@ -54,11 +54,11 @@ AUTHENTICATION_TYPES = ("basic", "digest", "bearer", "ntlm", "jwt", "oauth2")
 
 PROXY_SCHEMES = ("http://", "https://", "socks5://", "socks5h://", "socks4://", "socks4a://")
 
-INSECURE_CSV_CHARS = ('+', '-', '=', '@')
+INSECURE_CSV_CHARS = ("+", "-", "=", "@")
 
-DEFAULT_SCAN_PREFIXES = ('.',)
+DEFAULT_SCAN_PREFIXES = (".",)
 
-DEFAULT_SCAN_SUFFIXES = ('/',)
+DEFAULT_SCAN_SUFFIXES = ("/",)
 
 DEFAULT_TOR_PROXIES = list(("socks5://127.0.0.1:9050", "socks5://127.0.0.1:9150"))
 
@@ -98,4 +98,4 @@ PAUSING_WAIT_TIMEOUT = 7
 
 URL_SAFE_CHARS = string.punctuation
 
-TEXT_CHARS = bytearray({7, 8, 9, 10, 12, 13, 27} | set(range(0x20, 0x100)) - {0x7f})
+TEXT_CHARS = bytearray({7, 8, 9, 10, 12, 13, 27} | set(range(0x20, 0x100)) - {0x7F})

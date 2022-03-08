@@ -46,7 +46,7 @@ class Dictionary:
         return self._index
 
     def generate(self):
-        '''
+        """
         Dictionary.generate() behaviour
 
         Classic dirsearch wordlist:
@@ -61,7 +61,7 @@ class Dictionary:
                 append one with each extension APPENDED (line.ext) and ONLYE ONE with a slash.
               3. If the line does not include the special word and IS ALREADY terminated by slash,
                 append line unmodified.
-        '''
+        """
 
         reext = re.compile(EXTENSION_TAG, re.IGNORECASE)
         result = []
@@ -69,18 +69,20 @@ class Dictionary:
         # Enable to use multiple dictionaries at once
         for dict_file in self._dictionary_files:
             for line in FileUtils.get_lines(dict_file):
-                if line.startswith('/'):
+                if line.startswith("/"):
                     line = line[1:]
 
                 if self.no_extension:
-                    line = line.split('.')[0]
+                    line = line.split(".")[0]
 
                 # Skip comments
-                if line.lstrip().startswith('#'):
+                if line.lstrip().startswith("#"):
                     continue
 
                 # Skip if the path contains excluded extensions
-                if any('.' + extension in line for extension in self.exclude_extensions):
+                if any(
+                    "." + extension in line for extension in self.exclude_extensions
+                ):
                     continue
 
                 # Classic dirsearch wordlist processing (with %EXT% keyword)
@@ -90,12 +92,16 @@ class Dictionary:
                         result.append(newline)
                 # If "forced extensions" is used and the path is not a directory (terminated by /) or has
                 # had an extension already, append extensions to the path
-                elif self.force_extensions and not line.endswith('/') and not re.search(EXTENSION_REGEX, line):
+                elif (
+                    self.force_extensions
+                    and not line.endswith("/")
+                    and not re.search(EXTENSION_REGEX, line)
+                ):
                     for extension in self.extensions:
                         result.append(line + f".{extension}")
 
                     result.append(line)
-                    result.append(line + '/')
+                    result.append(line + "/")
                 # Append line unmodified.
                 elif not self.only_selected or any(
                     line.endswith(f".{extension}") for extension in self.extensions
@@ -104,11 +110,17 @@ class Dictionary:
 
         # Re-add dictionary with prefixes
         result.extend(
-            [pref + path for path in result for pref in self.prefixes if not path.startswith(pref)]
+            pref + path
+            for path in result
+            for pref in self.prefixes
+            if not path.startswith(pref)
         )
         # Re-add dictionary with suffixes
         result.extend(
-            [path + suff for path in result for suff in self.suffixes if not path.endswith(("/", suff))]
+            path + suff
+            for path in result
+            for suff in self.suffixes
+            if not path.endswith(("/", suff))
         )
 
         if self.lowercase:
@@ -138,7 +150,9 @@ class Dictionary:
                 # Skip if cannot read file
                 continue
 
-            blacklists[status] = set(Dictionary(paths=[blacklist_file_name], extensions=extensions))
+            blacklists[status] = set(
+                Dictionary(paths=[blacklist_file_name], extensions=extensions)
+            )
 
         return blacklists
 

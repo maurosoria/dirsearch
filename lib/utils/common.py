@@ -27,7 +27,7 @@ from urllib.parse import quote
 from lib.core.settings import (
     INVALID_CHARS_FOR_WINDOWS_FILENAME, INSECURE_CSV_CHARS,
     INVALID_FILENAME_CHAR_REPLACEMENT, ALLOWED_PICKLE_MODULES,
-    UNSAFE_PICKLE_BUILTINS, URL_SAFE_CHARS, TEXT_CHARS
+    UNSAFE_PICKLE_BUILTINS, URL_SAFE_CHARS, TEXT_CHARS,
 )
 
 
@@ -88,7 +88,8 @@ class RestrictedUnpickler(_pickle.Unpickler):
     def find_class(self, module, name):
         if (
             module in ALLOWED_PICKLE_MODULES
-            or module == "builtins" and name not in UNSAFE_PICKLE_BUILTINS
+            or module == "builtins"
+            and name not in UNSAFE_PICKLE_BUILTINS
             or any(
                 module.startswith(f"{module_}.") for module_ in ALLOWED_PICKLE_MODULES
             )

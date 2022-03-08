@@ -63,7 +63,7 @@ class FileUtils:
         if path_components:
             path = os.path.join(*path_components)
         else:
-            path = ''
+            path = ""
 
         return path
 
@@ -93,7 +93,7 @@ class FileUtils:
 
     @staticmethod
     def read(file_name):
-        return open(file_name, 'r').read()
+        return open(file_name, "r").read()
 
     @staticmethod
     def read_dir(directory):
@@ -131,11 +131,11 @@ class FileUtils:
 
     @staticmethod
     def create_file(file):
-        open(file, 'w').close()
+        open(file, "w").close()
 
     @staticmethod
     def write_lines(file_name, lines, overwrite=False):
         if isinstance(lines, list):
             lines = os.linesep.join(lines)
-        with open(file_name, 'w' if overwrite else 'a') as f:
+        with open(file_name, "w" if overwrite else "a") as f:
             f.writelines(lines)

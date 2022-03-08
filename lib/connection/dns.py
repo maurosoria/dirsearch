@@ -19,22 +19,20 @@
 from socket import getaddrinfo
 
 _dns_cache = {}
-_default_addr = None
 
 
-def set_default_addr(addr):
-    global _default_addr
-
-    _default_addr = addr
+def set_custom_dns(domain, addr):
+    _dns_cache[domain] = getaddrinfo(addr, 65535)
 
 
-# Replacement for socket.getaddrinfo, they are the same but this function does cache
-# the answer to improve the performance
-def cached_getaddrinfo(*args):
+def cached_getaddrinfo(*args, **kwargs):
+    """
+    Replacement for socket.getaddrinfo, they are the same but this function
+    does cache the answer to improve the performance
+    """
+
     host = args[0]
+    if host not in _dns_cache:
+        _dns_cache[host] = getaddrinfo(*args, **kwargs)
 
-    try:
-        return getaddrinfo(_default_addr, *args[1:]) if _default_addr else _dns_cache[host]
-    except KeyError:
-        _dns_cache[host] = getaddrinfo(*args)
-        return cached_getaddrinfo(*args)
+    return _dns_cache[host]

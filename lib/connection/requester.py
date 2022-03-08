@@ -31,7 +31,7 @@ from urllib.parse import urlparse
 from lib.core.exceptions import MissingProxy, InvalidURLException, RequestException
 from lib.core.settings import READ_RESPONSE_ERROR_REGEX, PROXY_SCHEMES, UNKNOWN
 from lib.core.structures import CaseInsensitiveDict
-from lib.connection.dns import cached_getaddrinfo, set_default_addr
+from lib.connection.dns import cached_getaddrinfo, set_custom_dns
 from lib.connection.response import Response
 from lib.utils.common import safequote
 from lib.utils.mimetype import guess_mimetype
@@ -46,7 +46,9 @@ socket.getaddrinfo = cached_getaddrinfo
 class Session(requests.Session):
     def merge_environment_settings(self, url, proxies, stream, verify, *args, **kwargs):
         # Reference: https://github.com/psf/requests/issues/3829
-        return super().merge_environment_settings(url, proxies, stream, self.verify, *args, **kwargs)
+        return super().merge_environment_settings(
+            url, proxies, stream, self.verify, *args, **kwargs
+        )
 
 
 class Requester:
@@ -67,7 +69,6 @@ class Requester:
         self.session = Session()
         self.session.verify = False
 
-        set_default_addr(self.ip)
         # Guess the mime type of request data if not specified
         if self.data and "content-type" not in self.headers:
             self.set_header("content-type", guess_mimetype(self.data))
@@ -80,15 +81,17 @@ class Requester:
             parsed = urlparse(f"{self.default_scheme or UNKNOWN}://{url}")
 
         self.base_path = parsed.path
-        if parsed.path.startswith('/'):
+        if parsed.path.startswith("/"):
             self.base_path = parsed.path[1:]
 
         # Credentials in URL (https://[user]:[password]@website.com)
         if "@" in parsed.netloc:
-            cred, parsed.netloc = parsed.netloc.split('@')
+            cred, parsed.netloc = parsed.netloc.split("@")
             self.set_auth("basic", cred)
 
         self.host = parsed.netloc.split(":")[0]
+        if self.ip:
+            set_custom_dns(self.host, self.ip)
 
         # Standard ports for different schemes
         port_for_scheme = {"http": 80, "https": 443, UNKNOWN: None}
@@ -105,12 +108,16 @@ class Requester:
         except IndexError:
             self.port = port_for_scheme[parsed.scheme]
         except ValueError:
-            invalid_port = parsed.netloc.split(':')[1]
+            invalid_port = parsed.netloc.split(":")[1]
             raise InvalidURLException(f"Invalid port number: {invalid_port}")
 
         try:
             # If no scheme is found, detect it by port number
-            self.scheme = parsed.scheme if parsed.scheme != UNKNOWN else detect_scheme(self.host, self.port)
+            self.scheme = (
+                parsed.scheme
+                if parsed.scheme != UNKNOWN
+                else detect_scheme(self.host, self.port)
+            )
         except ValueError:
             # If the user neither provides the port nor scheme, guess them based
             # on standard website characteristics
@@ -125,7 +132,9 @@ class Requester:
 
         self.url += "/"
 
-        self.session.mount(self.scheme + "://", HTTPAdapter(max_retries=0, pool_maxsize=self.max_pool))
+        self.session.mount(
+            self.scheme + "://", HTTPAdapter(max_retries=0, pool_maxsize=self.max_pool)
+        )
 
     def set_header(self, key, value):
         self.headers[key] = value.lstrip()
@@ -136,9 +145,9 @@ class Requester:
         else:
             user = credential.split(":")[0]
             try:
-                password = ':'.join(credential.split(':')[1:])
+                password = ":".join(credential.split(":")[1:])
             except IndexError:
-                password = ''
+                password = ""
 
             if type == "basic":
                 self.session.auth = HTTPBasicAuth(user, password)
@@ -154,7 +163,7 @@ class Requester:
         if not proxy.startswith(PROXY_SCHEMES):
             proxy = f"http://{proxy}"
 
-        if self._proxy_cred and '@' not in proxy:
+        if self._proxy_cred and "@" not in proxy:
             # socks5://localhost:9050 => socks5://[credential]@localhost:9050
             proxy = proxy.replace("://", f"://{self._proxy_cred}@", 1)
 
@@ -242,6 +251,8 @@ class Requester:
                 ):
                     simple_err_msg = f"Request timeout: {self.url}"
                 else:
-                    simple_err_msg = f"There was a problem in the request to: {self.url}"
+                    simple_err_msg = (
+                        f"There was a problem in the request to: {self.url}"
+                    )
 
         raise RequestException(simple_err_msg, err_msg)

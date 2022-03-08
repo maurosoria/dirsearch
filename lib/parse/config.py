@@ -23,7 +23,7 @@ class ConfigParser(configparser.ConfigParser):
     def __init__(self):
         configparser.ConfigParser.__init__(self)
 
-    def safe_get(self, section, option, default='', allowed=None):
+    def safe_get(self, section, option, default="", allowed=None):
         try:
             result = configparser.ConfigParser.get(self, section, option)
 

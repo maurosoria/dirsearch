@@ -27,14 +27,20 @@ class CSVReport(FileBaseReport):
             self.header_written = True
             return "URL,Status,Size,Content Type,Redirection" + NEW_LINE
 
-        return ''
+        return ""
 
     def generate(self):
         output = self.generate_header()
 
         for entry in self.entries:
             for result in entry.results:
-                if (entry.protocol, entry.host, entry.port, entry.base_path, result.path) not in self.written_entries:
+                if (
+                    entry.protocol,
+                    entry.host,
+                    entry.port,
+                    entry.base_path,
+                    result.path,
+                ) not in self.written_entries:
                     output += f"{entry.protocol}://{entry.host}:{entry.port}/{entry.base_path}{result.path},"
                     output += f"{result.status},{result.response.length},{result.response.type}"
 
@@ -42,6 +48,14 @@ class CSVReport(FileBaseReport):
                         output += f'"{escape_csv(result.response.redirect)}"'
 
                     output += NEW_LINE
-                    self.written_entries.append((entry.protocol, entry.host, entry.port, entry.base_path, result.path))
+                    self.written_entries.append(
+                        (
+                            entry.protocol,
+                            entry.host,
+                            entry.port,
+                            entry.base_path,
+                            result.path,
+                        )
+                    )
 
         return output

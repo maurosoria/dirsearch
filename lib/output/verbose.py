@@ -27,17 +27,17 @@ from lib.utils.common import human_size
 from lib.output.colors import set_color, clean_color, disable_color
 
 if IS_WINDOWS:
-    from colorama.win32 import (FillConsoleOutputCharacter,
-                                GetConsoleScreenBufferInfo,
-                                STDOUT)
+    from colorama.win32 import (
+        FillConsoleOutputCharacter,
+        GetConsoleScreenBufferInfo,
+        STDOUT,
+    )
 
 
 class Output:
     def __init__(self, colors):
-        self.last_length = 0
         self.last_in_line = False
-        self.buffer = ''
-        self.blacklists = {}
+        self.buffer = ""
         self.url = None
 
         if not colors:
@@ -47,11 +47,11 @@ class Output:
     def erase():
         if IS_WINDOWS:
             csbi = GetConsoleScreenBufferInfo()
-            line = '\b' * int(csbi.dwCursorPosition.X)
+            line = "\b" * int(csbi.dwCursorPosition.X)
             sys.stdout.write(line)
             width = csbi.dwCursorPosition.X
             csbi.dwCursorPosition.X = 0
-            FillConsoleOutputCharacter(STDOUT, ' ', width, csbi.dwCursorPosition)
+            FillConsoleOutputCharacter(STDOUT, " ", width, csbi.dwCursorPosition)
             sys.stdout.write(line)
             sys.stdout.flush()
 
@@ -67,18 +67,18 @@ class Output:
         self.last_in_line = True
 
     @locked
-    def new_line(self, string='', do_save=True):
+    def new_line(self, string="", do_save=True):
         if self.last_in_line:
             self.erase()
 
         if IS_WINDOWS:
             sys.stdout.write(string)
             sys.stdout.flush()
-            sys.stdout.write('\n')
+            sys.stdout.write("\n")
             sys.stdout.flush()
 
         else:
-            sys.stdout.write(string + '\n')
+            sys.stdout.write(string + "\n")
 
         sys.stdout.flush()
         self.last_in_line = False
@@ -86,14 +86,16 @@ class Output:
 
         if do_save:
             self.buffer += string
-            self.buffer += '\n'
+            self.buffer += "\n"
 
     def status_report(self, response, full_url):
         status = response.status
-        content_length = human_size(response.length)
-        show_path = join_path(self.url, response.full_path) if full_url else response.full_path
+        length = human_size(response.length)
+        show_path = (
+            join_path(self.url, response.full_path) if full_url else response.full_path
+        )
         current_time = time.strftime("%H:%M:%S")
-        message = f"[{current_time}] {status} - {content_length.rjust(6, ' ')} - {show_path}"
+        message = f"[{current_time}] {status} - {length.rjust(6, ' ')} - {show_path}"
 
         if status in (200, 201, 204):
             message = set_color(message, fore="green")
@@ -118,18 +120,19 @@ class Output:
 
     def last_path(self, index, length, current_job, all_jobs, rate, errors):
         percentage = int(index / length * 100)
-        task = set_color('#', fore="cyan", bright=True) * int(percentage / 5)
-        task += ' ' * (20 - int(percentage / 5))
+        task = set_color("#", fore="cyan", style="bright") * int(percentage / 5)
+        task += " " * (20 - int(percentage / 5))
         progress = f"{index}/{length}"
 
-        grean_job = set_color("job", fore="green", bright=True)
+        grean_job = set_color("job", fore="green", style="bright")
         jobs = f"{grean_job}:{current_job}/{all_jobs}"
 
-        red_error = set_color("errors", fore="red", bright=True)
+        red_error = set_color("errors", fore="red", style="bright")
         errors = f"{red_error}:{errors}"
 
         progress_bar = f"[{task}] {str(percentage).rjust(2, chr(32))}% "
-        progress_bar += f"{progress.rjust(12, chr(32))} {str(rate).rjust(9, chr(32))}/s       "
+        progress_bar += f"{progress.rjust(12, chr(32))} "
+        progress_bar += f"{str(rate).rjust(9, chr(32))}/s       "
         progress_bar += f"{jobs.ljust(21, chr(32))} {errors}"
 
         if len(clean_color(progress_bar)) >= shutil.get_terminal_size()[0]:
@@ -138,29 +141,31 @@ class Output:
         self.in_line(progress_bar)
 
     def new_directories(self, directories):
-        directories_string = ', '.join(directories)
+        directories_string = ", ".join(directories)
         if directories_string:
-            message = set_color(f"Added to the queue: {directories_string}", fore="white", bright=True)
+            message = set_color(
+                f"Added to the queue: {directories_string}", fore="yellow", style="dim"
+            )
             self.new_line(message)
 
     def error(self, reason):
-        message = set_color(reason, fore="white", back="red", bright=True)
-        self.new_line('\n' + message)
+        message = set_color(reason, fore="white", back="red", style="bright")
+        self.new_line("\n" + message)
 
     def warning(self, message, do_save=True):
-        message = set_color(message, fore="yellow", bright=True)
+        message = set_color(message, fore="yellow", style="bright")
         self.new_line(message, do_save=do_save)
 
     def header(self, message):
-        message = set_color(message, fore="magenta", bright=True)
+        message = set_color(message, fore="magenta", style="bright")
         self.new_line(message)
 
     def print_header(self, entries):
-        msg = ''
+        msg = ""
 
         for key, value in entries.items():
-            new = set_color(key + ": ", fore="yellow", bright=True)
-            new += set_color(value, fore="cyan", bright=True)
+            new = set_color(key + ": ", fore="yellow", style="bright")
+            new += set_color(value, fore="cyan", style="bright")
 
             if not msg:
                 msg += new
@@ -169,9 +174,9 @@ class Output:
             new_line = msg.splitlines()[-1] + " | " + new
 
             if len(clean_color(new_line)) >= shutil.get_terminal_size()[0]:
-                msg += '\n'
+                msg += "\n"
             else:
-                msg += set_color(" | ", fore="magenta", bright=True)
+                msg += set_color(" | ", fore="magenta", style="bright")
 
             msg += new
 

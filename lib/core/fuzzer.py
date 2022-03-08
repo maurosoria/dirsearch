@@ -19,9 +19,13 @@
 import threading
 import time
 
+from lib.core.decorators import cached
 from lib.core.exceptions import RequestException
 from lib.core.scanner import Scanner
-from lib.core.settings import DEFAULT_SCAN_PREFIXES, DEFAULT_SCAN_SUFFIXES, RATE_UPDATE_DELAY
+from lib.core.settings import (
+    DEFAULT_SCAN_PREFIXES, DEFAULT_SCAN_SUFFIXES,
+    RATE_UPDATE_DELAY,
+)
 from lib.parse.url import clean_path
 
 
@@ -61,10 +65,6 @@ class Fuzzer:
 
         return True
 
-    def rate_adjuster(self):
-        while not self.wait(RATE_UPDATE_DELAY):
-            self.rate = self._rate
-
     def setup_scanners(self):
         if len(self.scanners):
             self.scanners = {
@@ -92,10 +92,8 @@ class Fuzzer:
                 )
 
         if self.exclude_response:
-            if self.exclude_response.startswith("/"):
-                self.exclude_response = self.exclude_response[1:]
             self.calibration = Scanner(
-                self._requester, calibration=self.exclude_response, tested=self.scanners
+                self._requester, custom=self.exclude_response, tested=self.scanners
             )
 
     def setup_threads(self):
@@ -135,14 +133,10 @@ class Fuzzer:
         self._running_threads_count = len(self._threads)
         self._is_running = True
         self._rate = 0
-        # Approximate rate, `rate` updates information from `_rate`
-        # every after an amount of time
-        self.rate = 0
         self._play_event.clear()
 
         for thread in self._threads:
             thread.start()
-        threading.Thread(target=self.rate_adjuster, daemon=True).start()
 
         self.play()
 
@@ -241,3 +235,8 @@ class Fuzzer:
                     break
 
                 time.sleep(self.delay)
+
+    @property
+    @cached(RATE_UPDATE_DELAY)
+    def rate(self):
+        return self._rate

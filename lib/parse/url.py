@@ -19,16 +19,16 @@
 
 # Remove parameters and fragment from the URL
 def clean_path(path):
-    return path.split('?')[0].split('#')[0]
+    return path.split("?")[0].split("#")[0]
 
 
 def parse_full_path(url):
-    if url.startswith('/') and not url.startswith("//"):
+    if url.startswith("/") and not url.startswith("//"):
         return url
     elif "//" not in url:
-        return '/' + url
+        return "/" + url
 
-    return '/' + '/'.join(url.split('/')[3:])
+    return "/" + "/".join(url.split("/")[3:])
 
 
 def parse_path(url):
@@ -36,17 +36,17 @@ def parse_path(url):
 
 
 def join_path(*components):
-    result = ''
+    result = ""
 
     for component in [*components]:
         if not component:
             continue
 
         if result:
-            if result.endswith('/'):
+            if result.endswith("/"):
                 result = result[:-1]
-            if not component.startswith('/'):
-                result += '/'
+            if not component.startswith("/"):
+                result += "/"
 
         result += component
 

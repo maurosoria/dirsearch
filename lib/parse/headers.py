@@ -49,12 +49,10 @@ class HeadersParser:
         if not headers:
             return
 
-        return NEW_LINE.join(
-            f"{key}: {value}" for key, value in headers.items()
-        )
+        return NEW_LINE.join(f"{key}: {value}" for key, value in headers.items())
 
     def __iter__(self):
-        return iter(self.headers)
+        return iter(self.headers.items())
 
     def __str__(self):
         return self.str
