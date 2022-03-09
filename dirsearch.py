@@ -31,14 +31,18 @@ if sys.version_info < (3, 7):
 try:
     check_dependencies()
 except (DistributionNotFound, VersionConflict):
-    print("Installing required dependencies to run dirsearch...")
+    option = input("Missing required dependencies to run.\n"
+                   "Do you want dirsearch to automatically install them? [Y/n] ")
 
-    try:
-        install_dependencies()
-    except FailedDependenciesInstallation:
-        msg = "Failed to install required dependencies, try doing "
-        msg += "it manually by: pip install -r requirements.txt"
-        print(msg)
+    if option.lower == 'y':
+        print("Installing required dependencies...")
+
+        try:
+            install_dependencies()
+        except FailedDependenciesInstallation:
+            print("Failed to install dirsearch dependencies, try doing it manually.")
+            exit(1)
+    else:
         exit(1)
 
 
