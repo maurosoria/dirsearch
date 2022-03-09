@@ -37,21 +37,33 @@ class SQLiteReport(FileBaseReport):
         table = f"{base.protocol}_{base.host}:{base.port}/{base.base_path}"
         commands.append([f"DROP TABLE IF EXISTS `{table}`"])
         commands.append(
-            [f'''CREATE TABLE `{table}`
+            [
+                f"""CREATE TABLE `{table}`
                 ([time] TEXT, [path] TEXT, [status_code] INTEGER, [content_length] INTEGER, [content_type] TEXT, [redirect] TEXT)
-             ''']
+             """
+            ]
         )
 
         for entry in self.entries:
             for result in entry.results:
                 path = "/" + entry.base_path + result.path
-                commands.append([f'''
+                commands.append(
+                    [
+                        f"""
                     INSERT INTO `{table}` (time, path, status_code, content_length, content_type, redirect)
                         VALUES
                         (?, ?, ?, ?, ?, ?)
-                                ''', (
-                    time.ctime(), path, result.status, result.response.length, result.response.type, result.response.redirect
-                )])
+                                """,
+                        (
+                            time.ctime(),
+                            path,
+                            result.status,
+                            result.response.length,
+                            result.response.type,
+                            result.response.redirect,
+                        ),
+                    ]
+                )
 
         return commands
 

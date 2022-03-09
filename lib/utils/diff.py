@@ -20,7 +20,7 @@ import difflib
 import re
 
 
-class DynamicContentParser(object):
+class DynamicContentParser:
     def __init__(self, content1, content2):
         self._differ = difflib.Differ()
         self._static_patterns = self.remove_dynamic_patterns(
@@ -29,9 +29,7 @@ class DynamicContentParser(object):
         self.base_content = content1
 
     def remove_dynamic_patterns(self, patterns):
-        return [
-            pattern for pattern in patterns if not pattern.startswith(('-', '+'))
-        ]
+        return [pattern for pattern in patterns if not pattern.startswith(("-", "+"))]
 
     def compare_to(self, content):
         diff = self._differ.compare(self.base_content.split(), content.split())

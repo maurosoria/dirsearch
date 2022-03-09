@@ -1,8 +1,8 @@
-import setuptools
-import os
 import io
-import tempfile
+import os
+import setuptools
 import shutil
+import tempfile
 
 from lib.core.settings import VERSION
 
@@ -12,12 +12,11 @@ with io.open(os.path.join(current_dir, "README.md"), encoding="utf-8") as fd:
     desc = fd.read()
 
 env_dir = tempfile.mkdtemp(prefix="dirsearch-install-")
-shutil.copytree(os.path.abspath(os.getcwd()),
-                os.path.join(env_dir, "dirsearch"))
+shutil.copytree(os.path.abspath(os.getcwd()), os.path.join(env_dir, "dirsearch"))
 
 os.chdir(env_dir)
 
-with open('requirements.txt') as fd:
+with open("requirements.txt") as fd:
     required_dependencies = fd.read().splitlines()
 
 setuptools.setup(
@@ -30,12 +29,8 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/maurosoria/dirsearch",
     packages=setuptools.find_packages(),
-    entry_points={
-        "console_scripts": ["dirsearch=dirsearch.dirsearch:Program"]
-    },
-    package_data={
-        "dirsearch": ["*", "db/*"]
-    },
+    entry_points={"console_scripts": ["dirsearch=dirsearch.dirsearch:Program"]},
+    package_data={"dirsearch": ["*", "db/*"]},
     include_package_data=True,
     python_requires=">=3.7",
     install_requires=required_dependencies,
@@ -46,7 +41,7 @@ setuptools.setup(
         "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
         "Operating System :: OS Independent",
         "Topic :: Security",
-        "Programming Language :: Python :: 3.7"
+        "Programming Language :: Python :: 3.7",
     ],
     keywords=["infosec", "bug bounty", "pentesting", "security"],
 )

@@ -18,7 +18,33 @@
 
 import threading
 
+from functools import wraps
+from time import time
+
 _lock = threading.Lock()
+_cache = {}
+_cache_lock = threading.Lock()
+
+
+def cached(timeout):
+    def _cached(func):
+        @wraps(func)
+        def with_caching(*args, **kwargs):
+            key = id(func)
+
+            # If it was cached and the cache timeout hasn't been reached
+            if key in _cache and time() - _cache[key][0] < timeout:
+                return _cache[key][1]
+
+            with _cache_lock:
+                result = func(*args, **kwargs)
+                _cache[key] = (time(), result)
+
+            return result
+
+        return with_caching
+
+    return _cached
 
 
 def locked(func):

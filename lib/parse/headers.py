@@ -22,7 +22,7 @@ from lib.core.settings import NEW_LINE
 from lib.core.structures import CaseInsensitiveDict
 
 
-class HeadersParser(object):
+class HeadersParser:
     def __init__(self, headers):
         self.str = self.dict = headers
 
@@ -49,12 +49,10 @@ class HeadersParser(object):
         if not headers:
             return
 
-        return NEW_LINE.join(
-            f"{key}: {value}" for key, value in headers.items()
-        )
+        return NEW_LINE.join(f"{key}: {value}" for key, value in headers.items())
 
     def __iter__(self):
-        return iter(self.headers)
+        return iter(self.headers.items())
 
     def __str__(self):
         return self.str

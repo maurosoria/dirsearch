@@ -19,24 +19,30 @@
 import threading
 import time
 
+from lib.core.decorators import cached
 from lib.core.exceptions import RequestException
 from lib.core.scanner import Scanner
-from lib.core.settings import DEFAULT_SCAN_PREFIXES, DEFAULT_SCAN_SUFFIXES, RATE_UPDATE_DELAY
+from lib.core.settings import (
+    DEFAULT_SCAN_PREFIXES, DEFAULT_SCAN_SUFFIXES,
+    RATE_UPDATE_DELAY,
+)
 from lib.parse.url import clean_path
 
 
-class Fuzzer(object):
+class Fuzzer:
     def __init__(self, requester, dictionary, **kwargs):
-        self.requester = requester
-        self.dictionary = dictionary
+        self._threads = []
+        self._requester = requester
+        self._dictionary = dictionary
+        self._is_running = False
+        self._play_event = threading.Event()
+        self._paused_semaphore = threading.Semaphore(0)
         self.suffixes = kwargs.get("suffixes", [])
         self.prefixes = kwargs.get("prefixes", [])
         self.exclude_response = kwargs.get("exclude_response", None)
-        self.threads = []
         self.threads_count = kwargs.get("threads", 15)
         self.delay = kwargs.get("delay", 0)
         self.maxrate = kwargs.get("maxrate", 0)
-        self.running = False
         self.calibration = None
         self.default_scanner = None
         self.match_callbacks = kwargs.get("match_callbacks", [])
@@ -47,21 +53,17 @@ class Fuzzer(object):
             "suffixes": {},
         }
 
-        if len(self.dictionary) < self.threads_count:
-            self.threads_count = len(self.dictionary)
+        if len(self._dictionary) < self.threads_count:
+            self.threads_count = len(self._dictionary)
 
     def wait(self, timeout=None):
-        for thread in self.threads:
+        for thread in self._threads:
             thread.join(timeout)
 
             if timeout and thread.is_alive():
                 return False
 
         return True
-
-    def rate_adjuster(self):
-        while not self.wait(RATE_UPDATE_DELAY):
-            self.rate = self._rate
 
     def setup_scanners(self):
         if len(self.scanners):
@@ -71,39 +73,37 @@ class Fuzzer(object):
             }
 
         # Default scanners (wildcard testers)
-        self.default_scanner = Scanner(self.requester)
+        self.default_scanner = Scanner(self._requester)
 
         for prefix in self.prefixes.union(DEFAULT_SCAN_PREFIXES):
             self.scanners["prefixes"][prefix] = Scanner(
-                self.requester, prefix=prefix, tested=self.scanners
+                self._requester, prefix=prefix, tested=self.scanners
             )
 
         for suffix in self.suffixes.union(DEFAULT_SCAN_SUFFIXES):
             self.scanners["suffixes"][suffix] = Scanner(
-                self.requester, suffix=suffix, tested=self.scanners
+                self._requester, suffix=suffix, tested=self.scanners
             )
 
-        for extension in self.dictionary.extensions:
+        for extension in self._dictionary.extensions:
             if "." + extension not in self.scanners["suffixes"]:
                 self.scanners["suffixes"]["." + extension] = Scanner(
-                    self.requester, suffix="." + extension, tested=self.scanners
+                    self._requester, suffix="." + extension, tested=self.scanners
                 )
 
         if self.exclude_response:
-            if self.exclude_response.startswith("/"):
-                self.exclude_response = self.exclude_response[1:]
             self.calibration = Scanner(
-                self.requester, calibration=self.exclude_response, tested=self.scanners
+                self._requester, custom=self.exclude_response, tested=self.scanners
             )
 
     def setup_threads(self):
-        if len(self.threads):
-            self.threads = []
+        if self._threads:
+            self._threads = []
 
-        for thread in range(self.threads_count):
+        for _ in range(self.threads_count):
             new_thread = threading.Thread(target=self.thread_proc)
             new_thread.daemon = True
-            self.threads.append(new_thread)
+            self._threads.append(new_thread)
 
     def get_scanner_for(self, path):
         # Clean the path, so can check for extensions/suffixes
@@ -120,7 +120,7 @@ class Fuzzer(object):
             if path.endswith(suffix):
                 yield self.scanners["suffixes"][suffix]
 
-        for extension in self.dictionary.extensions:
+        for extension in self._dictionary.extensions:
             if path.endswith("." + extension):
                 yield self.scanners["suffixes"]["." + extension]
 
@@ -129,45 +129,40 @@ class Fuzzer(object):
     def start(self):
         self.setup_scanners()
         self.setup_threads()
-        self._running_threads_count = len(self.threads)
-        self._rate = 0
-        # Approximate rate, `rate` updates information from `_rate`
-        # every after an amount of time
-        self.rate = 0
-        self.running = True
-        self.paused = False
-        self.play_event = threading.Event()
-        self.paused_semaphore = threading.Semaphore(0)
-        self.play_event.clear()
 
-        for thread in self.threads:
+        self._running_threads_count = len(self._threads)
+        self._is_running = True
+        self._rate = 0
+        self._play_event.clear()
+
+        for thread in self._threads:
             thread.start()
-        threading.Thread(target=self.rate_adjuster, daemon=True).start()
 
         self.play()
 
     def play(self):
-        self.play_event.set()
+        self._play_event.set()
 
     def pause(self):
-        self.paused = True
-        self.play_event.clear()
-        for thread in self.threads:
+        self._play_event.clear()
+        for thread in self._threads:
             if thread.is_alive():
-                self.paused_semaphore.acquire()
+                self._paused_semaphore.acquire()
+
+        self._is_running = False
 
     def resume(self):
-        self.paused = False
-        self.paused_semaphore.release()
+        self._is_running = True
+        self._paused_semaphore.release()
         self.play()
 
     def stop(self):
-        self.running = False
+        self._is_running = False
         self.play()
 
     def scan(self, path):
         wildcard = False
-        response = self.requester.request(path)
+        response = self._requester.request(path)
 
         for tester in list(set(self.get_scanner_for(path))):
             if not tester.scan(path, response):
@@ -196,14 +191,14 @@ class Fuzzer(object):
         threading.Timer(1, self.decrease_rate).start()
 
     def set_base_path(self, path):
-        self.requester.base_path = path
+        self._requester.base_path = path
 
     def thread_proc(self):
-        self.play_event.wait()
+        self._play_event.wait()
 
         while 1:
             try:
-                path = next(self.dictionary)
+                path = next(self._dictionary)
 
                 # Pause if the request rate exceeded the maximum
                 while self.is_rate_exceeded():
@@ -221,7 +216,7 @@ class Fuzzer(object):
                         callback(path, response)
 
             except StopIteration:
-                break
+                self._is_running = False
 
             except RequestException as e:
                 for callback in self.error_callbacks:
@@ -230,13 +225,18 @@ class Fuzzer(object):
                 continue
 
             finally:
-                if not self.play_event.is_set():
+                if not self._play_event.is_set():
                     self.decrease_threads()
-                    self.paused_semaphore.release()
-                    self.play_event.wait()
+                    self._paused_semaphore.release()
+                    self._play_event.wait()
                     self.increase_threads()
 
-                if not self.running:
+                if not self._is_running:
                     break
 
                 time.sleep(self.delay)
+
+    @property
+    @cached(RATE_UPDATE_DELAY)
+    def rate(self):
+        return self._rate

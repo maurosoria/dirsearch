@@ -16,8 +16,9 @@
 #
 #  Author: Mauro Soria
 
-from lib.core.settings import NEW_LINE, INSECURE_CSV_CHARS
+from lib.core.settings import NEW_LINE
 from lib.reports.base import FileBaseReport
+from lib.utils.common import escape_csv
 
 
 class CSVReport(FileBaseReport):
@@ -25,29 +26,36 @@ class CSVReport(FileBaseReport):
         if self.header_written is False:
             self.header_written = True
             return "URL,Status,Size,Content Type,Redirection" + NEW_LINE
-        else:
-            return ''
 
-    # Preventing CSV injection. More info: https://www.exploit-db.com/exploits/49370
-    def clear_csv_attr(self, text):
-        if text.startswith(INSECURE_CSV_CHARS):
-            text = "'" + text
-
-        return text.replace('"', '""')
+        return ""
 
     def generate(self):
         output = self.generate_header()
 
         for entry in self.entries:
             for result in entry.results:
-                if (entry.protocol, entry.host, entry.port, entry.base_path, result.path) not in self.written_entries:
+                if (
+                    entry.protocol,
+                    entry.host,
+                    entry.port,
+                    entry.base_path,
+                    result.path,
+                ) not in self.written_entries:
                     output += f"{entry.protocol}://{entry.host}:{entry.port}/{entry.base_path}{result.path},"
                     output += f"{result.status},{result.response.length},{result.response.type}"
 
                     if result.response.redirect:
-                        output += f'"{self.clean_csv_attr(result.response.redirect)}"'
+                        output += f'"{escape_csv(result.response.redirect)}"'
 
                     output += NEW_LINE
-                    self.written_entries.append((entry.protocol, entry.host, entry.port, entry.base_path, result.path))
+                    self.written_entries.append(
+                        (
+                            entry.protocol,
+                            entry.host,
+                            entry.port,
+                            entry.base_path,
+                            result.path,
+                        )
+                    )
 
         return output

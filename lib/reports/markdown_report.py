@@ -24,9 +24,9 @@ from lib.reports.base import FileBaseReport
 
 
 class MarkdownReport(FileBaseReport):
-    def __init__(self, output_file_name, entries=[]):
+    def __init__(self, output_file_name, entries=None):
         self.output = output_file_name
-        self.entries = entries
+        self.entries = entries or []
         self.header_written = False
         self.written_entries = []
         self.printed_target_header_list = []
@@ -36,7 +36,7 @@ class MarkdownReport(FileBaseReport):
 
     def generate_header(self):
         if self.header_written:
-            return ''
+            return ""
 
         self.header_written = True
         header = "### Info" + NEW_LINE
@@ -50,22 +50,45 @@ class MarkdownReport(FileBaseReport):
         output = self.generate_header()
 
         for entry in self.entries:
-            header_name = "{entry.protocol}://{entry.host}:{entry.port}/{entry.base_path}"
+            header_name = (
+                "{entry.protocol}://{entry.host}:{entry.port}/{entry.base_path}"
+            )
 
-            if (entry.protocol, entry.host, entry.port, entry.base_path) not in self.printed_target_header_list:
+            if (
+                entry.protocol,
+                entry.host,
+                entry.port,
+                entry.base_path,
+            ) not in self.printed_target_header_list:
                 output += f"### Target: {header_name}"
                 output += NEW_LINE * 2
                 output += "Path | Status | Size | Content Type | Redirection" + NEW_LINE
                 output += "-----|--------|------|--------------|------------" + NEW_LINE
-                self.printed_target_header_list.append((entry.protocol, entry.host, entry.port, entry.base_path))
+                self.printed_target_header_list.append(
+                    (entry.protocol, entry.host, entry.port, entry.base_path)
+                )
 
             for result in entry.results:
-                if (entry.protocol, entry.host, entry.port, entry.base_path, result.path) not in self.written_entries:
+                if (
+                    entry.protocol,
+                    entry.host,
+                    entry.port,
+                    entry.base_path,
+                    result.path,
+                ) not in self.written_entries:
                     output += f"[{result.path}]({header_name}{result.path}) | {result.status} "
                     output += f"| {result.response.length} | {result.response.type} | {result.response.redirect}"
                     output += NEW_LINE
 
-                    self.written_entries.append((entry.protocol, entry.host, entry.port, entry.base_path, result.path))
+                    self.written_entries.append(
+                        (
+                            entry.protocol,
+                            entry.host,
+                            entry.port,
+                            entry.base_path,
+                            result.path,
+                        )
+                    )
 
             if entry.completed and entry not in self.completed_hosts:
                 output += NEW_LINE

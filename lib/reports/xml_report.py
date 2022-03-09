@@ -29,18 +29,20 @@ from lib.reports.base import FileBaseReport
 
 class XMLReport(FileBaseReport):
     def generate(self):
-        result = ET.Element("scan", args=' '.join(sys.argv), time=time.ctime())
+        result = ET.Element("scan", args=" ".join(sys.argv), time=time.ctime())
 
         for entry in self.entries:
-            header_name = f"{entry.protocol}://{entry.host}:{entry.port}/{entry.base_path}"
+            header_name = (
+                f"{entry.protocol}://{entry.host}:{entry.port}/{entry.base_path}"
+            )
             target = ET.SubElement(result, "target", url=header_name)
 
             for result_ in entry.results:
-                path = ET.SubElement(target, "info", path='/' + result_.path)
+                path = ET.SubElement(target, "info", path="/" + result_.path)
                 ET.SubElement(path, "status").text = str(result_.status)
                 ET.SubElement(path, "contentLength").text = str(result_.response.length)
                 ET.SubElement(path, "contentType").text = result_.response.type
-                ET.SubElement(path, "redirect").text = result_.response.redirect or ''
+                ET.SubElement(path, "redirect").text = result_.response.redirect
 
         result = ET.tostring(result, encoding=DEFAULT_ENCODING, method="xml")
         return minidom.parseString(result).toprettyxml()

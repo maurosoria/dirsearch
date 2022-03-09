@@ -23,22 +23,24 @@ from lib.parse.url import parse_path, parse_full_path
 from lib.utils.common import is_binary
 
 
-class Response(object):
+class Response:
     def __init__(self, response, redirects):
         self.path = parse_path(response.url)
         self.full_path = parse_full_path(response.url)
         self.status = response.status_code
         self.headers = response.headers
-        self.redirect = self.headers.get("location")
+        self.redirect = self.headers.get("location") or ""
         self.history = redirects
-        self.content = ''
-        self.body = b''
+        self.content = ""
+        self.body = b""
 
         for chunk in response.iter_content(chunk_size=ITER_CHUNK_SIZE):
             self.body += chunk
 
         if not is_binary(self.body):
-            self.content = self.body.decode(response.encoding or DEFAULT_ENCODING, errors="ignore")
+            self.content = self.body.decode(
+                response.encoding or DEFAULT_ENCODING, errors="ignore"
+            )
 
     @cached_property
     def type(self):
@@ -55,4 +57,8 @@ class Response(object):
         return hash(self.body)
 
     def __eq__(self, other):
-        return (self.status, self.body, self.redirect) == (other.status, other.body, other.redirect)
+        return (self.status, self.body, self.redirect) == (
+            other.status,
+            other.body,
+            other.redirect,
+        )

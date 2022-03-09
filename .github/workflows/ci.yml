@@ -33,7 +33,7 @@ jobs:
 
     - name: Lint
       run: |
-        flake8 . --exclude=thirdparty --count --ignore=E501,E701,F403,F405,F524 --show-source --statistics
+        flake8 . --exclude=thirdparty --count --ignore=E501,E701,F403,F405,F524,W503 --show-source --statistics
         # exit-zero treats all errors as warnings.  Max complexity is currently 77.
         flake8 . --exclude=thirdparty --count --ignore=E501 --exit-zero --max-complexity=10 --show-source --statistics
     - name: Codespell

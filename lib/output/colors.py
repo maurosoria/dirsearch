@@ -19,22 +19,8 @@
 import string
 
 from colorama import init, Fore, Back, Style
-from pyparsing import (
-    Literal, Word, Combine, Optional,
-    Suppress, delimitedList, oneOf
-)
+from pyparsing import Literal, Word, Combine, Optional, Suppress, delimitedList, oneOf
 
-
-FORE_COLORS = {
-    "red": Fore.RED,
-    "green": Fore.GREEN,
-    "yellow": Fore.YELLOW,
-    "blue": Fore.BLUE,
-    "magenta": Fore.MAGENTA,
-    "cyan": Fore.CYAN,
-    "white": Fore.WHITE,
-    "none": ''
-}
 
 BACK_COLORS = {
     "red": Back.RED,
@@ -44,27 +30,49 @@ BACK_COLORS = {
     "magenta": Back.MAGENTA,
     "cyan": Back.CYAN,
     "white": Back.WHITE,
-    "none": ''
+    "none": "",
+}
+
+FORE_COLORS = {
+    "red": Fore.RED,
+    "green": Fore.GREEN,
+    "yellow": Fore.YELLOW,
+    "blue": Fore.BLUE,
+    "magenta": Fore.MAGENTA,
+    "cyan": Fore.CYAN,
+    "white": Fore.WHITE,
+    "none": "",
+}
+
+STYLES = {
+    "bright": Style.BRIGHT,
+    "dim": Style.DIM,
+    "normal": ""
 }
 
 # Credit: https://stackoverflow.com/a/2187024/12238982
 _escape_seq = Combine(
-    Literal("\x1b") + "[" + Optional(
-        delimitedList(Word(string.digits), ";")
-    ) + oneOf(list(string.ascii_letters))
+    Literal("\x1b")
+    + "["
+    + Optional(delimitedList(Word(string.digits), ";"))
+    + oneOf(list(string.ascii_letters))
 )
 
 init()
 
 
-def set_color(msg, fore="none", back="none", bright=False):
-    if bright:
-        msg = Style.BRIGHT + msg
+def disable_color():
+    for style in STYLES:
+        STYLES[style] = STYLES["normal"]
 
-    msg = FORE_COLORS[fore] + BACK_COLORS[back] + msg
-    msg += Style.RESET_ALL
+    for table in (FORE_COLORS, BACK_COLORS):
+        for color in ("red", "green", "yellow", "blue", "magenta", "cyan", "white"):
+            table[color] = table["none"]
 
-    return msg
+
+def set_color(msg, fore="none", back="none", style="normal"):
+    msg = STYLES[style] + FORE_COLORS[fore] + BACK_COLORS[back] + msg
+    return msg + Style.RESET_ALL
 
 
 def clean_color(msg):

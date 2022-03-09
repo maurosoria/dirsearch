@@ -29,21 +29,22 @@ from lib.utils.common import human_size
 
 class HTMLReport(FileBaseReport):
     def generate(self):
-        file_loader = FileSystemLoader(os.path.dirname(os.path.realpath(__file__)) + "/templates/")
+        file_loader = FileSystemLoader(
+            os.path.dirname(os.path.realpath(__file__)) + "/templates/"
+        )
         env = Environment(loader=file_loader)
 
         template = env.get_template("html_report_template.html")
 
-        metadata = {
-            "command": self.get_command(),
-            "date": time.ctime()
-        }
+        metadata = {"command": self.get_command(), "date": time.ctime()}
         results = []
         for entry in self.entries:
-            header_name = f"{entry.protocol}://{entry.host}:{entry.port}/{entry.base_path}"
+            header_name = (
+                f"{entry.protocol}://{entry.host}:{entry.port}/{entry.base_path}"
+            )
 
             for result in entry.results:
-                status_color_class = ''
+                status_color_class = ""
                 if result.status >= 200 and result.status <= 299:
                     status_color_class = "text-success"
                 elif result.status >= 300 and result.status <= 399:
@@ -51,24 +52,26 @@ class HTMLReport(FileBaseReport):
                 elif result.status >= 400 and result.status <= 599:
                     status_color_class = "text-danger"
 
-                results.append({
-                    "url": header_name + result.path,
-                    "path": result.path,
-                    "status": result.status,
-                    "statusColorClass": status_color_class,
-                    "contentLength": human_size(result.response.length),
-                    "contentType": result.response.type,
-                    "redirect": result.response.redirect
-                })
+                results.append(
+                    {
+                        "url": header_name + result.path,
+                        "path": result.path,
+                        "status": result.status,
+                        "statusColorClass": status_color_class,
+                        "contentLength": human_size(result.response.length),
+                        "contentType": result.response.type,
+                        "redirect": result.response.redirect,
+                    }
+                )
 
         return template.render(metadata=metadata, results=results)
 
     def get_command(self):
-        command = ' '.join(sys.argv)
+        command = " ".join(sys.argv)
         if "[[" in command or "]]" in command:
             return "Dirsearch"
-        else:
-            return command
+
+        return command
 
     @locked
     def save(self):

@@ -20,7 +20,7 @@ import os
 import os.path
 
 
-class File(object):
+class File:
     def __init__(self, *path_components):
         self._path = FileUtils.build_path(*path_components)
 
@@ -57,13 +57,13 @@ class File(object):
         pass
 
 
-class FileUtils(object):
+class FileUtils:
     @staticmethod
     def build_path(*path_components):
         if path_components:
             path = os.path.join(*path_components)
         else:
-            path = ''
+            path = ""
 
         return path
 
@@ -93,7 +93,7 @@ class FileUtils(object):
 
     @staticmethod
     def read(file_name):
-        return open(file_name, 'r').read()
+        return open(file_name, "r").read()
 
     @staticmethod
     def read_dir(directory):
@@ -131,11 +131,11 @@ class FileUtils(object):
 
     @staticmethod
     def create_file(file):
-        open(file, 'w').close()
+        open(file, "w").close()
 
     @staticmethod
     def write_lines(file_name, lines, overwrite=False):
         if isinstance(lines, list):
             lines = os.linesep.join(lines)
-        with open(file_name, 'w' if overwrite else 'a') as f:
+        with open(file_name, "w" if overwrite else "a") as f:
             f.writelines(lines)

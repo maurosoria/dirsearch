@@ -24,12 +24,11 @@ from lib.utils.file import FileUtils
 
 
 @locked
-def log(file, type, msg):
+def log(file, tag, msg):
     if not file:
         return
 
     line = time.strftime("[%y-%m-%d %H:%M:%S]")
-    line += f"[{type.upper()}] "
-    line += msg
+    line += f"[{tag.upper()}] {msg}"
     line += NEW_LINE
     FileUtils.write_lines(file, line)

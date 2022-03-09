@@ -46,23 +46,22 @@ except (DistributionNotFound, VersionConflict):
         exit(1)
 
 
-class Program(object):
-    def __init__(self):
-        from lib.core.options import options
+def main():
+    from lib.core.options import options
 
-        options = options()
+    options = options()
 
-        from lib.controller.controller import Controller
+    from lib.controller.controller import Controller
 
-        if options["quiet"]:
-            from lib.output.silent import Output
-        else:
-            from lib.output.verbose import Output
+    if options["quiet"]:
+        from lib.output.silent import Output
+    else:
+        from lib.output.verbose import Output
 
-        output = Output(options["color"])
+    output = Output(options["color"])
 
-        Controller(options, output)
+    Controller(options, output)
 
 
 if __name__ == "__main__":
-    main = Program()
+    main()

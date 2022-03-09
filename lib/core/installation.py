@@ -40,7 +40,7 @@ def install_dependencies():
     try:
         subprocess.check_output(
             [sys.executable, "-m", "pip", "install", "-r", REQUIREMENTS_FILE],
-            stderr=subprocess.STDOUT
+            stderr=subprocess.STDOUT,
         )
     except subprocess.CalledProcessError:
         raise FailedDependenciesInstallation
