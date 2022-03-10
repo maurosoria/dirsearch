@@ -34,7 +34,7 @@ except (DistributionNotFound, VersionConflict):
     option = input("Missing required dependencies to run.\n"
                    "Do you want dirsearch to automatically install them? [Y/n] ")
 
-    if option.lower == 'y':
+    if option.lower() == 'y':
         print("Installing required dependencies...")
 
         try:
