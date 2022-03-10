@@ -38,8 +38,8 @@ def options():
 
     opt.httpmethod = opt.httpmethod.upper()
 
-    if opt.url_list:
-        fd = access_file(opt.url_list, "file contains URLs")
+    if opt.url_file:
+        fd = access_file(opt.url_file, "file contains URLs")
         opt.urls = fd.get_lines()
     elif opt.cidr:
         opt.urls = iprange(opt.cidr)
@@ -65,16 +65,20 @@ def options():
         exit(1)
 
     if opt.tor:
-        opt.proxylist = DEFAULT_TOR_PROXIES
-    elif opt.proxylist:
-        fd = access_file(opt.proxylist, "proxylist file")
-        opt.proxylist = fd.get_lines()
+        opt.proxy = [DEFAULT_TOR_PROXIES]
+    elif opt.proxy_file:
+        fd = access_file(opt.proxy_file, "proxy list file")
+        opt.proxy = fd.get_lines()
+
+    if opt.data_file:
+        fd = access_file(opt.data_file, "data file")
+        opt.data = fd.get_lines()
 
     headers = {}
 
-    if opt.header_list:
+    if opt.header_file:
         try:
-            fd = access_file(opt.header_list, "header list file")
+            fd = access_file(opt.header_file, "header list file")
             headers.update(dict(HeadersParser(fd.read())))
         except Exception as e:
             print("Error in headers file: " + str(e))
@@ -238,7 +242,7 @@ def parse_config(opt):
         "general", "force-recursive"
     )
     opt.recursion_depth = opt.recursion_depth or config.safe_getint(
-        "general", "recursion-depth"
+        "general", "max-recursion-depth"
     )
     opt.recursion_status_codes = opt.recursion_status_codes or config.safe_get(
         "general", "recursion-status", "100-999"
@@ -277,7 +281,7 @@ def parse_config(opt):
 
     # Request
     opt.httpmethod = opt.httpmethod or config.safe_get("request", "httpmethod", "get")
-    opt.header_list = opt.header_list or config.safe_get("request", "headers-file")
+    opt.header_file = opt.header_file or config.safe_get("request", "headers-file")
     opt.follow_redirects = opt.follow_redirects or config.safe_getboolean(
         "request", "follow-redirects"
     )
@@ -290,10 +294,10 @@ def parse_config(opt):
     # Connection
     opt.delay = opt.delay or config.safe_getfloat("connection", "delay")
     opt.timeout = opt.timeout or config.safe_getfloat("connection", "timeout", 7.5)
-    opt.max_retries = opt.max_retries or config.safe_getint("connection", "retries", 1)
+    opt.max_retries = opt.max_retries or config.safe_getint("connection", "max-retries", 1)
     opt.maxrate = opt.maxrate or config.safe_getint("connection", "max-rate")
-    opt.proxy = opt.proxy or config.safe_get("connection", "proxy")
-    opt.proxylist = config.safe_get("connection", "proxy-list")
+    opt.proxy = opt.proxy or list(config.safe_get("connection", "proxy"))
+    opt.proxy_file = config.safe_get("connection", "proxy-file")
     opt.scheme = opt.scheme or config.safe_get(
         "connection", "scheme", None, ["http", "https"]
     )

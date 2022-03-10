@@ -105,7 +105,6 @@ class Controller:
             timeout=self.options.timeout,
             ip=self.options.ip,
             proxy=self.options.proxy,
-            proxylist=self.options.proxylist,
             follow_redirects=self.options.follow_redirects,
             httpmethod=self.options.httpmethod,
             headers=self.options.headers,
@@ -288,6 +287,7 @@ class Controller:
             self.fuzzer.set_base_path(self.requester.base_path + self.current_directory)
             self.fuzzer.start()
             self.process()
+
             self.dictionary.reset()
             self.directories.pop(0)
 

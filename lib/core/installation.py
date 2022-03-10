@@ -27,15 +27,20 @@ from lib.utils.file import FileUtils
 
 REQUIREMENTS_FILE = f"{SCRIPT_PATH}/requirements.txt"
 
-DEPENDENCIES = (dep for dep in FileUtils.get_lines(REQUIREMENTS_FILE))
+
+def get_dependencies():
+    try:
+        return FileUtils.get_lines(REQUIREMENTS_FILE)
+    except FileNotFoundError:
+        print("Can't find requirements.txt")
+        exit(1)
 
 
 # Check if all dependencies are satisfied
 def check_dependencies():
-    pkg_resources.require(DEPENDENCIES)
+    pkg_resources.require(get_dependencies())
 
 
-# Install required dependencies
 def install_dependencies():
     try:
         subprocess.check_output(
