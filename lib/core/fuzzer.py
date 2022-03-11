@@ -196,7 +196,7 @@ class Fuzzer:
     def thread_proc(self):
         self._play_event.wait()
 
-        while 1:
+        while True:
             try:
                 path = next(self._dictionary)
 

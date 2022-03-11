@@ -23,11 +23,11 @@ import re
 from urllib.parse import urlparse
 
 from lib.connection.requester import Requester
+from lib.core.decorators import locked
 from lib.core.dictionary import Dictionary
 from lib.core.exceptions import (
     InvalidURLException, RequestException,
-    SkipTargetInterrupt, GenericException,
-    QuitInterrupt,
+    SkipTargetInterrupt, QuitInterrupt,
 )
 from lib.core.fuzzer import Fuzzer
 from lib.core.logger import log
@@ -52,10 +52,7 @@ class Controller:
             self.setup(options, output)
             self.from_export = False
 
-        try:
-            self.run()
-        except KeyboardInterrupt:
-            self.close("Canceled by the user")
+        self.run()
 
     def _import(self, session_file):
         with open(session_file, "rb") as fd:
@@ -195,44 +192,34 @@ class Controller:
         error_callbacks = (self.error_callback, self.append_error_log)
 
         while self.targets:
+            url = self.targets[0]
+
             try:
-                url = self.targets[0]
+                self.requester.set_target(url if url.endswith("/") else url + "/")
+                self.url = self.requester.url + self.requester.base_path
 
-                try:
-                    self.requester.set_target(url if url.endswith("/") else url + "/")
-                    self.url = self.requester.url + self.requester.base_path
+                if not self.directories:
+                    for subdir in self.options.scan_subdirs:
+                        self.add_directory(subdir)
 
-                    if not self.directories:
-                        for subdir in self.options.scan_subdirs:
-                            self.add_directory(subdir)
+                if not self.from_export or "fuzzer" in vars(self):
+                    self.output.set_target(self.url)
 
-                    if not self.from_export or "fuzzer" in vars(self):
-                        self.output.set_target(self.url)
+                # Test request to check if server is up
+                self.requester.request("")
+                log(
+                    self.options.log_file,
+                    "info",
+                    f"Test request sent for: {self.url}",
+                )
 
-                    # Test request to check if server is up
-                    self.requester.request("")
-                    log(
-                        self.options.log_file,
-                        "info",
-                        f"Test request sent for: {self.url}",
-                    )
-
-                    self.output.url = self.requester.url
-                    self.report = self.report or Report(
-                        self.requester.host,
-                        self.requester.port,
-                        self.requester.scheme,
-                        self.requester.base_path,
-                    )
-
-                except InvalidURLException as e:
-                    self.output.error(e.args[0])
-                    raise SkipTargetInterrupt
-
-                except RequestException as e:
-                    self.output.error(e.args[0])
-                    self.append_error_log("", e.args[1])
-                    raise SkipTargetInterrupt
+                self.output.url = self.requester.url
+                self.report = self.report or Report(
+                    self.requester.host,
+                    self.requester.port,
+                    self.requester.scheme,
+                    self.requester.base_path,
+                )
 
                 self.fuzzer = Fuzzer(
                     self.requester,
@@ -248,22 +235,26 @@ class Controller:
                     error_callbacks=error_callbacks,
                 )
 
-                try:
-                    self.start()
-                except RequestException as e:
-                    self.output.error(e.args[0])
-                    self.append_error_log("", e.args[1])
-                    raise SkipTargetInterrupt
+                self.start()
 
-            except SkipTargetInterrupt:
+            except (
+                InvalidURLException,
+                RequestException,
+                SkipTargetInterrupt,
+            ) as e:
                 self.jobs_count -= len(self.directories)
                 self.directories.clear()
                 self.dictionary.reset()
+                self.output.error(e.args[0])
+                self.append_error_log("", e.args[1] if len(e.args) > 1 else e.args[0])
 
-                if self.report:
-                    self.report.completed = True
+            except QuitInterrupt as e:
+                self.output.error(e.args[0])
+                self.report_manager.write_report()
+                exit(0)
 
             finally:
+                self.report_manager.write_report()
                 self.targets.pop(0)
 
         self.output.warning("\nTask Completed")
@@ -272,28 +263,31 @@ class Controller:
         first = True
 
         while self.directories:
-            gc.collect()
+            try:
+                gc.collect()
 
-            self.current_directory = self.directories[0]
-            self.current_job += 1
+                self.current_directory = self.directories[0]
+                self.current_job += 1
 
-            if not self.from_export or not first:
-                current_time = time.strftime("%H:%M:%S")
-                msg = "\n" if first else ""
-                msg += f"[{current_time}] Starting: {self.current_directory}"
+                if not self.from_export or not first:
+                    current_time = time.strftime("%H:%M:%S")
+                    msg = "\n" if first else ""
+                    msg += f"[{current_time}] Starting: {self.current_directory}"
 
-                self.output.warning(msg)
+                    self.output.warning(msg)
 
-            self.fuzzer.set_base_path(self.requester.base_path + self.current_directory)
-            self.fuzzer.start()
-            self.process()
+                self.fuzzer.set_base_path(self.requester.base_path + self.current_directory)
+                self.fuzzer.start()
+                self.process()
 
-            self.dictionary.reset()
-            self.directories.pop(0)
+            except KeyboardInterrupt:
+                pass
 
-            first = False
+            finally:
+                self.dictionary.reset()
+                self.directories.pop(0)
 
-        self.report.completed = True
+                first = False
 
     def setup_batch_reports(self):
         """Create batch report folder"""
@@ -422,7 +416,8 @@ class Controller:
             else:
                 added_to_queue = self.recur(path)
 
-            self.output.new_directories(added_to_queue)
+            if added_to_queue:
+                self.output.new_directories(added_to_queue)
 
         if self.options.replay_proxy:
             self.requester.request(path, proxy=self.options.replay_proxy)
@@ -482,7 +477,7 @@ class Controller:
         self.fuzzer.pause()
 
         start_time = time.time()
-        while 1:
+        while True:
             is_timed_out = time.time() - start_time > PAUSING_WAIT_TIMEOUT
             if self.fuzzer.is_stopped() or is_timed_out:
                 break
@@ -507,9 +502,7 @@ class Controller:
 
                 option = input()
 
-                if option.lower() == "q":
-                    self.close("Canceled by the user")
-                elif option.lower() == "s":
+                if option.lower() == "s":
                     msg = f"Save to file [{self.options.session_file or DEFAULT_SESSION_FILE}]: "
 
                     self.output.in_line(msg)
@@ -519,7 +512,9 @@ class Controller:
                     )
 
                     self._export(session_file)
-                    self.close(f"Session saved to: {session_file}")
+                    raise QuitInterrupt(f"Session saved to: {session_file}")
+                elif option.lower() == "q":
+                    raise QuitInterrupt("Canceled by the user")
 
             elif option.lower() == "c":
                 self.fuzzer.resume()
@@ -530,7 +525,7 @@ class Controller:
                 return
 
             elif option.lower() == "s" and len(self.targets) > 1:
-                raise SkipTargetInterrupt
+                raise SkipTargetInterrupt("Target skipped by the user")
 
     def is_timed_out(self):
         return time.time() - self.start_time > self.options.maxtime > 0
@@ -549,13 +544,6 @@ class Controller:
             except KeyboardInterrupt:
                 self.handle_pause()
 
-            except SkipTargetInterrupt as e:
-                self.output.error(e.args[0])
-                raise e
-
-            except QuitInterrupt as e:
-                self.close(e.args[0])
-
     def add_directory(self, path):
         """Add directory to the recursion queue"""
 
@@ -563,20 +551,21 @@ class Controller:
         if any(
             path.startswith(directory) for directory in self.options.exclude_subdirs
         ):
-            raise GenericException
+            return
 
         dir = join_path(self.current_directory, path)
         url = join_path(self.url, dir)
 
         if url in self.passed_urls or dir.count("/") > self.options.recursion_depth > 0:
-            raise GenericException
+            return
 
         self.directories.append(dir)
         self.passed_urls.add(url)
         self.jobs_count += 1
 
+    @locked
     def recur(self, path):
-        dirs = []
+        dirs_count = len(self.directories)
         path = clean_path(path)
 
         if self.options.force_recursive and not path.endswith("/"):
@@ -586,20 +575,16 @@ class Controller:
             i = 0
             for _ in range(path.count("/")):
                 i = path.index("/", i) + 1
-                dirs.append(path[:i])
+                self.add_directory(path[:i])
         elif (
             self.options.recursive
             and path.endswith("/")
             and re.search(EXTENSION_REGEX, path[:-1]) is None
         ):
-            dirs.append(path)
+            self.add_directory(path)
 
-        for dir in dirs:
-            try:
-                self.add_directory(dir)
-                yield dir
-            except GenericException:
-                pass
+        # Return newly added directories
+        return self.directories[dirs_count:]
 
     def recur_for_redirect(self, path, response):
         redirect_path = parse_path(response.redirect)
@@ -609,9 +594,3 @@ class Controller:
                 len(self.requester.base_path + self.current_directory) + 1:
             ]
             return self.recur(path)
-
-    def close(self, msg):
-        self.output.error(msg)
-        self.report_manager.update_report(self.report)
-        self.report_manager.close()
-        exit(0)

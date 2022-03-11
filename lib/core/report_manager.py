@@ -40,7 +40,6 @@ class Report:
         self.protocol = protocol
         self.base_path = base_path[:-1]
         self.results = []
-        self.completed = False
 
     def add_result(self, path, response):
         result = Result(path, response)
@@ -60,8 +59,6 @@ class ReportManager:
 
         if report not in self.reports:
             self.reports.append(report)
-
-        self.write_report()
 
     def write_report(self):
         if self.report_obj is None:

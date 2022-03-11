@@ -39,8 +39,8 @@ class MarkdownReport(FileBaseReport):
             return ""
 
         self.header_written = True
-        header = "### Info" + NEW_LINE
-        header += f"Args: {chr(32).join(sys.argv)}"
+        header = "### Infomation" + NEW_LINE
+        header += f"Command: {chr(32).join(sys.argv)}"
         header += NEW_LINE
         header += f"Time: {time.ctime()}"
         header += NEW_LINE * 2
@@ -51,7 +51,7 @@ class MarkdownReport(FileBaseReport):
 
         for entry in self.entries:
             header_name = (
-                "{entry.protocol}://{entry.host}:{entry.port}/{entry.base_path}"
+                f"{entry.protocol}://{entry.host}:{entry.port}/{entry.base_path}"
             )
 
             if (
@@ -90,7 +90,7 @@ class MarkdownReport(FileBaseReport):
                         )
                     )
 
-            if entry.completed and entry not in self.completed_hosts:
+            if entry not in self.completed_hosts:
                 output += NEW_LINE
                 self.completed_hosts.append(entry)
 

@@ -33,9 +33,5 @@ class SkipTargetInterrupt(Exception):
     pass
 
 
-class GenericException(Exception):
-    pass
-
-
 class QuitInterrupt(Exception):
     pass
