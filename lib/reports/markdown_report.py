@@ -39,7 +39,7 @@ class MarkdownReport(FileBaseReport):
             return ""
 
         self.header_written = True
-        header = "### Infomation" + NEW_LINE
+        header = "### Information" + NEW_LINE
         header += f"Command: {chr(32).join(sys.argv)}"
         header += NEW_LINE
         header += f"Time: {time.ctime()}"
