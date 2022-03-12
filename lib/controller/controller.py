@@ -241,12 +241,15 @@ class Controller:
                 InvalidURLException,
                 RequestException,
                 SkipTargetInterrupt,
+                KeyboardInterrupt,
             ) as e:
                 self.jobs_count -= len(self.directories)
                 self.directories.clear()
                 self.dictionary.reset()
-                self.output.error(e.args[0])
-                self.append_error_log("", e.args[1] if len(e.args) > 1 else e.args[0])
+
+                if e.args:
+                    self.output.error(e.args[0])
+                    self.append_error_log("", e.args[1] if len(e.args) > 1 else e.args[0])
 
             except QuitInterrupt as e:
                 self.output.error(e.args[0])
