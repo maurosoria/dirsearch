@@ -41,6 +41,8 @@ from lib.utils.schemedet import detect_scheme
 disable_warnings()
 # Use custom `socket.getaddrinfo` for `requests` which supports DNS caching
 socket.getaddrinfo = cached_getaddrinfo
+# Standard ports for different schemes
+STANDARD_PORTS = {"http": 80, "https": 443}
 
 
 class Session(requests.Session):
@@ -90,9 +92,6 @@ class Requester:
 
         self.host = parsed.netloc.split(":")[0]
 
-        # Standard ports for different schemes
-        default_ports = {"http": 80, "https": 443, UNKNOWN: None}
-
         if parsed.scheme not in (UNKNOWN, "https", "http"):
             raise InvalidURLException(f"Unsupported URI scheme: {parsed.scheme}")
 
@@ -103,7 +102,7 @@ class Requester:
             if not 0 < self.port < 65536:
                 raise ValueError
         except IndexError:
-            self.port = default_ports[parsed.scheme]
+            self.port = STANDARD_PORTS.get(parsed.scheme, None)
         except ValueError:
             invalid_port = parsed.netloc.split(":")[1]
             raise InvalidURLException(f"Invalid port number: {invalid_port}")
@@ -119,7 +118,7 @@ class Requester:
             # If the user neither provides the port nor scheme, guess them based
             # on standard website characteristics
             self.scheme = detect_scheme(self.host, 443)
-            self.port = default_ports[self.scheme]
+            self.port = STANDARD_PORTS[self.scheme]
 
         if self.ip:
             set_custom_dns(self.host, self.port, self.ip)
@@ -127,7 +126,7 @@ class Requester:
         self.netloc = f"{self.host}:{self.port}"
         self.url = f"{self.scheme}://{self.host}"
 
-        if self.port != default_ports[self.scheme]:
+        if self.port != STANDARD_PORTS[self.scheme]:
             self.url += f":{self.port}"
 
         self.url += "/"
