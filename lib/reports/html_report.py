@@ -32,7 +32,7 @@ class HTMLReport(FileBaseReport):
         file_loader = FileSystemLoader(
             os.path.dirname(os.path.realpath(__file__)) + "/templates/"
         )
-        env = Environment(loader=file_loader)
+        env = Environment(loader=file_loader, autoescape=True)
 
         template = env.get_template("html_report_template.html")
 
