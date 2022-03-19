@@ -19,8 +19,8 @@
 import time
 import sys
 
-from xml.dom import minidom
-from xml.etree import ElementTree as ET
+from defusedxml.dom import minidom
+from defusedxml import ElementTree as ET
 
 from lib.core.decorators import locked
 from lib.core.settings import DEFAULT_ENCODING
