@@ -38,10 +38,6 @@ DEFAULT_ENCODING = "utf-8"
 
 NEW_LINE = os.linesep
 
-ALLOWED_PICKLE_MODULES = ("collections", "requests", "http", "urllib3", "lib")
-
-UNSAFE_PICKLE_BUILTINS = ("eval", "exec")
-
 INVALID_CHARS_FOR_WINDOWS_FILENAME = ('"', "*", "<", ">", "?", "\\", "|", "/", ":")
 
 INVALID_FILENAME_CHAR_REPLACEMENT = "_"

@@ -52,15 +52,19 @@ class Fuzzer:
             "prefixes": {},
             "suffixes": {},
         }
+        self.exc = None
 
         if len(self._dictionary) < self.threads_count:
             self.threads_count = len(self._dictionary)
 
     def wait(self, timeout=None):
+        if self.exc:
+            raise self.exc
+
         for thread in self._threads:
             thread.join(timeout)
 
-            if timeout and thread.is_alive():
+            if thread.is_alive():
                 return False
 
         return True
@@ -208,12 +212,15 @@ class Fuzzer:
 
                 wildcard, response = self.scan(path)
 
-                if not wildcard:
-                    for callback in self.match_callbacks:
-                        callback(path, response)
-                else:
-                    for callback in self.not_found_callbacks:
-                        callback(path, response)
+                try:
+                    if not wildcard:
+                        for callback in self.match_callbacks:
+                            callback(path, response)
+                    else:
+                        for callback in self.not_found_callbacks:
+                            callback(path, response)
+                except Exception as e:
+                    self.exc = e
 
             except StopIteration:
                 self._is_running = False

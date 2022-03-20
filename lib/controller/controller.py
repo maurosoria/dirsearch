@@ -536,7 +536,7 @@ class Controller:
     def process(self):
         while True:
             try:
-                while not self.fuzzer.wait(0.3):
+                while not self.fuzzer.wait(0.25):
                     if self.is_timed_out():
                         raise SkipTargetInterrupt(
                             "Runtime exceeded the maximum set by the user"
