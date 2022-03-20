@@ -73,7 +73,7 @@ def human_size(num):
     for unit in ["B ", "KB", "MB", "GB"]:
         if -base < num < base:
             return f"{num}{unit}"
-        num = round(num/base)
+        num = round(num / base)
 
     return f"{num}TB"
 
@@ -105,7 +105,7 @@ def escape_csv(text):
 # Reference: https://docs.python.org/3.4/library/pickle.html#restricting-globals
 class RestrictedUnpickler(_pickle.Unpickler):
     def find_class(self, module, name):
-        if f"{module}.{name}" in ALLOWED_PICKE_CLASSES:
+        if f"{module}.{name}" in ALLOWED_PICKLE_CLASSES:
             return super().find_class(module, name)
 
         raise _pickle.UnpicklingError()
