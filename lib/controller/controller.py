@@ -368,7 +368,7 @@ class Controller:
         if self.blacklists.get(res.status) and path in self.blacklists.get(res.status):
             return False
 
-        if human_size(res.length) in self.options.exclude_sizes:
+        if human_size(res.length).lstrip() in self.options.exclude_sizes:
             return False
 
         if res.length < self.options.minimum_response_size:

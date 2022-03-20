@@ -52,11 +52,12 @@ def get_valid_filename(string):
 
 def human_size(num):
     base = 1024
-    for x in ["B ", "KB", "MB", "GB"]:
+    for unit in ["B ", "KB", "MB", "GB"]:
         if -base < num < base:
-            return "%3.0f%s" % (num, x)
-        num /= base
-    return "%3.0f %s" % (num, "TB")
+            return f"{num}{unit}"
+        num = round(num/base)
+
+    return f"{num}TB"
 
 
 def is_ipv6(ip):
