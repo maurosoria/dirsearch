@@ -324,6 +324,7 @@ def parse_arguments():
         "--data-file",
         action="store",
         dest="data_file",
+        metavar="FILE",
         help="File contains HTTP request data"
     )
     request.add_option(
@@ -395,10 +396,9 @@ def parse_arguments():
     connection.add_option(
         "--proxy-file",
         action="store",
-        type="string",
         dest="proxy_file",
-        help="File contains proxy servers",
         metavar="FILE",
+        help="File contains proxy servers",
     )
     connection.add_option(
         "--proxy-auth",
