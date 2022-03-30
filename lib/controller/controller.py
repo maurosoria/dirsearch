@@ -384,13 +384,13 @@ class Controller:
             return False
 
         if self.options.exclude_regex and re.search(
-                self.options.exclude_regex, res.content
+            self.options.exclude_regex, res.content
         ):
             return False
 
         if self.options.exclude_redirect and (
-                self.options.exclude_redirect in res.redirect
-                or re.search(self.options.exclude_redirect, res.redirect)
+            self.options.exclude_redirect in res.redirect
+            or re.search(self.options.exclude_redirect, res.redirect)
         ):
             return False
 
@@ -411,11 +411,11 @@ class Controller:
         self.output.status_report(response, self.options.full_url)
 
         if response.status in self.options.recursion_status_codes and any(
-                (
-                        self.options.recursive,
-                        self.options.deep_recursive,
-                        self.options.force_recursive,
-                )
+            (
+                self.options.recursive,
+                self.options.deep_recursive,
+                self.options.force_recursive,
+            )
         ):
             if response.redirect:
                 added_to_queue = self.recur_for_redirect(path, response)
@@ -515,7 +515,7 @@ class Controller:
                     self.output.in_line(msg)
 
                     session_file = (
-                            input() or self.options.session_file or DEFAULT_SESSION_FILE
+                        input() or self.options.session_file or DEFAULT_SESSION_FILE
                     )
 
                     self._export(session_file)
@@ -561,7 +561,7 @@ class Controller:
 
         # Pass if path is in exclusive directories
         if any(
-                path.startswith(directory) for directory in self.options.exclude_subdirs
+            path.startswith(directory) for directory in self.options.exclude_subdirs
         ):
             raise GenericException
 
@@ -588,9 +588,9 @@ class Controller:
                 i = path.index("/", i) + 1
                 dirs.append(path[:i])
         elif (
-                self.options.recursive
-                and path.endswith("/")
-                and re.search(EXTENSION_REGEX, path[:-1]) is None
+            self.options.recursive
+            and path.endswith("/")
+            and re.search(EXTENSION_REGEX, path[:-1]) is None
         ):
             dirs.append(path)
 
@@ -606,8 +606,8 @@ class Controller:
 
         if redirect_path == response.path + "/":
             path = redirect_path[
-                   len(self.requester.base_path + self.current_directory) + 1:
-                   ]
+                len(self.requester.base_path + self.current_directory) + 1:
+            ]
             return self.recur(path)
 
     def close(self, msg):
