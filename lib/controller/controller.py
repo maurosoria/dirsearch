@@ -219,7 +219,7 @@ class Controller:
                     )
 
                     self.output.url = self.requester.url
-                    self.report = self.report or Report(
+                    self.report = Report(
                         self.requester.host,
                         self.requester.port,
                         self.requester.scheme,
