@@ -128,7 +128,6 @@ class Controller:
         self.passed_urls = set()
         self.directories = []
         self.report = None
-        self.current_directory = None
         self.batch = False
         self.current_job = 0
         self.jobs_count = 0
@@ -193,6 +192,7 @@ class Controller:
 
         while self.targets:
             url = self.targets[0]
+            self.current_directory = None
 
             try:
                 self.requester.set_target(url if url.endswith("/") else url + "/")
@@ -202,7 +202,7 @@ class Controller:
                     for subdir in self.options.scan_subdirs:
                         self.add_directory(subdir)
 
-                if not self.from_export or "fuzzer" in vars(self):
+                if not self.from_export:
                     self.output.set_target(self.url)
 
                 # Test request to check if server is up
@@ -214,13 +214,6 @@ class Controller:
                 )
 
                 self.output.url = self.requester.url
-                self.report = self.report or Report(
-                    self.requester.host,
-                    self.requester.port,
-                    self.requester.scheme,
-                    self.requester.base_path,
-                )
-
                 self.fuzzer = Fuzzer(
                     self.requester,
                     self.dictionary,
@@ -234,6 +227,14 @@ class Controller:
                     not_found_callbacks=not_found_callbacks,
                     error_callbacks=error_callbacks,
                 )
+
+                if not self.from_export:
+                    self.report = Report(
+                        self.requester.host,
+                        self.requester.port,
+                        self.requester.scheme,
+                        self.requester.base_path,
+                    )
 
                 self.start()
 
@@ -272,12 +273,14 @@ class Controller:
                 self.current_directory = self.directories[0]
                 self.current_job += 1
 
-                if not self.from_export or not first:
-                    current_time = time.strftime("%H:%M:%S")
-                    msg = "\n" if first else ""
-                    msg += f"[{current_time}] Starting: {self.current_directory}"
+                if not self.from_export:
+                    if first:
+                        self.output.new_line()
 
-                    self.output.warning(msg)
+                    current_time = time.strftime("%H:%M:%S")
+                    self.output.warning(
+                        f"[{current_time}] Starting: {self.current_directory}"
+                    )
 
                 self.fuzzer.set_base_path(self.requester.base_path + self.current_directory)
                 self.fuzzer.start()
@@ -290,7 +293,7 @@ class Controller:
                 self.dictionary.reset()
                 self.directories.pop(0)
 
-                first = False
+                self.from_export = first = False
 
     def setup_batch_reports(self):
         """Create batch report folder"""
