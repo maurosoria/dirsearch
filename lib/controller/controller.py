@@ -619,6 +619,7 @@ class Controller:
         self.output.error(msg)
         if self.report not in self.reports:
             self.reports.append(self.report)
+        
         self.report_manager.update_report(self.reports)
         self.report_manager.close()
         exit(0)
