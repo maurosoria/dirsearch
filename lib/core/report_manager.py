@@ -54,10 +54,11 @@ class ReportManager:
         self.report_obj = None
         self.file = output_file
 
-    def update_report(self, report):
+    def update_report(self, reports):
         if not self.file:
             return
 
+        self.reports = reports
         self.write_report()
 
     def write_report(self):
