@@ -132,6 +132,7 @@ class Controller:
         self.passed_urls = set()
         self.directories = []
         self.report = None
+        self.reports = []
         self.current_directory = None
         self.batch = False
         self.current_job = 0
@@ -428,7 +429,11 @@ class Controller:
             self.requester.request(path, proxy=self.options.replay_proxy)
 
         self.report.add_result(self.current_directory + path, response)
-        self.report_manager.update_report(self.report)
+        
+        if self.report not in self.reports:
+            self.reports.append(self.report)
+        
+        self.report_manager.update_report(self.reports)
         self.reset_consecutive_errors()
 
     def not_found_callback(self, *args):
@@ -612,6 +617,8 @@ class Controller:
 
     def close(self, msg):
         self.output.error(msg)
-        self.report_manager.update_report(self.report)
+        if self.report not in self.reports:
+            self.reports.append(self.report)
+        self.report_manager.update_report(self.reports)
         self.report_manager.close()
         exit(0)
