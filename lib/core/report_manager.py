@@ -58,9 +58,6 @@ class ReportManager:
         if not self.file:
             return
 
-        if report not in self.reports:
-            self.reports.append(report)
-
         self.write_report()
 
     def write_report(self):
