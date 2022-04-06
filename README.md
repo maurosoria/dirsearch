@@ -120,22 +120,26 @@ Options:
   -h, --help            show this help message and exit
 
   Mandatory:
-    -u URL, --url=URL   Target URL
-    -l FILE, --url-list=FILE
-                        Target URL list file
-    --stdin             Target URL list from STDIN
+    -u URL, --url=URL   Target URL(s), support multiple flags
+    -l FILE, --url-file=FILE
+                        URL list file
+    --stdin             Read URL(s) from STDIN
     --cidr=CIDR         Target CIDR
     --raw=FILE          Load raw HTTP request from file (use `--scheme` flag
                         to set the scheme)
+    -s SESSION_FILE, --session=SESSION_FILE
+                        Session file
     -e EXTENSIONS, --extensions=EXTENSIONS
-                        Extension list separated by commas (Example: php,asp)
+                        Extension list separated by commas (e.g. php,asp)
     -X EXTENSIONS, --exclude-extensions=EXTENSIONS
-                        Exclude extension list separated by commas (Example:
+                        Exclude extension list separated by commas (e.g.
                         asp,jsp)
     -f, --force-extensions
                         Add extensions to every wordlist entry. By default
                         dirsearch only replaces the %EXT% keyword with
                         extensions
+    --config=FILE       Full path to config file, see 'default.conf' for
+                        example (Default: default.conf)
 
   Dictionary Settings:
     -w WORDLIST, --wordlists=WORDLIST
@@ -149,7 +153,7 @@ Options:
     --only-selected     Remove paths have different extensions from selected
                         ones via `-e` (keep entries don't have extensions)
     --remove-extensions
-                        Remove extensions in all paths (Example: admin.php ->
+                        Remove extensions in all paths (e.g. admin.php ->
                         admin)
     -U, --uppercase     Uppercase wordlist
     -L, --lowercase     Lowercase wordlist
@@ -159,11 +163,11 @@ Options:
     -t THREADS, --threads=THREADS
                         Number of threads
     -r, --recursive     Brute-force recursively
-    --deep-recursive    Perform recursive scan on every directory depth
-                        (Example: api/users -> api/)
+    --deep-recursive    Perform recursive scan on every directory depth (e.g.
+                        api/users -> api/)
     --force-recursive   Do recursive brute-force for every found path, not
-                        only paths end with slash
-    --recursion-depth=DEPTH
+                        only directories
+    -R DEPTH, --max-recursion-depth=DEPTH
                         Maximum recursion depth
     --recursion-status=CODES
                         Valid status codes to perform recursive scan, support
@@ -175,77 +179,83 @@ Options:
                         scan (separated by commas)
     -i CODES, --include-status=CODES
                         Include status codes, separated by commas, support
-                        ranges (Example: 200,300-399)
+                        ranges (e.g. 200,300-399)
     -x CODES, --exclude-status=CODES
                         Exclude status codes, separated by commas, support
-                        ranges (Example: 301,500-599)
+                        ranges (e.g. 301,500-599)
     --exclude-sizes=SIZES
-                        Exclude responses by sizes, separated by commas
-                        (Example: 123B,4KB)
+                        Exclude responses by sizes, separated by commas (e.g.
+                        0B,4KB)
     --exclude-texts=TEXTS
-                        Exclude responses by texts, separated by commas
-                        (Example: 'Not found', 'Error')
-    --exclude-regexps=REGEXPS
-                        Exclude responses by regexps, separated by commas
-                        (Example: 'Not foun[a-z]{1}', '^Error$')
-    --exclude-redirects=REGEXPS
-                        Exclude responses by redirect regexps or texts,
-                        separated by commas (Example: 'https://okta.com/*')
-    --exclude-content=PATH
-                        Exclude responses by response content of this path
+                        Exclude responses by texts, separated by commas (e.g.
+                        'Not found', 'Error')
+    --exclude-regex=REGEX
+                        Exclude responses by regex (e.g. '^Error$')
+    --exclude-redirect=STRING
+                        Exclude responses if this regex (or text) matches
+                        redirect URL (e.g. '/index.html')
+    --exclude-response=PATH
+                        Exclude responses similar to response of this page,
+                        path as input (e.g. 404.html)
     --skip-on-status=CODES
                         Skip target whenever hit one of these status codes,
                         separated by commas, support ranges
-    --minimal=LENGTH    Minimal response length
-    --maximal=LENGTH    Maximal response length
-    --max-time=SECONDS  Maximal runtime for the scan
-    -q, --quiet-mode    Quiet mode
+    --min-response-size=LENGTH
+                        Minimum response length
+    --max-response-size=LENGTH
+                        Maximum response length
+    --redirects-history
+                        Show redirects history
+    --max-time=SECONDS  Maximum runtime for the scan
     --full-url          Full URLs in the output (enabled automatically in
                         quiet mode)
     --no-color          No colored output
+    -q, --quiet-mode    Quiet mode
 
   Request Settings:
     -m METHOD, --http-method=METHOD
                         HTTP method (default: GET)
     -d DATA, --data=DATA
                         HTTP request data
+    --data-file=DATA_FILE
+                        File contains HTTP request data
     -H HEADERS, --header=HEADERS
-                        HTTP request header, support multiple flags (Example:
-                        -H 'Referer: example.com')
-    --header-list=FILE  File contains HTTP request headers
+                        HTTP request header, support multiple flags
+    --header-file=FILE  File contains HTTP request headers
     -F, --follow-redirects
                         Follow HTTP redirects
     --random-agent      Choose a random User-Agent for each request
-    --auth-type=TYPE    Authentication type (basic, digest, bearer, ntlm)
-    --auth=CREDENTIAL   Authentication credential (user:password or bearer
-                        token)
+    --auth=CREDENTIAL   Authentication credential (e.g. user:password or
+                        bearer token)
+    --auth-type=TYPE    Authentication type (basic, digest, bearer, ntlm, jwt,
+                        oauth2)
     --user-agent=USERAGENT
     --cookie=COOKIE
 
   Connection Settings:
     --timeout=TIMEOUT   Connection timeout
-    -s DELAY, --delay=DELAY
-                        Delay between requests
-    --proxy=PROXY       Proxy URL, support HTTP and SOCKS proxies (Example:
+    --delay=DELAY       Delay between requests
+    --proxy=PROXY       Proxy URL, support HTTP and SOCKS proxies (e.g.
                         localhost:8080, socks5://localhost:8088)
-    --proxy-list=FILE   File contains proxy servers
+    --proxy-file=FILE   File contains proxy servers
+    --proxy-auth=CREDENTIAL
+                        Proxy authentication credential
     --replay-proxy=PROXY
                         Proxy to replay with found paths
-    --scheme=SCHEME     Default scheme (for raw request or if there is no
-                        scheme in the URL)
+    --tor               Use Tor network as proxy
+    --scheme=SCHEME     Scheme for raw request or if there is no scheme in the
+                        URL (Default: auto-detect)
     --max-rate=RATE     Max requests per second
     --retries=RETRIES   Number of retries for failed requests
-    -b, --request-by-hostname
-                        By default dirsearch requests by IP for speed. This
-                        will force dirsearch to request by hostname
     --ip=IP             Server IP address
     --exit-on-error     Exit whenever an error occurs
 
-  Reports:
+  Output:
     -o FILE, --output=FILE
                         Output file
     --format=FORMAT     Report format (Available: simple, plain, json, xml,
-                        md, csv, html)
+                        md, csv, html, sqlite)
+    --log=FILE          Log file
 ```
 
 
@@ -265,32 +275,35 @@ force-extensions = False
 # exclude-extensions = old,log
 
 [general]
-threads = 30
+threads = 25
 recursive = False
 deep-recursive = False
 force-recursive = False
-recursion-depth = 0
-exclude-subdirs = %%ff/
+recursion-status = 200-399,401,403
+max-recursion-depth = 0
+exclude-subdirs = %%ff/,.;/,..;/,;/,./,../,%%2e/,%%2e%%2e/
 random-user-agents = False
 max-time = 0
 full-url = False
 quiet-mode = False
 color = True
-recursion-status = 200-399,401,403
+show-redirects-history = False
+# subdirs = /,api/
 # include-status = 200-299,401
 # exclude-status = 400,500-999
 # exclude-sizes = 0b,123gb
 # exclude-texts = "Not found"
-# exclude-regexps = "403 [a-z]{1,25}"
-# exclude-content = 404.html
+# exclude-regex = "^403$"
+# exclude-redirect = "*/error.html"
+# exclude-response = 404.html
 # skip-on-status = 429,999
 
-[reports]
+[output]
+## Support: plain, simple, json, xml, md, csv, html, sqlite
 report-format = plain
 autosave-report = True
-# report-output-folder = /home/user
-# logs-location = /tmp
-## Supported: plain, simple, json, xml, md, csv, html
+# log-file = logs/dirsearch.log
+# report-output-folder = /home/user/
 
 [dictionary]
 lowercase = False
@@ -302,22 +315,22 @@ capitalization = False
 
 [request]
 httpmethod = get
-## Lowercase only
 follow-redirects = False
 # headers-file = headers.txt
 # user-agent = MyUserAgent
 # cookie = SESSIONID=123
 
 [connection]
-timeout = 5
+timeout = 7.5
 delay = 0
-scheme = http
-maxrate = 0
-retries = 2
+max-rate = 0
+max-retries = 1
 request-by-hostname = False
 exit-on-error = False
+## By disabling `scheme` variable, dirsearch will automatically identify the URI scheme
+# scheme = http
 # proxy = localhost:8080
-# proxy-list = proxies.txt
+# proxy-file = proxies.txt
 # replay-proxy = localhost:8000
 ```
 

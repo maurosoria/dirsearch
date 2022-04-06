@@ -28,7 +28,7 @@ from requests.packages.urllib3 import disable_warnings
 from requests_ntlm import HttpNtlmAuth
 from urllib.parse import urlparse
 
-from lib.core.exceptions import MissingProxy, InvalidURLException, RequestException
+from lib.core.exceptions import InvalidURLException, RequestException
 from lib.core.settings import READ_RESPONSE_ERROR_REGEX, PROXY_SCHEMES, UNKNOWN
 from lib.core.structures import CaseInsensitiveDict
 from lib.connection.dns import cached_getaddrinfo, set_custom_dns
@@ -41,6 +41,8 @@ from lib.utils.schemedet import detect_scheme
 disable_warnings()
 # Use custom `socket.getaddrinfo` for `requests` which supports DNS caching
 socket.getaddrinfo = cached_getaddrinfo
+# Standard ports for different schemes
+STANDARD_PORTS = {"http": 80, "https": 443}
 
 
 class Session(requests.Session):
@@ -61,7 +63,6 @@ class Requester:
         self.timeout = kwargs.get("timeout", 10)
         self.ip = kwargs.get("ip", None)
         self.proxy = kwargs.get("proxy", None)
-        self.proxylist = kwargs.get("proxylist", None)
         self.default_scheme = kwargs.get("scheme", None)
         self.follow_redirects = kwargs.get("follow_redirects", False)
         self.random_agents = kwargs.get("random_agents", None)
@@ -90,11 +91,6 @@ class Requester:
             self.set_auth("basic", cred)
 
         self.host = parsed.netloc.split(":")[0]
-        if self.ip:
-            set_custom_dns(self.host, self.ip)
-
-        # Standard ports for different schemes
-        port_for_scheme = {"http": 80, "https": 443, UNKNOWN: None}
 
         if parsed.scheme not in (UNKNOWN, "https", "http"):
             raise InvalidURLException(f"Unsupported URI scheme: {parsed.scheme}")
@@ -106,7 +102,7 @@ class Requester:
             if not 0 < self.port < 65536:
                 raise ValueError
         except IndexError:
-            self.port = port_for_scheme[parsed.scheme]
+            self.port = STANDARD_PORTS.get(parsed.scheme, None)
         except ValueError:
             invalid_port = parsed.netloc.split(":")[1]
             raise InvalidURLException(f"Invalid port number: {invalid_port}")
@@ -122,12 +118,15 @@ class Requester:
             # If the user neither provides the port nor scheme, guess them based
             # on standard website characteristics
             self.scheme = detect_scheme(self.host, 443)
-            self.port = port_for_scheme[self.scheme]
+            self.port = STANDARD_PORTS[self.scheme]
+
+        if self.ip:
+            set_custom_dns(self.host, self.port, self.ip)
 
         self.netloc = f"{self.host}:{self.port}"
         self.url = f"{self.scheme}://{self.host}"
 
-        if self.port != port_for_scheme[self.scheme]:
+        if self.port != STANDARD_PORTS[self.scheme]:
             self.url += f":{self.port}"
 
         self.url += "/"
@@ -184,13 +183,11 @@ class Requester:
 
             try:
                 if not proxy:
-                    if self.proxylist:
-                        try:
-                            self.proxy = random.choice(self.proxylist)
-                        except IndexError:
-                            raise MissingProxy
+                    try:
+                        proxy = proxy or random.choice(self.proxy)
+                    except IndexError:
+                        pass
 
-                    proxy = proxy or self.proxy
                     self.set_proxy(proxy)
 
                 if self.random_agents:
@@ -226,8 +223,6 @@ class Requester:
 
                 if e == socket.gaierror:
                     simple_err_msg = "Couldn't resolve DNS"
-                elif e == MissingProxy:
-                    simple_err_msg = "No working proxy found inside proxy file"
                 elif "SSLError" in err_msg:
                     simple_err_msg = "Unexpected SSL error, probably the server is broken or try updating your OpenSSL"
                 elif "TooManyRedirects" in err_msg:
@@ -235,8 +230,8 @@ class Requester:
                 elif "ProxyError" in err_msg:
                     simple_err_msg = f"Error with the proxy: {proxy}"
                     # Prevent from re-using it in the future
-                    if proxy in self.proxylist:
-                        self.proxylist.remove(proxy)
+                    if proxy in self.proxy and len(self.proxy) > 1:
+                        self.proxy.remove(proxy)
                 elif "InvalidURL" in err_msg:
                     simple_err_msg = f"Invalid URL: {self.url}"
                 elif "InvalidProxyURL" in err_msg:

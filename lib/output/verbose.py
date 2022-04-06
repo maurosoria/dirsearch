@@ -141,12 +141,10 @@ class Output:
         self.in_line(progress_bar)
 
     def new_directories(self, directories):
-        directories_string = ", ".join(directories)
-        if directories_string:
-            message = set_color(
-                f"Added to the queue: {directories_string}", fore="yellow", style="dim"
-            )
-            self.new_line(message)
+        message = set_color(
+            f"Added to the queue: {', '.join(directories)}", fore="yellow", style="dim"
+        )
+        self.new_line(message)
 
     def error(self, reason):
         message = set_color(reason, fore="white", back="red", style="bright")

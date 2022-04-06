@@ -21,10 +21,6 @@ class FailedDependenciesInstallation(Exception):
     pass
 
 
-class MissingProxy(Exception):
-    pass
-
-
 class RequestException(Exception):
     pass
 
@@ -34,10 +30,6 @@ class InvalidURLException(Exception):
 
 
 class SkipTargetInterrupt(Exception):
-    pass
-
-
-class GenericException(Exception):
     pass
 
 

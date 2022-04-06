@@ -38,9 +38,9 @@ def parse_arguments():
     )
     mandatory.add_option(
         "-l",
-        "--url-list",
+        "--url-file",
         action="store",
-        dest="url_list",
+        dest="url_file",
         metavar="FILE",
         help="URL list file",
     )
@@ -321,6 +321,13 @@ def parse_arguments():
         "-d", "--data", action="store", dest="data", help="HTTP request data"
     )
     request.add_option(
+        "--data-file",
+        action="store",
+        dest="data_file",
+        metavar="FILE",
+        help="File contains HTTP request data"
+    )
+    request.add_option(
         "-H",
         "--header",
         action="append",
@@ -328,8 +335,8 @@ def parse_arguments():
         help="HTTP request header, support multiple flags",
     )
     request.add_option(
-        "--header-list",
-        dest="header_list",
+        "--header-file",
+        dest="header_file",
         metavar="FILE",
         help="File contains HTTP request headers",
     )
@@ -381,18 +388,17 @@ def parse_arguments():
     )
     connection.add_option(
         "--proxy",
-        action="store",
+        action="append",
         dest="proxy",
         metavar="PROXY",
         help="Proxy URL, support HTTP and SOCKS proxies (e.g. localhost:8080, socks5://localhost:8088)",
     )
     connection.add_option(
-        "--proxy-list",
+        "--proxy-file",
         action="store",
-        type="string",
-        dest="proxylist",
-        help="File contains proxy servers",
+        dest="proxy_file",
         metavar="FILE",
+        help="File contains proxy servers",
     )
     connection.add_option(
         "--proxy-auth",

@@ -1,15 +1,7 @@
-/reports/
-logs/
-
-# Byte-compiled / optimized / DLL files
+reports/
 __pycache__/
 *.py[cod]
 *$py.class
-
-.idea
-
-db/test.txt
-
 default.conf
-
+.idea/
 .ropeproject/

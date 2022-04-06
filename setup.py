@@ -4,6 +4,7 @@ import setuptools
 import shutil
 import tempfile
 
+from lib.core.installation import get_dependencies
 from lib.core.settings import VERSION
 
 
@@ -15,9 +16,6 @@ env_dir = tempfile.mkdtemp(prefix="dirsearch-install-")
 shutil.copytree(os.path.abspath(os.getcwd()), os.path.join(env_dir, "dirsearch"))
 
 os.chdir(env_dir)
-
-with open("requirements.txt") as fd:
-    required_dependencies = fd.read().splitlines()
 
 setuptools.setup(
     name="dirsearch",
@@ -33,7 +31,7 @@ setuptools.setup(
     package_data={"dirsearch": ["*", "db/*"]},
     include_package_data=True,
     python_requires=">=3.7",
-    install_requires=required_dependencies,
+    install_requires=get_dependencies(),
     classifiers=[
         "Programming Language :: Python",
         "Environment :: Console",

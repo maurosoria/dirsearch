@@ -67,12 +67,13 @@
 - [XinRoom](https://github.com/XinRoom)
 - [godspeedcurry](https://github.com/godspeedcurry)
 - [0x08](https://github.com/its0x08)
+- [Weltolk](https://github.com/Weltolk)
 
 Special thanks to all the people who are named here!
 
 ### How can I help the project?
 - Bug fixes
-- Code updates
-- Documentation updates
-- Wordlist updates
+- Code contribution
+- Documentation improvement
+- Wordlist improvement
 - Feature requests

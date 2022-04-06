@@ -26,8 +26,26 @@ from urllib.parse import quote
 
 from lib.core.settings import (
     INVALID_CHARS_FOR_WINDOWS_FILENAME, INSECURE_CSV_CHARS,
-    INVALID_FILENAME_CHAR_REPLACEMENT, ALLOWED_PICKLE_MODULES,
-    UNSAFE_PICKLE_BUILTINS, URL_SAFE_CHARS, TEXT_CHARS,
+    INVALID_FILENAME_CHAR_REPLACEMENT, URL_SAFE_CHARS, TEXT_CHARS,
+)
+
+ALLOWED_PICKLE_CLASSES = (
+    "collections.OrderedDict",
+    "http.cookiejar.DefaultCookiePolicy",
+    "requests.adapters.HTTPAdapter",
+    "requests.cookies.RequestsCookieJar",
+    "requests.structures.CaseInsensitiveDict",
+    "lib.connection.requester.Requester",
+    "lib.connection.response.Response",
+    "lib.connection.requester.Session",
+    "lib.core.dictionary.Dictionary",
+    "lib.core.report_manager.Report",
+    "lib.core.report_manager.ReportManager",
+    "lib.core.report_manager.Result",
+    "lib.core.structures.AttributeDict",
+    "lib.core.structures.CaseInsensitiveDict",
+    "lib.output.verbose.Output",
+    "urllib3.util.retry.Retry",
 )
 
 
@@ -52,11 +70,12 @@ def get_valid_filename(string):
 
 def human_size(num):
     base = 1024
-    for x in ["B ", "KB", "MB", "GB"]:
+    for unit in ["B ", "KB", "MB", "GB"]:
         if -base < num < base:
-            return "%3.0f%s" % (num, x)
-        num /= base
-    return "%3.0f %s" % (num, "TB")
+            return f"{num}{unit}"
+        num = round(num / base)
+
+    return f"{num}TB"
 
 
 def is_ipv6(ip):
@@ -86,14 +105,7 @@ def escape_csv(text):
 # Reference: https://docs.python.org/3.4/library/pickle.html#restricting-globals
 class RestrictedUnpickler(_pickle.Unpickler):
     def find_class(self, module, name):
-        if (
-            module in ALLOWED_PICKLE_MODULES
-            or module == "builtins"
-            and name not in UNSAFE_PICKLE_BUILTINS
-            or any(
-                module.startswith(f"{module_}.") for module_ in ALLOWED_PICKLE_MODULES
-            )
-        ):
+        if f"{module}.{name}" in ALLOWED_PICKLE_CLASSES:
             return super().find_class(module, name)
 
         raise _pickle.UnpicklingError()

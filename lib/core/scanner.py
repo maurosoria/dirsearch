@@ -38,25 +38,6 @@ class Scanner:
         self.wildcard_redirect_regex = None
         self.setup()
 
-    @staticmethod
-    def generate_redirect_regex(first_loc, first_path, second_loc, second_path):
-        """
-        From 2 redirects of wildcard responses, generate a regexp that matches
-        every wildcard redirect.
-
-        How it works:
-        1. Replace path in 2 redirect URLs (if it gets reflected in) with a mark
-           (e.g. /path1 -> /foo/path1 and /path2 -> /foo/path2 will become /foo/[mark] for both)
-        2. Compare 2 redirects and generate a regex that matches both
-           (e.g. /foo/[mark]?a=1 and /foo/[mark]?a=2 will have the regex: ^/foo/[mark]?a=(.*)$)
-        3. Next time if it redirects, replace mark in regex with the path and check if it matches
-           (e.g. /path3 -> /foo/path3?a=5, the regex becomes ^/foo/path3?a=(.*)$, which matches)
-        """
-
-        first_loc = unquote(first_loc).replace(first_path, REFLECTED_PATH_MARKER)
-        second_loc = unquote(second_loc).replace(second_path, REFLECTED_PATH_MARKER)
-        return generate_matching_regex(first_loc, second_loc)
-
     def setup(self):
         """
         Generate wildcard response information containers, this will be
@@ -151,3 +132,22 @@ class Scanner:
             return False
 
         return True
+
+    @staticmethod
+    def generate_redirect_regex(first_loc, first_path, second_loc, second_path):
+        """
+        From 2 redirects of wildcard responses, generate a regexp that matches
+        every wildcard redirect.
+
+        How it works:
+        1. Replace path in 2 redirect URLs (if it gets reflected in) with a mark
+           (e.g. /path1 -> /foo/path1 and /path2 -> /foo/path2 will become /foo/[mark] for both)
+        2. Compare 2 redirects and generate a regex that matches both
+           (e.g. /foo/[mark]?a=1 and /foo/[mark]?a=2 will have the regex: ^/foo/[mark]?a=(.*)$)
+        3. Next time if it redirects, replace mark in regex with the path and check if it matches
+           (e.g. /path3 -> /foo/path3?a=5, the regex becomes ^/foo/path3?a=(.*)$, which matches)
+        """
+
+        first_loc = unquote(first_loc).replace(first_path, REFLECTED_PATH_MARKER)
+        second_loc = unquote(second_loc).replace(second_path, REFLECTED_PATH_MARKER)
+        return generate_matching_regex(first_loc, second_loc)

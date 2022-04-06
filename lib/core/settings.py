@@ -23,7 +23,7 @@ import string
 from lib.utils.file import FileUtils
 
 # Version format: <major version>.<minor version>.<revision>[.<month>]
-VERSION = "0.4.2.3"
+VERSION = "0.4.2.4"
 
 BANNER = f"""
   _|. _ _  _  _  _ _|_    v{VERSION}
@@ -37,10 +37,6 @@ IS_WINDOWS = sys.platform in ("win32", "msys")
 DEFAULT_ENCODING = "utf-8"
 
 NEW_LINE = os.linesep
-
-ALLOWED_PICKLE_MODULES = ("collections", "requests", "http", "urllib3", "lib")
-
-UNSAFE_PICKLE_BUILTINS = ("eval", "exec")
 
 INVALID_CHARS_FOR_WINDOWS_FILENAME = ('"', "*", "<", ">", "?", "\\", "|", "/", ":")
 

@@ -21,8 +21,8 @@ from socket import getaddrinfo
 _dns_cache = {}
 
 
-def set_custom_dns(domain, addr):
-    _dns_cache[domain] = getaddrinfo(addr, 65535)
+def set_custom_dns(domain, port, addr):
+    _dns_cache[domain, port] = getaddrinfo(addr, port)
 
 
 def cached_getaddrinfo(*args, **kwargs):
@@ -31,8 +31,8 @@ def cached_getaddrinfo(*args, **kwargs):
     does cache the answer to improve the performance
     """
 
-    host = args[0]
-    if host not in _dns_cache:
-        _dns_cache[host] = getaddrinfo(*args, **kwargs)
+    host, port = args[:2]
+    if (host, port) not in _dns_cache:
+        _dns_cache[host, port] = getaddrinfo(*args, **kwargs)
 
-    return _dns_cache[host]
+    return _dns_cache[host, port]
