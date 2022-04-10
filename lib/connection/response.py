@@ -16,8 +16,6 @@
 #
 #  Author: Mauro Soria
 
-from functools import cached_property
-
 from lib.core.settings import DEFAULT_ENCODING, ITER_CHUNK_SIZE, UNKNOWN
 from lib.parse.url import parse_path, parse_full_path
 from lib.utils.common import is_binary
@@ -42,11 +40,11 @@ class Response:
                 response.encoding or DEFAULT_ENCODING, errors="ignore"
             )
 
-    @cached_property
+    @property
     def type(self):
         return self.headers.get("content-type") or UNKNOWN
 
-    @cached_property
+    @property
     def length(self):
         try:
             return int(self.headers.get("content-length"))
