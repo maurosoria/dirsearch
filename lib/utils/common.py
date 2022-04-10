@@ -16,36 +16,12 @@
 #
 #  Author: Mauro Soria
 
-try:
-    import cPickle as _pickle
-except ModuleNotFoundError:
-    import pickle as _pickle
-
 from ipaddress import IPv4Network, IPv6Network
 from urllib.parse import quote
 
 from lib.core.settings import (
     INVALID_CHARS_FOR_WINDOWS_FILENAME, INSECURE_CSV_CHARS,
     INVALID_FILENAME_CHAR_REPLACEMENT, URL_SAFE_CHARS, TEXT_CHARS,
-)
-
-ALLOWED_PICKLE_CLASSES = (
-    "collections.OrderedDict",
-    "http.cookiejar.DefaultCookiePolicy",
-    "requests.adapters.HTTPAdapter",
-    "requests.cookies.RequestsCookieJar",
-    "requests.structures.CaseInsensitiveDict",
-    "lib.connection.requester.Requester",
-    "lib.connection.response.Response",
-    "lib.connection.requester.Session",
-    "lib.core.dictionary.Dictionary",
-    "lib.core.report_manager.Report",
-    "lib.core.report_manager.ReportManager",
-    "lib.core.report_manager.Result",
-    "lib.core.structures.AttributeDict",
-    "lib.core.structures.CaseInsensitiveDict",
-    "lib.output.verbose.Output",
-    "urllib3.util.retry.Retry",
 )
 
 
@@ -78,6 +54,10 @@ def human_size(num):
     return f"{num}TB"
 
 
+def is_binary(bytes):
+    return bool(bytes.translate(None, TEXT_CHARS))
+
+
 def is_ipv6(ip):
     return ip.count(":") >= 2
 
@@ -90,30 +70,9 @@ def iprange(subnet):
     return [str(ip) for ip in network]
 
 
-def is_binary(bytes):
-    return bool(bytes.translate(None, TEXT_CHARS))
-
-
 # Prevent CSV injection. Reference: https://www.exploit-db.com/exploits/49370
 def escape_csv(text):
     if text.startswith(INSECURE_CSV_CHARS):
         text = "'" + text
 
     return text.replace('"', '""')
-
-
-# Reference: https://docs.python.org/3.4/library/pickle.html#restricting-globals
-class RestrictedUnpickler(_pickle.Unpickler):
-    def find_class(self, module, name):
-        if f"{module}.{name}" in ALLOWED_PICKLE_CLASSES:
-            return super().find_class(module, name)
-
-        raise _pickle.UnpicklingError()
-
-
-def unpickle(*args, **kwargs):
-    return RestrictedUnpickler(*args, **kwargs).load()
-
-
-def pickle(obj, *args, **kwargs):
-    return _pickle.Pickler(*args, **kwargs).dump(obj)

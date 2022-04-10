@@ -52,10 +52,6 @@ class Scanner:
         first_response = self.requester.request(first_path)
         self.response = first_response
 
-        if self.response.status == 404:
-            # Using the response status code is enough :-}
-            return
-
         duplicate = self.get_duplicate(first_response)
         # Another test was performed before and has the same response as this
         if duplicate:
@@ -101,12 +97,8 @@ class Scanner:
 
     def scan(self, path, response):
         """
-        Check if redirect matches the wildcard redirect regex or the response
-        has high similarity with wildcard tested at the start
+        Perform analyzing to see if the response is wildcard or not
         """
-
-        if self.response.status == response.status == 404:
-            return False
 
         if self.response.status != response.status:
             return True

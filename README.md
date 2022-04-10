@@ -56,7 +56,7 @@ Installation & Usage
 
 Choose one of these installation options:
 
-- Install with git: `git clone https://github.com/maurosoria/dirsearch.git`
+- Install with git: `git clone https://github.com/maurosoria/dirsearch.git` (RECOMMENDED)
 - Install with ZIP file: [Download here](https://github.com/maurosoria/dirsearch/archive/master.zip)
 - Install with Docker: `docker build -t "dirsearch:v0.4.1"` ([more information](https://github.com/maurosoria/dirsearch#support-docker))
 - Install with Kali Linux: `sudo apt-get install dirsearch`
@@ -121,11 +121,11 @@ Options:
 
   Mandatory:
     -u URL, --url=URL   Target URL(s), support multiple flags
-    -l FILE, --url-file=FILE
+    -l PATH, --url-file=PATH
                         URL list file
     --stdin             Read URL(s) from STDIN
     --cidr=CIDR         Target CIDR
-    --raw=FILE          Load raw HTTP request from file (use `--scheme` flag
+    --raw=PATH          Load raw HTTP request from file (use `--scheme` flag
                         to set the scheme)
     -s SESSION_FILE, --session=SESSION_FILE
                         Session file
@@ -138,7 +138,7 @@ Options:
                         Add extensions to every wordlist entry. By default
                         dirsearch only replaces the %EXT% keyword with
                         extensions
-    --config=FILE       Full path to config file, see 'default.conf' for
+    --config=PATH       Full path to config file, see 'default.conf' for
                         example (Default: default.conf)
 
   Dictionary Settings:
@@ -217,11 +217,10 @@ Options:
                         HTTP method (default: GET)
     -d DATA, --data=DATA
                         HTTP request data
-    --data-file=DATA_FILE
-                        File contains HTTP request data
+    --data-file=PATH    File contains HTTP request data
     -H HEADERS, --header=HEADERS
                         HTTP request header, support multiple flags
-    --header-file=FILE  File contains HTTP request headers
+    --header-file=PATH  File contains HTTP request headers
     -F, --follow-redirects
                         Follow HTTP redirects
     --random-agent      Choose a random User-Agent for each request
@@ -229,6 +228,9 @@ Options:
                         bearer token)
     --auth-type=TYPE    Authentication type (basic, digest, bearer, ntlm, jwt,
                         oauth2)
+    --cert-file=PATH    File contains client-side certificate
+    --key-file=PATH     File contains client-side certificate private key
+                        (unencrypted)
     --user-agent=USERAGENT
     --cookie=COOKIE
 
@@ -237,7 +239,7 @@ Options:
     --delay=DELAY       Delay between requests
     --proxy=PROXY       Proxy URL, support HTTP and SOCKS proxies (e.g.
                         localhost:8080, socks5://localhost:8088)
-    --proxy-file=FILE   File contains proxy servers
+    --proxy-file=PATH   File contains proxy servers
     --proxy-auth=CREDENTIAL
                         Proxy authentication credential
     --replay-proxy=PROXY
@@ -251,11 +253,11 @@ Options:
     --exit-on-error     Exit whenever an error occurs
 
   Output:
-    -o FILE, --output=FILE
+    -o PATH, --output=PATH
                         Output file
     --format=FORMAT     Report format (Available: simple, plain, json, xml,
                         md, csv, html, sqlite)
-    --log=FILE          Log file
+    --log=PATH          Log file
 ```
 
 
@@ -298,25 +300,20 @@ show-redirects-history = False
 # exclude-response = 404.html
 # skip-on-status = 429,999
 
-[output]
-## Support: plain, simple, json, xml, md, csv, html, sqlite
-report-format = plain
-autosave-report = True
-# log-file = logs/dirsearch.log
-# report-output-folder = /home/user/
-
 [dictionary]
 lowercase = False
 uppercase = False
 capitalization = False
 # prefixes = .,admin
 # suffixes = ~,.bak
-# wordlist = db/dicc.txt
+# wordlist = /path/to/wordlist.txt
 
 [request]
 httpmethod = get
 follow-redirects = False
-# headers-file = headers.txt
+# headers-file = /path/to/headers.txt
+# cert-file = /path/to/client.crt
+# key-file = /path/to/client.key
 # user-agent = MyUserAgent
 # cookie = SESSIONID=123
 
@@ -330,8 +327,15 @@ exit-on-error = False
 ## By disabling `scheme` variable, dirsearch will automatically identify the URI scheme
 # scheme = http
 # proxy = localhost:8080
-# proxy-file = proxies.txt
+# proxy-file = /path/to/proxies.txt
 # replay-proxy = localhost:8000
+
+[output]
+## Support: plain, simple, json, xml, md, csv, html, sqlite
+report-format = plain
+autosave-report = True
+# log-file = /path/to/dirsearch.log
+# report-output-folder = /path/to/reports
 ```
 
 
@@ -379,9 +383,9 @@ python3 dirsearch.py -e php,html,js -u https://target -r --recursion-depth 3 --r
 
 ----
 ### Threads
-The thread number (**-t | --threads**) reflects the number of separated brute force processes. And so the bigger the thread number is, the faster dirsearch runs. By default, the number of threads is 30, but you can increase it if you want to speed up the progress.
+The thread number (**-t | --threads**) reflects the number of separated brute force processes. And so the bigger the thread number is, the faster dirsearch runs. By default, the number of threads is 25, but you can increase it if you want to speed up the progress.
 
-In spite of that, the speed still depends a lot on the response time of the server. And as a warning, we advise you to keep the threads number not too big because it can cause DoS.
+In spite of that, the speed still depends a lot on the response time of the server. And as a warning, we advise you to keep the threads number not too big because it can cause DoS (Denial of Service).
 
 ```
 python3 dirsearch.py -e php,htm,js,bak,zip,tgz,txt -u https://target -t 20
@@ -394,7 +398,7 @@ python3 dirsearch.py -e php,htm,js,bak,zip,tgz,txt -u https://target -t 20
 ```
 python3 dirsearch.py -e php -u https://target --prefixes .,admin,_
 ```
-Base wordlist:
+Wordlist:
 
 ```
 tools
@@ -402,6 +406,7 @@ tools
 Generated with prefixes:
 
 ```
+tools
 .tools
 admintools
 _tools
@@ -412,7 +417,7 @@ _tools
 ```
 python3 dirsearch.py -e php -u https://target --suffixes ~
 ```
-Base wordlist:
+Wordlist:
 
 ```
 index.php
@@ -421,6 +426,8 @@ internal
 Generated with suffixes:
 
 ```
+index.php
+internal
 index.php~
 internal~
 ```
@@ -435,7 +442,7 @@ Example: If you add `admin.php` into `db/403_blacklist.txt`, whenever you do a s
 ### Filters
 Use **-i | --include-status** and **-x | --exclude-status** to select allowed and not allowed response status-codes
 
-For more advanced filters: **--exclude-sizes**, **--exclude-texts**, **--exclude-regexps**, **--exclude-redirects** and **--exclude-content**
+For more advanced filters: **--exclude-sizes**, **--exclude-texts**, **--exclude-regexps**, **--exclude-redirects** and **--exclude-response**
 
 ```
 python3 dirsearch.py -e php,html,js -u https://target --exclude-sizes 1B,243KB
@@ -454,7 +461,7 @@ python3 dirsearch.py -e php,html,js -u https://target --exclude-redirects "https
 ```
 
 ```
-python3 dirsearch.py -e php,html,js -u https://target --exclude-content /error.html
+python3 dirsearch.py -e php,html,js -u https://target --exclude-response /error.html
 ```
 
 ----
@@ -468,7 +475,7 @@ Cache-Control: max-age=0
 Accept: */*
 ```
 
-Since there is no way for dirsearch to know what the URI scheme is, you need to set it using the `--scheme` flag. By default, the scheme is `http`, which can cause a lot of false negatives.
+Since there is no way for dirsearch to know what the URI scheme is, you need to set it using the `--scheme` flag. By default, dirsearch automatically detects the scheme.
 
 ----
 ### Wordlist formats
@@ -499,7 +506,7 @@ Index.html
 
 `python3 dirsearch.py -u https://target -X jsp`
 
-Base wordlist:
+Wordlist:
 
 ```
 admin.php
@@ -514,11 +521,12 @@ admin.php
 
 `python3 dirsearch.py -e html -u https://target --only-selected`
 
-Base wordlist:
+Wordlist:
 
 ```
 index.html
 admin.php
+login.aspx
 ```
 After:
 
@@ -531,10 +539,10 @@ index.html
 - From an URL, you can scan a list of sub-directories with **--subdirs**.
 
 ```
-python3 dirsearch.py -e php,html,js -u https://target --subdirs admin/,folder/,/
+python3 dirsearch.py -e php,html,js -u https://target --subdirs /,admin/,folder/
 ```
 
-- The reverse version of this is **--exclude-subdirs**, which prevents dirsearch from scan recursively the given sub-directories.
+- The reverse version of this is **--exclude-subdirs**, which prevents dirsearch from scanning recursively the given sub-directories.
 
 ```
 python3 dirsearch.py -e php,html,js -u https://target --recursive --exclude-subdirs image/,css/
@@ -558,7 +566,7 @@ python3 dirsearch.py -e php,html,js -u https://target --proxylist proxyservers.t
 
 ----
 ### Reports
-Supported report formats: **simple**, **plain**, **json**, **xml**, **md**, **csv**,  **html**
+Supported report formats: **simple**, **plain**, **json**, **xml**, **md**, **csv**,  **html**, **sqlite**
 
 ```
 python3 dirsearch.py -e php -l URLs.txt --format plain -o report.txt

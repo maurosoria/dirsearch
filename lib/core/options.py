@@ -74,6 +74,12 @@ def options():
         fd = access_file(opt.data_file, "data file")
         opt.data = fd.get_lines()
 
+    if opt.cert_file:
+        access_file(opt.cert_file, "certificate file")
+
+    if opt.key_file:
+        access_file(opt.key_file, "certificate private key file")
+
     headers = {}
 
     if opt.header_file:
@@ -288,6 +294,8 @@ def parse_config(opt):
     opt.use_random_agents = opt.use_random_agents or config.safe_getboolean(
         "request", "random-user-agents"
     )
+    opt.cert_file = opt.cert_file or config.safe_get("request", "cert-file")
+    opt.key_file = opt.key_file or config.safe_get("request", "key-file")
     opt.useragent = opt.useragent or config.safe_get("request", "user-agent")
     opt.cookie = opt.cookie or config.safe_get("request", "cookie")
 

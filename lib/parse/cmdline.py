@@ -41,7 +41,7 @@ def parse_arguments():
         "--url-file",
         action="store",
         dest="url_file",
-        metavar="FILE",
+        metavar="PATH",
         help="URL list file",
     )
     mandatory.add_option(
@@ -52,7 +52,7 @@ def parse_arguments():
         "--raw",
         action="store",
         dest="raw_file",
-        metavar="FILE",
+        metavar="PATH",
         help="Load raw HTTP request from file (use `--scheme` flag to set the scheme)",
     )
     mandatory.add_option(
@@ -85,7 +85,7 @@ def parse_arguments():
         action="store",
         dest="config",
         default=FileUtils.build_path(SCRIPT_PATH, "default.conf"),
-        metavar="FILE",
+        metavar="PATH",
         help="Full path to config file, see 'default.conf' for example (Default: default.conf)",
     )
 
@@ -324,7 +324,7 @@ def parse_arguments():
         "--data-file",
         action="store",
         dest="data_file",
-        metavar="FILE",
+        metavar="PATH",
         help="File contains HTTP request data"
     )
     request.add_option(
@@ -337,7 +337,7 @@ def parse_arguments():
     request.add_option(
         "--header-file",
         dest="header_file",
-        metavar="FILE",
+        metavar="PATH",
         help="File contains HTTP request headers",
     )
     request.add_option(
@@ -366,6 +366,20 @@ def parse_arguments():
         dest="auth_type",
         metavar="TYPE",
         help=f"Authentication type ({', '.join(AUTHENTICATION_TYPES)})",
+    )
+    request.add_option(
+        "--cert-file",
+        action="store",
+        dest="cert_file",
+        metavar="PATH",
+        help="File contains client-side certificate",
+    )
+    request.add_option(
+        "--key-file",
+        action="store",
+        dest="key_file",
+        metavar="PATH",
+        help="File contains client-side certificate private key (unencrypted)",
     )
     request.add_option("--user-agent", action="store", dest="useragent")
     request.add_option("--cookie", action="store", dest="cookie")
@@ -397,7 +411,7 @@ def parse_arguments():
         "--proxy-file",
         action="store",
         dest="proxy_file",
-        metavar="FILE",
+        metavar="PATH",
         help="File contains proxy servers",
     )
     connection.add_option(
@@ -455,7 +469,7 @@ def parse_arguments():
         "--output",
         action="store",
         dest="output_file",
-        metavar="FILE",
+        metavar="PATH",
         help="Output file",
     )
     output.add_option(
@@ -466,7 +480,7 @@ def parse_arguments():
         help="Report format (Available: simple, plain, json, xml, md, csv, html, sqlite)",
     )
     output.add_option(
-        "--log", action="store", dest="log_file", metavar="FILE", help="Log file"
+        "--log", action="store", dest="log_file", metavar="PATH", help="Log file"
     )
 
     parser.add_option_group(mandatory)
