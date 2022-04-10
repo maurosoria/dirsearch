@@ -39,8 +39,9 @@ from lib.core.settings import (
 )
 from lib.parse.rawrequest import parse_raw
 from lib.parse.url import clean_path, parse_path, join_path
-from lib.utils.common import get_valid_filename, human_size, pickle, unpickle
+from lib.utils.common import get_valid_filename, human_size
 from lib.utils.file import FileUtils
+from lib.utils.pickle import pickle, unpickle
 
 
 class Controller:

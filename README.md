@@ -406,6 +406,7 @@ tools
 Generated with prefixes:
 
 ```
+tools
 .tools
 admintools
 _tools
@@ -425,6 +426,8 @@ internal
 Generated with suffixes:
 
 ```
+index.php
+internal
 index.php~
 internal~
 ```
