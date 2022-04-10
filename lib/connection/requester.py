@@ -45,14 +45,6 @@ socket.getaddrinfo = cached_getaddrinfo
 STANDARD_PORTS = {"http": 80, "https": 443}
 
 
-class Session(requests.Session):
-    def merge_environment_settings(self, url, proxies, stream, verify, *args, **kwargs):
-        # Reference: https://github.com/psf/requests/issues/3829
-        return super().merge_environment_settings(
-            url, proxies, stream, self.verify, *args, **kwargs
-        )
-
-
 class Requester:
     def __init__(self, **kwargs):
         self._proxy_cred = None
@@ -67,8 +59,12 @@ class Requester:
         self.follow_redirects = kwargs.get("follow_redirects", False)
         self.random_agents = kwargs.get("random_agents", None)
         self.headers = CaseInsensitiveDict(kwargs.get("headers", {}))
-        self.session = Session()
+        self.session = requests.Session()
         self.session.verify = False
+        self.session.cert = (
+            kwargs.get("cert_file", None),
+            kwargs.get("key_file", None),
+        )
 
         # Guess the mime type of request data if not specified
         if self.data and "content-type" not in self.headers:
@@ -195,18 +191,21 @@ class Requester:
 
                 # Safe quote all special characters to prevent them from being encoded
                 url = safequote(self.url + self.base_path + path)
+
                 headers = self.headers.copy()
+                # Use prepared request to avoid the URL path from being normalized
+                # Reference: https://github.com/psf/requests/issues/5289
                 request = requests.Request(
                     self.httpmethod,
                     url,
                     headers=headers,
                     data=self.data,
                 )
+                prepped = self.session.prepare_request(request)
+                prepped.url = url
 
-                prepare = request.prepare()
-                prepare.url = url
                 response = self.session.send(
-                    prepare,
+                    prepped,
                     allow_redirects=self.follow_redirects,
                     timeout=self.timeout,
                     stream=True,
@@ -224,7 +223,7 @@ class Requester:
                 if e == socket.gaierror:
                     simple_err_msg = "Couldn't resolve DNS"
                 elif "SSLError" in err_msg:
-                    simple_err_msg = "Unexpected SSL error, probably the server is broken or try updating your OpenSSL"
+                    simple_err_msg = "Unexpected SSL error"
                 elif "TooManyRedirects" in err_msg:
                     simple_err_msg = f"Too many redirects: {self.url}"
                 elif "ProxyError" in err_msg:

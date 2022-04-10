@@ -108,6 +108,8 @@ class Controller:
             data=self.options.data,
             scheme=self.options.scheme,
             random_agents=self.random_agents,
+            cert_file=self.options.cert_file,
+            key_file=self.options.key_file,
         )
         self.dictionary = Dictionary(
             paths=self.options.wordlist,
