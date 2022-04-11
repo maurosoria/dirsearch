@@ -3,9 +3,11 @@
 ## Developing
 - Automatically detect the URI scheme (`http` or `https`) if no scheme is provided
 - SQLite report format
+- Option to overwrite unwanted extensions with selected extensions
 - Option to view redirects history when following redirects
 - HTTP traffic is saved inside log file
 - Capability to save progress and resume later
+- Support client certificate
 
 ## [0.4.2] - 2021.9.12
 - More accurate

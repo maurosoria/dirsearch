@@ -19,7 +19,10 @@
 import re
 
 from lib.core.decorators import locked
-from lib.core.settings import SCRIPT_PATH, EXTENSION_TAG, EXTENSION_REGEX
+from lib.core.settings import (
+    SCRIPT_PATH, EXTENSION_TAG, EXCLUDE_OVERWRITE_EXTENSIONS,
+    EXTENSION_RECOGNITION_REGEX, EXTENSION_REGEX
+)
 from lib.utils.common import uniq
 from lib.utils.file import FileUtils
 
@@ -34,8 +37,8 @@ class Dictionary:
         self.prefixes = kwargs.get("prefixes", [])
         self.suffixes = kwargs.get("suffixes", [])
         self.force_extensions = kwargs.get("force_extensions", False)
+        self.overwrite_extensions = kwargs.get("overwrite_extensions", False)
         self.no_extension = kwargs.get("no_extension", False)
-        self.only_selected = kwargs.get("only_selected", False)
         self.lowercase = kwargs.get("lowercase", False)
         self.uppercase = kwargs.get("uppercase", False)
         self.capitalization = kwargs.get("capitalization", False)
@@ -63,8 +66,9 @@ class Dictionary:
                 append line unmodified.
         """
 
-        reext = re.compile(EXTENSION_TAG, re.IGNORECASE)
-        result = []
+        re_ext_tag = re.compile(EXTENSION_TAG, re.IGNORECASE)
+        re_extension = re.compile(EXTENSION_REGEX, re.IGNORECASE)
+        entries = []
 
         # Enable to use multiple dictionaries at once
         for dict_file in self._dictionary_files:
@@ -88,51 +92,64 @@ class Dictionary:
                 # Classic dirsearch wordlist processing (with %EXT% keyword)
                 if EXTENSION_TAG in line.lower():
                     for extension in self.extensions:
-                        newline = reext.sub(extension, line)
-                        result.append(newline)
-                # If "forced extensions" is used and the path is not a directory (terminated by /) or has
-                # had an extension already, append extensions to the path
+                        newline = re_ext_tag.sub(extension, line)
+                        entries.append(newline)
+                # If "forced extensions" is used and the path is not a directory (terminated by /)
+                # or has had an extension already, append extensions to the path
                 elif (
                     self.force_extensions
                     and not line.endswith("/")
-                    and not re.search(EXTENSION_REGEX, line)
+                    and not re.search(EXTENSION_RECOGNITION_REGEX, line)
                 ):
-                    for extension in self.extensions:
-                        result.append(line + f".{extension}")
+                    entries.append(line)
+                    entries.append(line + "/")
 
-                    result.append(line)
-                    result.append(line + "/")
-                # Append line unmodified.
-                elif not self.only_selected or any(
-                    line.endswith(f".{extension}") for extension in self.extensions
+                    for extension in self.extensions:
+                        entries.append(line + f".{extension}")
+                # Overwrite unknown extensions with selected ones (but also keep the origin)
+                elif (
+                    self.overwrite_extensions
+                    and not line.endswith(tuple(self.extensions) + EXCLUDE_OVERWRITE_EXTENSIONS)
+                    # Paths that have queries in wordlist are usually used for exploiting
+                    # diclosed vulnerabilities of services, skip such paths
+                    and "?" not in line
+                    and "#" not in line
+                    and re.search(EXTENSION_RECOGNITION_REGEX, line)
                 ):
-                    result.append(line)
+                    entries.append(line)
+
+                    for extension in self.extensions:
+                        newline = re_extension.sub(f".{extension}", line)
+                        entries.append(newline)
+                # Append line unmodified.
+                else:
+                    entries.append(line)
 
         # Re-add dictionary with prefixes
-        result.extend(
+        entries.extend(
             pref + path
-            for path in result
+            for path in entries
             for pref in self.prefixes
             if not path.startswith(pref)
         )
         # Re-add dictionary with suffixes
-        result.extend(
+        entries.extend(
             path + suff
-            for path in result
+            for path in entries
             for suff in self.suffixes
             if not path.endswith(("/", suff))
         )
 
         if self.lowercase:
-            self._entries = tuple(entry.lower() for entry in uniq(result))
+            self._entries = tuple(entry.lower() for entry in uniq(entries))
         elif self.uppercase:
-            self._entries = tuple(entry.upper() for entry in uniq(result))
+            self._entries = tuple(entry.upper() for entry in uniq(entries))
         elif self.capitalization:
-            self._entries = tuple(entry.capitalize() for entry in uniq(result))
+            self._entries = tuple(entry.capitalize() for entry in uniq(entries))
         else:
-            self._entries = tuple(uniq(result))
+            self._entries = tuple(uniq(entries))
 
-        del result
+        del entries
 
     # Get ignore paths for status codes.
     # More information: https://github.com/maurosoria/dirsearch#Blacklist

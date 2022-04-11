@@ -58,9 +58,9 @@ Choose one of these installation options:
 
 - Install with git: `git clone https://github.com/maurosoria/dirsearch.git` (RECOMMENDED)
 - Install with ZIP file: [Download here](https://github.com/maurosoria/dirsearch/archive/master.zip)
-- Install with Docker: `docker build -t "dirsearch:v0.4.1"` ([more information](https://github.com/maurosoria/dirsearch#support-docker))
-- Install with Kali Linux: `sudo apt-get install dirsearch`
+- Install with Docker: `docker build -t "dirsearch:v0.4.1"` (more information can be found [here](https://github.com/maurosoria/dirsearch#support-docker))
 - Install with PyPi: `pip3 install dirsearch`
+- Install with Kali Linux: `sudo apt-get install dirsearch` (deprecated)
 
 **All in one:**
 ```
@@ -77,16 +77,17 @@ Wordlists (IMPORTANT)
   - Wordlist is a text file, each line is a path.
   - About extensions, unlike other tools, dirsearch only replaces the `%EXT%` keyword with extensions from **-e** flag.
   - For wordlists without `%EXT%` (like [SecLists](https://github.com/danielmiessler/SecLists)), **-f | --force-extensions** switch is required to append extensions to every word in wordlist, as well as the `/`.
+  - To apply your extensions to wordlist entries that have extensions already, use **-O** | **--overwrite-extensions** (Note: some extensions are excluded from being overwritted such as *.log*, *.json*, *.xml*, ... or media extensions like *.jpg*, *.png*)
   - To use multiple wordlists, you can separate your wordlists with commas. Example: `wordlist1.txt,wordlist2.txt`.
 
 **Examples:**
 
-- Normal extensions
+- *Normal extensions*:
 ```
 index.%EXT%
 ```
 
-Passing **asp** and **aspx** extensions will generate the following dictionary:
+Passing **asp** and **aspx** as extensions will generate the following dictionary:
 
 ```
 index
@@ -94,18 +95,31 @@ index.asp
 index.aspx
 ```
 
-- Force extensions
+- *Force extensions*:
 ```
 admin
 ```
 
-Passing "php" and "html" extensions with **-f**/**--force-extensions** flag will generate the following dictionary:
+Passing **php** and **html** as extensions with **-f**/**--force-extensions** flag will generate the following dictionary:
 
 ```
 admin
 admin.php
 admin.html
 admin/
+```
+
+- *Overwrite extensions*:
+```
+login.html
+```
+
+Passing **jsp** and **jspa** as extensions with **-O**/**--overwrite-extensions** flag will generate the following dictionary:
+
+```
+login.html
+login.jsp
+login.jspa
 ```
 
 
@@ -129,32 +143,33 @@ Options:
                         to set the scheme)
     -s SESSION_FILE, --session=SESSION_FILE
                         Session file
-    -e EXTENSIONS, --extensions=EXTENSIONS
-                        Extension list separated by commas (e.g. php,asp)
-    -X EXTENSIONS, --exclude-extensions=EXTENSIONS
-                        Exclude extension list separated by commas (e.g.
-                        asp,jsp)
-    -f, --force-extensions
-                        Add extensions to every wordlist entry. By default
-                        dirsearch only replaces the %EXT% keyword with
-                        extensions
     --config=PATH       Full path to config file, see 'default.conf' for
                         example (Default: default.conf)
 
   Dictionary Settings:
     -w WORDLIST, --wordlists=WORDLIST
                         Customize wordlists (separated by commas)
+    -e EXTENSIONS, --extensions=EXTENSIONS
+                        Extension list separated by commas (e.g. php,asp)
+    -f, --force-extensions
+                        Add extensions to the end of every wordlist entry. By
+                        default dirsearch only replaces the %EXT% keyword with
+                        extensions
+    -O, --overwrite-extensions
+                        Overwrite other extensions with your extensions
+                        (selected via `-e`)
+    --exclude-extensions=EXTENSIONS
+                        Exclude extension list separated by commas (e.g.
+                        asp,jsp)
+    --remove-extensions
+                        Remove extensions in all paths (e.g. admin.php ->
+                        admin)
     --prefixes=PREFIXES
                         Add custom prefixes to all wordlist entries (separated
                         by commas)
     --suffixes=SUFFIXES
                         Add custom suffixes to all wordlist entries, ignore
                         directories (separated by commas)
-    --only-selected     Remove paths have different extensions from selected
-                        ones via `-e` (keep entries don't have extensions)
-    --remove-extensions
-                        Remove extensions in all paths (e.g. admin.php ->
-                        admin)
     -U, --uppercase     Uppercase wordlist
     -L, --lowercase     Lowercase wordlist
     -C, --capital       Capital wordlist
@@ -204,13 +219,7 @@ Options:
                         Minimum response length
     --max-response-size=LENGTH
                         Maximum response length
-    --redirects-history
-                        Show redirects history
     --max-time=SECONDS  Maximum runtime for the scan
-    --full-url          Full URLs in the output (enabled automatically in
-                        quiet mode)
-    --no-color          No colored output
-    -q, --quiet-mode    Quiet mode
 
   Request Settings:
     -m METHOD, --http-method=METHOD
@@ -252,6 +261,14 @@ Options:
     --ip=IP             Server IP address
     --exit-on-error     Exit whenever an error occurs
 
+  View:
+    --full-url          Full URLs in the output (enabled automatically in
+                        quiet mode)
+    --redirects-history
+                        Show redirects history
+    --no-color          No colored output
+    -q, --quiet-mode    Quiet mode
+
   Output:
     -o PATH, --output=PATH
                         Output file
@@ -271,11 +288,6 @@ Default values for dirsearch flags can be edited in the configuration file, by d
 # edit values in this file. Everything after `#` is a comment
 # and won't be applied
 
-[mandatory]
-default-extensions = php,aspx,jsp,html,js
-force-extensions = False
-# exclude-extensions = old,log
-
 [general]
 threads = 25
 recursive = False
@@ -286,10 +298,6 @@ max-recursion-depth = 0
 exclude-subdirs = %%ff/,.;/,..;/,;/,./,../,%%2e/,%%2e%%2e/
 random-user-agents = False
 max-time = 0
-full-url = False
-quiet-mode = False
-color = True
-show-redirects-history = False
 # subdirs = /,api/
 # include-status = 200-299,401
 # exclude-status = 400,500-999
@@ -301,9 +309,13 @@ show-redirects-history = False
 # skip-on-status = 429,999
 
 [dictionary]
+default-extensions = php,aspx,jsp,html,js
+force-extensions = False
+overwrite-extensions = False
 lowercase = False
 uppercase = False
 capitalization = False
+# exclude-extensions = old,log
 # prefixes = .,admin
 # suffixes = ~,.bak
 # wordlist = /path/to/wordlist.txt
@@ -312,8 +324,6 @@ capitalization = False
 httpmethod = get
 follow-redirects = False
 # headers-file = /path/to/headers.txt
-# cert-file = /path/to/client.crt
-# key-file = /path/to/client.key
 # user-agent = MyUserAgent
 # cookie = SESSIONID=123
 
@@ -329,6 +339,12 @@ exit-on-error = False
 # proxy = localhost:8080
 # proxy-file = /path/to/proxies.txt
 # replay-proxy = localhost:8000
+
+[view]
+full-url = False
+quiet-mode = False
+color = True
+show-redirects-history = False
 
 [output]
 ## Support: plain, simple, json, xml, md, csv, html, sqlite
@@ -502,7 +518,7 @@ Index.html
 
 ----
 ### Exclude extensions
-- Use **-X | --exclude-extensions** with an extension list will remove all paths in the wordlist that contains the given extensions
+Use **-X | --exclude-extensions** with an extension list will remove all paths in the wordlist that contains the given extensions
 
 `python3 dirsearch.py -u https://target -X jsp`
 
@@ -516,22 +532,6 @@ After:
 
 ```
 admin.php
-```
-- If you want to exclude ALL extensions, except for the ones you selected in the `-e` flag, use **--only-selected**
-
-`python3 dirsearch.py -e html -u https://target --only-selected`
-
-Wordlist:
-
-```
-index.html
-admin.php
-login.aspx
-```
-After:
-
-```
-index.html
 ```
 
 ----

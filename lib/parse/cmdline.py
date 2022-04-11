@@ -59,28 +59,6 @@ def parse_arguments():
         "-s", "--session", action="store", dest="session_file", help="Session file"
     )
     mandatory.add_option(
-        "-e",
-        "--extensions",
-        action="store",
-        dest="extensions",
-        help="Extension list separated by commas (e.g. php,asp)",
-    )
-    mandatory.add_option(
-        "-X",
-        "--exclude-extensions",
-        action="store",
-        dest="exclude_extensions",
-        metavar="EXTENSIONS",
-        help="Exclude extension list separated by commas (e.g. asp,jsp)",
-    )
-    mandatory.add_option(
-        "-f",
-        "--force-extensions",
-        action="store_true",
-        dest="force_extensions",
-        help="Add extensions to every wordlist entry. By default dirsearch only replaces the %EXT% keyword with extensions",
-    )
-    mandatory.add_option(
         "--config",
         action="store",
         dest="config",
@@ -99,6 +77,40 @@ def parse_arguments():
         help="Customize wordlists (separated by commas)",
     )
     dictionary.add_option(
+        "-e",
+        "--extensions",
+        action="store",
+        dest="extensions",
+        help="Extension list separated by commas (e.g. php,asp)",
+    )
+    dictionary.add_option(
+        "-f",
+        "--force-extensions",
+        action="store_true",
+        dest="force_extensions",
+        help="Add extensions to the end of every wordlist entry. By default dirsearch only replaces the %EXT% keyword with extensions",
+    )
+    dictionary.add_option(
+        "-O",
+        "--overwrite-extensions",
+        action="store_true",
+        dest="overwrite_extensions",
+        help="Overwrite other extensions with your extensions (selected via `-e`)",
+    )
+    dictionary.add_option(
+        "--exclude-extensions",
+        action="store",
+        dest="exclude_extensions",
+        metavar="EXTENSIONS",
+        help="Exclude extension list separated by commas (e.g. asp,jsp)",
+    )
+    dictionary.add_option(
+        "--remove-extensions",
+        action="store_true",
+        dest="no_extension",
+        help="Remove extensions in all paths (e.g. admin.php -> admin)",
+    )
+    dictionary.add_option(
         "--prefixes",
         action="store",
         dest="prefixes",
@@ -109,18 +121,6 @@ def parse_arguments():
         action="store",
         dest="suffixes",
         help="Add custom suffixes to all wordlist entries, ignore directories (separated by commas)",
-    )
-    dictionary.add_option(
-        "--only-selected",
-        action="store_true",
-        dest="only_selected",
-        help="Remove paths have different extensions from selected ones via `-e` (keep entries don't have extensions)",
-    )
-    dictionary.add_option(
-        "--remove-extensions",
-        action="store_true",
-        dest="no_extension",
-        help="Remove extensions in all paths (e.g. admin.php -> admin)",
     )
     dictionary.add_option(
         "-U",
@@ -281,30 +281,12 @@ def parse_arguments():
         default=0,
     )
     general.add_option(
-        "--redirects-history",
-        action="store_true",
-        dest="redirects_history",
-        help="Show redirects history",
-    )
-    general.add_option(
         "--max-time",
         action="store",
         type="int",
         dest="maxtime",
         metavar="SECONDS",
         help="Maximum runtime for the scan",
-    )
-    general.add_option(
-        "--full-url",
-        action="store_true",
-        dest="full_url",
-        help="Full URLs in the output (enabled automatically in quiet mode)",
-    )
-    general.add_option(
-        "--no-color", action="store_false", dest="color", help="No colored output"
-    )
-    general.add_option(
-        "-q", "--quiet-mode", action="store_true", dest="quiet", help="Quiet mode"
     )
 
     # Request Settings
@@ -462,6 +444,27 @@ def parse_arguments():
         help="Exit whenever an error occurs",
     )
 
+    # View Settings
+    view = OptionGroup(parser, "View")
+    view.add_option(
+        "--full-url",
+        action="store_true",
+        dest="full_url",
+        help="Full URLs in the output (enabled automatically in quiet mode)",
+    )
+    view.add_option(
+        "--redirects-history",
+        action="store_true",
+        dest="redirects_history",
+        help="Show redirects history",
+    )
+    view.add_option(
+        "--no-color", action="store_false", dest="color", help="No colored output"
+    )
+    view.add_option(
+        "-q", "--quiet-mode", action="store_true", dest="quiet", help="Quiet mode"
+    )
+
     # Output Settings
     output = OptionGroup(parser, "Output")
     output.add_option(
@@ -488,6 +491,7 @@ def parse_arguments():
     parser.add_option_group(general)
     parser.add_option_group(request)
     parser.add_option_group(connection)
+    parser.add_option_group(view)
     parser.add_option_group(output)
     options, _ = parser.parse_args()
 

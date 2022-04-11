@@ -121,9 +121,9 @@ class Controller:
             uppercase=self.options.uppercase,
             capitalization=self.options.capitalization,
             force_extensions=self.options.force_extensions,
+            overwrite_extensions=self.options.overwrite_extensions,
             exclude_extensions=self.options.exclude_extensions,
             no_extension=self.options.no_extension,
-            only_selected=self.options.only_selected,
         )
         self.blacklists = Dictionary.generate_blacklists(self.options.extensions)
         self.targets = options.urls

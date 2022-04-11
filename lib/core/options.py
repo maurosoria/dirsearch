@@ -210,17 +210,6 @@ def parse_config(opt):
     config = ConfigParser()
     config.read(opt.config)
 
-    # Mandatory
-    opt.extensions = opt.extensions or config.safe_get(
-        "mandatory", "default-extensions"
-    )
-    opt.exclude_extensions = opt.exclude_extensions or config.safe_get(
-        "mandatory", "exclude-extensions"
-    )
-    opt.force_extensions = opt.force_extensions or config.safe_getboolean(
-        "mandatory", "force-extensions"
-    )
-
     # General
     opt.threads_count = opt.threads_count or config.safe_getint(
         "general", "threads", 25
@@ -261,18 +250,24 @@ def parse_config(opt):
         "general", "skip-on-status"
     )
     opt.maxtime = opt.maxtime or config.safe_getint("general", "max-time")
-    opt.full_url = opt.full_url or config.safe_getboolean("general", "full-url")
-    opt.color = opt.color or config.safe_getboolean("general", "color", True)
-    opt.quiet = opt.quiet or config.safe_getboolean("general", "quiet-mode")
-    opt.redirects_history = opt.redirects_history or config.safe_getboolean(
-        "general", "show-redirects-history"
-    )
 
     # Dictionary
     opt.wordlist = opt.wordlist or config.safe_get(
         "dictionary",
         "wordlist",
         FileUtils.build_path(SCRIPT_PATH, "db", "dicc.txt"),
+    )
+    opt.extensions = opt.extensions or config.safe_get(
+        "dictionary", "default-extensions"
+    )
+    opt.force_extensions = opt.force_extensions or config.safe_getboolean(
+        "dictionary", "force-extensions"
+    )
+    opt.overwrite_extensions = opt.overwrite_extensions or config.safe_getboolean(
+        "dictionary", "overwrite-extensions"
+    )
+    opt.exclude_extensions = opt.exclude_extensions or config.safe_get(
+        "dictionary", "exclude-extensions"
     )
     opt.prefixes = opt.prefixes or config.safe_get(
         "dictionary",
@@ -294,8 +289,6 @@ def parse_config(opt):
     opt.use_random_agents = opt.use_random_agents or config.safe_getboolean(
         "request", "random-user-agents"
     )
-    opt.cert_file = opt.cert_file or config.safe_get("request", "cert-file")
-    opt.key_file = opt.key_file or config.safe_get("request", "key-file")
     opt.useragent = opt.useragent or config.safe_get("request", "user-agent")
     opt.cookie = opt.cookie or config.safe_get("request", "cookie")
 
@@ -312,6 +305,14 @@ def parse_config(opt):
     opt.replay_proxy = opt.replay_proxy or config.safe_get("connection", "replay-proxy")
     opt.exit_on_error = opt.exit_on_error or config.safe_getboolean(
         "connection", "exit-on-error"
+    )
+
+    # View
+    opt.full_url = opt.full_url or config.safe_getboolean("view", "full-url")
+    opt.color = opt.color or config.safe_getboolean("view", "color", True)
+    opt.quiet = opt.quiet or config.safe_getboolean("view", "quiet-mode")
+    opt.redirects_history = opt.redirects_history or config.safe_getboolean(
+        "view", "show-redirects-history"
     )
 
     # Output

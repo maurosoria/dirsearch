@@ -23,7 +23,7 @@ import re
 import requests
 
 from requests.adapters import HTTPAdapter
-from requests.auth import HTTPBasicAuth, HTTPDigestAuth
+from requests.auth import AuthBase, HTTPBasicAuth, HTTPDigestAuth
 from requests.packages.urllib3 import disable_warnings
 from requests_ntlm import HttpNtlmAuth
 from urllib.parse import urlparse
@@ -43,6 +43,15 @@ disable_warnings()
 socket.getaddrinfo = cached_getaddrinfo
 # Standard ports for different schemes
 STANDARD_PORTS = {"http": 80, "https": 443}
+
+
+class HTTPBearerAuth(AuthBase):
+    def __init__(self, token):
+        self.token = token
+
+    def __call__(self, request):
+        request.headers["Authorization"] = f"Bearer {self.token}"
+        return request
 
 
 class Requester:
@@ -136,7 +145,7 @@ class Requester:
 
     def set_auth(self, type, credential):
         if type in ("bearer", "jwt", "oath2"):
-            self.set_header("authorization", f"Bearer {credential}")
+            self.session.auth = HTTPBearerAuth(credential)
         else:
             user = credential.split(":")[0]
             try:
