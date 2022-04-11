@@ -53,6 +53,7 @@ class HTTPBearerAuth(AuthBase):
         request.headers["Authorization"] = f"Bearer {self.token}"
         return request
 
+
 class Requester:
     def __init__(self, **kwargs):
         self._proxy_cred = None
