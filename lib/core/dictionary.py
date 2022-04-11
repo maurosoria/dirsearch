@@ -111,7 +111,7 @@ class Dictionary:
                     self.overwrite_extensions
                     and not line.endswith(tuple(self.extensions) + EXCLUDE_OVERWRITE_EXTENSIONS)
                     # Paths that have queries in wordlist are usually used for exploiting
-                    # diclosed vulneabilities of services, skip such paths
+                    # diclosed vulnerabilities of services, skip such paths
                     and "?" not in line
                     and "#" not in line
                     and re.search(EXTENSION_RECOGNITION_REGEX, line)
