@@ -46,6 +46,10 @@ OUTPUT_FORMATS = ("simple", "plain", "json", "xml", "md", "csv", "html", "sqlite
 
 COMMON_EXTENSIONS = ("php", "jsp", "asp", "aspx", "do", "action", "cgi", "html", "htm", "js", "json", "tar.gz", "bak")
 
+MEDIA_EXTENSIONS = ("webm", "mkv", "avi", "ts", "mov", "qt", "amv", "mp4", "m4p", "m4v", "mp3", "swf", "mpg", "mpeg", "jpg", "jpeg", "pjpeg", "png", "woff", "svg", "webp", "bmp", "pdf", "wav")
+
+EXCLUDE_OVERWRITE_EXTENSIONS = MEDIA_EXTENSIONS + ("axd", "cache", "coffee", "conf", "config", "css", "dll", "lock", "log", "key", "pub", "properties", "ini", "jar", "js", "json", "toml", "txt", "xml", "yaml", "yml")
+
 AUTHENTICATION_TYPES = ("basic", "digest", "bearer", "ntlm", "jwt", "oauth2")
 
 PROXY_SCHEMES = ("http://", "https://", "socks5://", "socks5h://", "socks4://", "socks4a://")
@@ -72,7 +76,9 @@ REFLECTED_PATH_MARKER = "__REFLECTED_PATH__"
 
 EXTENSION_TAG = "%ext%"
 
-EXTENSION_REGEX = r"\w[.][a-zA-Z0-9]{2,5}"
+EXTENSION_REGEX = r"([.][a-zA-Z0-9]{2,5}){1,3}~?$"
+
+EXTENSION_RECOGNITION_REGEX = r"\w" + EXTENSION_REGEX
 
 QUERY_STRING_REGEX = r"^(\&?(\w+)\=([^&]+)){1,200}$"
 
