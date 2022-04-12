@@ -421,7 +421,11 @@ class Controller:
             )
         ):
             if response.redirect:
-                added_to_queue = self.recur_for_redirect(path, response)
+                new_path = parse_path(response.redirect)
+                added_to_queue = self.recur_for_redirect(path, new_path)
+            elif len(response.history):
+                old_path = parse_path(response.history[0])
+                added_to_queue = self.recur_for_redirect(old_path, path)
             else:
                 added_to_queue = self.recur(path)
 
@@ -595,10 +599,8 @@ class Controller:
         # Return newly added directories
         return self.directories[dirs_count:]
 
-    def recur_for_redirect(self, path, response):
-        redirect_path = parse_path(response.redirect)
-
-        if redirect_path == response.path + "/":
+    def recur_for_redirect(self, path, redirect_path):
+        if redirect_path == path + "/":
             path = redirect_path[
                 len(self.requester.base_path + self.current_directory) + 1:
             ]

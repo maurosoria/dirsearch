@@ -445,7 +445,7 @@ def parse_arguments():
     )
 
     # View Settings
-    view = OptionGroup(parser, "View")
+    view = OptionGroup(parser, "View Settings")
     view.add_option(
         "--full-url",
         action="store_true",
@@ -466,7 +466,7 @@ def parse_arguments():
     )
 
     # Output Settings
-    output = OptionGroup(parser, "Output")
+    output = OptionGroup(parser, "Output Settings")
     output.add_option(
         "-o",
         "--output",
