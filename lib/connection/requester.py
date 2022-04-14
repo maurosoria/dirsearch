@@ -184,8 +184,6 @@ class Requester:
 
         # Why using a loop instead of max_retries argument? Check issue #1009
         for _ in range(self.max_retries + 1):
-            redirects = []
-
             try:
                 if not proxy:
                     try:
@@ -220,11 +218,7 @@ class Requester:
                     stream=True,
                 )
 
-                if self.follow_redirects and len(response.history):
-                    # Ignore the first response because it's for original request
-                    redirects = [response.url for response in response.history[1:]]
-
-                return Response(response, redirects)
+                return Response(response)
 
             except Exception as e:
                 err_msg = str(e)

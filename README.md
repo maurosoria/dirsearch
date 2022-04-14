@@ -27,7 +27,7 @@ Table of Contents
 * [How to use](#how-to-use)
   * [Simple usage](#simple-usage)
   * [Pausing progress](#pausing-progress)
-  * [Recursive scan](#recursive-scan)
+  * [Recursion](#recursion)
   * [Threads](#threads)
   * [Prefixes / Suffixes](#prefixes--suffixes)
   * [Blacklist](#blacklist)
@@ -382,13 +382,13 @@ dirsearch allows you to pause the scanning progress with CTRL+C, from here, you 
 <img src="static/pause.png" alt="Pausing dirsearch" width="475px">
 
 ----
-### Recursive scan
-- By using the **-r | --recursive** argument, dirsearch will brute-force recursively all directories.
+### Recursion
+- Recursive brute-force is brute-forcing continuously the after of found directories. For example, if dirsearch finds `admin/`, it will brute-force `admin/*` (`*` is where it brute forces). To enable this feature, use **-r** (or **--recursive**) flag
 
 ```
 python3 dirsearch.py -e php,html,js -u https://target -r
 ```
-- You can set the max recursion depth with **--recursion-depth**, and status-codes to recurse with **--recursion-status**
+- You can set the max recursion depth with **--recursion-depth**, and status codes to recurse with **--recursion-status**
 
 ```
 python3 dirsearch.py -e php,html,js -u https://target -r --recursion-depth 3 --recursion-status 200-399
@@ -396,6 +396,12 @@ python3 dirsearch.py -e php,html,js -u https://target -r --recursion-depth 3 --r
 - There are 2 more options: **--force-recursive** and **--deep-recursive**
   - **Force recursive**: Brute force recursively all found paths, not just paths end with `/`
   - **Deep recursive**: Recursive brute-force all depths of a path (`a/b/c` => add `a/`, `a/b/`)
+
+- If there are sub-directories that you do not want to brute-force recursively, use `--exclude-subdirs`
+
+```
+python3 dirsearch.py -e php,html,js -u https://target -r --exclude-subdirs image/,media/,css/
+```
 
 ----
 ### Threads
@@ -540,12 +546,6 @@ admin.php
 
 ```
 python3 dirsearch.py -e php,html,js -u https://target --subdirs /,admin/,folder/
-```
-
-- The reverse version of this is **--exclude-subdirs**, which prevents dirsearch from scanning recursively the given sub-directories.
-
-```
-python3 dirsearch.py -e php,html,js -u https://target --recursive --exclude-subdirs image/,css/
 ```
 
 ----

@@ -109,10 +109,10 @@ class Scanner:
             # but it's still a wildcard redirect, so unquote everything to prevent false positives
             # - clean_path(): Get rid of queries and DOM in URL because of weird behaviours could happen
             # with them, so messy that I give up on finding a way to test them
-            path = re.escape(unquote(clean_path(path)))
+            path = unquote(clean_path(path))
             redirect = unquote(clean_path(response.redirect))
             regex_to_compare = self.wildcard_redirect_regex.replace(
-                REFLECTED_PATH_MARKER, path
+                REFLECTED_PATH_MARKER, re.escape(path)
             )
             is_wildcard_redirect = re.match(regex_to_compare, redirect, re.IGNORECASE)
 

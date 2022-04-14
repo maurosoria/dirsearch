@@ -16,24 +16,32 @@
 #
 #  Author: Mauro Soria
 
-from lib.core.settings import DEFAULT_ENCODING, ITER_CHUNK_SIZE, UNKNOWN
+from lib.core.settings import (
+    DEFAULT_ENCODING, ITER_CHUNK_SIZE,
+    MAX_RESPONSE_SIZE, UNKNOWN,
+)
 from lib.parse.url import parse_path, parse_full_path
 from lib.utils.common import is_binary
 
 
 class Response:
-    def __init__(self, response, redirects):
+    def __init__(self, response):
         self.path = parse_path(response.url)
         self.full_path = parse_full_path(response.url)
         self.status = response.status_code
         self.headers = response.headers
         self.redirect = self.headers.get("location") or ""
-        self.history = redirects
+        self.history = [res.url for res in response.history]
         self.content = ""
         self.body = b""
 
         for chunk in response.iter_content(chunk_size=ITER_CHUNK_SIZE):
             self.body += chunk
+
+            if len(self.body) >= MAX_RESPONSE_SIZE or (
+                "content-length" in self.headers and is_binary(self.body)
+            ):
+                break
 
         if not is_binary(self.body):
             self.content = self.body.decode(
