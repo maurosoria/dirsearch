@@ -113,7 +113,7 @@ class Controller:
             key_file=self.options.key_file,
         )
         self.dictionary = Dictionary(
-            paths=self.options.wordlist,
+            paths=self.options.wordlists,
             extensions=self.options.extensions,
             suffixes=self.options.suffixes,
             prefixes=self.options.prefixes,
