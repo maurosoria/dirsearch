@@ -73,7 +73,7 @@ def parse_arguments():
         "-w",
         "--wordlists",
         action="store",
-        dest="wordlist",
+        dest="wordlists",
         help="Customize wordlists (separated by commas)",
     )
     dictionary.add_option(
@@ -95,7 +95,7 @@ def parse_arguments():
         "--overwrite-extensions",
         action="store_true",
         dest="overwrite_extensions",
-        help="Overwrite other extensions with your extensions (selected via `-e`)",
+        help="Overwrite other extensions in the wordlist with your extensions (selected via `-e`)",
     )
     dictionary.add_option(
         "--exclude-extensions",

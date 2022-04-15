@@ -57,7 +57,7 @@ def options():
     if not opt.extensions and not opt.no_extension:
         print("WARNING: No extension was specified!")
 
-    for dict_file in opt.wordlist.split(","):
+    for dict_file in opt.wordlists.split(","):
         access_file(dict_file, "wordlist")
 
     if opt.threads_count < 1:
@@ -139,11 +139,11 @@ def options():
             [extension.lstrip(" .") for extension in opt.extensions.split(",")]
         )
 
-    if not opt.wordlist:
+    if not opt.wordlists:
         print("No wordlist was provided, try using -w <wordlist>")
         exit(1)
 
-    opt.wordlist = uniq([wordlist.strip() for wordlist in opt.wordlist.split(",")])
+    opt.wordlists = uniq([wordlist.strip() for wordlist in opt.wordlists.split(",")])
 
     if opt.auth and not opt.auth_type:
         print("Please select the authentication type with --auth-type")
@@ -252,9 +252,9 @@ def parse_config(opt):
     opt.maxtime = opt.maxtime or config.safe_getint("general", "max-time")
 
     # Dictionary
-    opt.wordlist = opt.wordlist or config.safe_get(
+    opt.wordlists = opt.wordlists or config.safe_get(
         "dictionary",
-        "wordlist",
+        "wordlists",
         FileUtils.build_path(SCRIPT_PATH, "db", "dicc.txt"),
     )
     opt.extensions = opt.extensions or config.safe_get(
