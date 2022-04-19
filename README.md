@@ -578,11 +578,11 @@ python3 dirsearch.py -e php -u https://target --format html -o target.json
 ----
 ### More example commands
 ```
-cat urls.txt | python3 dirsearch.py -u https://target --stdin
+cat urls.txt | python3 dirsearch.py --stdin
 ```
 
 ```
-python3 dirsearch.py -u https://target --format json -o target.json
+python3 dirsearch.py -u https://target --max-time 360
 ```
 
 ```

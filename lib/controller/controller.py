@@ -277,13 +277,12 @@ class Controller:
                 self.current_job += 1
 
                 if not self.from_export:
-                    if first:
-                        self.output.new_line()
-
                     current_time = time.strftime("%H:%M:%S")
-                    self.output.warning(
-                        f"[{current_time}] Starting: {self.current_directory}"
-                    )
+                    msg = f"[{current_time}] Starting: {self.current_directory}"
+                    if first:
+                        msg = NEW_LINE + msg
+
+                    self.output.warning(msg)
 
                 self.fuzzer.set_base_path(self.requester.base_path + self.current_directory)
                 self.fuzzer.start()
