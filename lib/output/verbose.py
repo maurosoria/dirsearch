@@ -92,7 +92,7 @@ class Output:
         status = response.status
         length = human_size(response.length)
         show_path = (
-            join_path(self.url, response.full_path) if full_url else response.full_path
+            join_path(self.url, response.full_path) if full_url else ("/" + response.full_path)
         )
         current_time = time.strftime("%H:%M:%S")
         message = f"[{current_time}] {status} - {length.rjust(6, ' ')} - {show_path}"

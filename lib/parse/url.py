@@ -28,7 +28,7 @@ def parse_full_path(url):
     elif "//" not in url:
         return "/" + url
 
-    return "/" + "/".join(url.split("/")[3:])
+    return "/".join(url.split("/")[3:])
 
 
 def parse_path(url):
