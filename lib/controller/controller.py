@@ -199,6 +199,7 @@ class Controller:
 
             try:
                 self.requester.set_target(url if url.endswith("/") else url + "/")
+                self.base_path = self.requester.base_path
                 self.url = self.requester.url + self.requester.base_path
 
                 if not self.directories:
@@ -284,7 +285,7 @@ class Controller:
 
                     self.output.warning(msg)
 
-                self.fuzzer.set_base_path(self.requester.base_path + self.current_directory)
+                self.fuzzer.set_base_path(self.base_path + self.current_directory)
                 self.fuzzer.start()
                 self.process()
 
@@ -601,6 +602,6 @@ class Controller:
     def recur_for_redirect(self, path, redirect_path):
         if redirect_path == path + "/":
             path = redirect_path[
-                len(self.requester.base_path + self.current_directory) + 1:
+                len(self.base_path + self.current_directory) + 1:
             ]
             return self.recur(path)
