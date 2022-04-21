@@ -22,7 +22,6 @@ import shutil
 
 from lib.core.decorators import locked
 from lib.core.settings import IS_WINDOWS
-from lib.parse.url import join_path
 from lib.utils.common import human_size
 from lib.output.colors import set_color, clean_color, disable_color
 
@@ -38,7 +37,6 @@ class Output:
     def __init__(self, colors):
         self.last_in_line = False
         self.buffer = ""
-        self.url = None
 
         if not colors:
             disable_color()
@@ -91,11 +89,9 @@ class Output:
     def status_report(self, response, full_url):
         status = response.status
         length = human_size(response.length)
-        show_path = (
-            join_path(self.url, response.full_path) if full_url else ("/" + response.full_path)
-        )
+        target = response.url if full_url else "/" + response.full_path
         current_time = time.strftime("%H:%M:%S")
-        message = f"[{current_time}] {status} - {length.rjust(6, ' ')} - {show_path}"
+        message = f"[{current_time}] {status} - {length.rjust(6, ' ')} - {target}"
 
         if status in (200, 201, 204):
             message = set_color(message, fore="green")

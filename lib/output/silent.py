@@ -23,26 +23,26 @@ class Output(_Output):
     def status_report(self, response, full_url):
         super().status_report(response, True)
 
-    def last_path(self, *args):
+    def last_path(*args):
         pass
 
-    def new_directories(self, directories):
+    def new_directories(*args):
         pass
 
-    def warning(self, reason, do_save=True):
+    def warning(*args, **kwargs):
         pass
 
-    def header(self, message):
+    def header(*args):
         pass
 
-    def config(self, *args):
+    def config(*args):
         pass
 
-    def set_target(self, target):
+    def set_target(*args):
         pass
 
-    def output_file(self, file):
+    def output_file(*args):
         pass
 
-    def log_file(self, file):
+    def log_file(*args):
         pass

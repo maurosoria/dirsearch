@@ -31,7 +31,6 @@ from lib.core.exceptions import (
 )
 from lib.core.fuzzer import Fuzzer
 from lib.core.logger import log
-from lib.core.report_manager import Report, ReportManager
 from lib.core.settings import (
     BANNER, DEFAULT_HEADERS, DEFAULT_SESSION_FILE,
     EXTENSION_REGEX, MAX_CONSECUTIVE_REQUEST_ERRORS,
@@ -39,6 +38,14 @@ from lib.core.settings import (
 )
 from lib.parse.rawrequest import parse_raw
 from lib.parse.url import clean_path, parse_path, join_path
+from lib.reports.csv_report import CSVReport
+from lib.reports.html_report import HTMLReport
+from lib.reports.json_report import JSONReport
+from lib.reports.markdown_report import MarkdownReport
+from lib.reports.plain_text_report import PlainTextReport
+from lib.reports.simple_report import SimpleReport
+from lib.reports.xml_report import XMLReport
+from lib.reports.sqlite_report import SQLiteReport
 from lib.utils.common import get_valid_filename, human_size
 from lib.utils.file import FileUtils
 from lib.utils.pickle import pickle, unpickle
@@ -74,7 +81,8 @@ class Controller:
             pickle((vars(self), last_output), fd)
 
     def setup(self, options, output):
-        self.options, self.output = options, output
+        self.options = options
+        self.output = output
 
         if self.options.raw_file:
             self.options.update(
@@ -126,6 +134,7 @@ class Controller:
             no_extension=self.options.no_extension,
         )
         self.blacklists = Dictionary.generate_blacklists(self.options.extensions)
+        self.results = []
         self.targets = options.urls
         self.start_time = time.time()
         self.passed_urls = set()
@@ -217,7 +226,6 @@ class Controller:
                     f"Test request sent for: {self.url}",
                 )
 
-                self.output.url = self.requester.url
                 self.fuzzer = Fuzzer(
                     self.requester,
                     self.dictionary,
@@ -231,14 +239,6 @@ class Controller:
                     not_found_callbacks=not_found_callbacks,
                     error_callbacks=error_callbacks,
                 )
-
-                if not self.from_export:
-                    self.report = Report(
-                        self.requester.host,
-                        self.requester.port,
-                        self.requester.scheme,
-                        self.requester.base_path,
-                    )
 
                 self.start()
 
@@ -258,11 +258,9 @@ class Controller:
 
             except QuitInterrupt as e:
                 self.output.error(e.args[0])
-                self.report_manager.write_report()
                 exit(0)
 
             finally:
-                self.report_manager.write_report()
                 self.targets.pop(0)
 
         self.output.warning("\nTask Completed")
@@ -357,10 +355,27 @@ class Controller:
                 )
                 exit(1)
 
-        self.report_manager = ReportManager(self.options.output_format, output_file)
+        if not output_file:
+            return
 
-        if output_file:
-            self.output.output_file(output_file)
+        if self.options.output_format == "plain":
+            self.report = PlainTextReport(output_file)
+        elif self.options.output_format == "json":
+            self.report = JSONReport(output_file)
+        elif self.options.output_format == "xml":
+            self.report = XMLReport(output_file)
+        elif self.options.output_format == "md":
+            self.report = MarkdownReport(output_file)
+        elif self.options.output_format == "csv":
+            self.report = CSVReport(output_file)
+        elif self.options.output_format == "html":
+            self.report = HTMLReport(output_file)
+        elif self.options.output_format == "sqlite":
+            self.report = SQLiteReport(output_file)
+        else:
+            self.report = SimpleReport(output_file)
+
+        self.output.output_file(output_file)
 
     def is_valid(self, path, res):
         """Validate the response by different filters"""
@@ -435,8 +450,10 @@ class Controller:
         if self.options.replay_proxy:
             self.requester.request(path, proxy=self.options.replay_proxy)
 
-        self.report.add_result(self.current_directory + path, response)
-        self.report_manager.update_report(self.report)
+        if self.report:
+            self.report.save(self.results)
+
+        self.results.append(response)
         self.reset_consecutive_errors()
 
     def not_found_callback(self, *args):

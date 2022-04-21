@@ -25,49 +25,19 @@ from lib.utils.common import human_size
 
 
 class PlainTextReport(FileBaseReport):
-    def generate_header(self):
-        if self.header_written is False:
-            self.header_written = True
-            header = f"# Dirsearch started {time.ctime()} as: {chr(32).join(sys.argv)}"
-            header += NEW_LINE * 2
-            return header
+    def get_header(self):
+        return f"# Dirsearch started {time.ctime()} as: {chr(32).join(sys.argv)}" + NEW_LINE * 2
 
-        return ""
+    def generate(self, entries):
+        output = self.get_header()
 
-    def generate(self):
-        output = self.generate_header()
+        for entry in entries:
+            readable_size = human_size(entry.length)
+            output += f"{entry.status}  {readable_size.rjust(6, chr(32))}  {entry.url}"
 
-        for entry in self.entries:
-            for result in entry.results:
-                if (
-                    entry.protocol,
-                    entry.host,
-                    entry.port,
-                    entry.base_path,
-                    result.path,
-                ) not in self.written_entries:
-                    readable_length = human_size(result.response.length)
-                    output += f"{result.status}  "
-                    output += f"{readable_length.rjust(6, chr(32))}  "
-                    output += f"{entry.protocol}://{entry.host}:{entry.port}/"
-                    output += (
-                        result.path
-                        if not entry.base_path
-                        else f"{entry.base_path}/{result.path}"
-                    )
-                    location = result.response.redirect
-                    if location:
-                        output += f"    -> REDIRECTS TO: {location}"
+            if entry.redirect:
+                output += f"    -> REDIRECTS TO: {entry.redirect}"
 
-                    output += NEW_LINE
-                    self.written_entries.append(
-                        (
-                            entry.protocol,
-                            entry.host,
-                            entry.port,
-                            entry.base_path,
-                            result.path,
-                        )
-                    )
+            output += NEW_LINE
 
         return output

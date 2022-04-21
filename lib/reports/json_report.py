@@ -20,42 +20,24 @@ import json
 import time
 import sys
 
-from lib.core.decorators import locked
 from lib.reports.base import FileBaseReport
 
 
 class JSONReport(FileBaseReport):
-    def generate(self):
+    def generate(self, entries):
         report = {
             "info": {"args": " ".join(sys.argv), "time": time.ctime()},
             "results": [],
         }
 
-        for entry in self.entries:
-            result = {}
-            header_name = (
-                f"{entry.protocol}://{entry.host}:{entry.port}/{entry.base_path}"
-            )
-            result[header_name] = []
-
-            for result_ in entry.results:
-                path_entry = {
-                    "status": result_.status,
-                    "path": "/" + result_.path,
-                    "content-length": result_.response.length,
-                    "content-type": result_.response.type,
-                    "redirect": result_.response.redirect,
-                }
-                result[header_name].append(path_entry)
-
+        for entry in entries:
+            result = {
+                "url": entry.url,
+                "status": entry.status,
+                "content-length": entry.length,
+                "content-type": entry.type,
+                "redirect": entry.redirect,
+            }
             report["results"].append(result)
 
         return json.dumps(report, sort_keys=True, indent=4)
-
-    @locked
-    def save(self):
-        self.file.seek(0)
-        self.file.truncate(0)
-        self.file.flush()
-        self.file.writelines(self.generate())
-        self.file.flush()

@@ -21,31 +21,22 @@ from lib.core.settings import IS_WINDOWS
 
 
 class FileBaseReport:
-    def __init__(self, output_file_name, entries=None):
+    def __init__(self, output_file):
         if IS_WINDOWS:
-            from os.path import normpath, dirname
-            from os import makedirs
+            from os.path import normpath
 
-            output_file_name = normpath(output_file_name)
-            makedirs(dirname(output_file_name), exist_ok=True)
+            output_file = normpath(output_file)
 
-        self.output = output_file_name
-        self.entries = entries or []
-        self.header_written = False
-        self.written_entries = []
-
-        self.open()
-
-    def open(self):
-        self.file = open(self.output, "w+")
+        self.output_file = output_file
 
     @locked
-    def save(self):
-        self.file.writelines(self.generate())
-        self.file.flush()
+    def save(self, entries):
+        if not entries:
+            return
 
-    def close(self):
-        self.file.close()
+        with open(self.output_file, "w") as fd:
+            fd.writelines(self.generate(entries))
+            fd.flush()
 
-    def generate(self):
+    def generate(self, entries):
         raise NotImplementedError

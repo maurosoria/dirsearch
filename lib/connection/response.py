@@ -26,6 +26,7 @@ from lib.utils.common import is_binary
 
 class Response:
     def __init__(self, response):
+        self.url = response.url
         self.path = parse_path(response.url)
         self.full_path = parse_full_path(response.url)
         self.status = response.status_code
