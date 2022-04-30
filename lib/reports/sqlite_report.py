@@ -42,7 +42,7 @@ class SQLiteReport(FileBaseReport):
 
             commands.append(
                 [
-                    f"""INSERT INTO `{table}` (time, url, status_code, content_length, content_type, redirect)
+                    f"""INSERT INTO `{host}` (time, url, status_code, content_length, content_type, redirect)
                     VALUES
                     (?, ?, ?, ?, ?, ?)""",
                     (

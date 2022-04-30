@@ -23,7 +23,7 @@ from lib.utils.diff import DynamicContentParser, generate_matching_regex
 
 class TestDiff(TestCase):
     def test_generate_matching_regex(self):
-        self.assertEqual(generate_matching_regex("add.php", "abc.php"), "^a.*\.php$", "Matching regex isn't corrrect")
+        self.assertEqual(generate_matching_regex("add.php", "abc.php"), "^a.*\\.php$", "Matching regex isn't correct")
 
     def test_dynamic_content_parser(self):
         self.assertEqual(DynamicContentParser("a b c", "a b d")._static_patterns, ["  a", "  b"], "Static patterns are not right")

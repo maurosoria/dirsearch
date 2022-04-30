@@ -22,7 +22,6 @@ from unittest import TestCase
 
 from lib.connection.requester import Requester
 from lib.core.settings import DUMMY_URL, DUMMY_WORD, NEW_LINE, TMP_PATH
-from lib.parse.url import join_path
 from lib.reports.csv_report import CSVReport
 from lib.reports.json_report import JSONReport
 from lib.reports.markdown_report import MarkdownReport
