@@ -66,9 +66,9 @@ class TestReports(TestCase):
         self.assertEqual(SimpleReport(TMP_PATH).generate(test_entries), DUMMY_URL + "/" + DUMMY_WORD)
 
     def test_xml_report(self):
-        expected_result = f'\t<target url="{DUMMY_URL}/{DUMMY_WORD}">' + NEW_LINE
-        expected_result += "\t\t<status>404</status>" + NEW_LINE
-        expected_result += "\t\t<contentLength>648</contentLength>" + NEW_LINE
-        expected_result += "\t\t<contentType>text/html</contentType>" + NEW_LINE
-        expected_result += "\t</target>" + NEW_LINE
+        expected_result = f'\t<target url="{DUMMY_URL}/{DUMMY_WORD}">\n'
+        expected_result += "\t\t<status>404</status>\n"
+        expected_result += "\t\t<contentLength>648</contentLength>\n"
+        expected_result += "\t\t<contentType>text/html</contentType>\n"
+        expected_result += "\t</target>"
         self.assertTrue(expected_result in XMLReport(TMP_PATH).generate(test_entries))
