@@ -207,7 +207,7 @@ class Controller:
             self.current_directory = None
 
             try:
-                self.requester.set_target(url if url.endswith("/") else url + "/")
+                self.requester.set_target(url)
                 self.base_path = self.requester.base_path
                 self.url = self.requester.url + self.requester.base_path
 

@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+#
 # -*- coding: utf-8 -*-
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -16,23 +18,18 @@
 #
 #  Author: Mauro Soria
 
-from socket import getaddrinfo
+import unittest
 
-_dns_cache = {}
+from tests.connection.test_dns import TestDNS
+from tests.parse.test_headers import TestHeadersParser
+from tests.parse.test_url import TestURLParsers
+from tests.reports.test_reports import TestReports
+from tests.utils.test_common import TestCommonUtils
+from tests.utils.test_diff import TestDiff
+from tests.utils.test_mimetype import TestMimeTypeUtils
+from tests.utils.test_random import TestRandom
+from tests.utils.test_schemedet import TestSchemedet
 
 
-def cache_dns(domain, port, addr):
-    _dns_cache[domain, port] = getaddrinfo(addr, port)
-
-
-def cached_getaddrinfo(*args, **kwargs):
-    """
-    Replacement for socket.getaddrinfo, they are the same but this function
-    does cache the answer to improve the performance
-    """
-
-    host, port = args[:2]
-    if (host, port) not in _dns_cache:
-        _dns_cache[host, port] = getaddrinfo(*args, **kwargs)
-
-    return _dns_cache[host, port]
+if __name__ == "__main__":
+    unittest.main()

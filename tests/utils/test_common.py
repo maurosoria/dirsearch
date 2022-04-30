@@ -16,23 +16,14 @@
 #
 #  Author: Mauro Soria
 
-from socket import getaddrinfo
+from unittest import TestCase
 
-_dns_cache = {}
-
-
-def cache_dns(domain, port, addr):
-    _dns_cache[domain, port] = getaddrinfo(addr, port)
+from lib.utils.common import uniq, get_valid_filename
 
 
-def cached_getaddrinfo(*args, **kwargs):
-    """
-    Replacement for socket.getaddrinfo, they are the same but this function
-    does cache the answer to improve the performance
-    """
+class TestCommonUtils(TestCase):
+    def test_uniq(self):
+        self.assertEqual(uniq(["foo", "bar", "foo"]), ["foo", "bar"], "The result is not unique or in wrong order")
 
-    host, port = args[:2]
-    if (host, port) not in _dns_cache:
-        _dns_cache[host, port] = getaddrinfo(*args, **kwargs)
-
-    return _dns_cache[host, port]
+    def test_get_valid_filename(self):
+        self.assertEqual(get_valid_filename("http://example.com:80/foobar"), "http___example.com_80_foobar", "Invalid filename for Windows")

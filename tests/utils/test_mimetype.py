@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation; either version 2 of the License, or
@@ -16,23 +15,17 @@
 #
 #  Author: Mauro Soria
 
-from socket import getaddrinfo
+from unittest import TestCase
 
-_dns_cache = {}
-
-
-def cache_dns(domain, port, addr):
-    _dns_cache[domain, port] = getaddrinfo(addr, port)
+from lib.utils.mimetype import MimeTypeUtils
 
 
-def cached_getaddrinfo(*args, **kwargs):
-    """
-    Replacement for socket.getaddrinfo, they are the same but this function
-    does cache the answer to improve the performance
-    """
+class TestMimeTypeUtils(TestCase):
+    def test_is_json(self):
+        self.assertTrue(MimeTypeUtils.is_json('{"foo": "bar"}'), "Failed to detect JSON mimetype")
 
-    host, port = args[:2]
-    if (host, port) not in _dns_cache:
-        _dns_cache[host, port] = getaddrinfo(*args, **kwargs)
+    def test_is_xml(self):
+        self.assertTrue(MimeTypeUtils.is_xml('<?xml version="1.0" encoding="UTF-8"?><foo>bar</foo>'), "Failed to detect XML mimetype")
 
-    return _dns_cache[host, port]
+    def test_is_query_string(self):
+        self.assertTrue(MimeTypeUtils.is_query_string("foo=1&bar=&foobar=2"), "Failed to detect query string")

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation; either version 2 of the License, or
@@ -16,23 +15,14 @@
 #
 #  Author: Mauro Soria
 
-from socket import getaddrinfo
+from unittest import TestCase
 
-_dns_cache = {}
-
-
-def cache_dns(domain, port, addr):
-    _dns_cache[domain, port] = getaddrinfo(addr, port)
+from lib.core.settings import DUMMY_DOMAIN
+from lib.utils.schemedet import detect_scheme
 
 
-def cached_getaddrinfo(*args, **kwargs):
-    """
-    Replacement for socket.getaddrinfo, they are the same but this function
-    does cache the answer to improve the performance
-    """
-
-    host, port = args[:2]
-    if (host, port) not in _dns_cache:
-        _dns_cache[host, port] = getaddrinfo(*args, **kwargs)
-
-    return _dns_cache[host, port]
+class TestSchemedet(TestCase):
+    def test_detect_scheme(self):
+        self.assertEqual(detect_scheme(DUMMY_DOMAIN, 443), "https", "Incorrect scheme detected")
+        self.assertEqual(detect_scheme(DUMMY_DOMAIN, 80), "http", "Incorrect scheme detected")
+        self.assertEqual(detect_scheme(DUMMY_DOMAIN, 1234), "http", "Incorrect scheme detected")

@@ -16,23 +16,23 @@
 #
 #  Author: Mauro Soria
 
-from socket import getaddrinfo
+from unittest import TestCase
 
-_dns_cache = {}
-
-
-def cache_dns(domain, port, addr):
-    _dns_cache[domain, port] = getaddrinfo(addr, port)
+from lib.core.settings import DUMMY_URL
+from lib.parse.url import parse_full_path, join_path
 
 
-def cached_getaddrinfo(*args, **kwargs):
-    """
-    Replacement for socket.getaddrinfo, they are the same but this function
-    does cache the answer to improve the performance
-    """
+class TestURLParsers(TestCase):
+    def test_parse_full_path(self):
+        self.assertEqual(
+            parse_full_path(f"{DUMMY_URL}///foo/bar?query=1#fraqment"),
+            "//foo/bar?query=1#fraqment",
+            "Full path parser gives unexpected result",
+        )
 
-    host, port = args[:2]
-    if (host, port) not in _dns_cache:
-        _dns_cache[host, port] = getaddrinfo(*args, **kwargs)
-
-    return _dns_cache[host, port]
+    def test_join_path(self):
+        self.assertEqual(
+            join_path("foo", "bar", "/foo", "bar/", "///foobar"),
+            "foo/bar/foo/bar///foobar",
+            "Paths joiner gives unexpected result",
+        )

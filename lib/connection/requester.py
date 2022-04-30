@@ -31,7 +31,7 @@ from urllib.parse import urlparse
 from lib.core.exceptions import InvalidURLException, RequestException
 from lib.core.settings import READ_RESPONSE_ERROR_REGEX, PROXY_SCHEMES, UNKNOWN
 from lib.core.structures import CaseInsensitiveDict
-from lib.connection.dns import cached_getaddrinfo, set_custom_dns
+from lib.connection.dns import cached_getaddrinfo, cache_dns
 from lib.connection.response import Response
 from lib.utils.common import safequote
 from lib.utils.mimetype import guess_mimetype
@@ -63,7 +63,7 @@ class Requester:
         self.max_retries = kwargs.get("max_retries", 3)
         self.timeout = kwargs.get("timeout", 10)
         self.ip = kwargs.get("ip", None)
-        self.proxy = kwargs.get("proxy", None)
+        self.proxy = kwargs.get("proxy", [])
         self.default_scheme = kwargs.get("scheme", None)
         self.follow_redirects = kwargs.get("follow_redirects", False)
         self.random_agents = kwargs.get("random_agents", None)
@@ -80,11 +80,13 @@ class Requester:
             self.set_header("content-type", guess_mimetype(self.data))
 
     def set_target(self, url):
-        parsed = urlparse(url)
-
         # If no scheme specified, unset it first
         if "://" not in url:
-            parsed = urlparse(f"{self.default_scheme or UNKNOWN}://{url}")
+            url = f"{self.default_scheme or UNKNOWN}://{url}"
+        if not url.endswith("/"):
+            url += "/"
+
+        parsed = urlparse(url)
 
         self.base_path = parsed.path
         if parsed.path.startswith("/"):
@@ -126,7 +128,7 @@ class Requester:
             self.port = STANDARD_PORTS[self.scheme]
 
         if self.ip:
-            set_custom_dns(self.host, self.port, self.ip)
+            cache_dns(self.host, self.port, self.ip)
 
         self.netloc = f"{self.host}:{self.port}"
         self.url = f"{self.scheme}://{self.host}"
@@ -178,6 +180,7 @@ class Requester:
     def set_proxy_auth(self, credential):
         self._proxy_cred = credential
 
+    # Note: :path: cannot start with "/"
     def request(self, path, proxy=None):
         err_msg = None
         simple_err_msg = None
@@ -187,7 +190,7 @@ class Requester:
             try:
                 if not proxy:
                     try:
-                        proxy = proxy or random.choice(self.proxy)
+                        proxy = self.proxy or random.choice(self.proxy)
                     except IndexError:
                         pass
 

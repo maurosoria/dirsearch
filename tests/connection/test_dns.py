@@ -16,23 +16,18 @@
 #
 #  Author: Mauro Soria
 
+from unittest import TestCase
 from socket import getaddrinfo
 
-_dns_cache = {}
+from lib.connection.dns import cache_dns, cached_getaddrinfo
+from lib.core.settings import DUMMY_DOMAIN
 
 
-def cache_dns(domain, port, addr):
-    _dns_cache[domain, port] = getaddrinfo(addr, port)
-
-
-def cached_getaddrinfo(*args, **kwargs):
-    """
-    Replacement for socket.getaddrinfo, they are the same but this function
-    does cache the answer to improve the performance
-    """
-
-    host, port = args[:2]
-    if (host, port) not in _dns_cache:
-        _dns_cache[host, port] = getaddrinfo(*args, **kwargs)
-
-    return _dns_cache[host, port]
+class TestDNS(TestCase):
+    def test_cache_dns(self):
+        cache_dns(DUMMY_DOMAIN, 80, "127.0.0.1")
+        self.assertEqual(
+            cached_getaddrinfo(DUMMY_DOMAIN, 80),
+            getaddrinfo("127.0.0.1", 80),
+            "Adding DNS cache doesn't work",
+        )

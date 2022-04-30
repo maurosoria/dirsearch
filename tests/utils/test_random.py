@@ -16,23 +16,14 @@
 #
 #  Author: Mauro Soria
 
-from socket import getaddrinfo
+from unittest import TestCase
 
-_dns_cache = {}
-
-
-def cache_dns(domain, port, addr):
-    _dns_cache[domain, port] = getaddrinfo(addr, port)
+from lib.utils.random import rand_string
 
 
-def cached_getaddrinfo(*args, **kwargs):
-    """
-    Replacement for socket.getaddrinfo, they are the same but this function
-    does cache the answer to improve the performance
-    """
-
-    host, port = args[:2]
-    if (host, port) not in _dns_cache:
-        _dns_cache[host, port] = getaddrinfo(*args, **kwargs)
-
-    return _dns_cache[host, port]
+class TestRandom(TestCase):
+    def test_rand_string(self):
+        test_omit = "abcde"
+        self.assertEqual(len(rand_string(9)), 9, "Incorrect random string length")
+        for x, y in zip(rand_string(5, omit=test_omit), test_omit):
+            self.assertNotEqual(x, y, "Random string's characters are not distinct from omit")

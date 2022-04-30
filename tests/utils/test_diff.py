@@ -16,23 +16,15 @@
 #
 #  Author: Mauro Soria
 
-from socket import getaddrinfo
+from unittest import TestCase
 
-_dns_cache = {}
-
-
-def cache_dns(domain, port, addr):
-    _dns_cache[domain, port] = getaddrinfo(addr, port)
+from lib.utils.diff import DynamicContentParser, generate_matching_regex
 
 
-def cached_getaddrinfo(*args, **kwargs):
-    """
-    Replacement for socket.getaddrinfo, they are the same but this function
-    does cache the answer to improve the performance
-    """
+class TestDiff(TestCase):
+    def test_generate_matching_regex(self):
+        self.assertEqual(generate_matching_regex("add.php", "abc.php"), "^a.*\.php$", "Matching regex isn't corrrect")
 
-    host, port = args[:2]
-    if (host, port) not in _dns_cache:
-        _dns_cache[host, port] = getaddrinfo(*args, **kwargs)
-
-    return _dns_cache[host, port]
+    def test_dynamic_content_parser(self):
+        self.assertEqual(DynamicContentParser("a b c", "a b d")._static_patterns, ["  a", "  b"], "Static patterns are not right")
+        self.assertTrue(DynamicContentParser("a b c", "a b d").compare_to("a b ef"))
