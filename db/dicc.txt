@@ -9110,6 +9110,7 @@ wishlist
 Wishlist.%EXT%
 wishlist.%EXT%
 wizmysqladmin/
+wls-wsat/CoordinatorPortType
 WLDummyInitJVMIDs
 wordpress.tar
 wordpress.tar.bz2
