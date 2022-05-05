@@ -31,6 +31,10 @@ class HeadersParser:
         elif isinstance(headers, dict):
             self.str = self.dict_to_str(headers)
             self.dict = self.str_to_dict(self.str)
+        elif isinstance(headers, list):
+            self.headers = self.list_to_dict(headers)
+            self.str = self.dict_to_str(self.headers)
+            self.dict = self.headers
 
         self.headers = CaseInsensitiveDict(self.dict)
 
@@ -50,6 +54,18 @@ class HeadersParser:
             return
 
         return NEW_LINE.join(f"{key}: {value}" for key, value in headers.items())
+
+    @staticmethod
+    def list_to_dict(headers):
+        if not headers:
+            return {}
+
+        headers_dict = {}
+        for values in headers:
+            key, value = values.split(":",1)
+            headers_dict[key.strip()] =  value.strip()
+
+        return headers_dict
 
     def __iter__(self):
         return iter(self.headers.items())

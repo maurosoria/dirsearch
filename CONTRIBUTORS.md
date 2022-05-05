@@ -68,6 +68,7 @@
 - [godspeedcurry](https://github.com/godspeedcurry)
 - [0x08](https://github.com/its0x08)
 - [Weltolk](https://github.com/Weltolk)
+- [jerryxucy](https://github.com/chengyaox)
 
 Special thanks to all the people who are named here!
 
