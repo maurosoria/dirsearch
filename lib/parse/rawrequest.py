@@ -29,7 +29,7 @@ def parse_raw(raw_file):
     method, path = head[0].split()[:2]
 
     try:
-        headers = HeadersParser(head[1:])
+        headers = HeadersParser(NEW_LINE.join(head[1:]))
         host = headers.get("host").strip()
     except KeyError:
         print("Can't find the Host header in the raw request")
