@@ -5076,6 +5076,7 @@ hac/
 hacsfiles
 hadmin
 handlers/
+happyaxis.jsp
 haproxy/
 hardware
 hc_admin
