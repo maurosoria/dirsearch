@@ -8046,6 +8046,7 @@ STATUS.txt
 status.xsl
 status/
 status/selfDiscovered/status
+/status?full
 status?full=true
 statusicon/
 statuspoll
