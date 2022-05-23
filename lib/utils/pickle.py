@@ -26,6 +26,7 @@ ALLOWED_PICKLE_CLASSES = (
     "http.cookiejar.DefaultCookiePolicy",
     "requests.adapters.HTTPAdapter",
     "requests.cookies.RequestsCookieJar",
+    "requests.sessions.Session",
     "requests.structures.CaseInsensitiveDict",
     "lib.connection.requester.Requester",
     "lib.connection.response.Response",
