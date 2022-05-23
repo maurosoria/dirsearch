@@ -56,19 +56,11 @@ Installation & Usage
 
 Choose one of these installation options:
 
-- Install with git: `git clone https://github.com/maurosoria/dirsearch.git` (RECOMMENDED)
+- Install with git: `git clone https://github.com/maurosoria/dirsearch.git --depth 1` (RECOMMENDED)
 - Install with ZIP file: [Download here](https://github.com/maurosoria/dirsearch/archive/master.zip)
 - Install with Docker: `docker build -t "dirsearch:v0.4.2" .` (more information can be found [here](https://github.com/maurosoria/dirsearch#support-docker))
 - Install with PyPi: `pip3 install dirsearch`
 - Install with Kali Linux: `sudo apt-get install dirsearch` (deprecated)
-
-**All in one:**
-```
-git clone https://github.com/maurosoria/dirsearch.git
-cd dirsearch
-pip3 install -r requirements.txt
-python3 dirsearch.py -u <URL> -e <EXTENSIONS>
-```
 
 
 Wordlists (IMPORTANT)
