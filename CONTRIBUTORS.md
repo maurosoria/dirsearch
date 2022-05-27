@@ -23,7 +23,7 @@
 - [Ricardo](https://github.com/ricardojba)
 - [Anon Exploiter](https://twitter.com/syed__umar)
 - [ColdFusionX](https://github.com/ColdFusionX)
-- [gdattacker](https://github.com/gauravdrago)
+- [gdattacker](https://github.com/GDATTACKER-RESEARCHER)
 - [Gaurav Yadav](http://chowmean.github.io/)
 - [Wyatt Dahlenburg](https://github.com/wdahlenburg)
 - [Alexandre ZANNI](https://github.com/noraj)
