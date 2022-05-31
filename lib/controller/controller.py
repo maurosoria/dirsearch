@@ -601,7 +601,6 @@ class Controller:
 
     def recur_for_redirect(self, path, redirect_path):
         if redirect_path == path + "/":
-            path = redirect_path[
-                len(self.base_path + self.current_directory) + 1:
-            ]
-            return self.recur(path)
+            return self.recur(
+                redirect_path[len(self.base_path + self.current_directory):]
+            )
