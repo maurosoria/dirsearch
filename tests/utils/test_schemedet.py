@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation; either version 2 of the License, or
@@ -16,33 +15,14 @@
 #
 #  Author: Mauro Soria
 
-from lib.output.verbose import Output as _Output
+from unittest import TestCase
+
+from lib.core.settings import DUMMY_DOMAIN
+from lib.utils.schemedet import detect_scheme
 
 
-class Output(_Output):
-    def status_report(self, response, full_url):
-        super().status_report(response, True)
-
-    def last_path(*args):
-        pass
-
-    def new_directories(*args):
-        pass
-
-    def warning(*args, **kwargs):
-        pass
-
-    def header(*args):
-        pass
-
-    def config(*args):
-        pass
-
-    def set_target(*args):
-        pass
-
-    def output_file(*args):
-        pass
-
-    def log_file(*args):
-        pass
+class TestSchemedet(TestCase):
+    def test_detect_scheme(self):
+        self.assertEqual(detect_scheme(DUMMY_DOMAIN, 443), "https", "Incorrect scheme detected")
+        self.assertEqual(detect_scheme(DUMMY_DOMAIN, 80), "http", "Incorrect scheme detected")
+        self.assertEqual(detect_scheme(DUMMY_DOMAIN, 1234), "http", "Incorrect scheme detected")

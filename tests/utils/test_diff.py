@@ -16,33 +16,15 @@
 #
 #  Author: Mauro Soria
 
-from lib.output.verbose import Output as _Output
+from unittest import TestCase
+
+from lib.utils.diff import DynamicContentParser, generate_matching_regex
 
 
-class Output(_Output):
-    def status_report(self, response, full_url):
-        super().status_report(response, True)
+class TestDiff(TestCase):
+    def test_generate_matching_regex(self):
+        self.assertEqual(generate_matching_regex("add.php", "abc.php"), "^a.*\\.php$", "Matching regex isn't correct")
 
-    def last_path(*args):
-        pass
-
-    def new_directories(*args):
-        pass
-
-    def warning(*args, **kwargs):
-        pass
-
-    def header(*args):
-        pass
-
-    def config(*args):
-        pass
-
-    def set_target(*args):
-        pass
-
-    def output_file(*args):
-        pass
-
-    def log_file(*args):
-        pass
+    def test_dynamic_content_parser(self):
+        self.assertEqual(DynamicContentParser("a b c", "a b d")._static_patterns, ["  a", "  b"], "Static patterns are not right")
+        self.assertTrue(DynamicContentParser("a b c", "a b d").compare_to("a b ef"))

@@ -16,33 +16,14 @@
 #
 #  Author: Mauro Soria
 
-from lib.output.verbose import Output as _Output
+from unittest import TestCase
+
+from lib.utils.common import uniq, get_valid_filename
 
 
-class Output(_Output):
-    def status_report(self, response, full_url):
-        super().status_report(response, True)
+class TestCommonUtils(TestCase):
+    def test_uniq(self):
+        self.assertEqual(uniq(["foo", "bar", "foo"]), ["foo", "bar"], "The result is not unique or in wrong order")
 
-    def last_path(*args):
-        pass
-
-    def new_directories(*args):
-        pass
-
-    def warning(*args, **kwargs):
-        pass
-
-    def header(*args):
-        pass
-
-    def config(*args):
-        pass
-
-    def set_target(*args):
-        pass
-
-    def output_file(*args):
-        pass
-
-    def log_file(*args):
-        pass
+    def test_get_valid_filename(self):
+        self.assertEqual(get_valid_filename("http://example.com:80/foobar"), "http___example.com_80_foobar", "Invalid filename for Windows")

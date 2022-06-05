@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+#
 # -*- coding: utf-8 -*-
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -16,33 +18,18 @@
 #
 #  Author: Mauro Soria
 
-from lib.output.verbose import Output as _Output
+import unittest
+
+from tests.connection.test_dns import TestDNS  # noqa: F401
+from tests.parse.test_headers import TestHeadersParser  # noqa: F401
+from tests.parse.test_url import TestURLParsers  # noqa: F401
+from tests.reports.test_reports import TestReports  # noqa: F401
+from tests.utils.test_common import TestCommonUtils  # noqa: F401
+from tests.utils.test_diff import TestDiff  # noqa: F401
+from tests.utils.test_mimetype import TestMimeTypeUtils  # noqa: F401
+from tests.utils.test_random import TestRandom  # noqa: F401
+from tests.utils.test_schemedet import TestSchemedet  # noqa: F401
 
 
-class Output(_Output):
-    def status_report(self, response, full_url):
-        super().status_report(response, True)
-
-    def last_path(*args):
-        pass
-
-    def new_directories(*args):
-        pass
-
-    def warning(*args, **kwargs):
-        pass
-
-    def header(*args):
-        pass
-
-    def config(*args):
-        pass
-
-    def set_target(*args):
-        pass
-
-    def output_file(*args):
-        pass
-
-    def log_file(*args):
-        pass
+if __name__ == "__main__":
+    unittest.main()

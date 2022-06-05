@@ -117,9 +117,10 @@ window.onload = function () {
             <br>
             <div class="w-75 p-3 mx-auto">
                 <span style="color: #eef1f3;">
-                    <strong>Command:</strong> <code style="display:inline;background-color:#5C6060;color:#F7F9F9;border-radius:4px;">{{metadata['command'] | e}}</code>
+                    <!-- Prevent Vue.js client-side template injection. Reference: https://portswigger.net/web-security/cross-site-scripting/cheat-sheet#vuejs-reflected -->
+                    <strong>Command:</strong> <code style="display:inline;background-color:#5C6060;color:#F7F9F9;border-radius:4px;">{{ metadata['command'] | e | replace('[', '<code>[</code>') }}</code>
                     <br>
-                    <strong>Time:</strong> <p style="display:inline;">{{metadata['date'] | e}}</p>
+                    <strong>Time:</strong> <p style="display:inline;">{{ metadata['date'] | e }}</p>
                     <br>
                 </span>
                 <br>
@@ -159,8 +160,6 @@ window.onload = function () {
                             </tr>
                         </tbody>
                     </table>
-                </div>
-                <div>
                 </div>
             </div>
         </div>

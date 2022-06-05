@@ -21,7 +21,7 @@ from socket import getaddrinfo
 _dns_cache = {}
 
 
-def set_custom_dns(domain, port, addr):
+def cache_dns(domain, port, addr):
     _dns_cache[domain, port] = getaddrinfo(addr, port)
 
 

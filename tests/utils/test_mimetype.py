@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation; either version 2 of the License, or
@@ -16,33 +15,17 @@
 #
 #  Author: Mauro Soria
 
-from lib.output.verbose import Output as _Output
+from unittest import TestCase
+
+from lib.utils.mimetype import MimeTypeUtils
 
 
-class Output(_Output):
-    def status_report(self, response, full_url):
-        super().status_report(response, True)
+class TestMimeTypeUtils(TestCase):
+    def test_is_json(self):
+        self.assertTrue(MimeTypeUtils.is_json('{"foo": "bar"}'), "Failed to detect JSON mimetype")
 
-    def last_path(*args):
-        pass
+    def test_is_xml(self):
+        self.assertTrue(MimeTypeUtils.is_xml('<?xml version="1.0" encoding="UTF-8"?><foo>bar</foo>'), "Failed to detect XML mimetype")
 
-    def new_directories(*args):
-        pass
-
-    def warning(*args, **kwargs):
-        pass
-
-    def header(*args):
-        pass
-
-    def config(*args):
-        pass
-
-    def set_target(*args):
-        pass
-
-    def output_file(*args):
-        pass
-
-    def log_file(*args):
-        pass
+    def test_is_query_string(self):
+        self.assertTrue(MimeTypeUtils.is_query_string("foo=1&bar=&foobar=2"), "Failed to detect query string")

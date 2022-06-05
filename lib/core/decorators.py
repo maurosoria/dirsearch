@@ -26,7 +26,7 @@ _cache = {}
 _cache_lock = threading.Lock()
 
 
-def cached(timeout):
+def cached(timeout=100):
     def _cached(func):
         @wraps(func)
         def with_caching(*args, **kwargs):

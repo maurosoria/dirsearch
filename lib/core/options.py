@@ -298,7 +298,7 @@ def parse_config(opt):
     opt.max_retries = opt.max_retries or config.safe_getint("connection", "max-retries", 1)
     opt.maxrate = opt.maxrate or config.safe_getint("connection", "max-rate")
     opt.proxy = opt.proxy or list(config.safe_get("connection", "proxy"))
-    opt.proxy_file = config.safe_get("connection", "proxy-file")
+    opt.proxy_file = opt.proxy_file or config.safe_get("connection", "proxy-file")
     opt.scheme = opt.scheme or config.safe_get(
         "connection", "scheme", None, ["http", "https"]
     )

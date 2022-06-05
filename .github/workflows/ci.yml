@@ -31,6 +31,9 @@ jobs:
         python3 dirsearch.py -u https://localhost --ip 93.184.216.34 --max-rate 2 -H K:V --random-agent --log tmp.log -w tmp_wordlist.txt --overwrite-extensions
         echo https://self-signed.badssl.com | python3 dirsearch.py --stdin --max-time 9 --auth u:p --auth-type basic --scheme http -w tmp_wordlist.txt
 
+    - name: Unit Test
+      run: python3 testing.py
+
     - name: Lint
       run: |
         flake8 . --exclude=thirdparty --count --ignore=E501,E701,F403,F405,F524,W503 --show-source --statistics

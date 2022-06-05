@@ -24,48 +24,43 @@ from lib.reports.base import FileBaseReport
 
 
 class SQLiteReport(FileBaseReport):
+    def generate(self, entries):
+        commands = []
+        created_tables = []
+
+        for entry in entries:
+            host = entry.url.split("/")[2]
+            if host not in created_tables:
+                commands.append([f"DROP TABLE IF EXISTS `{host}`"])
+                commands.append(
+                    [
+                        f"""CREATE TABLE `{host}`
+                        ([time] TEXT, [url] TEXT, [status_code] INTEGER, [content_length] INTEGER, [content_type] TEXT, [redirect] TEXT)"""
+                    ]
+                )
+                created_tables.append(host)
+
+            commands.append(
+                [
+                    f"""INSERT INTO `{host}` (time, url, status_code, content_length, content_type, redirect)
+                    VALUES
+                    (?, ?, ?, ?, ?, ?)""",
+                    (
+                        time.ctime(),
+                        entry.url,
+                        entry.status,
+                        entry.length,
+                        entry.type,
+                        entry.redirect,
+                    ),
+                ]
+            )
+
+        return commands
+
     def open(self):
         self.file = sqlite3.connect(self.output, check_same_thread=False)
         self.cursor = self.file.cursor()
-
-    def generate(self):
-        commands = []
-        if not self.entries:
-            return []
-
-        base = self.entries[0]
-        table = f"{base.protocol}_{base.host}:{base.port}/{base.base_path}"
-        commands.append([f"DROP TABLE IF EXISTS `{table}`"])
-        commands.append(
-            [
-                f"""CREATE TABLE `{table}`
-                ([time] TEXT, [path] TEXT, [status_code] INTEGER, [content_length] INTEGER, [content_type] TEXT, [redirect] TEXT)
-             """
-            ]
-        )
-
-        for entry in self.entries:
-            for result in entry.results:
-                path = "/" + entry.base_path + result.path
-                commands.append(
-                    [
-                        f"""
-                    INSERT INTO `{table}` (time, path, status_code, content_length, content_type, redirect)
-                        VALUES
-                        (?, ?, ?, ?, ?, ?)
-                                """,
-                        (
-                            time.ctime(),
-                            path,
-                            result.status,
-                            result.response.length,
-                            result.response.type,
-                            result.response.redirect,
-                        ),
-                    ]
-                )
-
-        return commands
 
     @locked
     def save(self):

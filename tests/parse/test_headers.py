@@ -16,33 +16,22 @@
 #
 #  Author: Mauro Soria
 
-from lib.output.verbose import Output as _Output
+from unittest import TestCase
+
+from lib.parse.headers import HeadersParser
 
 
-class Output(_Output):
-    def status_report(self, response, full_url):
-        super().status_report(response, True)
+class TestHeadersParser(TestCase):
+    def test_str_to_dict(self):
+        test_str = """
+Header1: foo
+Header2:bar
+Header3:
+        """
+        expected_dict = {"Header1": "foo", "Header2": "bar", "Header3": ""}
+        self.assertEqual(HeadersParser.str_to_dict(test_str.strip()), expected_dict, "Raw headers to dictionary converter gives unexpected result")
 
-    def last_path(*args):
-        pass
-
-    def new_directories(*args):
-        pass
-
-    def warning(*args, **kwargs):
-        pass
-
-    def header(*args):
-        pass
-
-    def config(*args):
-        pass
-
-    def set_target(*args):
-        pass
-
-    def output_file(*args):
-        pass
-
-    def log_file(*args):
-        pass
+    def test_dict_to_str(self):
+        test_dict = {"foo": "bar"}
+        expected_str = "foo: bar"
+        self.assertEqual(HeadersParser.dict_to_str(test_dict), expected_str, "Headers dictionary to raw converter gives unexpected result")

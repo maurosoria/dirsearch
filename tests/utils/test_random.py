@@ -16,33 +16,14 @@
 #
 #  Author: Mauro Soria
 
-from lib.output.verbose import Output as _Output
+from unittest import TestCase
+
+from lib.utils.random import rand_string
 
 
-class Output(_Output):
-    def status_report(self, response, full_url):
-        super().status_report(response, True)
-
-    def last_path(*args):
-        pass
-
-    def new_directories(*args):
-        pass
-
-    def warning(*args, **kwargs):
-        pass
-
-    def header(*args):
-        pass
-
-    def config(*args):
-        pass
-
-    def set_target(*args):
-        pass
-
-    def output_file(*args):
-        pass
-
-    def log_file(*args):
-        pass
+class TestRandom(TestCase):
+    def test_rand_string(self):
+        test_omit = "abcde"
+        self.assertEqual(len(rand_string(9)), 9, "Incorrect random string length")
+        for x, y in zip(rand_string(5, omit=test_omit), test_omit):
+            self.assertNotEqual(x, y, "Random string's characters are not distinct from omit")

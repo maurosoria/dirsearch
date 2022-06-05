@@ -16,33 +16,18 @@
 #
 #  Author: Mauro Soria
 
-from lib.output.verbose import Output as _Output
+from unittest import TestCase
+from socket import getaddrinfo
+
+from lib.connection.dns import cache_dns, cached_getaddrinfo
+from lib.core.settings import DUMMY_DOMAIN
 
 
-class Output(_Output):
-    def status_report(self, response, full_url):
-        super().status_report(response, True)
-
-    def last_path(*args):
-        pass
-
-    def new_directories(*args):
-        pass
-
-    def warning(*args, **kwargs):
-        pass
-
-    def header(*args):
-        pass
-
-    def config(*args):
-        pass
-
-    def set_target(*args):
-        pass
-
-    def output_file(*args):
-        pass
-
-    def log_file(*args):
-        pass
+class TestDNS(TestCase):
+    def test_cache_dns(self):
+        cache_dns(DUMMY_DOMAIN, 80, "127.0.0.1")
+        self.assertEqual(
+            cached_getaddrinfo(DUMMY_DOMAIN, 80),
+            getaddrinfo("127.0.0.1", 80),
+            "Adding DNS cache doesn't work",
+        )

@@ -32,15 +32,20 @@ class DynamicContentParser:
                 self._differ.compare(content1.split(), content2.split())
             )
 
-    def get_static_patterns(self, patterns):
-        return [pattern for pattern in patterns if pattern.startswith("  ")]
-
     def compare_to(self, content):
         if self._is_static:
             return content == self._base_content
 
         diff = self._differ.compare(self._base_content.split(), content.split())
         return self._static_patterns == self.get_static_patterns(diff)
+
+    @staticmethod
+    def get_static_patterns(patterns):
+        # difflib.Differ.compare returns something like below:
+        # ["  str1", "- str2", "+ str3", "  str4"]
+        #
+        # Get only stable patterns in the contents
+        return [pattern for pattern in patterns if pattern.startswith("  ")]
 
 
 def generate_matching_regex(string1, string2):

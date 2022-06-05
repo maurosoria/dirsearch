@@ -42,7 +42,7 @@ class HeadersParser:
         if not headers:
             return {}
 
-        return BytesParser().parsebytes(headers.encode())
+        return dict(BytesParser().parsebytes(headers.encode()))
 
     @staticmethod
     def dict_to_str(headers):

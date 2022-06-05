@@ -23,7 +23,7 @@ import string
 from lib.utils.file import FileUtils
 
 # Version format: <major version>.<minor version>.<revision>[.<month>]
-VERSION = "0.4.2.4"
+VERSION = "0.4.2.6"
 
 BANNER = f"""
   _|. _ _  _  _  _ _|_    v{VERSION}
@@ -80,11 +80,19 @@ EXTENSION_REGEX = r"([.][a-zA-Z0-9]{2,5}){1,3}~?$"
 
 EXTENSION_RECOGNITION_REGEX = r"\w" + EXTENSION_REGEX
 
-QUERY_STRING_REGEX = r"^(\&?(\w+)\=([^&]+)){1,200}$"
+QUERY_STRING_REGEX = r"^(\&?([^=& ]+)\=([^=& ]+)?){1,200}$"
 
 READ_RESPONSE_ERROR_REGEX = r"(ChunkedEncodingError|StreamConsumedError|UnrewindableBodyError)"
 
 UNKNOWN = "unknown"
+
+TMP_PATH = "/tmp/dirsearch"
+
+DUMMY_DOMAIN = "example.com"
+
+DUMMY_URL = "https://example.com"
+
+DUMMY_WORD = "dummyasdf"
 
 SOCKET_TIMEOUT = 6
 

@@ -22,40 +22,18 @@ from lib.utils.common import escape_csv
 
 
 class CSVReport(FileBaseReport):
-    def generate_header(self):
-        if self.header_written is False:
-            self.header_written = True
-            return "URL,Status,Size,Content Type,Redirection" + NEW_LINE
+    def get_header(self):
+        return "URL,Status,Size,Content Type,Redirection" + NEW_LINE
 
-        return ""
+    def generate(self, entries):
+        output = self.get_header()
 
-    def generate(self):
-        output = self.generate_header()
+        for entry in entries:
+            output += f"{entry.url},{entry.status},{entry.length},{entry.type},"
 
-        for entry in self.entries:
-            for result in entry.results:
-                if (
-                    entry.protocol,
-                    entry.host,
-                    entry.port,
-                    entry.base_path,
-                    result.path,
-                ) not in self.written_entries:
-                    output += f"{entry.protocol}://{entry.host}:{entry.port}/{entry.base_path}{result.path},"
-                    output += f"{result.status},{result.response.length},{result.response.type}"
+            if entry.redirect:
+                output += f'"{escape_csv(entry.redirect)}"'
 
-                    if result.response.redirect:
-                        output += f'"{escape_csv(result.response.redirect)}"'
-
-                    output += NEW_LINE
-                    self.written_entries.append(
-                        (
-                            entry.protocol,
-                            entry.host,
-                            entry.port,
-                            entry.base_path,
-                            result.path,
-                        )
-                    )
+            output += NEW_LINE
 
         return output

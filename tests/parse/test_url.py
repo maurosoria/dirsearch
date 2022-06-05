@@ -16,33 +16,23 @@
 #
 #  Author: Mauro Soria
 
-from lib.output.verbose import Output as _Output
+from unittest import TestCase
+
+from lib.core.settings import DUMMY_URL
+from lib.parse.url import parse_full_path, join_path
 
 
-class Output(_Output):
-    def status_report(self, response, full_url):
-        super().status_report(response, True)
+class TestURLParsers(TestCase):
+    def test_parse_full_path(self):
+        self.assertEqual(
+            parse_full_path(f"{DUMMY_URL}///foo/bar?query=1#fraqment"),
+            "//foo/bar?query=1#fraqment",
+            "Full path parser gives unexpected result",
+        )
 
-    def last_path(*args):
-        pass
-
-    def new_directories(*args):
-        pass
-
-    def warning(*args, **kwargs):
-        pass
-
-    def header(*args):
-        pass
-
-    def config(*args):
-        pass
-
-    def set_target(*args):
-        pass
-
-    def output_file(*args):
-        pass
-
-    def log_file(*args):
-        pass
+    def test_join_path(self):
+        self.assertEqual(
+            join_path("foo", "bar", "/foo", "bar/", "///foobar"),
+            "foo/bar/foo/bar///foobar",
+            "Paths joiner gives unexpected result",
+        )
