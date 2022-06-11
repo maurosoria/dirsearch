@@ -68,9 +68,9 @@ class Scanner:
 
         if first_response.redirect and second_response.redirect:
             self.wildcard_redirect_regex = self.generate_redirect_regex(
-                first_response.redirect,
+                clean_path(first_response.redirect),
                 first_path,
-                second_response.redirect,
+                clean_path(second_response.redirect),
                 second_path,
             )
 
