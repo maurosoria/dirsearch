@@ -51,7 +51,10 @@ class Response:
 
     @property
     def type(self):
-        return self.headers.get("content-type").split(";")[0] or UNKNOWN
+        if "content-type" in self.headers:
+            return self.headers.get("content-type").split(";")[0]
+
+        return UNKNOWN
 
     @property
     def length(self):
