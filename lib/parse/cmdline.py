@@ -444,6 +444,15 @@ def parse_arguments():
         help="Exit whenever an error occurs",
     )
 
+    # Advanced Settings
+    advanced = OptionGroup(parser, "Advanced Settings")
+    advanced.add_option(
+        "--crawl",
+        action="store_true",
+        dest="crawl",
+        help="Crawl for new paths in responses"
+    )
+
     # View Settings
     view = OptionGroup(parser, "View Settings")
     view.add_option(
@@ -491,6 +500,7 @@ def parse_arguments():
     parser.add_option_group(general)
     parser.add_option_group(request)
     parser.add_option_group(connection)
+    parser.add_option_group(advanced)
     parser.add_option_group(view)
     parser.add_option_group(output)
     options, _ = parser.parse_args()

@@ -29,11 +29,8 @@ def safequote(string_):
     return quote(string_, safe=URL_SAFE_CHARS)
 
 
-def uniq(string_list):
-    if not string_list:
-        return string_list
-
-    return list(filter(None, dict.fromkeys(string_list)))
+def uniq(array, type_=list):
+    return type_(filter(None, dict.fromkeys(array)))
 
 
 # Some characters are denied in file name by Windows

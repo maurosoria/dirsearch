@@ -24,10 +24,11 @@ from urllib.parse import urlparse
 
 from lib.connection.requester import Requester
 from lib.core.decorators import locked
-from lib.core.dictionary import Dictionary
+from lib.core.dictionary import Dictionary, get_blacklists
 from lib.core.exceptions import (
     InvalidURLException, RequestException,
     SkipTargetInterrupt, QuitInterrupt,
+    UnpicklingError,
 )
 from lib.core.fuzzer import Fuzzer
 from lib.core.logger import log
@@ -63,8 +64,14 @@ class Controller:
         self.run()
 
     def _import(self, session_file):
-        with open(session_file, "rb") as fd:
-            indict, last_output = unpickle(fd)
+        try:
+            with open(session_file, "rb") as fd:
+                indict, last_output = unpickle(fd)
+        except UnpicklingError:
+            self.output.error(
+                f"{session_file} is not a valid session file or it's in an old format"
+            )
+            exit(1)
 
         self.__dict__ = {**indict, **vars(self)}
         print(last_output)
@@ -74,7 +81,7 @@ class Controller:
         # Save written output
         last_output = self.output.buffer.rstrip()
 
-        # This attribute doesn't need to be saved
+        # Can't pickle Fuzzer class due to _thread.lock objects
         del self.fuzzer
 
         with open(session_file, "wb") as fd:
@@ -115,13 +122,12 @@ class Controller:
             httpmethod=self.options.httpmethod,
             headers=self.options.headers,
             data=self.options.data,
-            scheme=self.options.scheme,
             random_agents=self.random_agents,
             cert_file=self.options.cert_file,
             key_file=self.options.key_file,
         )
         self.dictionary = Dictionary(
-            paths=self.options.wordlists,
+            files=self.options.wordlists,
             extensions=self.options.extensions,
             suffixes=self.options.suffixes,
             prefixes=self.options.prefixes,
@@ -133,7 +139,7 @@ class Controller:
             exclude_extensions=self.options.exclude_extensions,
             no_extension=self.options.no_extension,
         )
-        self.blacklists = Dictionary.generate_blacklists(self.options.extensions)
+        self.blacklists = get_blacklists(self.options.extensions)
         self.results = []
         self.targets = options.urls
         self.start_time = time.time()
@@ -201,44 +207,35 @@ class Controller:
         match_callbacks = (self.match_callback, self.append_traffic_log)
         not_found_callbacks = (self.not_found_callback, self.append_traffic_log)
         error_callbacks = (self.error_callback, self.append_error_log)
+        self.fuzzer = Fuzzer(
+            self.requester,
+            self.dictionary,
+            suffixes=self.options.suffixes,
+            prefixes=self.options.prefixes,
+            exclude_response=self.options.exclude_response,
+            threads=self.options.threads_count,
+            delay=self.options.delay,
+            maxrate=self.options.maxrate,
+            scheme=self.options.scheme,
+            crawl=self.options.crawl,
+            match_callbacks=match_callbacks,
+            not_found_callbacks=not_found_callbacks,
+            error_callbacks=error_callbacks,
+        )
 
         while self.targets:
             url = self.targets[0]
             self.current_directory = None
 
             try:
-                self.requester.set_target(url)
-                self.base_path = self.requester.base_path
-                self.url = self.requester.url + self.requester.base_path
+                self.fuzzer.set_target(url)
 
                 if not self.directories:
                     for subdir in self.options.scan_subdirs:
                         self.add_directory(subdir)
 
                 if not self.from_export:
-                    self.output.set_target(self.url)
-
-                # Test request to check if server is up
-                self.requester.request("")
-                log(
-                    self.options.log_file,
-                    "info",
-                    f"Test request sent for: {self.url}",
-                )
-
-                self.fuzzer = Fuzzer(
-                    self.requester,
-                    self.dictionary,
-                    suffixes=self.options.suffixes,
-                    prefixes=self.options.prefixes,
-                    exclude_response=self.options.exclude_response,
-                    threads=self.options.threads_count,
-                    delay=self.options.delay,
-                    maxrate=self.options.maxrate,
-                    match_callbacks=match_callbacks,
-                    not_found_callbacks=not_found_callbacks,
-                    error_callbacks=error_callbacks,
-                )
+                    self.output.set_target(self.fuzzer.url)
 
                 self.start()
 
@@ -283,7 +280,7 @@ class Controller:
 
                     self.output.warning(msg)
 
-                self.fuzzer.set_base_path(self.base_path + self.current_directory)
+                self.fuzzer.set_base_path_suffix(self.current_directory)
                 self.fuzzer.start()
                 self.process()
 
@@ -330,12 +327,16 @@ class Controller:
                 directory_path = self.setup_batch_reports()
                 filename = "BATCH" + self.get_output_extension()
             else:
-                parsed = urlparse(self.options.urls[0])
+                parsed = urlparse(self.targets[0])
+
+                if not parsed.netloc:
+                    parsed = urlparse(f"//{self.targets[0]}")
+
                 filename = get_valid_filename(f"{parsed.path}_")
                 filename += time.strftime("%y-%m-%d_%H-%M-%S")
                 filename += self.get_output_extension()
                 directory_path = FileUtils.build_path(
-                    self.report_path, get_valid_filename(parsed.netloc)
+                    self.report_path, get_valid_filename(f"{parsed.scheme}_{parsed.netloc}")
                 )
 
             output_file = FileUtils.build_path(directory_path, filename)
@@ -386,7 +387,7 @@ class Controller:
         if res.status not in (self.options.include_status_codes or range(100, 1000)):
             return False
 
-        if self.blacklists.get(res.status) and path in self.blacklists.get(res.status):
+        if res.status in self.blacklists and path in self.blacklists.get(res.status):
             return False
 
         if human_size(res.length).rstrip() in self.options.exclude_sizes:
@@ -436,10 +437,10 @@ class Controller:
             )
         ):
             if response.redirect:
-                new_path = parse_path(response.redirect)
+                new_path = parse_path(response.redirect, queries=False, fragment=False)
                 added_to_queue = self.recur_for_redirect(path, new_path)
             elif len(response.history):
-                old_path = parse_path(response.history[0])
+                old_path = parse_path(response.history[0], queries=False, fragment=False)
                 added_to_queue = self.recur_for_redirect(old_path, path)
             else:
                 added_to_queue = self.recur(path)
@@ -448,7 +449,8 @@ class Controller:
                 self.output.new_directories(added_to_queue)
 
         if self.options.replay_proxy:
-            self.requester.request(path, proxy=self.options.replay_proxy)
+            # Replay the request with new proxy
+            self.requester.request(response.full_path, proxy=self.options.replay_proxy)
 
         if self.report:
             self.report.save(self.results)
@@ -480,7 +482,7 @@ class Controller:
     def append_traffic_log(self, path, response):
         """Write request to log file"""
 
-        url = join_path(self.requester.url, response.path)
+        url = join_path(self.fuzzer.url, response.path)
         msg = f"{response.status} {self.options.httpmethod} {url}"
 
         if response.redirect:
@@ -493,7 +495,7 @@ class Controller:
     def append_error_log(self, path, error_msg):
         """Write error to log file"""
 
-        url = join_path(self.url, self.current_directory, path)
+        url = join_path(self.fuzzer.url, self.current_directory, path)
         msg = f"{self.options.httpmethod} {url}"
         msg += NEW_LINE
         msg += " " * 4
@@ -584,7 +586,7 @@ class Controller:
             return
 
         dir = join_path(self.current_directory, path)
-        url = join_path(self.url, dir)
+        url = join_path(self.fuzzer.url, dir)
 
         if url in self.passed_urls or dir.count("/") > self.options.recursion_depth > 0:
             return
@@ -619,5 +621,5 @@ class Controller:
     def recur_for_redirect(self, path, redirect_path):
         if redirect_path == path + "/":
             return self.recur(
-                redirect_path[len(self.base_path + self.current_directory):]
+                redirect_path[len(self.fuzzer.base_path):]
             )

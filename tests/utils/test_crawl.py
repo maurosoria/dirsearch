@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-#
 # -*- coding: utf-8 -*-
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -18,19 +16,22 @@
 #
 #  Author: Mauro Soria
 
-import unittest
+from unittest import TestCase
 
-from tests.connection.test_dns import TestDNS  # noqa: F401
-from tests.parse.test_headers import TestHeadersParser  # noqa: F401
-from tests.parse.test_url import TestURLParsers  # noqa: F401
-from tests.reports.test_reports import TestReports  # noqa: F401
-from tests.utils.test_common import TestCommonUtils  # noqa: F401
-from tests.utils.test_crawl import TestCrawl  # noqa: F401
-from tests.utils.test_diff import TestDiff  # noqa: F401
-from tests.utils.test_mimetype import TestMimeTypeUtils  # noqa: F401
-from tests.utils.test_random import TestRandom  # noqa: F401
-from tests.utils.test_schemedet import TestSchemedet  # noqa: F401
+from lib.core.settings import DUMMY_URL
+from lib.utils.crawl import html_crawl, robots_crawl
 
 
-if __name__ == "__main__":
-    unittest.main()
+class TestCrawl(TestCase):
+    def test_html_crawl(self):
+        html_doc = f'<a href="{DUMMY_URL}foo">link</a><script src="/bar.js"><img src="/bar.png">'
+        self.assertEqual(html_crawl(DUMMY_URL, html_doc), {"foo", "bar.js"})
+
+    def test_robots_crawl(self):
+        robots_txt = """
+User-agent: Googlebot
+Disallow: /path1
+
+User-agent: *
+Allow: /path2"""
+        self.assertEqual(robots_crawl(DUMMY_URL, robots_txt), {"path1", "path2"})

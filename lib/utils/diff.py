@@ -19,6 +19,8 @@
 import difflib
 import re
 
+from lib.core.settings import MAX_DIFF_RATIO
+
 
 class DynamicContentParser:
     def __init__(self, content1, content2):
@@ -33,11 +35,23 @@ class DynamicContentParser:
             )
 
     def compare_to(self, content):
+        """
+        DynamicContentParser.compare_to() workflow
+
+          1. Check if the wildcard response is static or not, if yes, compare 2 responses
+          2. If it's not static, get static patterns (split by space) in both responses
+            and check if they match
+          3. In some rare cases, checking static patterns fails, so make a final confirmation
+            if the similarity ratio of 2 responses is not high enough to prove they are the same
+        """
+
         if self._is_static:
             return content == self._base_content
 
         diff = self._differ.compare(self._base_content.split(), content.split())
-        return self._static_patterns == self.get_static_patterns(diff)
+        match_static_patterns = self._static_patterns == self.get_static_patterns(diff)
+        diff_ratio = difflib.SequenceMatcher(None, self._base_content, content).ratio()
+        return match_static_patterns and diff_ratio < MAX_DIFF_RATIO
 
     @staticmethod
     def get_static_patterns(patterns):

@@ -103,20 +103,8 @@ def options():
     opt.exclude_status_codes = parse_status_codes(opt.exclude_status_codes)
     opt.recursion_status_codes = parse_status_codes(opt.recursion_status_codes)
     opt.skip_on_status = parse_status_codes(opt.skip_on_status)
-    opt.prefixes = set(prefix.strip() for prefix in opt.prefixes.split(","))
-    opt.suffixes = set(suffix.strip() for suffix in opt.suffixes.split(","))
-    opt.exclude_extensions = uniq(
-        [
-            exclude_extension.lstrip(" .")
-            for exclude_extension in opt.exclude_extensions.split(",")
-        ]
-    )
-    opt.exclude_sizes = uniq(
-        [exclude_size.strip().upper() for exclude_size in opt.exclude_sizes.split(",")]
-    )
-    opt.exclude_texts = uniq(
-        [exclude_text.strip() for exclude_text in opt.exclude_texts.split(",")]
-    )
+    opt.prefixes = uniq([prefix.strip() for prefix in opt.prefixes.split(",") if prefix], tuple)
+    opt.suffixes = uniq([suffix.strip() for suffix in opt.suffixes.split(",") if suffix], tuple)
     opt.scan_subdirs = [
         subdir.lstrip(" /") + ("" if not subdir or subdir.endswith("/") else "/")
         for subdir in opt.scan_subdirs.split(",")
@@ -125,9 +113,21 @@ def options():
         subdir.lstrip(" /") + ("" if not subdir or subdir.endswith("/") else "/")
         for subdir in opt.exclude_subdirs.split(",")
     ]
+    opt.exclude_sizes = uniq(
+        [
+            exclude_size.strip().upper()
+            for exclude_size in opt.exclude_sizes.split(",")
+        ]
+    )
+    opt.exclude_texts = uniq(
+        [
+            exclude_text.strip()
+            for exclude_text in opt.exclude_texts.split(",")
+        ]
+    )
 
     if opt.no_extension:
-        opt.extensions = ""
+        opt.extensions = [""]
     elif opt.extensions == "*":
         opt.extensions = COMMON_EXTENSIONS
     elif opt.extensions == "CHANGELOG.md":
@@ -136,14 +136,22 @@ def options():
         exit(0)
     else:
         opt.extensions = uniq(
-            [extension.lstrip(" .") for extension in opt.extensions.split(",")]
+            [extension.lstrip(" .") for extension in opt.extensions.split(",")],
+            tuple,
         )
+
+    opt.exclude_extensions = uniq(
+        [
+            exclude_extension.lstrip(" .")
+            for exclude_extension in opt.exclude_extensions.split(",")
+        ], tuple
+    )
 
     if not opt.wordlists:
         print("No wordlist was provided, try using -w <wordlist>")
         exit(1)
 
-    opt.wordlists = uniq([wordlist.strip() for wordlist in opt.wordlists.split(",")])
+    opt.wordlists = {wordlist.strip() for wordlist in opt.wordlists.split(",")}
 
     if opt.auth and not opt.auth_type:
         print("Please select the authentication type with --auth-type")
@@ -306,6 +314,9 @@ def parse_config(opt):
     opt.exit_on_error = opt.exit_on_error or config.safe_getboolean(
         "connection", "exit-on-error"
     )
+
+    # Advanced
+    opt.crawl = opt.crawl or config.safe_getboolean("advanced", "crawl")
 
     # View
     opt.full_url = opt.full_url or config.safe_getboolean("view", "full-url")
