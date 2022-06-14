@@ -424,7 +424,7 @@ def parse_arguments():
         "--max-rate",
         action="store",
         type="int",
-        dest="maxrate",
+        dest="max_rate",
         metavar="RATE",
         help="Max requests per second",
     )

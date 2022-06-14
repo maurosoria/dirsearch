@@ -21,13 +21,11 @@ import time
 
 from urllib.parse import urlparse
 
-from lib.core.decorators import cached
 from lib.core.exceptions import InvalidURLException, RequestException
 from lib.core.scanner import Scanner
 from lib.core.settings import (
     DEFAULT_TEST_PREFIXES, DEFAULT_TEST_SUFFIXES,
-    RATE_UPDATE_DELAY, STANDARD_PORTS, UNKNOWN,
-    WILDCARD_TEST_POINT_MARKER,
+    STANDARD_PORTS, UNKNOWN, WILDCARD_TEST_POINT_MARKER,
 )
 from lib.parse.url import clean_path
 from lib.utils.crawl import crawl
@@ -52,7 +50,6 @@ class Fuzzer:
         self.exclude_response = kwargs.get("exclude_response", None)
         self.threads_count = kwargs.get("threads", 15)
         self.delay = kwargs.get("delay", 0)
-        self.maxrate = kwargs.get("maxrate", 0)
         self.default_scheme = kwargs.get("scheme", None)
         self.crawl = kwargs.get("crawl", False)
         self.default_scanners = []
@@ -210,7 +207,6 @@ class Fuzzer:
 
         self._running_threads_count = len(self._threads)
         self._is_running = True
-        self._rate = 0
         self._play_event.clear()
 
         for thread in self._threads:
@@ -243,11 +239,6 @@ class Fuzzer:
         if path in self._entries:
             return
 
-        # Pause if the request rate exceeded the maximum
-        while self.is_rate_exceeded():
-            time.sleep(0.1)
-
-        self.increase_rate()
         self._entries.add(path)
 
         response = self._requester.request(path)
@@ -273,21 +264,11 @@ class Fuzzer:
     def is_stopped(self):
         return self._running_threads_count == 0
 
-    def is_rate_exceeded(self):
-        return self._rate >= self.maxrate > 0
-
     def decrease_threads(self):
         self._running_threads_count -= 1
 
     def increase_threads(self):
         self._running_threads_count += 1
-
-    def decrease_rate(self):
-        self._rate -= 1
-
-    def increase_rate(self):
-        self._rate += 1
-        threading.Timer(1, self.decrease_rate).start()
 
     def set_base_path_suffix(self, suffix):
         self.base_path = self._base_path + suffix
@@ -323,8 +304,3 @@ class Fuzzer:
                     break
 
                 time.sleep(self.delay)
-
-    @property
-    @cached(RATE_UPDATE_DELAY)
-    def rate(self):
-        return self._rate

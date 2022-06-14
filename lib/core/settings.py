@@ -92,6 +92,8 @@ QUERY_STRING_REGEX = r"^(\&?([^=& ]+)\=([^=& ]+)?){1,200}$"
 
 READ_RESPONSE_ERROR_REGEX = r"(ChunkedEncodingError|StreamConsumedError|UnrewindableBodyError)"
 
+URI_REGEX = r"^[a-z]{2,}:"
+
 UNKNOWN = "unknown"
 
 TMP_PATH = "/tmp/dirsearch"

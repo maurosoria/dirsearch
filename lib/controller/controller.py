@@ -115,6 +115,7 @@ class Controller:
         self.requester = Requester(
             max_pool=self.options.threads_count,
             max_retries=self.options.max_retries,
+            max_rate=self.options.max_rate,
             timeout=self.options.timeout,
             ip=self.options.ip,
             proxy=self.options.proxy,
@@ -215,7 +216,6 @@ class Controller:
             exclude_response=self.options.exclude_response,
             threads=self.options.threads_count,
             delay=self.options.delay,
-            maxrate=self.options.maxrate,
             scheme=self.options.scheme,
             crawl=self.options.crawl,
             match_callbacks=match_callbacks,
@@ -464,7 +464,7 @@ class Controller:
             len(self.dictionary),
             self.current_job,
             self.jobs_count,
-            self.fuzzer.rate,
+            self.requester.rate,
             self.errors,
         )
         self.reset_consecutive_errors()

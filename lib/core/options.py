@@ -304,7 +304,7 @@ def parse_config(opt):
     opt.delay = opt.delay or config.safe_getfloat("connection", "delay")
     opt.timeout = opt.timeout or config.safe_getfloat("connection", "timeout", 7.5)
     opt.max_retries = opt.max_retries or config.safe_getint("connection", "max-retries", 1)
-    opt.maxrate = opt.maxrate or config.safe_getint("connection", "max-rate")
+    opt.max_rate = opt.max_rate or config.safe_getint("connection", "max-rate")
     opt.proxy = opt.proxy or list(config.safe_get("connection", "proxy"))
     opt.proxy_file = opt.proxy_file or config.safe_get("connection", "proxy-file")
     opt.scheme = opt.scheme or config.safe_get(

@@ -21,6 +21,8 @@ import socket
 import random
 import re
 import requests
+import threading
+import time
 
 from requests.adapters import HTTPAdapter
 from requests.auth import AuthBase, HTTPBasicAuth, HTTPDigestAuth
@@ -28,8 +30,12 @@ from requests.packages.urllib3 import disable_warnings
 from requests_ntlm import HttpNtlmAuth
 from urllib.parse import urlparse
 
+from lib.core.decorators import cached
 from lib.core.exceptions import RequestException
-from lib.core.settings import READ_RESPONSE_ERROR_REGEX, STANDARD_PORTS, PROXY_SCHEMES
+from lib.core.settings import (
+    RATE_UPDATE_DELAY, READ_RESPONSE_ERROR_REGEX,
+    STANDARD_PORTS, PROXY_SCHEMES,
+)
 from lib.core.structures import CaseInsensitiveDict
 from lib.connection.dns import cache_dns, cached_getaddrinfo
 from lib.connection.response import Response
@@ -55,10 +61,12 @@ class Requester:
     def __init__(self, **kwargs):
         self._proxy_cred = None
         self._url = None
+        self._rate = 0
         self.httpmethod = kwargs.get("httpmethod", "get")
         self.data = kwargs.get("data", None)
         self.max_pool = kwargs.get("max_pool", 100)
         self.max_retries = kwargs.get("max_retries", 3)
+        self.max_rate = kwargs.get("max_rate", 3)
         self.timeout = kwargs.get("timeout", 10)
         self.ip = kwargs.get("ip", None)
         self.proxy = kwargs.get("proxy", [])
@@ -132,6 +140,12 @@ class Requester:
         self._proxy_cred = credential
 
     def request(self, path, proxy=None):
+        # Pause if the request rate exceeded the maximum
+        while self.is_rate_exceeded():
+            time.sleep(0.1)
+
+        self.increase_rate()
+
         err_msg = None
         simple_err_msg = None
 
@@ -204,3 +218,18 @@ class Requester:
                     )
 
         raise RequestException(simple_err_msg, err_msg)
+
+    def is_rate_exceeded(self):
+        return self._rate >= self.max_rate > 0
+
+    def decrease_rate(self):
+        self._rate -= 1
+
+    def increase_rate(self):
+        self._rate += 1
+        threading.Timer(1, self.decrease_rate).start()
+
+    @property
+    @cached(RATE_UPDATE_DELAY)
+    def rate(self):
+        return self._rate

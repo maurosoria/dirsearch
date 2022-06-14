@@ -21,7 +21,10 @@ import re
 from bs4 import BeautifulSoup
 from functools import lru_cache
 
-from lib.core.settings import CRAWL_ATTRIBUTES, CRAWL_TAGS, MEDIA_EXTENSIONS
+from lib.core.settings import (
+    CRAWL_ATTRIBUTES, CRAWL_TAGS,
+    MEDIA_EXTENSIONS, URI_REGEX,
+)
 from lib.parse.url import parse_root_url, parse_path
 
 
@@ -70,7 +73,7 @@ def html_crawl(url, html):
                     results.append(value[1:])
                 elif value.startswith(scope):
                     results.append(value[len(scope):])
-                elif not value.startswith(("data:", "http:", "https:")):
+                elif not re.search(URI_REGEX, value):
                     new_url = merge_path(url, value)
                     results.append(parse_path(new_url, fragment=False))
 
