@@ -54,7 +54,7 @@ def options():
         print("URL target is missing, try using -u <url>")
         exit(1)
 
-    if not opt.extensions and not opt.no_extension:
+    if not opt.extensions and not opt.remove_extensions:
         print("WARNING: No extension was specified!")
 
     for dict_file in opt.wordlists.split(","):
@@ -105,9 +105,9 @@ def options():
     opt.skip_on_status = parse_status_codes(opt.skip_on_status)
     opt.prefixes = uniq([prefix.strip() for prefix in opt.prefixes.split(",") if prefix], tuple)
     opt.suffixes = uniq([suffix.strip() for suffix in opt.suffixes.split(",") if suffix], tuple)
-    opt.scan_subdirs = [
+    opt.subdirs = [
         subdir.lstrip(" /") + ("" if not subdir or subdir.endswith("/") else "/")
-        for subdir in opt.scan_subdirs.split(",")
+        for subdir in opt.subdirs.split(",")
     ]
     opt.exclude_subdirs = [
         subdir.lstrip(" /") + ("" if not subdir or subdir.endswith("/") else "/")
@@ -126,8 +126,8 @@ def options():
         ]
     )
 
-    if opt.no_extension:
-        opt.extensions = [""]
+    if opt.remove_extensions:
+        opt.extensions = ("",)
     elif opt.extensions == "*":
         opt.extensions = COMMON_EXTENSIONS
     elif opt.extensions == "CHANGELOG.md":
@@ -250,7 +250,7 @@ def parse_config(opt):
     opt.recursion_status_codes = opt.recursion_status_codes or config.safe_get(
         "general", "recursion-status", "100-999"
     )
-    opt.scan_subdirs = opt.scan_subdirs or config.safe_get("general", "subdirs")
+    opt.subdirs = opt.subdirs or config.safe_get("general", "subdirs")
     opt.exclude_subdirs = opt.exclude_subdirs or config.safe_get(
         "general", "exclude-subdirs"
     )

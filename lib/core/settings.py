@@ -86,13 +86,15 @@ EXTENSION_TAG = "%ext%"
 
 EXTENSION_REGEX = r"([.][a-zA-Z0-9]{2,5}){1,3}~?$"
 
-EXTENSION_RECOGNITION_REGEX = r"\w" + EXTENSION_REGEX
+EXTENSION_RECOGNITION_REGEX = r"\w+" + EXTENSION_REGEX
 
 QUERY_STRING_REGEX = r"^(\&?([^=& ]+)\=([^=& ]+)?){1,200}$"
 
 READ_RESPONSE_ERROR_REGEX = r"(ChunkedEncodingError|StreamConsumedError|UnrewindableBodyError)"
 
 URI_REGEX = r"^[a-z]{2,}:"
+
+ROBOTS_TXT_REGEX = r"(?:Allow|Disallow): /(.*)"
 
 UNKNOWN = "unknown"
 

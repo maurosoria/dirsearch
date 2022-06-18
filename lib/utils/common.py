@@ -17,7 +17,7 @@
 #  Author: Mauro Soria
 
 from ipaddress import IPv4Network, IPv6Network
-from urllib.parse import quote
+from urllib.parse import quote, urljoin
 
 from lib.core.settings import (
     INVALID_CHARS_FOR_WINDOWS_FILENAME, INSECURE_CSV_CHARS,
@@ -31,6 +31,20 @@ def safequote(string_):
 
 def uniq(array, type_=list):
     return type_(filter(None, dict.fromkeys(array)))
+
+
+def lstrip_once(string, pattern):
+    if string.startswith(pattern):
+        return string[len(pattern):]
+
+    return string
+
+
+def rstrip_once(string, pattern):
+    if string.endswith(pattern):
+        return string[:-len(pattern)]
+
+    return string
 
 
 # Some characters are denied in file name by Windows
@@ -73,3 +87,14 @@ def escape_csv(text):
         text = "'" + text
 
     return text.replace('"', '""')
+
+
+# The browser direction behavior when you click on <a href="bar">link</a>
+# (https://website.com/folder/foo -> https://website.com/folder/bar)
+def merge_path(url, path):
+    parts = url.split("/")
+    # Normalize path like the browser does (dealing with ../ and ./)
+    path = urljoin("/", path).lstrip("/")
+    parts[-1] = path
+
+    return "/".join(parts)

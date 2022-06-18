@@ -23,6 +23,7 @@ from lib.core.settings import (
     SCRIPT_PATH, EXTENSION_TAG, EXCLUDE_OVERWRITE_EXTENSIONS,
     EXTENSION_RECOGNITION_REGEX, EXTENSION_REGEX
 )
+from lib.utils.common import lstrip_once
 from lib.utils.file import FileUtils
 
 
@@ -60,7 +61,7 @@ class Dictionary:
         self.suffixes = kwargs.get("suffixes", ())
         self.force_extensions = kwargs.get("force_extensions", False)
         self.overwrite_extensions = kwargs.get("overwrite_extensions", False)
-        self.no_extension = kwargs.get("no_extension", False)
+        self.remove_extensions = kwargs.get("remove_extensions", False)
         self.lowercase = kwargs.get("lowercase", False)
         self.uppercase = kwargs.get("uppercase", False)
         self.capitalization = kwargs.get("capitalization", False)
@@ -94,10 +95,9 @@ class Dictionary:
         for dict_file in self._dictionary_files:
             for line in FileUtils.get_lines(dict_file):
                 # Removing leading "/" to work with prefixes later
-                if line.startswith("/"):
-                    line = line[1:]
+                line = lstrip_once(line, "/")
 
-                if self.no_extension:
+                if self.remove_extensions:
                     line = line.split(".")[0]
 
                 # Skip comments and empty lines

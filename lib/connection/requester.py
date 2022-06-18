@@ -34,10 +34,10 @@ from lib.core.decorators import cached
 from lib.core.exceptions import RequestException
 from lib.core.settings import (
     RATE_UPDATE_DELAY, READ_RESPONSE_ERROR_REGEX,
-    STANDARD_PORTS, PROXY_SCHEMES,
+    PROXY_SCHEMES,
 )
 from lib.core.structures import CaseInsensitiveDict
-from lib.connection.dns import cache_dns, cached_getaddrinfo
+from lib.connection.dns import cached_getaddrinfo
 from lib.connection.response import Response
 from lib.utils.common import safequote
 from lib.utils.mimetype import guess_mimetype
@@ -59,8 +59,8 @@ class HTTPBearerAuth(AuthBase):
 
 class Requester:
     def __init__(self, **kwargs):
-        self._proxy_cred = None
         self._url = None
+        self._proxy_cred = None
         self._rate = 0
         self.httpmethod = kwargs.get("httpmethod", "get")
         self.data = kwargs.get("data", None)
@@ -68,7 +68,6 @@ class Requester:
         self.max_retries = kwargs.get("max_retries", 3)
         self.max_rate = kwargs.get("max_rate", 3)
         self.timeout = kwargs.get("timeout", 10)
-        self.ip = kwargs.get("ip", None)
         self.proxy = kwargs.get("proxy", [])
         self.follow_redirects = kwargs.get("follow_redirects", False)
         self.random_agents = kwargs.get("random_agents", None)
@@ -89,17 +88,6 @@ class Requester:
 
     def set_url(self, url):
         self._url = url
-
-        if self.ip:
-            host = url.split("/")[2]
-
-            if ":" in host:
-                host, port = host.split(":")
-            else:
-                scheme = url.split("/")[0].rstrip(":")
-                port = STANDARD_PORTS.get(scheme)
-
-            cache_dns(host, port, self.ip)
 
     def set_header(self, key, value):
         self.headers[key] = value.lstrip()
@@ -139,6 +127,7 @@ class Requester:
     def set_proxy_auth(self, credential):
         self._proxy_cred = credential
 
+    # :path: is expected not to start with "/"
     def request(self, path, proxy=None):
         # Pause if the request rate exceeded the maximum
         while self.is_rate_exceeded():
@@ -148,6 +137,9 @@ class Requester:
 
         err_msg = None
         simple_err_msg = None
+
+        # Safe quote all special characters to prevent them from being encoded
+        url = safequote(self._url + path if self._url else path)
 
         # Why using a loop instead of max_retries argument? Check issue #1009
         for _ in range(self.max_retries + 1):
@@ -161,16 +153,12 @@ class Requester:
                 if self.random_agents:
                     self.set_header("user-agent", random.choice(self.random_agents))
 
-                # Safe quote all special characters to prevent them from being encoded
-                url = safequote(path if not self._url else (self._url + path))
-
-                headers = self.headers.copy()
                 # Use prepared request to avoid the URL path from being normalized
                 # Reference: https://github.com/psf/requests/issues/5289
                 request = requests.Request(
                     self.httpmethod,
                     url,
-                    headers=headers,
+                    headers=self.headers,
                     data=self.data,
                 )
                 prepped = self.session.prepare_request(request)

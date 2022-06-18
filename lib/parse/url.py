@@ -29,10 +29,6 @@ def clean_path(path):
     return clean_queries(clean_fragment(path))
 
 
-def parse_root_url(url):
-    return "/".join(url.split("/")[:3]) + "/"
-
-
 def parse_path(url, queries=True, fragment=True):
     if url.startswith("/") and not url.startswith("//"):
         return url
@@ -48,21 +44,3 @@ def parse_path(url, queries=True, fragment=True):
         path = clean_fragment(path)
 
     return path
-
-
-def join_path(*components):
-    result = ""
-
-    for component in [*components]:
-        if not component:
-            continue
-
-        if result:
-            if result.endswith("/"):
-                result = result[:-1]
-            if not component.startswith("/"):
-                result += "/"
-
-        result += component
-
-    return result

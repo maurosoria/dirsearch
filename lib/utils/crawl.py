@@ -23,67 +23,65 @@ from functools import lru_cache
 
 from lib.core.settings import (
     CRAWL_ATTRIBUTES, CRAWL_TAGS,
-    MEDIA_EXTENSIONS, URI_REGEX,
+    MEDIA_EXTENSIONS, ROBOTS_TXT_REGEX,
+    URI_REGEX,
 )
-from lib.parse.url import parse_root_url, parse_path
+from lib.parse.url import parse_path
+from lib.utils.common import merge_path
 
 
 def _filter(paths):
     return {path for path in paths if not path.endswith(MEDIA_EXTENSIONS)}
 
 
-def merge_path(url, path):
-    parts = url.split("/")
-    parts[-1] = path
+class Crawler:
+    @classmethod
+    def crawl(cls, response):
+        scope = "/".join(response.url.split("/")[:3]) + "/"
 
-    return "/".join(parts)
+        if "text/html" in response.headers.get("content-type", ""):
+            return cls.html_crawl(response.url, scope, response.content)
+        elif response.path == "robots.txt":
+            return cls.robots_crawl(response.url, scope, response.content)
+        else:
+            return cls.text_crawl(response.url, scope, response.content)
 
+    @staticmethod
+    @lru_cache(maxsize=None)
+    def text_crawl(url, scope, content):
+        results = []
+        regex = re.escape(scope) + "[a-zA-Z0-9-._~!$&*+,;=:@?%]+"
 
-@lru_cache(maxsize=None)
-def crawl(url, response):
-    if "text/html" in response.headers.get("content-type", ""):
-        return html_crawl(url, response.content)
-    elif response.path == "robots.txt":
-        return robots_crawl(url, response.content)
+        for match in re.findall(regex, content):
+            results.append(match[len(scope):])
 
-    results = []
-    scope = parse_root_url(url)
-    regex = re.escape(scope) + "[a-zA-Z0-9-._~!$&*+,;=:@?%]+"
+        return _filter(results)
 
-    for match in re.findall(regex, response.content):
-        results.append(match[len(scope):])
+    @staticmethod
+    @lru_cache(maxsize=None)
+    def html_crawl(url, scope, content):
+        results = []
+        soup = BeautifulSoup(content, 'html.parser')
 
-    return _filter(results)
+        for tag in CRAWL_TAGS:
+            for found in soup.find_all(tag):
+                for attr in CRAWL_ATTRIBUTES:
+                    value = found.get(attr)
 
+                    if not value:
+                        continue
 
-def html_crawl(url, html):
-    results = []
-    scope = parse_root_url(url)
-    soup = BeautifulSoup(html, 'html.parser')
+                    if value.startswith("/"):
+                        results.append(value[1:])
+                    elif value.startswith(scope):
+                        results.append(value[len(scope):])
+                    elif not re.search(URI_REGEX, value):
+                        new_url = merge_path(url, value)
+                        results.append(parse_path(new_url, fragment=False))
 
-    for tag in CRAWL_TAGS:
-        for found in soup.find_all(tag):
-            for attr in CRAWL_ATTRIBUTES:
-                value = found.get(attr)
+        return _filter(results)
 
-                if not value:
-                    continue
-
-                if value.startswith("/"):
-                    results.append(value[1:])
-                elif value.startswith(scope):
-                    results.append(value[len(scope):])
-                elif not re.search(URI_REGEX, value):
-                    new_url = merge_path(url, value)
-                    results.append(parse_path(new_url, fragment=False))
-
-    return _filter(results)
-
-
-def robots_crawl(url, txt):
-    return _filter(
-        [
-            line[line.find("/") + 1:] for line in txt.splitlines(0)
-            if line.startswith(("Disallow:", "Allow:"))
-        ]
-    )
+    @staticmethod
+    @lru_cache(maxsize=None)
+    def robots_crawl(url, scope, content):
+        return _filter(re.findall(ROBOTS_TXT_REGEX, content))
