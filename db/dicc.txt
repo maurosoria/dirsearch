@@ -7840,6 +7840,10 @@ siteadmin/index.%EXT%
 siteadmin/index.php
 siteadmin/login.%EXT%
 siteadmin/login.php
+sitecore/content/home
+sitecore/content/home.aspx
+sitecore/login
+sitecore/login/default.aspx
 sitedown.%EXT%
 sitemanager.xml
 sitemap
