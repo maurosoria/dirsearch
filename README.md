@@ -7,15 +7,17 @@ dirsearch - Web path discovery
 ![License](https://img.shields.io/badge/license-GNU_General_Public_License-_red.svg)
 ![Release](https://img.shields.io/github/release/maurosoria/dirsearch.svg)
 ![Stars](https://img.shields.io/github/stars/maurosoria/dirsearch.svg)
-<a href="https://twitter.com/intent/tweet?text=dirsearch%20-%20Web%20path%20scanner%20by%20@_maurosoria%0A%0Ahttps://github.com/maurosoria/dirsearch">
-    ![Tweet](https://img.shields.io/twitter/url?url=https%3A%2F%2Fgithub.com%2Fmaurosoria%2Fdirsearch)
-</a>
+[![Discord](https://img.shields.io/discord/992276296669339678.svg?logo=discord)](https://discord.gg/2N22ZdAJRj)
+[![Tweet](https://img.shields.io/twitter/url?url=https%3A%2F%2Fgithub.com%2Fmaurosoria%2Fdirsearch)](https://twitter.com/intent/tweet?text=dirsearch%20-%20Web%20path%20scanner%20by%20@_maurosoria%0A%0Ahttps://github.com/maurosoria/dirsearch)
+
 
 **Current Release: v0.4.2 (2021.9.12)**
 
 An advanced command-line tool designed to brute force directories and files in webservers, AKA web path scanner
 
 **dirsearch** is being actively developed by [@maurosoria](https://twitter.com/_maurosoria) and [@shelld3v](https://twitter.com/shells3c_)
+
+*Reach to our [Discord server](https://discord.gg/rtN8GMd) to communicate with the team at best*
 
 
 Table of Contents
