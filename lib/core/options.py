@@ -54,7 +54,7 @@ def options():
         print("URL target is missing, try using -u <url>")
         exit(1)
 
-    if not opt.extensions and not opt.no_extension:
+    if not opt.extensions and not opt.remove_extensions:
         print("WARNING: No extension was specified!")
 
     for dict_file in opt.wordlists.split(","):
@@ -103,31 +103,31 @@ def options():
     opt.exclude_status_codes = parse_status_codes(opt.exclude_status_codes)
     opt.recursion_status_codes = parse_status_codes(opt.recursion_status_codes)
     opt.skip_on_status = parse_status_codes(opt.skip_on_status)
-    opt.prefixes = set(prefix.strip() for prefix in opt.prefixes.split(","))
-    opt.suffixes = set(suffix.strip() for suffix in opt.suffixes.split(","))
-    opt.exclude_extensions = uniq(
-        [
-            exclude_extension.lstrip(" .")
-            for exclude_extension in opt.exclude_extensions.split(",")
-        ]
-    )
-    opt.exclude_sizes = uniq(
-        [exclude_size.strip().upper() for exclude_size in opt.exclude_sizes.split(",")]
-    )
-    opt.exclude_texts = uniq(
-        [exclude_text.strip() for exclude_text in opt.exclude_texts.split(",")]
-    )
-    opt.scan_subdirs = [
+    opt.prefixes = uniq([prefix.strip() for prefix in opt.prefixes.split(",") if prefix], tuple)
+    opt.suffixes = uniq([suffix.strip() for suffix in opt.suffixes.split(",") if suffix], tuple)
+    opt.subdirs = [
         subdir.lstrip(" /") + ("" if not subdir or subdir.endswith("/") else "/")
-        for subdir in opt.scan_subdirs.split(",")
+        for subdir in opt.subdirs.split(",")
     ]
     opt.exclude_subdirs = [
         subdir.lstrip(" /") + ("" if not subdir or subdir.endswith("/") else "/")
         for subdir in opt.exclude_subdirs.split(",")
     ]
+    opt.exclude_sizes = uniq(
+        [
+            exclude_size.strip().upper()
+            for exclude_size in opt.exclude_sizes.split(",")
+        ]
+    )
+    opt.exclude_texts = uniq(
+        [
+            exclude_text.strip()
+            for exclude_text in opt.exclude_texts.split(",")
+        ]
+    )
 
-    if opt.no_extension:
-        opt.extensions = ""
+    if opt.remove_extensions:
+        opt.extensions = ("",)
     elif opt.extensions == "*":
         opt.extensions = COMMON_EXTENSIONS
     elif opt.extensions == "CHANGELOG.md":
@@ -136,14 +136,22 @@ def options():
         exit(0)
     else:
         opt.extensions = uniq(
-            [extension.lstrip(" .") for extension in opt.extensions.split(",")]
+            [extension.lstrip(" .") for extension in opt.extensions.split(",")],
+            tuple,
         )
+
+    opt.exclude_extensions = uniq(
+        [
+            exclude_extension.lstrip(" .")
+            for exclude_extension in opt.exclude_extensions.split(",")
+        ], tuple
+    )
 
     if not opt.wordlists:
         print("No wordlist was provided, try using -w <wordlist>")
         exit(1)
 
-    opt.wordlists = uniq([wordlist.strip() for wordlist in opt.wordlists.split(",")])
+    opt.wordlists = {wordlist.strip() for wordlist in opt.wordlists.split(",")}
 
     if opt.auth and not opt.auth_type:
         print("Please select the authentication type with --auth-type")
@@ -242,7 +250,7 @@ def parse_config(opt):
     opt.recursion_status_codes = opt.recursion_status_codes or config.safe_get(
         "general", "recursion-status", "100-999"
     )
-    opt.scan_subdirs = opt.scan_subdirs or config.safe_get("general", "subdirs")
+    opt.subdirs = opt.subdirs or config.safe_get("general", "subdirs")
     opt.exclude_subdirs = opt.exclude_subdirs or config.safe_get(
         "general", "exclude-subdirs"
     )
@@ -296,7 +304,7 @@ def parse_config(opt):
     opt.delay = opt.delay or config.safe_getfloat("connection", "delay")
     opt.timeout = opt.timeout or config.safe_getfloat("connection", "timeout", 7.5)
     opt.max_retries = opt.max_retries or config.safe_getint("connection", "max-retries", 1)
-    opt.maxrate = opt.maxrate or config.safe_getint("connection", "max-rate")
+    opt.max_rate = opt.max_rate or config.safe_getint("connection", "max-rate")
     opt.proxy = opt.proxy or list(config.safe_get("connection", "proxy"))
     opt.proxy_file = opt.proxy_file or config.safe_get("connection", "proxy-file")
     opt.scheme = opt.scheme or config.safe_get(

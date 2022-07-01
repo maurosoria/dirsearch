@@ -200,7 +200,7 @@ class Output:
 
         self.print_header(config)
 
-    def set_target(self, target):
+    def target(self, target):
         self.new_line()
         self.print_header({"Target": target})
 

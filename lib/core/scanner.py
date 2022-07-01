@@ -20,19 +20,21 @@ import re
 
 from urllib.parse import unquote
 
-from lib.core.settings import REFLECTED_PATH_MARKER, TEST_PATH_LENGTH
+from lib.core.settings import (
+    REFLECTED_PATH_MARKER, TEST_PATH_LENGTH,
+    WILDCARD_TEST_POINT_MARKER
+)
 from lib.parse.url import clean_path
 from lib.utils.diff import generate_matching_regex, DynamicContentParser
 from lib.utils.random import rand_string
 
 
 class Scanner:
-    def __init__(self, requester, **kwargs):
+    def __init__(self, requester, path, **kwargs):
         self.custom = kwargs.get("custom", None)
-        self.suffix = kwargs.get("suffix", "")
-        self.prefix = kwargs.get("prefix", "")
         self.tested = kwargs.get("tested", [])
         self.requester = requester
+        self.path = path
         self.tester = None
         self.response = None
         self.wildcard_redirect_regex = None
@@ -44,10 +46,9 @@ class Scanner:
         used to compare with other path responses
         """
 
-        first_path = (
-            self.prefix
-            + (self.custom or rand_string(TEST_PATH_LENGTH))
-            + self.suffix
+        first_path = self.path.replace(
+            WILDCARD_TEST_POINT_MARKER,
+            rand_string(TEST_PATH_LENGTH),
         )
         first_response = self.requester.request(first_path)
         self.response = first_response
@@ -59,18 +60,17 @@ class Scanner:
             self.wildcard_redirect_regex = duplicate.wildcard_redirect_regex
             return
 
-        second_path = (
-            self.prefix
-            + (self.custom or rand_string(TEST_PATH_LENGTH, omit=first_path))
-            + self.suffix
+        second_path = self.path.replace(
+            WILDCARD_TEST_POINT_MARKER,
+            rand_string(TEST_PATH_LENGTH, omit=first_path),
         )
         second_response = self.requester.request(second_path)
 
         if first_response.redirect and second_response.redirect:
             self.wildcard_redirect_regex = self.generate_redirect_regex(
-                first_response.redirect,
+                clean_path(first_response.redirect),
                 first_path,
-                second_response.redirect,
+                clean_path(second_response.redirect),
                 second_path,
             )
 
@@ -95,7 +95,7 @@ class Scanner:
 
         return self.content_parser.compare_to(response.content)
 
-    def scan(self, path, response):
+    def check(self, path, response):
         """
         Perform analyzing to see if the response is wildcard or not
         """

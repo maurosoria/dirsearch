@@ -23,22 +23,45 @@ from lib.core.settings import (
     SCRIPT_PATH, EXTENSION_TAG, EXCLUDE_OVERWRITE_EXTENSIONS,
     EXTENSION_RECOGNITION_REGEX, EXTENSION_REGEX
 )
-from lib.utils.common import uniq
+from lib.utils.common import lstrip_once
 from lib.utils.file import FileUtils
+
+
+# Get ignore paths for status codes.
+# Reference: https://github.com/maurosoria/dirsearch#Blacklist
+def get_blacklists(extensions):
+    blacklists = {}
+
+    for status in [400, 403, 500]:
+        blacklist_file_name = FileUtils.build_path(SCRIPT_PATH, "db")
+        blacklist_file_name = FileUtils.build_path(
+            blacklist_file_name, f"{status}_blacklist.txt"
+        )
+
+        if not FileUtils.can_read(blacklist_file_name):
+            # Skip if cannot read file
+            continue
+
+        blacklists[status] = Dictionary(
+            files=[blacklist_file_name],
+            extensions=extensions
+        )
+
+    return blacklists
 
 
 class Dictionary:
     def __init__(self, **kwargs):
-        self._entries = ()
+        self._entries = []
         self._index = 0
-        self._dictionary_files = kwargs.get("paths", [])
-        self.extensions = kwargs.get("extensions", [])
-        self.exclude_extensions = kwargs.get("exclude_extensions", [])
-        self.prefixes = kwargs.get("prefixes", [])
-        self.suffixes = kwargs.get("suffixes", [])
+        self._dictionary_files = kwargs.get("files", set())
+        self.extensions = kwargs.get("extensions", ())
+        self.exclude_extensions = kwargs.get("exclude_extensions", ())
+        self.prefixes = kwargs.get("prefixes", ())
+        self.suffixes = kwargs.get("suffixes", ())
         self.force_extensions = kwargs.get("force_extensions", False)
         self.overwrite_extensions = kwargs.get("overwrite_extensions", False)
-        self.no_extension = kwargs.get("no_extension", False)
+        self.remove_extensions = kwargs.get("remove_extensions", False)
         self.lowercase = kwargs.get("lowercase", False)
         self.uppercase = kwargs.get("uppercase", False)
         self.capitalization = kwargs.get("capitalization", False)
@@ -68,19 +91,17 @@ class Dictionary:
 
         re_ext_tag = re.compile(EXTENSION_TAG, re.IGNORECASE)
         re_extension = re.compile(EXTENSION_REGEX, re.IGNORECASE)
-        entries = []
 
-        # Enable to use multiple dictionaries at once
         for dict_file in self._dictionary_files:
             for line in FileUtils.get_lines(dict_file):
-                if line.startswith("/"):
-                    line = line[1:]
+                # Removing leading "/" to work with prefixes later
+                line = lstrip_once(line, "/")
 
-                if self.no_extension:
+                if self.remove_extensions:
                     line = line.split(".")[0]
 
-                # Skip comments
-                if line.lstrip().startswith("#"):
+                # Skip comments and empty lines
+                if not line or line.lstrip().startswith("#"):
                     continue
 
                 # Skip if the path contains excluded extensions
@@ -93,7 +114,7 @@ class Dictionary:
                 if EXTENSION_TAG in line.lower():
                     for extension in self.extensions:
                         newline = re_ext_tag.sub(extension, line)
-                        entries.append(newline)
+                        self.add(newline)
                 # If "forced extensions" is used and the path is not a directory (terminated by /)
                 # or has had an extension already, append extensions to the path
                 elif (
@@ -101,80 +122,57 @@ class Dictionary:
                     and not line.endswith("/")
                     and not re.search(EXTENSION_RECOGNITION_REGEX, line)
                 ):
-                    entries.append(line)
-                    entries.append(line + "/")
+                    self.add(line)
+                    self.add(line + "/")
 
                     for extension in self.extensions:
-                        entries.append(line + f".{extension}")
+                        self.add(f"{line}.{extension}")
                 # Overwrite unknown extensions with selected ones (but also keep the origin)
                 elif (
                     self.overwrite_extensions
-                    and not line.endswith(tuple(self.extensions) + EXCLUDE_OVERWRITE_EXTENSIONS)
+                    and not line.endswith(self.extensions + EXCLUDE_OVERWRITE_EXTENSIONS)
                     # Paths that have queries in wordlist are usually used for exploiting
                     # diclosed vulnerabilities of services, skip such paths
                     and "?" not in line
                     and "#" not in line
                     and re.search(EXTENSION_RECOGNITION_REGEX, line)
                 ):
-                    entries.append(line)
+                    self.add(line)
 
                     for extension in self.extensions:
                         newline = re_extension.sub(f".{extension}", line)
-                        entries.append(newline)
+                        self.add(newline)
                 # Append line unmodified.
                 else:
-                    entries.append(line)
+                    self.add(line)
 
-        # Re-add dictionary with prefixes
-        entries.extend(
-            pref + path
-            for path in entries
-            for pref in self.prefixes
-            if not path.startswith(pref)
-        )
-        # Re-add dictionary with suffixes
-        entries.extend(
-            path + suff
-            for path in entries
-            for suff in self.suffixes
-            if not path.endswith(("/", suff))
-        )
+    def add(self, path):
+        def append(path):
+            if self.lowercase:
+                path = path.lower()
+            elif self.uppercase:
+                path = path.upper()
+            elif self.capitalization:
+                path = path.capitalize()
 
-        if self.lowercase:
-            self._entries = tuple(entry.lower() for entry in uniq(entries))
-        elif self.uppercase:
-            self._entries = tuple(entry.upper() for entry in uniq(entries))
-        elif self.capitalization:
-            self._entries = tuple(entry.capitalize() for entry in uniq(entries))
-        else:
-            self._entries = tuple(uniq(entries))
+            if path not in self._entries:
+                self._entries.append(path)
 
-        del entries
+        for pref in self.prefixes:
+            if not path.startswith(("/", pref)):
+                append(pref + path)
+        for suff in self.suffixes:
+            if not path.endswith(("/", suff)) and "#" not in path:
+                append(path + suff)
 
-    # Get ignore paths for status codes.
-    # More information: https://github.com/maurosoria/dirsearch#Blacklist
-    @staticmethod
-    def generate_blacklists(extensions):
-        blacklists = {}
-
-        for status in [400, 403, 500]:
-            blacklist_file_name = FileUtils.build_path(SCRIPT_PATH, "db")
-            blacklist_file_name = FileUtils.build_path(
-                blacklist_file_name, f"{status}_blacklist.txt"
-            )
-
-            if not FileUtils.can_read(blacklist_file_name):
-                # Skip if cannot read file
-                continue
-
-            blacklists[status] = set(
-                Dictionary(paths=[blacklist_file_name], extensions=extensions)
-            )
-
-        return blacklists
+        if not self.prefixes and not self.suffixes:
+            append(path)
 
     def reset(self):
         self._index = 0
+
+    def __contains__(self, item):
+        return item in self._entries
 
     def __getstate__(self):
         return (self._entries, self._index, self.extensions)

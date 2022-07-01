@@ -31,6 +31,10 @@ def cached(timeout=100):
         @wraps(func)
         def with_caching(*args, **kwargs):
             key = id(func)
+            for arg in args:
+                key += id(arg)
+            for k, v in kwargs:
+                key += id(k) + id(v)
 
             # If it was cached and the cache timeout hasn't been reached
             if key in _cache and time() - _cache[key][0] < timeout:

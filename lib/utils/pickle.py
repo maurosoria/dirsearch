@@ -21,6 +21,8 @@ try:
 except ModuleNotFoundError:
     import pickle as _pickle
 
+from lib.core.exceptions import UnpicklingError
+
 ALLOWED_PICKLE_CLASSES = (
     "collections.OrderedDict",
     "http.cookiejar.DefaultCookiePolicy",
@@ -38,6 +40,14 @@ ALLOWED_PICKLE_CLASSES = (
     "lib.core.structures.AttributeDict",
     "lib.core.structures.CaseInsensitiveDict",
     "lib.output.verbose.Output",
+    "lib.reports.csv_report.CSVReport",
+    "lib.reports.html_report.HTMLReport",
+    "lib.reports.json_report.JSONReport",
+    "lib.reports.markdown_report.MarkdownReport",
+    "lib.reports.plain_text_report.PlainTextReport",
+    "lib.reports.simple_report.SimpleReport",
+    "lib.reports.xml_report.XMLReport",
+    "lib.reports.sqlite_report.SQLiteReport",
     "urllib3.util.retry.Retry",
 )
 
@@ -48,7 +58,7 @@ class RestrictedUnpickler(_pickle.Unpickler):
         if f"{module}.{name}" in ALLOWED_PICKLE_CLASSES:
             return super().find_class(module, name)
 
-        raise _pickle.UnpicklingError()
+        raise UnpicklingError()
 
 
 def unpickle(*args, **kwargs):

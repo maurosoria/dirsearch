@@ -30,21 +30,20 @@ from lib.reports.simple_report import SimpleReport
 from lib.reports.xml_report import XMLReport
 
 requester = Requester()
-requester.set_target(DUMMY_URL)
-test_entries = [requester.request(DUMMY_WORD)]
+test_entries = [requester.request(DUMMY_URL + DUMMY_WORD)]
 
 
 class TestReports(TestCase):
     def test_csv_report(self):
         expected_output = "URL,Status,Size,Content Type,Redirection" + NEW_LINE
-        expected_output += f"{DUMMY_URL}/{DUMMY_WORD},404,648,text/html," + NEW_LINE
+        expected_output += f"{DUMMY_URL}{DUMMY_WORD},404,648,text/html," + NEW_LINE
 
         self.assertEqual(CSVReport(TMP_PATH).generate(test_entries), expected_output, "CSV report is unintended")
 
     def test_json_report(self):
         output = JSONReport(TMP_PATH).generate(test_entries)
         expected_results = [{
-            "url": DUMMY_URL + "/" + DUMMY_WORD,
+            "url": DUMMY_URL + DUMMY_WORD,
             "status": 404,
             "content-length": 648,
             "content-type": "text/html",
@@ -55,18 +54,18 @@ class TestReports(TestCase):
     def test_markdown_report(self):
         expected_table = "URL | Status | Size | Content Type | Redirection" + NEW_LINE
         expected_table += "----|--------|------|--------------|------------" + NEW_LINE
-        expected_table += f"{DUMMY_URL}/{DUMMY_WORD} | 404 | 648 | text/html | " + NEW_LINE
+        expected_table += f"{DUMMY_URL}{DUMMY_WORD} | 404 | 648 | text/html | " + NEW_LINE
         self.assertTrue(MarkdownReport(TMP_PATH).generate(test_entries).endswith(expected_table))
 
     def test_plain_text_report(self):
-        expected_result = f"404   648B   {DUMMY_URL}/{DUMMY_WORD}" + NEW_LINE
+        expected_result = f"404   648B   {DUMMY_URL}{DUMMY_WORD}" + NEW_LINE
         self.assertTrue(PlainTextReport(TMP_PATH).generate(test_entries).endswith(expected_result))
 
     def test_simple_report(self):
-        self.assertEqual(SimpleReport(TMP_PATH).generate(test_entries), DUMMY_URL + "/" + DUMMY_WORD)
+        self.assertEqual(SimpleReport(TMP_PATH).generate(test_entries), DUMMY_URL + DUMMY_WORD)
 
     def test_xml_report(self):
-        expected_result = f'\t<target url="{DUMMY_URL}/{DUMMY_WORD}">\n'
+        expected_result = f'\t<target url="{DUMMY_URL}{DUMMY_WORD}">\n'
         expected_result += "\t\t<status>404</status>\n"
         expected_result += "\t\t<contentLength>648</contentLength>\n"
         expected_result += "\t\t<contentType>text/html</contentType>\n"

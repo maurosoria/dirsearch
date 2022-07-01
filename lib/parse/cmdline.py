@@ -107,7 +107,7 @@ def parse_arguments():
     dictionary.add_option(
         "--remove-extensions",
         action="store_true",
-        dest="no_extension",
+        dest="remove_extensions",
         help="Remove extensions in all paths (e.g. admin.php -> admin)",
     )
     dictionary.add_option(
@@ -193,7 +193,7 @@ def parse_arguments():
     general.add_option(
         "--subdirs",
         action="store",
-        dest="scan_subdirs",
+        dest="subdirs",
         metavar="SUBDIRS",
         help="Scan sub-directories of the given URL[s] (separated by commas)",
     )
@@ -424,7 +424,7 @@ def parse_arguments():
         "--max-rate",
         action="store",
         type="int",
-        dest="maxrate",
+        dest="max_rate",
         metavar="RATE",
         help="Max requests per second",
     )

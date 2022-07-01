@@ -17,37 +17,30 @@
 #  Author: Mauro Soria
 
 
-# Remove parameters and fragment from the URL
+def clean_queries(path):
+    return path.split("?")[0]
+
+
+def clean_fragment(path):
+    return path.split("#")[0]
+
+
 def clean_path(path):
-    return path.split("?")[0].split("#")[0]
+    return clean_queries(clean_fragment(path))
 
 
-def parse_full_path(url):
+def parse_path(url, queries=True, fragment=True):
     if url.startswith("/") and not url.startswith("//"):
         return url
     elif "//" not in url:
         return "/" + url
 
-    return "/".join(url.split("/")[3:])
+    path = "/".join(url.split("/")[3:])
 
+    if not queries:
+        path = clean_queries(path)
 
-def parse_path(url):
-    return clean_path(parse_full_path(url))
+    if not fragment:
+        path = clean_fragment(path)
 
-
-def join_path(*components):
-    result = ""
-
-    for component in [*components]:
-        if not component:
-            continue
-
-        if result:
-            if result.endswith("/"):
-                result = result[:-1]
-            if not component.startswith("/"):
-                result += "/"
-
-        result += component
-
-    return result
+    return path

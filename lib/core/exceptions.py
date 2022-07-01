@@ -21,11 +21,11 @@ class FailedDependenciesInstallation(Exception):
     pass
 
 
-class RequestException(Exception):
+class InvalidURLException(Exception):
     pass
 
 
-class InvalidURLException(Exception):
+class RequestException(Exception):
     pass
 
 
@@ -34,4 +34,8 @@ class SkipTargetInterrupt(Exception):
 
 
 class QuitInterrupt(Exception):
+    pass
+
+
+class UnpicklingError(Exception):
     pass
