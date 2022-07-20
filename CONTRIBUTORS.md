@@ -69,6 +69,7 @@
 - [0x08](https://github.com/its0x08)
 - [Weltolk](https://github.com/Weltolk)
 - [at0m](https://github.com/atomiczsec/)
+- [junmoka](https://github.com/junmoka)
 
 Special thanks to all the people who are named here!
 

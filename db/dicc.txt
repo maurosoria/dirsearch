@@ -3614,6 +3614,12 @@ cgi-bin/index.html
 cgi-bin/login
 cgi-bin/login.cgi
 cgi-bin/login.php
+cgi-bin/mt-xmlrpc.cgi
+cgi-bin/mt.cgi
+cgi-bin/mt/mt-xmlrpc.cgi
+cgi-bin/mt/mt.cgi
+cgi-bin/mt7/mt-xmlrpc.cgi
+cgi-bin/mt7/mt.cgi
 cgi-bin/php.ini
 cgi-bin/printenv.pl
 cgi-bin/test-cgi
@@ -6299,6 +6305,12 @@ mssql
 mssql/
 mt
 mt-check.cgi
+mt-xmlrpc.cgi
+mt.cgi
+mt/mt-xmlrpc.cgi
+mt/mt.cgi
+mt7/mt-xmlrpc.cgi
+mt7/mt.cgi
 multimedia
 munin
 munin/
