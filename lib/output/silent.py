@@ -38,7 +38,7 @@ class Output(_Output):
     def config(*args):
         pass
 
-    def set_target(*args):
+    def target(*args):
         pass
 
     def output_file(*args):

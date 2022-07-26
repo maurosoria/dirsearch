@@ -139,7 +139,7 @@ Options:
                         example (Default: default.conf)
 
   Dictionary Settings:
-    -w WORDLIST, --wordlists=WORDLIST
+    -w WORDLISTS, --wordlists=WORDLISTS
                         Customize wordlists (separated by commas)
     -e EXTENSIONS, --extensions=EXTENSIONS
                         Extension list separated by commas (e.g. php,asp)
@@ -148,8 +148,8 @@ Options:
                         default dirsearch only replaces the %EXT% keyword with
                         extensions
     -O, --overwrite-extensions
-                        Overwrite other extensions with your extensions
-                        (selected via `-e`)
+                        Overwrite other extensions in the wordlist with your
+                        extensions (selected via `-e`)
     --exclude-extensions=EXTENSIONS
                         Exclude extension list separated by commas (e.g.
                         asp,jsp)
@@ -253,7 +253,7 @@ Options:
     --ip=IP             Server IP address
     --exit-on-error     Exit whenever an error occurs
 
-  View:
+  View Settings:
     --full-url          Full URLs in the output (enabled automatically in
                         quiet mode)
     --redirects-history
@@ -261,7 +261,7 @@ Options:
     --no-color          No colored output
     -q, --quiet-mode    Quiet mode
 
-  Output:
+  Output Settings:
     -o PATH, --output=PATH
                         Output file
     --format=FORMAT     Report format (Available: simple, plain, json, xml,

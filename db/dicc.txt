@@ -2153,7 +2153,6 @@ admin/
 admin/%3bindex/
 admin/.config
 admin/.htaccess
-admin/?/login
 admin/_logs/access-log
 admin/_logs/access.log
 admin/_logs/access_log

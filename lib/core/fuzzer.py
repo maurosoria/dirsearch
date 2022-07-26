@@ -19,12 +19,11 @@
 import threading
 import time
 
-from lib.core.decorators import cached
 from lib.core.exceptions import RequestException
 from lib.core.scanner import Scanner
 from lib.core.settings import (
-    DEFAULT_SCAN_PREFIXES, DEFAULT_SCAN_SUFFIXES,
-    RATE_UPDATE_DELAY,
+    DEFAULT_TEST_PREFIXES, DEFAULT_TEST_SUFFIXES,
+    WILDCARD_TEST_POINT_MARKER,
 )
 from lib.parse.url import clean_path
 
@@ -32,27 +31,23 @@ from lib.parse.url import clean_path
 class Fuzzer:
     def __init__(self, requester, dictionary, **kwargs):
         self._threads = []
+        self._scanned = set()
         self._requester = requester
         self._dictionary = dictionary
         self._is_running = False
         self._play_event = threading.Event()
         self._paused_semaphore = threading.Semaphore(0)
-        self.suffixes = kwargs.get("suffixes", [])
-        self.prefixes = kwargs.get("prefixes", [])
+        self._base_path = None
+        self.suffixes = kwargs.get("suffixes", ())
+        self.prefixes = kwargs.get("prefixes", ())
         self.exclude_response = kwargs.get("exclude_response", None)
         self.threads_count = kwargs.get("threads", 15)
         self.delay = kwargs.get("delay", 0)
-        self.maxrate = kwargs.get("maxrate", 0)
-        self.calibration = None
-        self.default_scanner = None
+        self.default_scanners = []
+        self.exc = None
         self.match_callbacks = kwargs.get("match_callbacks", [])
         self.not_found_callbacks = kwargs.get("not_found_callbacks", [])
         self.error_callbacks = kwargs.get("error_callbacks", [])
-        self.scanners = {
-            "prefixes": {},
-            "suffixes": {},
-        }
-        self.exc = None
 
         if len(self._dictionary) < self.threads_count:
             self.threads_count = len(self._dictionary)
@@ -70,35 +65,42 @@ class Fuzzer:
         return True
 
     def setup_scanners(self):
-        if len(self.scanners):
-            self.scanners = {
-                "prefixes": {},
-                "suffixes": {},
-            }
+        self.scanners = {
+            "prefixes": {},
+            "suffixes": {},
+        }
 
         # Default scanners (wildcard testers)
-        self.default_scanner = Scanner(self._requester)
+        self.default_scanners = [
+            Scanner(self._requester, self._base_path),
+            Scanner(self._requester, self._base_path + WILDCARD_TEST_POINT_MARKER),
+        ]
 
-        for prefix in self.prefixes.union(DEFAULT_SCAN_PREFIXES):
-            self.scanners["prefixes"][prefix] = Scanner(
-                self._requester, prefix=prefix, tested=self.scanners
+        if self.exclude_response:
+            self.default_scanners.append(
+                Scanner(
+                    self._requester, custom=self.exclude_response, tested=self.scanners
+                )
             )
 
-        for suffix in self.suffixes.union(DEFAULT_SCAN_SUFFIXES):
+        for prefix in self.prefixes + DEFAULT_TEST_PREFIXES:
+            path = f"{self._base_path}{prefix}{WILDCARD_TEST_POINT_MARKER}"
+            self.scanners["prefixes"][prefix] = Scanner(
+                self._requester, path, tested=self.scanners
+            )
+
+        for suffix in self.suffixes + DEFAULT_TEST_SUFFIXES:
+            path = f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}{suffix}"
             self.scanners["suffixes"][suffix] = Scanner(
-                self._requester, suffix=suffix, tested=self.scanners
+                self._requester, path, tested=self.scanners
             )
 
         for extension in self._dictionary.extensions:
             if "." + extension not in self.scanners["suffixes"]:
+                path = f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}.{extension}"
                 self.scanners["suffixes"]["." + extension] = Scanner(
-                    self._requester, suffix="." + extension, tested=self.scanners
+                    self._requester, path, tested=self.scanners
                 )
-
-        if self.exclude_response:
-            self.calibration = Scanner(
-                self._requester, custom=self.exclude_response, tested=self.scanners
-            )
 
     def setup_threads(self):
         if self._threads:
@@ -109,26 +111,20 @@ class Fuzzer:
             new_thread.daemon = True
             self._threads.append(new_thread)
 
-    def get_scanner_for(self, path):
+    def get_scanners_for(self, path):
         # Clean the path, so can check for extensions/suffixes
         path = clean_path(path)
 
-        if self.exclude_response:
-            yield self.calibration
-
-        for prefix in self.prefixes:
+        for prefix in self.scanners["prefixes"]:
             if path.startswith(prefix):
                 yield self.scanners["prefixes"][prefix]
 
-        for suffix in self.suffixes:
+        for suffix in self.scanners["suffixes"]:
             if path.endswith(suffix):
                 yield self.scanners["suffixes"][suffix]
 
-        for extension in self._dictionary.extensions:
-            if path.endswith("." + extension):
-                yield self.scanners["suffixes"]["." + extension]
-
-        yield self.default_scanner
+        for scanner in self.default_scanners:
+            yield scanner
 
     def start(self):
         self.setup_scanners()
@@ -136,7 +132,6 @@ class Fuzzer:
 
         self._running_threads_count = len(self._threads)
         self._is_running = True
-        self._rate = 0
         self._play_event.clear()
 
         for thread in self._threads:
@@ -164,22 +159,31 @@ class Fuzzer:
         self._is_running = False
         self.play()
 
-    def scan(self, path):
-        wildcard = False
+    def scan(self, path, scanners):
+        # Avoid scanned paths from being re-scanned
+        if path in self._scanned:
+            return
+        else:
+            self._scanned.add(path)
+
         response = self._requester.request(path)
 
-        for tester in list(set(self.get_scanner_for(path))):
-            if not tester.scan(path, response):
-                wildcard = True
-                break
+        for tester in scanners:
+            # Check if the response is unique, not wildcard
+            if not tester.check(path, response):
+                for callback in self.not_found_callbacks:
+                    callback(response)
 
-        return wildcard, response
+                return
+
+        try:
+            for callback in self.match_callbacks:
+                callback(response)
+        except Exception as e:
+            self.exc = e
 
     def is_stopped(self):
         return self._running_threads_count == 0
-
-    def is_rate_exceeded(self):
-        return self._rate >= self.maxrate > 0
 
     def decrease_threads(self):
         self._running_threads_count -= 1
@@ -187,15 +191,8 @@ class Fuzzer:
     def increase_threads(self):
         self._running_threads_count += 1
 
-    def decrease_rate(self):
-        self._rate -= 1
-
-    def increase_rate(self):
-        self._rate += 1
-        threading.Timer(1, self.decrease_rate).start()
-
     def set_base_path(self, path):
-        self._requester.base_path = path
+        self._base_path = path
 
     def thread_proc(self):
         self._play_event.wait()
@@ -203,31 +200,15 @@ class Fuzzer:
         while True:
             try:
                 path = next(self._dictionary)
-
-                # Pause if the request rate exceeded the maximum
-                while self.is_rate_exceeded():
-                    time.sleep(0.1)
-
-                self.increase_rate()
-
-                wildcard, response = self.scan(path)
-
-                try:
-                    if not wildcard:
-                        for callback in self.match_callbacks:
-                            callback(path, response)
-                    else:
-                        for callback in self.not_found_callbacks:
-                            callback(path, response)
-                except Exception as e:
-                    self.exc = e
+                scanners = self.get_scanners_for(path)
+                self.scan(self._base_path + path, scanners)
 
             except StopIteration:
                 self._is_running = False
 
             except RequestException as e:
                 for callback in self.error_callbacks:
-                    callback(path, e.args[1])
+                    callback(self._base_path + path, e.args[1])
 
                 continue
 
@@ -242,8 +223,3 @@ class Fuzzer:
                     break
 
                 time.sleep(self.delay)
-
-    @property
-    @cached(RATE_UPDATE_DELAY)
-    def rate(self):
-        return self._rate
