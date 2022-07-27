@@ -520,9 +520,8 @@ class Controller:
             self.requester.request(response.full_path, proxy=self.options.replay_proxy)
 
         if self.report:
+            self.results.append(response)
             self.report.save(self.results)
-
-        self.results.append(response)
 
     def update_progress_bar(self, *args):
         jobs_count = (
