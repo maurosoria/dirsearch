@@ -175,7 +175,6 @@ class Fuzzer:
             if not tester.check(path, response):
                 for callback in self.not_found_callbacks:
                     callback(response)
-
                 return
 
         try:

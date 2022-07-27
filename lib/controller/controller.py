@@ -308,7 +308,7 @@ class Controller:
         parsed = urlparse(url)
         self.base_path = lstrip_once(parsed.path, "/")
 
-        # Credentials in URL (https://[user]:[password]@website.com)
+        # Credentials in URL
         if "@" in parsed.netloc:
             cred, parsed.netloc = parsed.netloc.split("@")
             self.requester.set_auth("basic", cred)
