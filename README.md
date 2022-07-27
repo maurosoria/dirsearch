@@ -255,6 +255,9 @@ Options:
     --ip=IP             Server IP address
     --exit-on-error     Exit whenever an error occurs
 
+  Advanced Settings:
+    --crawl             Crawl for new paths in responses
+
   View Settings:
     --full-url          Full URLs in the output (enabled automatically in
                         quiet mode)
@@ -332,6 +335,9 @@ exit-on-error = False
 # proxy = localhost:8080
 # proxy-file = /path/to/proxies.txt
 # replay-proxy = localhost:8000
+
+[advanced]
+crawl = False
 
 [view]
 full-url = False

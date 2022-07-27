@@ -26,6 +26,7 @@ from lib.core.settings import (
     WILDCARD_TEST_POINT_MARKER,
 )
 from lib.parse.url import clean_path
+from lib.utils.crawl import Crawler
 
 
 class Fuzzer:
@@ -43,6 +44,7 @@ class Fuzzer:
         self.exclude_response = kwargs.get("exclude_response", None)
         self.threads_count = kwargs.get("threads", 15)
         self.delay = kwargs.get("delay", 0)
+        self.crawl = kwargs.get("crawl", False)
         self.default_scanners = []
         self.exc = None
         self.match_callbacks = kwargs.get("match_callbacks", [])
@@ -173,7 +175,6 @@ class Fuzzer:
             if not tester.check(path, response):
                 for callback in self.not_found_callbacks:
                     callback(response)
-
                 return
 
         try:
@@ -181,6 +182,10 @@ class Fuzzer:
                 callback(response)
         except Exception as e:
             self.exc = e
+
+        if self.crawl:
+            for path in Crawler.crawl(response):
+                self.scan(path, self.get_scanners_for(path))
 
     def is_stopped(self):
         return self._running_threads_count == 0

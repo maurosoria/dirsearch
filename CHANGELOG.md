@@ -5,6 +5,7 @@
 - SQLite report format
 - Option to overwrite unwanted extensions with selected extensions
 - Option to view redirects history when following redirects
+- Option to crawl web paths in the responses
 - HTTP traffic is saved inside log file
 - Capability to save progress and resume later
 - Support client certificate

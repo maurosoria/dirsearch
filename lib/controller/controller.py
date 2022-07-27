@@ -228,6 +228,7 @@ class Controller:
             exclude_response=self.options.exclude_response,
             threads=self.options.threads_count,
             delay=self.options.delay,
+            crawl=self.options.crawl,
             match_callbacks=match_callbacks,
             not_found_callbacks=not_found_callbacks,
             error_callbacks=error_callbacks,
