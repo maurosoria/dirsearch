@@ -315,6 +315,9 @@ def parse_config(opt):
         "connection", "exit-on-error"
     )
 
+    # Advanced
+    opt.crawl = opt.crawl or config.safe_getboolean("advanced", "crawl")
+
     # View
     opt.full_url = opt.full_url or config.safe_getboolean("view", "full-url")
     opt.color = opt.color or config.safe_getboolean("view", "color", True)
