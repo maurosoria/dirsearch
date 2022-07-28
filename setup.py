@@ -27,7 +27,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/maurosoria/dirsearch",
     packages=setuptools.find_packages(),
-    entry_points={"console_scripts": ["dirsearch=dirsearch.dirsearch:Program"]},
+    entry_points={"console_scripts": ["dirsearch=dirsearch.dirsearch:main"]},
     package_data={"dirsearch": ["*", "db/*"]},
     include_package_data=True,
     python_requires=">=3.7",
