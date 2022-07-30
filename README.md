@@ -17,7 +17,7 @@ An advanced command-line tool designed to brute force directories and files in w
 
 **dirsearch** is being actively developed by [@maurosoria](https://twitter.com/_maurosoria) and [@shelld3v](https://twitter.com/shells3c_)
 
-*Reach to our [Discord server](https://discord.gg/rtN8GMd) to communicate with the team at best*
+*Reach to our [Discord server](https://discord.gg/2N22ZdAJRj) to communicate with the team at best*
 
 
 Table of Contents
