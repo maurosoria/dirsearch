@@ -45,14 +45,14 @@ def options():
         opt.urls = iprange(opt.cidr)
     elif opt.stdin_urls:
         opt.urls = sys.stdin.read().splitlines(0)
-
-    opt.urls = uniq(opt.urls)
-
-    if opt.raw_file:
+    elif opt.raw_file:
         access_file(opt.raw_file, "file with raw request")
     elif not opt.urls:
         print("URL target is missing, try using -u <url>")
         exit(1)
+
+    if not opt.raw_file:
+        opt.urls = uniq(opt.urls)
 
     if not opt.extensions and not opt.remove_extensions:
         print("WARNING: No extension was specified!")
