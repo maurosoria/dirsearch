@@ -135,7 +135,7 @@ class Requester:
 
         self.increase_rate()
 
-        err_msg = None
+        err = None
         simple_err_msg = None
 
         # Safe quote all special characters to prevent them from being encoded
@@ -174,28 +174,26 @@ class Requester:
                 return Response(response)
 
             except Exception as e:
-                err_msg = str(e)
-
                 if e == socket.gaierror:
                     simple_err_msg = "Couldn't resolve DNS"
-                elif "SSLError" in err_msg:
+                elif "SSLError" in str(e):
                     simple_err_msg = "Unexpected SSL error"
-                elif "TooManyRedirects" in err_msg:
+                elif "TooManyRedirects" in str(e):
                     simple_err_msg = f"Too many redirects: {url}"
-                elif "ProxyError" in err_msg:
+                elif "ProxyError" in str(e):
                     simple_err_msg = f"Error with the proxy: {proxy}"
                     # Prevent from re-using it in the future
                     if proxy in self.proxy and len(self.proxy) > 1:
                         self.proxy.remove(proxy)
-                elif "InvalidURL" in err_msg:
+                elif "InvalidURL" in str(e):
                     simple_err_msg = f"Invalid URL: {url}"
-                elif "InvalidProxyURL" in err_msg:
+                elif "InvalidProxyURL" in str(e):
                     simple_err_msg = f"Invalid proxy URL: {proxy}"
-                elif "ConnectionError" in err_msg:
+                elif "ConnectionError" in str(e):
                     simple_err_msg = f"Cannot connect to: {urlparse(url).netloc}"
-                elif re.search(READ_RESPONSE_ERROR_REGEX, err_msg):
+                elif re.search(READ_RESPONSE_ERROR_REGEX, str(e)):
                     simple_err_msg = f"Failed to read response body: {url}"
-                elif "Timeout" in err_msg or e in (
+                elif "Timeout" in str(e) or e in (
                     http.client.IncompleteRead,
                     socket.timeout,
                 ):
@@ -205,7 +203,9 @@ class Requester:
                         f"There was a problem in the request to: {url}"
                     )
 
-        raise RequestException(simple_err_msg, err_msg)
+                err = e
+
+        raise RequestException(simple_err_msg, err)
 
     def is_rate_exceeded(self):
         return self._rate >= self.max_rate > 0
