@@ -16,6 +16,7 @@
 #
 #  Author: Mauro Soria
 
+import os
 import gc
 import time
 import re
@@ -59,10 +60,10 @@ class Controller:
     def __init__(self, options, output):
         if options.session_file:
             self._import(options.session_file)
-            self.from_export = True
+            self.old_session = True
         else:
             self.setup(options, output)
-            self.from_export = False
+            self.old_session = False
 
         self.run()
 
@@ -244,7 +245,7 @@ class Controller:
                     for subdir in self.options.subdirs:
                         self.add_directory(self.base_path + subdir)
 
-                if not self.from_export:
+                if not self.old_session:
                     self.output.target(self.url)
 
                 self.start()
@@ -271,6 +272,12 @@ class Controller:
 
         self.output.warning("\nTask Completed")
 
+        if self.options.session_file:
+            try:
+                os.remove(self.options.session_file)
+            except Exception:
+                self.output.error("Failed to delete old session file, remove it to free some space")
+
     def start(self):
         while self.directories:
             try:
@@ -279,7 +286,7 @@ class Controller:
                 self.current_job += 1
                 current_directory = self.directories[0]
 
-                if not self.from_export:
+                if not self.old_session:
                     current_time = time.strftime("%H:%M:%S")
                     msg = f"{NEW_LINE}[{current_time}] Starting: {current_directory}"
 
@@ -296,7 +303,7 @@ class Controller:
                 self.dictionary.reset()
                 self.directories.pop(0)
 
-                self.from_export = False
+                self.old_session = False
 
     def set_target(self, url):
         # If no scheme specified, unset it first

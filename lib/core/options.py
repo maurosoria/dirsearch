@@ -65,7 +65,7 @@ def options():
         exit(1)
 
     if opt.tor:
-        opt.proxy = [DEFAULT_TOR_PROXIES]
+        opt.proxy = list(DEFAULT_TOR_PROXIES)
     elif opt.proxy_file:
         fd = access_file(opt.proxy_file, "proxy list file")
         opt.proxy = fd.get_lines()

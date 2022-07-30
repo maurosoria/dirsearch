@@ -137,8 +137,8 @@ Options:
                         to set the scheme)
     -s SESSION_FILE, --session=SESSION_FILE
                         Session file
-    --config=PATH       Full path to config file, see 'default.conf' for
-                        example (Default: default.conf)
+    --config=PATH       Full path to config file, see 'config.ini' for
+                        example (Default: config.ini)
 
   Dictionary Settings:
     -w WORDLISTS, --wordlists=WORDLISTS
@@ -278,7 +278,7 @@ Options:
 Configuration
 ---------------
 
-Default values for dirsearch flags can be edited in the configuration file, by default is `default.conf` but you can select another file with the `--config` flag
+Default values for dirsearch flags can be edited in the configuration file, by default is `config.ini` but you can select another file with the `--config` flag
 
 ```ini
 # If you want to edit dirsearch default configurations, you can

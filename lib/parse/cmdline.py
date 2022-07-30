@@ -62,9 +62,9 @@ def parse_arguments():
         "--config",
         action="store",
         dest="config",
-        default=FileUtils.build_path(SCRIPT_PATH, "default.conf"),
+        default=FileUtils.build_path(SCRIPT_PATH, "config.ini"),
         metavar="PATH",
-        help="Full path to config file, see 'default.conf' for example (Default: default.conf)",
+        help="Full path to config file, see 'config.ini' for example (Default: config.ini)",
     )
 
     # Dictionary Settings
