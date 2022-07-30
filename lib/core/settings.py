@@ -66,7 +66,7 @@ DEFAULT_TEST_PREFIXES = (".",)
 
 DEFAULT_TEST_SUFFIXES = ("/",)
 
-DEFAULT_TOR_PROXIES = list(("socks5://127.0.0.1:9050", "socks5://127.0.0.1:9150"))
+DEFAULT_TOR_PROXIES = ("socks5://127.0.0.1:9050", "socks5://127.0.0.1:9150")
 
 DEFAULT_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36",
