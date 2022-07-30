@@ -47,7 +47,7 @@ def options():
         opt.urls = sys.stdin.read().splitlines(0)
     elif opt.raw_file:
         access_file(opt.raw_file, "file with raw request")
-    elif not hasattr(opt, "urls"):
+    elif not opt.urls:
         print("URL target is missing, try using -u <url>")
         exit(1)
 
