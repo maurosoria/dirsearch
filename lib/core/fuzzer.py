@@ -185,7 +185,8 @@ class Fuzzer:
 
         if self.crawl:
             for path in Crawler.crawl(response):
-                self.scan(path, self.get_scanners_for(path))
+                if self._dictionary.is_valid(path):
+                    self.scan(path, self.get_scanners_for(path))
 
     def is_stopped(self):
         return self._running_threads_count == 0

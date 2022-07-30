@@ -23,6 +23,7 @@ from lib.core.settings import (
     SCRIPT_PATH, EXTENSION_TAG, EXCLUDE_OVERWRITE_EXTENSIONS,
     EXTENSION_RECOGNITION_REGEX, EXTENSION_REGEX
 )
+from lib.parse.url import clean_path
 from lib.utils.common import lstrip_once
 from lib.utils.file import FileUtils
 
@@ -100,14 +101,7 @@ class Dictionary:
                 if self.remove_extensions:
                     line = line.split(".")[0]
 
-                # Skip comments and empty lines
-                if not line or line.lstrip().startswith("#"):
-                    continue
-
-                # Skip if the path contains excluded extensions
-                if any(
-                    "." + extension in line for extension in self.exclude_extensions
-                ):
+                if not self.is_valid(line):
                     continue
 
                 # Classic dirsearch wordlist processing (with %EXT% keyword)
@@ -145,6 +139,20 @@ class Dictionary:
                 # Append line unmodified.
                 else:
                     self.add(line)
+
+    def is_valid(self, path):
+        # Skip comments and empty lines
+        if not path or path.lstrip().startswith("#"):
+            return False
+
+        # Skip if the path has excluded extensions
+        cleaned_path = clean_path(path)
+        if cleaned_path.endswith(
+            tuple(f".{extension}" for extension in self.exclude_extensions)
+        ):
+            return False
+
+        return True
 
     def add(self, path):
         def append(path):
