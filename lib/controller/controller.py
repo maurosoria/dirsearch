@@ -32,7 +32,7 @@ from lib.core.exceptions import (
     UnpicklingError,
 )
 from lib.core.fuzzer import Fuzzer
-from lib.core.logger import log
+from lib.core.logger import enable_logging, logger
 from lib.core.settings import (
     BANNER, DEFAULT_HEADERS, DEFAULT_SESSION_FILE,
     EXTENSION_RECOGNITION_REGEX, MAX_CONSECUTIVE_REQUEST_ERRORS,
@@ -168,6 +168,8 @@ class Controller:
                 if not FileUtils.can_write(self.options.log_file):
                     raise Exception
 
+                enable_logging(self.options.log_file)
+
             except Exception:
                 self.output.error(
                     f"Couldn't create log file at {self.options.log_file}"
@@ -260,7 +262,7 @@ class Controller:
 
                 if e.args:
                     self.output.error(e.args[0])
-                    self.append_error_log("", e.args[1] if len(e.args) > 1 else e.args[0])
+                    logger.exception(e.args[1])
 
             except QuitInterrupt as e:
                 self.output.error(e.args[0])
@@ -539,7 +541,7 @@ class Controller:
             self.errors,
         )
 
-    def raise_error(self, *args):
+    def raise_error(self, exception):
         if self.options.exit_on_error:
             raise QuitInterrupt("Canceled due to an error")
 
@@ -552,23 +554,17 @@ class Controller:
     def append_traffic_log(self, response):
         """Write request to log file"""
 
-        msg = f"{response.status} {self.options.httpmethod} {response.url}"
+        msg = f'"{self.options.httpmethod} {response.url}" {response.status}'
 
         if response.redirect:
             msg += f" - REDIRECT TO: {response.redirect}"
 
         msg += f" (LENGTH: {response.length})"
 
-        log(self.options.log_file, "traffic", msg)
+        logger.info(msg)
 
-    def append_error_log(self, path, error_msg):
-        """Write error to log file"""
-
-        msg = f"{self.options.httpmethod} {self.url}{path}"
-        msg += NEW_LINE
-        msg += " " * 4
-        msg += error_msg
-        log(self.options.log_file, "error", msg)
+    def append_error_log(self, exception):
+        logger.exception(exception)
 
     def handle_pause(self):
         self.output.warning(
