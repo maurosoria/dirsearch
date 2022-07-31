@@ -187,8 +187,9 @@ class Fuzzer:
         if self.crawl:
             logger.info(f'THREAD-{threading.get_ident()}: crawling "/{path}"')
             for path_ in Crawler.crawl(response):
-                logger.info(f'THREAD-{threading.get_ident()}: found new path "/{path_}" in "/{path}"')
-                self.scan(path, self.get_scanners_for(path_))
+                if self._dictionary.is_valid(path_):
+                    logger.info(f'THREAD-{threading.get_ident()}: found new path "/{path_}" in /{path}')
+                    self.scan(path, self.get_scanners_for(path_))
 
     def is_stopped(self):
         return self._running_threads_count == 0
