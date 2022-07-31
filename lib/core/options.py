@@ -327,8 +327,9 @@ def parse_config(opt):
     )
 
     # Output
-    opt.output_path = config.safe_get("output", "report-output-folder")
+    opt.output_path = config.safe_get("output", "autosave-report-folder")
     opt.autosave_report = config.safe_getboolean("output", "autosave-report")
+    opt.log_file_size = config.safe_getint("output", "log-file-size")
     opt.log_file = opt.log_file or config.safe_get("output", "log-file")
     opt.output_format = opt.output_format or config.safe_get(
         "output", "report-format", "plain", OUTPUT_FORMATS

@@ -169,7 +169,7 @@ class Controller:
                 if not FileUtils.can_write(self.options.log_file):
                     raise Exception
 
-                enable_logging(self.options.log_file)
+                enable_logging(self.options.log_file, self.options.log_file_size or 0)
 
             except Exception:
                 self.output.error(
@@ -387,11 +387,9 @@ class Controller:
     def setup_reports(self):
         """Create report file"""
 
-        output_file = None
+        output_file = self.options.output_file
 
-        if self.options.output_file:
-            output_file = FileUtils.get_abs_path(self.options.output_file)
-        elif self.options.autosave_report:
+        if self.options.autosave_report:
             if len(self.targets) > 1:
                 directory_path = self.setup_batch_reports()
                 filename = "BATCH" + self.get_output_extension()
@@ -408,7 +406,7 @@ class Controller:
                     self.report_path, get_valid_filename(f"{parsed.scheme}_{parsed.netloc}")
                 )
 
-            output_file = FileUtils.build_path(directory_path, filename)
+            output_file = FileUtils.get_abs_path((FileUtils.build_path(directory_path, filename)))
 
             if FileUtils.exists(output_file):
                 i = 2

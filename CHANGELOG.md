@@ -9,6 +9,7 @@
 - HTTP traffic is saved inside log file
 - Capability to save progress and resume later
 - Support client certificate
+- Ability to limit the maximum size of the log file (bytes)
 
 ## [0.4.2] - 2021.9.12
 - More accurate
