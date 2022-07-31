@@ -20,11 +20,8 @@ import random
 import string
 
 
-def rand_string(n, omit=None, numonly=False):
-    if numonly:
-        seq = string.digits
-    else:
-        seq = string.ascii_lowercase + string.ascii_uppercase + string.digits
+def rand_string(n, omit=None):
+    seq = string.ascii_lowercase + string.ascii_uppercase + string.digits
 
     if omit:
         seq = list(set(seq) - set(omit))

@@ -19,7 +19,7 @@
 import difflib
 import re
 
-from lib.core.settings import MAX_DIFF_RATIO
+from lib.core.settings import MAX_MATCH_RATIO
 
 
 class DynamicContentParser:
@@ -49,9 +49,9 @@ class DynamicContentParser:
             return content == self._base_content
 
         diff = self._differ.compare(self._base_content.split(), content.split())
-        match_static_patterns = self._static_patterns == self.get_static_patterns(diff)
-        diff_ratio = difflib.SequenceMatcher(None, self._base_content, content).ratio()
-        return match_static_patterns and diff_ratio < MAX_DIFF_RATIO
+        static_patterns_are_matched = self._static_patterns == self.get_static_patterns(diff)
+        match_ratio = difflib.SequenceMatcher(None, self._base_content, content).ratio()
+        return static_patterns_are_matched or match_ratio > MAX_MATCH_RATIO
 
     @staticmethod
     def get_static_patterns(patterns):
