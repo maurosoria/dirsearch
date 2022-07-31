@@ -24,7 +24,10 @@ jobs:
         pip install codespell flake8 -r requirements.txt
     - name: Test
       run: |
-        echo index.%EXT% > tmp_wordlist.txt
+        cat > tmp_wordlist.txt << EOF
+        index.%EXT%
+        home.html
+        EOF
         echo testphp.vulnweb.com > tmp_targets.txt
         cat > tmp_raw.txt << EOF
         GET / HTTP/1.1
@@ -32,11 +35,11 @@ jobs:
         User-Agent: dirsearch
         Accept: */*
         EOF
-        python3 dirsearch.py -u https://example.com -o tmp_report.json --format json --force-recursive -R 3 --full-url -w tmp_wordlist.txt
-        python3 dirsearch.py -l tmp_targets.txt --subdirs /,admin/ --exclude-extensions conf -q -L -f -i 200 --user-agent a --log tmp_log.log -w tmp_wordlist.txt
-        python3 dirsearch.py -u https://localhost --ip 93.184.216.34 --max-rate 2 -H K:V --random-agent --log tmp.log -w tmp_wordlist.txt --overwrite-extensions
-        python3 dirsearch.py --raw tmp_raw.txt --prefixes . --suffixes ~ --skip-on-status 200 -m POST -d test=1 --crawl --min-response-size 9 --no-color
-        echo https://self-signed.badssl.com | python3 dirsearch.py --stdin --max-time 9 --auth u:p --auth-type basic --scheme http -w tmp_wordlist.txt
+        python3 dirsearch.py -w tmp_wordlist.txt -u https://example.com -o tmp_report.json --format json --force-recursive -R 3 --full-url -q -O
+        python3 dirsearch.py -w tmp_wordlist.txt -l tmp_targets.txt --subdirs /,admin/ --exclude-extensions conf -q -L -f -i 200 --user-agent a --log tmp_log.log
+        python3 dirsearch.py -w tmp_wordlist.txt -u https://localhost --ip 93.184.216.34 --max-rate 2 -H K:V --random-agent --log tmp.log --overwrite-extensions --no-color
+        python3 dirsearch.py -w tmp_wordlist.txt --raw tmp_raw.txt --prefixes . --suffixes ~ --skip-on-status 404 -m POST -d test=1 --crawl --min-response-size 9
+        echo https://self-signed.badssl.com | python3 dirsearch.py --stdin --max-time 9 --auth u:p --auth-type basic --scheme http
 
     - name: Unit Test
       run: python3 testing.py
@@ -47,4 +50,4 @@ jobs:
         # exit-zero treats all errors as warnings.  Max complexity is currently 77.
         flake8 . --exclude=thirdparty --count --ignore=E501 --exit-zero --max-complexity=10 --show-source --statistics
     - name: Codespell
-      run: codespell --ignore-words-list="cros,hist" --skip="./db/dicc.txt,./dirsearch/db/dicc.txt,./thirdparty"
+      run: codespell --ignore-words-list="cros,hist" --skip="./db/dicc.txt,./dirsearch/db/dicc.txt,./thirdparty,./reports"
