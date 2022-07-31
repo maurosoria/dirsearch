@@ -16,19 +16,18 @@
 #
 #  Author: Mauro Soria
 
-import time
-
-from lib.core.decorators import locked
-from lib.core.settings import NEW_LINE
-from lib.utils.file import FileUtils
+import logging
 
 
-@locked
-def log(file, tag, msg):
-    if not file:
-        return
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+logger.disabled = True
 
-    line = time.strftime("[%y-%m-%d %H:%M:%S]")
-    line += f"[{tag.upper()}] {msg}"
-    line += NEW_LINE
-    FileUtils.write_lines(file, line)
+
+def enable_logging(log_file):
+    logger.disabled = False
+    formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
+    handler = logging.FileHandler(log_file)
+    handler.setLevel(logging.DEBUG)
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)

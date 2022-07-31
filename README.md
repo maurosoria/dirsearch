@@ -5,10 +5,11 @@ dirsearch - Web path discovery
 
 ![Build](https://img.shields.io/badge/Built%20with-Python-Blue)
 ![License](https://img.shields.io/badge/license-GNU_General_Public_License-_red.svg)
-![Release](https://img.shields.io/github/release/maurosoria/dirsearch.svg)
 ![Stars](https://img.shields.io/github/stars/maurosoria/dirsearch.svg)
+[![Release](https://img.shields.io/github/release/maurosoria/dirsearch.svg)](https://github.com/maurosoria/dirsearch/releases)
+[![Sponsors](https://img.shields.io/github/sponsors/maurosoria)](https://github.com/sponsors/maurosoria)
 [![Discord](https://img.shields.io/discord/992276296669339678.svg?logo=discord)](https://discord.gg/2N22ZdAJRj)
-[![Tweet](https://img.shields.io/twitter/url?url=https%3A%2F%2Fgithub.com%2Fmaurosoria%2Fdirsearch)](https://twitter.com/intent/tweet?text=dirsearch%20-%20Web%20path%20scanner%20by%20@_maurosoria%0A%0Ahttps://github.com/maurosoria/dirsearch)
+[![Twitter](https://img.shields.io/twitter/follow/_dirsearch?label=Follow)](https://twitter.com/_dirsearch)
 
 
 **Current Release: v0.4.2 (2021.9.12)**
@@ -137,8 +138,8 @@ Options:
                         to set the scheme)
     -s SESSION_FILE, --session=SESSION_FILE
                         Session file
-    --config=PATH       Full path to config file, see 'default.conf' for
-                        example (Default: default.conf)
+    --config=PATH       Full path to config file, see 'config.ini' for
+                        example (Default: config.ini)
 
   Dictionary Settings:
     -w WORDLISTS, --wordlists=WORDLISTS
@@ -278,7 +279,7 @@ Options:
 Configuration
 ---------------
 
-Default values for dirsearch flags can be edited in the configuration file, by default is `default.conf` but you can select another file with the `--config` flag
+Default values for dirsearch flags can be edited in the configuration file, by default is `config.ini` but you can select another file with the `--config` flag
 
 ```ini
 # If you want to edit dirsearch default configurations, you can

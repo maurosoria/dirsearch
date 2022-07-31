@@ -20,6 +20,7 @@ import threading
 import time
 
 from lib.core.exceptions import RequestException
+from lib.core.logger import logger
 from lib.core.scanner import Scanner
 from lib.core.settings import (
     DEFAULT_TEST_PREFIXES, DEFAULT_TEST_SUFFIXES,
@@ -39,8 +40,8 @@ class Fuzzer:
         self._play_event = threading.Event()
         self._paused_semaphore = threading.Semaphore(0)
         self._base_path = None
-        self.suffixes = kwargs.get("suffixes", ())
-        self.prefixes = kwargs.get("prefixes", ())
+        self.suffixes = kwargs.get("suffixes", tuple())
+        self.prefixes = kwargs.get("prefixes", tuple())
         self.exclude_response = kwargs.get("exclude_response", None)
         self.threads_count = kwargs.get("threads", 15)
         self.delay = kwargs.get("delay", 0)
@@ -184,9 +185,11 @@ class Fuzzer:
             self.exc = e
 
         if self.crawl:
-            for path in Crawler.crawl(response):
-                if self._dictionary.is_valid(path):
-                    self.scan(path, self.get_scanners_for(path))
+            logger.info(f'THREAD-{threading.get_ident()}: crawling "/{path}"')
+            for path_ in Crawler.crawl(response):
+                if self._dictionary.is_valid(path_):
+                    logger.info(f'THREAD-{threading.get_ident()}: found new path "/{path_}" in /{path}')
+                    self.scan(path, self.get_scanners_for(path_))
 
     def is_stopped(self):
         return self._running_threads_count == 0
@@ -214,7 +217,7 @@ class Fuzzer:
 
             except RequestException as e:
                 for callback in self.error_callbacks:
-                    callback(self._base_path + path, e.args[1])
+                    callback(e)
 
                 continue
 

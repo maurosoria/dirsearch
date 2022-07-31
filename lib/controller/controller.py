@@ -16,6 +16,7 @@
 #
 #  Author: Mauro Soria
 
+import os
 import gc
 import time
 import re
@@ -32,7 +33,7 @@ from lib.core.exceptions import (
     UnpicklingError,
 )
 from lib.core.fuzzer import Fuzzer
-from lib.core.logger import log
+from lib.core.logger import enable_logging, logger
 from lib.core.settings import (
     BANNER, DEFAULT_HEADERS, DEFAULT_SESSION_FILE,
     EXTENSION_RECOGNITION_REGEX, MAX_CONSECUTIVE_REQUEST_ERRORS,
@@ -59,10 +60,10 @@ class Controller:
     def __init__(self, options, output):
         if options.session_file:
             self._import(options.session_file)
-            self.from_export = True
+            self.old_session = True
         else:
             self.setup(options, output)
-            self.from_export = False
+            self.old_session = False
 
         self.run()
 
@@ -168,6 +169,8 @@ class Controller:
                 if not FileUtils.can_write(self.options.log_file):
                     raise Exception
 
+                enable_logging(self.options.log_file)
+
             except Exception:
                 self.output.error(
                     f"Couldn't create log file at {self.options.log_file}"
@@ -244,7 +247,7 @@ class Controller:
                     for subdir in self.options.subdirs:
                         self.add_directory(self.base_path + subdir)
 
-                if not self.from_export:
+                if not self.old_session:
                     self.output.target(self.url)
 
                 self.start()
@@ -260,7 +263,7 @@ class Controller:
 
                 if e.args:
                     self.output.error(e.args[0])
-                    self.append_error_log("", e.args[1] if len(e.args) > 1 else e.args[0])
+                    logger.exception(e.args[1])
 
             except QuitInterrupt as e:
                 self.output.error(e.args[0])
@@ -271,6 +274,12 @@ class Controller:
 
         self.output.warning("\nTask Completed")
 
+        if self.options.session_file:
+            try:
+                os.remove(self.options.session_file)
+            except Exception:
+                self.output.error("Failed to delete old session file, remove it to free some space")
+
     def start(self):
         while self.directories:
             try:
@@ -279,7 +288,7 @@ class Controller:
                 self.current_job += 1
                 current_directory = self.directories[0]
 
-                if not self.from_export:
+                if not self.old_session:
                     current_time = time.strftime("%H:%M:%S")
                     msg = f"{NEW_LINE}[{current_time}] Starting: {current_directory}"
 
@@ -296,7 +305,7 @@ class Controller:
                 self.dictionary.reset()
                 self.directories.pop(0)
 
-                self.from_export = False
+                self.old_session = False
 
     def set_target(self, url):
         # If no scheme specified, unset it first
@@ -539,7 +548,7 @@ class Controller:
             self.errors,
         )
 
-    def raise_error(self, *args):
+    def raise_error(self, exception):
         if self.options.exit_on_error:
             raise QuitInterrupt("Canceled due to an error")
 
@@ -552,23 +561,17 @@ class Controller:
     def append_traffic_log(self, response):
         """Write request to log file"""
 
-        msg = f"{response.status} {self.options.httpmethod} {response.url}"
+        msg = f'"{self.options.httpmethod} {response.url}" {response.status}'
 
         if response.redirect:
             msg += f" - REDIRECT TO: {response.redirect}"
 
         msg += f" (LENGTH: {response.length})"
 
-        log(self.options.log_file, "traffic", msg)
+        logger.info(msg)
 
-    def append_error_log(self, path, error_msg):
-        """Write error to log file"""
-
-        msg = f"{self.options.httpmethod} {self.url}{path}"
-        msg += NEW_LINE
-        msg += " " * 4
-        msg += error_msg
-        log(self.options.log_file, "error", msg)
+    def append_error_log(self, exception):
+        logger.exception(exception)
 
     def handle_pause(self):
         self.output.warning(
