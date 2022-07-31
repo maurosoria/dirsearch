@@ -88,14 +88,14 @@ class Fuzzer:
             self.scanners["prefixes"][prefix] = Scanner(
                 self._requester, tested=self.scanners,
                 path=f"{self._base_path}{prefix}{WILDCARD_TEST_POINT_MARKER}",
-                info=f"/{self._base_path}{prefix}***",
+                context=f"/{self._base_path}{prefix}***",
             )
 
         for suffix in self.suffixes + DEFAULT_TEST_SUFFIXES:
             self.scanners["suffixes"][suffix] = Scanner(
                 self._requester, tested=self.scanners,
                 path=f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}{suffix}",
-                info=f"/{self._base_path}***{suffix}",
+                context=f"/{self._base_path}***{suffix}",
             )
 
         for extension in self._dictionary.extensions:
@@ -103,7 +103,7 @@ class Fuzzer:
                 self.scanners["suffixes"]["." + extension] = Scanner(
                     self._requester, tested=self.scanners,
                     path=f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}.{extension}",
-                    info=f"/{self._base_path}***.{extension}",
+                    context=f"/{self._base_path}***.{extension}",
                 )
 
     def setup_threads(self):
