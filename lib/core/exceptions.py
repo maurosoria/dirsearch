@@ -21,6 +21,10 @@ class FailedDependenciesInstallation(Exception):
     pass
 
 
+class InvalidRawRequest(Exception):
+    pass
+
+
 class InvalidURLException(Exception):
     pass
 

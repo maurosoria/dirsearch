@@ -28,9 +28,9 @@ from lib.connection.requester import Requester
 from lib.core.decorators import locked
 from lib.core.dictionary import Dictionary, get_blacklists
 from lib.core.exceptions import (
-    InvalidURLException, RequestException,
-    SkipTargetInterrupt, QuitInterrupt,
-    UnpicklingError,
+    InvalidRawRequest, InvalidURLException,
+    RequestException, SkipTargetInterrupt,
+    QuitInterrupt, UnpicklingError,
 )
 from lib.core.fuzzer import Fuzzer
 from lib.core.logger import enable_logging, logger
@@ -96,12 +96,16 @@ class Controller:
         self.output = output
 
         if self.options.raw_file:
-            self.options.update(
-                zip(
-                    ["urls", "httpmethod", "headers", "data"],
-                    parse_raw(self.options.raw_file),
+            try:
+                self.options.update(
+                    zip(
+                        ["urls", "httpmethod", "headers", "data"],
+                        parse_raw(self.options.raw_file),
+                    )
                 )
-            )
+            except InvalidRawRequest as e:
+                print(str(e))
+                exit(1)
         else:
             self.options.headers = {**DEFAULT_HEADERS, **self.options.headers}
 
@@ -261,7 +265,7 @@ class Controller:
                 self.dictionary.reset()
 
                 if e.args:
-                    self.output.error(e.args[0])
+                    self.output.error(str(e))
 
             except QuitInterrupt as e:
                 self.output.error(e.args[0])

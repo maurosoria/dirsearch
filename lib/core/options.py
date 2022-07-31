@@ -39,14 +39,14 @@ def options():
     opt.httpmethod = opt.httpmethod.upper()
 
     if opt.url_file:
-        fd = access_file(opt.url_file, "file contains URLs")
+        fd = access_file(opt.url_file)
         opt.urls = fd.get_lines()
     elif opt.cidr:
         opt.urls = iprange(opt.cidr)
     elif opt.stdin_urls:
         opt.urls = sys.stdin.read().splitlines(0)
     elif opt.raw_file:
-        access_file(opt.raw_file, "file with raw request")
+        access_file(opt.raw_file)
     elif not opt.urls:
         print("URL target is missing, try using -u <url>")
         exit(1)
@@ -58,7 +58,7 @@ def options():
         print("WARNING: No extension was specified!")
 
     for dict_file in opt.wordlists.split(","):
-        access_file(dict_file, "wordlist")
+        access_file(dict_file)
 
     if opt.threads_count < 1:
         print("Threads number must be greater than zero")
@@ -67,24 +67,24 @@ def options():
     if opt.tor:
         opt.proxy = list(DEFAULT_TOR_PROXIES)
     elif opt.proxy_file:
-        fd = access_file(opt.proxy_file, "proxy list file")
+        fd = access_file(opt.proxy_file)
         opt.proxy = fd.get_lines()
 
     if opt.data_file:
-        fd = access_file(opt.data_file, "data file")
+        fd = access_file(opt.data_file)
         opt.data = fd.get_lines()
 
     if opt.cert_file:
-        access_file(opt.cert_file, "certificate file")
+        access_file(opt.cert_file)
 
     if opt.key_file:
-        access_file(opt.key_file, "certificate private key file")
+        access_file(opt.key_file)
 
     headers = {}
 
     if opt.header_file:
         try:
-            fd = access_file(opt.header_file, "header list file")
+            fd = access_file(opt.header_file)
             headers.update(dict(HeadersParser(fd.read())))
         except Exception as e:
             print("Error in headers file: " + str(e))
@@ -197,18 +197,18 @@ def parse_status_codes(str_):
     return status_codes
 
 
-def access_file(path, name):
+def access_file(path):
     with File(path) as fd:
         if not fd.exists():
-            print(f"The {name} does not exist")
+            print(f"{path} does not exist")
             exit(1)
 
         if not fd.is_valid():
-            print(f"The {name} is invalid")
+            print(f"{path} is not a file")
             exit(1)
 
         if not fd.can_read():
-            print(f"The {name} cannot be read")
+            print(f"{path} cannot be read")
             exit(1)
 
         return fd
