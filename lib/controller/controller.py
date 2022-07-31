@@ -213,13 +213,12 @@ class Controller:
         #  - *args[0]: lib.connection.Response() object
         #
         # error_callbacks callback values:
-        #  - *args[0]: requested path
-        #  - *args[1]: request's error message
+        #  - *args[0]: exception
         match_callbacks = (
-            self.match_callback, self.append_traffic_log, self.reset_consecutive_errors
+            self.match_callback, self.reset_consecutive_errors
         )
         not_found_callbacks = (
-            self.update_progress_bar, self.append_traffic_log, self.reset_consecutive_errors
+            self.update_progress_bar, self.reset_consecutive_errors
         )
         error_callbacks = (self.raise_error, self.append_error_log)
 
@@ -263,7 +262,6 @@ class Controller:
 
                 if e.args:
                     self.output.error(e.args[0])
-                    logger.exception(e.args[1])
 
             except QuitInterrupt as e:
                 self.output.error(e.args[0])
@@ -492,7 +490,7 @@ class Controller:
 
         return True
 
-    def reset_consecutive_errors(self, *args):
+    def reset_consecutive_errors(self, response):
         self.consecutive_errors = 0
 
     def match_callback(self, response):
@@ -533,7 +531,7 @@ class Controller:
             self.results.append(response)
             self.report.save(self.results)
 
-    def update_progress_bar(self, *args):
+    def update_progress_bar(self, response):
         jobs_count = (
             len(self.options.subdirs) * (len(self.targets) - 1)
             + len(self.directories)
@@ -557,18 +555,6 @@ class Controller:
 
         if self.consecutive_errors > MAX_CONSECUTIVE_REQUEST_ERRORS:
             raise SkipTargetInterrupt("Too many request errors")
-
-    def append_traffic_log(self, response):
-        """Write request to log file"""
-
-        msg = f'"{self.options.httpmethod} {response.url}" {response.status}'
-
-        if response.redirect:
-            msg += f" - REDIRECT TO: {response.redirect}"
-
-        msg += f" (LENGTH: {response.length})"
-
-        logger.info(msg)
 
     def append_error_log(self, exception):
         logger.exception(exception)

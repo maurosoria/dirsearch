@@ -20,6 +20,7 @@ import re
 
 from urllib.parse import unquote
 
+from lib.core.logger import logger
 from lib.core.settings import (
     REFLECTED_PATH_MARKER, TEST_PATH_LENGTH,
     WILDCARD_TEST_POINT_MARKER
@@ -30,12 +31,11 @@ from lib.utils.random import rand_string
 
 
 class Scanner:
-    def __init__(self, requester, path, **kwargs):
-        self.custom = kwargs.get("custom", None)
+    def __init__(self, requester, **kwargs):
+        self.path = kwargs.get("path", "")
         self.tested = kwargs.get("tested", [])
+        self.context = kwargs.get("context", "all cases")
         self.requester = requester
-        self.path = path
-        self.tester = None
         self.response = None
         self.wildcard_redirect_regex = None
         self.setup()
@@ -58,6 +58,7 @@ class Scanner:
         if duplicate:
             self.content_parser = duplicate.content_parser
             self.wildcard_redirect_regex = duplicate.wildcard_redirect_regex
+            logger.debug(f'Skipped the second test for "/{self.context}"')
             return
 
         second_path = self.path.replace(
@@ -73,6 +74,7 @@ class Scanner:
                 clean_path(second_response.redirect),
                 second_path,
             )
+            logger.debug(f'Pattern (regex) to detect wildcard redirects for {self.context}: {self.wildcard_redirect_regex}')
 
         self.content_parser = DynamicContentParser(
             first_response.content, second_response.content
@@ -118,6 +120,7 @@ class Scanner:
 
             # If redirection doesn't match the rule, mark as found
             if not is_wildcard_redirect:
+                logger.debug(f'"{redirect}" doesn\'t match the regular expression "{regex_to_compare}", passing')
                 return True
 
         if self.is_wildcard(response):
@@ -140,6 +143,9 @@ class Scanner:
            (e.g. /path3 -> /foo/path3?a=5, the regex becomes ^/foo/path3?a=(.*)$, which matches)
         """
 
-        first_loc = unquote(first_loc).replace(first_path, REFLECTED_PATH_MARKER)
-        second_loc = unquote(second_loc).replace(second_path, REFLECTED_PATH_MARKER)
+        if first_path:
+            first_loc = unquote(first_loc).replace(first_path, REFLECTED_PATH_MARKER)
+        if second_path:
+            second_loc = unquote(second_loc).replace(second_path, REFLECTED_PATH_MARKER)
+
         return generate_matching_regex(first_loc, second_loc)

@@ -46,7 +46,6 @@ class Fuzzer:
         self.threads_count = kwargs.get("threads", 15)
         self.delay = kwargs.get("delay", 0)
         self.crawl = kwargs.get("crawl", False)
-        self.default_scanners = []
         self.exc = None
         self.match_callbacks = kwargs.get("match_callbacks", [])
         self.not_found_callbacks = kwargs.get("not_found_callbacks", [])
@@ -69,40 +68,42 @@ class Fuzzer:
 
     def setup_scanners(self):
         self.scanners = {
+            "default": {},
             "prefixes": {},
             "suffixes": {},
         }
 
         # Default scanners (wildcard testers)
-        self.default_scanners = [
-            Scanner(self._requester, self._base_path),
-            Scanner(self._requester, self._base_path + WILDCARD_TEST_POINT_MARKER),
-        ]
+        self.scanners["default"].update({
+            "index": Scanner(self._requester, path=self._base_path),
+            "random": Scanner(self._requester, path=self._base_path + WILDCARD_TEST_POINT_MARKER),
+        })
 
         if self.exclude_response:
-            self.default_scanners.append(
-                Scanner(
-                    self._requester, custom=self.exclude_response, tested=self.scanners
-                )
+            self.scanners["default"]["custom"] = Scanner(
+                self._requester, tested=self.scanners, path=self.exclude_response
             )
 
         for prefix in self.prefixes + DEFAULT_TEST_PREFIXES:
-            path = f"{self._base_path}{prefix}{WILDCARD_TEST_POINT_MARKER}"
             self.scanners["prefixes"][prefix] = Scanner(
-                self._requester, path, tested=self.scanners
+                self._requester, tested=self.scanners,
+                path=f"{self._base_path}{prefix}{WILDCARD_TEST_POINT_MARKER}",
+                context=f"/{self._base_path}{prefix}***",
             )
 
         for suffix in self.suffixes + DEFAULT_TEST_SUFFIXES:
-            path = f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}{suffix}"
             self.scanners["suffixes"][suffix] = Scanner(
-                self._requester, path, tested=self.scanners
+                self._requester, tested=self.scanners,
+                path=f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}{suffix}",
+                context=f"/{self._base_path}***{suffix}",
             )
 
         for extension in self._dictionary.extensions:
             if "." + extension not in self.scanners["suffixes"]:
-                path = f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}.{extension}"
                 self.scanners["suffixes"]["." + extension] = Scanner(
-                    self._requester, path, tested=self.scanners
+                    self._requester, tested=self.scanners,
+                    path=f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}.{extension}",
+                    context=f"/{self._base_path}***.{extension}",
                 )
 
     def setup_threads(self):
@@ -126,7 +127,7 @@ class Fuzzer:
             if path.endswith(suffix):
                 yield self.scanners["suffixes"][suffix]
 
-        for scanner in self.default_scanners:
+        for scanner in self.scanners["default"].values():
             yield scanner
 
     def start(self):
