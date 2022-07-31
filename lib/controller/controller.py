@@ -263,7 +263,11 @@ class Controller:
 
                 if e.args:
                     self.output.error(e.args[0])
-                    logger.exception(e.args[1])
+
+                    if len(e.args) > 1:
+                        logger.exception(e.args[1])
+                    else:
+                        logger.exception(e)
 
             except QuitInterrupt as e:
                 self.output.error(e.args[0])
