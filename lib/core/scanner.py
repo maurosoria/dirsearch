@@ -58,7 +58,7 @@ class Scanner:
         if duplicate:
             self.content_parser = duplicate.content_parser
             self.wildcard_redirect_regex = duplicate.wildcard_redirect_regex
-            logger.debug(f'Skipped the second test for "/{self.context}"')
+            logger.debug(f'Skipped the second test for "{self.context}"')
             return
 
         second_path = self.path.replace(
@@ -74,7 +74,7 @@ class Scanner:
                 clean_path(second_response.redirect),
                 second_path,
             )
-            logger.debug(f'Pattern (regex) to detect wildcard redirects for {self.context}: {self.wildcard_redirect_regex}')
+            logger.debug(f'Pattern (regex) to detect wildcard redirects for "{self.context}": {self.wildcard_redirect_regex}')
 
         self.content_parser = DynamicContentParser(
             first_response.content, second_response.content
