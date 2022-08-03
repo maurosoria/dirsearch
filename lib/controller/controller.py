@@ -393,7 +393,7 @@ class Controller:
 
         output_file = self.options.output_file
 
-        if self.options.autosave_report:
+        if self.options.autosave_report and not output_file:
             if len(self.targets) > 1:
                 directory_path = self.setup_batch_reports()
                 filename = "BATCH" + self.get_output_extension()
