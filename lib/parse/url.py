@@ -16,31 +16,27 @@
 #
 #  Author: Mauro Soria
 
-
-def clean_queries(path):
-    return path.split("?")[0]
+from lib.utils.common import lstrip_once
 
 
-def clean_fragment(path):
-    return path.split("#")[0]
-
-
-def clean_path(path):
-    return clean_queries(clean_fragment(path))
-
-
-def parse_path(url, queries=True, fragment=True):
-    if url.startswith("/") and not url.startswith("//"):
-        return url
-    elif "//" not in url:
-        return "/" + url
-
-    path = "/".join(url.split("/")[3:])
-
-    if not queries:
-        path = clean_queries(path)
-
-    if not fragment:
-        path = clean_fragment(path)
+def clean_path(path, keep_queries=False, keep_fragment=False):
+    if not keep_fragment:
+        path = path.split("#")[0]
+    if not keep_queries:
+        path = path.split("?")[0]
 
     return path
+
+
+def parse_path(value):
+    try:
+        scheme, url = value.split("//")
+        if (
+            scheme and (not scheme.endswith(":") or "/" in scheme)
+            or url.startswith("/")
+        ):
+            raise ValueError
+
+        return "/".join(url.split("/")[1:])
+    except Exception:
+        return lstrip_once(value, "/")

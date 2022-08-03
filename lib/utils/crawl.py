@@ -26,12 +26,12 @@ from lib.core.settings import (
     MEDIA_EXTENSIONS, ROBOTS_TXT_REGEX,
     URI_REGEX,
 )
-from lib.parse.url import parse_path
+from lib.parse.url import clean_path, parse_path
 from lib.utils.common import merge_path
 
 
 def _filter(paths):
-    return {path for path in paths if not path.endswith(MEDIA_EXTENSIONS)}
+    return {clean_path(path, keep_queries=True) for path in paths if not path.endswith(MEDIA_EXTENSIONS)}
 
 
 class Crawler:
@@ -77,7 +77,7 @@ class Crawler:
                         results.append(value[len(scope):])
                     elif not re.search(URI_REGEX, value):
                         new_url = merge_path(url, value)
-                        results.append(parse_path(new_url, fragment=False))
+                        results.append(parse_path(new_url))
 
         return _filter(results)
 

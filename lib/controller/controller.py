@@ -514,10 +514,10 @@ class Controller:
             )
         ):
             if response.redirect:
-                new_path = parse_path(response.redirect, queries=False, fragment=False)
+                new_path = clean_path(parse_path(response.redirect))
                 added_to_queue = self.recur_for_redirect(response.path, new_path)
             elif len(response.history):
-                old_path = parse_path(response.history[0], queries=False, fragment=False)
+                old_path = clean_path(parse_path(response.history[0]))
                 added_to_queue = self.recur_for_redirect(old_path, response.path)
             else:
                 added_to_queue = self.recur(response.path)
