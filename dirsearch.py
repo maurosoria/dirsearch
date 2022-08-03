@@ -43,8 +43,6 @@ except (DistributionNotFound, VersionConflict):
         except FailedDependenciesInstallation:
             print("Failed to install dirsearch dependencies, try doing it manually.")
             exit(1)
-    else:
-        exit(1)
 
 
 def main():
