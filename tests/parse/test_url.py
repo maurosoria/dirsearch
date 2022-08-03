@@ -19,23 +19,25 @@
 from unittest import TestCase
 
 from lib.core.settings import DUMMY_URL
-from lib.parse.url import parse_path
+from lib.parse.url import clean_path, parse_path
 
 
 class TestURLParsers(TestCase):
+    def test_clean_path(self):
+        self.assertEqual(clean_path("/foo?a=1#a=1"), "/foo")
+        self.assertEqual(clean_path("/foo?a=1#a=1", keep_queries=True), "/foo?a=1")
+
     def test_parse_path(self):
         self.assertEqual(
-            parse_path(f"{DUMMY_URL}///foo/bar?query=1#fragment"),
-            "///foo/bar?query=1#fragment",
-            "Full path parser gives unexpected result",
-        )
+            parse_path("foo/bar"),
+            "foo/bar",
+            "Path parser gives unexpected result")
         self.assertEqual(
-            parse_path(f"{DUMMY_URL}///foo/bar?query=1#fragment", queries=False),
-            "///foo/bar",
-            "Full path parser gives unexpected result",
-        )
+            parse_path("/foo/bar"),
+            "foo/bar",
+            "Path parser gives unexpected result")
         self.assertEqual(
-            parse_path(f"{DUMMY_URL}///foo/bar?query=1#fragment", fragment=False),
-            "///foo/bar?query=1",
-            "Full path parser gives unexpected result",
+            parse_path(f"{DUMMY_URL}foo/bar"),
+            "foo/bar",
+            "Path parser gives unexpected result",
         )

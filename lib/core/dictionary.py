@@ -142,7 +142,7 @@ class Dictionary:
 
     def is_valid(self, path):
         # Skip comments and empty lines
-        if not path or path.lstrip().startswith("#"):
+        if not path or path.startswith("#"):
             return False
 
         # Skip if the path has excluded extensions
