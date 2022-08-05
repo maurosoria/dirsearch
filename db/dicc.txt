@@ -3991,6 +3991,8 @@ confluence/spaces/spacepermissions.action
 confluence/spaces/viewmailaccounts.action
 conf~
 conn.asp
+connect
+CONNECT
 connect.inc
 Connections
 connections
@@ -4310,6 +4312,8 @@ default.%EXT%
 default.htm
 default2.%EXT%
 DefaultWebApp
+delete
+DELETE
 delete.php
 demo
 demo.%EXT%
@@ -4959,6 +4963,8 @@ GEMINI/
 gen/
 general
 Generated_Code/
+get
+GET
 get.php
 getcfg.php
 getFavicon?host=burpcollaborator.net
@@ -5085,6 +5091,8 @@ happyaxis.jsp
 haproxy/
 hardware
 hc_admin
+head
+HEAD
 head.%EXT%
 header
 header.%EXT%
@@ -6549,6 +6557,8 @@ operator/
 opinion
 ops/
 opt
+options
+OPTIONS
 oracle
 orasso
 order
@@ -6675,6 +6685,8 @@ passwords.mdb
 passwords.sqlite
 passwords.txt
 passwords/
+patch
+PATCH
 path/
 path/dataTables/extras/TableTools/media/swf/ZeroClipboard.swf
 patient/login.do
@@ -7192,6 +7204,7 @@ portal30_sso
 portaladmin
 portalAppAdmin/login.jsp
 post
+POST
 post.html
 postfixadmin
 postgresql.conf
@@ -7309,6 +7322,8 @@ pubs
 pubspec.lock
 puppet/
 pureadmin/
+put
+PUT
 putty.reg
 pw.txt
 pwd.db
@@ -8504,6 +8519,7 @@ topicadmin.%EXT%
 topics
 touradmin
 trace
+TRACE
 Trace.axd
 Trace.axd::$DATA
 trace.json
