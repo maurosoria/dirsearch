@@ -226,22 +226,21 @@ class Controller:
         )
         error_callbacks = (self.raise_error, self.append_error_log)
 
-        self.fuzzer = Fuzzer(
-            self.requester,
-            self.dictionary,
-            suffixes=self.options.suffixes,
-            prefixes=self.options.prefixes,
-            exclude_response=self.options.exclude_response,
-            threads=self.options.threads_count,
-            delay=self.options.delay,
-            crawl=self.options.crawl,
-            match_callbacks=match_callbacks,
-            not_found_callbacks=not_found_callbacks,
-            error_callbacks=error_callbacks,
-        )
-
         while self.targets:
             url = self.targets[0]
+            self.fuzzer = Fuzzer(
+                self.requester,
+                self.dictionary,
+                suffixes=self.options.suffixes,
+                prefixes=self.options.prefixes,
+                exclude_response=self.options.exclude_response,
+                threads=self.options.threads_count,
+                delay=self.options.delay,
+                crawl=self.options.crawl,
+                match_callbacks=match_callbacks,
+                not_found_callbacks=not_found_callbacks,
+                error_callbacks=error_callbacks,
+            )
 
             try:
                 self.set_target(url)
