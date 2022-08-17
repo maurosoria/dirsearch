@@ -18,7 +18,12 @@
 
 from optparse import OptionParser, OptionGroup
 
-from lib.core.settings import VERSION, SCRIPT_PATH, AUTHENTICATION_TYPES
+from lib.core.settings import (
+    AUTHENTICATION_TYPES,
+    DEFAULT_AGENT,
+    SCRIPT_PATH,
+    VERSION,
+)
 from lib.utils.file import FileUtils
 
 
@@ -62,9 +67,9 @@ def parse_arguments():
         "--config",
         action="store",
         dest="config",
-        default=FileUtils.build_path(SCRIPT_PATH, "config.ini"),
         metavar="PATH",
         help="Full path to config file, see 'config.ini' for example (Default: config.ini)",
+        default=FileUtils.build_path(SCRIPT_PATH, "config.ini"),
     )
 
     # Dictionary Settings
@@ -151,7 +156,7 @@ def parse_arguments():
         "--threads",
         action="store",
         type="int",
-        dest="threads_count",
+        dest="thread_count",
         metavar="THREADS",
         help="Number of threads",
     )
@@ -295,7 +300,7 @@ def parse_arguments():
         "-m",
         "--http-method",
         action="store",
-        dest="httpmethod",
+        dest="http_method",
         metavar="METHOD",
         help="HTTP method (default: GET)",
     )
@@ -332,7 +337,7 @@ def parse_arguments():
     request.add_option(
         "--random-agent",
         action="store_true",
-        dest="use_random_agents",
+        dest="random_agents",
         help="Choose a random User-Agent for each request",
     )
     request.add_option(
@@ -363,7 +368,7 @@ def parse_arguments():
         metavar="PATH",
         help="File contains client-side certificate private key (unencrypted)",
     )
-    request.add_option("--user-agent", action="store", dest="useragent")
+    request.add_option("--user-agent", action="store", dest="user_agent", default=DEFAULT_AGENT)
     request.add_option("--cookie", action="store", dest="cookie")
 
     # Connection Settings
@@ -385,7 +390,7 @@ def parse_arguments():
     connection.add_option(
         "--proxy",
         action="append",
-        dest="proxy",
+        dest="proxies",
         metavar="PROXY",
         help="Proxy URL, support HTTP and SOCKS proxies (e.g. localhost:8080, socks5://localhost:8088)",
     )

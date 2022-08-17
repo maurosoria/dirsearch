@@ -25,20 +25,30 @@ from urllib.parse import urlparse
 
 from lib.connection.dns import cache_dns
 from lib.connection.requester import Requester
+from lib.core.data import options
 from lib.core.decorators import locked
 from lib.core.dictionary import Dictionary, get_blacklists
 from lib.core.exceptions import (
-    InvalidRawRequest, InvalidURLException,
-    RequestException, SkipTargetInterrupt,
-    QuitInterrupt, UnpicklingError,
+    InvalidRawRequest,
+    InvalidURLException,
+    RequestException,
+    SkipTargetInterrupt,
+    QuitInterrupt,
+    UnpicklingError,
 )
 from lib.core.fuzzer import Fuzzer
 from lib.core.logger import enable_logging, logger
 from lib.core.settings import (
-    BANNER, DEFAULT_HEADERS, DEFAULT_SESSION_FILE,
-    EXTENSION_RECOGNITION_REGEX, MAX_CONSECUTIVE_REQUEST_ERRORS,
-    NEW_LINE, SCRIPT_PATH, STANDARD_PORTS,
-    PAUSING_WAIT_TIMEOUT, UNKNOWN
+    BANNER,
+    DEFAULT_HEADERS,
+    DEFAULT_SESSION_FILE,
+    EXTENSION_RECOGNITION_REGEX,
+    MAX_CONSECUTIVE_REQUEST_ERRORS,
+    NEW_LINE,
+    SCRIPT_PATH,
+    STANDARD_PORTS,
+    PAUSING_WAIT_TIMEOUT,
+    UNKNOWN,
 )
 from lib.parse.rawrequest import parse_raw
 from lib.parse.url import clean_path, parse_path
@@ -50,19 +60,20 @@ from lib.reports.plain_text_report import PlainTextReport
 from lib.reports.simple_report import SimpleReport
 from lib.reports.xml_report import XMLReport
 from lib.reports.sqlite_report import SQLiteReport
-from lib.utils.common import get_valid_filename, human_size, lstrip_once
+from lib.utils.common import get_valid_filename, lstrip_once
 from lib.utils.file import FileUtils
 from lib.utils.pickle import pickle, unpickle
 from lib.utils.schemedet import detect_scheme
+from lib.view.terminal import output
 
 
 class Controller:
-    def __init__(self, options, output):
-        if options.session_file:
-            self._import(options.session_file)
+    def __init__(self):
+        if options["session_file"]:
+            self._import(options["session_file"])
             self.old_session = True
         else:
-            self.setup(options, output)
+            self.setup()
             self.old_session = False
 
         self.run()
@@ -70,9 +81,10 @@ class Controller:
     def _import(self, session_file):
         try:
             with open(session_file, "rb") as fd:
-                indict, last_output = unpickle(fd)
+                indict, last_output, opt = unpickle(fd)
+                options.update(opt)
         except UnpicklingError:
-            self.output.error(
+            output.error(
                 f"{session_file} is not a valid session file or it's in an old format"
             )
             exit(1)
@@ -83,73 +95,37 @@ class Controller:
     def _export(self, session_file):
         self.current_job -= 1
         # Save written output
-        last_output = self.output.buffer.rstrip()
+        last_output = output.buffer.rstrip()
 
         # Can't pickle Fuzzer class due to _thread.lock objects
         del self.fuzzer
 
         with open(session_file, "wb") as fd:
-            pickle((vars(self), last_output), fd)
+            pickle((vars(self), last_output, options), fd)
 
-    def setup(self, options, output):
-        self.options = options
-        self.output = output
-
-        if self.options.raw_file:
+    def setup(self):
+        if options["raw_file"]:
             try:
-                self.options.update(
+                options.update(
                     zip(
-                        ["urls", "httpmethod", "headers", "data"],
-                        parse_raw(self.options.raw_file),
+                        ["urls", "http_method", "headers", "data"],
+                        parse_raw(options["raw_file"]),
                     )
                 )
             except InvalidRawRequest as e:
                 print(str(e))
                 exit(1)
         else:
-            self.options.headers = {**DEFAULT_HEADERS, **self.options.headers}
+            options["headers"] = {**DEFAULT_HEADERS, **options["headers"]}
 
-            if self.options.cookie:
-                self.options.headers["Cookie"] = self.options.cookie
-            if self.options.useragent:
-                self.options.headers["User-Agent"] = self.options.useragent
+            if options["cookie"]:
+                options["headers"]["Cookie"] = options["cookie"]
 
-        self.random_agents = None
-        if self.options.use_random_agents:
-            self.random_agents = FileUtils.get_lines(
-                FileUtils.build_path(SCRIPT_PATH, "db", "user-agents.txt")
-            )
-
-        self.requester = Requester(
-            max_pool=self.options.threads_count,
-            max_retries=self.options.max_retries,
-            max_rate=self.options.max_rate,
-            timeout=self.options.timeout,
-            proxy=self.options.proxy,
-            follow_redirects=self.options.follow_redirects,
-            httpmethod=self.options.httpmethod,
-            headers=self.options.headers,
-            data=self.options.data,
-            random_agents=self.random_agents,
-            cert_file=self.options.cert_file,
-            key_file=self.options.key_file,
-        )
-        self.dictionary = Dictionary(
-            files=self.options.wordlists,
-            extensions=self.options.extensions,
-            suffixes=self.options.suffixes,
-            prefixes=self.options.prefixes,
-            lowercase=self.options.lowercase,
-            uppercase=self.options.uppercase,
-            capitalization=self.options.capitalization,
-            force_extensions=self.options.force_extensions,
-            overwrite_extensions=self.options.overwrite_extensions,
-            exclude_extensions=self.options.exclude_extensions,
-            remove_extensions=self.options.remove_extensions,
-        )
-        self.blacklists = get_blacklists(self.options.extensions)
+        self.requester = Requester()
+        self.dictionary = Dictionary(files=options["wordlists"])
+        self.blacklists = get_blacklists()
         self.results = []
-        self.targets = options.urls
+        self.targets = options["urls"]
         self.start_time = time.time()
         self.passed_urls = set()
         self.directories = []
@@ -159,30 +135,32 @@ class Controller:
         self.errors = 0
         self.consecutive_errors = 0
 
-        if self.options.auth:
-            self.requester.set_auth(self.options.auth_type, self.options.auth)
+        self.requester.set_agent(options["user_agent"])
 
-        if self.options.proxy_auth:
-            self.requester.set_proxy_auth(self.options.proxy_auth)
+        if options["auth"]:
+            self.requester.set_auth(options["auth_type"], options["auth"])
 
-        if self.options.log_file:
-            self.options.log_file = FileUtils.get_abs_path(self.options.log_file)
+        if options["proxy_auth"]:
+            self.requester.set_proxy_auth(options["proxy_auth"])
+
+        if options["log_file"]:
+            options["log_file"] = FileUtils.get_abs_path(options["log_file"])
 
             try:
-                FileUtils.create_dir(FileUtils.parent(self.options.log_file))
-                if not FileUtils.can_write(self.options.log_file):
+                FileUtils.create_dir(FileUtils.parent(options["log_file"]))
+                if not FileUtils.can_write(options["log_file"]):
                     raise Exception
 
-                enable_logging(self.options.log_file, self.options.log_file_size or 0)
+                enable_logging()
 
             except Exception:
-                self.output.error(
-                    f"Couldn't create log file at {self.options.log_file}"
+                output.error(
+                    f'Couldn\'t create log file at {options["log_file"]}'
                 )
                 exit(1)
 
-        if self.options.autosave_report:
-            self.report_path = self.options.output_path or FileUtils.build_path(
+        if options["autosave_report"]:
+            self.report_path = options["output_path"] or FileUtils.build_path(
                 SCRIPT_PATH, "reports"
             )
 
@@ -192,25 +170,18 @@ class Controller:
                     raise Exception
 
             except Exception:
-                self.output.error(
+                output.error(
                     f"Couldn't create report folder at {self.report_path}"
                 )
                 exit(1)
 
-        self.output.header(BANNER)
-        self.output.config(
-            ", ".join(self.options["extensions"]),
-            ", ".join(self.options["prefixes"]),
-            ", ".join(self.options["suffixes"]),
-            str(self.options["threads_count"]),
-            str(len(self.dictionary)),
-            str(self.options["httpmethod"]),
-        )
+        output.header(BANNER)
+        output.config(len(self.dictionary))
 
         self.setup_reports()
 
-        if self.options.log_file:
-            self.output.log_file(self.options.log_file)
+        if options["log_file"]:
+            output.log_file(options["log_file"])
 
     def run(self):
         # match_callbacks and not_found_callbacks callback values:
@@ -231,12 +202,6 @@ class Controller:
             self.fuzzer = Fuzzer(
                 self.requester,
                 self.dictionary,
-                suffixes=self.options.suffixes,
-                prefixes=self.options.prefixes,
-                exclude_response=self.options.exclude_response,
-                threads=self.options.threads_count,
-                delay=self.options.delay,
-                crawl=self.options.crawl,
                 match_callbacks=match_callbacks,
                 not_found_callbacks=not_found_callbacks,
                 error_callbacks=error_callbacks,
@@ -246,11 +211,11 @@ class Controller:
                 self.set_target(url)
 
                 if not self.directories:
-                    for subdir in self.options.subdirs:
+                    for subdir in options["subdirs"]:
                         self.add_directory(self.base_path + subdir)
 
                 if not self.old_session:
-                    self.output.target(self.url)
+                    output.target(self.url)
 
                 self.start()
 
@@ -264,22 +229,22 @@ class Controller:
                 self.dictionary.reset()
 
                 if e.args:
-                    self.output.error(str(e))
+                    output.error(str(e))
 
             except QuitInterrupt as e:
-                self.output.error(e.args[0])
+                output.error(e.args[0])
                 exit(0)
 
             finally:
                 self.targets.pop(0)
 
-        self.output.warning("\nTask Completed")
+        output.warning("\nTask Completed")
 
-        if self.options.session_file:
+        if options["session_file"]:
             try:
-                os.remove(self.options.session_file)
+                os.remove(options["session_file"])
             except Exception:
-                self.output.error("Failed to delete old session file, remove it to free some space")
+                output.error("Failed to delete old session file, remove it to free some space")
 
     def start(self):
         while self.directories:
@@ -293,7 +258,7 @@ class Controller:
                     current_time = time.strftime("%H:%M:%S")
                     msg = f"{NEW_LINE}[{current_time}] Starting: {current_directory}"
 
-                    self.output.warning(msg)
+                    output.warning(msg)
 
                 self.fuzzer.set_base_path(current_directory)
                 self.fuzzer.start()
@@ -311,7 +276,7 @@ class Controller:
     def set_target(self, url):
         # If no scheme specified, unset it first
         if "://" not in url:
-            url = f"{self.options.scheme or UNKNOWN}://{url}"
+            url = f'{options["scheme"] or UNKNOWN}://{url}'
         if not url.endswith("/"):
             url += "/"
 
@@ -340,8 +305,8 @@ class Controller:
             port = parsed.netloc.split(":")[1]
             raise InvalidURLException(f"Invalid port number: {port}")
 
-        if self.options.ip:
-            cache_dns(host, port, self.options.ip)
+        if options["ip"]:
+            cache_dns(host, port, options["ip"])
 
         try:
             # If no scheme is found, detect it by port number
@@ -376,26 +341,26 @@ class Controller:
         try:
             FileUtils.create_dir(batch_directory_path)
         except Exception:
-            self.output.error(f"Couldn't create batch folder at {batch_directory_path}")
+            output.error(f"Couldn't create batch folder at {batch_directory_path}")
             exit(1)
 
         return batch_directory_path
 
     def get_output_extension(self):
-        if self.options.output_format in ("plain", "simple"):
-            return ".txt"
+        if options["output_format"] in ("plain", "simple"):
+            return "txt"
 
-        return f".{self.options.output_format}"
+        return {options["output_format"]}
 
     def setup_reports(self):
         """Create report file"""
 
-        output_file = self.options.output_file
+        output_file = options["output_file"]
 
-        if self.options.autosave_report and not output_file:
+        if options["autosave_report"] and not output_file:
             if len(self.targets) > 1:
                 directory_path = self.setup_batch_reports()
-                filename = "BATCH" + self.get_output_extension()
+                filename = "BATCH." + self.get_output_extension()
             else:
                 parsed = urlparse(self.targets[0])
 
@@ -404,7 +369,7 @@ class Controller:
 
                 filename = get_valid_filename(f"{parsed.path}_")
                 filename += time.strftime("%y-%m-%d_%H-%M-%S")
-                filename += self.get_output_extension()
+                filename += f".{self.get_output_extension()}"
                 directory_path = FileUtils.build_path(
                     self.report_path, get_valid_filename(f"{parsed.scheme}_{parsed.netloc}")
                 )
@@ -421,7 +386,7 @@ class Controller:
             try:
                 FileUtils.create_dir(directory_path)
             except Exception:
-                self.output.error(
+                output.error(
                     f"Couldn't create the reports folder at {directory_path}"
                 )
                 exit(1)
@@ -429,87 +394,41 @@ class Controller:
         if not output_file:
             return
 
-        if self.options.output_format == "plain":
+        if options["output_format"] == "plain":
             self.report = PlainTextReport(output_file)
-        elif self.options.output_format == "json":
+        elif options["output_format"] == "json":
             self.report = JSONReport(output_file)
-        elif self.options.output_format == "xml":
+        elif options["output_format"] == "xml":
             self.report = XMLReport(output_file)
-        elif self.options.output_format == "md":
+        elif options["output_format"] == "md":
             self.report = MarkdownReport(output_file)
-        elif self.options.output_format == "csv":
+        elif options["output_format"] == "csv":
             self.report = CSVReport(output_file)
-        elif self.options.output_format == "html":
+        elif options["output_format"] == "html":
             self.report = HTMLReport(output_file)
-        elif self.options.output_format == "sqlite":
+        elif options["output_format"] == "sqlite":
             self.report = SQLiteReport(output_file)
         else:
             self.report = SimpleReport(output_file)
 
-        self.output.output_file(output_file)
-
-    def is_valid(self, res):
-        """Validate the response by different filters"""
-
-        if res.status in self.options.exclude_status_codes:
-            return False
-
-        if res.status not in (self.options.include_status_codes or range(100, 1000)):
-            return False
-
-        if (
-            res.status in self.blacklists
-            and any(
-                res.path.endswith(lstrip_once(suffix, "/"))
-                for suffix in self.blacklists.get(res.status)
-            )
-        ):
-            return False
-
-        if human_size(res.length).rstrip() in self.options.exclude_sizes:
-            return False
-
-        if res.length < self.options.minimum_response_size:
-            return False
-
-        if res.length > self.options.maximum_response_size > 0:
-            return False
-
-        if any(ex_text in res.content for ex_text in self.options.exclude_texts):
-            return False
-
-        if self.options.exclude_regex and re.search(
-            self.options.exclude_regex, res.content
-        ):
-            return False
-
-        if self.options.exclude_redirect and (
-            self.options.exclude_redirect in res.redirect
-            or re.search(self.options.exclude_redirect, res.redirect)
-        ):
-            return False
-
-        return True
+        output.output_file(output_file)
 
     def reset_consecutive_errors(self, response):
         self.consecutive_errors = 0
 
     def match_callback(self, response):
-        if response.status in self.options.skip_on_status:
+        if response.status in options["skip_on_status"]:
             raise SkipTargetInterrupt(
                 f"Skipped the target due to {response.status} status code"
             )
 
-        if not self.is_valid(response):
-            return
+        output.status_report(response, options["full_url"])
 
-        self.output.status_report(response, self.options.full_url)
-
-        if response.status in self.options.recursion_status_codes and any(
+        if response.status in options["recursion_status_codes"] and any(
             (
-                self.options.recursive,
-                self.options.deep_recursive,
-                self.options.force_recursive,
+                options["recursive"],
+                options["deep_recursive"],
+                options["force_recursive"],
             )
         ):
             if response.redirect:
@@ -522,11 +441,11 @@ class Controller:
                 added_to_queue = self.recur(response.path)
 
             if added_to_queue:
-                self.output.new_directories(added_to_queue)
+                output.new_directories(added_to_queue)
 
-        if self.options.replay_proxy:
+        if options["replay_proxy"]:
             # Replay the request with new proxy
-            self.requester.request(response.full_path, proxy=self.options.replay_proxy)
+            self.requester.request(response.full_path, proxy=options["replay_proxy"])
 
         if self.report:
             self.results.append(response)
@@ -534,11 +453,11 @@ class Controller:
 
     def update_progress_bar(self, response):
         jobs_count = (
-            len(self.options.subdirs) * (len(self.targets) - 1)
+            len(options["subdirs"]) * (len(self.targets) - 1)
             + len(self.directories)
         )
 
-        self.output.last_path(
+        output.last_path(
             self.dictionary.index,
             len(self.dictionary),
             self.current_job,
@@ -548,7 +467,7 @@ class Controller:
         )
 
     def raise_error(self, exception):
-        if self.options.exit_on_error:
+        if options["exit_on_error"]:
             raise QuitInterrupt("Canceled due to an error")
 
         self.errors += 1
@@ -561,7 +480,7 @@ class Controller:
         logger.exception(exception)
 
     def handle_pause(self):
-        self.output.warning(
+        output.warning(
             "CTRL+C detected: Pausing threads, please wait...", do_save=False
         )
         self.fuzzer.pause()
@@ -583,22 +502,22 @@ class Controller:
             if len(self.targets) > 1:
                 msg += " / [s]kip target"
 
-            self.output.in_line(msg + ": ")
+            output.in_line(msg + ": ")
 
             option = input()
 
             if option.lower() == "q":
-                self.output.in_line("[s]ave / [q]uit without saving: ")
+                output.in_line("[s]ave / [q]uit without saving: ")
 
                 option = input()
 
                 if option.lower() == "s":
-                    msg = f"Save to file [{self.options.session_file or DEFAULT_SESSION_FILE}]: "
+                    msg = f'Save to file [{options["session_file"] or DEFAULT_SESSION_FILE}]: '
 
-                    self.output.in_line(msg)
+                    output.in_line(msg)
 
                     session_file = (
-                        input() or self.options.session_file or DEFAULT_SESSION_FILE
+                        input() or options["session_file"] or DEFAULT_SESSION_FILE
                     )
 
                     self._export(session_file)
@@ -618,7 +537,7 @@ class Controller:
                 raise SkipTargetInterrupt("Target skipped by the user")
 
     def is_timed_out(self):
-        return time.time() - self.start_time > self.options.maxtime > 0
+        return time.time() - self.start_time > options["maxtime"] > 0
 
     def process(self):
         while True:
@@ -639,14 +558,14 @@ class Controller:
 
         # Pass if path is in exclusive directories
         if any(
-            "/" + dir in path for dir in self.options.exclude_subdirs
+            "/" + dir in path for dir in options["exclude_subdirs"]
         ):
             return
 
         url = self.url + path
 
         if (
-            path.count("/") - self.base_path.count("/") > self.options.recursion_depth > 0
+            path.count("/") - self.base_path.count("/") > options["recursion_depth"] > 0
             or url in self.passed_urls
         ):
             return
@@ -659,16 +578,16 @@ class Controller:
         dirs_count = len(self.directories)
         path = clean_path(path)
 
-        if self.options.force_recursive and not path.endswith("/"):
+        if options["force_recursive"] and not path.endswith("/"):
             path += "/"
 
-        if self.options.deep_recursive:
+        if options["deep_recursive"]:
             i = 0
             for _ in range(path.count("/")):
                 i = path.index("/", i) + 1
                 self.add_directory(path[:i])
         elif (
-            self.options.recursive
+            options["recursive"]
             and path.endswith("/")
             and re.search(EXTENSION_RECOGNITION_REGEX, path[:-1]) is None
         ):

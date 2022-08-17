@@ -30,17 +30,21 @@ from requests.packages.urllib3 import disable_warnings
 from requests_ntlm import HttpNtlmAuth
 from urllib.parse import urlparse
 
+from lib.core.data import options
 from lib.core.decorators import cached
 from lib.core.exceptions import RequestException
 from lib.core.logger import logger
 from lib.core.settings import (
-    RATE_UPDATE_DELAY, READ_RESPONSE_ERROR_REGEX,
+    RATE_UPDATE_DELAY,
+    READ_RESPONSE_ERROR_REGEX,
+    SCRIPT_PATH,
     PROXY_SCHEMES,
 )
 from lib.core.structures import CaseInsensitiveDict
 from lib.connection.dns import cached_getaddrinfo
 from lib.connection.response import Response
 from lib.utils.common import safequote
+from lib.utils.file import FileUtils
 from lib.utils.mimetype import guess_mimetype
 
 # Disable InsecureRequestWarning from urllib3
@@ -59,33 +63,35 @@ class HTTPBearerAuth(AuthBase):
 
 
 class Requester:
-    def __init__(self, **kwargs):
+    def __init__(self):
         self._url = None
         self._proxy_cred = None
         self._rate = 0
-        self.httpmethod = kwargs.get("httpmethod", "get")
-        self.data = kwargs.get("data", None)
-        self.max_pool = kwargs.get("max_pool", 100)
-        self.max_retries = kwargs.get("max_retries", 3)
-        self.max_rate = kwargs.get("max_rate", 3)
-        self.timeout = kwargs.get("timeout", 10)
-        self.proxy = kwargs.get("proxy", [])
-        self.follow_redirects = kwargs.get("follow_redirects", False)
-        self.random_agents = kwargs.get("random_agents", None)
-        self.headers = CaseInsensitiveDict(kwargs.get("headers", {}))
+        self.headers = CaseInsensitiveDict(options["headers"])
+        self.agents = []
         self.session = requests.Session()
         self.session.verify = False
         self.session.cert = (
-            kwargs.get("cert_file", None),
-            kwargs.get("key_file", None),
+            options["cert_file"],
+            options["key_file"],
         )
 
+        if options["random_agents"]:
+            self._fetch_agents()
+
         # Guess the mime type of request data if not specified
-        if self.data and "content-type" not in self.headers:
-            self.set_header("content-type", guess_mimetype(self.data))
+        if options["data"] and "content-type" not in self.headers:
+            self.set_header("content-type", guess_mimetype(options["data"]))
 
         for scheme in ("http://", "https://"):
-            self.session.mount(scheme, HTTPAdapter(max_retries=0, pool_maxsize=self.max_pool))
+            self.session.mount(
+                scheme, HTTPAdapter(max_retries=0, pool_maxsize=options["thread_count"])
+            )
+
+    def _fetch_agents(self):
+        self.agents = FileUtils.get_lines(
+            FileUtils.build_path(SCRIPT_PATH, "db", "user-agents.txt")
+        )
 
     def set_url(self, url):
         self._url = url
@@ -128,6 +134,9 @@ class Requester:
     def set_proxy_auth(self, credential):
         self._proxy_cred = credential
 
+    def set_agent(self, value):
+        self.agents.append(value)
+
     # :path: is expected not to start with "/"
     def request(self, path, proxy=None):
         # Pause if the request rate exceeded the maximum
@@ -142,37 +151,36 @@ class Requester:
         url = safequote(self._url + path if self._url else path)
 
         # Why using a loop instead of max_retries argument? Check issue #1009
-        for _ in range(self.max_retries + 1):
+        for _ in range(options["max_retries"] + 1):
             try:
                 try:
-                    proxy = proxy or random.choice(self.proxy)
+                    proxy = proxy or random.choice(options["proxies"])
                     self.set_proxy(proxy)
                 except IndexError:
                     pass
 
-                if self.random_agents:
-                    self.set_header("user-agent", random.choice(self.random_agents))
+                self.set_header("user-agent", random.choice(self.agents))
 
                 # Use prepared request to avoid the URL path from being normalized
                 # Reference: https://github.com/psf/requests/issues/5289
                 request = requests.Request(
-                    self.httpmethod,
+                    options["http_method"],
                     url,
                     headers=self.headers,
-                    data=self.data,
+                    data=options["data"],
                 )
                 prepped = self.session.prepare_request(request)
                 prepped.url = url
 
                 response = self.session.send(
                     prepped,
-                    allow_redirects=self.follow_redirects,
-                    timeout=self.timeout,
+                    allow_redirects=options["follow_redirects"],
+                    timeout=options["timeout"],
                     stream=True,
                 )
                 response = Response(response)
 
-                log_msg = f'"{self.httpmethod} {response.url}" {response.status} - {response.length}B'
+                log_msg = f'"{options["http_method"]} {response.url}" {response.status} - {response.length}B'
 
                 if response.redirect:
                     log_msg += f" - LOCATION: {response.redirect}"
@@ -193,8 +201,8 @@ class Requester:
                 elif "ProxyError" in str(e):
                     err_msg = f"Error with the proxy: {proxy}"
                     # Prevent from re-using it in the future
-                    if proxy in self.proxy and len(self.proxy) > 1:
-                        self.proxy.remove(proxy)
+                    if proxy in options["proxies"] and len(options["proxies"]) > 1:
+                        options["proxies"].remove(proxy)
                 elif "InvalidURL" in str(e):
                     err_msg = f"Invalid URL: {url}"
                 elif "InvalidProxyURL" in str(e):
@@ -216,7 +224,7 @@ class Requester:
         raise RequestException(err_msg)
 
     def is_rate_exceeded(self):
-        return self._rate >= self.max_rate > 0
+        return self._rate >= options["max_rate"] > 0
 
     def decrease_rate(self):
         self._rate -= 1

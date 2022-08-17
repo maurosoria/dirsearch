@@ -9,7 +9,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [3.8]
+        python-version: [3.7, 3.9]
         os: ['ubuntu-latest', 'windows-latest']
 
     steps:
@@ -33,7 +33,7 @@ jobs:
         echo "Accept: */*" >> tmp_raw.txt
         python3 dirsearch.py -w tmp_wordlist.txt -u https://example.com -o tmp_report.json --format json --force-recursive -R 3 --full-url -q -O
         python3 dirsearch.py -w tmp_wordlist.txt -l tmp_targets.txt --subdirs /,admin/ --exclude-extensions conf -q -L -f -i 200 --user-agent a --log tmp_log.log
-        python3 dirsearch.py -w tmp_wordlist.txt -u https://localhost --ip 93.184.216.34 --max-rate 2 -H K:V --random-agent --log tmp.log --overwrite-extensions --no-color
+        python3 dirsearch.py -w tmp_wordlist.txt -u https://localhost --ip 93.184.216.34 --max-rate 2 -H K:V --random-agent --overwrite-extensions --no-color
         python3 dirsearch.py -w tmp_wordlist.txt --raw tmp_raw.txt --prefixes . --suffixes ~ --skip-on-status 404 -m POST -d test=1 --crawl --min-response-size 9
         echo https://self-signed.badssl.com | python3 dirsearch.py -w tmp_wordlist.txt --stdin --max-time 9 --auth u:p --auth-type basic --scheme http
 
@@ -46,4 +46,4 @@ jobs:
         # exit-zero treats all errors as warnings.  Max complexity is currently 77.
         flake8 . --exclude=thirdparty --count --ignore=E501 --exit-zero --max-complexity=10 --show-source --statistics
     - name: Codespell
-      run: codespell --ignore-words-list="cros,hist" --skip="./db/dicc.txt,./dirsearch/db/dicc.txt,./thirdparty,./reports"
+      run: codespell --ignore-words-list="cros,hist" --skip="./.git,./db/dicc.txt,./dirsearch/db/dicc.txt,./thirdparty,./reports,./static"

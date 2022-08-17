@@ -16,17 +16,21 @@
 #
 #  Author: Mauro Soria
 
+import re
 import threading
 import time
 
+from lib.core.data import options
 from lib.core.exceptions import RequestException
 from lib.core.logger import logger
 from lib.core.scanner import Scanner
 from lib.core.settings import (
-    DEFAULT_TEST_PREFIXES, DEFAULT_TEST_SUFFIXES,
+    DEFAULT_TEST_PREFIXES,
+    DEFAULT_TEST_SUFFIXES,
     WILDCARD_TEST_POINT_MARKER,
 )
 from lib.parse.url import clean_path
+from lib.utils.common import human_size, lstrip_once
 from lib.utils.crawl import Crawler
 
 
@@ -40,19 +44,10 @@ class Fuzzer:
         self._play_event = threading.Event()
         self._paused_semaphore = threading.Semaphore(0)
         self._base_path = None
-        self.suffixes = kwargs.get("suffixes", tuple())
-        self.prefixes = kwargs.get("prefixes", tuple())
-        self.exclude_response = kwargs.get("exclude_response", None)
-        self.threads_count = kwargs.get("threads", 15)
-        self.delay = kwargs.get("delay", 0)
-        self.crawl = kwargs.get("crawl", False)
         self.exc = None
         self.match_callbacks = kwargs.get("match_callbacks", [])
         self.not_found_callbacks = kwargs.get("not_found_callbacks", [])
         self.error_callbacks = kwargs.get("error_callbacks", [])
-
-        if len(self._dictionary) < self.threads_count:
-            self.threads_count = len(self._dictionary)
 
     def wait(self, timeout=None):
         if self.exc:
@@ -79,26 +74,26 @@ class Fuzzer:
             "random": Scanner(self._requester, path=self._base_path + WILDCARD_TEST_POINT_MARKER),
         })
 
-        if self.exclude_response:
+        if options["exclude_response"]:
             self.scanners["default"]["custom"] = Scanner(
-                self._requester, tested=self.scanners, path=self.exclude_response
+                self._requester, tested=self.scanners, path=options["exclude_response"]
             )
 
-        for prefix in self.prefixes + DEFAULT_TEST_PREFIXES:
+        for prefix in options["prefixes"] + DEFAULT_TEST_PREFIXES:
             self.scanners["prefixes"][prefix] = Scanner(
                 self._requester, tested=self.scanners,
                 path=f"{self._base_path}{prefix}{WILDCARD_TEST_POINT_MARKER}",
                 context=f"/{self._base_path}{prefix}***",
             )
 
-        for suffix in self.suffixes + DEFAULT_TEST_SUFFIXES:
+        for suffix in options["suffixes"] + DEFAULT_TEST_SUFFIXES:
             self.scanners["suffixes"][suffix] = Scanner(
                 self._requester, tested=self.scanners,
                 path=f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}{suffix}",
                 context=f"/{self._base_path}***{suffix}",
             )
 
-        for extension in self._dictionary.extensions:
+        for extension in options["extensions"]:
             if "." + extension not in self.scanners["suffixes"]:
                 self.scanners["suffixes"]["." + extension] = Scanner(
                     self._requester, tested=self.scanners,
@@ -110,7 +105,7 @@ class Fuzzer:
         if self._threads:
             self._threads = []
 
-        for _ in range(self.threads_count):
+        for _ in range(options["thread_count"]):
             new_thread = threading.Thread(target=self.thread_proc)
             new_thread.daemon = True
             self._threads.append(new_thread)
@@ -185,12 +180,55 @@ class Fuzzer:
         except Exception as e:
             self.exc = e
 
-        if self.crawl:
+        if options["crawl"]:
             logger.info(f'THREAD-{threading.get_ident()}: crawling "/{path}"')
             for path_ in Crawler.crawl(response):
                 if self._dictionary.is_valid(path_):
                     logger.info(f'THREAD-{threading.get_ident()}: found new path "/{path_}" in /{path}')
                     self.scan(path, self.get_scanners_for(path_))
+
+    def is_valid(self, resp):
+        """Validate the response by different filters"""
+
+        if resp.status in options["exclude_status_codes"]:
+            return False
+
+        if resp.status not in (options["include_status_codes"] or range(100, 1000)):
+            return False
+
+        if (
+            resp.status in self.blacklists
+            and any(
+                resp.path.endswith(lstrip_once(suffix, "/"))
+                for suffix in self.blacklists.get(resp.status)
+            )
+        ):
+            return False
+
+        if human_size(resp.length).rstrip() in options["exclude_sizes"]:
+            return False
+
+        if resp.length < options["minimum_response_size"]:
+            return False
+
+        if resp.length > options["maximum_response_size"] > 0:
+            return False
+
+        if any(ex_text in resp.content for ex_text in options["exclude_texts"]):
+            return False
+
+        if options["exclude_regex"] and re.search(
+            options["exclude_regex"], resp.content
+        ):
+            return False
+
+        if options["exclude_redirect"] and (
+            options["exclude_redirect"] in resp.redirect
+            or re.search(options["exclude_redirect"], resp.redirect)
+        ):
+            return False
+
+        return True
 
     def is_stopped(self):
         return self._running_threads_count == 0
@@ -232,4 +270,4 @@ class Fuzzer:
                 if not self._is_running:
                     break
 
-                time.sleep(self.delay)
+                time.sleep(options["delay"])

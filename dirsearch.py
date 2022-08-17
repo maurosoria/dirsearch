@@ -22,6 +22,7 @@ import sys
 
 from pkg_resources import DistributionNotFound, VersionConflict
 
+from lib.core.data import options
 from lib.core.exceptions import FailedDependenciesInstallation
 from lib.core.installation import check_dependencies, install_dependencies
 
@@ -46,20 +47,13 @@ except (DistributionNotFound, VersionConflict):
 
 
 def main():
-    from lib.core.options import options
+    from lib.core.options import parse_options
 
-    options = options()
+    options.update(parse_options())
 
     from lib.controller.controller import Controller
 
-    if options["quiet"]:
-        from lib.output.silent import Output
-    else:
-        from lib.output.verbose import Output
-
-    output = Output(options["color"])
-
-    Controller(options, output)
+    Controller()
 
 
 if __name__ == "__main__":

@@ -16,13 +16,6 @@
 #
 #  Author: Mauro Soria
 
-
-class AttributeDict(dict):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.__dict__ = self
-
-
 class CaseInsensitiveDict(dict):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -44,3 +37,39 @@ class CaseInsensitiveDict(dict):
         for key in list(self.keys()):
             value = super().pop(key)
             self.__setitem__(key, value)
+
+
+class OrderedSet():
+    def __init__(self, items=[]):
+        self._data = dict()
+
+        for item in items:
+            self._data[item] = None
+
+    def __contains__(self, item):
+        return item in self._data
+
+    def __iter__(self):
+        return iter(list(self._data))
+
+    def __len__(self):
+        return len(self._data)
+
+    def add(self, item):
+        self._data[item] = None
+
+    def clear(self):
+        self._data.clear()
+
+    def discard(self, item):
+        self._data.pop(item, None)
+
+    def pop(self):
+        self._data.popitem()
+
+    def remove(self, item):
+        del self._data[item]
+
+    def update(self, items):
+        for item in items:
+            self.add(item)

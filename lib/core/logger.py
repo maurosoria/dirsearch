@@ -19,16 +19,18 @@
 import logging
 from logging.handlers import RotatingFileHandler
 
+from lib.core.data import options
+
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 logger.disabled = True
 
 
-def enable_logging(log_file, max_size):
+def enable_logging():
     logger.disabled = False
     formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
-    handler = RotatingFileHandler(log_file, maxBytes=max_size)
+    handler = RotatingFileHandler(options["log_file"], maxBytes=options["log_file_size"])
     handler.setLevel(logging.DEBUG)
     handler.setFormatter(formatter)
     logger.addHandler(handler)

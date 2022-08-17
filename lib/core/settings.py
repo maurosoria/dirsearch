@@ -68,8 +68,9 @@ DEFAULT_TEST_SUFFIXES = ("/",)
 
 DEFAULT_TOR_PROXIES = ("socks5://127.0.0.1:9050", "socks5://127.0.0.1:9150")
 
+DEFAULT_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36"
+
 DEFAULT_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36",
     "Accept": "*/*",
     "Accept-Encoding": "*",
     "Keep-Alive": "timeout=15, max=1000",
@@ -84,9 +85,7 @@ WILDCARD_TEST_POINT_MARKER = "__WILDCARD_POINT__"
 
 EXTENSION_TAG = "%ext%"
 
-EXTENSION_REGEX = r"([.][a-zA-Z0-9]{2,5}){1,3}~?$"
-
-EXTENSION_RECOGNITION_REGEX = r"\w+" + EXTENSION_REGEX
+EXTENSION_RECOGNITION_REGEX = r"\w+([.][a-zA-Z0-9]{2,5}){1,3}~?$"
 
 QUERY_STRING_REGEX = r"^(\&?([^=& ]+)\=([^=& ]+)?){1,200}$"
 
