@@ -19,10 +19,12 @@
 import sys
 
 from lib.core.settings import (
-    AUTHENTICATION_TYPES, COMMON_EXTENSIONS,
-    DEFAULT_TOR_PROXIES, OUTPUT_FORMATS, SCRIPT_PATH,
+    AUTHENTICATION_TYPES,
+    COMMON_EXTENSIONS,
+    DEFAULT_TOR_PROXIES,
+    OUTPUT_FORMATS,
+    SCRIPT_PATH,
 )
-from lib.core.structures import AttributeDict
 from lib.parse.cmdline import parse_arguments
 from lib.parse.config import ConfigParser
 from lib.parse.headers import HeadersParser
@@ -30,23 +32,23 @@ from lib.utils.common import iprange, uniq
 from lib.utils.file import File, FileUtils
 
 
-def options():
+def parse_options():
     opt = parse_config(parse_arguments())
 
     if opt.session_file:
-        return AttributeDict(vars(opt))
+        return vars(opt)
 
-    opt.httpmethod = opt.httpmethod.upper()
+    opt.http_method = opt.http_method.upper()
 
     if opt.url_file:
-        fd = access_file(opt.url_file)
+        fd = _access_file(opt.url_file)
         opt.urls = fd.get_lines()
     elif opt.cidr:
         opt.urls = iprange(opt.cidr)
     elif opt.stdin_urls:
         opt.urls = sys.stdin.read().splitlines(0)
     elif opt.raw_file:
-        access_file(opt.raw_file)
+        _access_file(opt.raw_file)
     elif not opt.urls:
         print("URL target is missing, try using -u <url>")
         exit(1)
@@ -58,33 +60,33 @@ def options():
         print("WARNING: No extension was specified!")
 
     for dict_file in opt.wordlists.split(","):
-        access_file(dict_file)
+        _access_file(dict_file)
 
-    if opt.threads_count < 1:
+    if opt.thread_count < 1:
         print("Threads number must be greater than zero")
         exit(1)
 
     if opt.tor:
-        opt.proxy = list(DEFAULT_TOR_PROXIES)
+        opt.proxies = list(DEFAULT_TOR_PROXIES)
     elif opt.proxy_file:
-        fd = access_file(opt.proxy_file)
-        opt.proxy = fd.get_lines()
+        fd = _access_file(opt.proxy_file)
+        opt.proxies = fd.get_lines()
 
     if opt.data_file:
-        fd = access_file(opt.data_file)
+        fd = _access_file(opt.data_file)
         opt.data = fd.get_lines()
 
     if opt.cert_file:
-        access_file(opt.cert_file)
+        _access_file(opt.cert_file)
 
     if opt.key_file:
-        access_file(opt.key_file)
+        _access_file(opt.key_file)
 
     headers = {}
 
     if opt.header_file:
         try:
-            fd = access_file(opt.header_file)
+            fd = _access_file(opt.header_file)
             headers.update(dict(HeadersParser(fd.read())))
         except Exception as e:
             print("Error in headers file: " + str(e))
@@ -99,10 +101,10 @@ def options():
 
     opt.headers = headers
 
-    opt.include_status_codes = parse_status_codes(opt.include_status_codes)
-    opt.exclude_status_codes = parse_status_codes(opt.exclude_status_codes)
-    opt.recursion_status_codes = parse_status_codes(opt.recursion_status_codes)
-    opt.skip_on_status = parse_status_codes(opt.skip_on_status)
+    opt.include_status_codes = _parse_status_codes(opt.include_status_codes)
+    opt.exclude_status_codes = _parse_status_codes(opt.exclude_status_codes)
+    opt.recursion_status_codes = _parse_status_codes(opt.recursion_status_codes)
+    opt.skip_on_status = _parse_status_codes(opt.skip_on_status)
     opt.prefixes = uniq([prefix.strip() for prefix in opt.prefixes.split(",") if prefix], tuple)
     opt.suffixes = uniq([suffix.strip() for suffix in opt.suffixes.split(",") if suffix], tuple)
     opt.subdirs = [
@@ -174,10 +176,10 @@ def options():
               f"{', '.join(OUTPUT_FORMATS)}")
         exit(1)
 
-    return AttributeDict(vars(opt))
+    return vars(opt)
 
 
-def parse_status_codes(str_):
+def _parse_status_codes(str_):
     if not str_:
         return []
 
@@ -197,7 +199,7 @@ def parse_status_codes(str_):
     return status_codes
 
 
-def access_file(path):
+def _access_file(path):
     with File(path) as fd:
         if not fd.exists():
             print(f"{path} does not exist")
@@ -219,7 +221,7 @@ def parse_config(opt):
     config.read(opt.config)
 
     # General
-    opt.threads_count = opt.threads_count or config.safe_getint(
+    opt.thread_count = opt.thread_count or config.safe_getint(
         "general", "threads", 25
     )
     opt.include_status_codes = opt.include_status_codes or config.safe_get(
@@ -289,15 +291,15 @@ def parse_config(opt):
     )
 
     # Request
-    opt.httpmethod = opt.httpmethod or config.safe_get("request", "httpmethod", "get")
+    opt.http_method = opt.http_method or config.safe_get("request", "http-method", "get")
     opt.header_file = opt.header_file or config.safe_get("request", "headers-file")
     opt.follow_redirects = opt.follow_redirects or config.safe_getboolean(
         "request", "follow-redirects"
     )
-    opt.use_random_agents = opt.use_random_agents or config.safe_getboolean(
+    opt.random_agents = opt.random_agents or config.safe_getboolean(
         "request", "random-user-agents"
     )
-    opt.useragent = opt.useragent or config.safe_get("request", "user-agent")
+    opt.user_agent = opt.user_agent or config.safe_get("request", "user-agent")
     opt.cookie = opt.cookie or config.safe_get("request", "cookie")
 
     # Connection
@@ -305,7 +307,7 @@ def parse_config(opt):
     opt.timeout = opt.timeout or config.safe_getfloat("connection", "timeout", 7.5)
     opt.max_retries = opt.max_retries or config.safe_getint("connection", "max-retries", 1)
     opt.max_rate = opt.max_rate or config.safe_getint("connection", "max-rate")
-    opt.proxy = opt.proxy or list(config.safe_get("connection", "proxy"))
+    opt.proxies = opt.proxies or list(config.safe_get("connection", "proxy"))
     opt.proxy_file = opt.proxy_file or config.safe_get("connection", "proxy-file")
     opt.scheme = opt.scheme or config.safe_get(
         "connection", "scheme", None, ["http", "https"]

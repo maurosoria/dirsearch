@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #  This program is free software; you can redistribute it and/or modify
-#  it under the terms of the GNU General Publlic License as published by
+#  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation; either version 2 of the License, or
 #  (at your option) any later version.
 #
@@ -20,10 +20,11 @@ import sys
 import time
 import shutil
 
+from lib.core.data import options
 from lib.core.decorators import locked
 from lib.core.settings import IS_WINDOWS
 from lib.utils.common import human_size
-from lib.output.colors import set_color, clean_color, disable_color
+from lib.view.colors import set_color, clean_color, disable_color
 
 if IS_WINDOWS:
     from colorama.win32 import (
@@ -34,11 +35,11 @@ if IS_WINDOWS:
 
 
 class Output:
-    def __init__(self, colors):
+    def __init__(self):
         self.last_in_line = False
         self.buffer = ""
 
-        if not colors:
+        if not options["color"]:
             disable_color()
 
     @staticmethod
@@ -154,49 +155,41 @@ class Output:
         message = set_color(message, fore="magenta", style="bright")
         self.new_line(message)
 
-    def print_header(self, entries):
-        msg = ""
+    def print_header(self, headers):
+        msg = []
 
-        for key, value in entries.items():
+        for key, value in headers.items():
             new = set_color(key + ": ", fore="yellow", style="bright")
             new += set_color(value, fore="cyan", style="bright")
 
-            if not msg:
-                msg += new
-                continue
-
-            new_line = msg.splitlines()[-1] + " | " + new
-
-            if len(clean_color(new_line)) >= shutil.get_terminal_size()[0]:
-                msg += "\n"
+            if (
+                not msg
+                or len(clean_color(msg[-1]) + clean_color(new)) + 3
+                >= shutil.get_terminal_size()[0]
+            ):
+                msg.append("")
             else:
-                msg += set_color(" | ", fore="magenta", style="bright")
+                msg[-1] += set_color(" | ", fore="magenta", style="bright")
 
-            msg += new
+            msg[-1] += new
 
-        self.new_line(msg)
+        self.new_line("\n".join(msg))
 
-    def config(
-        self,
-        extensions,
-        prefixes,
-        suffixes,
-        threads,
-        wordlist_size,
-        method,
-    ):
+    def config(self, wordlist_size):
 
         config = {}
-        config["Extensions"] = extensions
+        config["Extensions"] = ", ".join(options["extensions"])
 
-        if prefixes:
-            config["Prefixes"] = prefixes
-        if suffixes:
-            config["Suffixes"] = suffixes
+        if options["prefixes"]:
+            config["Prefixes"] = ", ".join(options["prefixes"])
+        if options["suffixes"]:
+            config["Suffixes"] = ", ".join(options["suffixes"])
 
-        config["HTTP method"] = method
-        config["Threads"] = threads
-        config["Wordlist size"] = wordlist_size
+        config.update({
+            "HTTP method": options["http_method"],
+            "Threads": str(options["thread_count"]),
+            "Wordlist size": str(wordlist_size),
+        })
 
         self.print_header(config)
 
@@ -209,3 +202,35 @@ class Output:
 
     def log_file(self, file):
         self.new_line(f"\nLog File: {file}")
+
+
+class QuietOutput(Output):
+    def status_report(self, response, full_url):
+        super().status_report(response, True)
+
+    def last_path(*args):
+        pass
+
+    def new_directories(*args):
+        pass
+
+    def warning(*args, **kwargs):
+        pass
+
+    def header(*args):
+        pass
+
+    def config(*args):
+        pass
+
+    def target(*args):
+        pass
+
+    def output_file(*args):
+        pass
+
+    def log_file(*args):
+        pass
+
+
+output = QuietOutput() if options["quiet"] else Output()

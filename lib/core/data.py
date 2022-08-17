@@ -16,33 +16,4 @@
 #
 #  Author: Mauro Soria
 
-from lib.output.verbose import Output as _Output
-
-
-class Output(_Output):
-    def status_report(self, response, full_url):
-        super().status_report(response, True)
-
-    def last_path(*args):
-        pass
-
-    def new_directories(*args):
-        pass
-
-    def warning(*args, **kwargs):
-        pass
-
-    def header(*args):
-        pass
-
-    def config(*args):
-        pass
-
-    def target(*args):
-        pass
-
-    def output_file(*args):
-        pass
-
-    def log_file(*args):
-        pass
+options = {}

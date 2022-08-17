@@ -22,8 +22,9 @@ from urllib.parse import unquote
 
 from lib.core.logger import logger
 from lib.core.settings import (
-    REFLECTED_PATH_MARKER, TEST_PATH_LENGTH,
-    WILDCARD_TEST_POINT_MARKER
+    REFLECTED_PATH_MARKER,
+    TEST_PATH_LENGTH,
+    WILDCARD_TEST_POINT_MARKER,
 )
 from lib.parse.url import clean_path
 from lib.utils.diff import generate_matching_regex, DynamicContentParser
