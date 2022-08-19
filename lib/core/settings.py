@@ -68,13 +68,12 @@ DEFAULT_TEST_SUFFIXES = ("/",)
 
 DEFAULT_TOR_PROXIES = ("socks5://127.0.0.1:9050", "socks5://127.0.0.1:9150")
 
-DEFAULT_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36"
-
 DEFAULT_HEADERS = {
-    "Accept": "*/*",
-    "Accept-Encoding": "*",
-    "Keep-Alive": "timeout=15, max=1000",
-    "Cache-Control": "max-age=0",
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36",
+    "accept": "*/*",
+    "accept-rncoding": "*",
+    "keep-alive": "timeout=15, max=1000",
+    "cache-control": "max-age=0",
 }
 
 DEFAULT_SESSION_FILE = "session.pickle"

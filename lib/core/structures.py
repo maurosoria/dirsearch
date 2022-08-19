@@ -49,6 +49,9 @@ class OrderedSet():
     def __contains__(self, item):
         return item in self._data
 
+    def __eq__(self, other):
+        return self._data.keys() == other._data.keys()
+
     def __iter__(self):
         return iter(list(self._data))
 

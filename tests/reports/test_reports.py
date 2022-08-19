@@ -21,7 +21,6 @@ import json
 from unittest import TestCase
 
 from lib.connection.requester import Requester
-from lib.core.data import options
 from lib.core.settings import DUMMY_URL, DUMMY_WORD, NEW_LINE, TMP_PATH
 from lib.reports.csv_report import CSVReport
 from lib.reports.json_report import JSONReport
@@ -30,23 +29,7 @@ from lib.reports.plain_text_report import PlainTextReport
 from lib.reports.simple_report import SimpleReport
 from lib.reports.xml_report import XMLReport
 
-options.update({
-    "headers": [],
-    "cert_file": None,
-    "key_file": None,
-    "random_agents": False,
-    "data": None,
-    "thread_count": 10,
-    "max_retries": 1,
-    "proxies": [],
-    "follow_redirects": False,
-    "timeout": 10,
-    "http_method": "GET",
-    "max_rate": 0,
-})
-
 requester = Requester()
-requester.set_agent("dirsearch test")
 test_entries = [requester.request(DUMMY_URL + DUMMY_WORD)]
 
 

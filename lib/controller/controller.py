@@ -118,8 +118,11 @@ class Controller:
         else:
             options["headers"] = {**DEFAULT_HEADERS, **options["headers"]}
 
+            if options["user_agent"]:
+                options["headers"]["user-agent"] = options["user_agent"]
+
             if options["cookie"]:
-                options["headers"]["Cookie"] = options["cookie"]
+                options["headers"]["cookie"] = options["cookie"]
 
         self.requester = Requester()
         self.dictionary = Dictionary(files=options["wordlists"])
@@ -134,8 +137,6 @@ class Controller:
         self.current_job = 0
         self.errors = 0
         self.consecutive_errors = 0
-
-        self.requester.set_agent(options["user_agent"])
 
         if options["auth"]:
             self.requester.set_auth(options["auth_type"], options["auth"])

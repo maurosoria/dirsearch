@@ -214,11 +214,12 @@ class Fuzzer:
         if resp.length > options["maximum_response_size"] > 0:
             return False
 
-        if any(ex_text in resp.content for ex_text in options["exclude_texts"]):
+        if any(text in resp.content for text in options["exclude_texts"]):
             return False
 
-        if options["exclude_regex"] and re.search(
-            options["exclude_regex"], resp.content
+        if options["exclude_regexes"] and any(
+            re.search(regex, resp.content)
+            for regex in options["exclude_regexes"]
         ):
             return False
 
