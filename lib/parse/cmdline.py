@@ -288,9 +288,15 @@ def parse_arguments():
         "--max-time",
         action="store",
         type="int",
-        dest="maxtime",
+        dest="max_time",
         metavar="SECONDS",
         help="Maximum runtime for the scan",
+    )
+    general.add_option(
+        "--exit-on-error",
+        action="store_true",
+        dest="exit_on_error",
+        help="Exit whenever an error occurs",
     )
 
     # Request Settings
@@ -441,12 +447,6 @@ def parse_arguments():
         help="Number of retries for failed requests",
     )
     connection.add_option("--ip", action="store", dest="ip", help="Server IP address")
-    connection.add_option(
-        "--exit-on-error",
-        action="store_true",
-        dest="exit_on_error",
-        help="Exit whenever an error occurs",
-    )
 
     # Advanced Settings
     advanced = OptionGroup(parser, "Advanced Settings")

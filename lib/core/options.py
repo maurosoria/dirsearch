@@ -248,7 +248,10 @@ def parse_config(opt):
     opt.skip_on_status = opt.skip_on_status or config.safe_get(
         "general", "skip-on-status", ""
     )
-    opt.maxtime = opt.maxtime or config.safe_getint("general", "max-time")
+    opt.max_time = opt.max_time or config.safe_getint("general", "max-time")
+    opt.exit_on_error = opt.exit_on_error or config.safe_getboolean(
+        "general", "exit-on-error"
+    )
 
     # Dictionary
     opt.wordlists = opt.wordlists or config.safe_get(
@@ -299,9 +302,6 @@ def parse_config(opt):
         "connection", "scheme", None, ["http", "https"]
     )
     opt.replay_proxy = opt.replay_proxy or config.safe_get("connection", "replay-proxy")
-    opt.exit_on_error = opt.exit_on_error or config.safe_getboolean(
-        "connection", "exit-on-error"
-    )
 
     # Advanced
     opt.crawl = opt.crawl or config.safe_getboolean("advanced", "crawl")
