@@ -103,10 +103,10 @@ class Requester:
         if type in ("bearer", "jwt", "oath2"):
             self.session.auth = HTTPBearerAuth(credential)
         else:
-            user = credential.split(":")[0]
             try:
-                password = ":".join(credential.split(":")[1:])
-            except IndexError:
+                user, password = credential.split(":", 1)
+            except ValueError:
+                user = credential
                 password = ""
 
             if type == "basic":
