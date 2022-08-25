@@ -149,6 +149,7 @@
 .chef/config.rb
 .chef/knife.rb
 .circleci/
+.circleci/.firebase.secrets.json
 .circleci/circle.yml
 .circleci/config.yml
 .clang-format
@@ -2966,6 +2967,7 @@ api/v1/
 api/v1/swagger.json
 api/v1/swagger.yaml
 api/v2
+api/v2/
 api/v2/helpdesk/discover
 api/v2/swagger.json
 api/v2/swagger.yaml
@@ -3004,7 +3006,6 @@ app/Config/database.php
 app/config/database.yml
 app/config/database.yml.pgsql
 app/config/database.yml.sqlite3
-app/config/database.yml_original
 app/config/database.yml~
 app/config/databases.yml
 app/config/global.json
@@ -3212,7 +3213,10 @@ awstats.conf
 awstats.pl
 awstats/
 axis
+axis//happyaxis.jsp
 axis1/axis1-admin/
+axis2//axis2-web/HappyAxis.jsp
+axis2-web//HappyAxis.jsp
 axis2/axis2-admin/
 azure-pipelines.yml
 azureadmin/
@@ -3620,6 +3624,7 @@ cgi-bin/mt/mt.cgi
 cgi-bin/mt7/mt-xmlrpc.cgi
 cgi-bin/mt7/mt.cgi
 cgi-bin/php.ini
+cgi-bin/printenv
 cgi-bin/printenv.pl
 cgi-bin/test-cgi
 cgi-bin/test.cgi
@@ -3736,6 +3741,8 @@ clear
 cli/
 click
 client
+client.%EXT%
+client.ovpn
 client_admin
 client_secret.json
 client_secrets.json
@@ -3745,6 +3752,7 @@ ClientBin/
 cliente/
 cliente/downloads/h4xor.php
 clients
+clients.%EXT%
 clients.mdb
 clients.sql
 clients.sqlite
@@ -3920,7 +3928,6 @@ config/config.ini
 config/database.yml
 config/database.yml.pgsql
 config/database.yml.sqlite3
-config/database.yml_original
 config/database.yml~
 config/databases.yml
 config/db.inc
@@ -4208,7 +4215,6 @@ database.txt
 database.yml
 database.yml.pgsql
 database.yml.sqlite3
-database.yml_original
 database.yml~
 database/
 database/database/
@@ -4320,6 +4326,7 @@ demo.%EXT%
 demo.php
 demo/
 demo/ejb/index.html
+demo/ojspext/events/globals.jsa
 demo/sql/index.jsp
 demoadmin
 demos/
@@ -4391,6 +4398,8 @@ dkms.conf
 dl
 dlgadmin
 dlldata.c
+dms/AggreSpy
+dms/DMSDump
 dns.alpha.kubernetes.io
 doadmin
 doc
@@ -4405,9 +4414,7 @@ docker/
 Dockerfile
 Dockerrun.aws.json
 docpicker/common_proxy/http/www.redbooks.ibm.com/Redbooks.nsf/RedbookAbstracts/sg247798.html?Logout&RedirectTo=http://example.com
-docpicker/internal_proxy/http/127.0.0.1:9100/aa
 docpicker/internal_proxy/https/127.0.0.1:9043/ibm/console
-docpicker/internal_proxy/https/example.com
 DocProject/buildhelp/
 DocProject/Help/html
 DocProject/Help/Html2
@@ -4770,6 +4777,8 @@ favicon.ico
 fcadmin
 fcgi-bin
 fcgi-bin/
+fcgi-bin/echo
+fcgi-bin/echo.exe
 FCKeditor
 fckeditor
 FCKeditor/
@@ -4869,6 +4878,7 @@ firebase-debug.log
 FireFox_Reco
 FirmConnect.%EXT%
 fkadmin
+flag
 flag.%EXT%
 flag.txt
 flags
@@ -5002,6 +5012,7 @@ globaladmin
 globaladminv2
 globals
 globals.inc
+globals.jsa
 globes_admin/
 glossary
 glpi
@@ -5086,6 +5097,10 @@ hac
 hac/
 hacsfiles
 hadmin
+handler
+handler.%EXT%
+handlers
+handlers.%EXT%
 handlers/
 happyaxis.jsp
 haproxy/
@@ -5469,6 +5484,7 @@ integrationgraph
 interadmin
 Intermediate/
 internal
+internal.%EXT%
 internal/docs
 international
 internet
@@ -5535,8 +5551,10 @@ jboss/server/default/deploy/project.ext
 jboss/server/default/log/
 jboss/server/minimal/deploy/project.ext
 jbossws/services
+jbpm-console/app/tasks.jsf
 jcadmin
 jdbc
+jdkstatus
 jenkins/
 jenkins/script
 Jenkinsfile
@@ -5546,6 +5564,7 @@ jk/
 jkstatus
 jkstatus/
 jkstatus;
+jkmanager
 jmssender
 jmstrader
 jmx
@@ -5643,6 +5662,7 @@ kmitaadmin
 known_tokens.csv
 kontakt
 kpanel/
+krb.log
 kube-apiserver.log
 kube-controller-manager.log
 kube-proxy.log
@@ -6204,6 +6224,8 @@ metrics
 metrics.json
 metrics/
 mfr_admin
+mgmt
+mgmt.%EXT%
 mgmt/tm/sys/management
 mh_admin
 mhadmin
@@ -6326,6 +6348,7 @@ music
 mutillidae/
 mw-config/
 mwaextraadmin4
+mweb
 mx.php
 my-admin
 my.7z
@@ -6494,6 +6517,7 @@ nwp-content/
 nwp-content/plugins/disqus-comment-system/disqus.php
 nytprof.out
 o
+OA_HTML/OA.jsp
 oab/
 oauth
 oauth.%EXT%
@@ -6553,17 +6577,18 @@ openstack/
 opentsdb/
 openvpnadmin/
 operador/
-operator/
+operator
+operator.%EXT%
 opinion
 ops/
 opt
 options
+options.%EXT%
 OPTIONS
 oracle
 orasso
 order
 order.%EXT%
-order.htm
 order.log
 order.txt
 order_add_log.txt
@@ -6573,6 +6598,7 @@ OrderProcessorEJB/
 OrderProcessorEJB/services/FrontGate
 OrderProcessorEJB/services/FrontGate/wsdl/
 orders
+orders.%EXT%
 orders.csv
 orders.log
 orders.sql
@@ -6650,7 +6676,6 @@ panel-administracion/login.%EXT%
 panel-administracion/login.html
 panel-administracion/login.php
 panel.%EXT%
-panel.php
 panel/
 papers
 partner
@@ -7245,6 +7270,7 @@ Procfile
 Procfile.dev
 Procfile.offline
 procmail
+prod-api/druid/index.html
 product
 product.%EXT%
 product.json
@@ -7289,7 +7315,6 @@ providers.json
 proxy
 proxy.ini
 proxy.pac
-proxy.stream?origin=http
 proxy.stream?origin=https://google.com
 proxy/
 PRTG/index.htm
@@ -7363,6 +7388,7 @@ radius/
 radmin
 radmind-1/
 radmind/
+railo-context/admin/web.cfm
 rails/actions
 rails/info/properties
 Rakefile
@@ -7662,11 +7688,13 @@ server-info
 server-status
 server-status/
 Server.%EXT%
+server.%EXT%
 server.cert
 server.cfg
 server.js
 server.key
 server.log
+server.ovpn
 Server.php
 server.pid
 server.xml
@@ -7807,6 +7835,7 @@ showthread
 shradmin
 shtml.exe
 shutdown
+shutdown.%EXT%
 sibstatus
 sidekiq
 sidekiq_monitor
@@ -8043,8 +8072,11 @@ stackstorm/
 stacktrace.log
 stadmin
 staff
+staff.%EXT%
 staff/
 staffadmin
+staging
+staging.%EXT%
 stamp-h1
 staradmin/
 start
@@ -8068,6 +8100,7 @@ statistics.jsp
 statistics/
 Statistik/
 stats
+stats.%EXT%
 stats.json
 stats/
 statsd/
@@ -8128,6 +8161,7 @@ StyleCopReport.xml
 styles
 styles/prosilver/style.cfg
 stylesheets/bundles
+stzx_admin/index.html
 sub-login/
 subadmin
 submit
@@ -9072,6 +9106,7 @@ webalizer
 webalizer.%EXT%
 Webalizer/
 webalizer/
+webapp/wm/runtime.jsp
 webclient/Login.xhtml
 webconsole/webpages/login.jsp
 webdav.password
@@ -9082,7 +9117,7 @@ webdb
 webdb/
 webgrind
 weblogs
-webmail/
+webmail
 webmail/src/configtest.php
 webmaster
 webmaster.php
@@ -9158,7 +9193,6 @@ wp
 wp-admin
 wp-admin/
 wp-admin/admin-ajax.php
-wp-admin/c99.php
 wp-admin/install.php
 wp-admin/setup-config.php
 wp-app.log
@@ -9169,7 +9203,6 @@ wp-config.inc
 wp-config.old
 wp-config.php
 wp-config.php-bak
-wp-config.php-original
 wp-config.php.0
 wp-config.php.1
 wp-config.php.2
@@ -9180,8 +9213,6 @@ wp-config.php.6
 wp-config.php.7
 wp-config.php.8
 wp-config.php.9
-wp-config.php.a
-wp-config.php.b
 wp-config.php.backup
 wp-config.php.bak
 wp-config.php.bak1
@@ -9205,9 +9236,6 @@ wp-config.php_1
 wp-config.php_bak
 wp-config.php_new
 wp-config.php_Old
-wp-config.php_orig
-wp-config.php_original
-wp-config.phporiginal
 wp-config.php~
 wp-content
 wp-content/
