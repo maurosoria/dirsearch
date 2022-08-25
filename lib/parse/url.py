@@ -30,7 +30,7 @@ def clean_path(path, keep_queries=False, keep_fragment=False):
 
 def parse_path(value):
     try:
-        scheme, url = value.split("//")
+        scheme, url = value.split("//", 1)
         if (
             scheme and (not scheme.endswith(":") or "/" in scheme)
             or url.startswith("/")
