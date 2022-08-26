@@ -93,7 +93,6 @@ class Controller:
         print(last_output)
 
     def _export(self, session_file):
-        self.current_job -= 1
         # Save written output
         last_output = output.buffer.rstrip()
 
@@ -134,7 +133,7 @@ class Controller:
         self.directories = []
         self.report = None
         self.batch = False
-        self.current_job = 0
+        self.jobs_processed = 0
         self.errors = 0
         self.consecutive_errors = 0
 
@@ -252,7 +251,6 @@ class Controller:
             try:
                 gc.collect()
 
-                self.current_job += 1
                 current_directory = self.directories[0]
 
                 if not self.old_session:
@@ -272,6 +270,7 @@ class Controller:
                 self.dictionary.reset()
                 self.directories.pop(0)
 
+                self.jobs_processed += 1
                 self.old_session = False
 
     def set_target(self, url):
@@ -454,14 +453,18 @@ class Controller:
 
     def update_progress_bar(self, response):
         jobs_count = (
+            # Jobs left for unscanned targets
             len(options["subdirs"]) * (len(self.targets) - 1)
+            # Jobs left for the current target
             + len(self.directories)
+            # Finished jobs
+            + self.jobs_processed
         )
 
         output.last_path(
             self.dictionary.index,
             len(self.dictionary),
-            self.current_job,
+            self.jobs_processed + 1,
             jobs_count,
             self.requester.rate,
             self.errors,

@@ -167,6 +167,9 @@ class Fuzzer:
 
         response = self._requester.request(path)
 
+        if self.is_excluded(response):
+            return
+
         for tester in scanners:
             # Check if the response is unique, not wildcard
             if not tester.check(path, response):
@@ -187,14 +190,14 @@ class Fuzzer:
                     logger.info(f'THREAD-{threading.get_ident()}: found new path "/{path_}" in /{path}')
                     self.scan(path, self.get_scanners_for(path_))
 
-    def is_valid(self, resp):
+    def is_excluded(self, resp):
         """Validate the response by different filters"""
 
         if resp.status in options["exclude_status_codes"]:
-            return False
+            return True
 
         if resp.status not in (options["include_status_codes"] or range(100, 1000)):
-            return False
+            return True
 
         if (
             resp.status in self.blacklists
@@ -203,33 +206,33 @@ class Fuzzer:
                 for suffix in self.blacklists.get(resp.status)
             )
         ):
-            return False
+            return True
 
         if human_size(resp.length).rstrip() in options["exclude_sizes"]:
-            return False
+            return True
 
         if resp.length < options["minimum_response_size"]:
-            return False
+            return True
 
         if resp.length > options["maximum_response_size"] > 0:
-            return False
+            return True
 
         if any(text in resp.content for text in options["exclude_texts"]):
-            return False
+            return True
 
         if options["exclude_regexes"] and any(
             re.search(regex, resp.content)
             for regex in options["exclude_regexes"]
         ):
-            return False
+            return True
 
         if options["exclude_redirect"] and (
             options["exclude_redirect"] in resp.redirect
             or re.search(options["exclude_redirect"], resp.redirect)
         ):
-            return False
+            return True
 
-        return True
+        return False
 
     def is_stopped(self):
         return self._running_threads_count == 0
