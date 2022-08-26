@@ -25,7 +25,7 @@ from urllib.parse import urlparse
 
 from lib.connection.dns import cache_dns
 from lib.connection.requester import Requester
-from lib.core.data import options
+from lib.core.data import blacklists, options
 from lib.core.decorators import locked
 from lib.core.dictionary import Dictionary, get_blacklists
 from lib.core.exceptions import (
@@ -103,6 +103,8 @@ class Controller:
             pickle((vars(self), last_output, options), fd)
 
     def setup(self):
+        blacklists.update(get_blacklists())
+
         if options["raw_file"]:
             try:
                 options.update(
@@ -122,7 +124,6 @@ class Controller:
 
         self.requester = Requester()
         self.dictionary = Dictionary(files=options["wordlists"])
-        self.blacklists = get_blacklists()
         self.results = []
         self.targets = options["urls"]
         self.start_time = time.time()
