@@ -16,4 +16,5 @@
 #
 #  Author: Mauro Soria
 
+blacklists = {}
 options = {}

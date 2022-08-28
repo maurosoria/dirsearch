@@ -20,7 +20,7 @@ import re
 import threading
 import time
 
-from lib.core.data import options
+from lib.core.data import blacklists, options
 from lib.core.exceptions import RequestException
 from lib.core.logger import logger
 from lib.core.scanner import Scanner
@@ -200,10 +200,10 @@ class Fuzzer:
             return True
 
         if (
-            resp.status in self.blacklists
+            resp.status in blacklists
             and any(
                 resp.path.endswith(lstrip_once(suffix, "/"))
-                for suffix in self.blacklists.get(resp.status)
+                for suffix in blacklists.get(resp.status)
             )
         ):
             return True
