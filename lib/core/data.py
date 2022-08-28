@@ -16,6 +16,7 @@
 #
 #  Author: Mauro Soria
 
+blacklists = {}
 options = {
     "urls": [],
     "url_file": None,
