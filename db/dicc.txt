@@ -9238,6 +9238,7 @@ wp-config.php_new
 wp-config.php_Old
 wp-config.php~
 wp-content
+wp-content/backups-JL8rQ/
 wp-content/
 wp-content/ai1wm-backups
 wp-content/ai1wm-backups/
