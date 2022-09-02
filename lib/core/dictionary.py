@@ -103,7 +103,7 @@ class Dictionary:
           and DirBuster processing.
               1. If %EXT% keyword is present in the line, immediately process as "classic dirsearch" (1).
               2. If the line does not include the special word AND is NOT terminated by a slash,
-                append one with each extension APPENDED (line.ext) and ONLYE ONE with a slash.
+                append one with each extension APPENDED (line.ext) and ONLY ONE with a slash.
               3. If the line does not include the special word and IS ALREADY terminated by slash,
                 append line unmodified.
         """

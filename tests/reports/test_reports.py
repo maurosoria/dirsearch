@@ -46,7 +46,6 @@ options.update({
 })
 
 requester = Requester()
-requester.set_agent("dirsearch test")
 test_entries = [requester.request(DUMMY_URL + DUMMY_WORD)]
 
 

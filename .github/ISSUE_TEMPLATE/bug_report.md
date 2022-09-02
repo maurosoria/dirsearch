@@ -14,7 +14,4 @@ What it should be instead?
 
 ### Any additional information?
 
-OS, python version, screenshots, dirsearch command, console output, ...?
-
-#### Checker:
- - [ ] I tested in the latest version of dirsearch
+Screenshots, dirsearch log, dirsearch version, used command, ...?

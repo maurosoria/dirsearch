@@ -196,7 +196,10 @@ class Fuzzer:
         if resp.status in options["exclude_status_codes"]:
             return True
 
-        if resp.status not in (options["include_status_codes"] or range(100, 1000)):
+        if (
+            options["include_status_codes"]
+            and resp.status not in options["include_status_codes"]
+        ):
             return True
 
         if (
@@ -217,7 +220,7 @@ class Fuzzer:
         if resp.length > options["maximum_response_size"] > 0:
             return True
 
-        if any(ex_text in resp.content for ex_text in options["exclude_texts"]):
+        if any(text in resp.content for text in options["exclude_texts"]):
             return True
 
         if options["exclude_regex"] and re.search(
@@ -225,8 +228,9 @@ class Fuzzer:
         ):
             return True
 
-        if options["exclude_redirect"] and (
-            options["exclude_redirect"] in resp.redirect
+        if (
+            options["exclude_redirect"]
+            and options["exclude_redirect"] in resp.redirect
             or re.search(options["exclude_redirect"], resp.redirect)
         ):
             return True
