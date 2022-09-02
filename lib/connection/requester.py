@@ -103,10 +103,10 @@ class Requester:
         if type in ("bearer", "jwt", "oath2"):
             self.session.auth = HTTPBearerAuth(credential)
         else:
-            user = credential.split(":")[0]
             try:
-                password = ":".join(credential.split(":")[1:])
-            except IndexError:
+                user, password = credential.split(":", 1)
+            except ValueError:
+                user = credential
                 password = ""
 
             if type == "basic":
@@ -134,9 +134,6 @@ class Requester:
     def set_proxy_auth(self, credential):
         self._proxy_cred = credential
 
-    def set_agent(self, value):
-        self.agents.append(value)
-
     # :path: is expected not to start with "/"
     def request(self, path, proxy=None):
         # Pause if the request rate exceeded the maximum
@@ -159,7 +156,8 @@ class Requester:
                 except IndexError:
                     pass
 
-                self.set_header("user-agent", random.choice(self.agents))
+                if self.agents:
+                    self.set_header("user-agent", random.choice(self.agents))
 
                 # Use prepared request to avoid the URL path from being normalized
                 # Reference: https://github.com/psf/requests/issues/5289
