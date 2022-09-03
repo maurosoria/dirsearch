@@ -20,7 +20,6 @@ from optparse import OptionParser, OptionGroup
 
 from lib.core.settings import (
     AUTHENTICATION_TYPES,
-    DEFAULT_AGENT,
     SCRIPT_PATH,
     VERSION,
 )
@@ -39,7 +38,7 @@ def parse_arguments():
         action="append",
         dest="urls",
         metavar="URL",
-        help="Target URL(s), support multiple flags",
+        help="Target URL(s), can use multiple flags",
     )
     mandatory.add_option(
         "-l",
@@ -233,18 +232,18 @@ def parse_arguments():
         help="Exclude responses by sizes, separated by commas (e.g. 0B,4KB)",
     )
     general.add_option(
-        "--exclude-texts",
-        action="store",
+        "--exclude-text",
+        action="append",
         dest="exclude_texts",
         metavar="TEXTS",
-        help="Exclude responses by texts, separated by commas (e.g. 'Not found', 'Error')",
+        help="Exclude responses by text, can use multiple flags",
     )
     general.add_option(
         "--exclude-regex",
         action="store",
         dest="exclude_regex",
         metavar="REGEX",
-        help="Exclude responses by regex (e.g. '^Error$')",
+        help="Exclude responses by regular expression",
     )
     general.add_option(
         "--exclude-redirect",
@@ -289,9 +288,15 @@ def parse_arguments():
         "--max-time",
         action="store",
         type="int",
-        dest="maxtime",
+        dest="max_time",
         metavar="SECONDS",
         help="Maximum runtime for the scan",
+    )
+    general.add_option(
+        "--exit-on-error",
+        action="store_true",
+        dest="exit_on_error",
+        help="Exit whenever an error occurs",
     )
 
     # Request Settings
@@ -319,7 +324,7 @@ def parse_arguments():
         "--header",
         action="append",
         dest="headers",
-        help="HTTP request header, support multiple flags",
+        help="HTTP request header, can use multiple flags",
     )
     request.add_option(
         "--header-file",
@@ -368,7 +373,7 @@ def parse_arguments():
         metavar="PATH",
         help="File contains client-side certificate private key (unencrypted)",
     )
-    request.add_option("--user-agent", action="store", dest="user_agent", default=DEFAULT_AGENT)
+    request.add_option("--user-agent", action="store", dest="user_agent")
     request.add_option("--cookie", action="store", dest="cookie")
 
     # Connection Settings
@@ -392,7 +397,7 @@ def parse_arguments():
         action="append",
         dest="proxies",
         metavar="PROXY",
-        help="Proxy URL, support HTTP and SOCKS proxies (e.g. localhost:8080, socks5://localhost:8088)",
+        help="Proxy URL (HTTP/SOCKS), can use multiple flags",
     )
     connection.add_option(
         "--proxy-file",
@@ -442,12 +447,6 @@ def parse_arguments():
         help="Number of retries for failed requests",
     )
     connection.add_option("--ip", action="store", dest="ip", help="Server IP address")
-    connection.add_option(
-        "--exit-on-error",
-        action="store_true",
-        dest="exit_on_error",
-        help="Exit whenever an error occurs",
-    )
 
     # Advanced Settings
     advanced = OptionGroup(parser, "Advanced Settings")

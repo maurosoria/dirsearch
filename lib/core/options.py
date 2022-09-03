@@ -59,7 +59,13 @@ def parse_options():
     if not opt.extensions and not opt.remove_extensions:
         print("WARNING: No extension was specified!")
 
-    for dict_file in opt.wordlists.split(","):
+    if not opt.wordlists:
+        print("No wordlist was provided, try using -w <wordlist>")
+        exit(1)
+
+    opt.wordlists = tuple(wordlist.strip() for wordlist in opt.wordlists.split(","))
+
+    for dict_file in opt.wordlists:
         _access_file(dict_file)
 
     if opt.thread_count < 1:
@@ -115,18 +121,7 @@ def parse_options():
         subdir.lstrip(" /") + ("" if not subdir or subdir.endswith("/") else "/")
         for subdir in opt.exclude_subdirs.split(",")
     ]
-    opt.exclude_sizes = uniq(
-        [
-            exclude_size.strip().upper()
-            for exclude_size in opt.exclude_sizes.split(",")
-        ]
-    )
-    opt.exclude_texts = uniq(
-        [
-            exclude_text.strip()
-            for exclude_text in opt.exclude_texts.split(",")
-        ]
-    )
+    opt.exclude_sizes = {size.strip().upper() for size in opt.exclude_sizes.split(",")}
 
     if opt.remove_extensions:
         opt.extensions = ("",)
@@ -148,12 +143,6 @@ def parse_options():
             for exclude_extension in opt.exclude_extensions.split(",")
         ], tuple
     )
-
-    if not opt.wordlists:
-        print("No wordlist was provided, try using -w <wordlist>")
-        exit(1)
-
-    opt.wordlists = {wordlist.strip() for wordlist in opt.wordlists.split(",")}
 
     if opt.auth and not opt.auth_type:
         print("Please select the authentication type with --auth-type")
@@ -181,7 +170,7 @@ def parse_options():
 
 def _parse_status_codes(str_):
     if not str_:
-        return []
+        return set()
 
     status_codes = set()
 
@@ -230,8 +219,8 @@ def parse_config(opt):
     opt.exclude_status_codes = opt.exclude_status_codes or config.safe_get(
         "general", "exclude-status"
     )
-    opt.exclude_sizes = opt.exclude_sizes or config.safe_get("general", "exclude-sizes")
-    opt.exclude_texts = opt.exclude_texts or config.safe_get("general", "exclude-texts")
+    opt.exclude_sizes = opt.exclude_sizes or config.safe_get("general", "exclude-sizes", "")
+    opt.exclude_texts = opt.exclude_texts or list(config.safe_get("general", "exclude-text", []))
     opt.exclude_regex = opt.exclude_regex or config.safe_get("general", "exclude-regex")
     opt.exclude_redirect = opt.exclude_redirect or config.safe_get(
         "general", "exclude-redirect"
@@ -252,14 +241,17 @@ def parse_config(opt):
     opt.recursion_status_codes = opt.recursion_status_codes or config.safe_get(
         "general", "recursion-status", "100-999"
     )
-    opt.subdirs = opt.subdirs or config.safe_get("general", "subdirs")
+    opt.subdirs = opt.subdirs or config.safe_get("general", "subdirs", "")
     opt.exclude_subdirs = opt.exclude_subdirs or config.safe_get(
-        "general", "exclude-subdirs"
+        "general", "exclude-subdirs", ""
     )
     opt.skip_on_status = opt.skip_on_status or config.safe_get(
-        "general", "skip-on-status"
+        "general", "skip-on-status", ""
     )
-    opt.maxtime = opt.maxtime or config.safe_getint("general", "max-time")
+    opt.max_time = opt.max_time or config.safe_getint("general", "max-time")
+    opt.exit_on_error = opt.exit_on_error or config.safe_getboolean(
+        "general", "exit-on-error"
+    )
 
     # Dictionary
     opt.wordlists = opt.wordlists or config.safe_get(
@@ -268,7 +260,7 @@ def parse_config(opt):
         FileUtils.build_path(SCRIPT_PATH, "db", "dicc.txt"),
     )
     opt.extensions = opt.extensions or config.safe_get(
-        "dictionary", "default-extensions"
+        "dictionary", "default-extensions", ""
     )
     opt.force_extensions = opt.force_extensions or config.safe_getboolean(
         "dictionary", "force-extensions"
@@ -277,13 +269,10 @@ def parse_config(opt):
         "dictionary", "overwrite-extensions"
     )
     opt.exclude_extensions = opt.exclude_extensions or config.safe_get(
-        "dictionary", "exclude-extensions"
+        "dictionary", "exclude-extensions", ""
     )
-    opt.prefixes = opt.prefixes or config.safe_get(
-        "dictionary",
-        "prefixes",
-    )
-    opt.suffixes = opt.suffixes or config.safe_get("dictionary", "suffixes")
+    opt.prefixes = opt.prefixes or config.safe_get("dictionary", "prefixes", "")
+    opt.suffixes = opt.suffixes or config.safe_get("dictionary", "suffixes", "")
     opt.lowercase = opt.lowercase or config.safe_getboolean("dictionary", "lowercase")
     opt.uppercase = opt.uppercase or config.safe_getboolean("dictionary", "uppercase")
     opt.capitalization = opt.capitalization or config.safe_getboolean(
@@ -307,15 +296,12 @@ def parse_config(opt):
     opt.timeout = opt.timeout or config.safe_getfloat("connection", "timeout", 7.5)
     opt.max_retries = opt.max_retries or config.safe_getint("connection", "max-retries", 1)
     opt.max_rate = opt.max_rate or config.safe_getint("connection", "max-rate")
-    opt.proxies = opt.proxies or list(config.safe_get("connection", "proxy"))
+    opt.proxies = opt.proxies or list(config.safe_get("connection", "proxy", []))
     opt.proxy_file = opt.proxy_file or config.safe_get("connection", "proxy-file")
     opt.scheme = opt.scheme or config.safe_get(
         "connection", "scheme", None, ["http", "https"]
     )
     opt.replay_proxy = opt.replay_proxy or config.safe_get("connection", "replay-proxy")
-    opt.exit_on_error = opt.exit_on_error or config.safe_getboolean(
-        "connection", "exit-on-error"
-    )
 
     # Advanced
     opt.crawl = opt.crawl or config.safe_getboolean("advanced", "crawl")

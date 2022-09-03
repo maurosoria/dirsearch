@@ -223,9 +223,7 @@ class Fuzzer:
         if any(text in resp.content for text in options["exclude_texts"]):
             return True
 
-        if options["exclude_regex"] and re.search(
-            options["exclude_regex"], resp.content
-        ):
+        if options["exclude_regex"] and re.search(options["exclude_regex"], resp.content):
             return True
 
         if (
