@@ -168,6 +168,8 @@ class Fuzzer:
         response = self._requester.request(path)
 
         if self.is_excluded(response):
+            for callback in self.not_found_callbacks:
+                callback(response)
             return
 
         for tester in scanners:
