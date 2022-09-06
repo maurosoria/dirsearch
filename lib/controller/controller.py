@@ -542,7 +542,7 @@ class Controller:
                 raise SkipTargetInterrupt("Target skipped by the user")
 
     def is_timed_out(self):
-        return time.time() - self.start_time > options["maxtime"] > 0
+        return time.time() - self.start_time > options["max_time"] > 0
 
     def process(self):
         while True:

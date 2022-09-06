@@ -223,15 +223,15 @@ class Fuzzer:
         if any(text in resp.content for text in options["exclude_texts"]):
             return True
 
-        if options["exclude_regex"] and re.search(
-            options["exclude_regex"], resp.content
-        ):
+        if options["exclude_regex"] and re.search(options["exclude_regex"], resp.content):
             return True
 
         if (
             options["exclude_redirect"]
-            and options["exclude_redirect"] in resp.redirect
-            or re.search(options["exclude_redirect"], resp.redirect)
+            and (
+                options["exclude_redirect"] in resp.redirect
+                or re.search(options["exclude_redirect"], resp.redirect)
+            )
         ):
             return True
 
