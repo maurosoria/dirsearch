@@ -3215,8 +3215,8 @@ awstats/
 axis
 axis//happyaxis.jsp
 axis1/axis1-admin/
-axis2//axis2-web/HappyAxis.jsp
 axis2-web//HappyAxis.jsp
+axis2//axis2-web/HappyAxis.jsp
 axis2/axis2-admin/
 azure-pipelines.yml
 azureadmin/
@@ -5561,10 +5561,10 @@ Jenkinsfile
 jira/
 jira/secure/Dashboard.jspa
 jk/
+jkmanager
 jkstatus
 jkstatus/
 jkstatus;
-jkmanager
 jmssender
 jmstrader
 jmx
@@ -6583,8 +6583,8 @@ opinion
 ops/
 opt
 options
-options.%EXT%
 OPTIONS
+options.%EXT%
 oracle
 orasso
 order
@@ -8102,6 +8102,7 @@ Statistik/
 stats
 stats.%EXT%
 stats.json
+stats.php
 stats/
 statsd/
 status
