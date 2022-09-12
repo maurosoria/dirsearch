@@ -18,6 +18,7 @@
 
 from ipaddress import IPv4Network, IPv6Network
 from urllib.parse import quote, urljoin
+from tld import get_tld
 
 from lib.core.settings import (
     INVALID_CHARS_FOR_WINDOWS_FILENAME, INSECURE_CSV_CHARS,
@@ -98,3 +99,10 @@ def merge_path(url, path):
     parts[-1] = path
 
     return "/".join(parts)
+
+def parse_domain(full_domain):
+    try:
+        parsed = get_tld(full_domain, as_object=True)
+        return parsed.fld
+    except:
+        return 'unknown.com'

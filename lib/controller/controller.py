@@ -20,6 +20,7 @@ import os
 import gc
 import time
 import re
+import sys
 
 from urllib.parse import urlparse
 
@@ -60,7 +61,7 @@ from lib.reports.plain_text_report import PlainTextReport
 from lib.reports.simple_report import SimpleReport
 from lib.reports.xml_report import XMLReport
 from lib.reports.sqlite_report import SQLiteReport
-from lib.utils.common import get_valid_filename, lstrip_once
+from lib.utils.common import get_valid_filename, lstrip_once, parse_domain
 from lib.utils.file import FileUtils
 from lib.utils.pickle import pickle, unpickle
 from lib.utils.schemedet import detect_scheme
@@ -368,11 +369,13 @@ class Controller:
                 if not parsed.netloc:
                     parsed = urlparse(f"//{self.targets[0]}")
 
-                filename = get_valid_filename(f"{parsed.path}_")
+                root_domain = parse_domain(self.targets[0])
+
+                filename = get_valid_filename(f"{parsed.netloc}_{parsed.path}_")
                 filename += time.strftime("%y-%m-%d_%H-%M-%S")
                 filename += f".{self.get_output_extension()}"
                 directory_path = FileUtils.build_path(
-                    self.report_path, get_valid_filename(f"{parsed.scheme}_{parsed.netloc}")
+                    self.report_path, root_domain
                 )
 
             output_file = FileUtils.get_abs_path((FileUtils.build_path(directory_path, filename)))

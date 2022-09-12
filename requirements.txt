@@ -16,3 +16,4 @@ colorama>=0.4.4
 ntlm_auth>=1.5.0
 pyparsing>=2.4.7
 beautifulsoup4>=4.8.0
+tld>=0.12.6
