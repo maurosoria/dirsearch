@@ -20,7 +20,6 @@ import os
 import gc
 import time
 import re
-import sys
 
 from urllib.parse import urlparse
 
