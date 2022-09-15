@@ -6571,6 +6571,7 @@ opc/services/PurchaseOrderIntfPort/wsdl/
 opcache
 open-flash-chart.swf?get-data=xss
 openadmin
+openapi.json
 OpenCover/
 openshift/
 openstack/
@@ -7446,6 +7447,7 @@ redirect.%EXT%
 redis/
 redmine
 redmine/
+redoc
 refresh
 refresh.json
 regadmin
