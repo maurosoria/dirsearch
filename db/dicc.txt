@@ -1,3 +1,5 @@
+redoc
+openapi.json
 !.gitignore
 !.htaccess
 !.htpasswd
