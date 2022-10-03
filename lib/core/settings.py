@@ -23,7 +23,7 @@ import string
 from lib.utils.file import FileUtils
 
 # Version format: <major version>.<minor version>.<revision>[.<month>]
-VERSION = "0.4.2.8"
+VERSION = "0.4.3"
 
 BANNER = f"""
   _|. _ _  _  _  _ _|_    v{VERSION}

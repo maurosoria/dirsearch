@@ -12,9 +12,7 @@ dirsearch - Web path discovery
 [![Twitter](https://img.shields.io/twitter/follow/_dirsearch?label=Follow)](https://twitter.com/_dirsearch)
 
 
-**Current Release: v0.4.2 (2021.9.12)**
-
-An advanced command-line tool designed to brute force directories and files in webservers, AKA web path scanner
+> An advanced web path brute-forcer
 
 **dirsearch** is being actively developed by [@maurosoria](https://twitter.com/_maurosoria) and [@shelld3v](https://twitter.com/shells3c_)
 
@@ -59,10 +57,10 @@ Installation & Usage
 
 Choose one of these installation options:
 
-- Install with git: `git clone https://github.com/maurosoria/dirsearch.git --depth 1` (RECOMMENDED)
+- Install with **git**: `git clone https://github.com/maurosoria/dirsearch.git --depth 1` (**RECOMMENDED**)
 - Install with ZIP file: [Download here](https://github.com/maurosoria/dirsearch/archive/master.zip)
-- Install with Docker: `docker build -t "dirsearch:v0.4.2" .` (more information can be found [here](https://github.com/maurosoria/dirsearch#support-docker))
-- Install with PyPi: `pip3 install dirsearch`
+- Install with Docker: `docker build -t "dirsearch:v0.4.3" .` (more information can be found [here](https://github.com/maurosoria/dirsearch#support-docker))
+- Install with PyPi: `pip3 install dirsearch` or `pip install dirsearch`
 - Install with Kali Linux: `sudo apt-get install dirsearch` (deprecated)
 
 
@@ -612,15 +610,15 @@ curl -fsSL https://get.docker.com | bash
 To create image
 
 ```sh
-docker build -t "dirsearch:v0.4.2" .
+docker build -t "dirsearch:v0.4.3" .
 ```
 
-> **dirsearch** is the name of the image and **v0.4.2** is the version
+> **dirsearch** is the name of the image and **v0.4.3** is the version
 
 ### Using dirsearch
 For using
 ```sh
-docker run -it --rm "dirsearch:v0.4.2" -u target -e php,html,js,zip
+docker run -it --rm "dirsearch:v0.4.3" -u target -e php,html,js,zip
 ```
 
 
