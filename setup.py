@@ -43,5 +43,3 @@ setuptools.setup(
     ],
     keywords=["infosec", "bug bounty", "pentesting", "security"],
 )
-
-shutil.rmtree(env_dir, ignore_errors=True)
