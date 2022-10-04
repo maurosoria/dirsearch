@@ -190,7 +190,7 @@ class Fuzzer:
             for path_ in Crawler.crawl(response):
                 if self._dictionary.is_valid(path_):
                     logger.info(f'THREAD-{threading.get_ident()}: found new path "/{path_}" in /{path}')
-                    self.scan(path, self.get_scanners_for(path_))
+                    self.scan(path_, self.get_scanners_for(path_))
 
     def is_excluded(self, resp):
         """Validate the response by different filters"""
