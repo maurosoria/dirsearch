@@ -39,8 +39,12 @@ if config.safe_getboolean("options", "check-dependencies", False):
     try:
         check_dependencies()
     except (DistributionNotFound, VersionConflict):
-        option = input("Missing required dependencies to run.\n"
+        try:
+            option = input("Missing required dependencies to run.\n"
                        "Do you want dirsearch to automatically install them? [Y/n] ")
+        except KeyboardInterrupt:
+            print("Exiting!")
+            exit(1)
 
         if option.lower() == 'y':
             print("Installing required dependencies...")
