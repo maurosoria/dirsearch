@@ -5856,6 +5856,8 @@ log/production.log
 log/server.log
 log/test.log
 log/www-error.log
+log/err_log.xml
+logs/err_log.xml
 log_1.txt
 log_admin.%EXT%
 log_data/
