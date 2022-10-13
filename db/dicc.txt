@@ -4615,6 +4615,7 @@ env.json
 env.list
 ENV/
 env/
+entrypoint.sh
 environment.rb
 epsadmin
 erl_crash.dump
@@ -7802,6 +7803,7 @@ shell.php
 shell.sh
 shell/
 shellz.php
+sh.sh
 shipping.%EXT%
 shop
 shop-admin
