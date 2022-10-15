@@ -18,17 +18,14 @@
 
 from optparse import OptionParser, OptionGroup
 
-from lib.core.settings import (
-    AUTHENTICATION_TYPES,
-    SCRIPT_PATH,
-    VERSION,
-)
-from lib.utils.file import FileUtils
+from lib.core.settings import AUTHENTICATION_TYPES, VERSION
+from lib.utils.common import get_config_file
 
 
 def parse_arguments():
     usage = "Usage: %prog [-u|--url] target [-e|--extensions] extensions [options]"
-    parser = OptionParser(usage, version=f"dirsearch v{VERSION}")
+    epilog = "See 'config.ini' for the example configuration file"
+    parser = OptionParser(usage=usage, epilog=epilog, version=f"dirsearch v{VERSION}")
 
     # Mandatory arguments
     mandatory = OptionGroup(parser, "Mandatory")
@@ -57,7 +54,7 @@ def parse_arguments():
         action="store",
         dest="raw_file",
         metavar="PATH",
-        help="Load raw HTTP request from file (use `--scheme` flag to set the scheme)",
+        help="Load raw HTTP request from file (use '--scheme' flag to set the scheme)",
     )
     mandatory.add_option(
         "-s", "--session", action="store", dest="session_file", help="Session file"
@@ -67,8 +64,8 @@ def parse_arguments():
         action="store",
         dest="config",
         metavar="PATH",
-        help="Full path to config file, see 'config.ini' for example (Default: config.ini)",
-        default=FileUtils.build_path(SCRIPT_PATH, "config.ini"),
+        help="Path to configuration file (Default: 'DIRSEARCH_CONFIG' environment variable, otherwise 'config.ini')",
+        default=get_config_file(),
     )
 
     # Dictionary Settings
