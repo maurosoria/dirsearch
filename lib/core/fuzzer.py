@@ -27,6 +27,7 @@ from lib.core.scanner import Scanner
 from lib.core.settings import (
     DEFAULT_TEST_PREFIXES,
     DEFAULT_TEST_SUFFIXES,
+    THREAD_WAITING_TIMEOUT,
     WILDCARD_TEST_POINT_MARKER,
 )
 from lib.parse.url import clean_path
@@ -40,26 +41,14 @@ class Fuzzer:
         self._scanned = set()
         self._requester = requester
         self._dictionary = dictionary
-        self._is_running = False
         self._play_event = threading.Event()
-        self._paused_semaphore = threading.Semaphore(0)
+        self._quit_event = threading.Event()
+        self._pause_semaphore = threading.Semaphore(0)
         self._base_path = None
         self.exc = None
         self.match_callbacks = kwargs.get("match_callbacks", [])
         self.not_found_callbacks = kwargs.get("not_found_callbacks", [])
         self.error_callbacks = kwargs.get("error_callbacks", [])
-
-    def wait(self, timeout=None):
-        if self.exc:
-            raise self.exc
-
-        for thread in self._threads:
-            thread.join(timeout)
-
-            if thread.is_alive():
-                return False
-
-        return True
 
     def setup_scanners(self):
         self.scanners = {
@@ -128,34 +117,33 @@ class Fuzzer:
     def start(self):
         self.setup_scanners()
         self.setup_threads()
-
-        self._running_threads_count = len(self._threads)
-        self._is_running = True
-        self._play_event.clear()
+        self.play()
 
         for thread in self._threads:
             thread.start()
 
-        self.play()
+    def is_finished(self):
+        if self.exc:
+            raise self.exc
+
+        for thread in self._threads:
+            if thread.is_alive():
+                return False
+
+        return True
 
     def play(self):
         self._play_event.set()
 
     def pause(self):
         self._play_event.clear()
+        # Wait for all threads to stop
         for thread in self._threads:
             if thread.is_alive():
-                self._paused_semaphore.acquire()
+                self._pause_semaphore.acquire(THREAD_WAITING_TIMEOUT)
 
-        self._is_running = False
-
-    def resume(self):
-        self._is_running = True
-        self._paused_semaphore.release()
-        self.play()
-
-    def stop(self):
-        self._is_running = False
+    def quit(self):
+        self._quit_event.set()
         self.play()
 
     def scan(self, path, scanners):
@@ -239,20 +227,11 @@ class Fuzzer:
 
         return False
 
-    def is_stopped(self):
-        return self._running_threads_count == 0
-
-    def decrease_threads(self):
-        self._running_threads_count -= 1
-
-    def increase_threads(self):
-        self._running_threads_count += 1
-
     def set_base_path(self, path):
         self._base_path = path
 
     def thread_proc(self):
-        self._play_event.wait()
+        logger.info(f'THREAD-{threading.get_ident()} started"')
 
         while True:
             try:
@@ -261,7 +240,7 @@ class Fuzzer:
                 self.scan(self._base_path + path, scanners)
 
             except StopIteration:
-                self._is_running = False
+                break
 
             except RequestException as e:
                 for callback in self.error_callbacks:
@@ -271,12 +250,12 @@ class Fuzzer:
 
             finally:
                 if not self._play_event.is_set():
-                    self.decrease_threads()
-                    self._paused_semaphore.release()
+                    logger.info(f'THREAD-{threading.get_ident()} paused"')
+                    self._pause_semaphore.release()
                     self._play_event.wait()
-                    self.increase_threads()
+                    logger.info(f'THREAD-{threading.get_ident()} continued"')
 
-                if not self._is_running:
+                if self._quit_event.is_set():
                     break
 
                 time.sleep(options["delay"])
