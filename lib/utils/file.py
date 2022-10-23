@@ -96,13 +96,16 @@ class FileUtils:
         return open(file_name, "r").read()
 
     @staticmethod
-    def read_dir(directory):
-        data = {}
-        for root, _, files in os.walk(directory):
-            for file in files:
-                data[file] = FileUtils.read(os.path.join(root, file))
+    def get_files(directory):
+        files = []
+        for path in os.listdir(directory):
+            path = os.path.join(directory, path)
+            if FileUtils.is_dir(path):
+                files.extend(FileUtils.get_files(path))
+            else:
+                files.append(path)
 
-        return data
+        return files
 
     @staticmethod
     def get_lines(file_name):
