@@ -16,27 +16,28 @@
 #
 #  Author: Mauro Soria
 
-import sqlite3
+import mysql.connector
 
+from mysql.connector.constants import SQLMode
+from urllib.parse import urlparse
+
+from lib.core.exceptions import InvalidURLException
 from lib.reports.base import SQLBaseReport
 
 
-class SQLiteReport(SQLBaseReport):
-    def connect(self, output_file):
-        self.conn = sqlite3.connect(output_file, check_same_thread=False)
+class MySQLReport(SQLBaseReport):
+    def connect(self, url):
+        parsed = urlparse(url)
+
+        if not parsed.scheme == "mysql":
+            raise InvalidURLException("Provided MySQL URL does not start with mysql://")
+
+        self.conn = mysql.connector.connect(
+            host=parsed.hostname,
+            port=parsed.port or 3306,
+            user=parsed.username,
+            password=parsed.password,
+            database=parsed.path.lstrip("/"),
+        )
+        self.conn.sql_mode = [SQLMode.ANSI_QUOTES]
         self.cursor = self.conn.cursor()
-
-    def create_table_query(self, table):
-        return (f'''CREATE TABLE "{table}" (
-            time DATETIME DEFAULT CURRENT_TIMESTAMP,
-            url TEXT,
-            status_code INTEGER,
-            content_length INTEGER,
-            content_type TEXT,
-            redirect TEXT
-        );''',)
-
-    def insert_table_query(self, table, values):
-        return (f'''INSERT INTO "{table}" (url, status_code, content_length, content_type, redirect)
-                    VALUES
-                    (?, ?, ?, ?, ?)''', values)

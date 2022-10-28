@@ -34,7 +34,7 @@ if IS_WINDOWS:
     )
 
 
-class Output:
+class CLI:
     def __init__(self):
         self.last_in_line = False
         self.buffer = ""
@@ -197,14 +197,14 @@ class Output:
         self.new_line()
         self.print_header({"Target": target})
 
-    def output_file(self, file):
-        self.new_line(f"\nOutput File: {file}")
+    def output_location(self, file):
+        self.new_line(f"\nOutput: {file}")
 
     def log_file(self, file):
         self.new_line(f"\nLog File: {file}")
 
 
-class QuietOutput(Output):
+class QuietCLI(CLI):
     def status_report(self, response, full_url):
         super().status_report(response, True)
 
@@ -226,11 +226,11 @@ class QuietOutput(Output):
     def target(*args):
         pass
 
-    def output_file(*args):
+    def output_location(*args):
         pass
 
     def log_file(*args):
         pass
 
 
-output = QuietOutput() if options["quiet"] else Output()
+interface = QuietCLI() if options["quiet"] else CLI()

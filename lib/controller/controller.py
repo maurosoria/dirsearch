@@ -16,10 +16,12 @@
 #
 #  Author: Mauro Soria
 
-import os
 import gc
-import time
+import os
+import psycopg
 import re
+import time
+import mysql.connector
 
 from urllib.parse import urlparse
 
@@ -56,15 +58,17 @@ from lib.reports.csv_report import CSVReport
 from lib.reports.html_report import HTMLReport
 from lib.reports.json_report import JSONReport
 from lib.reports.markdown_report import MarkdownReport
+from lib.reports.mysql_report import MySQLReport
 from lib.reports.plain_text_report import PlainTextReport
+from lib.reports.postgresql_report import PostgreSQLReport
 from lib.reports.simple_report import SimpleReport
-from lib.reports.xml_report import XMLReport
 from lib.reports.sqlite_report import SQLiteReport
+from lib.reports.xml_report import XMLReport
 from lib.utils.common import get_valid_filename, lstrip_once
 from lib.utils.file import FileUtils
 from lib.utils.pickle import pickle, unpickle
 from lib.utils.schemedet import detect_scheme
-from lib.view.terminal import output
+from lib.view.terminal import interface
 
 
 class Controller:
@@ -84,7 +88,7 @@ class Controller:
                 indict, last_output, opt = unpickle(fd)
                 options.update(opt)
         except UnpicklingError:
-            output.error(
+            interface.error(
                 f"{session_file} is not a valid session file or it's in an old format"
             )
             exit(1)
@@ -94,7 +98,7 @@ class Controller:
 
     def _export(self, session_file):
         # Save written output
-        last_output = output.buffer.rstrip()
+        last_output = interface.buffer.rstrip()
 
         # Can't pickle Fuzzer class due to _thread.lock objects
         del self.fuzzer
@@ -128,7 +132,6 @@ class Controller:
         self.requester = Requester()
         self.dictionary = Dictionary(files=options["wordlists"])
         self.results = []
-        self.targets = options["urls"]
         self.start_time = time.time()
         self.passed_urls = set()
         self.directories = []
@@ -155,7 +158,7 @@ class Controller:
                 enable_logging()
 
             except Exception:
-                output.error(
+                interface.error(
                     f'Couldn\'t create log file at {options["log_file"]}'
                 )
                 exit(1)
@@ -171,18 +174,27 @@ class Controller:
                     raise Exception
 
             except Exception:
-                output.error(
+                interface.error(
                     f"Couldn't create report folder at {self.report_path}"
                 )
                 exit(1)
 
-        output.header(BANNER)
-        output.config(len(self.dictionary))
+        interface.header(BANNER)
+        interface.config(len(self.dictionary))
 
-        self.setup_reports()
+        try:
+            self.setup_reports()
+        except (
+            InvalidURLException,
+            mysql.connector.Error,
+            psycopg.Error,
+        ) as e:
+            logger.exception(e)
+            interface.error(str(e))
+            exit(1)
 
         if options["log_file"]:
-            output.log_file(options["log_file"])
+            interface.log_file(options["log_file"])
 
     def run(self):
         # match_callbacks and not_found_callbacks callback values:
@@ -198,8 +210,8 @@ class Controller:
         )
         error_callbacks = (self.raise_error, self.append_error_log)
 
-        while self.targets:
-            url = self.targets[0]
+        while options["urls"]:
+            url = options["urls"][0]
             self.fuzzer = Fuzzer(
                 self.requester,
                 self.dictionary,
@@ -216,7 +228,7 @@ class Controller:
                         self.add_directory(self.base_path + subdir)
 
                 if not self.old_session:
-                    output.target(self.url)
+                    interface.target(self.url)
 
                 self.start()
 
@@ -230,22 +242,22 @@ class Controller:
                 self.dictionary.reset()
 
                 if e.args:
-                    output.error(str(e))
+                    interface.error(str(e))
 
             except QuitInterrupt as e:
-                output.error(e.args[0])
+                interface.error(e.args[0])
                 exit(0)
 
             finally:
-                self.targets.pop(0)
+                options["urls"].pop(0)
 
-        output.warning("\nTask Completed")
+        interface.warning("\nTask Completed")
 
         if options["session_file"]:
             try:
                 os.remove(options["session_file"])
             except Exception:
-                output.error("Failed to delete old session file, remove it to free some space")
+                interface.error("Failed to delete old session file, remove it to free some space")
 
     def start(self):
         while self.directories:
@@ -258,7 +270,7 @@ class Controller:
                     current_time = time.strftime("%H:%M:%S")
                     msg = f"{NEW_LINE}[{current_time}] Starting: {current_directory}"
 
-                    output.warning(msg)
+                    interface.warning(msg)
 
                 self.fuzzer.set_base_path(current_directory)
                 self.fuzzer.start()
@@ -342,7 +354,7 @@ class Controller:
         try:
             FileUtils.create_dir(batch_directory_path)
         except Exception:
-            output.error(f"Couldn't create batch folder at {batch_directory_path}")
+            interface.error(f"Couldn't create batch folder at {batch_directory_path}")
             exit(1)
 
         return batch_directory_path
@@ -356,17 +368,17 @@ class Controller:
     def setup_reports(self):
         """Create report file"""
 
-        output_file = options["output_file"]
+        output = options["output"]
 
-        if options["autosave_report"] and not output_file:
-            if len(self.targets) > 1:
+        if options["autosave_report"] and not output and options["output_format"] not in ("mysql", "postgresql"):
+            if len(options["urls"]) > 1:
                 directory_path = self.setup_batch_reports()
                 filename = "BATCH." + self.get_output_extension()
             else:
-                parsed = urlparse(self.targets[0])
+                parsed = urlparse(options["urls"][0])
 
                 if not parsed.netloc:
-                    parsed = urlparse(f"//{self.targets[0]}")
+                    parsed = urlparse(f"//{options['urls'][0]}")
 
                 filename = get_valid_filename(f"{parsed.path}_")
                 filename += time.strftime("%y-%m-%d_%H-%M-%S")
@@ -375,44 +387,48 @@ class Controller:
                     self.report_path, get_valid_filename(f"{parsed.scheme}_{parsed.netloc}")
                 )
 
-            output_file = FileUtils.get_abs_path((FileUtils.build_path(directory_path, filename)))
+            output = FileUtils.get_abs_path((FileUtils.build_path(directory_path, filename)))
 
-            if FileUtils.exists(output_file):
+            if FileUtils.exists(output):
                 i = 2
-                while FileUtils.exists(f"{output_file}_{i}"):
+                while FileUtils.exists(f"{output}_{i}"):
                     i += 1
 
-                output_file += f"_{i}"
+                output += f"_{i}"
 
             try:
                 FileUtils.create_dir(directory_path)
             except Exception:
-                output.error(
+                interface.error(
                     f"Couldn't create the reports folder at {directory_path}"
                 )
                 exit(1)
 
-        if not output_file:
+        if not output:
             return
 
         if options["output_format"] == "plain":
-            self.report = PlainTextReport(output_file)
+            self.report = PlainTextReport(output)
         elif options["output_format"] == "json":
-            self.report = JSONReport(output_file)
+            self.report = JSONReport(output)
         elif options["output_format"] == "xml":
-            self.report = XMLReport(output_file)
+            self.report = XMLReport(output)
         elif options["output_format"] == "md":
-            self.report = MarkdownReport(output_file)
+            self.report = MarkdownReport(output)
         elif options["output_format"] == "csv":
-            self.report = CSVReport(output_file)
+            self.report = CSVReport(output)
         elif options["output_format"] == "html":
-            self.report = HTMLReport(output_file)
+            self.report = HTMLReport(output)
         elif options["output_format"] == "sqlite":
-            self.report = SQLiteReport(output_file)
+            self.report = SQLiteReport(output)
+        elif options["output_format"] == "mysql":
+            self.report = MySQLReport(output)
+        elif options["output_format"] == "postgresql":
+            self.report = PostgreSQLReport(output)
         else:
-            self.report = SimpleReport(output_file)
+            self.report = SimpleReport(output)
 
-        output.output_file(output_file)
+        interface.output_location(output)
 
     def reset_consecutive_errors(self, response):
         self.consecutive_errors = 0
@@ -423,7 +439,7 @@ class Controller:
                 f"Skipped the target due to {response.status} status code"
             )
 
-        output.status_report(response, options["full_url"])
+        interface.status_report(response, options["full_url"])
 
         if response.status in options["recursion_status_codes"] and any(
             (
@@ -442,7 +458,7 @@ class Controller:
                 added_to_queue = self.recur(response.path)
 
             if added_to_queue:
-                output.new_directories(added_to_queue)
+                interface.new_directories(added_to_queue)
 
         if options["replay_proxy"]:
             # Replay the request with new proxy
@@ -455,14 +471,14 @@ class Controller:
     def update_progress_bar(self, response):
         jobs_count = (
             # Jobs left for unscanned targets
-            len(options["subdirs"]) * (len(self.targets) - 1)
+            len(options["subdirs"]) * (len(options["urls"]) - 1)
             # Jobs left for the current target
             + len(self.directories)
             # Finished jobs
             + self.jobs_processed
         )
 
-        output.last_path(
+        interface.last_path(
             self.dictionary.index,
             len(self.dictionary),
             self.jobs_processed + 1,
@@ -485,7 +501,7 @@ class Controller:
         logger.exception(exception)
 
     def handle_pause(self):
-        output.warning(
+        interface.warning(
             "CTRL+C detected: Pausing threads, please wait...", do_save=False
         )
         self.fuzzer.pause()
@@ -504,22 +520,22 @@ class Controller:
             if len(self.directories) > 1:
                 msg += " / [n]ext"
 
-            if len(self.targets) > 1:
+            if len(options["urls"]) > 1:
                 msg += " / [s]kip target"
 
-            output.in_line(msg + ": ")
+            interface.in_line(msg + ": ")
 
             option = input()
 
             if option.lower() == "q":
-                output.in_line("[s]ave / [q]uit without saving: ")
+                interface.in_line("[s]ave / [q]uit without saving: ")
 
                 option = input()
 
                 if option.lower() == "s":
                     msg = f'Save to file [{options["session_file"] or DEFAULT_SESSION_FILE}]: '
 
-                    output.in_line(msg)
+                    interface.in_line(msg)
 
                     session_file = (
                         input() or options["session_file"] or DEFAULT_SESSION_FILE
@@ -538,7 +554,7 @@ class Controller:
                 self.fuzzer.stop()
                 return
 
-            elif option.lower() == "s" and len(self.targets) > 1:
+            elif option.lower() == "s" and len(options["urls"]) > 1:
                 raise SkipTargetInterrupt("Target skipped by the user")
 
     def is_timed_out(self):

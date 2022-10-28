@@ -3,6 +3,5 @@ __pycache__/
 *.py[cod]
 *.py.save
 *$py.class
-default.conf
 .idea/
 .ropeproject/
