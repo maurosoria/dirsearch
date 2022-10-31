@@ -21,7 +21,6 @@ import sys
 
 from lib.core.settings import NEW_LINE
 from lib.reports.base import FileBaseReport
-from lib.utils.common import human_size
 
 
 class PlainTextReport(FileBaseReport):
@@ -32,11 +31,12 @@ class PlainTextReport(FileBaseReport):
         output = self.get_header()
 
         for entry in entries:
-            readable_size = human_size(entry.length)
-            output += f"{entry.status}  {readable_size.rjust(6, chr(32))}  {entry.url}"
+            output += f"URL: {entry.url} | Status: {entry.status} | Size: {entry.length}"
 
+            if entry.type:
+                output += f" | Content-Type: {entry.type}"
             if entry.redirect:
-                output += f"    -> REDIRECTS TO: {entry.redirect}"
+                output += f" | Redirection: {entry.redirect}"
 
             output += NEW_LINE
 

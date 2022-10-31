@@ -23,7 +23,6 @@ import time
 from jinja2 import Environment, FileSystemLoader
 
 from lib.reports.base import FileBaseReport
-from lib.utils.common import human_size
 
 
 class HTMLReport(FileBaseReport):
@@ -50,7 +49,7 @@ class HTMLReport(FileBaseReport):
                     "url": entry.url,
                     "status": entry.status,
                     "statusColorClass": status_color_class,
-                    "contentLength": human_size(entry.length),
+                    "contentLength": entry.length,
                     "contentType": entry.type,
                     "redirect": entry.redirect,
                 }

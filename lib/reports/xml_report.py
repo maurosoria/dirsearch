@@ -35,8 +35,7 @@ class XMLReport(FileBaseReport):
             ET.SubElement(target, "status").text = str(entry.status)
             ET.SubElement(target, "contentLength").text = str(entry.length)
             ET.SubElement(target, "contentType").text = entry.type
-            if entry.redirect:
-                ET.SubElement(target, "redirect").text = entry.redirect
+            ET.SubElement(target, "redirect").text = entry.redirect
 
         output = ET.tostring(tree, encoding=DEFAULT_ENCODING, method="xml")
         # Beautify XML output
