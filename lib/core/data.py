@@ -19,7 +19,7 @@
 blacklists = {}
 options = {
     "urls": [],
-    "url_file": None,
+    "urls_file": None,
     "stdin_urls": None,
     "cidr": None,
     "raw_file": None,
@@ -59,7 +59,7 @@ options = {
     "data": None,
     "data_file": None,
     "headers": {},
-    "header_file": None,
+    "headers_file": None,
     "follow_redirects": False,
     "random_agents": False,
     "auth": None,
@@ -71,7 +71,7 @@ options = {
     "timeout": 10,
     "delay": 0.0,
     "proxies": [],
-    "proxy_file": None,
+    "proxies_file": None,
     "proxy_auth": None,
     "replay_proxy": None,
     "tor": None,

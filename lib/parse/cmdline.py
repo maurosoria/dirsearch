@@ -42,9 +42,9 @@ def parse_arguments():
     )
     mandatory.add_option(
         "-l",
-        "--url-file",
+        "--urls-file",
         action="store",
-        dest="url_file",
+        dest="urls_file",
         metavar="PATH",
         help="URL list file",
     )
@@ -327,8 +327,8 @@ def parse_arguments():
         help="HTTP request header, can use multiple flags",
     )
     request.add_option(
-        "--header-file",
-        dest="header_file",
+        "--headers-file",
+        dest="headers_file",
         metavar="PATH",
         help="File contains HTTP request headers",
     )
@@ -393,6 +393,7 @@ def parse_arguments():
         help="Delay between requests",
     )
     connection.add_option(
+        "-p",
         "--proxy",
         action="append",
         dest="proxies",
@@ -400,9 +401,9 @@ def parse_arguments():
         help="Proxy URL (HTTP/SOCKS), can use multiple flags",
     )
     connection.add_option(
-        "--proxy-file",
+        "--proxies-file",
         action="store",
-        dest="proxy_file",
+        dest="proxies_file",
         metavar="PATH",
         help="File contains proxy servers",
     )

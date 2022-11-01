@@ -17,49 +17,64 @@
 #  Author: Mauro Soria
 
 import configparser
+import json
 
 
 class ConfigParser(configparser.ConfigParser):
     def safe_get(self, section, option, default=None, allowed=None):
         try:
-            result = super().get(section, option)
+            value = super().get(section, option)
 
-            if allowed is not None:
-                return result if result in allowed else default
+            if allowed and value not in allowed:
+                return default
 
-            return result
+            return value
         except (configparser.NoSectionError, configparser.NoOptionError):
             return default
 
     def safe_getfloat(self, section, option, default=0, allowed=None):
         try:
-            result = super().getfloat(section, option)
+            value = super().getfloat(section, option)
 
-            if allowed is not None:
-                return result if result in allowed else default
+            if allowed and value not in allowed:
+                return default
 
-            return result
+            return value
         except (configparser.NoSectionError, configparser.NoOptionError):
             return default
 
     def safe_getboolean(self, section, option, default=False, allowed=None):
         try:
-            result = super().getboolean(section, option)
+            value = super().getboolean(section, option)
 
-            if allowed is not None:
-                return result if result in allowed else default
+            if allowed and value not in allowed:
+                return default
 
-            return result
+            return value
         except (configparser.NoSectionError, configparser.NoOptionError):
             return default
 
     def safe_getint(self, section, option, default=0, allowed=None):
         try:
-            result = super().getint(section, option)
+            value = super().getint(section, option)
 
-            if allowed is not None:
-                return result if result in allowed else default
+            if allowed and value not in allowed:
+                return default
 
-            return result
+            return value
+        except (configparser.NoSectionError, configparser.NoOptionError):
+            return default
+
+    def safe_getlist(self, section, option, default=[], allowed=None):
+        try:
+            try:
+                value = json.loads(super().get(section, option))
+            except json.decoder.JSONDecodeError:
+                value = [super().get(section, option)]
+
+            if allowed and set(value) - set(allowed):
+                return default
+
+            return value
         except (configparser.NoSectionError, configparser.NoOptionError):
             return default
