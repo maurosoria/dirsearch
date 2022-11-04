@@ -4535,6 +4535,7 @@ ecf/
 echo
 ecosystem.json
 ecp/
+ecrire/
 edit
 edit-course
 edit.php
@@ -4608,6 +4609,7 @@ english
 enteradmin
 enterprise
 entertainment
+entrypoint.sh
 env
 env.bak/
 env.js
@@ -4615,7 +4617,6 @@ env.json
 env.list
 ENV/
 env/
-entrypoint.sh
 environment.rb
 epsadmin
 erl_crash.dump
@@ -7790,6 +7791,7 @@ setup.sql
 setup/
 sfsites/aura
 sftp-config.json
+sh.sh
 Sh3ll.php
 share
 share/
@@ -7803,7 +7805,6 @@ shell.php
 shell.sh
 shell/
 shellz.php
-sh.sh
 shipping.%EXT%
 shop
 shop-admin
