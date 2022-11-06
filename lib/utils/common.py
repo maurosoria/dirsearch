@@ -109,11 +109,16 @@ def merge_path(url, path):
 
 # Reference: https://stackoverflow.com/questions/46129898/conflict-between-sys-stdin-and-input-eoferror-eof-when-reading-a-line
 def read_stdin():
-    if IS_WINDOWS:
-        tty = "CON:"
-    else:
-        tty = os.ttyname(sys.stdout.fileno())
-
     buffer = sys.stdin.read()
-    sys.stdin = open(tty)
+
+    try:
+        if IS_WINDOWS:
+            tty = "CON:"
+        else:
+            tty = os.ttyname(sys.stdout.fileno())
+
+        sys.stdin = open(tty)
+    except OSError:
+        pass
+
     return buffer
