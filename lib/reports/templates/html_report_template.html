@@ -4,17 +4,49 @@
 <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
 <meta content="utf-8" http-equiv="encoding">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<title>dirsearch report</title>
+<style>
+* {
+  color: #eef1f3;
+}
+th.active .arrow {
+  opacity: 1;
+}
+.arrow {
+  display: inline-block;
+  vertical-align: middle;
+  width: 0;
+  height: 0;
+  margin-left: 5px;
+  opacity: 0.66;
+}
+.arrow.none {
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-bottom: 4px solid #82b983;
+}
+.arrow.asc {
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-bottom: 4px solid #42b983;
+}
+.arrow.dsc {
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 4px solid #42b983;
+}
+</style>
 <script src="https://cdn.jsdelivr.net/npm/vue@2.6.12/dist/vue.js" integrity="sha384-ma9ivURrHX5VOB4tNq+UiGNkJoANH4EAJmhxd1mmDq0gKOv88wkKZOfRDOpXynwh" crossorigin="anonymous"></script>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-wEmeIV1mKuiNpC+IOBjI7aAzPcEZeedi5yW5f2yOq55WWLwNGmvvx4Um1vskeMj0" crossorigin="anonymous">
 <script>
 function openURLs(){
-  var table = document.getElementsByClassName("table")[0];
-  for (let row of table.rows) {
+    var table = document.getElementsByClassName("table")[0];
+    for (let row of table.rows) {
       let val = row.cells[0].innerText;
       if (val == "URL" || val == null)
         continue;
       window.open(val, '_blank');
-  }
+    }
 }
 function search(app, result) {
     return app.searchQuery.toLowerCase().split(" ").every(
@@ -32,20 +64,42 @@ function statusExcludeSearch(app, result){
 }
 function lengthExcludeSearch(app, result){
     return app.lengthExcludeSearchQuery.toLowerCase().split(" ").every(
-      (v) => !result.contentLength.toLowerCase().includes(v)
+      (v) => !result.contentLength.toLowerCase() != v
     );
 }
+function sort(app, results){
+    if(app.sortColumn == null){
+      return results
+    }
+
+    return results.sort(function(a, b){
+      if(a[app.sortColumn.name] < b[app.sortColumn.name]){
+        return -1 * app.sortColumn.order;
+      }
+      if(a[app.sortColumn.name] > b[app.sortColumn.name]){
+        return 1 * app.sortColumn.order;
+      }
+      return 0
+    });
+}
+
 window.onload = function () {
     var app = new Vue({
       el: '#app',
       delimiters: ['[[', ']]'],
-      data() {
-        return {
-            lengthExcludeSearchQuery: null,
-            statusExcludeSearchQuery: null,
-            searchQuery: null,
-            resources: {{ results | tojson }}
-        };
+      data: {
+        lengthExcludeSearchQuery: null,
+        statusExcludeSearchQuery: null,
+        searchQuery: null,
+        resources: {{ results | tojson }},
+        sortColumn: null,
+        columns: [
+          {name: 'url', text: 'URL', order: -1},
+          {name: 'status', text: 'Status', order: -1},
+          {name: 'contentLength', text: 'Content Length', order: -1},
+          {name: 'contentType', text: 'Content Type', order: -1},
+          {name: 'redirect', text: 'Redirect', order: -1},
+        ]
       },
       methods: {
         urlJoin: function(url, redirect){
@@ -53,53 +107,25 @@ window.onload = function () {
         }
       },
       computed: {
-        resultQuery(){
-          var arr = null;
+        resultQuery: function(){
+          arr = this.resources
           if(this.searchQuery){
-            arr = this.resources.filter((result)=>{
+            arr = arr.filter((result)=>{
               return search(this, result)
-            });
-            
-            if(!this.statusExcludeSearchQuery && !this.lengthExcludeSearchQuery)
-              return arr;
+            });            
           }
           if(this.statusExcludeSearchQuery){
-            var arrStatusExcluded = null;
-            if(arr){
-              arrStatusExcluded = arr.filter((result)=>{
-                return statusExcludeSearch(this, result)
-              });
-              if(!this.lengthExcludeSearchQuery)
-                return arrStatusExcluded;
-            }
-            else{
-              arrStatusExcluded = this.resources.filter((result)=>{
-                return statusExcludeSearch(this, result)
-              });
-              if(!this.lengthExcludeSearchQuery)
-                return arrStatusExcluded; 
-            }
+            arr = arr.filter((result)=>{
+              return statusExcludeSearch(this, result)
+            });
           }
           if(this.lengthExcludeSearchQuery){
-            if(arrStatusExcluded){
-              return arrStatusExcluded.filter((result)=>{
-                return lengthExcludeSearch(this, result)
-              })
-            }
-            else if(arr){
-              return arr.filter((result)=>{
-                return lengthExcludeSearch(this, result)
-              })
-            }
-            else{
-              return this.resources.filter((result)=>{
-                return lengthExcludeSearch(this, result)
-              })  
-            }
+            arr = arr.filter((result)=>{
+              return lengthExcludeSearch(this, result)
+            });
           }
-          else{
-            return this.resources;
-          }
+
+          return sort(this, arr);
         }
       }
     });
@@ -117,8 +143,9 @@ window.onload = function () {
             <br>
             <div class="w-75 p-3 mx-auto">
                 <span style="color: #eef1f3;">
-                    <!-- Prevent Vue.js client-side template injection. Reference: https://portswigger.net/web-security/cross-site-scripting/cheat-sheet#vuejs-reflected -->
-                    <strong>Command:</strong> <code style="display:inline;background-color:#5C6060;color:#F7F9F9;border-radius:4px;">{{ metadata['command'] | e | replace('[', '<code>[</code>') }}</code>
+                    <strong>Command: </strong>
+                        <!-- Prevent Vue.js client-side template injection. Reference: https://portswigger.net/web-security/cross-site-scripting/cheat-sheet#vuejs-reflected -->
+                        <code style="display:inline;background-color:#5C6060;color:#F7F9F9;border-radius:4px;">{{ metadata['command'] | e | replace('[', '<code>[</code>') }}</code>
                     <br>
                     <strong>Time:</strong> <p style="display:inline;">{{ metadata['date'] | e }}</p>
                     <br>
@@ -132,7 +159,7 @@ window.onload = function () {
                         <input class="form-control" type="text" v-model="lengthExcludeSearchQuery" placeholder="Exclude content lengths, separated by space" />
                     </div>
                     <div class="col-sm-4">
-                      <button onclick="openURLs()" type="button" class="btn btn-danger">Open URLs</button>
+                      <button onclick="openURLs()" type="button" class="btn btn-danger">Open all URLs</button>
                     </div>
                     <br>
                     <br>
@@ -144,19 +171,19 @@ window.onload = function () {
                 <div class="table-responsive">
                     <table v-if="resources.length" class="table">
                         <tbody>
-                            <tr style="color: aliceblue;">
-                                <th>URL</th>
-                                <th>Status</th>
-                                <th>Content Length</th>
-                                <th>Content Type</th>
-                                <th>Redirect</th>
+                            <tr>
+                                <th v-for="column in columns" @click="sortColumn = column; column.order = column.order * -1" :class="{active: column == sortColumn}" style="cursor:context-menu">
+                                    [[column.text]]
+                                    <span v-bind:class="['arrow', sortColumn != column ? 'none' : column.order > 0 ? 'asc' : 'dsc']"></span>
+                                </th>
                             </tr>
                             <tr v-for="result in resultQuery">
-                                <td><a class="text-decoration-none" v-bind:class="result.statusColorClass" v-bind:href="result.url" target="_blank">[[result.url]]</a></td>
-                                <td><a class="text-decoration-none" v-bind:class="result.statusColorClass" target="_blank">[[result.status]]</a></td>
-                                <td style="color: aliceblue;"><a target="_blank">[[result.contentLength]]</a></td>
-                                <td style="color: aliceblue;"><a target="_blank">[[result.contentType]]</a></td>
-                                <td><a class="text-decoration-none" v-bind:href="urlJoin(result.url, result.redirect)" target="_blank">[[result.redirect]]</a></td>
+                                <td><a v-bind:class="result.statusColorClass" v-bind:href="result.url" class="text-decoration-none" target="_blank">[[result.url]]</a></td>
+                                <td><a v-bind:class="result.statusColorClass" class="text-decoration-none" target="_blank">[[result.status]]</a></td>
+                                <td><a target="_blank">[[result.contentLength]]</a></td>
+                                <td><a target="_blank">[[result.contentType]]</a></td>
+                                <!-- If you remove the "style" attribute, the redirect URL will be colored, it's a weird bug that I haven't figured out yet -->
+                                <td><a :href="urlJoin(result.url, result.redirect)" target="_blank" style="color: #eef1f3;">[[result.redirect]]</a></td>
                             </tr>
                         </tbody>
                     </table>
