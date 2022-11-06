@@ -27,7 +27,6 @@ from lib.core.scanner import Scanner
 from lib.core.settings import (
     DEFAULT_TEST_PREFIXES,
     DEFAULT_TEST_SUFFIXES,
-    THREAD_WAITING_TIMEOUT,
     WILDCARD_TEST_POINT_MARKER,
 )
 from lib.parse.url import clean_path
@@ -140,7 +139,7 @@ class Fuzzer:
         # Wait for all threads to stop
         for thread in self._threads:
             if thread.is_alive():
-                self._pause_semaphore.acquire(THREAD_WAITING_TIMEOUT)
+                self._pause_semaphore.acquire()
 
     def quit(self):
         self._quit_event.set()
@@ -249,6 +248,8 @@ class Fuzzer:
                 continue
 
             finally:
+                time.sleep(options["delay"])
+
                 if not self._play_event.is_set():
                     logger.info(f'THREAD-{threading.get_ident()} paused"')
                     self._pause_semaphore.release()
@@ -257,5 +258,3 @@ class Fuzzer:
 
                 if self._quit_event.is_set():
                     break
-
-                time.sleep(options["delay"])

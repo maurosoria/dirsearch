@@ -45,7 +45,6 @@ from lib.core.settings import (
     EXTENSION_RECOGNITION_REGEX,
     MAX_CONSECUTIVE_REQUEST_ERRORS,
     NEW_LINE,
-    REFRESH_RATE,
     SCRIPT_PATH,
     STANDARD_PORTS,
     UNKNOWN,
@@ -544,8 +543,6 @@ class Controller:
                         raise SkipTargetInterrupt(
                             "Runtime exceeded the maximum set by the user"
                         )
-
-                    time.sleep(REFRESH_RATE)
 
                 break
 
