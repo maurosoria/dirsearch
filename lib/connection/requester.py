@@ -100,7 +100,7 @@ class Requester:
         self.headers[key] = value.lstrip()
 
     def set_auth(self, type, credential):
-        if type in ("bearer", "jwt", "oath2"):
+        if type in ("bearer", "jwt"):
             self.session.auth = HTTPBearerAuth(credential)
         else:
             try:
