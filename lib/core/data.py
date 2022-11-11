@@ -25,7 +25,7 @@ options = {
     "raw_file": None,
     "session_file": None,
     "config": None,
-    "wordlists": (),
+    "wordlists": [],
     "extensions": (),
     "force_extensions": False,
     "overwrite_extensions": False,

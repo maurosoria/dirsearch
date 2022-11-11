@@ -120,8 +120,6 @@ TEST_PATH_LENGTH = 6
 
 MAX_CONSECUTIVE_REQUEST_ERRORS = 75
 
-PAUSING_WAIT_TIMEOUT = 7
-
 URL_SAFE_CHARS = string.punctuation
 
 TEXT_CHARS = bytearray({7, 8, 9, 10, 12, 13, 27} | set(range(0x20, 0x100)) - {0x7F})

@@ -4535,6 +4535,7 @@ ecf/
 echo
 ecosystem.json
 ecp/
+ecrire/
 edit
 edit-course
 edit.php
@@ -4608,6 +4609,7 @@ english
 enteradmin
 enterprise
 entertainment
+entrypoint.sh
 env
 env.bak/
 env.js
@@ -7789,6 +7791,7 @@ setup.sql
 setup/
 sfsites/aura
 sftp-config.json
+sh.sh
 Sh3ll.php
 share
 share/
