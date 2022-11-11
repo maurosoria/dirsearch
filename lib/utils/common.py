@@ -16,13 +16,21 @@
 #
 #  Author: Mauro Soria
 
+import os
+
 from ipaddress import IPv4Network, IPv6Network
 from urllib.parse import quote, urljoin
 
 from lib.core.settings import (
     INVALID_CHARS_FOR_WINDOWS_FILENAME, INSECURE_CSV_CHARS,
-    INVALID_FILENAME_CHAR_REPLACEMENT, URL_SAFE_CHARS, TEXT_CHARS,
+    INVALID_FILENAME_CHAR_REPLACEMENT, SCRIPT_PATH, TEXT_CHARS,
+    URL_SAFE_CHARS,
 )
+from lib.utils.file import FileUtils
+
+
+def get_config_file():
+    return os.environ.get("DIRSEARCH_CONFIG") or FileUtils.build_path(SCRIPT_PATH, "config.ini")
 
 
 def safequote(string_):

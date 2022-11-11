@@ -127,17 +127,18 @@ Options:
   -h, --help            show this help message and exit
 
   Mandatory:
-    -u URL, --url=URL   Target URL(s), support multiple flags
+    -u URL, --url=URL   Target URL(s), can use multiple flags
     -l PATH, --url-file=PATH
                         URL list file
     --stdin             Read URL(s) from STDIN
     --cidr=CIDR         Target CIDR
-    --raw=PATH          Load raw HTTP request from file (use `--scheme` flag
+    --raw=PATH          Load raw HTTP request from file (use '--scheme' flag
                         to set the scheme)
     -s SESSION_FILE, --session=SESSION_FILE
                         Session file
-    --config=PATH       Full path to config file, see 'config.ini' for
-                        example (Default: config.ini)
+    --config=PATH       Path to configuration file (Default:
+                        'DIRSEARCH_CONFIG' environment variable, otherwise
+                        'config.ini')
 
   Dictionary Settings:
     -w WORDLISTS, --wordlists=WORDLISTS
@@ -194,11 +195,10 @@ Options:
     --exclude-sizes=SIZES
                         Exclude responses by sizes, separated by commas (e.g.
                         0B,4KB)
-    --exclude-texts=TEXTS
-                        Exclude responses by texts, separated by commas (e.g.
-                        'Not found', 'Error')
+    --exclude-text=TEXTS
+                        Exclude responses by text, can use multiple flags
     --exclude-regex=REGEX
-                        Exclude responses by regex (e.g. '^Error$')
+                        Exclude responses by regular expression
     --exclude-redirect=STRING
                         Exclude responses if this regex (or text) matches
                         redirect URL (e.g. '/index.html')
@@ -213,6 +213,7 @@ Options:
     --max-response-size=LENGTH
                         Maximum response length
     --max-time=SECONDS  Maximum runtime for the scan
+    --exit-on-error     Exit whenever an error occurs
 
   Request Settings:
     -m METHOD, --http-method=METHOD
@@ -221,7 +222,7 @@ Options:
                         HTTP request data
     --data-file=PATH    File contains HTTP request data
     -H HEADERS, --header=HEADERS
-                        HTTP request header, support multiple flags
+                        HTTP request header, can use multiple flags
     --header-file=PATH  File contains HTTP request headers
     -F, --follow-redirects
                         Follow HTTP redirects
@@ -233,14 +234,13 @@ Options:
     --cert-file=PATH    File contains client-side certificate
     --key-file=PATH     File contains client-side certificate private key
                         (unencrypted)
-    --user-agent=USERAGENT
+    --user-agent=USER_AGENT
     --cookie=COOKIE
 
   Connection Settings:
     --timeout=TIMEOUT   Connection timeout
     --delay=DELAY       Delay between requests
-    --proxy=PROXY       Proxy URL, support HTTP and SOCKS proxies (e.g.
-                        localhost:8080, socks5://localhost:8088)
+    --proxy=PROXY       Proxy URL (HTTP/SOCKS), can use multiple flags
     --proxy-file=PATH   File contains proxy servers
     --proxy-auth=CREDENTIAL
                         Proxy authentication credential
@@ -252,7 +252,6 @@ Options:
     --max-rate=RATE     Max requests per second
     --retries=RETRIES   Number of retries for failed requests
     --ip=IP             Server IP address
-    --exit-on-error     Exit whenever an error occurs
 
   Advanced Settings:
     --crawl             Crawl for new paths in responses
@@ -277,7 +276,7 @@ Options:
 Configuration
 ---------------
 
-Default values for dirsearch flags can be edited in the configuration file, by default is `config.ini` but you can select another file with the `--config` flag
+By default, `config.ini` inside your dirsearch directory is used as the configuration file but you can select another file via `--config` flag or `DIRSEARCH_CONFIG` environment variable.
 
 ```ini
 # If you want to edit dirsearch default configurations, you can
@@ -294,11 +293,12 @@ max-recursion-depth = 0
 exclude-subdirs = %%ff/,.;/,..;/,;/,./,../,%%2e/,%%2e%%2e/
 random-user-agents = False
 max-time = 0
+exit-on-error = False
 # subdirs = /,api/
 # include-status = 200-299,401
 # exclude-status = 400,500-999
 # exclude-sizes = 0b,123gb
-# exclude-texts = "Not found"
+# exclude-text = "Not found"
 # exclude-regex = "^403$"
 # exclude-redirect = "*/error.html"
 # exclude-response = 404.html
@@ -317,7 +317,7 @@ capitalization = False
 # wordlists = /path/to/wordlist1.txt,/path/to/wordlist2.txt
 
 [request]
-httpmethod = get
+http-method = get
 follow-redirects = False
 # headers-file = /path/to/headers.txt
 # user-agent = MyUserAgent
@@ -328,7 +328,6 @@ timeout = 7.5
 delay = 0
 max-rate = 0
 max-retries = 1
-exit-on-error = False
 ## By disabling `scheme` variable, dirsearch will automatically identify the URI scheme
 # scheme = http
 # proxy = localhost:8080
@@ -348,8 +347,9 @@ show-redirects-history = False
 ## Support: plain, simple, json, xml, md, csv, html, sqlite
 report-format = plain
 autosave-report = True
+autosave-report-folder = reports/
 # log-file = /path/to/dirsearch.log
-# report-output-folder = /path/to/reports
+# log-file-size = 50000000
 ```
 
 
