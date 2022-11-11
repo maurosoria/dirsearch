@@ -82,12 +82,13 @@ class FileUtils:
                 pass
         except IOError:
             return False
+
         return True
 
-    @staticmethod
-    def can_write(path):
-        while not FileUtils.is_dir(path):
-            path = FileUtils.parent(path)
+    @classmethod
+    def can_write(cls, path):
+        while not cls.exists(path):
+            path = cls.parent(path)
 
         return os.access(path, os.W_OK)
 
@@ -95,14 +96,18 @@ class FileUtils:
     def read(file_name):
         return open(file_name, "r").read()
 
-    @staticmethod
-    def read_dir(directory):
-        data = {}
-        for root, _, files in os.walk(directory):
-            for file in files:
-                data[file] = FileUtils.read(os.path.join(root, file))
+    @classmethod
+    def get_files(cls, directory):
+        files = []
 
-        return data
+        for path in os.listdir(directory):
+            path = os.path.join(directory, path)
+            if cls.is_dir(path):
+                files.extend(cls.get_files(path))
+            else:
+                files.append(path)
+
+        return files
 
     @staticmethod
     def get_lines(file_name):
@@ -124,14 +129,10 @@ class FileUtils:
 
         return path
 
-    @staticmethod
-    def create_dir(directory):
-        if not FileUtils.exists(directory):
+    @classmethod
+    def create_dir(cls, directory):
+        if not cls.exists(directory):
             os.makedirs(directory)
-
-    @staticmethod
-    def create_file(file):
-        open(file, "w").close()
 
     @staticmethod
     def write_lines(file_name, lines, overwrite=False):

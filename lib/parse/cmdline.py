@@ -75,7 +75,7 @@ def parse_arguments():
         "--wordlists",
         action="store",
         dest="wordlists",
-        help="Customize wordlists (separated by commas)",
+        help="Wordlist files or directories contain wordlists (separated by commas)",
     )
     dictionary.add_option(
         "-e",
