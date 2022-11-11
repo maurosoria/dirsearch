@@ -47,7 +47,6 @@ from lib.core.settings import (
     NEW_LINE,
     SCRIPT_PATH,
     STANDARD_PORTS,
-    PAUSING_WAIT_TIMEOUT,
     UNKNOWN,
 )
 from lib.parse.rawrequest import parse_raw
@@ -490,14 +489,6 @@ class Controller:
         )
         self.fuzzer.pause()
 
-        start_time = time.time()
-        while True:
-            is_timed_out = time.time() - start_time > PAUSING_WAIT_TIMEOUT
-            if self.fuzzer.is_stopped() or is_timed_out:
-                break
-
-            time.sleep(0.2)
-
         while True:
             msg = "[q]uit / [c]ontinue"
 
@@ -531,12 +522,12 @@ class Controller:
                     raise QuitInterrupt("Canceled by the user")
 
             elif option.lower() == "c":
-                self.fuzzer.resume()
-                return
+                self.fuzzer.play()
+                break
 
             elif option.lower() == "n" and len(self.directories) > 1:
-                self.fuzzer.stop()
-                return
+                self.fuzzer.quit()
+                break
 
             elif option.lower() == "s" and len(self.targets) > 1:
                 raise SkipTargetInterrupt("Target skipped by the user")
@@ -547,7 +538,7 @@ class Controller:
     def process(self):
         while True:
             try:
-                while not self.fuzzer.wait(0.25):
+                while not self.fuzzer.is_finished():
                     if self.is_timed_out():
                         raise SkipTargetInterrupt(
                             "Runtime exceeded the maximum set by the user"
