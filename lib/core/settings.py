@@ -56,7 +56,7 @@ CRAWL_ATTRIBUTES = ("action", "cite", "data", "formaction", "href", "longdesc", 
 
 CRAWL_TAGS = ("a", "area", "base", "blockquote", "button", "embed", "form", "frame", "frameset", "html", "iframe", "input", "ins", "noframes", "object", "q", "script", "source")
 
-AUTHENTICATION_TYPES = ("basic", "digest", "bearer", "ntlm", "jwt", "oauth2")
+AUTHENTICATION_TYPES = ("basic", "digest", "bearer", "ntlm", "jwt")
 
 PROXY_SCHEMES = ("http://", "https://", "socks5://", "socks5h://", "socks4://", "socks4a://")
 
@@ -119,8 +119,6 @@ MAX_RESPONSE_SIZE = 80 * 1024 * 1024
 TEST_PATH_LENGTH = 6
 
 MAX_CONSECUTIVE_REQUEST_ERRORS = 75
-
-PAUSING_WAIT_TIMEOUT = 7
 
 URL_SAFE_CHARS = string.punctuation
 

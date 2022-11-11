@@ -61,10 +61,14 @@ def parse_options():
         print("No wordlist was provided, try using -w <wordlist>")
         exit(1)
 
-    opt.wordlists = tuple(wordlist.strip() for wordlist in opt.wordlists.split(","))
+    opt.wordlists = [wordlist.strip() for wordlist in opt.wordlists.split(",")]
 
-    for dict_file in opt.wordlists:
-        _access_file(dict_file)
+    for wordlist in opt.wordlists:
+        if FileUtils.is_dir(wordlist):
+            opt.wordlists.remove(wordlist)
+            opt.wordlists.extend(FileUtils.get_files(wordlist))
+        else:
+            _access_file(wordlist)
 
     if opt.thread_count < 1:
         print("Threads number must be greater than zero")
