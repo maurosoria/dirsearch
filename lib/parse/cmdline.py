@@ -22,10 +22,8 @@ from optparse import OptionParser, OptionGroup
 from lib.core.settings import (
     AUTHENTICATION_TYPES,
     OUTPUT_FORMATS,
-    SCRIPT_PATH,
     VERSION,
 )
-from lib.utils.file import FileUtils
 from lib.utils.common import get_config_file
 
 
