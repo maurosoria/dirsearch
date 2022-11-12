@@ -26,7 +26,7 @@ import time
 
 from requests.adapters import HTTPAdapter
 from requests.auth import AuthBase, HTTPBasicAuth, HTTPDigestAuth
-from requests.packages.urllib3 import disable_warnings
+from requests.packages import urllib3
 from requests_ntlm import HttpNtlmAuth
 from urllib.parse import urlparse
 
@@ -48,7 +48,7 @@ from lib.utils.file import FileUtils
 from lib.utils.mimetype import guess_mimetype
 
 # Disable InsecureRequestWarning from urllib3
-disable_warnings()
+urllib3.disable_warnings(urllib3.exceptions.SecurityWarning)
 # Use custom `socket.getaddrinfo` for `requests` which supports DNS caching
 socket.getaddrinfo = cached_getaddrinfo
 
