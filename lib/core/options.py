@@ -40,8 +40,8 @@ def parse_options():
 
     opt.http_method = opt.http_method.upper()
 
-    if opt.url_file:
-        fd = _access_file(opt.url_file)
+    if opt.urls_file:
+        fd = _access_file(opt.urls_file)
         opt.urls = fd.get_lines()
     elif opt.cidr:
         opt.urls = iprange(opt.cidr)
@@ -78,8 +78,8 @@ def parse_options():
 
     if opt.tor:
         opt.proxies = list(DEFAULT_TOR_PROXIES)
-    elif opt.proxy_file:
-        fd = _access_file(opt.proxy_file)
+    elif opt.proxies_file:
+        fd = _access_file(opt.proxies_file)
         opt.proxies = fd.get_lines()
 
     if opt.data_file:
@@ -94,9 +94,9 @@ def parse_options():
 
     headers = {}
 
-    if opt.header_file:
+    if opt.headers_file:
         try:
-            fd = _access_file(opt.header_file)
+            fd = _access_file(opt.headers_file)
             headers.update(dict(HeadersParser(fd.read())))
         except Exception as e:
             print("Error in headers file: " + str(e))
@@ -224,7 +224,7 @@ def parse_config(opt):
         "general", "exclude-status"
     )
     opt.exclude_sizes = opt.exclude_sizes or config.safe_get("general", "exclude-sizes", "")
-    opt.exclude_texts = opt.exclude_texts or list(config.safe_get("general", "exclude-text", []))
+    opt.exclude_texts = opt.exclude_texts or config.safe_getlist("general", "exclude-texts")
     opt.exclude_regex = opt.exclude_regex or config.safe_get("general", "exclude-regex")
     opt.exclude_redirect = opt.exclude_redirect or config.safe_get(
         "general", "exclude-redirect"
@@ -285,7 +285,8 @@ def parse_config(opt):
 
     # Request
     opt.http_method = opt.http_method or config.safe_get("request", "http-method", "get")
-    opt.header_file = opt.header_file or config.safe_get("request", "headers-file")
+    opt.headers = opt.headers or config.safe_getlist("request", "headers")
+    opt.headers_file = opt.headers_file or config.safe_get("request", "headers-file")
     opt.follow_redirects = opt.follow_redirects or config.safe_getboolean(
         "request", "follow-redirects"
     )
@@ -300,10 +301,10 @@ def parse_config(opt):
     opt.timeout = opt.timeout or config.safe_getfloat("connection", "timeout", 7.5)
     opt.max_retries = opt.max_retries or config.safe_getint("connection", "max-retries", 1)
     opt.max_rate = opt.max_rate or config.safe_getint("connection", "max-rate")
-    opt.proxies = opt.proxies or list(config.safe_get("connection", "proxy", []))
-    opt.proxy_file = opt.proxy_file or config.safe_get("connection", "proxy-file")
+    opt.proxies = opt.proxies or config.safe_getlist("connection", "proxies")
+    opt.proxies_file = opt.proxies_file or config.safe_get("connection", "proxies-file")
     opt.scheme = opt.scheme or config.safe_get(
-        "connection", "scheme", None, ["http", "https"]
+        "connection", "scheme", None, ("http", "https")
     )
     opt.replay_proxy = opt.replay_proxy or config.safe_get("connection", "replay-proxy")
 
