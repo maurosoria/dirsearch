@@ -18,7 +18,12 @@
 
 from optparse import OptionParser, OptionGroup
 
-from lib.core.settings import AUTHENTICATION_TYPES, VERSION
+
+from lib.core.settings import (
+    AUTHENTICATION_TYPES,
+    OUTPUT_FORMATS,
+    VERSION,
+)
 from lib.utils.common import get_config_file
 
 
@@ -482,16 +487,16 @@ def parse_arguments():
         "-o",
         "--output",
         action="store",
-        dest="output_file",
-        metavar="PATH",
-        help="Output file",
+        dest="output",
+        metavar="PATH/URL",
+        help="Output file or MySQL/PostgreSQL URL (Format: scheme://[username:password@]host[:port]/database-name)",
     )
     output.add_option(
         "--format",
         action="store",
         dest="output_format",
         metavar="FORMAT",
-        help="Report format (Available: simple, plain, json, xml, md, csv, html, sqlite)",
+        help=f"Report format (Available: {','.join(OUTPUT_FORMATS)})",
     )
     output.add_option(
         "--log", action="store", dest="log_file", metavar="PATH", help="Log file"

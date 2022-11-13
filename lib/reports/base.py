@@ -16,6 +16,8 @@
 #
 #  Author: Mauro Soria
 
+import time
+
 from lib.core.decorators import locked
 from lib.core.settings import IS_WINDOWS
 
@@ -29,6 +31,9 @@ class FileBaseReport:
 
         self.output_file = output_file
 
+    def generate(self, entries):
+        raise NotImplementedError
+
     @locked
     def save(self, entries):
         if not entries:
@@ -38,5 +43,57 @@ class FileBaseReport:
             fd.writelines(self.generate(entries))
             fd.flush()
 
-    def generate(self, entries):
+
+class SQLBaseReport:
+    def __init__(self, database):
+        self.conn = None
+        self.cursor = None
+
+        self.connect(database)
+
+    def connect(self, database):
         raise NotImplementedError
+
+    def drop_table_query(self, table):
+        return (f'DROP TABLE IF EXISTS "{table}"',)
+
+    def create_table_query(self, table):
+        return (f'''CREATE TABLE "{table}" (
+            time TIMESTAMP,
+            url TEXT,
+            status_code INTEGER,
+            content_length INTEGER,
+            content_type TEXT,
+            redirect TEXT
+        );''',)
+
+    def insert_table_query(self, table, values):
+        return (f'''INSERT INTO "{table}" (time, url, status_code, content_length, content_type, redirect)
+                    VALUES
+                    (%s, %s, %s, %s, %s, %s)''', (time.strftime("%Y-%m-%d %H:%M:%S"), *values))
+
+    def generate(self, entries):
+        queries = []
+        created_tables = []
+
+        for entry in entries:
+            host = entry.url.split("/")[2]
+            if host not in created_tables:
+                queries.append(self.drop_table_query(host))
+                queries.append(self.create_table_query(host))
+                created_tables.append(host)
+
+            queries.append(
+                self.insert_table_query(
+                    host, (entry.url, entry.status, entry.length, entry.type, entry.redirect)
+                )
+            )
+
+        return queries
+
+    @locked
+    def save(self, entries):
+        for query in self.generate(entries):
+            self.cursor.execute(*query)
+
+        self.conn.commit()

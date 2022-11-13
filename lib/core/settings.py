@@ -44,7 +44,7 @@ INVALID_CHARS_FOR_WINDOWS_FILENAME = ('"', "*", "<", ">", "?", "\\", "|", "/", "
 
 INVALID_FILENAME_CHAR_REPLACEMENT = "_"
 
-OUTPUT_FORMATS = ("simple", "plain", "json", "xml", "md", "csv", "html", "sqlite")
+OUTPUT_FORMATS = ("simple", "plain", "json", "xml", "md", "csv", "html", "sqlite", "mysql", "postgresql")
 
 COMMON_EXTENSIONS = ("php", "jsp", "asp", "aspx", "do", "action", "cgi", "html", "htm", "js", "tar.gz")
 

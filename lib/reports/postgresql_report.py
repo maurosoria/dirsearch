@@ -16,27 +16,16 @@
 #
 #  Author: Mauro Soria
 
-import sqlite3
+import psycopg
 
+from lib.core.exceptions import InvalidURLException
 from lib.reports.base import SQLBaseReport
 
 
-class SQLiteReport(SQLBaseReport):
-    def connect(self, output_file):
-        self.conn = sqlite3.connect(output_file, check_same_thread=False)
+class PostgreSQLReport(SQLBaseReport):
+    def connect(self, url):
+        if not url.startswith("postgresql://"):
+            raise InvalidURLException("Provided PostgreSQL URL does not start with postgresql://")
+
+        self.conn = psycopg.connect(url)
         self.cursor = self.conn.cursor()
-
-    def create_table_query(self, table):
-        return (f'''CREATE TABLE "{table}" (
-            time DATETIME DEFAULT CURRENT_TIMESTAMP,
-            url TEXT,
-            status_code INTEGER,
-            content_length INTEGER,
-            content_type TEXT,
-            redirect TEXT
-        );''',)
-
-    def insert_table_query(self, table, values):
-        return (f'''INSERT INTO "{table}" (url, status_code, content_length, content_type, redirect)
-                    VALUES
-                    (?, ?, ?, ?, ?)''', values)
