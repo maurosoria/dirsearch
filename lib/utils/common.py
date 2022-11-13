@@ -17,14 +17,19 @@
 #  Author: Mauro Soria
 
 import os
+import sys
 
 from ipaddress import IPv4Network, IPv6Network
 from urllib.parse import quote, urljoin
 
 from lib.core.settings import (
-    INVALID_CHARS_FOR_WINDOWS_FILENAME, INSECURE_CSV_CHARS,
-    INVALID_FILENAME_CHAR_REPLACEMENT, SCRIPT_PATH, TEXT_CHARS,
+    INVALID_CHARS_FOR_WINDOWS_FILENAME,
+    INSECURE_CSV_CHARS,
+    INVALID_FILENAME_CHAR_REPLACEMENT,
+    IS_WINDOWS,
     URL_SAFE_CHARS,
+    SCRIPT_PATH,
+    TEXT_CHARS,
 )
 from lib.utils.file import FileUtils
 
@@ -106,3 +111,20 @@ def merge_path(url, path):
     parts[-1] = path
 
     return "/".join(parts)
+
+
+# Reference: https://stackoverflow.com/questions/46129898/conflict-between-sys-stdin-and-input-eoferror-eof-when-reading-a-line
+def read_stdin():
+    buffer = sys.stdin.read()
+
+    try:
+        if IS_WINDOWS:
+            tty = "CON:"
+        else:
+            tty = os.ttyname(sys.stdout.fileno())
+
+        sys.stdin = open(tty)
+    except OSError:
+        pass
+
+    return buffer

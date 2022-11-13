@@ -16,8 +16,6 @@
 #
 #  Author: Mauro Soria
 
-import sys
-
 from lib.core.settings import (
     AUTHENTICATION_TYPES,
     COMMON_EXTENSIONS,
@@ -28,7 +26,7 @@ from lib.core.settings import (
 from lib.parse.cmdline import parse_arguments
 from lib.parse.config import ConfigParser
 from lib.parse.headers import HeadersParser
-from lib.utils.common import iprange, uniq
+from lib.utils.common import iprange, read_stdin, uniq
 from lib.utils.file import File, FileUtils
 
 
@@ -46,7 +44,7 @@ def parse_options():
     elif opt.cidr:
         opt.urls = iprange(opt.cidr)
     elif opt.stdin_urls:
-        opt.urls = sys.stdin.read().splitlines(0)
+        opt.urls = read_stdin().splitlines(0)
     elif opt.raw_file:
         _access_file(opt.raw_file)
     elif not opt.urls:
