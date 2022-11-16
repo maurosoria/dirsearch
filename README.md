@@ -386,10 +386,10 @@ dirsearch allows you to pause the scanning progress with CTRL+C, from here, you 
 ```
 python3 dirsearch.py -e php,html,js -u https://target -r
 ```
-- You can set the max recursion depth with **--recursion-depth**, and status codes to recurse with **--recursion-status**
+- You can set the max recursion depth with **--max-recursion-depth**, and status codes to recurse with **--recursion-status**
 
 ```
-python3 dirsearch.py -e php,html,js -u https://target -r --recursion-depth 3 --recursion-status 200-399
+python3 dirsearch.py -e php,html,js -u https://target -r --max-recursion-depth 3 --recursion-status 200-399
 ```
 - There are 2 more options: **--force-recursive** and **--deep-recursive**
   - **Force recursive**: Brute force recursively all found paths, not just paths end with `/`
