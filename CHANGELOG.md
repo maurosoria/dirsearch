@@ -1,6 +1,9 @@
 # Changelog
 
-## [Unreleased]
+## Unreleased
+
+## [0.4.4] - November 22, 2022
+- check pip installed or not during automatically Installing the required dependencies.
 
 ## [0.4.3] - October 2nd, 2022
 - Automatically detect the URI scheme (`http` or `https`) if no scheme is provided

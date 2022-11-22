@@ -24,7 +24,7 @@ from pkg_resources import DistributionNotFound, VersionConflict
 
 from lib.core.data import options
 from lib.core.exceptions import FailedDependenciesInstallation
-from lib.core.installation import check_dependencies, install_dependencies
+from lib.core.installation import check_dependencies, install_dependencies ,check_pip
 from lib.core.settings import OPTIONS_FILE
 from lib.parse.config import ConfigParser
 
@@ -45,11 +45,13 @@ def main():
                            "Do you want dirsearch to automatically install them? [Y/n] ")
 
             if option.lower() == 'y':
-                print("Installing required dependencies...")
-
-                try:
+                print("Checking pip...")
+                chk_p=check_pip()
+                if chk_p:
+                 print("Installing required dependencies...")
+                 try:
                     install_dependencies()
-                except FailedDependenciesInstallation:
+                 except FailedDependenciesInstallation:
                     print("Failed to install dirsearch dependencies, try doing it manually.")
                     exit(1)
             else:

@@ -70,6 +70,7 @@
 - [Weltolk](https://github.com/Weltolk)
 - [at0m](https://github.com/atomiczsec/)
 - [junmoka](https://github.com/junmoka)
+- [Vicky Aryan](https://github.com/pwnb0y)
 
 Special thanks to all the people who are named here!
 

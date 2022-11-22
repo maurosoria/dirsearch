@@ -40,7 +40,16 @@ def get_dependencies():
 def check_dependencies():
     pkg_resources.require(get_dependencies())
 
-
+# Check if pip is installed or not
+def check_pip():
+    try:
+        subprocess.check_output(
+            ["pip", "-V"],
+            stderr=subprocess.STDOUT,
+        )
+        return 1
+    except subprocess.CalledProcessError:
+        print("[!] pip is not installed or correctly configured.") 
 def install_dependencies():
     try:
         subprocess.check_output(
