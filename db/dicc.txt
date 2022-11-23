@@ -4932,6 +4932,7 @@ fileadmin/user_upload/
 filedump/
 FileHandler.%EXT%
 FileHandler/
+filemanager.php
 filemanager
 filemanager/
 filemanager/upload.php
@@ -8824,6 +8825,7 @@ userdb
 UserFile
 UserFiles
 userfiles
+userfiles/
 userinfo.%EXT%
 userlogin
 userlogin.php
