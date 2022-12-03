@@ -135,7 +135,7 @@ class Requester:
         self._proxy_cred = credential
 
     # :path: is expected not to start with "/"
-    def request(self, path, proxy=None):
+    def request(self, path, proxy=None, temp_proxies=None):
         # Pause if the request rate exceeded the maximum
         while self.is_rate_exceeded():
             time.sleep(0.1)
@@ -175,6 +175,7 @@ class Requester:
                     allow_redirects=options["follow_redirects"],
                     timeout=options["timeout"],
                     stream=True,
+                    proxies=temp_proxies
                 )
                 response = Response(response)
 
@@ -197,14 +198,20 @@ class Requester:
                 elif "TooManyRedirects" in str(e):
                     err_msg = f"Too many redirects: {url}"
                 elif "ProxyError" in str(e):
-                    err_msg = f"Error with the proxy: {proxy}"
-                    # Prevent from re-using it in the future
-                    if proxy in options["proxies"] and len(options["proxies"]) > 1:
-                        options["proxies"].remove(proxy)
+                    if proxy:
+                        err_msg = f"Error with the proxy: {proxy}"
+                        # Prevent from re-using it in the future
+                        if proxy in options["proxies"] and len(options["proxies"]) > 1:
+                            options["proxies"].remove(proxy)
+                    else:
+                        err_msg = f"Error with the temp proxy: {temp_proxies}"
                 elif "InvalidURL" in str(e):
                     err_msg = f"Invalid URL: {url}"
                 elif "InvalidProxyURL" in str(e):
-                    err_msg = f"Invalid proxy URL: {proxy}"
+                    if proxy:
+                        err_msg = f"Invalid proxy URL: {proxy}"
+                    else:
+                        err_msg = f"Invalid temp proxies: {temp_proxies}"
                 elif "ConnectionError" in str(e):
                     err_msg = f"Cannot connect to: {urlparse(url).netloc}"
                 elif re.search(READ_RESPONSE_ERROR_REGEX, str(e)):

@@ -50,6 +50,7 @@ from lib.core.settings import (
     SCRIPT_PATH,
     STANDARD_PORTS,
     UNKNOWN,
+    PROXY_SCHEMES,
 )
 from lib.parse.rawrequest import parse_raw
 from lib.parse.url import clean_path, parse_path
@@ -461,7 +462,20 @@ class Controller:
 
         if options["replay_proxy"]:
             # Replay the request with new proxy
-            self.requester.request(response.full_path, proxy=options["replay_proxy"])
+            proxy = options["replay_proxy"]
+
+            if not proxy.startswith(PROXY_SCHEMES):
+                proxy = f"http://{proxy}"
+
+            proxies = {"https": proxy}
+            if not proxy.startswith("https://"):
+                proxies["http"] = proxy
+
+            try:
+                self.requester.request(response.full_path, temp_proxies=proxies)
+            except RequestException as e:
+                logger.error(e)
+                options["replay_proxy"] = None
 
         if self.report:
             self.results.append(response)
