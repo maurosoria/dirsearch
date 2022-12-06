@@ -223,7 +223,7 @@ Options:
     --data-file=PATH    File contains HTTP request data
     -H HEADERS, --header=HEADERS
                         HTTP request header, can use multiple flags
-    --header-file=PATH  File contains HTTP request headers
+    --headers-file=PATH  File contains HTTP request headers
     -F, --follow-redirects
                         Follow HTTP redirects
     --random-agent      Choose a random User-Agent for each request
