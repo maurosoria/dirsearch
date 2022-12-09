@@ -24,7 +24,7 @@ from pkg_resources import DistributionNotFound, VersionConflict
 
 from lib.core.data import options
 from lib.core.exceptions import FailedDependenciesInstallation
-from lib.core.installation import check_dependencies, install_dependencies
+from lib.core.installation import check_pip, install_pip, check_dependencies, install_dependencies
 from lib.core.settings import OPTIONS_FILE
 from lib.parse.config import ConfigParser
 
@@ -38,6 +38,25 @@ def main():
     config.read(OPTIONS_FILE)
 
     if config.safe_getboolean("options", "check-dependencies", False):
+        # Check pip installation
+        try:
+            check_pip()
+        except ImportError:
+            option = input("Pip is not installed.\n"
+                           "Do you want dirsearch to automatically install it? [Y/n] ")
+            
+            if option.lower() == 'y':
+                print("Installing pip...")
+                try:
+                    install_pip()
+                except FailedPipInstallation:
+                    print("Failed to install pip, try doing it manually.")
+                    exit(1)
+            else:
+                print("Failed to start the program, install pip first.")
+                exit(1)
+                
+        # Check dependencies installation
         try:
             check_dependencies()
         except (DistributionNotFound, VersionConflict):

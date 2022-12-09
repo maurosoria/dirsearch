@@ -20,6 +20,7 @@
 import subprocess
 import sys
 import pkg_resources
+import requests
 
 from lib.core.exceptions import FailedDependenciesInstallation
 from lib.core.settings import SCRIPT_PATH
@@ -35,11 +36,29 @@ def get_dependencies():
         print("Can't find requirements.txt")
         exit(1)
 
+def check_pip():
+    try:
+        import pip
+    except ImportError as e:
+        raise ImportError("Pip is not installed")
+
+def install_pip():
+    try:
+        # Downloaded pip
+        URL = "https://bootstrap.pypa.io/get-pip.py"
+        response = requests.get(URL)
+        open("get-pip.py", "wb").write(response.content)
+        # Install pip
+        subprocess.check_output(
+            [sys.executable, "get-pip.py"],
+            stderr=subprocess.STDOUT
+        )
+    except:
+        raise FailedPipInstallation
 
 # Check if all dependencies are satisfied
 def check_dependencies():
     pkg_resources.require(get_dependencies())
-
 
 def install_dependencies():
     try:
