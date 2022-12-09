@@ -9309,6 +9309,8 @@ yonetici.php
 yonetim
 yonetim.html
 yonetim.php
+xprober.php
+ocp.php
 yum.log
 zabbix.php?action=dashboard.view&dashboardid=1
 zabbix/
