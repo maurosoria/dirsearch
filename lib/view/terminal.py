@@ -206,7 +206,8 @@ class CLI:
 
 class QuietCLI(CLI):
     def status_report(self, response, full_url):
-        super().status_report(response, True)
+        # super().status_report(response, True)
+        pass
 
     def last_path(*args):
         pass
