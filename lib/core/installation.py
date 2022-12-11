@@ -22,18 +22,38 @@ import sys
 import pkg_resources
 
 from lib.core.exceptions import FailedDependenciesInstallation
-from lib.core.settings import SCRIPT_PATH
+from lib.core.settings import IS_WINDOWS, SCRIPT_PATH
 from lib.utils.file import FileUtils
 
 REQUIREMENTS_FILE = f"{SCRIPT_PATH}/requirements.txt"
+
+
+def get_pip_command():
+    commands = (
+        ["pip"],
+        ["pip3"],
+        ["python", "-m", "pip"],
+        ["python3", "-m", "pip"],
+    )
+
+    if IS_WINDOWS:
+        commands.append(["py", "-m", "pip"])
+
+    for command in commands:
+        try:
+            subprocess.check_output(command, stderr=subprocess.STDOUT)
+            return command
+        except subprocess.CalledProcessError:
+            pass
+
+    return None
 
 
 def get_dependencies():
     try:
         return FileUtils.get_lines(REQUIREMENTS_FILE)
     except FileNotFoundError:
-        print("Can't find requirements.txt")
-        exit(1)
+        return []
 
 
 # Check if all dependencies are satisfied
@@ -42,9 +62,14 @@ def check_dependencies():
 
 
 def install_dependencies():
+    prefix = get_pip_command()
+
+    if not prefix:
+        raise FailedDependenciesInstallation
+
     try:
         subprocess.check_output(
-            [sys.executable, "-m", "pip", "install", "-r", REQUIREMENTS_FILE],
+            [*prefix, "install", "-r", REQUIREMENTS_FILE],
             stderr=subprocess.STDOUT,
         )
     except subprocess.CalledProcessError:
