@@ -8330,6 +8330,12 @@ swagger/ui
 swagger/v1.0/api-docs
 swagger/v1.0/swagger.json
 swagger/v1.0/swagger.yaml
+swagger/v2.0/api-docs
+swagger/v2.0/swagger.json
+swagger/v2.0/swagger.yaml
+swagger/v3.0/api-docs
+swagger/v3.0/swagger.json
+swagger/v3.0/swagger.yaml
 swagger/v1/api-docs
 swagger/v1/swagger.json
 swagger/v1/swagger.json/
