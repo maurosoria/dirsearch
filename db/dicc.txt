@@ -6615,7 +6615,12 @@ nwp-content/
 nwp-content/plugins/disqus-comment-system/disqus.php
 nytprof.out
 o
+OA_HTML/BneUploaderService
+OA_HTML/BneViewerXMLService
+OA_HTML/BneDownloadService
+OA_HTML/BneOfflineLOVService
 OA_HTML/OA.jsp
+OA_HTML/ibeCAcpSSOReg.jsp
 oab/
 oauth
 oauth.%EXT%
@@ -9487,6 +9492,7 @@ xml
 xml/
 xml/_common.xml
 xml/common.xml
+xmlpserver/ReportTemplateService
 xmlrpc
 xmlrpc.php
 xmlrpc_server.php
