@@ -70,6 +70,7 @@
 - [Weltolk](https://github.com/Weltolk)
 - [at0m](https://github.com/atomiczsec/)
 - [junmoka](https://github.com/junmoka)
+- [Akshay Ravi](https://www.linkedin.com/in/c09yc47/)
 
 Special thanks to all the people who are named here!
 
