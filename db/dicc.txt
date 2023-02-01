@@ -5075,6 +5075,7 @@ getFile.cfm
 getfiles.php
 getior
 gfx
+gis
 git-service
 git/
 github-cache
