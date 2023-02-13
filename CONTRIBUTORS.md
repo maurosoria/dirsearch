@@ -71,6 +71,7 @@
 - [at0m](https://github.com/atomiczsec/)
 - [junmoka](https://github.com/junmoka)
 - [Akshay Ravi](https://www.linkedin.com/in/c09yc47/)
+- [kosyan62](https://https://github.com/kosyan62)
 
 Special thanks to all the people who are named here!
 
