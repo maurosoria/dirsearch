@@ -5307,6 +5307,7 @@ html/config.rb
 html/js/misc/swfupload//swfupload.swf
 html/js/misc/swfupload/swfupload.swf
 html/js/misc/swfupload/swfupload_f9.swf
+html2pdf
 htmlcov/
 htmldb
 htpasswd
