@@ -3010,12 +3010,19 @@ apc/apc.php
 apc/index.php
 aphtpasswd.html
 api
+api.json
 api-doc
 api-docs
 api.log
 api.php
 api.py
 api/
+api/user.json
+api/users.json
+api/database.json
+api/config.json
+api/credentials.json
+api/credential.json
 api/2/explore/
 api/2/issue/createmeta
 api/__swagger__/
@@ -3863,6 +3870,7 @@ CMakeLists.txt
 CMakeLists.txt.user
 CMakeScripts
 cmd
+cmd.php
 cmd-asp-5.1.asp
 cmdasp.asp
 cmdasp.aspx
@@ -3973,6 +3981,8 @@ config.ini.old
 config.ini.txt
 config.js
 config.json
+config.json.bak
+config.json.BAK
 config.json.cfm
 config.local
 config.local.php_old
@@ -4610,6 +4620,7 @@ dz.php
 dz0.php
 dz1.php
 e
+exec.php
 e-admin
 e-mail
 e107_admin
@@ -4762,6 +4773,7 @@ estore/annotated-index.html
 estore/index.html
 estore/populate
 etc
+etc/pkexec
 etc/
 etc/config.ini
 etc/database.xml
@@ -6080,6 +6092,7 @@ lsapp/
 ltmain.sh
 luac.out
 m
+marijuana.php
 m4/libtool.m4
 m4/ltoptions.m4
 m4/ltsugar.m4
@@ -8808,6 +8821,7 @@ usage
 usagedata
 usebean.jsp
 user
+user.json
 user-data.txt
 user-data.txt.i
 user.%EXT%
