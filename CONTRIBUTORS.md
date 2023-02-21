@@ -31,7 +31,7 @@
 - [Mohd Shahril](https://github.com/shahril96)
 - [Houziaux Mike](https://twitter.com/Jenaye_fr)
 - [Jannik Vieten](https://github.com/exploide)
-- [MiawOren](https://github.com/telnet22)
+- [MiawOren](https://github.com/0x0d3ad)
 - [sysEvil](https://github.com/sysevil)
 - [s-hamann](https://github.com/s-hamann)
 - [Ramin Farajpour Cami](https://twitter.com/MF4rr3ll)
