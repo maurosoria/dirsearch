@@ -45,8 +45,8 @@ class DynamicContentParser:
             if the similarity ratio of 2 responses is not high enough to prove they are the same
         """
 
-        if self._is_static:
-            return content == self._base_content
+        if self._is_static and content == self._base_content:
+            return True
 
         diff = self._differ.compare(self._base_content.split(), content.split())
         static_patterns_are_matched = self._static_patterns == self.get_static_patterns(diff)
