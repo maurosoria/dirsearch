@@ -5774,6 +5774,8 @@ JTAExtensionsSamples/TransactionTracker
 JTAExtensionsSamples/TransactionTracker/
 juju/
 junit/
+jwks.json
+jwks.jwt
 jwsdir
 k
 kadmin
