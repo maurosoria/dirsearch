@@ -5096,6 +5096,7 @@ Gemfile.lock
 GEMINI/
 gen/
 general
+geoserver/index.html
 Generated_Code/
 get
 GET
