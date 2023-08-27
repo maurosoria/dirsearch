@@ -73,6 +73,7 @@
 - [Akshay Ravi](https://www.linkedin.com/in/c09yc47/)
 - [kosyan62](https://https://github.com/kosyan62)
 - [Maxence Zolnieurck](https://github.com/mxcezl)
+- [Giorgos Drosos](https://github.com/gdrosos)
 
 Special thanks to all the people who are named here!
 
