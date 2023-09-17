@@ -28,6 +28,7 @@ from requests.adapters import HTTPAdapter
 from requests.auth import AuthBase, HTTPBasicAuth, HTTPDigestAuth
 from requests.packages import urllib3
 from requests_ntlm import HttpNtlmAuth
+from requests_toolbelt.adapters.socket_options import SocketOptionsAdapter
 from urllib.parse import urlparse
 
 from lib.core.data import options
@@ -83,9 +84,20 @@ class Requester:
         if options["data"] and "content-type" not in self.headers:
             self.set_header("content-type", guess_mimetype(options["data"]))
 
+        socket_options = []
+        if options.get('network_interface'):
+            socket_options.append(
+                (socket.SOL_SOCKET, socket.SO_BINDTODEVICE, options['network_interface'].encode("utf-8"))
+            )
+
         for scheme in ("http://", "https://"):
             self.session.mount(
-                scheme, HTTPAdapter(max_retries=0, pool_maxsize=options["thread_count"])
+                scheme,
+                SocketOptionsAdapter(
+                    max_retries=0,
+                    pool_maxsize=options["thread_count"],
+                    socket_options=socket_options
+                )
             )
 
     def _fetch_agents(self):

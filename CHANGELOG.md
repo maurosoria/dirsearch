@@ -1,6 +1,7 @@
 # Changelog
 
 ## [Unreleased]
+- Support non-default network interface
 
 ## [0.4.3] - October 2nd, 2022
 - Automatically detect the URI scheme (`http` or `https`) if no scheme is provided
