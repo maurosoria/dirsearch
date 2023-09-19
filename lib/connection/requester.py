@@ -24,7 +24,6 @@ import requests
 import threading
 import time
 
-from requests.adapters import HTTPAdapter
 from requests.auth import AuthBase, HTTPBasicAuth, HTTPDigestAuth
 from requests.packages import urllib3
 from requests_ntlm import HttpNtlmAuth

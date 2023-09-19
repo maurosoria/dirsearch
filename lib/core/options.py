@@ -305,6 +305,7 @@ def parse_config(opt):
         "connection", "scheme", None, ("http", "https")
     )
     opt.replay_proxy = opt.replay_proxy or config.safe_get("connection", "replay-proxy")
+    opt.network_interface = opt.network_interface or config.safe_get("connection", "network-interface")
 
     # Advanced
     opt.crawl = opt.crawl or config.safe_getboolean("advanced", "crawl")
