@@ -18,3 +18,4 @@ pyparsing>=2.4.7
 beautifulsoup4>=4.8.0
 mysql-connector-python>=8.0.20
 psycopg[binary]>=3.0
+requests-toolbelt>=1.0.0

@@ -252,6 +252,8 @@ Options:
     --max-rate=RATE     Max requests per second
     --retries=RETRIES   Number of retries for failed requests
     --ip=IP             Server IP address
+    --interface=NETWORK_INTERFACE
+                        Network interface to use
 
   Advanced Settings:
     --crawl             Crawl for new paths in responses
