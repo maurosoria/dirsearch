@@ -1,4 +1,5 @@
-<img src="static/logo.png" alt="dirsearch" width="675px">
+<img src="static/logo.png#gh-light-mode-only" alt="dirsearch logo (light)" width="675px">
+<img src="static/logo-dark.png#gh-dark-mode-only" alt="dirsearch logo (dark)" width="675px">
 
 dirsearch - Web path discovery
 =========
