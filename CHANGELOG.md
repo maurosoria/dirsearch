@@ -3,6 +3,8 @@
 ## [Unreleased]
 - Support non-default network interface
 
+- Remove unused dependencies (urllib3, cryptography, cffi, idna, chardet)
+
 ## [0.4.3] - October 2nd, 2022
 - Automatically detect the URI scheme (`http` or `https`) if no scheme is provided
 - SQLite report format
