@@ -78,6 +78,7 @@ options = {
     "scheme": None,
     "max_rate": 0,
     "max_retries": 1,
+    "network_interface": None,
     "ip": None,
     "exit_on_error": False,
     "crawl": False,

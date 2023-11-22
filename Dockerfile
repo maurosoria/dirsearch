@@ -12,6 +12,7 @@ RUN apk add \
     libffi-dev
 
 RUN pip install -r requirements.txt
+RUN chmod +x dirsearch.py
 
 ENTRYPOINT ["./dirsearch.py"]
 CMD ["--help"]

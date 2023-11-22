@@ -1,6 +1,7 @@
 # Changelog
 
 ## [Unreleased]
+- Support non-default network interface
 
 - Remove unused dependencies (urllib3, cryptography, cffi, idna, chardet)
 
