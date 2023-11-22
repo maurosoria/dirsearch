@@ -1,10 +1,9 @@
 Jinja2>=3.0.0
-urllib3>=1.21.1
-defusedxml>=0.7.0
-requests>=2.27.0
-requests_ntlm>=1.1.0
+requests[security]
+requests_ntlm>=1.2.0
 colorama>=0.4.4
 pyparsing>=2.4.7
 beautifulsoup4>=4.8.0
 mysql-connector-python>=8.0.20
 psycopg[binary]>=3.0
+requests-toolbelt>=1.0.0

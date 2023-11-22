@@ -74,6 +74,9 @@
 - [kosyan62](https://https://github.com/kosyan62)
 - [Maxence Zolnieurck](https://github.com/mxcezl)
 - [FantasqueX](https://github.com/FantasqueX)
+- [Giorgos Drosos](https://github.com/gdrosos)
+- [huyphan](https://github.com/huyphan)
+- [Sean Wei](https://www.sean.taipei/about-en)
 
 Special thanks to all the people who are named here!
 

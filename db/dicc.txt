@@ -4084,6 +4084,7 @@ configuration.swp
 configuration/
 configuration~
 configure
+configure.php
 configure.php.bak
 configure.scan
 config~
@@ -5097,6 +5098,7 @@ GEMINI/
 gen/
 general
 Generated_Code/
+geoserver/index.html
 get
 GET
 get.php
