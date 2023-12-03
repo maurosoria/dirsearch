@@ -1,4 +1,4 @@
-FROM python:3-alpine
+FROM python:3.11.6-alpine
 LABEL maintainer="maurosoria@protonmail.com"
 
 WORKDIR /root/
