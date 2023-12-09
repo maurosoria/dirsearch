@@ -4283,6 +4283,7 @@ CVS/Entries
 CVS/Root
 cvsadmin
 cwadmin
+cxf-service
 d
 d.php
 d0main.php
@@ -4631,6 +4632,7 @@ dumper/
 dumps/
 dvdadmin
 dvwa/
+dwr/
 dwsync.xml
 dyn
 DynaCacheESI
@@ -5292,6 +5294,7 @@ home.tar.bz2
 home.tar.gz
 home.zip
 homepage
+homepage.%EXT%
 homepage.nsf
 Homestead.json
 Homestead.yaml
@@ -5793,6 +5796,7 @@ keygen
 keys.json
 kibana/
 killer.php
+kkconfig.xml
 kmitaadmin
 known_tokens.csv
 kontakt
@@ -6173,6 +6177,7 @@ manage.py
 manage/
 manage/admin.asp
 manage/fckeditor
+manage/log
 manage/login.asp
 manage_admin
 manage_index
@@ -9479,6 +9484,7 @@ WS_FTP.LOG
 WS_FTP.log
 WS_FTP/
 WS_FTP/Sites/ws_ftp.ini
+ws_utc/config.do
 wsadmin.traceout
 wsadmin.valout
 wsadminListener.out
