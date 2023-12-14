@@ -4631,6 +4631,7 @@ dumper/
 dumps/
 dvdadmin
 dvwa/
+dwr/index.html
 dwsync.xml
 dyn
 DynaCacheESI
