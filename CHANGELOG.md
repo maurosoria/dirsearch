@@ -2,7 +2,8 @@
 
 ## [Unreleased]
 - Support non-default network interface
-
+- Allow commenting out of urls in url file
+- 
 - Remove unused dependencies (urllib3, cryptography, cffi, idna, chardet)
 
 ## [0.4.3] - October 2nd, 2022
