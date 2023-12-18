@@ -15,6 +15,7 @@
 - Capability to save progress and resume later
 - Support client certificate
 - Maximum size of the log file via configuration
+- Automate the detection of HTTP(S) services from a parsed nmap.xml report.
 
 ## [0.4.2] - September 12, 2021
 - More accurate

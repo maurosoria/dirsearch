@@ -77,6 +77,7 @@
 - [huyphan](https://github.com/huyphan)
 - [Sean Wei](https://www.sean.taipei/about-en)
 - [FantasqueX](https://www.github.com/FantasqueX)
+- [archdiote](https://www.github.com/archidote)
 
 Special thanks to all the people who are named here!
 
