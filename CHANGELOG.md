@@ -122,7 +122,7 @@
 - Exclude status switch
 - Pause/next directory feature
 - Changed help structure
-- Expaded default dictionary
+- Expanded default dictionary
 
 ## 0.2.2 - July 2, 2014
 - Fixed some bugs

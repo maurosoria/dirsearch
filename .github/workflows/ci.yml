@@ -44,4 +44,4 @@ jobs:
       run: |
         flake8 .
     - name: Codespell
-      run: codespell
+      run: codespell -S CONTRIBUTORS.md
