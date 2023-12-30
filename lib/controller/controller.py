@@ -162,7 +162,7 @@ class Controller:
                 )
                 exit(1)
 
-        if options["autosave_report"]:
+        if options["autosave_report"] and not options["output"] :
             self.report_path = options["output_path"] or FileUtils.build_path(
                 SCRIPT_PATH, "reports"
             )
