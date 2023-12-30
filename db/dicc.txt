@@ -8929,6 +8929,8 @@ v2.0
 v2/
 v2/_catalog
 v2/api-docs
+v3
+v3/api-docs
 v2/keys/?recursive=true
 v3
 v3/
