@@ -211,10 +211,6 @@ class Controller:
 
         while options["urls"]:
             url = options["urls"][0]
-            if url.startswith('#'):
-                options["urls"].pop(0)
-                continue
-
             self.fuzzer = Fuzzer(
                 self.requester,
                 self.dictionary,

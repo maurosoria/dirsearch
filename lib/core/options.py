@@ -26,7 +26,7 @@ from lib.core.settings import (
 from lib.parse.cmdline import parse_arguments
 from lib.parse.config import ConfigParser
 from lib.parse.headers import HeadersParser
-from lib.utils.common import iprange, read_stdin, uniq
+from lib.utils.common import iprange, read_stdin, strip_and_uniquify
 from lib.utils.file import File, FileUtils
 
 
@@ -52,7 +52,10 @@ def parse_options():
         exit(1)
 
     if not opt.raw_file:
-        opt.urls = uniq(opt.urls)
+        opt.urls = filter(
+            lambda url: not url.startswith("#"),
+            strip_and_uniquify(opt.urls),
+        )
 
     if not opt.extensions and not opt.remove_extensions:
         print("WARNING: No extension was specified!")
@@ -113,8 +116,8 @@ def parse_options():
     opt.exclude_status_codes = _parse_status_codes(opt.exclude_status_codes)
     opt.recursion_status_codes = _parse_status_codes(opt.recursion_status_codes)
     opt.skip_on_status = _parse_status_codes(opt.skip_on_status)
-    opt.prefixes = uniq([prefix.strip() for prefix in opt.prefixes.split(",") if prefix], tuple)
-    opt.suffixes = uniq([suffix.strip() for suffix in opt.suffixes.split(",") if suffix], tuple)
+    opt.prefixes = strip_and_uniquify(opt.prefixes.split(","), tuple)
+    opt.suffixes = strip_and_uniquify(opt.suffixes.split(","), tuple)
     opt.subdirs = [
         subdir.lstrip(" /") + ("" if not subdir or subdir.endswith("/") else "/")
         for subdir in opt.subdirs.split(",")
@@ -134,14 +137,14 @@ def parse_options():
               "extension or enclose it in double quotes")
         exit(0)
     else:
-        opt.extensions = uniq(
-            [extension.lstrip(" .") for extension in opt.extensions.split(",")],
+        opt.extensions = strip_and_uniquify(
+            [extension.lstrip(".") for extension in opt.extensions.split(",")],
             tuple,
         )
 
-    opt.exclude_extensions = uniq(
+    opt.exclude_extensions = strip_and_uniquify(
         [
-            exclude_extension.lstrip(" .")
+            exclude_extension.lstrip(".")
             for exclude_extension in opt.exclude_extensions.split(",")
         ], tuple
     )
