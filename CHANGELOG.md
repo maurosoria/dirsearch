@@ -2,7 +2,6 @@
 
 ## [Unreleased]
 - Support non-default network interface
-
 - Remove unused dependencies (urllib3, cryptography, cffi, idna, chardet)
 
 ## [0.4.3] - October 2nd, 2022
@@ -123,7 +122,7 @@
 - Exclude status switch
 - Pause/next directory feature
 - Changed help structure
-- Expaded default dictionary
+- Expanded default dictionary
 
 ## 0.2.2 - July 2, 2014
 - Fixed some bugs

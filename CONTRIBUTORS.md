@@ -79,6 +79,7 @@
 - [FantasqueX](https://www.github.com/FantasqueX)
 - [Ovi3](https://github.com/Ovi3)
 - [u21h2](https://www.github.com/u21h2)
+- [Valentijn Scholten](https://www.github.com/valentijnscholten)
 
 Special thanks to all the people who are named here!
 
