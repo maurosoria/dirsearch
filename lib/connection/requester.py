@@ -170,6 +170,9 @@ class Requester:
                 if self.agents:
                     self.set_header("user-agent", random.choice(self.agents))
 
+                # Split requests by delay                 
+                time.sleep(options["delay"])
+
                 # Use prepared request to avoid the URL path from being normalized
                 # Reference: https://github.com/psf/requests/issues/5289
                 request = requests.Request(

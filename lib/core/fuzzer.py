@@ -248,8 +248,6 @@ class Fuzzer:
                 continue
 
             finally:
-                time.sleep(options["delay"])
-
                 if not self._play_event.is_set():
                     logger.info(f'THREAD-{threading.get_ident()} paused"')
                     self._pause_semaphore.release()
