@@ -80,6 +80,7 @@
 - [Ovi3](https://github.com/Ovi3)
 - [u21h2](https://www.github.com/u21h2)
 - [Valentijn Scholten](https://www.github.com/valentijnscholten)
+- [ajcriado](https://www.github.com/ajcriado)
 
 Special thanks to all the people who are named here!
 

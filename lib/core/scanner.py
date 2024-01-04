@@ -17,9 +17,11 @@
 #  Author: Mauro Soria
 
 import re
+import time
 
 from urllib.parse import unquote
 
+from lib.core.data import options
 from lib.core.logger import logger
 from lib.core.settings import (
     REFLECTED_PATH_MARKER,
@@ -52,7 +54,8 @@ class Scanner:
             rand_string(TEST_PATH_LENGTH),
         )
         first_response = self.requester.request(first_path)
-        self.response = first_response
+        self.response = first_response         
+        time.sleep(options["delay"])
 
         duplicate = self.get_duplicate(first_response)
         # Another test was performed before and has the same response as this
@@ -67,6 +70,7 @@ class Scanner:
             rand_string(TEST_PATH_LENGTH, omit=first_path),
         )
         second_response = self.requester.request(second_path)
+        time.sleep(options["delay"])
 
         if first_response.redirect and second_response.redirect:
             self.wildcard_redirect_regex = self.generate_redirect_regex(
