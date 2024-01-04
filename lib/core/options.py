@@ -49,9 +49,9 @@ def parse_options():
     elif opt.raw_file:
         _access_file(opt.raw_file)
     elif opt.nmap_report:
-        file_tmp = nmap_parser(opt.nmap_report)
-        fd = _access_file(file_tmp)
-        opt.urls = fd.get_lines()
+        targets = nmap_parser(opt.nmap_report)
+        print (targets)
+        opt.urls = targets.splitlines(0)
     elif not opt.urls:
         print("URL target is missing, try using -u <url>")
         exit(1)

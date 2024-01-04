@@ -16,7 +16,7 @@ def nmap_parser(xml_file_path):
     with open(json_file.name, 'r') as file:
         data = json.load(file)
 
-    http_identified_ports = ""
+    http_target_ports = ""
 
     try:
         for host in data['nmaprun']['host']:
@@ -27,21 +27,16 @@ def nmap_parser(xml_file_path):
                         if isinstance(port_info, dict) and '@name' in port_info.get('service', {}) and port_info['service'].get('@name') == 'http':
                             ip = host['address']['@addr']
                             port = port_info['@portid']
-                            http_identified_ports += f"{ip}:{port}\n"
+                            http_target_ports += f"{ip}:{port}\n"
                 elif isinstance(ports_info.get('port'), dict):
                     port_info = ports_info['port']
                     if '@name' in port_info.get('service', {}) and port_info['service'].get('@name') == 'http':
                         ip = host['address']['@addr']
                         port = port_info['@portid']
-                        http_identified_ports += f"{ip}:{port}\n" 
-    
-        if http_identified_ports:
-            file_path = '/tmp/nmap_http_ports_extracted_for_dirsearch_'+timestr+'.txt'
-            with open(file_path, 'a') as file:
-                file.write(str(http_identified_ports))
-                print(f"[+] Nmap report has been successfully parsed!")
-                print(f"[+] Data appended to: {file_path}")
-                return file_path
+                        http_target_ports += f"{ip}:{port}\n" 
+        if http_target_ports:
+            print(f"[+] Nmap report has been successfully parsed!")
+            return http_target_ports
         else:
             print(f"[-] No HTTP identified ports found.")
             return exit(0)
