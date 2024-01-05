@@ -120,24 +120,24 @@ def parse_options():
     opt.skip_on_status = _parse_status_codes(opt.skip_on_status)
     opt.prefixes = tuple(strip_and_uniquify(opt.prefixes.split(",")))
     opt.suffixes = tuple(strip_and_uniquify(opt.suffixes.split(",")))
-    opt.subdirs = map(
-        lambda subdir: subdir.lstrip("/"),
-        strip_and_uniquify(
+    opt.subdirs = [
+        subdir.lstrip("/")
+        for subdir in strip_and_uniquify(
             [
                 subdir if subdir.endswith("/") else subdir + "/"
                 for subdir in opt.subdirs.split(",")
             ]
-        ),
-    )
-    opt.exclude_subdirs = map(
-        lambda subdir: subdir.lstrip("/"),
-        strip_and_uniquify(
+        )
+    ]
+    opt.exclude_subdirs = [
+        subdir.lstrip("/")
+        for subdir in strip_and_uniquify(
             [
                 subdir if subdir.endswith("/") else subdir + "/"
                 for subdir in opt.exclude_subdirs.split(",")
             ]
-        ),
-    )
+        )
+    ]
     opt.exclude_sizes = {size.strip().upper() for size in opt.exclude_sizes.split(",")}
 
     if opt.remove_extensions:
