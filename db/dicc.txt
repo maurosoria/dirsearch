@@ -4631,6 +4631,7 @@ dumper/
 dumps/
 dvdadmin
 dvwa/
+dwr/index.html
 dwsync.xml
 dyn
 DynaCacheESI
@@ -5688,6 +5689,7 @@ jbpm-console/app/tasks.jsf
 jcadmin
 jdbc
 jdkstatus
+jeecg-boot
 jenkins/
 jenkins/script
 Jenkinsfile
@@ -8929,6 +8931,8 @@ v2.0
 v2/
 v2/_catalog
 v2/api-docs
+v3
+v3/api-docs
 v2/keys/?recursive=true
 v3
 v3/
