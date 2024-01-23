@@ -54,8 +54,7 @@ def parse_options():
         except Exception as e:
             print("Error while parsing Nmap report: " + str(e))
             exit(1)
-
-    if not opt.urls:
+    elif not opt.urls:
         print("URL target is missing, try using -u <url>")
         exit(1)
 
