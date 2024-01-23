@@ -2,8 +2,8 @@
 
 ## [Unreleased]
 - Support non-default network interface
-
 - Remove unused dependencies (urllib3, cryptography, cffi, idna, chardet)
+- Load targets from a Nmap XML report
 
 ## [0.4.3] - October 2nd, 2022
 - Automatically detect the URI scheme (`http` or `https`) if no scheme is provided
@@ -15,7 +15,6 @@
 - Capability to save progress and resume later
 - Support client certificate
 - Maximum size of the log file via configuration
-- Automate the detection of HTTP(S) services from a parsed nmap.xml report.
 
 ## [0.4.2] - September 12, 2021
 - More accurate

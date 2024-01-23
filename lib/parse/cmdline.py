@@ -62,6 +62,13 @@ def parse_arguments():
         help="Load raw HTTP request from file (use '--scheme' flag to set the scheme)",
     )
     mandatory.add_option(
+        "--nmap-report",
+        action="store",
+        dest="nmap_report",
+        metavar="PATH",
+        help="Load targets from nmap report (Ensure the inclusion of the -sV flag during nmap scan for comprehensive results)",
+    )
+    mandatory.add_option(
         "-s", "--session", action="store", dest="session_file", help="Session file"
     )
     mandatory.add_option(
@@ -451,15 +458,6 @@ def parse_arguments():
     )
     connection.add_option("--ip", action="store", dest="ip", help="Server IP address")
     connection.add_option("--interface", action="store", dest="network_interface", help="Network interface to use")
-    
-    connection.add_option(
-        "--nmap-report",
-        action="store",
-        type="str",
-        dest="nmap_report",
-        metavar="nmap.xml",
-        help="Automate the detection of HTTP(S) services from a parsed nmap.xml report. Ensure the inclusion of the -sV flag during nmap scan for comprehensive results.",
-    )
 
 
     # Advanced Settings
