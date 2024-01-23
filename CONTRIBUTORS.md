@@ -81,6 +81,7 @@
 - [u21h2](https://www.github.com/u21h2)
 - [Valentijn Scholten](https://www.github.com/valentijnscholten)
 - [ajcriado](https://www.github.com/ajcriado)
+- [archdiote](https://www.github.com/archidote)
 
 Special thanks to all the people who are named here!
 
