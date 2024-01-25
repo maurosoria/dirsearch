@@ -1,6 +1,6 @@
-!.gitignore
 !.htaccess
 !.htpasswd
+!.gitignore
 %2e%2e//google.com
 %2e%2e;/test
 %3f/
@@ -8931,11 +8931,10 @@ v2.0
 v2/
 v2/_catalog
 v2/api-docs
-v3
-v3/api-docs
 v2/keys/?recursive=true
 v3
 v3/
+v3/api-docs
 v4/
 vadmin
 vadmin.%EXT%
@@ -9462,6 +9461,10 @@ wp-register
 wp-register.php
 wp-rss2
 wp-signup.php
+wp-sitemap.xml
+wp-sitemap-posts-post-1.xml
+wp-sitemap-posts-page-1.xml
+wp-sitemap-users-1.xml
 wp-snapshots/
 wp.php
 wp.rar/
