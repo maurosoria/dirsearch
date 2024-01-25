@@ -1,6 +1,6 @@
 !.htaccess
 !.htpasswd
-"!.gitignore
+!.gitignore
 %2e%2e//google.com
 %2e%2e;/test
 %3f/
