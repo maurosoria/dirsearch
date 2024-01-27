@@ -82,6 +82,7 @@
 - [Valentijn Scholten](https://www.github.com/valentijnscholten)
 - [ajcriado](https://www.github.com/ajcriado)
 - [archdiote](https://www.github.com/archidote)
+- [jxdv](https://github.com/jxdv)
 
 Special thanks to all the people who are named here!
 
