@@ -29,7 +29,7 @@ from lib.core.settings import OPTIONS_FILE
 from lib.parse.config import ConfigParser
 
 if sys.version_info < (3, 7):
-    sys.stdout.write("Sorry, dirsearch requires Python 3.7 or higher\n")
+    sys.stderr.write("Sorry, dirsearch requires Python 3.7 or higher\n")
     sys.exit(1)
 
 
@@ -50,8 +50,8 @@ def main():
                 try:
                     install_dependencies()
                 except FailedDependenciesInstallation:
-                    print("Failed to install dirsearch dependencies, try doing it manually.")
-                    exit(1)
+                    sys.stderr.write("Failed to install dirsearch dependencies, try doing it manually.\n")
+                    sys.exit(1)
             else:
                 # Do not check for dependencies in the future
                 config.set("options", "check-dependencies", "False")
