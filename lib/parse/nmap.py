@@ -4,10 +4,10 @@ def parse_nmap(file):
     root = ET.parse(file).getroot()
     targets = []
     for host in root.iter("host"):
-        hostname = (
-            host.find("hostnames").find("hostname").get("name")
-            or host.find("address").get("addr")
-        )
+        hostname = host.find("address").get("addr")
+        if host.find("hostnames").find("hostname"):
+            hostname = host.find("hostnames").find("hostname").get("name")
+
         targets.extend(
             f"{hostname}:{port.get('portid')}"
             for port in host.find("ports").iter("port")
