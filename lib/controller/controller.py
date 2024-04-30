@@ -134,7 +134,7 @@ class Controller:
         self.start_time = time.time()
         self.passed_urls = set()
         self.directories = []
-        self.report = None
+        self.reports = []
         self.batch = False
         self.jobs_processed = 0
         self.errors = 0
@@ -367,67 +367,85 @@ class Controller:
     def setup_reports(self):
         """Create report file"""
 
-        output = options["output"]
+        outputs = [None]
+        if options["output"] is not None:
+            outputs = options["output"].split(",")
 
-        if options["autosave_report"] and not output and options["output_format"] not in ("mysql", "postgresql"):
-            if len(options["urls"]) > 1:
-                directory_path = self.setup_batch_reports()
-                filename = "BATCH." + self.get_output_extension()
-            else:
-                parsed = urlparse(options["urls"][0])
+        output_formats = options["output_format"].split(",")
 
-                if not parsed.netloc:
-                    parsed = urlparse(f"//{options['urls'][0]}")
+        if len(output_formats) == 0:
+            # Set the default value
+            output_formats.append("simple")
 
-                filename = get_valid_filename(f"{parsed.path}_")
-                filename += time.strftime("%y-%m-%d_%H-%M-%S")
-                filename += f".{self.get_output_extension()}"
-                directory_path = FileUtils.build_path(
-                    self.report_path, get_valid_filename(f"{parsed.scheme}_{parsed.netloc}")
-                )
+        if len(outputs) != len(output_formats):
+            interface.error(
+                "When `output` or `output_format` are comma separated, i.e. multi-values, "
+                "the number of elements in `output` and `output_format` need to match"
+            )
 
-            output = FileUtils.get_abs_path((FileUtils.build_path(directory_path, filename)))
+        for idx, output in enumerate(outputs):
+            output_format = output_formats[idx]
+            if (options["autosave_report"] and
+                not output and
+                output_format not in ("mysql", "postgresql")):
+                if len(options["urls"]) > 1:
+                    directory_path = self.setup_batch_reports()
+                    filename = "BATCH." + self.get_output_extension()
+                else:
+                    parsed = urlparse(options["urls"][0])
 
-            if FileUtils.exists(output):
-                i = 2
-                while FileUtils.exists(f"{output}_{i}"):
-                    i += 1
+                    if not parsed.netloc:
+                        parsed = urlparse(f"//{options['urls'][0]}")
 
-                output += f"_{i}"
+                    filename = get_valid_filename(f"{parsed.path}_")
+                    filename += time.strftime("%y-%m-%d_%H-%M-%S")
+                    filename += f".{self.get_output_extension()}"
+                    directory_path = FileUtils.build_path(
+                        self.report_path, get_valid_filename(f"{parsed.scheme}_{parsed.netloc}")
+                    )
 
-            try:
-                FileUtils.create_dir(directory_path)
-            except Exception:
-                interface.error(
-                    f"Couldn't create the reports folder at {directory_path}"
-                )
-                exit(1)
+                output = FileUtils.get_abs_path((FileUtils.build_path(directory_path, filename)))
 
-        if not output:
-            return
+                if FileUtils.exists(output):
+                    i = 2
+                    while FileUtils.exists(f"{output}_{i}"):
+                        i += 1
 
-        if options["output_format"] == "plain":
-            self.report = PlainTextReport(output)
-        elif options["output_format"] == "json":
-            self.report = JSONReport(output)
-        elif options["output_format"] == "xml":
-            self.report = XMLReport(output)
-        elif options["output_format"] == "md":
-            self.report = MarkdownReport(output)
-        elif options["output_format"] == "csv":
-            self.report = CSVReport(output)
-        elif options["output_format"] == "html":
-            self.report = HTMLReport(output)
-        elif options["output_format"] == "sqlite":
-            self.report = SQLiteReport(output)
-        elif options["output_format"] == "mysql":
-            self.report = MySQLReport(output)
-        elif options["output_format"] == "postgresql":
-            self.report = PostgreSQLReport(output)
-        else:
-            self.report = SimpleReport(output)
+                    output += f"_{i}"
 
-        interface.output_location(output)
+                try:
+                    FileUtils.create_dir(directory_path)
+                except Exception:
+                    interface.error(
+                        f"Couldn't create the reports folder at {directory_path}"
+                    )
+                    exit(1)
+
+            if not output:
+                return
+
+            if output_format == "plain":
+                self.reports.append(PlainTextReport(output))
+            elif output_format == "json":
+                self.reports.append(JSONReport(output))
+            elif output_format == "xml":
+                self.reports.append(XMLReport(output))
+            elif output_format == "md":
+                self.reports.append(MarkdownReport(output))
+            elif output_format == "csv":
+                self.reports.append(CSVReport(output))
+            elif output_format == "html":
+                self.reports.append(HTMLReport(output))
+            elif output_format == "sqlite":
+                self.reports.append(SQLiteReport(output))
+            elif output_format == "mysql":
+                self.reports.append(MySQLReport(output))
+            elif output_format == "postgresql":
+                self.reports.append(PostgreSQLReport(output))
+            elif output_format == "simple":
+                self.reports.append(SimpleReport(output))
+
+            interface.output_location(output_format, output)
 
     def reset_consecutive_errors(self, response):
         self.consecutive_errors = 0
@@ -463,9 +481,10 @@ class Controller:
             # Replay the request with new proxy
             self.requester.request(response.full_path, proxy=options["replay_proxy"])
 
-        if self.report:
+        if len(self.reports) > 0:
             self.results.append(response)
-            self.report.save(self.results)
+            for report in self.reports:
+                report.save(self.results)
 
     def update_progress_bar(self, response):
         jobs_count = (

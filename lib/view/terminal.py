@@ -197,8 +197,8 @@ class CLI:
         self.new_line()
         self.print_header({"Target": target})
 
-    def output_location(self, file):
-        self.new_line(f"\nOutput: {file}")
+    def output_location(self, output_format, file):
+        self.new_line(f"\nOutput '{output_format}': {file}")
 
     def log_file(self, file):
         self.new_line(f"\nLog File: {file}")
