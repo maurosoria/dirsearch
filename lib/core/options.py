@@ -193,12 +193,15 @@ def parse_options():
         )
         exit(1)
 
-    if opt.output_format not in OUTPUT_FORMATS:
-        print(
-            "Select one of the following output formats: "
-            f"{', '.join(OUTPUT_FORMATS)}"
-        )
-        exit(1)
+    if opt.output_format:
+        output_formats = opt.output_format.split(",")
+        for output_format in output_formats:
+            if output_format not in OUTPUT_FORMATS:
+                print(
+                    "Select one of the following output formats: "
+                    f"{', '.join(OUTPUT_FORMATS)}"
+                )
+                exit(1)
 
     return vars(opt)
 
