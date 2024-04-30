@@ -358,11 +358,11 @@ class Controller:
 
         return batch_directory_path
 
-    def get_output_extension(self):
-        if options["output_format"] in ("plain", "simple"):
+    def get_output_extension(self, output_format):
+        if output_format in ("plain", "simple"):
             return "txt"
 
-        return options["output_format"]
+        return output_format
 
     def setup_reports(self):
         """Create report file"""
@@ -390,7 +390,7 @@ class Controller:
                 output_format not in ("mysql", "postgresql")):
                 if len(options["urls"]) > 1:
                     directory_path = self.setup_batch_reports()
-                    filename = "BATCH." + self.get_output_extension()
+                    filename = "BATCH." + self.get_output_extension(output_format)
                 else:
                     parsed = urlparse(options["urls"][0])
 
@@ -399,7 +399,7 @@ class Controller:
 
                     filename = get_valid_filename(f"{parsed.path}_")
                     filename += time.strftime("%y-%m-%d_%H-%M-%S")
-                    filename += f".{self.get_output_extension()}"
+                    filename += f".{self.get_output_extension(output_format)}"
                     directory_path = FileUtils.build_path(
                         self.report_path, get_valid_filename(f"{parsed.scheme}_{parsed.netloc}")
                     )
