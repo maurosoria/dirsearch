@@ -374,7 +374,9 @@ class Controller:
                 directory_path = self.setup_batch_reports()
                 filename = "BATCH." + self.get_output_extension()
             else:
-                parsed = urlparse(options["urls"][0])
+                self.set_target(options["urls"][0])
+
+                parsed = urlparse(self.url)
 
                 if not parsed.netloc:
                     parsed = urlparse(f"//{options['urls'][0]}")
