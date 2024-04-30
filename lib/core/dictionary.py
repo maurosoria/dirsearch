@@ -114,6 +114,15 @@ class Dictionary:
         wordlist = OrderedSet()
         re_ext_tag = re.compile(EXTENSION_TAG, re.IGNORECASE)
 
+        # Prepare the list of hostnames from the URLs
+        hostnames = set()
+        for url in options['urls']:
+            parsed = urllib.parse.urlparse(url)
+            if parsed is None:
+                continue
+
+            hostnames.add(parsed.hostname)
+
         for dict_file in files:
             for line in FileUtils.get_lines(dict_file):
                 # Removing leading "/" to work with prefixes later
@@ -127,12 +136,8 @@ class Dictionary:
 
                 # If %DOMAIN% is found, replace it with self.urls (insert as many as they exist)
                 if DOMAIN_TAG in line:
-                    for url in options['urls']:
-                        parsed = urllib.parse.urlparse(url)
-                        if parsed is None:
-                            continue
-
-                        line = line.replace(DOMAIN_TAG, parsed.hostname)
+                    for hostname in hostnames:
+                        line = line.replace(DOMAIN_TAG, hostname)
                         wordlist.add(newline)
 
                     # At the moment we allow only one TAG per line
