@@ -86,6 +86,8 @@ WILDCARD_TEST_POINT_MARKER = "__WILDCARD_POINT__"
 
 EXTENSION_TAG = "%ext%"
 
+DOMAIN_TAG = "%DOMAIN%"
+
 EXTENSION_RECOGNITION_REGEX = r"\w+([.][a-zA-Z0-9]{2,5}){1,3}~?$"
 
 QUERY_STRING_REGEX = r"^(\&?([^=& ]+)\=([^=& ]+)?){1,200}$"

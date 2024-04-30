@@ -18,10 +18,13 @@
 
 import re
 
+import urllib.parse
+
 from lib.core.data import options
 from lib.core.decorators import locked
 from lib.core.settings import (
     SCRIPT_PATH,
+    DOMAIN_TAG,
     EXTENSION_TAG,
     EXCLUDE_OVERWRITE_EXTENSIONS,
     EXTENSION_RECOGNITION_REGEX,
@@ -120,6 +123,19 @@ class Dictionary:
                     line = line.split(".")[0]
 
                 if not self.is_valid(line):
+                    continue
+
+                # If %DOMAIN% is found, replace it with self.urls (insert as many as they exist)
+                if DOMAIN_TAG in line:
+                    for url in options['urls']:
+                        parsed = urllib.parse.urlparse(url)
+                        if parsed is None:
+                            continue
+
+                        line = line.replace(DOMAIN_TAG, parsed.hostname)
+                        wordlist.add(newline)
+
+                    # At the moment we allow only one TAG per line
                     continue
 
                 # Classic dirsearch wordlist processing (with %EXT% keyword)
