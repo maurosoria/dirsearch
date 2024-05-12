@@ -137,8 +137,23 @@ class Dictionary:
                 # If %DOMAIN% is found, replace it with self.urls (insert as many as they exist)
                 if DOMAIN_TAG in line:
                     for hostname in hostnames:
-                        line = line.replace(DOMAIN_TAG, hostname)
+                        split_hostnames = hostname.split(".")
+                        newline = line.replace(DOMAIN_TAG, hostname)
                         wordlist.add(newline)
+                        if len(split_hostnames) > 1:
+                            # We go from 1 dot to .. n .. as we want to return from www.somesite.co.uk:
+                            #  www.somesite.co.uk, somesite.co.uk, co.uk
+                            for dots in range(1, len(split_hostnames)):
+                                new_hostname = ".".join(split_hostnames[dots:])
+                                newline = line.replace(DOMAIN_TAG, new_hostname)
+                                wordlist.add(newline)
+
+                            # We go from n dot to .. 1 .. as we want to return from www.somesite.co.uk:
+                            #  www.somesite.co, www.somesite, www
+                            for dots in range(1, len(split_hostnames)):
+                                new_hostname = ".".join(split_hostnames[:dots])
+                                newline = line.replace(DOMAIN_TAG, new_hostname)
+                                wordlist.add(newline)
 
                     # At the moment we allow only one TAG per line
                     continue
