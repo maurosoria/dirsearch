@@ -442,6 +442,11 @@ class Controller:
 
         interface.status_report(response, options["full_url"])
 
+        if response.status == 200 and not response.full_path.endswith("/"):
+            backup_extensions = [".bak", "~", ".swp", ".swn", ".tar.gz", ".zip"]
+            for backup_extension in backup_extensions:
+                self.dictionary._items.append(f"{response.full_path}{backup_extension}")
+
         if response.status in options["recursion_status_codes"] and any(
             (
                 options["recursive"],
