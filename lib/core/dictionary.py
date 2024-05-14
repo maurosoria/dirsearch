@@ -134,65 +134,86 @@ class Dictionary:
                 if not self.is_valid(line):
                     continue
 
-                # If %DOMAIN% is found, replace it with self.urls (insert as many as they exist)
-                if DOMAIN_TAG in line:
-                    for hostname in hostnames:
-                        split_hostnames = hostname.split(".")
-                        newline = line.replace(DOMAIN_TAG, hostname)
-                        wordlist.add(newline)
-                        if len(split_hostnames) > 1:
-                            # We go from 1 dot to .. n .. as we want to return from www.somesite.co.uk:
-                            #  www.somesite.co.uk, somesite.co.uk, co.uk
-                            for dots in range(1, len(split_hostnames)):
-                                new_hostname = ".".join(split_hostnames[dots:])
-                                newline = line.replace(DOMAIN_TAG, new_hostname)
-                                wordlist.add(newline)
+                new_lines = [line]
+                extension_tag_triggered = False
+                # We need this to know that EXTENSION_TAG was used
+                #  and not to trigger the complementary function that
+                #  handles when it is not
+                if EXTENSION_TAG in line.lower():
+                    extension_tag_triggered = True
 
-                            # We go from n dot to .. 1 .. as we want to return from www.somesite.co.uk:
-                            #  www.somesite.co, www.somesite, www
-                            for dots in range(1, len(split_hostnames)):
-                                new_hostname = ".".join(split_hostnames[:dots])
-                                newline = line.replace(DOMAIN_TAG, new_hostname)
-                                wordlist.add(newline)
+                final_lines = []
+                for new_line in new_lines:
+                    # If %DOMAIN% is found, replace it with self.urls (insert as many as they exist)
+                    original_line = new_word['line']
+                    if DOMAIN_TAG in original_line:
+                        for hostname in hostnames:
+                            split_hostnames = hostname.split(".")
+                            new_line = original_line.replace(DOMAIN_TAG, hostname)
+                            final_lines.append(new_line)
 
-                    # At the moment we allow only one TAG per line
-                    continue
+                            if len(split_hostnames) > 1:
+                                # We go from 1 dot to .. n .. as we want to return from www.somesite.co.uk:
+                                #  www.somesite.co.uk, somesite.co.uk, co.uk
+                                for dots in range(1, len(split_hostnames)):
+                                    new_hostname = ".".join(split_hostnames[dots:])
+                                    new_line = original_line.replace(DOMAIN_TAG, new_hostname)
+                                    final_lines.append(new_line)
+
+                                # We go from n dot to .. 1 .. as we want to return from www.somesite.co.uk:
+                                #  www.somesite.co, www.somesite, www
+                                for dots in range(1, len(split_hostnames)):
+                                    new_hostname = ".".join(split_hostnames[:dots])
+                                    new_line = original_line.replace(DOMAIN_TAG, new_hostname)
+                                    final_lines.append(new_line)
+
+                new_lines = final_lines[:]
+                final_lines = []
 
                 # Classic dirsearch wordlist processing (with %EXT% keyword)
-                if EXTENSION_TAG in line.lower():
-                    for extension in options["extensions"]:
-                        newline = re_ext_tag.sub(extension, line)
-                        wordlist.add(newline)
-                else:
-                    wordlist.add(line)
+                for new_word in new_lines:
+                    if EXTENSION_TAG in new_word.lower():
+                        for extension in options["extensions"]:
+                            new_line = re_ext_tag.sub(extension, line)
+                            final_lines.append(new_line)
+
+                # Go over the new_words generated
+                for final_line in final_lines:
+                    wordlist.add(final_line)
+
+                    # This keeps original code, that would do an else (i.e if EXTENSION_TAG)
+                    #  is not triggered
+                    if extension_tag_triggered:
+                        continue
 
                     # "Forcing extensions" and "overwriting extensions" shouldn't apply to
                     # blacklists otherwise it might cause false negatives
                     if is_blacklist:
                         continue
 
-                    # If "forced extensions" is used and the path is not a directory (terminated by /)
-                    # or has had an extension already, append extensions to the path
+                    # If "forced extensions" is used and the path is not a directory
+                    # (terminated by /) or has had an extension already, append
+                    # extensions to the path
                     if (
                         options["force_extensions"]
-                        and "." not in line
-                        and not line.endswith("/")
+                        and "." not in final_line
+                        and not final_line.endswith("/")
                     ):
-                        wordlist.add(line + "/")
+                        wordlist.add(final_line + "/")
 
                         for extension in options["extensions"]:
-                            wordlist.add(f"{line}.{extension}")
+                            wordlist.add(f"{final_line}.{extension}")
                     # Overwrite unknown extensions with selected ones (but also keep the origin)
                     elif (
                         options["overwrite_extensions"]
-                        and not line.endswith(options["extensions"] + EXCLUDE_OVERWRITE_EXTENSIONS)
+                        and not final_line.endswith(options["extensions"] + EXCLUDE_OVERWRITE_EXTENSIONS)
                         # Paths that have queries in wordlist are usually used for exploiting
                         # disclosed vulnerabilities of services, skip such paths
-                        and "?" not in line
-                        and "#" not in line
-                        and re.search(EXTENSION_RECOGNITION_REGEX, line)
+                        and "?" not in final_line
+                        and "#" not in final_line
+                        and re.search(EXTENSION_RECOGNITION_REGEX, final_line)
                     ):
-                        base = line.split(".")[0]
+                        base = final_line.split(".")[0]
 
                         for extension in options["extensions"]:
                             wordlist.add(f"{base}.{extension}")
