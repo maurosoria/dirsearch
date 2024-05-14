@@ -136,45 +136,58 @@ class Dictionary:
 
                 new_lines = [line]
                 extension_tag_triggered = False
+                domain_tag_triggered = False
+
                 # We need this to know that EXTENSION_TAG was used
                 #  and not to trigger the complementary function that
                 #  handles when it is not
                 if EXTENSION_TAG in line.lower():
                     extension_tag_triggered = True
 
+                if DOMAIN_TAG in line.lower():
+                    domain_tag_triggered = True
+
                 final_lines = []
-                for new_line in new_lines:
-                    # If %DOMAIN% is found, replace it with self.urls (insert as many as they exist)
-                    if DOMAIN_TAG in new_line:
-                        for hostname in hostnames:
-                            split_hostnames = hostname.split(".")
-                            new_line = new_line.replace(DOMAIN_TAG, hostname)
-                            final_lines.append(new_line)
+                if domain_tag_triggered:
+                    for new_line in new_lines:
+                        # If %DOMAIN% is found, replace it with self.urls (insert as many as they exist)
+                        if DOMAIN_TAG in new_line:
+                            for hostname in hostnames:
+                                split_hostnames = hostname.split(".")
+                                new_line = new_line.replace(DOMAIN_TAG, hostname)
+                                final_lines.append(new_line)
 
-                            if len(split_hostnames) > 1:
-                                # We go from 1 dot to .. n .. as we want to return from www.somesite.co.uk:
-                                #  www.somesite.co.uk, somesite.co.uk, co.uk
-                                for dots in range(1, len(split_hostnames)):
-                                    new_hostname = ".".join(split_hostnames[dots:])
-                                    new_line = new_line.replace(DOMAIN_TAG, new_hostname)
-                                    final_lines.append(new_line)
+                                if len(split_hostnames) > 1:
+                                    # We go from 1 dot to .. n .. as we want to return from www.somesite.co.uk:
+                                    #  www.somesite.co.uk, somesite.co.uk, co.uk
+                                    for dots in range(1, len(split_hostnames)):
+                                        new_hostname = ".".join(split_hostnames[dots:])
+                                        new_line = new_line.replace(DOMAIN_TAG, new_hostname)
+                                        final_lines.append(new_line)
 
-                                # We go from n dot to .. 1 .. as we want to return from www.somesite.co.uk:
-                                #  www.somesite.co, www.somesite, www
-                                for dots in range(1, len(split_hostnames)):
-                                    new_hostname = ".".join(split_hostnames[:dots])
-                                    new_line = new_line.replace(DOMAIN_TAG, new_hostname)
-                                    final_lines.append(new_line)
+                                    # We go from n dot to .. 1 .. as we want to return from www.somesite.co.uk:
+                                    #  www.somesite.co, www.somesite, www
+                                    for dots in range(1, len(split_hostnames)):
+                                        new_hostname = ".".join(split_hostnames[:dots])
+                                        new_line = new_line.replace(DOMAIN_TAG, new_hostname)
+                                        final_lines.append(new_line)
 
-                new_lines = final_lines[:]
-                final_lines = []
+                    new_lines = final_lines[:]
 
-                # Classic dirsearch wordlist processing (with %EXT% keyword)
-                for new_line in new_lines:
-                    if EXTENSION_TAG in new_line.lower():
-                        for extension in options["extensions"]:
-                            new_line = re_ext_tag.sub(extension, line)
-                            final_lines.append(new_line)
+                if extension_tag_triggered:
+                    # Remove the items from the list, as we re-generate them here
+
+                    final_lines = []
+                    # Classic dirsearch wordlist processing (with %EXT% keyword)
+                    for new_line in new_lines:
+                        if EXTENSION_TAG in new_line.lower():
+                            for extension in options["extensions"]:
+                                new_line = re_ext_tag.sub(extension, line)
+                                final_lines.append(new_line)
+
+                # If neither was triggered, just copy new_lines to our final outcome
+                if not domain_tag_triggered and not extension_tag_triggered:
+                    final_lines = new_lines
 
                 # Go over the new_lines generated
                 for final_line in final_lines:
