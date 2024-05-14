@@ -144,7 +144,7 @@ class Dictionary:
                 if EXTENSION_TAG in line.lower():
                     extension_tag_triggered = True
 
-                if DOMAIN_TAG in line.lower():
+                if DOMAIN_TAG in line:
                     domain_tag_triggered = True
 
                 final_lines = []
