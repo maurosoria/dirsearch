@@ -182,7 +182,7 @@ class Dictionary:
                     for new_line in new_lines:
                         if EXTENSION_TAG in new_line.lower():
                             for extension in options["extensions"]:
-                                final_line = re_ext_tag.sub(extension, line)
+                                final_line = re_ext_tag.sub(extension, new_line)
                                 final_lines.append(final_line)
 
                 # If neither was triggered, just copy new_lines to our final outcome
