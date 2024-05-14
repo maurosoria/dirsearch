@@ -145,7 +145,7 @@ class Dictionary:
                 final_lines = []
                 for new_line in new_lines:
                     # If %DOMAIN% is found, replace it with self.urls (insert as many as they exist)
-                    original_line = new_word['line']
+                    original_line = new_line['line']
                     if DOMAIN_TAG in original_line:
                         for hostname in hostnames:
                             split_hostnames = hostname.split(".")
@@ -171,13 +171,13 @@ class Dictionary:
                 final_lines = []
 
                 # Classic dirsearch wordlist processing (with %EXT% keyword)
-                for new_word in new_lines:
-                    if EXTENSION_TAG in new_word.lower():
+                for new_line in new_lines:
+                    if EXTENSION_TAG in new_line.lower():
                         for extension in options["extensions"]:
                             new_line = re_ext_tag.sub(extension, line)
                             final_lines.append(new_line)
 
-                # Go over the new_words generated
+                # Go over the new_lines generated
                 for final_line in final_lines:
                     wordlist.add(final_line)
 
