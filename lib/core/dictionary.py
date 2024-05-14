@@ -145,11 +145,10 @@ class Dictionary:
                 final_lines = []
                 for new_line in new_lines:
                     # If %DOMAIN% is found, replace it with self.urls (insert as many as they exist)
-                    original_line = new_line['line']
-                    if DOMAIN_TAG in original_line:
+                    if DOMAIN_TAG in new_line:
                         for hostname in hostnames:
                             split_hostnames = hostname.split(".")
-                            new_line = original_line.replace(DOMAIN_TAG, hostname)
+                            new_line = new_line.replace(DOMAIN_TAG, hostname)
                             final_lines.append(new_line)
 
                             if len(split_hostnames) > 1:
@@ -157,14 +156,14 @@ class Dictionary:
                                 #  www.somesite.co.uk, somesite.co.uk, co.uk
                                 for dots in range(1, len(split_hostnames)):
                                     new_hostname = ".".join(split_hostnames[dots:])
-                                    new_line = original_line.replace(DOMAIN_TAG, new_hostname)
+                                    new_line = new_line.replace(DOMAIN_TAG, new_hostname)
                                     final_lines.append(new_line)
 
                                 # We go from n dot to .. 1 .. as we want to return from www.somesite.co.uk:
                                 #  www.somesite.co, www.somesite, www
                                 for dots in range(1, len(split_hostnames)):
                                     new_hostname = ".".join(split_hostnames[:dots])
-                                    new_line = original_line.replace(DOMAIN_TAG, new_hostname)
+                                    new_line = new_line.replace(DOMAIN_TAG, new_hostname)
                                     final_lines.append(new_line)
 
                 new_lines = final_lines[:]
