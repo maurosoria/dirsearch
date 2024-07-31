@@ -1354,6 +1354,8 @@
 .zshrc
 .zuul.yaml
 .zuul.yml
+api/1
+api/v1/1
 0
 0.htpasswd
 0.php
