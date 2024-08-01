@@ -5272,6 +5272,9 @@ help.htm
 help/
 helpadmin
 HFM/Administration/
+hint
+hint.%EXT%
+hint.txt
 HISTORY
 history
 history.md
