@@ -571,9 +571,7 @@ class Controller:
         """Add directory to the recursion queue"""
 
         # Pass if path is in exclusive directories
-        if any(
-            "/" + dir in path for dir in options["exclude_subdirs"]
-        ):
+        if any(dir in path for dir in options["exclude_subdirs"]):
             return
 
         url = self.url + path
