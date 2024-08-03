@@ -574,7 +574,8 @@ class Controller:
 
         # Pass if path is in exclusive directories
         if any(
-            "/" + dir in path for dir in options["exclude_subdirs"]
+            path.startswith(dir) or "/" + dir in path
+            for dir in options["exclude_subdirs"]
         ):
             return
 
