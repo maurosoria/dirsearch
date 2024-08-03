@@ -16,28 +16,19 @@
 #
 #  Author: Mauro Soria
 
-import json
-import time
-import sys
-
-from lib.reports.base import FileBaseReport
+from lib.core.decorators import locked
+from lib.core.settings import NEW_LINE
+from lib.report.factory import BaseReport, FileReportMixin
 
 
-class JSONReport(FileBaseReport):
-    def generate(self, entries):
-        report = {
-            "info": {"args": " ".join(sys.argv), "time": time.ctime()},
-            "results": [],
-        }
+class SimpleReport(FileReportMixin, BaseReport):
+    __format__ = "simple"
+    __extension__ = "txt"
 
-        for entry in entries:
-            result = {
-                "url": entry.url,
-                "status": entry.status,
-                "content-length": entry.length,
-                "content-type": entry.type,
-                "redirect": entry.redirect,
-            }
-            report["results"].append(result)
+    def new(self):
+        return ""
 
-        return json.dumps(report, sort_keys=True, indent=4)
+    @locked
+    def save(self, file, result):
+        data = self.parse(file)
+        self.write(file, data)

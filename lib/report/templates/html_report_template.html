@@ -39,6 +39,8 @@ th.active .arrow {
 <script src="https://cdn.jsdelivr.net/npm/vue@2.6.12/dist/vue.js" integrity="sha384-ma9ivURrHX5VOB4tNq+UiGNkJoANH4EAJmhxd1mmDq0gKOv88wkKZOfRDOpXynwh" crossorigin="anonymous"></script>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-wEmeIV1mKuiNpC+IOBjI7aAzPcEZeedi5yW5f2yOq55WWLwNGmvvx4Um1vskeMj0" crossorigin="anonymous">
 <script>
+import results from "results.json"
+
 function openURLs(){
     var table = document.getElementsByClassName("table")[0];
     for (let row of table.rows) {
@@ -48,7 +50,7 @@ function openURLs(){
       window.open(val, '_blank');
     }
 }
-function search(app, result) {
+function search(app, result){
     return app.searchQuery.toLowerCase().split(" ").every(
       (v) => result.url.toLowerCase().includes(v) ||
       (result.contentType && result.contentType.toLowerCase().includes(v)) ||
@@ -102,12 +104,29 @@ window.onload = function () {
         ]
       },
       methods: {
-        urlJoin: function(url, redirect){
+        joinUrl: function(url, redirect){
           return new URL(redirect, url).href;
+        },
+        getReadableSize: function(bytes){
+          if (!bytes) return '0 B'
+
+          const base = 1024
+          const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
+          const i = Math.floor(Math.log(bytes) / Math.log(base))
+
+          return `${Math.round(bytes / Math.pow(base, i))} ${units[i]}`
+        },
+        getStatusColorClass: function(statusCode){
+          if (statusCode <= 199) return "";
+          if (statusCode <= 299) return "text-success";
+          if (statusCode <= 399) return "text-info";
+          if (statusCode <= 499) return "text-warning";
+          if (statusCode <= 599) return "text-danger";
         }
+
       },
       computed: {
-        resultQuery: function(){
+        results: function(){
           arr = this.resources
           if(this.searchQuery){
             arr = arr.filter((result)=>{
@@ -177,13 +196,13 @@ window.onload = function () {
                                     <span v-bind:class="['arrow', sortColumn != column ? 'none' : column.order > 0 ? 'asc' : 'dsc']"></span>
                                 </th>
                             </tr>
-                            <tr v-for="result in resultQuery">
-                                <td><a v-bind:class="result.statusColorClass" v-bind:href="result.url" class="text-decoration-none" target="_blank">[[result.url]]</a></td>
-                                <td><a v-bind:class="result.statusColorClass" class="text-decoration-none" target="_blank">[[result.status]]</a></td>
-                                <td><a target="_blank">[[result.contentLength]]</a></td>
+                            <tr v-for="result in results">
+                                <td><a v-bind:class="getStatusColorClass(result.status)" v-bind:href="result.url" class="text-decoration-none" target="_blank">[[result.url]]</a></td>
+                                <td><a v-bind:class="getStatusColorClass(result.status)" class="text-decoration-none" target="_blank">[[result.status]]</a></td>
+                                <td><a :title="result.contentLength" target="_blank">[[getReadableSize(result.contentLength)]]</a></td>
                                 <td><a target="_blank">[[result.contentType]]</a></td>
                                 <!-- If you remove the "style" attribute, the redirect URL will be colored, it's a weird bug that I haven't figured out yet -->
-                                <td><a :href="urlJoin(result.url, result.redirect)" target="_blank" style="color: #eef1f3;">[[result.redirect]]</a></td>
+                                <td><a :href="joinUrl(result.url, result.redirect)" target="_blank" style="color: #eef1f3;">[[result.redirect]]</a></td>
                             </tr>
                         </tbody>
                     </table>

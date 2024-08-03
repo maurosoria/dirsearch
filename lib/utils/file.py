@@ -132,7 +132,7 @@ class FileUtils:
     @classmethod
     def create_dir(cls, directory):
         if not cls.exists(directory):
-            os.makedirs(directory)
+            os.makedirs(directory, exist_ok=True)
 
     @staticmethod
     def write_lines(file_name, lines, overwrite=False):

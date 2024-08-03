@@ -21,23 +21,31 @@ import mysql.connector
 from mysql.connector.constants import SQLMode
 from urllib.parse import urlparse
 
+from lib.core.decorators import locked
 from lib.core.exceptions import InvalidURLException
-from lib.reports.base import SQLBaseReport
+from lib.report.factory import BaseReport, SQLReportMixin
 
 
-class MySQLReport(SQLBaseReport):
+class MySQLReport(SQLReportMixin, BaseReport):
+    __format__ = "sql"
+    __extension__ = None
+    __reuse = True
+
+    def is_valid(self, url):
+        return url.startswith("mysql://")
+
     def connect(self, url):
-        parsed = urlparse(url)
-
-        if not parsed.scheme == "mysql":
+        if not self.is_valid(url):
             raise InvalidURLException("Provided MySQL URL does not start with mysql://")
 
-        self.conn = mysql.connector.connect(
+        parsed = urlparse(url)
+        conn = mysql.connector.connect(
             host=parsed.hostname,
             port=parsed.port or 3306,
             user=parsed.username,
             password=parsed.password,
             database=parsed.path.lstrip("/"),
         )
-        self.conn.sql_mode = [SQLMode.ANSI_QUOTES]
-        self.cursor = self.conn.cursor()
+        conn.sql_mode = [SQLMode.ANSI_QUOTES]
+
+        return conn

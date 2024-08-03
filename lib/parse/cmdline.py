@@ -87,7 +87,7 @@ def parse_arguments():
         "--extensions",
         action="store",
         dest="extensions",
-        help="Extension list separated by commas (e.g. php,asp)",
+        help="Extension list, separated by commas (e.g. php,asp)",
     )
     dictionary.add_option(
         "-f",
@@ -97,7 +97,6 @@ def parse_arguments():
         help="Add extensions to the end of every wordlist entry. By default dirsearch only replaces the %EXT% keyword with extensions",
     )
     dictionary.add_option(
-        "-O",
         "--overwrite-extensions",
         action="store_true",
         dest="overwrite_extensions",
@@ -108,7 +107,7 @@ def parse_arguments():
         action="store",
         dest="exclude_extensions",
         metavar="EXTENSIONS",
-        help="Exclude extension list separated by commas (e.g. asp,jsp)",
+        help="Exclude extension list, separated by commas (e.g. asp,jsp)",
     )
     dictionary.add_option(
         "--remove-extensions",
@@ -146,7 +145,7 @@ def parse_arguments():
         "-C",
         "--capital",
         action="store_true",
-        dest="capitalization",
+        dest="capital",
         help="Capital wordlist",
     )
 
@@ -485,18 +484,26 @@ def parse_arguments():
     output = OptionGroup(parser, "Output Settings")
     output.add_option(
         "-o",
-        "--output",
+        "--output-file",
         action="store",
-        dest="output",
-        metavar="PATH/URL",
-        help="Output file or MySQL/PostgreSQL URL (Format: scheme://[username:password@]host[:port]/database-name)",
+        dest="output_file",
+        metavar="PATH",
+        help="Output file location",
     )
     output.add_option(
-        "--format",
+        "-O",
+        "--output-url",
         action="store",
-        dest="output_format",
+        dest="output_url",
+        metavar="URL",
+        help="MySQL/PostgreSQL URL (Format: scheme://[username:password@]host[:port]/database-name)",
+    )
+    output.add_option(
+        "--output-formats",
+        action="store",
+        dest="output_formats",
         metavar="FORMAT",
-        help=f"Report format (Available: {','.join(OUTPUT_FORMATS)})",
+        help=f"Report formats, separated by commas (Available: {', '.join(OUTPUT_FORMATS)})",
     )
     output.add_option(
         "--log", action="store", dest="log_file", metavar="PATH", help="Log file"

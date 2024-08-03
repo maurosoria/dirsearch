@@ -16,28 +16,31 @@
 #
 #  Author: Mauro Soria
 
-import time
-import sys
+from lib.core.decorators import locked
+from lib.core.settings import (
+    COMMAND,
+    NEW_LINE,
+    START_TIME,
+)
+from lib.report.factory import BaseReport, FileReportMixin
 
-from lib.core.settings import NEW_LINE
-from lib.reports.base import FileBaseReport
 
+class MarkdownReport(FileReportMixin, BaseReport):
+    __format__ = "markdown"
+    __extension__ = "md"
 
-class MarkdownReport(FileBaseReport):
-    def get_header(self):
+    def new(self):
         header = "### Information" + NEW_LINE
-        header += f"Command: {chr(32).join(sys.argv)}"
+        header += f"Command: {COMMAND}"
         header += NEW_LINE
-        header += f"Time: {time.ctime()}"
+        header += f"Time: {START_TIME}"
         header += NEW_LINE * 2
         header += "URL | Status | Size | Content Type | Redirection" + NEW_LINE
         header += "----|--------|------|--------------|------------" + NEW_LINE
         return header
 
-    def generate(self, entries):
-        output = self.get_header()
-
-        for entry in entries:
-            output += f"{entry.url} | {entry.status} | {entry.length} | {entry.type} | {entry.redirect}" + NEW_LINE
-
-        return output
+    @locked
+    def save(self, file, result):
+        md = self.parse(file)
+        md += f"{result.url} | {result.status} | {result.length} | {result.type} | {result.redirect}" + NEW_LINE
+        self.write(file, md)

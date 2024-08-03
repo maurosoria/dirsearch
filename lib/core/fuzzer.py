@@ -30,7 +30,7 @@ from lib.core.settings import (
     WILDCARD_TEST_POINT_MARKER,
 )
 from lib.parse.url import clean_path
-from lib.utils.common import human_size, lstrip_once
+from lib.utils.common import get_readable_size, lstrip_once
 from lib.utils.crawl import Crawler
 
 
@@ -200,7 +200,7 @@ class Fuzzer:
         ):
             return True
 
-        if human_size(resp.length).rstrip() in options["exclude_sizes"]:
+        if get_readable_size(resp.length).rstrip() in options["exclude_sizes"]:
             return True
 
         if resp.length < options["minimum_response_size"]:
