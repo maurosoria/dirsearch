@@ -9,5 +9,5 @@ Fix #{issue}
 Requirements
 ---------------
 
-- [ ] Add your name to `CONTRIBUTERS.md`
+- [ ] Add your name to `CONTRIBUTORS.md`
 - [ ] If this is a new feature, then please add some additional information about it to `CHANGELOG.md`

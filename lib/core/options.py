@@ -28,6 +28,7 @@ from lib.parse.config import ConfigParser
 from lib.parse.headers import HeadersParser
 from lib.utils.common import iprange, read_stdin, strip_and_uniquify
 from lib.utils.file import File, FileUtils
+from lib.parse.nmap import parse_nmap
 
 
 def parse_options():
@@ -47,6 +48,12 @@ def parse_options():
         opt.urls = read_stdin().splitlines(0)
     elif opt.raw_file:
         _access_file(opt.raw_file)
+    elif opt.nmap_report:
+        try:
+            opt.urls = parse_nmap(opt.nmap_report)
+        except Exception as e:
+            print("Error while parsing Nmap report: " + str(e))
+            exit(1)
     elif not opt.urls:
         print("URL target is missing, try using -u <url>")
         exit(1)

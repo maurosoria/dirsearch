@@ -38,11 +38,11 @@ class HTMLReport(FileBaseReport):
 
         for entry in entries:
             status_color_class = ""
-            if entry.status >= 200 and entry.status <= 299:
+            if 200 <= entry.status <= 299:
                 status_color_class = "text-success"
-            elif entry.status >= 300 and entry.status <= 399:
+            elif 300 <= entry.status <= 399:
                 status_color_class = "text-warning"
-            elif entry.status >= 400 and entry.status <= 599:
+            elif 400 <= entry.status <= 599:
                 status_color_class = "text-danger"
 
             results.append(

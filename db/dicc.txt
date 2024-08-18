@@ -5272,6 +5272,9 @@ help.htm
 help/
 helpadmin
 HFM/Administration/
+hint
+hint.%EXT%
+hint.txt
 HISTORY
 history
 history.md
@@ -7990,6 +7993,7 @@ shutdown.%EXT%
 sibstatus
 sidekiq
 sidekiq_monitor
+sign
 sign-in
 sign-in/
 sign_in
@@ -8931,11 +8935,10 @@ v2.0
 v2/
 v2/_catalog
 v2/api-docs
-v3
-v3/api-docs
 v2/keys/?recursive=true
 v3
 v3/
+v3/api-docs
 v4/
 vadmin
 vadmin.%EXT%
@@ -9462,6 +9465,10 @@ wp-register
 wp-register.php
 wp-rss2
 wp-signup.php
+wp-sitemap-posts-page-1.xml
+wp-sitemap-posts-post-1.xml
+wp-sitemap-users-1.xml
+wp-sitemap.xml
 wp-snapshots/
 wp.php
 wp.rar/

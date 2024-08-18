@@ -58,6 +58,7 @@ options = {
     "http_method": "GET",
     "data": None,
     "data_file": None,
+    "nmap_report": None,
     "headers": {},
     "headers_file": None,
     "follow_redirects": False,

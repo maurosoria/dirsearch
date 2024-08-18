@@ -39,7 +39,7 @@ class CaseInsensitiveDict(dict):
             self.__setitem__(key, value)
 
 
-class OrderedSet():
+class OrderedSet:
     def __init__(self, items=[]):
         self._data = dict()
 
