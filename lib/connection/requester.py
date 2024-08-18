@@ -208,7 +208,10 @@ class Requester:
                 elif "TooManyRedirects" in str(e):
                     err_msg = f"Too many redirects: {url}"
                 elif "ProxyError" in str(e):
-                    err_msg = f"Error with the proxy: {proxy}"
+                    if proxy:
+                        err_msg = f"Error with the proxy: {proxy}"
+                    else:
+                        err_msg = f"Error with the system proxy"
                     # Prevent from re-using it in the future
                     if proxy in options["proxies"] and len(options["proxies"]) > 1:
                         options["proxies"].remove(proxy)
