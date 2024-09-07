@@ -16,8 +16,10 @@
 #
 #  Author: Mauro Soria
 
+import asyncio
 import gc
 import os
+import signal
 import psycopg
 import re
 import time
@@ -68,6 +70,13 @@ from lib.utils.file import FileUtils
 from lib.utils.pickle import pickle, unpickle
 from lib.utils.schemedet import detect_scheme
 from lib.view.terminal import interface
+
+if options["async_mode"]:
+    from lib.connection.asynchronous.requester import Requester
+    from lib.core.asynchronous.fuzzer import Fuzzer
+else:
+    from lib.connection.requester import Requester
+    from lib.core.fuzzer import Fuzzer
 
 
 class Controller:
@@ -229,7 +238,10 @@ class Controller:
                 if not self.old_session:
                     interface.target(self.url)
 
-                self.start()
+                if options["async_mode"]:
+                    self.astart()
+                else:
+                    self.start()
 
             except (
                 InvalidURLException,
@@ -277,6 +289,43 @@ class Controller:
 
             except KeyboardInterrupt:
                 pass
+
+            finally:
+                self.dictionary.reset()
+                self.directories.pop(0)
+
+                self.jobs_processed += 1
+                self.old_session = False
+
+    def astart(self):
+        loop = asyncio.new_event_loop()
+        loop.add_signal_handler(signal.SIGINT, self.handle_pause)
+        while self.directories:
+            try:
+                gc.collect()
+
+                current_directory = self.directories[0]
+
+                if not self.old_session:
+                    current_time = time.strftime("%H:%M:%S")
+                    msg = f"{NEW_LINE}[{current_time}] Starting: {current_directory}"
+
+                    interface.warning(msg)
+
+                self.fuzzer.set_base_path(current_directory)
+                if (timeout := options["max_time"]) > 0:
+                    loop.run_until_complete(
+                        asyncio.wait_for(self.fuzzer.start(), timeout)
+                    )
+                else:
+                    loop.run_until_complete(self.fuzzer.start())
+
+            except KeyboardInterrupt:
+                pass
+            except asyncio.TimeoutError:
+                raise SkipTargetInterrupt(
+                    "Runtime exceeded the maximum set by the user"
+                )
 
             finally:
                 self.dictionary.reset()

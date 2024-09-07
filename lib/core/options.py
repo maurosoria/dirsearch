@@ -350,6 +350,7 @@ def parse_config(opt):
 
     # Advanced
     opt.crawl = opt.crawl or config.safe_getboolean("advanced", "crawl")
+    opt.async_mode = opt.async_mode or config.safe_getboolean("advanced", "async")
 
     # View
     opt.full_url = opt.full_url or config.safe_getboolean("view", "full-url")

@@ -468,6 +468,12 @@ def parse_arguments():
         dest="crawl",
         help="Crawl for new paths in responses"
     )
+    advanced.add_option(
+        "--async",
+        action="store_true",
+        dest="async_mode",
+        help="Enable asynchronous mode",
+    )
 
     # View Settings
     view = OptionGroup(parser, "View Settings")
