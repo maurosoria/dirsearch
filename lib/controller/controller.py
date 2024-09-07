@@ -28,7 +28,6 @@ import mysql.connector
 from urllib.parse import urlparse
 
 from lib.connection.dns import cache_dns
-from lib.connection.requester import Requester
 from lib.core.data import blacklists, options
 from lib.core.decorators import locked
 from lib.core.dictionary import Dictionary, get_blacklists
@@ -72,8 +71,8 @@ from lib.utils.schemedet import detect_scheme
 from lib.view.terminal import interface
 
 if options["async_mode"]:
-    from lib.connection.asynchronous.requester import Requester
-    from lib.core.asynchronous.fuzzer import Fuzzer
+    from lib.connection.requester import AsyncRequester as Requester
+    from lib.core.fuzzer import AsyncFuzzer as Fuzzer
 else:
     from lib.connection.requester import Requester
     from lib.core.fuzzer import Fuzzer

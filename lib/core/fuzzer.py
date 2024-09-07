@@ -16,14 +16,19 @@
 #
 #  Author: Mauro Soria
 
+import asyncio
 import re
 import threading
 import time
+from typing import Callable, Generator
 
+from lib.connection.requester import BaseRequester
+from lib.connection.response import BaseResponse
 from lib.core.data import blacklists, options
+from lib.core.dictionary import Dictionary
 from lib.core.exceptions import RequestException
 from lib.core.logger import logger
-from lib.core.scanner import Scanner
+from lib.core.scanner import AsyncScanner, Scanner
 from lib.core.settings import (
     DEFAULT_TEST_PREFIXES,
     DEFAULT_TEST_SUFFIXES,
@@ -34,71 +39,29 @@ from lib.utils.common import human_size, lstrip_once
 from lib.utils.crawl import Crawler
 
 
-class Fuzzer:
-    def __init__(self, requester, dictionary, **kwargs):
-        self._threads = []
+class BaseFuzzer:
+    def __init__(
+        self,
+        requester: BaseRequester,
+        dictionary: Dictionary,
+        *,
+        match_callbacks: tuple[Callable] = (),
+        not_found_callbacks: tuple[Callable] = (),
+        error_callbacks: tuple[Callable] = (),
+    ) -> None:
         self._scanned = set()
         self._requester = requester
         self._dictionary = dictionary
-        self._play_event = threading.Event()
-        self._quit_event = threading.Event()
-        self._pause_semaphore = threading.Semaphore(0)
         self._base_path = None
         self.exc = None
-        self.match_callbacks = kwargs.get("match_callbacks", [])
-        self.not_found_callbacks = kwargs.get("not_found_callbacks", [])
-        self.error_callbacks = kwargs.get("error_callbacks", [])
+        self.match_callbacks = match_callbacks
+        self.not_found_callbacks = not_found_callbacks
+        self.error_callbacks = error_callbacks
 
-    def setup_scanners(self):
-        self.scanners = {
-            "default": {},
-            "prefixes": {},
-            "suffixes": {},
-        }
+    def set_base_path(self, path: str) -> None:
+        self._base_path = path
 
-        # Default scanners (wildcard testers)
-        self.scanners["default"].update({
-            "index": Scanner(self._requester, path=self._base_path),
-            "random": Scanner(self._requester, path=self._base_path + WILDCARD_TEST_POINT_MARKER),
-        })
-
-        if options["exclude_response"]:
-            self.scanners["default"]["custom"] = Scanner(
-                self._requester, tested=self.scanners, path=options["exclude_response"]
-            )
-
-        for prefix in options["prefixes"] + DEFAULT_TEST_PREFIXES:
-            self.scanners["prefixes"][prefix] = Scanner(
-                self._requester, tested=self.scanners,
-                path=f"{self._base_path}{prefix}{WILDCARD_TEST_POINT_MARKER}",
-                context=f"/{self._base_path}{prefix}***",
-            )
-
-        for suffix in options["suffixes"] + DEFAULT_TEST_SUFFIXES:
-            self.scanners["suffixes"][suffix] = Scanner(
-                self._requester, tested=self.scanners,
-                path=f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}{suffix}",
-                context=f"/{self._base_path}***{suffix}",
-            )
-
-        for extension in options["extensions"]:
-            if "." + extension not in self.scanners["suffixes"]:
-                self.scanners["suffixes"]["." + extension] = Scanner(
-                    self._requester, tested=self.scanners,
-                    path=f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}.{extension}",
-                    context=f"/{self._base_path}***.{extension}",
-                )
-
-    def setup_threads(self):
-        if self._threads:
-            self._threads = []
-
-        for _ in range(options["thread_count"]):
-            new_thread = threading.Thread(target=self.thread_proc)
-            new_thread.daemon = True
-            self._threads.append(new_thread)
-
-    def get_scanners_for(self, path):
+    def get_scanners_for(self, path: str) -> Generator:
         # Clean the path, so can check for extensions/suffixes
         path = clean_path(path)
 
@@ -112,6 +75,128 @@ class Fuzzer:
 
         for scanner in self.scanners["default"].values():
             yield scanner
+
+    def is_excluded(self, resp: BaseResponse) -> bool:
+        """Validate the response by different filters"""
+
+        if resp.status in options["exclude_status_codes"]:
+            return True
+
+        if (
+            options["include_status_codes"]
+            and resp.status not in options["include_status_codes"]
+        ):
+            return True
+
+        if resp.status in blacklists and any(
+            resp.path.endswith(lstrip_once(suffix, "/"))
+            for suffix in blacklists.get(resp.status)
+        ):
+            return True
+
+        if human_size(resp.length).rstrip() in options["exclude_sizes"]:
+            return True
+
+        if resp.length < options["minimum_response_size"]:
+            return True
+
+        if resp.length > options["maximum_response_size"] > 0:
+            return True
+
+        if any(text in resp.content for text in options["exclude_texts"]):
+            return True
+
+        if options["exclude_regex"] and re.search(
+            options["exclude_regex"], resp.content
+        ):
+            return True
+
+        if options["exclude_redirect"] and (
+            options["exclude_redirect"] in resp.redirect
+            or re.search(options["exclude_redirect"], resp.redirect)
+        ):
+            return True
+
+        return False
+
+
+class Fuzzer(BaseFuzzer):
+    def __init__(
+        self,
+        requester: BaseRequester,
+        dictionary: Dictionary,
+        *,
+        match_callbacks: tuple[Callable] = (),
+        not_found_callbacks: tuple[Callable] = (),
+        error_callbacks: tuple[Callable] = (),
+    ) -> None:
+        super().__init__(
+            requester,
+            dictionary,
+            match_callbacks=match_callbacks,
+            not_found_callbacks=not_found_callbacks,
+            error_callbacks=error_callbacks,
+        )
+        self._threads = []
+        self._play_event = threading.Event()
+        self._quit_event = threading.Event()
+        self._pause_semaphore = threading.Semaphore(0)
+
+    def setup_scanners(self):
+        self.scanners = {
+            "default": {},
+            "prefixes": {},
+            "suffixes": {},
+        }
+
+        # Default scanners (wildcard testers)
+        self.scanners["default"].update(
+            {
+                "index": Scanner(self._requester, path=self._base_path),
+                "random": Scanner(
+                    self._requester, path=self._base_path + WILDCARD_TEST_POINT_MARKER
+                ),
+            }
+        )
+
+        if options["exclude_response"]:
+            self.scanners["default"]["custom"] = Scanner(
+                self._requester, tested=self.scanners, path=options["exclude_response"]
+            )
+
+        for prefix in options["prefixes"] + DEFAULT_TEST_PREFIXES:
+            self.scanners["prefixes"][prefix] = Scanner(
+                self._requester,
+                tested=self.scanners,
+                path=f"{self._base_path}{prefix}{WILDCARD_TEST_POINT_MARKER}",
+                context=f"/{self._base_path}{prefix}***",
+            )
+
+        for suffix in options["suffixes"] + DEFAULT_TEST_SUFFIXES:
+            self.scanners["suffixes"][suffix] = Scanner(
+                self._requester,
+                tested=self.scanners,
+                path=f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}{suffix}",
+                context=f"/{self._base_path}***{suffix}",
+            )
+
+        for extension in options["extensions"]:
+            if "." + extension not in self.scanners["suffixes"]:
+                self.scanners["suffixes"]["." + extension] = Scanner(
+                    self._requester,
+                    tested=self.scanners,
+                    path=f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}.{extension}",
+                    context=f"/{self._base_path}***.{extension}",
+                )
+
+    def setup_threads(self):
+        if self._threads:
+            self._threads = []
+
+        for _ in range(options["thread_count"]):
+            new_thread = threading.Thread(target=self.thread_proc)
+            new_thread.daemon = True
+            self._threads.append(new_thread)
 
     def start(self):
         self.setup_scanners()
@@ -176,58 +261,10 @@ class Fuzzer:
             logger.info(f'THREAD-{threading.get_ident()}: crawling "/{path}"')
             for path_ in Crawler.crawl(response):
                 if self._dictionary.is_valid(path_):
-                    logger.info(f'THREAD-{threading.get_ident()}: found new path "/{path_}" in /{path}')
+                    logger.info(
+                        f'THREAD-{threading.get_ident()}: found new path "/{path_}" in /{path}'
+                    )
                     self.scan(path_, self.get_scanners_for(path_))
-
-    def is_excluded(self, resp):
-        """Validate the response by different filters"""
-
-        if resp.status in options["exclude_status_codes"]:
-            return True
-
-        if (
-            options["include_status_codes"]
-            and resp.status not in options["include_status_codes"]
-        ):
-            return True
-
-        if (
-            resp.status in blacklists
-            and any(
-                resp.path.endswith(lstrip_once(suffix, "/"))
-                for suffix in blacklists.get(resp.status)
-            )
-        ):
-            return True
-
-        if human_size(resp.length).rstrip() in options["exclude_sizes"]:
-            return True
-
-        if resp.length < options["minimum_response_size"]:
-            return True
-
-        if resp.length > options["maximum_response_size"] > 0:
-            return True
-
-        if any(text in resp.content for text in options["exclude_texts"]):
-            return True
-
-        if options["exclude_regex"] and re.search(options["exclude_regex"], resp.content):
-            return True
-
-        if (
-            options["exclude_redirect"]
-            and (
-                options["exclude_redirect"] in resp.redirect
-                or re.search(options["exclude_redirect"], resp.redirect)
-            )
-        ):
-            return True
-
-        return False
-
-    def set_base_path(self, path):
-        self._base_path = path
 
     def thread_proc(self):
         logger.info(f'THREAD-{threading.get_ident()} started"')
@@ -258,3 +295,153 @@ class Fuzzer:
 
                 if self._quit_event.is_set():
                     break
+
+
+class AsyncFuzzer(BaseFuzzer):
+    def __init__(
+        self,
+        requester: BaseRequester,
+        dictionary: Dictionary,
+        *,
+        match_callbacks: tuple[Callable] = (),
+        not_found_callbacks: tuple[Callable] = (),
+        error_callbacks: tuple[Callable] = (),
+    ) -> None:
+        super().__init__(
+            requester,
+            dictionary,
+            match_callbacks=match_callbacks,
+            not_found_callbacks=not_found_callbacks,
+            error_callbacks=error_callbacks,
+        )
+        self._play_event = asyncio.Event()
+        self._background_tasks = set()
+        self.sem = asyncio.Semaphore(options["thread_count"])
+
+    async def setup_scanners(self) -> None:
+        self.scanners = {
+            "default": {},
+            "prefixes": {},
+            "suffixes": {},
+        }
+
+        # Default scanners (wildcard testers)
+        self.scanners["default"].update(
+            {
+                "index": await AsyncScanner.create(
+                    self._requester, path=self._base_path
+                ),
+                "random": await AsyncScanner.create(
+                    self._requester, path=self._base_path + WILDCARD_TEST_POINT_MARKER
+                ),
+            }
+        )
+
+        if options["exclude_response"]:
+            self.scanners["default"]["custom"] = await AsyncScanner.create(
+                self._requester, tested=self.scanners, path=options["exclude_response"]
+            )
+
+        for prefix in options["prefixes"] + DEFAULT_TEST_PREFIXES:
+            self.scanners["prefixes"][prefix] = await AsyncScanner.create(
+                self._requester,
+                tested=self.scanners,
+                path=f"{self._base_path}{prefix}{WILDCARD_TEST_POINT_MARKER}",
+                context=f"/{self._base_path}{prefix}***",
+            )
+
+        for suffix in options["suffixes"] + DEFAULT_TEST_SUFFIXES:
+            self.scanners["suffixes"][suffix] = await AsyncScanner.create(
+                self._requester,
+                tested=self.scanners,
+                path=f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}{suffix}",
+                context=f"/{self._base_path}***{suffix}",
+            )
+
+        for extension in options["extensions"]:
+            if "." + extension not in self.scanners["suffixes"]:
+                self.scanners["suffixes"]["." + extension] = await AsyncScanner.create(
+                    self._requester,
+                    tested=self.scanners,
+                    path=f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}.{extension}",
+                    context=f"/{self._base_path}***.{extension}",
+                )
+
+    async def start(self) -> None:
+        await self.setup_scanners()
+        self.play()
+
+        for _ in range(len(self._dictionary)):
+            task = asyncio.create_task(self.task_proc())
+            self._background_tasks.add(task)
+            task.add_done_callback(self._background_tasks.discard)
+
+        await asyncio.gather(*self._background_tasks, return_exceptions=True)
+
+    def is_finished(self) -> bool:
+        if self.exc:
+            raise self.exc
+
+        return len(self._background_tasks) == 0
+
+    def play(self) -> None:
+        self._play_event.set()
+
+    def pause(self) -> None:
+        self._play_event.clear()
+
+    def quit(self) -> None:
+        for task in self._background_tasks:
+            task.cancel()
+
+    async def scan(self, path: str, scanners: Generator) -> None:
+        # Avoid scanned paths from being re-scanned
+        if path in self._scanned:
+            return
+        else:
+            self._scanned.add(path)
+
+        response = await self._requester.request(path)
+
+        if self.is_excluded(response):
+            for callback in self.not_found_callbacks:
+                callback(response)
+            return
+
+        for tester in scanners:
+            # Check if the response is unique, not wildcard
+            if not tester.check(path, response):
+                for callback in self.not_found_callbacks:
+                    callback(response)
+                return
+
+        try:
+            for callback in self.match_callbacks:
+                callback(response)
+        except Exception as e:
+            self.exc = e
+
+        if options["crawl"]:
+            logger.info(f'THREAD-{threading.get_ident()}: crawling "/{path}"')
+            for path_ in Crawler.crawl(response):
+                if self._dictionary.is_valid(path_):
+                    logger.info(
+                        f'THREAD-{threading.get_ident()}: found new path "/{path_}" in /{path}'
+                    )
+                    await self.scan(path_, self.get_scanners_for(path_))
+
+    async def task_proc(self) -> None:
+        async with self.sem:
+            await self._play_event.wait()
+
+            try:
+                path = next(self._dictionary)
+                scanners = self.get_scanners_for(path)
+                await self.scan(self._base_path + path, scanners)
+            except StopIteration:
+                pass
+            except RequestException as e:
+                for callback in self.error_callbacks:
+                    callback(e)
+            finally:
+                await asyncio.sleep(options["delay"])
