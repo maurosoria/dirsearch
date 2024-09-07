@@ -149,6 +149,10 @@ class Controller:
         self.errors = 0
         self.consecutive_errors = 0
 
+        if options["async_mode"]:
+            self.loop = asyncio.new_event_loop()
+            self.loop.add_signal_handler(signal.SIGINT, self.handle_pause)
+
         if options["auth"]:
             self.requester.set_auth(options["auth_type"], options["auth"])
 
@@ -238,10 +242,7 @@ class Controller:
                 if not self.old_session:
                     interface.target(self.url)
 
-                if options["async_mode"]:
-                    self.astart()
-                else:
-                    self.start()
+                self.start()
 
             except (
                 InvalidURLException,
@@ -284,48 +285,17 @@ class Controller:
                     interface.warning(msg)
 
                 self.fuzzer.set_base_path(current_directory)
-                self.fuzzer.start()
-                self.process()
-
-            except KeyboardInterrupt:
-                pass
-
-            finally:
-                self.dictionary.reset()
-                self.directories.pop(0)
-
-                self.jobs_processed += 1
-                self.old_session = False
-
-    def astart(self):
-        loop = asyncio.new_event_loop()
-        loop.add_signal_handler(signal.SIGINT, self.handle_pause)
-        while self.directories:
-            try:
-                gc.collect()
-
-                current_directory = self.directories[0]
-
-                if not self.old_session:
-                    current_time = time.strftime("%H:%M:%S")
-                    msg = f"{NEW_LINE}[{current_time}] Starting: {current_directory}"
-
-                    interface.warning(msg)
-
-                self.fuzzer.set_base_path(current_directory)
-                if (timeout := options["max_time"]) > 0:
-                    loop.run_until_complete(
-                        asyncio.wait_for(self.fuzzer.start(), timeout)
-                    )
+                if options["async_mode"]:
+                    # use a future to get exceptions from handle_pause
+                    # https://stackoverflow.com/a/64230941
+                    self.done_future = self.loop.create_future()
+                    self.loop.run_until_complete(self._start_coroutines())
                 else:
-                    loop.run_until_complete(self.fuzzer.start())
+                    self.fuzzer.start()
+                    self.process()
 
             except KeyboardInterrupt:
                 pass
-            except asyncio.TimeoutError:
-                raise SkipTargetInterrupt(
-                    "Runtime exceeded the maximum set by the user"
-                )
 
             finally:
                 self.dictionary.reset()
@@ -333,6 +303,22 @@ class Controller:
 
                 self.jobs_processed += 1
                 self.old_session = False
+
+    async def _start_coroutines(self):
+        task = self.loop.create_task(self.fuzzer.start())
+        done, _ = await asyncio.wait(
+            [self.done_future, task],
+            timeout=options["max_time"] if options["max_time"] > 0 else None,
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+
+        if self.done_future.done():
+            task.cancel()
+            await self.done_future  # propagate the exception, if raised
+
+        # TODO: find a better way to catch TimeoutError
+        if len(done) == 0:
+            raise SkipTargetInterrupt("Runtime exceeded the maximum set by the user")
 
     def set_target(self, url):
         # If no scheme specified, unset it first
@@ -584,9 +570,19 @@ class Controller:
                     )
 
                     self._export(session_file)
-                    raise QuitInterrupt(f"Session saved to: {session_file}")
+                    quitexc = QuitInterrupt(f"Session saved to: {session_file}")
+                    if options["async_mode"]:
+                        self.done_future.set_exception(quitexc)
+                        break
+                    else:
+                        raise quitexc
                 elif option.lower() == "q":
-                    raise QuitInterrupt("Canceled by the user")
+                    quitexc = QuitInterrupt("Canceled by the user")
+                    if options["async_mode"]:
+                        self.done_future.set_exception(quitexc)
+                        break
+                    else:
+                        raise quitexc
 
             elif option.lower() == "c":
                 self.fuzzer.play()
@@ -597,7 +593,12 @@ class Controller:
                 break
 
             elif option.lower() == "s" and len(options["urls"]) > 1:
-                raise SkipTargetInterrupt("Target skipped by the user")
+                skipexc = SkipTargetInterrupt("Target skipped by the user")
+                if options["async_mode"]:
+                    self.done_future.set_exception(skipexc)
+                    break
+                else:
+                    raise skipexc
 
     def is_timed_out(self):
         return time.time() - self.start_time > options["max_time"] > 0
