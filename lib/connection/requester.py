@@ -277,18 +277,38 @@ class AsyncRequester(BaseRequester):
     def __init__(self):
         super().__init__()
 
+        proxy = None
+        try:
+            proxy = self.parse_proxy(random.choice(options["proxies"]))
+        except IndexError:
+            pass
+
         transport = httpx.AsyncHTTPTransport(
-            # FIXME: max_connections != thread_count
+            verify=False,
+            cert=self._cert,
             limits=httpx.Limits(max_connections=options["thread_count"]),
+            # FIXME: proxy will not change when retry request
+            proxy=proxy,
             socket_options=self._socket_options,
         )
 
         self.session = httpx.AsyncClient(
-            verify=False,
-            cert=self._cert,
             mounts={"http://": transport, "https://": transport},
             timeout=httpx.Timeout(options["timeout"]),
         )
+
+    def parse_proxy(self, proxy: str):
+        if not proxy:
+            return None
+
+        if not proxy.startswith(PROXY_SCHEMES):
+            proxy = f"http://{proxy}"
+
+        if self._proxy_cred and "@" not in proxy:
+            # socks5://localhost:9050 => socks5://[credential]@localhost:9050
+            proxy = proxy.replace("://", f"://{self._proxy_cred}@", 1)
+
+        return proxy
 
     def set_auth(self, type: str, credential: str) -> None:
         if type in ("bearer", "jwt"):
@@ -323,11 +343,8 @@ class AsyncRequester(BaseRequester):
         # Why using a loop instead of max_retries argument? Check issue #1009
         for _ in range(options["max_retries"] + 1):
             try:
-                try:
-                    proxy = proxy or random.choice(options["proxies"])
-                    self.set_proxy(proxy)
-                except IndexError:
-                    pass
+                # FIXME: set proxy here is not work
+                # https://github.com/encode/httpx/discussions/3183
 
                 if self.agents:
                     self.set_header("user-agent", random.choice(self.agents))

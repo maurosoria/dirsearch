@@ -305,19 +305,19 @@ class Controller:
 
     async def _start_coroutines(self):
         task = self.loop.create_task(self.fuzzer.start())
-        done, _ = await asyncio.wait(
-            [self.done_future, task],
-            timeout=options["max_time"] if options["max_time"] > 0 else None,
-            return_when=asyncio.FIRST_COMPLETED,
-        )
+        max_time = options["max_time"] if options["max_time"] > 0 else None
+        try:
+            async with asyncio.timeout(max_time):
+                await asyncio.wait(
+                    [self.done_future, task],
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+        except asyncio.TimeoutError:
+            raise SkipTargetInterrupt("Runtime exceeded the maximum set by the user")
 
         if self.done_future.done():
             task.cancel()
             await self.done_future  # propagate the exception, if raised
-
-        # TODO: find a better way to catch TimeoutError
-        if len(done) == 0:
-            raise SkipTargetInterrupt("Runtime exceeded the maximum set by the user")
 
     def set_target(self, url):
         # If no scheme specified, unset it first
@@ -497,7 +497,12 @@ class Controller:
 
         if options["replay_proxy"]:
             # Replay the request with new proxy
-            self.requester.request(response.full_path, proxy=options["replay_proxy"])
+            if options["async_mode"]:
+                # FIXME: httpx does not currently allow setting proxies per-request
+                # self.loop.create_task(self.requester.request(response.full_path, proxy=options["replay_proxy"]))
+                pass
+            else:
+                self.requester.request(response.full_path, proxy=options["replay_proxy"])
 
         if self.report:
             self.results.append(response)
