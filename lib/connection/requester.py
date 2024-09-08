@@ -335,7 +335,6 @@ class AsyncRequester(BaseRequester):
                 # Use "target" extension to avoid the URL path from being normalized
                 request = self.session.build_request(
                     options["http_method"],
-                    # url.removesuffix(parsed_url.path),
                     url,
                     headers=self.headers,
                     data=options["data"],
@@ -395,3 +394,7 @@ class AsyncRequester(BaseRequester):
                     err_msg = f"There was a problem in the request to: {url}"
 
         raise RequestException(err_msg)
+
+    def increase_rate(self) -> None:
+        self._rate += 1
+        asyncio.get_running_loop().call_later(1, self.decrease_rate)
