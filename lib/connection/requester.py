@@ -30,6 +30,7 @@ import requests
 from requests.auth import AuthBase, HTTPBasicAuth, HTTPDigestAuth
 from requests.packages import urllib3
 from requests_ntlm import HttpNtlmAuth
+from httpx_ntlm import HttpNtlmAuth as HttpxNtlmAuth
 from requests_toolbelt.adapters.socket_options import SocketOptionsAdapter
 
 from lib.connection.dns import cached_getaddrinfo
@@ -304,7 +305,7 @@ class AsyncRequester(BaseRequester):
             elif type == "digest":
                 self.session.auth = httpx.DigestAuth(user, password)
             else:
-                pass  # TODO: HttpNtlmAuth
+                self.session.auth = HttpxNtlmAuth(user, password)
 
     # :path: is expected not to start with "/"
     async def request(self, path: str, proxy: str = None) -> AsyncResponse:
