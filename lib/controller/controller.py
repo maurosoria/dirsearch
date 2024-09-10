@@ -304,14 +304,14 @@ class Controller:
 
     async def _start_coroutines(self):
         task = self.loop.create_task(self.fuzzer.start())
-        max_time = options["max_time"] if options["max_time"] > 0 else None
+
         try:
             await asyncio.wait_for(
                 asyncio.wait(
                     [self.done_future, task],
                     return_when=asyncio.FIRST_COMPLETED,
                 ),
-                timeout=max_time,
+                timeout=options["max_time"] if options["max_time"] > 0 else None,
             )
         except asyncio.TimeoutError:
             raise SkipTargetInterrupt("Runtime exceeded the maximum set by the user")
@@ -319,6 +319,8 @@ class Controller:
         if self.done_future.done():
             task.cancel()
             await self.done_future  # propagate the exception, if raised
+
+        await task  # propagate the exception, if raised
 
     def set_target(self, url):
         # If no scheme specified, unset it first
