@@ -20,7 +20,7 @@ import asyncio
 import re
 import threading
 import time
-from typing import Callable, Generator
+from typing import Callable, Generator, Tuple
 
 from lib.connection.requester import BaseRequester
 from lib.connection.response import BaseResponse
@@ -45,9 +45,9 @@ class BaseFuzzer:
         requester: BaseRequester,
         dictionary: Dictionary,
         *,
-        match_callbacks: tuple[Callable] = (),
-        not_found_callbacks: tuple[Callable] = (),
-        error_callbacks: tuple[Callable] = (),
+        match_callbacks: Tuple[Callable] = (),
+        not_found_callbacks: Tuple[Callable] = (),
+        error_callbacks: Tuple[Callable] = (),
     ) -> None:
         self._scanned = set()
         self._requester = requester
@@ -126,9 +126,9 @@ class Fuzzer(BaseFuzzer):
         requester: BaseRequester,
         dictionary: Dictionary,
         *,
-        match_callbacks: tuple[Callable] = (),
-        not_found_callbacks: tuple[Callable] = (),
-        error_callbacks: tuple[Callable] = (),
+        match_callbacks: Tuple[Callable] = (),
+        not_found_callbacks: Tuple[Callable] = (),
+        error_callbacks: Tuple[Callable] = (),
     ) -> None:
         super().__init__(
             requester,
@@ -303,9 +303,9 @@ class AsyncFuzzer(BaseFuzzer):
         requester: BaseRequester,
         dictionary: Dictionary,
         *,
-        match_callbacks: tuple[Callable] = (),
-        not_found_callbacks: tuple[Callable] = (),
-        error_callbacks: tuple[Callable] = (),
+        match_callbacks: Tuple[Callable] = (),
+        not_found_callbacks: Tuple[Callable] = (),
+        error_callbacks: Tuple[Callable] = (),
     ) -> None:
         super().__init__(
             requester,
@@ -316,7 +316,6 @@ class AsyncFuzzer(BaseFuzzer):
         )
         self._play_event = asyncio.Event()
         self._background_tasks = set()
-        self.sem = asyncio.Semaphore(options["thread_count"])
 
     async def setup_scanners(self) -> None:
         self.scanners = {
@@ -368,6 +367,9 @@ class AsyncFuzzer(BaseFuzzer):
                 )
 
     async def start(self) -> None:
+        # In Python 3.9, initialize the Semaphore within the coroutine
+        # to avoid binding to a different event loop.
+        self.sem = asyncio.Semaphore(options["thread_count"])
         await self.setup_scanners()
         self.play()
 
@@ -376,7 +378,7 @@ class AsyncFuzzer(BaseFuzzer):
             self._background_tasks.add(task)
             task.add_done_callback(self._background_tasks.discard)
 
-        await asyncio.gather(*self._background_tasks, return_exceptions=True)
+        await asyncio.gather(*self._background_tasks)
 
     def is_finished(self) -> bool:
         if self.exc:

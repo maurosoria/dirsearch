@@ -307,11 +307,13 @@ class Controller:
         task = self.loop.create_task(self.fuzzer.start())
         max_time = options["max_time"] if options["max_time"] > 0 else None
         try:
-            async with asyncio.timeout(max_time):
-                await asyncio.wait(
+            await asyncio.wait_for(
+                asyncio.wait(
                     [self.done_future, task],
                     return_when=asyncio.FIRST_COMPLETED,
-                )
+                ),
+                timeout=max_time,
+            )
         except asyncio.TimeoutError:
             raise SkipTargetInterrupt("Runtime exceeded the maximum set by the user")
 
