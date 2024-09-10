@@ -39,7 +39,6 @@ from lib.core.exceptions import (
     QuitInterrupt,
     UnpicklingError,
 )
-from lib.core.fuzzer import Fuzzer
 from lib.core.logger import enable_logging, logger
 from lib.core.settings import (
     BANNER,
@@ -174,7 +173,7 @@ class Controller:
                 )
                 exit(1)
 
-        if options["autosave_report"] and not options["output"] :
+        if options["autosave_report"] and not options["output"]:
             self.report_path = options["output_path"] or FileUtils.build_path(
                 SCRIPT_PATH, "reports"
             )
