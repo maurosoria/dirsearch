@@ -23,6 +23,7 @@ import re
 import socket
 import threading
 import time
+from typing import Generator
 from urllib.parse import urlparse
 
 import httpx
@@ -69,7 +70,7 @@ class HTTPXBearerAuth(httpx.Auth):
     def __init__(self, token: str) -> None:
         self.token = token
 
-    def auth_flow(self, request: httpx.Request) -> any:
+    def auth_flow(self, request: httpx.Request) -> Generator:
         request.headers["Authorization"] = f"Bearer {self.token}"
         yield request
 
@@ -287,17 +288,19 @@ class AsyncRequester(BaseRequester):
             verify=False,
             cert=self._cert,
             limits=httpx.Limits(max_connections=options["thread_count"]),
-            # FIXME: proxy will not change when retry request
+            # httpx doesn't let you choose different proxy for each request
+            # https://github.com/encode/httpx/discussions/3183
             proxy=proxy,
+            retries=options["max_retries"],
             socket_options=self._socket_options,
         )
 
         self.session = httpx.AsyncClient(
-            mounts={"http://": transport, "https://": transport},
+            mounts={"all://": transport},
             timeout=httpx.Timeout(options["timeout"]),
         )
 
-    def parse_proxy(self, proxy: str):
+    def parse_proxy(self, proxy: str) -> str:
         if not proxy:
             return None
 
@@ -328,7 +331,7 @@ class AsyncRequester(BaseRequester):
                 self.session.auth = HttpxNtlmAuth(user, password)
 
     # :path: is expected not to start with "/"
-    async def request(self, path: str, proxy: str = None) -> AsyncResponse:
+    async def request(self, path: str) -> AsyncResponse:
         while self.is_rate_exceeded():
             await asyncio.sleep(0.1)
 
@@ -340,75 +343,62 @@ class AsyncRequester(BaseRequester):
         url = safequote(self._url + path if self._url else path)
         parsed_url = urlparse(url)
 
-        # Why using a loop instead of max_retries argument? Check issue #1009
-        for _ in range(options["max_retries"] + 1):
-            try:
-                # FIXME: set proxy here is not work
-                # https://github.com/encode/httpx/discussions/3183
+        try:
+            if self.agents:
+                self.set_header("user-agent", random.choice(self.agents))
 
-                if self.agents:
-                    self.set_header("user-agent", random.choice(self.agents))
+            # Use "target" extension to avoid the URL path from being normalized
+            request = self.session.build_request(
+                options["http_method"],
+                url,
+                headers=self.headers,
+                data=options["data"],
+            )
+            if p := parsed_url.path:
+                request.extensions = {"target": p.encode()}
 
-                # Use "target" extension to avoid the URL path from being normalized
-                request = self.session.build_request(
-                    options["http_method"],
-                    url,
-                    headers=self.headers,
-                    data=options["data"],
-                )
-                if p := parsed_url.path:
-                    request.extensions = {"target": p.encode()}
+            xresponse = await self.session.send(
+                request,
+                stream=True,
+                follow_redirects=options["follow_redirects"],
+            )
+            response = await AsyncResponse.create(xresponse)
+            await xresponse.aclose()
 
-                xresponse = await self.session.send(
-                    request,
-                    stream=True,
-                    follow_redirects=options["follow_redirects"],
-                )
-                response = await AsyncResponse.create(xresponse)
-                await xresponse.aclose()
+            log_msg = f'"{options["http_method"]} {response.url}" {response.status} - {response.length}B'
 
-                log_msg = f'"{options["http_method"]} {response.url}" {response.status} - {response.length}B'
+            if response.redirect:
+                log_msg += f" - LOCATION: {response.redirect}"
 
-                if response.redirect:
-                    log_msg += f" - LOCATION: {response.redirect}"
+            logger.info(log_msg)
 
-                logger.info(log_msg)
+            return response
 
-                return response
+        except Exception as e:
+            logger.exception(e)
 
-            except Exception as e:
-                logger.exception(e)
-
-                if e == socket.gaierror:
-                    err_msg = "Couldn't resolve DNS"
-                elif "SSLError" in str(e):
-                    err_msg = "Unexpected SSL error"
-                elif "TooManyRedirects" in str(e):
-                    err_msg = f"Too many redirects: {url}"
-                elif "ProxyError" in str(e):
-                    if proxy:
-                        err_msg = f"Error with the proxy: {proxy}"
-                    else:
-                        err_msg = "Error with the system proxy"
-                    # Prevent from re-using it in the future
-                    if proxy in options["proxies"] and len(options["proxies"]) > 1:
-                        options["proxies"].remove(proxy)
-                elif "InvalidURL" in str(e):
-                    err_msg = f"Invalid URL: {url}"
-                elif "InvalidProxyURL" in str(e):
-                    err_msg = f"Invalid proxy URL: {proxy}"
-                elif "ConnectionError" in str(e):
-                    err_msg = f"Cannot connect to: {urlparse(url).netloc}"
-                elif re.search(READ_RESPONSE_ERROR_REGEX, str(e)):
-                    err_msg = f"Failed to read response body: {url}"
-                elif "Timeout" in str(e) or e in (
-                    httpx.ConnectTimeout,
-                    httpx.ReadTimeout,
-                    socket.timeout,
-                ):
-                    err_msg = f"Request timeout: {url}"
-                else:
-                    err_msg = f"There was a problem in the request to: {url}"
+            if e == socket.gaierror:
+                err_msg = "Couldn't resolve DNS"
+            elif "SSLError" in str(e):
+                err_msg = "Unexpected SSL error"
+            elif "TooManyRedirects" in str(e):
+                err_msg = f"Too many redirects: {url}"
+            elif "ProxyError" in str(e):
+                err_msg = "Error with the system proxy"
+            elif "InvalidURL" in str(e):
+                err_msg = f"Invalid URL: {url}"
+            elif "ConnectionError" in str(e):
+                err_msg = f"Cannot connect to: {urlparse(url).netloc}"
+            elif re.search(READ_RESPONSE_ERROR_REGEX, str(e)):
+                err_msg = f"Failed to read response body: {url}"
+            elif "Timeout" in str(e) or e in (
+                httpx.ConnectTimeout,
+                httpx.ReadTimeout,
+                socket.timeout,
+            ):
+                err_msg = f"Request timeout: {url}"
+            else:
+                err_msg = f"There was a problem in the request to: {url}"
 
         raise RequestException(err_msg)
 

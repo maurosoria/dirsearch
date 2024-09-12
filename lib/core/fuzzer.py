@@ -28,7 +28,7 @@ from lib.core.data import blacklists, options
 from lib.core.dictionary import Dictionary
 from lib.core.exceptions import RequestException
 from lib.core.logger import logger
-from lib.core.scanner import AsyncScanner, Scanner
+from lib.core.scanner import AsyncScanner, BaseScanner, Scanner
 from lib.core.settings import (
     DEFAULT_TEST_PREFIXES,
     DEFAULT_TEST_SUFFIXES,
@@ -58,10 +58,16 @@ class BaseFuzzer:
         self.not_found_callbacks = not_found_callbacks
         self.error_callbacks = error_callbacks
 
+        self.scanners = {
+            "default": {},
+            "prefixes": {},
+            "suffixes": {},
+        }
+
     def set_base_path(self, path: str) -> None:
         self._base_path = path
 
-    def get_scanners_for(self, path: str) -> Generator:
+    def get_scanners_for(self, path: str) -> Generator[BaseScanner, None, None]:
         # Clean the path, so can check for extensions/suffixes
         path = clean_path(path)
 
@@ -76,7 +82,8 @@ class BaseFuzzer:
         for scanner in self.scanners["default"].values():
             yield scanner
 
-    def is_excluded(self, resp: BaseResponse) -> bool:
+    @staticmethod
+    def is_excluded(resp: BaseResponse) -> bool:
         """Validate the response by different filters"""
 
         if resp.status in options["exclude_status_codes"]:
@@ -143,12 +150,6 @@ class Fuzzer(BaseFuzzer):
         self._pause_semaphore = threading.Semaphore(0)
 
     def setup_scanners(self):
-        self.scanners = {
-            "default": {},
-            "prefixes": {},
-            "suffixes": {},
-        }
-
         # Default scanners (wildcard testers)
         self.scanners["default"].update(
             {
@@ -318,12 +319,6 @@ class AsyncFuzzer(BaseFuzzer):
         self._background_tasks = set()
 
     async def setup_scanners(self) -> None:
-        self.scanners = {
-            "default": {},
-            "prefixes": {},
-            "suffixes": {},
-        }
-
         # Default scanners (wildcard testers)
         self.scanners["default"].update(
             {
@@ -424,11 +419,12 @@ class AsyncFuzzer(BaseFuzzer):
             self.exc = e
 
         if options["crawl"]:
-            logger.info(f'THREAD-{threading.get_ident()}: crawling "/{path}"')
+            task = asyncio.current_task()
+            logger.info(f'{task.get_name()}: crawling "/{path}"')
             for path_ in Crawler.crawl(response):
                 if self._dictionary.is_valid(path_):
                     logger.info(
-                        f'THREAD-{threading.get_ident()}: found new path "/{path_}" in /{path}'
+                        f'{task.get_name()}: found new path "/{path_}" in /{path}'
                     )
                     await self.scan(path_, self.get_scanners_for(path_))
 

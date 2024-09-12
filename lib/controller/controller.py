@@ -286,7 +286,7 @@ class Controller:
                 if options["async_mode"]:
                     # use a future to get exceptions from handle_pause
                     # https://stackoverflow.com/a/64230941
-                    self.done_future = self.loop.create_future()
+                    self.pause_future = self.loop.create_future()
                     self.loop.run_until_complete(self._start_coroutines())
                 else:
                     self.fuzzer.start()
@@ -308,7 +308,7 @@ class Controller:
         try:
             await asyncio.wait_for(
                 asyncio.wait(
-                    [self.done_future, task],
+                    [self.pause_future, task],
                     return_when=asyncio.FIRST_COMPLETED,
                 ),
                 timeout=options["max_time"] if options["max_time"] > 0 else None,
@@ -316,9 +316,9 @@ class Controller:
         except asyncio.TimeoutError:
             raise SkipTargetInterrupt("Runtime exceeded the maximum set by the user")
 
-        if self.done_future.done():
+        if self.pause_future.done():
             task.cancel()
-            await self.done_future  # propagate the exception, if raised
+            await self.pause_future  # propagate the exception, if raised
 
         await task  # propagate the exception, if raised
 
@@ -498,14 +498,9 @@ class Controller:
             if added_to_queue:
                 interface.new_directories(added_to_queue)
 
-        if options["replay_proxy"]:
+        if options["replay_proxy"] and not options["async_mode"]:
             # Replay the request with new proxy
-            if options["async_mode"]:
-                # FIXME: httpx does not currently allow setting proxies per-request
-                # self.loop.create_task(self.requester.request(response.full_path, proxy=options["replay_proxy"]))
-                pass
-            else:
-                self.requester.request(response.full_path, proxy=options["replay_proxy"])
+            self.requester.request(response.full_path, proxy=options["replay_proxy"])
 
         if self.report:
             self.results.append(response)
@@ -579,14 +574,14 @@ class Controller:
                     self._export(session_file)
                     quitexc = QuitInterrupt(f"Session saved to: {session_file}")
                     if options["async_mode"]:
-                        self.done_future.set_exception(quitexc)
+                        self.pause_future.set_exception(quitexc)
                         break
                     else:
                         raise quitexc
                 elif option.lower() == "q":
                     quitexc = QuitInterrupt("Canceled by the user")
                     if options["async_mode"]:
-                        self.done_future.set_exception(quitexc)
+                        self.pause_future.set_exception(quitexc)
                         break
                     else:
                         raise quitexc
@@ -602,7 +597,7 @@ class Controller:
             elif option.lower() == "s" and len(options["urls"]) > 1:
                 skipexc = SkipTargetInterrupt("Target skipped by the user")
                 if options["async_mode"]:
-                    self.done_future.set_exception(skipexc)
+                    self.pause_future.set_exception(skipexc)
                     break
                 else:
                     raise skipexc
