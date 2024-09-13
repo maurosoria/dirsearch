@@ -35,6 +35,9 @@ def parse_options():
     opt = parse_config(parse_arguments())
 
     if opt.session_file:
+        if opt.async_mode:
+            print("Cannot resume a session in asynchronous mode")
+            exit(1)
         return vars(opt)
 
     opt.http_method = opt.http_method.upper()
@@ -199,6 +202,9 @@ def parse_options():
             f"{', '.join(OUTPUT_FORMATS)}"
         )
         exit(1)
+
+    if opt.async_mode and opt.replay_proxy:
+        print("WARNING: --replay-proxy doesn't work in asynchronous mode")
 
     return vars(opt)
 

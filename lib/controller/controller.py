@@ -564,6 +564,14 @@ class Controller:
             option = input()
 
             if option.lower() == "q":
+                if options["async_mode"]:
+                    quitexc = QuitInterrupt("Canceled by the user")
+                    if options["async_mode"]:
+                        self.pause_future.set_exception(quitexc)
+                        break
+                    else:
+                        raise quitexc
+
                 interface.in_line("[s]ave / [q]uit without saving: ")
 
                 option = input()
