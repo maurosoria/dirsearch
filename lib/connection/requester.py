@@ -21,6 +21,7 @@ import http.client
 import random
 import re
 import socket
+from ssl import SSLError
 import threading
 import time
 from typing import Generator
@@ -377,26 +378,23 @@ class AsyncRequester(BaseRequester):
         except Exception as e:
             logger.exception(e)
 
-            if e == socket.gaierror:
-                err_msg = "Couldn't resolve DNS"
-            elif "SSLError" in str(e):
+            if isinstance(e, httpx.ConnectError):
+                if str(e).startswith("[Errno -2]"):
+                    err_msg = "Couldn't resolve DNS"
+                else:
+                    err_msg = f"Cannot connect to: {urlparse(url).netloc}"
+            elif isinstance(e, SSLError):
                 err_msg = "Unexpected SSL error"
-            elif "TooManyRedirects" in str(e):
+            elif isinstance(e, httpx.TooManyRedirects):
                 err_msg = f"Too many redirects: {url}"
-            elif "ProxyError" in str(e):
-                err_msg = "Error with the system proxy"
-            elif "InvalidURL" in str(e):
+            elif isinstance(e, httpx.ProxyError):
+                err_msg = "Cannot establish the proxy connection"
+            elif isinstance(e, httpx.InvalidURL):
                 err_msg = f"Invalid URL: {url}"
-            elif "ConnectionError" in str(e):
-                err_msg = f"Cannot connect to: {urlparse(url).netloc}"
-            elif re.search(READ_RESPONSE_ERROR_REGEX, str(e)):
-                err_msg = f"Failed to read response body: {url}"
-            elif "Timeout" in str(e) or e in (
-                httpx.ConnectTimeout,
-                httpx.ReadTimeout,
-                socket.timeout,
-            ):
+            elif isinstance(e, httpx.TimeoutException):
                 err_msg = f"Request timeout: {url}"
+            elif isinstance(e, httpx.ReadError) or isinstance(e, httpx.DecodingError):  # not sure
+                err_msg = f"Failed to read response body: {url}"
             else:
                 err_msg = f"There was a problem in the request to: {url}"
 
