@@ -489,6 +489,9 @@ def parse_arguments():
     view.add_option(
         "-q", "--quiet-mode", action="store_true", dest="quiet", help="Quiet mode"
     )
+    view.add_option(
+        "--silent", action="store_true", dest="silent", help="Silent mode"
+    )
 
     # Output Settings
     output = OptionGroup(parser, "Output Settings")
