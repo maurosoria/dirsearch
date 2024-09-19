@@ -490,7 +490,7 @@ def parse_arguments():
         "-q", "--quiet-mode", action="store_true", dest="quiet", help="Quiet mode"
     )
     view.add_option(
-        "--silent", action="store_true", dest="silent", help="Silent mode"
+        "--urls-only", action="store_true", dest="urls_only", help="Output only the full URLs"
     )
 
     # Output Settings

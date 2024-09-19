@@ -355,7 +355,7 @@ def parse_config(opt):
     opt.full_url = opt.full_url or config.safe_getboolean("view", "full-url")
     opt.color = opt.color or config.safe_getboolean("view", "color", True)
     opt.quiet = opt.quiet or config.safe_getboolean("view", "quiet-mode")
-    opt.silent = opt.silent or config.safe_getboolean("view", "silent")
+    opt.urls_only = opt.urls_only or config.safe_getboolean("view", "urls-only")
     opt.redirects_history = opt.redirects_history or config.safe_getboolean(
         "view", "show-redirects-history"
     )

@@ -233,9 +233,9 @@ class QuietCLI(CLI):
         pass
 
 
-class SilentCLI(QuietCLI):
+class URLOnlyCLI(QuietCLI):
     def status_report(self, response, _):
         self.new_line(response.url)
 
 
-interface = SilentCLI() if options["silent"] else QuietCLI() if options["quiet"] else CLI()
+interface = URLOnlyCLI() if options["urls_only"] else QuietCLI() if options["quiet"] else CLI()
