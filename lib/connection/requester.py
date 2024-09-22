@@ -24,7 +24,7 @@ import socket
 from ssl import SSLError
 import threading
 import time
-from typing import Generator
+from typing import Generator, Optional
 from urllib.parse import urlparse
 
 import httpx
@@ -308,6 +308,7 @@ class AsyncRequester(BaseRequester):
             mounts={"all://": transport},
             timeout=httpx.Timeout(options["timeout"]),
         )
+        self.replay_session = None
 
     def parse_proxy(self, proxy: str) -> str:
         if not proxy:
@@ -339,8 +340,25 @@ class AsyncRequester(BaseRequester):
             else:
                 self.session.auth = HttpxNtlmAuth(user, password)
 
+    async def replay_request(self, path: str, proxy: str):
+        if self.replay_session is None:
+            transport = httpx.AsyncHTTPTransport(
+                verify=False,
+                cert=self._cert,
+                limits=httpx.Limits(max_connections=options["thread_count"]),
+                proxy=self.parse_proxy(proxy),
+                socket_options=self._socket_options,
+            )
+            self.replay_session = httpx.AsyncClient(
+                mounts={"all://": transport},
+                timeout=httpx.Timeout(options["timeout"]),
+            )
+        return await self.request(path, self.replay_session)
+
     # :path: is expected not to start with "/"
-    async def request(self, path: str) -> AsyncResponse:
+    async def request(
+        self, path: str, session: Optional[httpx.AsyncClient] = None
+    ) -> AsyncResponse:
         while self.is_rate_exceeded():
             await asyncio.sleep(0.1)
 
@@ -352,13 +370,14 @@ class AsyncRequester(BaseRequester):
         url = safequote(self._url + path if self._url else path)
         parsed_url = urlparse(url)
 
+        session = session or self.session
         for _ in range(options["max_retries"] + 1):
             try:
                 if self.agents:
                     self.set_header("user-agent", random.choice(self.agents))
 
                 # Use "target" extension to avoid the URL path from being normalized
-                request = self.session.build_request(
+                request = session.build_request(
                     options["http_method"],
                     url,
                     headers=self.headers,
@@ -367,7 +386,7 @@ class AsyncRequester(BaseRequester):
                 if p := parsed_url.path:
                     request.extensions = {"target": p.encode()}
 
-                xresponse = await self.session.send(
+                xresponse = await session.send(
                     request,
                     stream=True,
                     follow_redirects=options["follow_redirects"],

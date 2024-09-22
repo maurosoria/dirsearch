@@ -504,9 +504,12 @@ class Controller:
             if added_to_queue:
                 interface.new_directories(added_to_queue)
 
-        if options["replay_proxy"] and not options["async_mode"]:
+        if options["replay_proxy"]:
             # Replay the request with new proxy
-            self.requester.request(response.full_path, proxy=options["replay_proxy"])
+            if options["async_mode"]:
+                self.loop.create_task(self.requester.replay_request(response.full_path, proxy=options["replay_proxy"]))
+            else:
+                self.requester.request(response.full_path, proxy=options["replay_proxy"])
 
         if self.report:
             self.results.append(response)

@@ -203,9 +203,6 @@ def parse_options():
         )
         exit(1)
 
-    if opt.async_mode and opt.replay_proxy:
-        print("WARNING: --replay-proxy doesn't work in asynchronous mode")
-
     return vars(opt)
 
 
