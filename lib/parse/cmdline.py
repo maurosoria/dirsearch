@@ -505,7 +505,7 @@ def parse_arguments():
         action="store",
         dest="output_format",
         metavar="FORMAT",
-        help=f"Report format (Available: {','.join(OUTPUT_FORMATS)})",
+        help=f"Report format (Available: {', '.join(OUTPUT_FORMATS)})",
     )
     output.add_option(
         "--log", action="store", dest="log_file", metavar="PATH", help="Log file"
