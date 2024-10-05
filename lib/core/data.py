@@ -83,6 +83,7 @@ options = {
     "ip": None,
     "exit_on_error": False,
     "crawl": False,
+    "async_mode": False,
     "full_url": False,
     "redirects_history": False,
     "color": True,

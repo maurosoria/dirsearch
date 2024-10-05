@@ -16,8 +16,10 @@
 #
 #  Author: Mauro Soria
 
+import asyncio
 import gc
 import os
+import signal
 import psycopg
 import re
 import time
@@ -26,7 +28,6 @@ import mysql.connector
 from urllib.parse import urlparse
 
 from lib.connection.dns import cache_dns
-from lib.connection.requester import Requester
 from lib.core.data import blacklists, options
 from lib.core.decorators import locked
 from lib.core.dictionary import Dictionary, get_blacklists
@@ -38,7 +39,6 @@ from lib.core.exceptions import (
     QuitInterrupt,
     UnpicklingError,
 )
-from lib.core.fuzzer import Fuzzer
 from lib.core.logger import enable_logging, logger
 from lib.core.settings import (
     BANNER,
@@ -68,6 +68,19 @@ from lib.utils.file import FileUtils
 from lib.utils.pickle import pickle, unpickle
 from lib.utils.schemedet import detect_scheme
 from lib.view.terminal import interface
+
+if options["async_mode"]:
+    from lib.connection.requester import AsyncRequester as Requester
+    from lib.core.fuzzer import AsyncFuzzer as Fuzzer
+
+    try:
+        import uvloop
+        asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+    except ImportError:
+        pass
+else:
+    from lib.connection.requester import Requester
+    from lib.core.fuzzer import Fuzzer
 
 
 class Controller:
@@ -140,6 +153,10 @@ class Controller:
         self.errors = 0
         self.consecutive_errors = 0
 
+        if options["async_mode"]:
+            self.loop = asyncio.new_event_loop()
+            self.loop.add_signal_handler(signal.SIGINT, self.handle_pause)
+
         if options["auth"]:
             self.requester.set_auth(options["auth_type"], options["auth"])
 
@@ -162,7 +179,7 @@ class Controller:
                 )
                 exit(1)
 
-        if options["autosave_report"] and not options["output"] :
+        if options["autosave_report"] and not options["output"]:
             self.report_path = options["output_path"] or FileUtils.build_path(
                 SCRIPT_PATH, "reports"
             )
@@ -272,8 +289,14 @@ class Controller:
                     interface.warning(msg)
 
                 self.fuzzer.set_base_path(current_directory)
-                self.fuzzer.start()
-                self.process()
+                if options["async_mode"]:
+                    # use a future to get exceptions from handle_pause
+                    # https://stackoverflow.com/a/64230941
+                    self.pause_future = self.loop.create_future()
+                    self.loop.run_until_complete(self._start_coroutines())
+                else:
+                    self.fuzzer.start()
+                    self.process()
 
             except KeyboardInterrupt:
                 pass
@@ -284,6 +307,26 @@ class Controller:
 
                 self.jobs_processed += 1
                 self.old_session = False
+
+    async def _start_coroutines(self):
+        task = self.loop.create_task(self.fuzzer.start())
+
+        try:
+            await asyncio.wait_for(
+                asyncio.wait(
+                    [self.pause_future, task],
+                    return_when=asyncio.FIRST_COMPLETED,
+                ),
+                timeout=options["max_time"] if options["max_time"] > 0 else None,
+            )
+        except asyncio.TimeoutError:
+            raise SkipTargetInterrupt("Runtime exceeded the maximum set by the user")
+
+        if self.pause_future.done():
+            task.cancel()
+            await self.pause_future  # propagate the exception, if raised
+
+        await task  # propagate the exception, if raised
 
     def set_target(self, url):
         # If no scheme specified, unset it first
@@ -463,7 +506,10 @@ class Controller:
 
         if options["replay_proxy"]:
             # Replay the request with new proxy
-            self.requester.request(response.full_path, proxy=options["replay_proxy"])
+            if options["async_mode"]:
+                self.loop.create_task(self.requester.replay_request(response.full_path, proxy=options["replay_proxy"]))
+            else:
+                self.requester.request(response.full_path, proxy=options["replay_proxy"])
 
         if self.report:
             self.results.append(response)
@@ -521,6 +567,14 @@ class Controller:
             option = input()
 
             if option.lower() == "q":
+                if options["async_mode"]:
+                    quitexc = QuitInterrupt("Canceled by the user")
+                    if options["async_mode"]:
+                        self.pause_future.set_exception(quitexc)
+                        break
+                    else:
+                        raise quitexc
+
                 interface.in_line("[s]ave / [q]uit without saving: ")
 
                 option = input()
@@ -535,9 +589,19 @@ class Controller:
                     )
 
                     self._export(session_file)
-                    raise QuitInterrupt(f"Session saved to: {session_file}")
+                    quitexc = QuitInterrupt(f"Session saved to: {session_file}")
+                    if options["async_mode"]:
+                        self.pause_future.set_exception(quitexc)
+                        break
+                    else:
+                        raise quitexc
                 elif option.lower() == "q":
-                    raise QuitInterrupt("Canceled by the user")
+                    quitexc = QuitInterrupt("Canceled by the user")
+                    if options["async_mode"]:
+                        self.pause_future.set_exception(quitexc)
+                        break
+                    else:
+                        raise quitexc
 
             elif option.lower() == "c":
                 self.fuzzer.play()
@@ -548,7 +612,12 @@ class Controller:
                 break
 
             elif option.lower() == "s" and len(options["urls"]) > 1:
-                raise SkipTargetInterrupt("Target skipped by the user")
+                skipexc = SkipTargetInterrupt("Target skipped by the user")
+                if options["async_mode"]:
+                    self.pause_future.set_exception(skipexc)
+                    break
+                else:
+                    raise skipexc
 
     def is_timed_out(self):
         return time.time() - self.start_time > options["max_time"] > 0

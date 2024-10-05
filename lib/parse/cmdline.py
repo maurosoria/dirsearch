@@ -459,7 +459,6 @@ def parse_arguments():
     connection.add_option("--ip", action="store", dest="ip", help="Server IP address")
     connection.add_option("--interface", action="store", dest="network_interface", help="Network interface to use")
 
-
     # Advanced Settings
     advanced = OptionGroup(parser, "Advanced Settings")
     advanced.add_option(
@@ -467,6 +466,12 @@ def parse_arguments():
         action="store_true",
         dest="crawl",
         help="Crawl for new paths in responses"
+    )
+    advanced.add_option(
+        "--async",
+        action="store_true",
+        dest="async_mode",
+        help="Enable asynchronous mode",
     )
 
     # View Settings
