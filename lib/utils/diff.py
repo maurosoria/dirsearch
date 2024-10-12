@@ -62,7 +62,7 @@ class DynamicContentParser:
         return [pattern for pattern in patterns if pattern.startswith("  ")]
 
 
-def generate_matching_regex(string1, string2):
+def generate_matching_regex(string1: str, string2: str) -> str:
     start = "^"
     end = "$"
 

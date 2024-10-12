@@ -18,6 +18,7 @@
 
 import re
 import json
+from typing_extensions import LiteralString
 
 from defusedxml import ElementTree
 
@@ -51,7 +52,7 @@ class MimeTypeUtils:
         return False
 
 
-def guess_mimetype(content):
+def guess_mimetype(content) -> LiteralString:
     if MimeTypeUtils.is_json(content):
         return "application/json"
     elif MimeTypeUtils.is_xml(content):

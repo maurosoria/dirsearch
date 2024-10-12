@@ -16,20 +16,28 @@
 #
 #  Author: Mauro Soria
 
+from __future__ import annotations
+
 import threading
 
 from functools import wraps
 from time import time
+from typing import Any, Callable, TypeVar
+from typing_extensions import ParamSpec
 
 _lock = threading.Lock()
-_cache = {}
+_cache: dict[int, tuple[float, Any]] = {}
 _cache_lock = threading.Lock()
 
+# https://mypy.readthedocs.io/en/stable/generics.html#declaring-decorators
+P = ParamSpec("P")
+T = TypeVar("T")
 
-def cached(timeout=100):
-    def _cached(func):
+
+def cached(timeout: int | float = 100) -> Callable[..., Any]:
+    def _cached(func: Callable[P, T]) -> Callable[P, T]:
         @wraps(func)
-        def with_caching(*args, **kwargs):
+        def with_caching(*args: P.args, **kwargs: P.kwargs) -> T:
             key = id(func)
             for arg in args:
                 key += id(arg)
@@ -51,8 +59,8 @@ def cached(timeout=100):
     return _cached
 
 
-def locked(func):
-    def with_locking(*args, **kwargs):
+def locked(func: Callable[P, T]) -> Callable[P, T]:
+    def with_locking(*args: P.args, **kwargs: P.kwargs) -> T:
         with _lock:
             return func(*args, **kwargs)
 

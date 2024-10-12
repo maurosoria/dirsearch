@@ -16,6 +16,8 @@
 #
 #  Author: Mauro Soria
 
+from __future__ import annotations
+
 import os
 import os.path
 
@@ -59,7 +61,7 @@ class File:
 
 class FileUtils:
     @staticmethod
-    def build_path(*path_components):
+    def build_path(*path_components: str) -> str:
         if path_components:
             path = os.path.join(*path_components)
         else:
@@ -110,7 +112,7 @@ class FileUtils:
         return files
 
     @staticmethod
-    def get_lines(file_name):
+    def get_lines(file_name: str) -> list[str]:
         with open(file_name, "r", errors="replace") as fd:
             return fd.read().splitlines()
 

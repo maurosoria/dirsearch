@@ -16,8 +16,13 @@
 #
 #  Author: Mauro Soria
 
-blacklists = {}
-options = {
+from __future__ import annotations
+
+from typing import Any
+
+# we can't import `Dictionary` due to a circular import
+blacklists: dict[int, Any] = {}
+options: dict[str, Any] = {
     "urls": [],
     "urls_file": None,
     "stdin_urls": None,

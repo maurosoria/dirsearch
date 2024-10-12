@@ -16,6 +16,8 @@
 #
 #  Author: Mauro Soria
 
+from __future__ import annotations
+
 import asyncio
 import gc
 import os
@@ -28,6 +30,7 @@ import mysql.connector
 from urllib.parse import urlparse
 
 from lib.connection.dns import cache_dns
+from lib.connection.response import Response
 from lib.core.data import blacklists, options
 from lib.core.decorators import locked
 from lib.core.dictionary import Dictionary, get_blacklists
@@ -53,6 +56,7 @@ from lib.core.settings import (
 )
 from lib.parse.rawrequest import parse_raw
 from lib.parse.url import clean_path, parse_path
+from lib.reports.base import FileBaseReport, SQLBaseReport
 from lib.reports.csv_report import CSVReport
 from lib.reports.html_report import HTMLReport
 from lib.reports.json_report import JSONReport
@@ -84,7 +88,7 @@ else:
 
 
 class Controller:
-    def __init__(self):
+    def __init__(self) -> None:
         if options["session_file"]:
             self._import(options["session_file"])
             self.old_session = True
@@ -94,7 +98,7 @@ class Controller:
 
         self.run()
 
-    def _import(self, session_file):
+    def _import(self, session_file: str) -> None:
         try:
             with open(session_file, "rb") as fd:
                 indict, last_output, opt = unpickle(fd)
@@ -108,7 +112,7 @@ class Controller:
         self.__dict__ = {**indict, **vars(self)}
         print(last_output)
 
-    def _export(self, session_file):
+    def _export(self, session_file: str) -> None:
         # Save written output
         last_output = interface.buffer.rstrip()
 
@@ -118,7 +122,7 @@ class Controller:
         with open(session_file, "wb") as fd:
             pickle((vars(self), last_output, options), fd)
 
-    def setup(self):
+    def setup(self) -> None:
         blacklists.update(get_blacklists())
 
         if options["raw_file"]:
@@ -143,11 +147,11 @@ class Controller:
 
         self.requester = Requester()
         self.dictionary = Dictionary(files=options["wordlists"])
-        self.results = []
+        self.results: list[Response] = []
         self.start_time = time.time()
-        self.passed_urls = set()
-        self.directories = []
-        self.report = None
+        self.passed_urls: set[str] = set()
+        self.directories: list[str] = []
+        self.report: FileBaseReport | SQLBaseReport | None = None
         self.batch = False
         self.jobs_processed = 0
         self.errors = 0
@@ -212,7 +216,7 @@ class Controller:
         if options["log_file"]:
             interface.log_file(options["log_file"])
 
-    def run(self):
+    def run(self) -> None:
         # match_callbacks and not_found_callbacks callback values:
         #  - *args[0]: lib.connection.Response() object
         #
@@ -275,7 +279,7 @@ class Controller:
             except Exception:
                 interface.error("Failed to delete old session file, remove it to free some space")
 
-    def start(self):
+    def start(self) -> None:
         while self.directories:
             try:
                 gc.collect()
@@ -385,7 +389,7 @@ class Controller:
 
         self.requester.set_url(self.url)
 
-    def setup_batch_reports(self):
+    def setup_batch_reports(self) -> str:
         """Create batch report folder"""
 
         self.batch = True
@@ -401,13 +405,13 @@ class Controller:
 
         return batch_directory_path
 
-    def get_output_extension(self):
+    def get_output_extension(self) -> str:
         if options["output_format"] in ("plain", "simple"):
             return "txt"
 
         return options["output_format"]
 
-    def setup_reports(self):
+    def setup_reports(self) -> None:
         """Create report file"""
 
         output = options["output"]
@@ -474,10 +478,10 @@ class Controller:
 
         interface.output_location(output)
 
-    def reset_consecutive_errors(self, response):
+    def reset_consecutive_errors(self, response: Response) -> None:
         self.consecutive_errors = 0
 
-    def match_callback(self, response):
+    def match_callback(self, response: Response) -> None:
         if response.status in options["skip_on_status"]:
             raise SkipTargetInterrupt(
                 f"Skipped the target due to {response.status} status code"
@@ -515,7 +519,7 @@ class Controller:
             self.results.append(response)
             self.report.save(self.results)
 
-    def update_progress_bar(self, response):
+    def update_progress_bar(self, response: Response) -> None:
         jobs_count = (
             # Jobs left for unscanned targets
             len(options["subdirs"]) * (len(options["urls"]) - 1)
@@ -534,7 +538,7 @@ class Controller:
             self.errors,
         )
 
-    def raise_error(self, exception):
+    def raise_error(self, exception: RequestException) -> None:
         if options["exit_on_error"]:
             raise QuitInterrupt("Canceled due to an error")
 
@@ -544,10 +548,10 @@ class Controller:
         if self.consecutive_errors > MAX_CONSECUTIVE_REQUEST_ERRORS:
             raise SkipTargetInterrupt("Too many request errors")
 
-    def append_error_log(self, exception):
+    def append_error_log(self, exception: RequestException) -> None:
         logger.exception(exception)
 
-    def handle_pause(self):
+    def handle_pause(self) -> None:
         interface.warning(
             "CTRL+C detected: Pausing threads, please wait...", do_save=False
         )
@@ -619,10 +623,10 @@ class Controller:
                 else:
                     raise skipexc
 
-    def is_timed_out(self):
+    def is_timed_out(self) -> bool:
         return time.time() - self.start_time > options["max_time"] > 0
 
-    def process(self):
+    def process(self) -> None:
         while True:
             try:
                 while not self.fuzzer.is_finished():
@@ -638,7 +642,7 @@ class Controller:
 
             time.sleep(0.3)
 
-    def add_directory(self, path):
+    def add_directory(self, path: str) -> None:
         """Add directory to the recursion queue"""
 
         # Pass if path is in exclusive directories
@@ -660,7 +664,7 @@ class Controller:
         self.passed_urls.add(url)
 
     @locked
-    def recur(self, path):
+    def recur(self, path: str) -> list[str]:
         dirs_count = len(self.directories)
         path = clean_path(path)
 
@@ -682,7 +686,7 @@ class Controller:
         # Return newly added directories
         return self.directories[dirs_count:]
 
-    def recur_for_redirect(self, path, redirect_path):
+    def recur_for_redirect(self, path: str, redirect_path: str) -> list[str]:
         if redirect_path == path + "/":
             return self.recur(redirect_path)
 

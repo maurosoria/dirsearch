@@ -17,6 +17,8 @@
 #
 #  Author: Mauro Soria
 
+from __future__ import annotations
+
 import subprocess
 import sys
 import pkg_resources
@@ -28,7 +30,7 @@ from lib.utils.file import FileUtils
 REQUIREMENTS_FILE = f"{SCRIPT_PATH}/requirements.txt"
 
 
-def get_dependencies():
+def get_dependencies() -> list[str]:
     try:
         return FileUtils.get_lines(REQUIREMENTS_FILE)
     except FileNotFoundError:
@@ -37,11 +39,11 @@ def get_dependencies():
 
 
 # Check if all dependencies are satisfied
-def check_dependencies():
+def check_dependencies() -> None:
     pkg_resources.require(get_dependencies())
 
 
-def install_dependencies():
+def install_dependencies() -> None:
     try:
         subprocess.check_output(
             [sys.executable, "-m", "pip", "install", "-r", REQUIREMENTS_FILE],

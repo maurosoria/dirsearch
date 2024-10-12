@@ -16,13 +16,15 @@
 #
 #  Author: Mauro Soria
 
+from __future__ import annotations
+
 from lib.core.exceptions import InvalidRawRequest
 from lib.core.logger import logger
 from lib.parse.headers import HeadersParser
 from lib.utils.file import File
 
 
-def parse_raw(raw_file):
+def parse_raw(raw_file: str) -> tuple[list[str], str, dict[str, str], str | None]:
     with File(raw_file) as fd:
         raw_content = fd.read()
 

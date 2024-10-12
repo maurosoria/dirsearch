@@ -16,7 +16,7 @@
 #
 #  Author: Mauro Soria
 
-from optparse import OptionParser, OptionGroup
+from optparse import OptionParser, OptionGroup, Values
 
 
 from lib.core.settings import (
@@ -27,7 +27,7 @@ from lib.core.settings import (
 from lib.utils.common import get_config_file
 
 
-def parse_arguments():
+def parse_arguments() -> Values:
     usage = "Usage: %prog [-u|--url] target [-e|--extensions] extensions [options]"
     epilog = "See 'config.ini' for the example configuration file"
     parser = OptionParser(usage=usage, epilog=epilog, version=f"dirsearch v{VERSION}")
