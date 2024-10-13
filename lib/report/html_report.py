@@ -16,6 +16,7 @@
 #
 #  Author: Mauro Soria
 
+import json
 import os
 
 from jinja2 import Environment, FileSystemLoader
@@ -30,7 +31,7 @@ class HTMLReport(FileReportMixin, BaseReport):
     __extension__ = "html"
 
     def new(self):
-        return generate({})
+        return self.generate([])
 
     def parse(self, file):
         with open(file) as fh:
@@ -50,7 +51,7 @@ class HTMLReport(FileReportMixin, BaseReport):
             "contentType": result.type,
             "redirect": result.redirect,
         })
-        self.write(self.generate)
+        self.write(self.generate(results))
 
     def generate(self, results):
         file_loader = FileSystemLoader(

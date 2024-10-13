@@ -21,8 +21,6 @@ from defusedcsv import csv
 from lib.core.decorators import locked
 from lib.report.factory import BaseReport, FileReportMixin
 
-from lib.utils.file import FileUtils
-
 
 class CSVReport(FileReportMixin, BaseReport):
     __format__ = "csv"
@@ -33,7 +31,7 @@ class CSVReport(FileReportMixin, BaseReport):
 
     def parse(self, file):
         with open(file) as fh:
-            return list(csv.reader(csv_file, delimiter=",", quotechar='"'))
+            return list(csv.reader(fh, delimiter=",", quotechar='"'))
 
     @locked
     def save(self, file, result):
@@ -44,6 +42,5 @@ class CSVReport(FileReportMixin, BaseReport):
     def write(self, file, rows):
         with open(file, "w") as fh:
             writer = csv.writer(fh, delimiter=",", quotechar='"')
-
             for row in rows:
-                writer.writerow(result)
+                writer.writerow(row)

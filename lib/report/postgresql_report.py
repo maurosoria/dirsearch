@@ -18,7 +18,6 @@
 
 import psycopg
 
-from lib.core.decorators import locked
 from lib.core.exceptions import InvalidURLException
 from lib.report.factory import BaseReport, SQLReportMixin
 

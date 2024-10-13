@@ -396,7 +396,6 @@ class Controller:
             else:
                 self.requester.request(response.full_path, proxy=options["replay_proxy"])
 
-
     def update_progress_bar(self, response):
         jobs_count = (
             # Jobs left for unscanned targets

@@ -21,7 +21,6 @@ import mysql.connector
 from mysql.connector.constants import SQLMode
 from urllib.parse import urlparse
 
-from lib.core.decorators import locked
 from lib.core.exceptions import InvalidURLException
 from lib.report.factory import BaseReport, SQLReportMixin
 

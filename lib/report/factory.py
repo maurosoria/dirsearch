@@ -19,7 +19,6 @@
 from abc import ABC, abstractmethod
 
 from lib.core.decorators import locked
-from lib.utils.file import FileUtils
 
 
 class BaseReport(ABC):
@@ -52,11 +51,11 @@ class FileReportMixin:
 
 
 class SQLReportMixin:
-    # Re-use the connection
+    # Reuse the connection
     _conn = None
 
-    def get_connection(database):
-        # Re-use old connection
+    def get_connection(self, database):
+        # Reuse the old connection
         if not self.__reuse:
             return self.connect(database)
 

@@ -18,7 +18,6 @@
 
 import sqlite3
 
-from lib.core.decorators import locked
 from lib.report.factory import BaseReport, SQLReportMixin
 
 from lib.utils.file import FileUtils
