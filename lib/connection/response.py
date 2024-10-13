@@ -48,9 +48,14 @@ class Response:
                 break
 
         if not is_binary(self.body):
-            self.content = self.body.decode(
-                response.encoding or DEFAULT_ENCODING, errors="ignore"
-            )
+            try:
+                self.content = self.body.decode(
+                    response.encoding or DEFAULT_ENCODING, errors="ignore"
+                )
+            except LookupError:
+                self.content = self.body.decode(
+                    DEFAULT_ENCODING, errors="ignore"
+                )
 
     @property
     def type(self):

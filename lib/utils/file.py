@@ -80,7 +80,7 @@ class FileUtils:
         try:
             with open(file_name):
                 pass
-        except IOError:
+        except OSError:
             return False
 
         return True

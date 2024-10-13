@@ -25,6 +25,7 @@ from lib.core.exceptions import UnpicklingError
 
 ALLOWED_PICKLE_CLASSES = (
     "collections.OrderedDict",
+    "http.cookiejar.Cookie",
     "http.cookiejar.DefaultCookiePolicy",
     "requests.adapters.HTTPAdapter",
     "requests.cookies.RequestsCookieJar",

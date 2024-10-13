@@ -26,8 +26,9 @@ from lib.core.settings import (
 from lib.parse.cmdline import parse_arguments
 from lib.parse.config import ConfigParser
 from lib.parse.headers import HeadersParser
-from lib.utils.common import iprange, read_stdin, uniq
+from lib.utils.common import iprange, read_stdin, strip_and_uniquify
 from lib.utils.file import File, FileUtils
+from lib.parse.nmap import parse_nmap
 
 
 def parse_options():
@@ -47,12 +48,23 @@ def parse_options():
         opt.urls = read_stdin().splitlines(0)
     elif opt.raw_file:
         _access_file(opt.raw_file)
+    elif opt.nmap_report:
+        try:
+            opt.urls = parse_nmap(opt.nmap_report)
+        except Exception as e:
+            print("Error while parsing Nmap report: " + str(e))
+            exit(1)
     elif not opt.urls:
         print("URL target is missing, try using -u <url>")
         exit(1)
 
     if not opt.raw_file:
-        opt.urls = uniq(opt.urls)
+        opt.urls = strip_and_uniquify(
+            filter(
+                lambda url: not url.startswith("#"),
+                opt.urls,
+            )
+        )
 
     if not opt.extensions and not opt.remove_extensions:
         print("WARNING: No extension was specified!")
@@ -113,15 +125,25 @@ def parse_options():
     opt.exclude_status_codes = _parse_status_codes(opt.exclude_status_codes)
     opt.recursion_status_codes = _parse_status_codes(opt.recursion_status_codes)
     opt.skip_on_status = _parse_status_codes(opt.skip_on_status)
-    opt.prefixes = uniq([prefix.strip() for prefix in opt.prefixes.split(",") if prefix], tuple)
-    opt.suffixes = uniq([suffix.strip() for suffix in opt.suffixes.split(",") if suffix], tuple)
+    opt.prefixes = tuple(strip_and_uniquify(opt.prefixes.split(",")))
+    opt.suffixes = tuple(strip_and_uniquify(opt.suffixes.split(",")))
     opt.subdirs = [
-        subdir.lstrip(" /") + ("" if not subdir or subdir.endswith("/") else "/")
-        for subdir in opt.subdirs.split(",")
+        subdir.lstrip("/")
+        for subdir in strip_and_uniquify(
+            [
+                subdir if subdir.endswith("/") else subdir + "/"
+                for subdir in opt.subdirs.split(",")
+            ]
+        )
     ]
     opt.exclude_subdirs = [
-        subdir.lstrip(" /") + ("" if not subdir or subdir.endswith("/") else "/")
-        for subdir in opt.exclude_subdirs.split(",")
+        subdir.lstrip("/")
+        for subdir in strip_and_uniquify(
+            [
+                subdir if subdir.endswith("/") else subdir + "/"
+                for subdir in opt.exclude_subdirs.split(",")
+            ]
+        )
     ]
     opt.exclude_sizes = {size.strip().upper() for size in opt.exclude_sizes.split(",")}
 
@@ -130,20 +152,25 @@ def parse_options():
     elif opt.extensions == "*":
         opt.extensions = COMMON_EXTENSIONS
     elif opt.extensions == "CHANGELOG.md":
-        print("A weird extension was provided: 'CHANGELOG.md'. Please do not use * as the "
-              "extension or enclose it in double quotes")
+        print(
+            "A weird extension was provided: 'CHANGELOG.md'. Please do not use * as the "
+            "extension or enclose it in double quotes"
+        )
         exit(0)
     else:
-        opt.extensions = uniq(
-            [extension.lstrip(" .") for extension in opt.extensions.split(",")],
-            tuple,
+        opt.extensions = tuple(
+            strip_and_uniquify(
+                [extension.lstrip(".") for extension in opt.extensions.split(",")]
+            )
         )
 
-    opt.exclude_extensions = uniq(
-        [
-            exclude_extension.lstrip(" .")
-            for exclude_extension in opt.exclude_extensions.split(",")
-        ], tuple
+    opt.exclude_extensions = tuple(
+        strip_and_uniquify(
+            [
+                exclude_extension.lstrip(".")
+                for exclude_extension in opt.exclude_extensions.split(",")
+            ]
+        )
     )
 
     if opt.auth and not opt.auth_type:
@@ -153,13 +180,17 @@ def parse_options():
         print("No authentication credential found")
         exit(1)
     elif opt.auth and opt.auth_type not in AUTHENTICATION_TYPES:
-        print(f"'{opt.auth_type}' is not in available authentication "
-              f"types: {', '.join(AUTHENTICATION_TYPES)}")
+        print(
+            f"'{opt.auth_type}' is not in available authentication "
+            f"types: {', '.join(AUTHENTICATION_TYPES)}"
+        )
         exit(1)
 
     if set(opt.extensions).intersection(opt.exclude_extensions):
-        print("Exclude extension list can not contain any extension "
-              "that has already in the extension list")
+        print(
+            "Exclude extension list can not contain any extension "
+            "that has already in the extension list"
+        )
         exit(1)
 
     opt.output_formats = [format.strip() for format in opt.output_formats.split(",")]
@@ -217,17 +248,19 @@ def merge_config(opt):
     config.read(opt.config)
 
     # General
-    opt.thread_count = opt.thread_count or config.safe_getint(
-        "general", "threads", 25
-    )
+    opt.thread_count = opt.thread_count or config.safe_getint("general", "threads", 25)
     opt.include_status_codes = opt.include_status_codes or config.safe_get(
         "general", "include-status"
     )
     opt.exclude_status_codes = opt.exclude_status_codes or config.safe_get(
         "general", "exclude-status"
     )
-    opt.exclude_sizes = opt.exclude_sizes or config.safe_get("general", "exclude-sizes", "")
-    opt.exclude_texts = opt.exclude_texts or config.safe_getlist("general", "exclude-texts")
+    opt.exclude_sizes = opt.exclude_sizes or config.safe_get(
+        "general", "exclude-sizes", ""
+    )
+    opt.exclude_texts = opt.exclude_texts or config.safe_getlist(
+        "general", "exclude-texts"
+    )
     opt.exclude_regex = opt.exclude_regex or config.safe_get("general", "exclude-regex")
     opt.exclude_redirect = opt.exclude_redirect or config.safe_get(
         "general", "exclude-redirect"
@@ -287,7 +320,9 @@ def merge_config(opt):
     )
 
     # Request
-    opt.http_method = opt.http_method or config.safe_get("request", "http-method", "get")
+    opt.http_method = opt.http_method or config.safe_get(
+        "request", "http-method", "get"
+    )
     opt.headers = opt.headers or config.safe_getlist("request", "headers")
     opt.headers_file = opt.headers_file or config.safe_get("request", "headers-file")
     opt.follow_redirects = opt.follow_redirects or config.safe_getboolean(
@@ -302,7 +337,9 @@ def merge_config(opt):
     # Connection
     opt.delay = opt.delay or config.safe_getfloat("connection", "delay")
     opt.timeout = opt.timeout or config.safe_getfloat("connection", "timeout", 7.5)
-    opt.max_retries = opt.max_retries or config.safe_getint("connection", "max-retries", 1)
+    opt.max_retries = opt.max_retries or config.safe_getint(
+        "connection", "max-retries", 1
+    )
     opt.max_rate = opt.max_rate or config.safe_getint("connection", "max-rate")
     opt.proxies = opt.proxies or config.safe_getlist("connection", "proxies")
     opt.proxies_file = opt.proxies_file or config.safe_get("connection", "proxies-file")
@@ -310,13 +347,16 @@ def merge_config(opt):
         "connection", "scheme", None, ("http", "https")
     )
     opt.replay_proxy = opt.replay_proxy or config.safe_get("connection", "replay-proxy")
+    opt.network_interface = opt.network_interface or config.safe_get(
+        "connection", "network-interface"
+    )
 
     # Advanced
     opt.crawl = opt.crawl or config.safe_getboolean("advanced", "crawl")
 
     # View
     opt.full_url = opt.full_url or config.safe_getboolean("view", "full-url")
-    opt.color = opt.color or config.safe_getboolean("view", "color", True)
+    opt.color = opt.color if opt.color is False else config.safe_getboolean("view", "color", True)
     opt.quiet = opt.quiet or config.safe_getboolean("view", "quiet-mode")
     opt.redirects_history = opt.redirects_history or config.safe_getboolean(
         "view", "show-redirects-history"

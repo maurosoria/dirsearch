@@ -4,6 +4,8 @@
 - Ability to use multiple output formats
 - MySQL and PostgreSQL report formats
 - Support variables in file path and SQL table name for saving results
+- Support non-default network interface
+- Load targets from a Nmap XML report
 
 ## [0.4.3] - October 2nd, 2022
 - Automatically detect the URI scheme (`http` or `https`) if no scheme is provided
@@ -123,7 +125,7 @@
 - Exclude status switch
 - Pause/next directory feature
 - Changed help structure
-- Expaded default dictionary
+- Expanded default dictionary
 
 ## 0.2.2 - July 2, 2014
 - Fixed some bugs

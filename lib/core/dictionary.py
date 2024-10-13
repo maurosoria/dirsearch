@@ -79,7 +79,7 @@ class Dictionary:
         return item in self._items
 
     def __getstate__(self):
-        return (self._items, self._index)
+        return self._items, self._index
 
     def __setstate__(self, state):
         self._items, self._index = state
@@ -151,7 +151,7 @@ class Dictionary:
                         options["overwrite_extensions"]
                         and not line.endswith(options["extensions"] + EXCLUDE_OVERWRITE_EXTENSIONS)
                         # Paths that have queries in wordlist are usually used for exploiting
-                        # diclosed vulnerabilities of services, skip such paths
+                        # disclosed vulnerabilities of services, skip such paths
                         and "?" not in line
                         and "#" not in line
                         and re.search(EXTENSION_RECOGNITION_REGEX, line)

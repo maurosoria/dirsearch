@@ -19,6 +19,7 @@
 import os
 import sys
 
+from functools import reduce
 from ipaddress import IPv4Network, IPv6Network
 from urllib.parse import quote, urljoin
 
@@ -41,8 +42,17 @@ def safequote(string_):
     return quote(string_, safe=URL_SAFE_CHARS)
 
 
-def uniq(array, type_=list):
-    return type_(filter(None, dict.fromkeys(array)))
+def _strip_and_uniquify_callback(array, item):
+    item = item.strip()
+    if not item or item in array:
+        return array
+
+    return array + [item]
+
+
+# Strip values and remove duplicates from a list, respect the order
+def strip_and_uniquify(array, type_=list):
+    return type_(reduce(_strip_and_uniquify_callback, array, []))
 
 
 def lstrip_once(string, pattern):

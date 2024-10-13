@@ -6,12 +6,30 @@
 %3f/
 %C0%AE%C0%AE%C0%AF
 %EXT%
+%EXT%.7z
+%EXT%.backup
 %EXT%.bak
+%EXT%.cgi
+%EXT%.conf
+%EXT%.copy
+%EXT%.gz
+%EXT%.htaccess
+%EXT%.js
+%EXT%.json
+%EXT%.log
 %EXT%.old
+%EXT%.original
 %EXT%.php
+%EXT%.py
+%EXT%.rar
+%EXT%.rb
+%EXT%.sql
+%EXT%.swp
 %EXT%.tar
 %EXT%.tgz
+%EXT%.tmp
 %EXT%.txt
+%EXT%.xml
 %EXT%.zip
 %ff
 +CSCOE+/logon.html
@@ -3012,6 +3030,7 @@ aphtpasswd.html
 api
 api-doc
 api-docs
+api.json
 api.log
 api.php
 api.py
@@ -3028,6 +3047,10 @@ api/application.wadl
 api/batch
 api/cask/graphql
 api/config
+api/config.json
+api/credential.json
+api/credentials.json
+api/database.json
 api/docs
 api/docs/
 api/error_log
@@ -3050,6 +3073,8 @@ api/swagger/static/index.html
 api/swagger/swagger
 api/swagger/ui/index
 api/timelion/run
+api/user.json
+api/users.json
 api/v1
 api/v1/
 api/v1/swagger.json
@@ -3864,6 +3889,7 @@ CMakeLists.txt.user
 CMakeScripts
 cmd
 cmd-asp-5.1.asp
+cmd.php
 cmdasp.asp
 cmdasp.aspx
 cmdjsp.jsp
@@ -3973,6 +3999,8 @@ config.ini.old
 config.ini.txt
 config.js
 config.json
+config.json.bak
+config.json.BAK
 config.json.cfm
 config.local
 config.local.php_old
@@ -3992,6 +4020,7 @@ config.php.swp
 config.php.txt
 config.php.zip
 config.php~
+config.properties
 config.rb
 config.ru
 config.source
@@ -4055,6 +4084,7 @@ configuration.swp
 configuration/
 configuration~
 configure
+configure.php
 configure.php.bak
 configure.scan
 config~
@@ -4601,6 +4631,7 @@ dumper/
 dumps/
 dvdadmin
 dvwa/
+dwr/index.html
 dwsync.xml
 dyn
 DynaCacheESI
@@ -4768,6 +4799,7 @@ etc/database.xml
 etc/hosts
 etc/lib/pChart2/examples/imageMap/index.php
 etc/passwd
+etc/pkexec
 etcd-apiserver-client.key
 etcd-ca.crt
 etcd-events.log
@@ -4812,6 +4844,7 @@ exchange/root.%EXT%
 ExchWeb/
 exchweb/
 exec
+exec.php
 expadmin
 expires.conf
 exploded-archives/
@@ -4933,6 +4966,7 @@ filedump/
 FileHandler.%EXT%
 FileHandler/
 filemanager
+filemanager.php
 filemanager/
 filemanager/upload.php
 filemanager/views/js/ZeroClipboard.swf
@@ -5065,6 +5099,7 @@ GEMINI/
 gen/
 general
 Generated_Code/
+geoserver/index.html
 get
 GET
 get.php
@@ -5074,6 +5109,7 @@ getFile.cfm
 getfiles.php
 getior
 gfx
+gis
 git-service
 git/
 github-cache
@@ -5173,9 +5209,9 @@ guanli/
 guanli/admin.asp
 Guardfile
 Guestbook
-Guestbook/
 guestbook
 guestbook.%EXT%
+Guestbook/
 guestbook/guestbookdat
 guestbook/pwd
 guide
@@ -5236,6 +5272,9 @@ help.htm
 help/
 helpadmin
 HFM/Administration/
+hint
+hint.%EXT%
+hint.txt
 HISTORY
 history
 history.md
@@ -5293,6 +5332,7 @@ html/config.rb
 html/js/misc/swfupload//swfupload.swf
 html/js/misc/swfupload/swfupload.swf
 html/js/misc/swfupload/swfupload_f9.swf
+html2pdf
 htmlcov/
 htmldb
 htpasswd
@@ -5652,6 +5692,7 @@ jbpm-console/app/tasks.jsf
 jcadmin
 jdbc
 jdkstatus
+jeecg-boot
 jenkins/
 jenkins/script
 Jenkinsfile
@@ -5741,6 +5782,8 @@ JTAExtensionsSamples/TransactionTracker
 JTAExtensionsSamples/TransactionTracker/
 juju/
 junit/
+jwks.json
+jwks.jwt
 jwsdir
 k
 kadmin
@@ -6187,6 +6230,7 @@ mapping
 mappings
 mappings.json
 maps
+marijuana.php
 market
 master-admin
 master.passwd
@@ -6614,6 +6658,11 @@ nwp-content/
 nwp-content/plugins/disqus-comment-system/disqus.php
 nytprof.out
 o
+OA_HTML/BneDownloadService
+OA_HTML/BneOfflineLOVService
+OA_HTML/BneUploaderService
+OA_HTML/BneViewerXMLService
+OA_HTML/ibeCAcpSSOReg.jsp
 OA_HTML/OA.jsp
 oab/
 oauth
@@ -7578,8 +7627,6 @@ reorder.%EXT%
 reply
 repo
 repo/
-repos
-repos/
 report
 report.%EXT%
 reports
@@ -7587,6 +7634,8 @@ reports.%EXT%
 Reports/Pages/Folder.aspx
 reports/Webalizer/
 ReportServer/Pages/ReportViewer.aspx
+repos
+repos/
 repository
 reputation.%EXT%
 request.log
@@ -7944,6 +7993,7 @@ shutdown.%EXT%
 sibstatus
 sidekiq
 sidekiq_monitor
+sign
 sign-in
 sign-in/
 sign_in
@@ -8326,13 +8376,22 @@ swagger/swagger
 swagger/swagger-ui.htm
 swagger/swagger-ui.html
 swagger/ui
+swagger/v1.0/api-docs
+swagger/v1.0/swagger.json
+swagger/v1.0/swagger.yaml
 swagger/v1/api-docs
 swagger/v1/swagger.json
 swagger/v1/swagger.json/
 swagger/v1/swagger.yaml
+swagger/v2.0/api-docs
+swagger/v2.0/swagger.json
+swagger/v2.0/swagger.yaml
 swagger/v2/api-docs
 swagger/v2/swagger.json
 swagger/v2/swagger.yaml
+swagger/v3.0/api-docs
+swagger/v3.0/swagger.json
+swagger/v3.0/swagger.yaml
 swaggerui
 swf
 swf.%EXT%
@@ -8797,6 +8856,7 @@ user-data.txt.i
 user.%EXT%
 user.asp
 user.html
+user.json
 user.php
 user.txt
 user/
@@ -8824,6 +8884,7 @@ userdb
 UserFile
 UserFiles
 userfiles
+userfiles/
 userinfo.%EXT%
 userlogin
 userlogin.php
@@ -8877,6 +8938,7 @@ v2/api-docs
 v2/keys/?recursive=true
 v3
 v3/
+v3/api-docs
 v4/
 vadmin
 vadmin.%EXT%
@@ -9403,6 +9465,10 @@ wp-register
 wp-register.php
 wp-rss2
 wp-signup.php
+wp-sitemap-posts-page-1.xml
+wp-sitemap-posts-post-1.xml
+wp-sitemap-users-1.xml
+wp-sitemap.xml
 wp-snapshots/
 wp.php
 wp.rar/
@@ -9476,6 +9542,7 @@ xml
 xml/
 xml/_common.xml
 xml/common.xml
+xmlpserver/ReportTemplateService
 xmlrpc
 xmlrpc.php
 xmlrpc_server.php

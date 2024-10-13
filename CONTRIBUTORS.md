@@ -31,7 +31,7 @@
 - [Mohd Shahril](https://github.com/shahril96)
 - [Houziaux Mike](https://twitter.com/Jenaye_fr)
 - [Jannik Vieten](https://github.com/exploide)
-- [MiawOren](https://github.com/telnet22)
+- [MiawOren](https://github.com/0x0d3ad)
 - [sysEvil](https://github.com/sysevil)
 - [s-hamann](https://github.com/s-hamann)
 - [Ramin Farajpour Cami](https://twitter.com/MF4rr3ll)
@@ -70,6 +70,21 @@
 - [Weltolk](https://github.com/Weltolk)
 - [at0m](https://github.com/atomiczsec/)
 - [junmoka](https://github.com/junmoka)
+- [Akshay Ravi](https://www.linkedin.com/in/c09yc47/)
+- [kosyan62](https://https://github.com/kosyan62)
+- [Maxence Zolnieurck](https://github.com/mxcezl)
+- [Giorgos Drosos](https://github.com/gdrosos)
+- [huyphan](https://github.com/huyphan)
+- [Sean Wei](https://www.sean.taipei/about-en)
+- [FantasqueX](https://www.github.com/FantasqueX)
+- [Ovi3](https://github.com/Ovi3)
+- [u21h2](https://www.github.com/u21h2)
+- [ajcriado](https://www.github.com/ajcriado)
+- [archdiote](https://www.github.com/archidote)
+- [jxdv](https://github.com/jxdv)
+- [Xeonacid](https://github.com/Xeonacid)
+- [Valentijn Scholten](https://www.github.com/valentijnscholten)
+
 
 Special thanks to all the people who are named here!
 

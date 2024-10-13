@@ -78,7 +78,7 @@ DEFAULT_TOR_PROXIES = ("socks5://127.0.0.1:9050", "socks5://127.0.0.1:9150")
 DEFAULT_HEADERS = {
     "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36",
     "accept": "*/*",
-    "accept-rncoding": "*",
+    "accept-encoding": "*",
     "keep-alive": "timeout=15, max=1000",
     "cache-control": "max-age=0",
 }
