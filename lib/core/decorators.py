@@ -33,7 +33,7 @@ def cached(timeout=100):
             key = id(func)
             for arg in args:
                 key += id(arg)
-            for k, v in kwargs:
+            for k, v in kwargs.items():
                 key += id(k) + id(v)
 
             # If it was cached and the cache timeout hasn't been reached

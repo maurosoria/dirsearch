@@ -19,8 +19,7 @@
 #  Author: Mauro Soria
 
 import sys
-
-from pkg_resources import DistributionNotFound, VersionConflict
+import warnings
 
 from lib.core.data import options
 from lib.core.exceptions import FailedDependenciesInstallation
@@ -28,9 +27,13 @@ from lib.core.installation import check_dependencies, install_dependencies
 from lib.core.settings import OPTIONS_FILE
 from lib.parse.config import ConfigParser
 
-if sys.version_info < (3, 7):
-    sys.stderr.write("Sorry, dirsearch requires Python 3.7 or higher\n")
+if sys.version_info < (3, 8):
+    sys.stderr.write("Sorry, dirsearch requires Python 3.8 or higher\n")
     sys.exit(1)
+
+# silence pkg_resources deprecation warnings
+warnings.simplefilter("ignore", DeprecationWarning)
+from pkg_resources import DistributionNotFound, VersionConflict  # noqa: E402
 
 
 def main():

@@ -54,7 +54,7 @@ Table of Contents
 Installation & Usage
 ------------
 
-**Requirement: python 3.7 or higher**
+**Requirement: python 3.8 or higher**
 
 Choose one of these installation options:
 

@@ -1,5 +1,6 @@
 import xml.etree.ElementTree as ET
 
+
 def parse_nmap(file):
     root = ET.parse(file).getroot()
     targets = []
@@ -12,7 +13,7 @@ def parse_nmap(file):
             f"{hostname}:{port.get('portid')}"
             for port in host.find("ports").iter("port")
             if (
-                port.get("protocol") == "tcp" # UDP is not used in HTTP because it is not a "reliable transport"
+                port.get("protocol") == "tcp"  # UDP is not used in HTTP because it is not a "reliable transport"
                 and port.find("state").get("state") == "open"
                 and port.find("service").get("name") in ["http", "unknown"]
             )
