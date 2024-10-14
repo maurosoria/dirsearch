@@ -9434,6 +9434,7 @@ wp-content/plugins/jrss-widget/proxy.php?url=
 wp-content/plugins/super-forms/
 wp-content/plugins/wp-publication-archive/includes/openfile.php?file=
 wp-content/plugins/wpengine-snapshot/snapshots/
+wp-content/themes/
 wp-content/updraft/
 wp-content/upgrade/
 wp-content/uploads/
