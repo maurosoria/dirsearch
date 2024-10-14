@@ -169,6 +169,12 @@ def parse_arguments():
         help="Number of threads",
     )
     general.add_option(
+        "--async",
+        action="store_true",
+        dest="async_mode",
+        help="Enable asynchronous mode",
+    )
+    general.add_option(
         "-r",
         "--recursive",
         action="store_true",
@@ -466,12 +472,6 @@ def parse_arguments():
         action="store_true",
         dest="crawl",
         help="Crawl for new paths in responses"
-    )
-    advanced.add_option(
-        "--async",
-        action="store_true",
-        dest="async_mode",
-        help="Enable asynchronous mode",
     )
 
     # View Settings

@@ -249,6 +249,7 @@ def parse_config(opt):
 
     # General
     opt.thread_count = opt.thread_count or config.safe_getint("general", "threads", 25)
+    opt.async_mode = opt.async_mode or config.safe_getboolean("general", "async")
     opt.include_status_codes = opt.include_status_codes or config.safe_get(
         "general", "include-status"
     )
@@ -353,7 +354,6 @@ def parse_config(opt):
 
     # Advanced
     opt.crawl = opt.crawl or config.safe_getboolean("advanced", "crawl")
-    opt.async_mode = opt.async_mode or config.safe_getboolean("advanced", "async")
 
     # View
     opt.full_url = opt.full_url or config.safe_getboolean("view", "full-url")
