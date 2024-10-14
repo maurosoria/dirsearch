@@ -31,6 +31,7 @@ Table of Contents
   * [Pausing progress](#pausing-progress)
   * [Recursion](#recursion)
   * [Threads](#threads)
+  * [Asynchronous](#asynchronous)
   * [Prefixes / Suffixes](#prefixes--suffixes)
   * [Blacklist](#blacklist)
   * [Filters](#filters)
@@ -176,6 +177,7 @@ Options:
   General Settings:
     -t THREADS, --threads=THREADS
                         Number of threads
+    --async             Enable asynchronous mode
     -r, --recursive     Brute-force recursively
     --deep-recursive    Perform recursive scan on every directory depth (e.g.
                         api/users -> api/)
@@ -264,7 +266,6 @@ Options:
 
   Advanced Settings:
     --crawl             Crawl for new paths in responses
-    --async             Enable asynchronous mode
 
   View Settings:
     --full-url          Full URLs in the output (enabled automatically in
@@ -297,6 +298,7 @@ By default, `config.ini` inside your dirsearch directory is used as the configur
 
 [general]
 threads = 25
+async = False
 recursive = False
 deep-recursive = False
 force-recursive = False
@@ -348,7 +350,6 @@ max-retries = 1
 
 [advanced]
 crawl = False
-async = False
 
 [view]
 full-url = False
