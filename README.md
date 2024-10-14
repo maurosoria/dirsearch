@@ -129,12 +129,15 @@ Options:
 
   Mandatory:
     -u URL, --url=URL   Target URL(s), can use multiple flags
-    -l PATH, --url-file=PATH
+    -l PATH, --urls-file=PATH
                         URL list file
     --stdin             Read URL(s) from STDIN
     --cidr=CIDR         Target CIDR
     --raw=PATH          Load raw HTTP request from file (use '--scheme' flag
                         to set the scheme)
+    --nmap-report=PATH  Load targets from nmap report (Ensure the inclusion of
+                        the -sV flag during nmap scan for comprehensive
+                        results)
     -s SESSION_FILE, --session=SESSION_FILE
                         Session file
     --config=PATH       Path to configuration file (Default:
@@ -143,7 +146,8 @@ Options:
 
   Dictionary Settings:
     -w WORDLISTS, --wordlists=WORDLISTS
-                        Customize wordlists (separated by commas)
+                        Wordlist files or directories contain wordlists
+                        (separated by commas)
     -e EXTENSIONS, --extensions=EXTENSIONS
                         Extension list separated by commas (e.g. php,asp)
     -f, --force-extensions
@@ -224,14 +228,14 @@ Options:
     --data-file=PATH    File contains HTTP request data
     -H HEADERS, --header=HEADERS
                         HTTP request header, can use multiple flags
-    --header-file=PATH  File contains HTTP request headers
+    --headers-file=PATH
+                        File contains HTTP request headers
     -F, --follow-redirects
                         Follow HTTP redirects
     --random-agent      Choose a random User-Agent for each request
     --auth=CREDENTIAL   Authentication credential (e.g. user:password or
                         bearer token)
-    --auth-type=TYPE    Authentication type (basic, digest, bearer, ntlm, jwt,
-                        oauth2)
+    --auth-type=TYPE    Authentication type (basic, digest, bearer, ntlm, jwt)
     --cert-file=PATH    File contains client-side certificate
     --key-file=PATH     File contains client-side certificate private key
                         (unencrypted)
@@ -241,8 +245,10 @@ Options:
   Connection Settings:
     --timeout=TIMEOUT   Connection timeout
     --delay=DELAY       Delay between requests
-    --proxy=PROXY       Proxy URL (HTTP/SOCKS), can use multiple flags
-    --proxy-file=PATH   File contains proxy servers
+    -p PROXY, --proxy=PROXY
+                        Proxy URL (HTTP/SOCKS), can use multiple flags
+    --proxies-file=PATH
+                        File contains proxy servers
     --proxy-auth=CREDENTIAL
                         Proxy authentication credential
     --replay-proxy=PROXY
@@ -269,10 +275,12 @@ Options:
     -q, --quiet-mode    Quiet mode
 
   Output Settings:
-    -o PATH, --output=PATH
-                        Output file
+    -o PATH/URL, --output=PATH/URL
+                        Output file or MySQL/PostgreSQL URL (Format:
+                        scheme://[username:password@]host[:port]/database-
+                        name)
     --format=FORMAT     Report format (Available: simple, plain, json, xml,
-                        md, csv, html, sqlite)
+                        md, csv, html, sqlite, mysql, postgresql)
     --log=PATH          Log file
 ```
 
@@ -575,7 +583,7 @@ python3 dirsearch.py -e php,html,js -u https://target --proxylist proxyservers.t
 
 ----
 ### Reports
-Supported report formats: **simple**, **plain**, **json**, **xml**, **md**, **csv**,  **html**, **sqlite**
+Supported report formats: **simple**, **plain**, **json**, **xml**, **md**, **csv**,  **html**, **sqlite**, **mysql**, **postgresql**
 
 ```
 python3 dirsearch.py -e php -l URLs.txt --format plain -o report.txt
