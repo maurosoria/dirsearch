@@ -258,6 +258,7 @@ Options:
 
   Advanced Settings:
     --crawl             Crawl for new paths in responses
+    --async             Enable asynchronous mode
 
   View Settings:
     --full-url          Full URLs in the output (enabled automatically in
@@ -339,6 +340,7 @@ max-retries = 1
 
 [advanced]
 crawl = False
+async = False
 
 [view]
 full-url = False
@@ -413,6 +415,12 @@ In spite of that, the speed still depends a lot on the response time of the serv
 ```
 python3 dirsearch.py -e php,htm,js,bak,zip,tgz,txt -u https://target -t 20
 ```
+
+----
+### Asynchronous
+You can switch to asynchronous mode by `--async`, let dirsearch use coroutines instead of threads to handle concurrent requests.
+
+In theory, asynchronous mode offers better performance and lower CPU usage since it doesn't require switching between different thread contexts. Additionally, pressing CTRL+C will immediately pause progress without needing to wait for threads to suspend.
 
 ----
 ### Prefixes / Suffixes
