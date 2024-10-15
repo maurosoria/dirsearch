@@ -203,7 +203,7 @@ def parse_options():
         print(f"Invalid output format(s): {', '.join(invalid_formats)}")
         exit(1)
 
-    # There are multiple file-based output formats but no variable to seperate output files for different formats
+    # There are multiple file-based output formats but no variable to separate output files for different formats
     if (
         opt.output_file
         and "{format}" not in opt.output_file
@@ -211,7 +211,7 @@ def parse_options():
         and (
             "{extension}" not in opt.output_file
             # "plain" and "simple" have the same file extension (txt)
-            or {"plain", "simple"}.issubset(self.output_formats)
+            or {"plain", "simple"}.issubset(opt.output_formats)
         )
     ):
         print("Found at least 2 output formats sharing the same output file, make sure you use '{format}' and '{extension} variables in your output file")
