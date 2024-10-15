@@ -76,6 +76,10 @@ class FileUtils:
         return os.access(file_name, os.F_OK)
 
     @staticmethod
+    def is_empty(file_name):
+        return os.stat(file_name).st_size == 0
+
+    @staticmethod
     def can_read(file_name):
         try:
             with open(file_name):

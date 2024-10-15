@@ -31,7 +31,12 @@ class CSVReport(FileReportMixin, BaseReport):
 
     def parse(self, file):
         with open(file) as fh:
-            return list(csv.reader(fh, delimiter=",", quotechar='"'))
+            rows = list(csv.reader(fh, delimiter=",", quotechar='"'))
+            # Not a dirsearch CSV report
+            if rows[0] != self.new()[0]:
+                raise Exception
+
+            return rows
 
     @locked
     def save(self, file, result):

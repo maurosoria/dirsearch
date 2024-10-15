@@ -16,9 +16,13 @@
 #
 #  Author: Mauro Soria
 
+import os
+
 from abc import ABC, abstractmethod
 
 from lib.core.decorators import locked
+from lib.core.exceptions import CannotConnectException, FileExistsException
+from lib.utils.file import FileUtils
 
 
 class BaseReport(ABC):
@@ -33,11 +37,17 @@ class BaseReport(ABC):
 
 class FileReportMixin:
     def initiate(self, file):
-        self.cleanup(file)
-        self.write(file, self.new())
+        FileUtils.create_dir(FileUtils.parent(file))
+        if FileUtils.exists(file) and not FileUtils.is_empty(file):
+            self.validate(file)
+        else:
+            self.write(file, self.new())
 
-    def cleanup(self, file):
-        open(file, "w").close()
+    def validate(self, file):
+        try:
+            self.parse(file)
+        except Exception:
+            raise FileExistsException(f"Output file {file} already exists")
 
     def parse(self, file):
         return open(file, "r").read()
@@ -56,7 +66,7 @@ class SQLReportMixin:
 
     def get_connection(self, database):
         # Reuse the old connection
-        if not self.__reuse:
+        if not self._reuse:
             return self.connect(database)
 
         if not self._conn:
@@ -83,14 +93,19 @@ class SQLReportMixin:
                     (%s, %s, %s, %s, %s, %s);''', values)
 
     def initiate(self, database, table):
-        conn = self.get_connection(database)
+        try:
+            conn = self.get_connection(database)
+        except Exception as e:
+            raise CannotConnectException(f"Cannot connect to the SQL database: {str(e)}")
+
         cursor = conn.cursor()
 
-        cursor.execute(
-            self.get_drop_table_query(table),
-            self.get_create_table_query(table),
-        )
+        cursor.execute(*self.get_drop_table_query(table))
+        cursor.execute(*self.get_create_table_query(table))
         conn.commit()
+
+        if not self._reuse:
+            conn.close()
 
     @locked
     def save(self, database, table, result):
@@ -98,7 +113,7 @@ class SQLReportMixin:
         cursor = conn.cursor()
 
         cursor.execute(
-            self.get_insert_table_query(
+            *self.get_insert_table_query(
                 table,
                 (
                     result.datetime,
@@ -111,6 +126,9 @@ class SQLReportMixin:
             )
         )
         conn.commit()
+
+        if not self._reuse:
+            conn.close()
 
     def finish(self):
         if self._conn:

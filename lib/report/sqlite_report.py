@@ -19,14 +19,13 @@
 import sqlite3
 
 from lib.report.factory import BaseReport, SQLReportMixin
-
 from lib.utils.file import FileUtils
 
 
 class SQLiteReport(SQLReportMixin, BaseReport):
     __format__ = "sql"
     __extension__ = "sqlite"
-    __reuse = False
+    _reuse = False
 
     def get_create_table_query(self, table):
         return (f'''CREATE TABLE "{table}" (
@@ -43,5 +42,11 @@ class SQLiteReport(SQLReportMixin, BaseReport):
 
     def connect(self, file):
         FileUtils.create_dir(FileUtils.parent(file))
-
-        return sqlite3.connect(file, check_same_thread=False)
+        conn = sqlite3.connect(file, check_same_thread=False)
+        # Check if the file is a proper sqlite database
+        try:
+            conn.cursor().execute("PRAGMA integrity_check")
+        except sqlite3.DatabaseError:
+            raise Exception(f"{file} is not empty or is not a SQLite database")
+        else:
+            return conn

@@ -41,8 +41,8 @@ output_handlers = {
     "csv": (CSVReport, [options["output_file"]]),
     "html": (HTMLReport, [options["output_file"]]),
     "sqlite": (SQLiteReport, [options["output_file"], options["output_table"]]),
-    "mysql": (MySQLReport, [options["output_url"], options["output_table"]]),
-    "postgresql": (PostgreSQLReport, [options["output_url"], options["output_table"]]),
+    "mysql": (MySQLReport, [options["mysql_url"], options["output_table"]]),
+    "postgresql": (PostgreSQLReport, [options["postgres_url"], options["output_table"]]),
 }
 
 

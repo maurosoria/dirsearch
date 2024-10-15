@@ -497,6 +497,14 @@ def parse_arguments():
     # Output Settings
     output = OptionGroup(parser, "Output Settings")
     output.add_option(
+        "-O",
+        "--output-formats",
+        action="store",
+        dest="output_formats",
+        metavar="FORMAT",
+        help=f"Report formats, separated by commas (Available: {', '.join(OUTPUT_FORMATS)})",
+    )
+    output.add_option(
         "-o",
         "--output-file",
         action="store",
@@ -505,19 +513,18 @@ def parse_arguments():
         help="Output file location",
     )
     output.add_option(
-        "-O",
-        "--output-url",
+        "--mysql-url",
         action="store",
-        dest="output_url",
+        dest="mysql_url",
         metavar="URL",
-        help="MySQL/PostgreSQL URL (Format: scheme://[username:password@]host[:port]/database-name)",
+        help="Database URL for MySQL output (Format: mysql://[username:password@]host[:port]/database-name)",
     )
     output.add_option(
-        "--output-formats",
+        "--postgres-url",
         action="store",
-        dest="output_formats",
-        metavar="FORMAT",
-        help=f"Report formats, separated by commas (Available: {', '.join(OUTPUT_FORMATS)})",
+        dest="postgres_url",
+        metavar="URL",
+        help="Database URL for PostgreSQL output (Format: postgres://[username:password@]host[:port]/database-name)",
     )
     output.add_option(
         "--log", action="store", dest="log_file", metavar="PATH", help="Log file"

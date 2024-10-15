@@ -32,6 +32,8 @@ from lib.core.data import blacklists, options
 from lib.core.decorators import locked
 from lib.core.dictionary import Dictionary, get_blacklists
 from lib.core.exceptions import (
+    CannotConnectException,
+    FileExistsException,
     InvalidRawRequest,
     InvalidURLException,
     RequestException,
@@ -151,8 +153,6 @@ class Controller:
             self.requester.set_proxy_auth(options["proxy_auth"])
 
         if options["log_file"]:
-            options["log_file"] = FileUtils.get_abs_path(options["log_file"])
-
             try:
                 FileUtils.create_dir(FileUtils.parent(options["log_file"]))
                 if not FileUtils.can_write(options["log_file"]):
@@ -221,6 +221,8 @@ class Controller:
                 self.start()
 
             except (
+                CannotConnectException,
+                FileExistsException,
                 InvalidURLException,
                 RequestException,
                 SkipTargetInterrupt,

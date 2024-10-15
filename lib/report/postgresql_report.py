@@ -25,7 +25,7 @@ from lib.report.factory import BaseReport, SQLReportMixin
 class PostgreSQLReport(SQLReportMixin, BaseReport):
     __format__ = "sql"
     __extension__ = None
-    __reuse = True
+    _reuse = True
 
     def is_valid(self, url):
         return url.startswith(("postgres://", "postgresql://"))

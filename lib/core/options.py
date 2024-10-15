@@ -203,8 +203,25 @@ def parse_options():
         print(f"Invalid output format(s): {', '.join(invalid_formats)}")
         exit(1)
 
-    if "mysql" in opt.output_formats and "postgresql" in opt.output_formats:
-        print("Can't use both mysql and postgresql output formats at the same time")
+    # There are multiple file-based output formats but no variable to seperate output files for different formats
+    if (
+        opt.output_file
+        and "{format}" not in opt.output_file
+        and len(opt.output_formats) - ("mysql" in opt.output_formats) - ("postgresql" in opt.output_formats) > 1
+        and (
+            "{extension}" not in opt.output_file
+            # "plain" and "simple" have the same file extension (txt)
+            or {"plain", "simple"}.issubset(output_formats)
+        )
+    ):
+        print("Found at least 2 output formats sharing the same output file, make sure you use '{format}' and '{extension} variables in your output file")
+        exit(1)
+
+    if opt.log_file:
+        opt.log_file = FileUtils.get_abs_path(opt.log_file)
+
+    if opt.output_file:
+        opt.output_file = FileUtils.get_abs_path(opt.output_file)
 
     return vars(opt)
 
@@ -368,7 +385,8 @@ def merge_config(opt):
 
     # Output
     opt.output_file = opt.output_file or config.safe_get("output", "output-file")
-    opt.output_url = opt.output_url or config.safe_get("output", "output-url")
+    opt.mysql_url = opt.mysql_url or config.safe_get("output", "mysql-url")
+    opt.postgres_url = opt.postgres_url or config.safe_get("output", "postgres-url")
     opt.output_table = config.safe_get("output", "output-sql-table")
     opt.output_formats = opt.output_formats or config.safe_get(
         "output", "output-format", "plain"

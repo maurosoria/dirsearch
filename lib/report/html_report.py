@@ -39,7 +39,7 @@ class HTMLReport(FileReportMixin, BaseReport):
                 line = fh.readline()
                 # Gotta be the worst way to parse it but I don't know a better way:P
                 if line.startswith("        resources: "):
-                    return json.loads(line[19:-1])
+                    return json.loads(line[19:-2])
 
     @locked
     def save(self, file, result):
@@ -51,7 +51,7 @@ class HTMLReport(FileReportMixin, BaseReport):
             "contentType": result.type,
             "redirect": result.redirect,
         })
-        self.write(self.generate(results))
+        self.write(file, self.generate(results))
 
     def generate(self, results):
         file_loader = FileSystemLoader(

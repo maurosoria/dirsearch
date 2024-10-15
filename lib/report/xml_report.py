@@ -16,7 +16,6 @@
 #
 #  Author: Mauro Soria
 
-from xml.dom import minidom
 from xml.etree import ElementTree as ET
 
 from lib.core.decorators import locked
@@ -46,10 +45,9 @@ class XMLReport(FileReportMixin, BaseReport):
         ET.SubElement(target, "contentLength").text = str(result.length)
         ET.SubElement(target, "contentType").text = result.type
         ET.SubElement(target, "redirect").text = result.redirect
+        self.write(file, root)
 
     def write(self, file, root):
-        xml_ = ET.tostring(root, encoding=DEFAULT_ENCODING, method="xml")
-        # Beautify XML output
-        xml_ = minidom.parseString(xml_).toprettyxml()
-
+        ET.indent(root)
+        xml_ = ET.tostring(root, encoding=DEFAULT_ENCODING, method="xml").decode()
         super().write(file, xml_)
