@@ -211,7 +211,7 @@ def parse_options():
         and (
             "{extension}" not in opt.output_file
             # "plain" and "simple" have the same file extension (txt)
-            or {"plain", "simple"}.issubset(output_formats)
+            or {"plain", "simple"}.issubset(self.output_formats)
         )
     ):
         print("Found at least 2 output formats sharing the same output file, make sure you use '{format}' and '{extension} variables in your output file")
