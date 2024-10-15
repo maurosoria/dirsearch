@@ -494,6 +494,9 @@ def parse_arguments():
     view.add_option(
         "-q", "--quiet-mode", action="store_true", dest="quiet", help="Quiet mode"
     )
+    view.add_option(
+        "--disable-cli", action="store_true", dest="disable_cli", help="Turn off command-line output"
+    )
 
     # Output Settings
     output = OptionGroup(parser, "Output Settings")

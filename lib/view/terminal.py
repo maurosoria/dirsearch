@@ -233,4 +233,12 @@ class QuietCLI(CLI):
         pass
 
 
-interface = QuietCLI() if options["quiet"] else CLI()
+class EmptyCLI(QuietCLI):
+    def status_report(*args):
+        pass
+
+    def error(*args):
+        pass
+
+
+interface = EmptyCLI() if options["disable_cli"] else QuietCLI() if options["quiet"] else CLI()
