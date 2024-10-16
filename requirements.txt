@@ -12,6 +12,7 @@ ntlm_auth>=1.5.0
 beautifulsoup4>=4.8.0
 mysql-connector-python>=8.0.20
 psycopg[binary]>=3.0
+defusedcsv>=2.0.0
 requests-toolbelt>=1.0.0
 setuptools>=66.0.0
 httpx>=0.27.2

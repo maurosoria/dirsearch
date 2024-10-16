@@ -19,6 +19,7 @@
 import os
 import sys
 import string
+import time
 
 from lib.utils.file import FileUtils
 
@@ -29,6 +30,12 @@ BANNER = f"""
   _|. _ _  _  _  _ _|_    v{VERSION}
  (_||| _) (/_(_|| (_| )
 """
+
+COMMAND = " ".join(sys.argv)
+
+START_TIME = time.strftime("%Y-%m-%d %H:%M:%S")
+
+START_DATETIME = time.strftime("%Y-%m-%d")
 
 SCRIPT_PATH = FileUtils.parent(__file__, 3)
 
@@ -61,8 +68,6 @@ AUTHENTICATION_TYPES = ("basic", "digest", "bearer", "ntlm", "jwt")
 PROXY_SCHEMES = ("http://", "https://", "socks5://", "socks5h://", "socks4://", "socks4a://")
 
 STANDARD_PORTS = {"http": 80, "https": 443}
-
-INSECURE_CSV_CHARS = ("+", "-", "=", "@")
 
 DEFAULT_TEST_PREFIXES = (".",)
 

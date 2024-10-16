@@ -1,8 +1,10 @@
 # Changelog
 
 ## [Unreleased]
+- Ability to use multiple output formats
+- MySQL and PostgreSQL report formats
+- Support variables in file path and SQL table name for saving results
 - Support non-default network interface
-- Remove unused dependencies (urllib3, cryptography, cffi, idna, chardet)
 - Load targets from a Nmap XML report
 - Added --async option to enable asynchronous mode (use coroutines instead of threads)
 

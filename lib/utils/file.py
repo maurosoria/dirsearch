@@ -76,6 +76,10 @@ class FileUtils:
         return os.access(file_name, os.F_OK)
 
     @staticmethod
+    def is_empty(file_name):
+        return os.stat(file_name).st_size == 0
+
+    @staticmethod
     def can_read(file_name):
         try:
             with open(file_name):
@@ -132,7 +136,7 @@ class FileUtils:
     @classmethod
     def create_dir(cls, directory):
         if not cls.exists(directory):
-            os.makedirs(directory)
+            os.makedirs(directory, exist_ok=True)
 
     @staticmethod
     def write_lines(file_name, lines, overwrite=False):
