@@ -379,6 +379,7 @@ def merge_config(opt):
     opt.full_url = opt.full_url or config.safe_getboolean("view", "full-url")
     opt.color = opt.color if opt.color is False else config.safe_getboolean("view", "color", True)
     opt.quiet = opt.quiet or config.safe_getboolean("view", "quiet-mode")
+    opt.disable_cli = opt.disable_cli or config.safe_getboolean("view", "disable-cli")
     opt.redirects_history = opt.redirects_history or config.safe_getboolean(
         "view", "show-redirects-history"
     )

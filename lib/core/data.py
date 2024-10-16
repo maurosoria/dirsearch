@@ -88,6 +88,7 @@ options = {
     "redirects_history": False,
     "color": True,
     "quiet": False,
+    "disable_cli": False,
     "output_file": None,
     "output_format": None,
     "log_file": None,
