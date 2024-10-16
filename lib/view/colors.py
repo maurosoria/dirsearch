@@ -16,10 +16,9 @@
 #
 #  Author: Mauro Soria
 
-import string
+import re
 
 from colorama import init, Fore, Back, Style
-from pyparsing import Literal, Word, Combine, Optional, Suppress, delimitedList, oneOf
 
 
 BACK_COLORS = {
@@ -50,13 +49,8 @@ STYLES = {
     "normal": ""
 }
 
-# Credit: https://stackoverflow.com/a/2187024/12238982
-_escape_seq = Combine(
-    Literal("\x1b")
-    + "["
-    + Optional(delimitedList(Word(string.digits), ";"))
-    + oneOf(list(string.ascii_letters))
-)
+# Credit: https://stackoverflow.com/a/14693789
+_ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 
 init()
 
@@ -76,4 +70,4 @@ def set_color(msg, fore="none", back="none", style="normal"):
 
 
 def clean_color(msg):
-    return Suppress(_escape_seq).transformString(msg)
+    return _ansi_escape.sub("", msg)
