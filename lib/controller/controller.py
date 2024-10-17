@@ -26,6 +26,10 @@ import psycopg
 import re
 import time
 import mysql.connector
+try:
+    import cPickle as pickle
+except ModuleNotFoundError:
+    import pickle
 
 from urllib.parse import urlparse
 
@@ -60,7 +64,6 @@ from lib.parse.url import clean_path, parse_path
 from lib.report.manager import ReportManager
 from lib.utils.common import lstrip_once
 from lib.utils.file import FileUtils
-from lib.utils.pickle import pickle, unpickle
 from lib.utils.schemedet import detect_scheme
 from lib.view.terminal import interface
 
@@ -81,6 +84,11 @@ else:
 class Controller:
     def __init__(self) -> None:
         if options["session_file"]:
+            print("WARNING: Running an untrusted session file might lead to unwanted code execution!")
+            interface.in_line("[c]continue / [q]uit: ")
+            if input() != "c":
+                exit(1)
+
             self._import(options["session_file"])
             self.old_session = True
         else:
@@ -92,7 +100,7 @@ class Controller:
     def _import(self, session_file: str) -> None:
         try:
             with open(session_file, "rb") as fd:
-                indict, last_output, opt = unpickle(fd)
+                indict, last_output, opt = pickle.load(fd)
                 options.update(opt)
         except UnpicklingError:
             interface.error(
@@ -111,7 +119,7 @@ class Controller:
         del self.fuzzer
 
         with open(session_file, "wb") as fd:
-            pickle((vars(self), last_output, options), fd)
+            pickle.dump((vars(self), last_output, options), fd)
 
     def setup(self) -> None:
         blacklists.update(get_blacklists())
