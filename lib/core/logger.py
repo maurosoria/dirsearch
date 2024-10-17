@@ -27,7 +27,7 @@ logger.setLevel(logging.DEBUG)
 logger.disabled = True
 
 
-def enable_logging():
+def enable_logging() -> None:
     logger.disabled = False
     formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
     handler = RotatingFileHandler(options["log_file"], maxBytes=options["log_file_size"])

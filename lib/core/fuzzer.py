@@ -16,13 +16,15 @@
 #
 #  Author: Mauro Soria
 
+from __future__ import annotations
+
 import asyncio
 import re
 import threading
 import time
-from typing import Callable, Generator, Tuple
+from typing import Any, Callable, Generator
 
-from lib.connection.requester import BaseRequester
+from lib.connection.requester import AsyncRequester, BaseRequester, Requester
 from lib.connection.response import BaseResponse
 from lib.core.data import blacklists, options
 from lib.core.dictionary import Dictionary
@@ -35,7 +37,7 @@ from lib.core.settings import (
     WILDCARD_TEST_POINT_MARKER,
 )
 from lib.parse.url import clean_path
-from lib.utils.common import human_size, lstrip_once
+from lib.utils.common import get_readable_size, lstrip_once
 from lib.utils.crawl import Crawler
 
 
@@ -45,20 +47,20 @@ class BaseFuzzer:
         requester: BaseRequester,
         dictionary: Dictionary,
         *,
-        match_callbacks: Tuple[Callable] = (),
-        not_found_callbacks: Tuple[Callable] = (),
-        error_callbacks: Tuple[Callable] = (),
+        match_callbacks: tuple[Callable[[BaseResponse], Any], ...],
+        not_found_callbacks: tuple[Callable[[BaseResponse], Any], ...],
+        error_callbacks: tuple[Callable[[RequestException], Any], ...],
     ) -> None:
         self._scanned = set()
         self._requester = requester
         self._dictionary = dictionary
-        self._base_path = None
-        self.exc = None
+        self._base_path: str = ""
+        self.exc: Exception | None = None
         self.match_callbacks = match_callbacks
         self.not_found_callbacks = not_found_callbacks
         self.error_callbacks = error_callbacks
 
-        self.scanners = {
+        self.scanners: dict[str, dict[str, Scanner]] = {
             "default": {},
             "prefixes": {},
             "suffixes": {},
@@ -95,13 +97,16 @@ class BaseFuzzer:
         ):
             return True
 
-        if resp.status in blacklists and any(
-            resp.path.endswith(lstrip_once(suffix, "/"))
-            for suffix in blacklists.get(resp.status)
+        if (
+            resp.status in blacklists
+            and any(
+                resp.path.endswith(lstrip_once(suffix, "/"))
+                for suffix in blacklists.get(resp.status)
+            )
         ):
             return True
 
-        if human_size(resp.length).rstrip() in options["exclude_sizes"]:
+        if get_readable_size(resp.length).rstrip() in options["exclude_sizes"]:
             return True
 
         if resp.length < options["minimum_response_size"]:
@@ -113,14 +118,15 @@ class BaseFuzzer:
         if any(text in resp.content for text in options["exclude_texts"]):
             return True
 
-        if options["exclude_regex"] and re.search(
-            options["exclude_regex"], resp.content
-        ):
+        if options["exclude_regex"] and re.search(options["exclude_regex"], resp.content):
             return True
 
-        if options["exclude_redirect"] and (
-            options["exclude_redirect"] in resp.redirect
-            or re.search(options["exclude_redirect"], resp.redirect)
+        if (
+            options["exclude_redirect"]
+            and (
+                options["exclude_redirect"] in resp.redirect
+                or re.search(options["exclude_redirect"], resp.redirect)
+            )
         ):
             return True
 
@@ -130,12 +136,12 @@ class BaseFuzzer:
 class Fuzzer(BaseFuzzer):
     def __init__(
         self,
-        requester: BaseRequester,
+        requester: Requester,
         dictionary: Dictionary,
         *,
-        match_callbacks: Tuple[Callable] = (),
-        not_found_callbacks: Tuple[Callable] = (),
-        error_callbacks: Tuple[Callable] = (),
+        match_callbacks: tuple[Callable[[BaseResponse], Any], ...],
+        not_found_callbacks: tuple[Callable[[BaseResponse], Any], ...],
+        error_callbacks: tuple[Callable[[RequestException], Any], ...],
     ) -> None:
         super().__init__(
             requester,
@@ -149,7 +155,7 @@ class Fuzzer(BaseFuzzer):
         self._quit_event = threading.Event()
         self._pause_semaphore = threading.Semaphore(0)
 
-    def setup_scanners(self):
+    def setup_scanners(self) -> None:
         # Default scanners (wildcard testers)
         self.scanners["default"].update(
             {
@@ -190,7 +196,7 @@ class Fuzzer(BaseFuzzer):
                     context=f"/{self._base_path}***.{extension}",
                 )
 
-    def setup_threads(self):
+    def setup_threads(self) -> None:
         if self._threads:
             self._threads = []
 
@@ -199,7 +205,7 @@ class Fuzzer(BaseFuzzer):
             new_thread.daemon = True
             self._threads.append(new_thread)
 
-    def start(self):
+    def start(self) -> None:
         self.setup_scanners()
         self.setup_threads()
         self.play()
@@ -207,7 +213,7 @@ class Fuzzer(BaseFuzzer):
         for thread in self._threads:
             thread.start()
 
-    def is_finished(self):
+    def is_finished(self) -> bool:
         if self.exc:
             raise self.exc
 
@@ -217,21 +223,21 @@ class Fuzzer(BaseFuzzer):
 
         return True
 
-    def play(self):
+    def play(self) -> None:
         self._play_event.set()
 
-    def pause(self):
+    def pause(self) -> None:
         self._play_event.clear()
         # Wait for all threads to stop
         for thread in self._threads:
             if thread.is_alive():
                 self._pause_semaphore.acquire()
 
-    def quit(self):
+    def quit(self) -> None:
         self._quit_event.set()
         self.play()
 
-    def scan(self, path, scanners):
+    def scan(self, path: str, scanners: Generator[Scanner, None, None]) -> None:
         # Avoid scanned paths from being re-scanned
         if path in self._scanned:
             return
@@ -267,7 +273,7 @@ class Fuzzer(BaseFuzzer):
                     )
                     self.scan(path_, self.get_scanners_for(path_))
 
-    def thread_proc(self):
+    def thread_proc(self) -> None:
         logger.info(f'THREAD-{threading.get_ident()} started"')
 
         while True:
@@ -301,12 +307,12 @@ class Fuzzer(BaseFuzzer):
 class AsyncFuzzer(BaseFuzzer):
     def __init__(
         self,
-        requester: BaseRequester,
+        requester: AsyncRequester,
         dictionary: Dictionary,
         *,
-        match_callbacks: Tuple[Callable] = (),
-        not_found_callbacks: Tuple[Callable] = (),
-        error_callbacks: Tuple[Callable] = (),
+        match_callbacks: tuple[Callable[[BaseResponse], Any], ...],
+        not_found_callbacks: tuple[Callable[[BaseResponse], Any], ...],
+        error_callbacks: tuple[Callable[[RequestException], Any], ...],
     ) -> None:
         super().__init__(
             requester,

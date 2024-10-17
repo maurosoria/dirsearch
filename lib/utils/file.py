@@ -16,6 +16,8 @@
 #
 #  Author: Mauro Soria
 
+from __future__ import annotations
+
 import os
 import os.path
 
@@ -59,7 +61,7 @@ class File:
 
 class FileUtils:
     @staticmethod
-    def build_path(*path_components):
+    def build_path(*path_components: str) -> str:
         if path_components:
             path = os.path.join(*path_components)
         else:
@@ -74,6 +76,10 @@ class FileUtils:
     @staticmethod
     def exists(file_name):
         return os.access(file_name, os.F_OK)
+
+    @staticmethod
+    def is_empty(file_name):
+        return os.stat(file_name).st_size == 0
 
     @staticmethod
     def can_read(file_name):
@@ -110,7 +116,7 @@ class FileUtils:
         return files
 
     @staticmethod
-    def get_lines(file_name):
+    def get_lines(file_name: str) -> list[str]:
         with open(file_name, "r", errors="replace") as fd:
             return fd.read().splitlines()
 
@@ -132,7 +138,7 @@ class FileUtils:
     @classmethod
     def create_dir(cls, directory):
         if not cls.exists(directory):
-            os.makedirs(directory)
+            os.makedirs(directory, exist_ok=True)
 
     @staticmethod
     def write_lines(file_name, lines, overwrite=False):

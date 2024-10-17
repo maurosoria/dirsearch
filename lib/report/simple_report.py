@@ -16,24 +16,20 @@
 #
 #  Author: Mauro Soria
 
+from lib.core.decorators import locked
 from lib.core.settings import NEW_LINE
-from lib.reports.base import FileBaseReport
-from lib.utils.common import escape_csv
+from lib.report.factory import BaseReport, FileReportMixin
 
 
-class CSVReport(FileBaseReport):
-    def get_header(self):
-        return "URL,Status,Size,Content Type,Redirection" + NEW_LINE
+class SimpleReport(FileReportMixin, BaseReport):
+    __format__ = "simple"
+    __extension__ = "txt"
 
-    def generate(self, entries):
-        output = self.get_header()
+    def new(self):
+        return ""
 
-        for entry in entries:
-            output += f"{entry.url},{entry.status},{entry.length},{entry.type},"
-
-            if entry.redirect:
-                output += f'"{escape_csv(entry.redirect)}"'
-
-            output += NEW_LINE
-
-        return output
+    @locked
+    def save(self, file, result):
+        data = self.parse(file)
+        data += result.url + NEW_LINE
+        self.write(file, data)

@@ -16,7 +16,13 @@
 #
 #  Author: Mauro Soria
 
+from __future__ import annotations
+
+from typing import Any
+
+import time
 import httpx
+import requests
 
 from lib.core.settings import (
     DEFAULT_ENCODING,
@@ -25,11 +31,12 @@ from lib.core.settings import (
     UNKNOWN,
 )
 from lib.parse.url import clean_path, parse_path
-from lib.utils.common import is_binary
+from lib.utils.common import get_readable_size, is_binary
 
 
 class BaseResponse:
-    def __init__(self, response):
+    def __init__(self, response: requests.Response | httpx.Response) -> None:
+        self.datetime = time.strftime("%Y-%m-%d %H:%M:%S")
         self.url = str(response.url)
         self.full_path = parse_path(self.url)
         self.path = clean_path(self.full_path)
@@ -41,23 +48,27 @@ class BaseResponse:
         self.body = b""
 
     @property
-    def type(self):
-        if "content-type" in self.headers:
-            return self.headers.get("content-type").split(";")[0]
+    def type(self) -> str:
+        if ct := self.headers.get("content-type"):
+            return ct.split(";")[0]
 
         return UNKNOWN
 
     @property
-    def length(self):
-        try:
-            return int(self.headers.get("content-length"))
-        except TypeError:
-            return len(self.body)
+    def length(self) -> int:
+        if cl := self.headers.get("content-length"):
+            return int(cl)
 
-    def __hash__(self):
+        return len(self.body)
+
+    @property
+    def size(self) -> str:
+        return get_readable_size(self.length)
+
+    def __hash__(self) -> int:
         return hash(self.body)
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return (self.status, self.body, self.redirect) == (
             other.status,
             other.body,
@@ -66,7 +77,7 @@ class BaseResponse:
 
 
 class Response(BaseResponse):
-    def __init__(self, response):
+    def __init__(self, response: requests.Response) -> None:
         super().__init__(response)
 
         for chunk in response.iter_content(chunk_size=ITER_CHUNK_SIZE):
@@ -88,7 +99,7 @@ class Response(BaseResponse):
 
 class AsyncResponse(BaseResponse):
     @classmethod
-    async def create(cls, response: httpx.Response) -> "AsyncResponse":
+    async def create(cls, response: httpx.Response) -> AsyncResponse:
         self = cls(response)
         async for chunk in response.aiter_bytes(chunk_size=ITER_CHUNK_SIZE):
             self.body += chunk

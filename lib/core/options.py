@@ -16,6 +16,10 @@
 #
 #  Author: Mauro Soria
 
+from __future__ import annotations
+
+from optparse import Values
+from typing import Any
 from lib.core.settings import (
     AUTHENTICATION_TYPES,
     COMMON_EXTENSIONS,
@@ -31,8 +35,8 @@ from lib.utils.file import File, FileUtils
 from lib.parse.nmap import parse_nmap
 
 
-def parse_options():
-    opt = parse_config(parse_arguments())
+def parse_options() -> dict[str, Any]:
+    opt = merge_config(parse_arguments())
 
     if opt.session_file:
         if opt.async_mode:
@@ -196,21 +200,41 @@ def parse_options():
         )
         exit(1)
 
-    if opt.output_format not in OUTPUT_FORMATS:
-        print(
-            "Select one of the following output formats: "
-            f"{', '.join(OUTPUT_FORMATS)}"
-        )
+    opt.output_formats = [format.strip() for format in opt.output_formats.split(",")]
+    invalid_formats = set(opt.output_formats).difference(OUTPUT_FORMATS)
+
+    if invalid_formats:
+        print(f"Invalid output format(s): {', '.join(invalid_formats)}")
         exit(1)
+
+    # There are multiple file-based output formats but no variable to separate output files for different formats
+    if (
+        opt.output_file
+        and "{format}" not in opt.output_file
+        and len(opt.output_formats) - ("mysql" in opt.output_formats) - ("postgresql" in opt.output_formats) > 1
+        and (
+            "{extension}" not in opt.output_file
+            # "plain" and "simple" have the same file extension (txt)
+            or {"plain", "simple"}.issubset(opt.output_formats)
+        )
+    ):
+        print("Found at least 2 output formats sharing the same output file, make sure you use '{format}' and '{extension} variables in your output file")
+        exit(1)
+
+    if opt.log_file:
+        opt.log_file = FileUtils.get_abs_path(opt.log_file)
+
+    if opt.output_file:
+        opt.output_file = FileUtils.get_abs_path(opt.output_file)
 
     return vars(opt)
 
 
-def _parse_status_codes(str_):
+def _parse_status_codes(str_: str) -> set[int]:
     if not str_:
         return set()
 
-    status_codes = set()
+    status_codes: set[int] = set()
 
     for status_code in str_.split(","):
         try:
@@ -226,7 +250,7 @@ def _parse_status_codes(str_):
     return status_codes
 
 
-def _access_file(path):
+def _access_file(path: str) -> File:
     with File(path) as fd:
         if not fd.exists():
             print(f"{path} does not exist")
@@ -243,7 +267,7 @@ def _access_file(path):
         return fd
 
 
-def parse_config(opt):
+def merge_config(opt: Values) -> Values:
     config = ConfigParser()
     config.read(opt.config)
 
@@ -316,8 +340,8 @@ def parse_config(opt):
     opt.suffixes = opt.suffixes or config.safe_get("dictionary", "suffixes", "")
     opt.lowercase = opt.lowercase or config.safe_getboolean("dictionary", "lowercase")
     opt.uppercase = opt.uppercase or config.safe_getboolean("dictionary", "uppercase")
-    opt.capitalization = opt.capitalization or config.safe_getboolean(
-        "dictionary", "capitalization"
+    opt.capital = opt.capital or config.safe_getboolean(
+        "dictionary", "capital"
     )
 
     # Request
@@ -359,17 +383,20 @@ def parse_config(opt):
     opt.full_url = opt.full_url or config.safe_getboolean("view", "full-url")
     opt.color = opt.color if opt.color is False else config.safe_getboolean("view", "color", True)
     opt.quiet = opt.quiet or config.safe_getboolean("view", "quiet-mode")
+    opt.disable_cli = opt.disable_cli or config.safe_getboolean("view", "disable-cli")
     opt.redirects_history = opt.redirects_history or config.safe_getboolean(
         "view", "show-redirects-history"
     )
 
     # Output
-    opt.output_path = config.safe_get("output", "autosave-report-folder")
-    opt.autosave_report = config.safe_getboolean("output", "autosave-report")
-    opt.log_file_size = config.safe_getint("output", "log-file-size")
-    opt.log_file = opt.log_file or config.safe_get("output", "log-file")
-    opt.output_format = opt.output_format or config.safe_get(
-        "output", "report-format", "plain", OUTPUT_FORMATS
+    opt.output_file = opt.output_file or config.safe_get("output", "output-file")
+    opt.mysql_url = opt.mysql_url or config.safe_get("output", "mysql-url")
+    opt.postgres_url = opt.postgres_url or config.safe_get("output", "postgres-url")
+    opt.output_table = config.safe_get("output", "output-sql-table")
+    opt.output_formats = opt.output_formats or config.safe_get(
+        "output", "output-format", "plain"
     )
+    opt.log_file = opt.log_file or config.safe_get("output", "log-file")
+    opt.log_file_size = config.safe_getint("output", "log-file-size")
 
     return opt

@@ -16,10 +16,12 @@
 #
 #  Author: Mauro Soria
 
+from __future__ import annotations
+
 import asyncio
 import re
 import time
-from typing import Optional
+from typing import Any
 from urllib.parse import unquote
 
 from lib.connection.requester import AsyncRequester, BaseRequester, Requester
@@ -41,7 +43,7 @@ class BaseScanner:
         self,
         requester: BaseRequester,
         path: str = "",
-        tested: dict = {},
+        tested: dict[str, Any] = {},
         context: str = "all cases",
     ) -> None:
         self.path = path
@@ -84,7 +86,7 @@ class BaseScanner:
 
         return True
 
-    def get_duplicate(self, response: BaseResponse) -> Optional["BaseScanner"]:
+    def get_duplicate(self, response: BaseResponse) -> BaseScanner | None:
         for category in self.tested:
             for tester in self.tested[category].values():
                 if response == tester.response:
@@ -92,7 +94,7 @@ class BaseScanner:
 
         return None
 
-    def is_wildcard(self, response):
+    def is_wildcard(self, response: BaseResponse) -> bool:
         """Check if response is similar to wildcard response"""
 
         # Compare 2 binary responses (Response.content is empty if the body is binary)
@@ -102,7 +104,7 @@ class BaseScanner:
         return self.content_parser.compare_to(response.content)
 
     @staticmethod
-    def generate_redirect_regex(first_loc, first_path, second_loc, second_path):
+    def generate_redirect_regex(first_loc: str, first_path: str, second_loc: str, second_path: str) -> str:
         """
         From 2 redirects of wildcard responses, generate a regexp that matches
         every wildcard redirect.
@@ -128,14 +130,15 @@ class Scanner(BaseScanner):
     def __init__(
         self,
         requester: Requester,
+        *,
         path: str = "",
-        tested: dict = {},
+        tested: dict[str, dict[str, Scanner]] = {},
         context: str = "all cases",
     ) -> None:
         super().__init__(requester, path, tested, context)
         self.setup()
 
-    def setup(self):
+    def setup(self) -> None:
         """
         Generate wildcard response information containers, this will be
         used to compare with other path responses
@@ -149,9 +152,8 @@ class Scanner(BaseScanner):
         self.response = first_response
         time.sleep(options["delay"])
 
-        duplicate = self.get_duplicate(first_response)
         # Another test was performed before and has the same response as this
-        if duplicate:
+        if duplicate := self.get_duplicate(first_response):
             self.content_parser = duplicate.content_parser
             self.wildcard_redirect_regex = duplicate.wildcard_redirect_regex
             logger.debug(f'Skipped the second test for "{self.context}"')
@@ -184,8 +186,9 @@ class AsyncScanner(BaseScanner):
     def __init__(
         self,
         requester: AsyncRequester,
+        *,
         path: str = "",
-        tested: dict = {},
+        tested: dict[str, dict[str, AsyncScanner]] = {},
         context: str = "all cases",
     ) -> None:
         super().__init__(requester, path, tested, context)
@@ -196,9 +199,9 @@ class AsyncScanner(BaseScanner):
         requester: AsyncRequester,
         *,
         path: str = "",
-        tested: dict = {},
+        tested: dict[str, dict[str, AsyncScanner]] = {},
         context: str = "all cases",
-    ) -> "Scanner":
+    ) -> AsyncScanner:
         self = cls(requester, path=path, tested=tested, context=context)
         await self.setup()
         return self

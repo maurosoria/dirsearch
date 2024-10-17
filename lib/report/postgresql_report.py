@@ -16,28 +16,22 @@
 #
 #  Author: Mauro Soria
 
-import json
-import time
-import sys
+import psycopg
 
-from lib.reports.base import FileBaseReport
+from lib.core.exceptions import InvalidURLException
+from lib.report.factory import BaseReport, SQLReportMixin
 
 
-class JSONReport(FileBaseReport):
-    def generate(self, entries):
-        report = {
-            "info": {"args": " ".join(sys.argv), "time": time.ctime()},
-            "results": [],
-        }
+class PostgreSQLReport(SQLReportMixin, BaseReport):
+    __format__ = "sql"
+    __extension__ = None
+    _reuse = True
 
-        for entry in entries:
-            result = {
-                "url": entry.url,
-                "status": entry.status,
-                "content-length": entry.length,
-                "content-type": entry.type,
-                "redirect": entry.redirect,
-            }
-            report["results"].append(result)
+    def is_valid(self, url):
+        return url.startswith(("postgres://", "postgresql://"))
 
-        return json.dumps(report, sort_keys=True, indent=4)
+    def connect(self, url):
+        if not self.is_valid(url):
+            raise InvalidURLException("Provided PostgreSQL URL does not start with postgresql://")
+
+        return psycopg.connect(url)
