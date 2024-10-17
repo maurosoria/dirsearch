@@ -19,7 +19,7 @@
 from lib.utils.common import lstrip_once
 
 
-def clean_path(path, keep_queries=False, keep_fragment=False):
+def clean_path(path: str, keep_queries: bool = False, keep_fragment: bool = False) -> str:
     if not keep_fragment:
         path = path.split("#")[0]
     if not keep_queries:
@@ -28,7 +28,7 @@ def clean_path(path, keep_queries=False, keep_fragment=False):
     return path
 
 
-def parse_path(value):
+def parse_path(value: str) -> str:
     try:
         scheme, url = value.split("//", 1)
         if (

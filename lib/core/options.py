@@ -16,6 +16,10 @@
 #
 #  Author: Mauro Soria
 
+from __future__ import annotations
+
+from optparse import Values
+from typing import Any
 from lib.core.settings import (
     AUTHENTICATION_TYPES,
     COMMON_EXTENSIONS,
@@ -31,7 +35,7 @@ from lib.utils.file import File, FileUtils
 from lib.parse.nmap import parse_nmap
 
 
-def parse_options():
+def parse_options() -> dict[str, Any]:
     opt = merge_config(parse_arguments())
 
     if opt.session_file:
@@ -226,11 +230,11 @@ def parse_options():
     return vars(opt)
 
 
-def _parse_status_codes(str_):
+def _parse_status_codes(str_: str) -> set[int]:
     if not str_:
         return set()
 
-    status_codes = set()
+    status_codes: set[int] = set()
 
     for status_code in str_.split(","):
         try:
@@ -246,7 +250,7 @@ def _parse_status_codes(str_):
     return status_codes
 
 
-def _access_file(path):
+def _access_file(path: str) -> File:
     with File(path) as fd:
         if not fd.exists():
             print(f"{path} does not exist")
@@ -263,7 +267,7 @@ def _access_file(path):
         return fd
 
 
-def merge_config(opt):
+def merge_config(opt: Values) -> Values:
     config = ConfigParser()
     config.read(opt.config)
 

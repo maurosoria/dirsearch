@@ -16,7 +16,10 @@
 #
 #  Author: Mauro Soria
 
+from __future__ import annotations
+
 import re
+from typing import Any, Iterator
 
 from lib.core.data import options
 from lib.core.decorators import locked
@@ -34,7 +37,7 @@ from lib.utils.file import FileUtils
 
 # Get ignore paths for status codes.
 # Reference: https://github.com/maurosoria/dirsearch#Blacklist
-def get_blacklists():
+def get_blacklists() -> dict[int, Dictionary]:
     blacklists = {}
 
     for status in [400, 403, 500]:
@@ -56,16 +59,16 @@ def get_blacklists():
 
 
 class Dictionary:
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         self._index = 0
         self._items = self.generate(**kwargs)
 
     @property
-    def index(self):
+    def index(self) -> int:
         return self._index
 
     @locked
-    def __next__(self):
+    def __next__(self) -> str:
         try:
             path = self._items[self._index]
         except IndexError:
@@ -75,22 +78,22 @@ class Dictionary:
 
         return path
 
-    def __contains__(self, item):
+    def __contains__(self, item: str) -> bool:
         return item in self._items
 
-    def __getstate__(self):
+    def __getstate__(self) -> tuple[list[str], int]:
         return self._items, self._index
 
-    def __setstate__(self, state):
+    def __setstate__(self, state: tuple[list[str], int]) -> None:
         self._items, self._index = state
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         return iter(self._items)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._items)
 
-    def generate(self, files=[], is_blacklist=False):
+    def generate(self, files: list[str] = [], is_blacklist: bool = False) -> list[str]:
         """
         Dictionary.generate() behaviour
 
@@ -192,7 +195,7 @@ class Dictionary:
         else:
             return list(wordlist)
 
-    def is_valid(self, path):
+    def is_valid(self, path: str) -> bool:
         # Skip comments and empty lines
         if not path or path.startswith("#"):
             return False
@@ -206,5 +209,5 @@ class Dictionary:
 
         return True
 
-    def reset(self):
+    def reset(self) -> None:
         self._index = 0

@@ -16,63 +16,68 @@
 #
 #  Author: Mauro Soria
 
+from __future__ import annotations
+
+from typing import Any, Iterator
+
+
 class CaseInsensitiveDict(dict):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._convert_keys()
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: Any, value: Any) -> None:
         if isinstance(key, str):
             key = key.lower()
 
         super().__setitem__(key.lower(), value)
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: Any) -> Any:
         if isinstance(key, str):
             key = key.lower()
 
         return super().__getitem__(key.lower())
 
-    def _convert_keys(self):
+    def _convert_keys(self) -> None:
         for key in list(self.keys()):
             value = super().pop(key)
             self.__setitem__(key, value)
 
 
 class OrderedSet:
-    def __init__(self, items=[]):
-        self._data = dict()
+    def __init__(self, items: list[Any] = []) -> None:
+        self._data: dict[Any, Any] = dict()
 
         for item in items:
             self._data[item] = None
 
-    def __contains__(self, item):
+    def __contains__(self, item: Any) -> bool:
         return item in self._data
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return self._data.keys() == other._data.keys()
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Any]:
         return iter(list(self._data))
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._data)
 
-    def add(self, item):
+    def add(self, item: Any) -> None:
         self._data[item] = None
 
-    def clear(self):
+    def clear(self) -> None:
         self._data.clear()
 
-    def discard(self, item):
+    def discard(self, item: Any) -> None:
         self._data.pop(item, None)
 
-    def pop(self):
+    def pop(self) -> None:
         self._data.popitem()
 
-    def remove(self, item):
+    def remove(self, item: Any) -> None:
         del self._data[item]
 
-    def update(self, items):
+    def update(self, items: list[Any]) -> None:
         for item in items:
             self.add(item)

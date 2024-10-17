@@ -16,6 +16,8 @@
 #
 #  Author: Mauro Soria
 
+from __future__ import annotations
+
 from email.parser import BytesParser
 
 from lib.core.settings import NEW_LINE
@@ -23,7 +25,7 @@ from lib.core.structures import CaseInsensitiveDict
 
 
 class HeadersParser:
-    def __init__(self, headers):
+    def __init__(self, headers: str | dict[str, str]) -> None:
         self.str = self.dict = headers
 
         if isinstance(headers, str):
@@ -34,18 +36,18 @@ class HeadersParser:
 
         self.headers = CaseInsensitiveDict(self.dict)
 
-    def get(self, key):
+    def get(self, key: str) -> str:
         return self.headers[key]
 
     @staticmethod
-    def str_to_dict(headers):
+    def str_to_dict(headers: str) -> dict[str, str]:
         if not headers:
             return {}
 
         return dict(BytesParser().parsebytes(headers.encode()))
 
     @staticmethod
-    def dict_to_str(headers):
+    def dict_to_str(headers: dict[str, str]) -> str:
         if not headers:
             return
 
@@ -54,5 +56,5 @@ class HeadersParser:
     def __iter__(self):
         return iter(self.headers.items())
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.str

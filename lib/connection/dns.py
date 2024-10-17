@@ -16,16 +16,19 @@
 #
 #  Author: Mauro Soria
 
+from __future__ import annotations
+
 from socket import getaddrinfo
+from typing import Any
 
-_dns_cache = {}
+_dns_cache: dict[tuple[str, int], list[Any]] = {}
 
 
-def cache_dns(domain, port, addr):
+def cache_dns(domain: str, port: int, addr: str) -> None:
     _dns_cache[domain, port] = getaddrinfo(addr, port)
 
 
-def cached_getaddrinfo(*args, **kwargs):
+def cached_getaddrinfo(*args: Any, **kwargs: int) -> list[Any]:
     """
     Replacement for socket.getaddrinfo, they are the same but this function
     does cache the answer to improve the performance

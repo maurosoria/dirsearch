@@ -38,7 +38,7 @@ def get_config_file():
     return os.environ.get("DIRSEARCH_CONFIG") or FileUtils.build_path(SCRIPT_PATH, "config.ini")
 
 
-def safequote(string_):
+def safequote(string_: str) -> str:
     return quote(string_, safe=URL_SAFE_CHARS)
 
 
@@ -90,7 +90,7 @@ def get_readable_size(num):
     return f"{num}TB"
 
 
-def is_binary(bytes):
+def is_binary(bytes) -> bool:
     return bool(bytes.translate(None, TEXT_CHARS))
 
 
