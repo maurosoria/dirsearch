@@ -97,7 +97,7 @@ options: dict[str, Any] = {
     "output_file": None,
     "output_formats": None,
     "mysql_url": None,
-    "postgresql_url": None,
+    "postgres_url": None,
     "log_file": None,
     "log_file_size": 0
 }
