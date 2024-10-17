@@ -322,40 +322,33 @@ class Controller:
             cred, parsed.netloc = parsed.netloc.split("@")
             self.requester.set_auth("basic", cred)
 
-        host = parsed.netloc.split(":")[0]
-
         if parsed.scheme not in (UNKNOWN, "https", "http"):
             raise InvalidURLException(f"Unsupported URI scheme: {parsed.scheme}")
 
-        # If no port specified, set default (80, 443)
-        try:
-            port = int(parsed.netloc.split(":")[1])
-
-            if not 0 < port < 65536:
-                raise ValueError
-        except IndexError:
+        port = parsed.port
+        # If no port is specified, set default (80, 443) based on the scheme
+        if not port:
             port = STANDARD_PORTS.get(parsed.scheme, None)
-        except ValueError:
-            port = parsed.netloc.split(":")[1]
-            raise InvalidURLException(f"Invalid port number: {port}")
+        elif not 0 < port < 65536:
+            raise InvalidURLException(f"Invalid port number: {port}")            
 
         if options["ip"]:
-            cache_dns(host, port, options["ip"])
+            cache_dns(parsed.hostname, port, options["ip"])
 
         try:
             # If no scheme is found, detect it by port number
             scheme = (
                 parsed.scheme
                 if parsed.scheme != UNKNOWN
-                else detect_scheme(host, port)
+                else detect_scheme(parsed.hostname, port)
             )
         except ValueError:
             # If the user neither provides the port nor scheme, guess them based
             # on standard website characteristics
-            scheme = detect_scheme(host, 443)
+            scheme = detect_scheme(parsed.hostname, 443)
             port = STANDARD_PORTS[scheme]
 
-        self.url = f"{scheme}://{host}"
+        self.url = f"{scheme}://{parsed.hostname}"
 
         if port != STANDARD_PORTS[scheme]:
             self.url += f":{port}"
