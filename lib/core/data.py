@@ -95,9 +95,9 @@ options: dict[str, Any] = {
     "quiet": False,
     "disable_cli": False,
     "output_file": None,
-    "output_format": None,
+    "output_formats": None,
+    "mysql_url": None,
+    "postgresql_url": None,
     "log_file": None,
-    "output_path": None,
-    "autosave_report": True,
     "log_file_size": 0
 }
