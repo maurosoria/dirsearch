@@ -16,7 +16,7 @@
 #
 #  Author: Mauro Soria
 
-from xml.etree import ElementTree as ET
+from defusedxml import ElementTree as ET
 
 from lib.core.decorators import locked
 from lib.core.settings import (
