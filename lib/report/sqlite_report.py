@@ -18,17 +18,18 @@
 
 import sqlite3
 
-from lib.reports.base import SQLBaseReport
+from lib.report.factory import BaseReport, SQLReportMixin
+from lib.utils.file import FileUtils
 
 
-class SQLiteReport(SQLBaseReport):
-    def connect(self, output_file):
-        self.conn = sqlite3.connect(output_file, check_same_thread=False)
-        self.cursor = self.conn.cursor()
+class SQLiteReport(SQLReportMixin, BaseReport):
+    __format__ = "sql"
+    __extension__ = "sqlite"
+    _reuse = False
 
-    def create_table_query(self, table):
+    def get_create_table_query(self, table):
         return (f'''CREATE TABLE "{table}" (
-            time DATETIME DEFAULT CURRENT_TIMESTAMP,
+            time DATETIME,
             url TEXT,
             status_code INTEGER,
             content_length INTEGER,
@@ -36,7 +37,16 @@ class SQLiteReport(SQLBaseReport):
             redirect TEXT
         );''',)
 
-    def insert_table_query(self, table, values):
-        return (f'''INSERT INTO "{table}" (url, status_code, content_length, content_type, redirect)
-                    VALUES
-                    (?, ?, ?, ?, ?)''', values)
+    def get_insert_table_query(self, table, values):
+        return (f'INSERT INTO "{table}" VALUES (?, ?, ?, ?, ?, ?);', values)
+
+    def connect(self, file):
+        FileUtils.create_dir(FileUtils.parent(file))
+        conn = sqlite3.connect(file, check_same_thread=False)
+        # Check if the file is a proper sqlite database
+        try:
+            conn.cursor().execute("PRAGMA integrity_check")
+        except sqlite3.DatabaseError:
+            raise Exception(f"{file} is not empty or is not a SQLite database")
+        else:
+            return conn

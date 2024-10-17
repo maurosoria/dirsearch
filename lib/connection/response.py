@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from typing import Any
 
+import time
 import httpx
 import requests
 
@@ -30,11 +31,12 @@ from lib.core.settings import (
     UNKNOWN,
 )
 from lib.parse.url import clean_path, parse_path
-from lib.utils.common import is_binary
+from lib.utils.common import get_readable_size, is_binary
 
 
 class BaseResponse:
     def __init__(self, response: requests.Response | httpx.Response) -> None:
+        self.datetime = time.strftime("%Y-%m-%d %H:%M:%S")
         self.url = str(response.url)
         self.full_path = parse_path(self.url)
         self.path = clean_path(self.full_path)
@@ -58,6 +60,10 @@ class BaseResponse:
             return int(cl)
 
         return len(self.body)
+
+    @property
+    def size(self) -> str:
+        return get_readable_size(self.length)
 
     def __hash__(self) -> int:
         return hash(self.body)

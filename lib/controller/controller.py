@@ -30,11 +30,13 @@ import mysql.connector
 from urllib.parse import urlparse
 
 from lib.connection.dns import cache_dns
-from lib.connection.response import Response
+from lib.connection.response import BaseResponse
 from lib.core.data import blacklists, options
 from lib.core.decorators import locked
 from lib.core.dictionary import Dictionary, get_blacklists
 from lib.core.exceptions import (
+    CannotConnectException,
+    FileExistsException,
     InvalidRawRequest,
     InvalidURLException,
     RequestException,
@@ -50,24 +52,13 @@ from lib.core.settings import (
     EXTENSION_RECOGNITION_REGEX,
     MAX_CONSECUTIVE_REQUEST_ERRORS,
     NEW_LINE,
-    SCRIPT_PATH,
     STANDARD_PORTS,
     UNKNOWN,
 )
 from lib.parse.rawrequest import parse_raw
 from lib.parse.url import clean_path, parse_path
-from lib.reports.base import FileBaseReport, SQLBaseReport
-from lib.reports.csv_report import CSVReport
-from lib.reports.html_report import HTMLReport
-from lib.reports.json_report import JSONReport
-from lib.reports.markdown_report import MarkdownReport
-from lib.reports.mysql_report import MySQLReport
-from lib.reports.plain_text_report import PlainTextReport
-from lib.reports.postgresql_report import PostgreSQLReport
-from lib.reports.simple_report import SimpleReport
-from lib.reports.sqlite_report import SQLiteReport
-from lib.reports.xml_report import XMLReport
-from lib.utils.common import get_valid_filename, lstrip_once
+from lib.report.manager import ReportManager
+from lib.utils.common import lstrip_once
 from lib.utils.file import FileUtils
 from lib.utils.pickle import pickle, unpickle
 from lib.utils.schemedet import detect_scheme
@@ -147,12 +138,9 @@ class Controller:
 
         self.requester = Requester()
         self.dictionary = Dictionary(files=options["wordlists"])
-        self.results: list[Response] = []
         self.start_time = time.time()
         self.passed_urls: set[str] = set()
         self.directories: list[str] = []
-        self.report: FileBaseReport | SQLBaseReport | None = None
-        self.batch = False
         self.jobs_processed = 0
         self.errors = 0
         self.consecutive_errors = 0
@@ -168,8 +156,6 @@ class Controller:
             self.requester.set_proxy_auth(options["proxy_auth"])
 
         if options["log_file"]:
-            options["log_file"] = FileUtils.get_abs_path(options["log_file"])
-
             try:
                 FileUtils.create_dir(FileUtils.parent(options["log_file"]))
                 if not FileUtils.can_write(options["log_file"]):
@@ -183,27 +169,11 @@ class Controller:
                 )
                 exit(1)
 
-        if options["autosave_report"] and not options["output"]:
-            self.report_path = options["output_path"] or FileUtils.build_path(
-                SCRIPT_PATH, "reports"
-            )
-
-            try:
-                FileUtils.create_dir(self.report_path)
-                if not FileUtils.can_write(self.report_path):
-                    raise Exception
-
-            except Exception:
-                interface.error(
-                    f"Couldn't create report folder at {self.report_path}"
-                )
-                exit(1)
-
         interface.header(BANNER)
         interface.config(len(self.dictionary))
 
         try:
-            self.setup_reports()
+            self.reporter = ReportManager(options["output_formats"])
         except (
             InvalidURLException,
             mysql.connector.Error,
@@ -223,7 +193,7 @@ class Controller:
         # error_callbacks callback values:
         #  - *args[0]: exception
         match_callbacks = (
-            self.match_callback, self.reset_consecutive_errors
+            self.match_callback, self.reporter.save, self.reset_consecutive_errors
         )
         not_found_callbacks = (
             self.update_progress_bar, self.reset_consecutive_errors
@@ -250,9 +220,12 @@ class Controller:
                 if not self.old_session:
                     interface.target(self.url)
 
+                self.reporter.prepare(self.url)
                 self.start()
 
             except (
+                CannotConnectException,
+                FileExistsException,
                 InvalidURLException,
                 RequestException,
                 SkipTargetInterrupt,
@@ -265,6 +238,7 @@ class Controller:
                     interface.error(str(e))
 
             except QuitInterrupt as e:
+                self.reporter.finish()
                 interface.error(e.args[0])
                 exit(0)
 
@@ -272,6 +246,7 @@ class Controller:
                 options["urls"].pop(0)
 
         interface.warning("\nTask Completed")
+        self.reporter.finish()
 
         if options["session_file"]:
             try:
@@ -312,7 +287,7 @@ class Controller:
                 self.jobs_processed += 1
                 self.old_session = False
 
-    async def _start_coroutines(self):
+    async def _start_coroutines(self) -> None:
         task = self.loop.create_task(self.fuzzer.start())
 
         try:
@@ -332,7 +307,7 @@ class Controller:
 
         await task  # propagate the exception, if raised
 
-    def set_target(self, url):
+    def set_target(self, url: str) -> None:
         # If no scheme specified, unset it first
         if "://" not in url:
             url = f'{options["scheme"] or UNKNOWN}://{url}'
@@ -389,99 +364,10 @@ class Controller:
 
         self.requester.set_url(self.url)
 
-    def setup_batch_reports(self) -> str:
-        """Create batch report folder"""
-
-        self.batch = True
-        current_time = time.strftime("%y-%m-%d_%H-%M-%S")
-        batch_session = f"BATCH-{current_time}"
-        batch_directory_path = FileUtils.build_path(self.report_path, batch_session)
-
-        try:
-            FileUtils.create_dir(batch_directory_path)
-        except Exception:
-            interface.error(f"Couldn't create batch folder at {batch_directory_path}")
-            exit(1)
-
-        return batch_directory_path
-
-    def get_output_extension(self) -> str:
-        if options["output_format"] in ("plain", "simple"):
-            return "txt"
-
-        return options["output_format"]
-
-    def setup_reports(self) -> None:
-        """Create report file"""
-
-        output = options["output"]
-
-        if options["autosave_report"] and not output and options["output_format"] not in ("mysql", "postgresql"):
-            if len(options["urls"]) > 1:
-                directory_path = self.setup_batch_reports()
-                filename = "BATCH." + self.get_output_extension()
-            else:
-                self.set_target(options["urls"][0])
-
-                parsed = urlparse(self.url)
-
-                if not parsed.netloc:
-                    parsed = urlparse(f"//{options['urls'][0]}")
-
-                filename = get_valid_filename(f"{parsed.path}_")
-                filename += time.strftime("%y-%m-%d_%H-%M-%S")
-                filename += f".{self.get_output_extension()}"
-                directory_path = FileUtils.build_path(
-                    self.report_path, get_valid_filename(f"{parsed.scheme}_{parsed.netloc}")
-                )
-
-            output = FileUtils.get_abs_path((FileUtils.build_path(directory_path, filename)))
-
-            if FileUtils.exists(output):
-                i = 2
-                while FileUtils.exists(f"{output}_{i}"):
-                    i += 1
-
-                output += f"_{i}"
-
-            try:
-                FileUtils.create_dir(directory_path)
-            except Exception:
-                interface.error(
-                    f"Couldn't create the reports folder at {directory_path}"
-                )
-                exit(1)
-
-        if not output:
-            return
-
-        if options["output_format"] == "plain":
-            self.report = PlainTextReport(output)
-        elif options["output_format"] == "json":
-            self.report = JSONReport(output)
-        elif options["output_format"] == "xml":
-            self.report = XMLReport(output)
-        elif options["output_format"] == "md":
-            self.report = MarkdownReport(output)
-        elif options["output_format"] == "csv":
-            self.report = CSVReport(output)
-        elif options["output_format"] == "html":
-            self.report = HTMLReport(output)
-        elif options["output_format"] == "sqlite":
-            self.report = SQLiteReport(output)
-        elif options["output_format"] == "mysql":
-            self.report = MySQLReport(output)
-        elif options["output_format"] == "postgresql":
-            self.report = PostgreSQLReport(output)
-        else:
-            self.report = SimpleReport(output)
-
-        interface.output_location(output)
-
-    def reset_consecutive_errors(self, response: Response) -> None:
+    def reset_consecutive_errors(self, response: BaseResponse) -> None:
         self.consecutive_errors = 0
 
-    def match_callback(self, response: Response) -> None:
+    def match_callback(self, response: BaseResponse) -> None:
         if response.status in options["skip_on_status"]:
             raise SkipTargetInterrupt(
                 f"Skipped the target due to {response.status} status code"
@@ -515,11 +401,7 @@ class Controller:
             else:
                 self.requester.request(response.full_path, proxy=options["replay_proxy"])
 
-        if self.report:
-            self.results.append(response)
-            self.report.save(self.results)
-
-    def update_progress_bar(self, response: Response) -> None:
+    def update_progress_bar(self, response: BaseResponse) -> None:
         jobs_count = (
             # Jobs left for unscanned targets
             len(options["subdirs"]) * (len(options["urls"]) - 1)

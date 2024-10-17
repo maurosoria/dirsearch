@@ -37,7 +37,7 @@ from lib.core.settings import (
     WILDCARD_TEST_POINT_MARKER,
 )
 from lib.parse.url import clean_path
-from lib.utils.common import human_size, lstrip_once
+from lib.utils.common import get_readable_size, lstrip_once
 from lib.utils.crawl import Crawler
 
 
@@ -97,13 +97,16 @@ class BaseFuzzer:
         ):
             return True
 
-        if resp.status in blacklists and any(
-            resp.path.endswith(lstrip_once(suffix, "/"))
-            for suffix in blacklists.get(resp.status)
+        if (
+            resp.status in blacklists
+            and any(
+                resp.path.endswith(lstrip_once(suffix, "/"))
+                for suffix in blacklists.get(resp.status)
+            )
         ):
             return True
 
-        if human_size(resp.length).rstrip() in options["exclude_sizes"]:
+        if get_readable_size(resp.length).rstrip() in options["exclude_sizes"]:
             return True
 
         if resp.length < options["minimum_response_size"]:
@@ -115,14 +118,15 @@ class BaseFuzzer:
         if any(text in resp.content for text in options["exclude_texts"]):
             return True
 
-        if options["exclude_regex"] and re.search(
-            options["exclude_regex"], resp.content
-        ):
+        if options["exclude_regex"] and re.search(options["exclude_regex"], resp.content):
             return True
 
-        if options["exclude_redirect"] and (
-            options["exclude_redirect"] in resp.redirect
-            or re.search(options["exclude_redirect"], resp.redirect)
+        if (
+            options["exclude_redirect"]
+            and (
+                options["exclude_redirect"] in resp.redirect
+                or re.search(options["exclude_redirect"], resp.redirect)
+            )
         ):
             return True
 

@@ -94,7 +94,7 @@ def parse_arguments() -> Values:
         "--extensions",
         action="store",
         dest="extensions",
-        help="Extension list separated by commas (e.g. php,asp)",
+        help="Extension list, separated by commas (e.g. php,asp)",
     )
     dictionary.add_option(
         "-f",
@@ -104,7 +104,6 @@ def parse_arguments() -> Values:
         help="Add extensions to the end of every wordlist entry. By default dirsearch only replaces the %EXT% keyword with extensions",
     )
     dictionary.add_option(
-        "-O",
         "--overwrite-extensions",
         action="store_true",
         dest="overwrite_extensions",
@@ -115,7 +114,7 @@ def parse_arguments() -> Values:
         action="store",
         dest="exclude_extensions",
         metavar="EXTENSIONS",
-        help="Exclude extension list separated by commas (e.g. asp,jsp)",
+        help="Exclude extension list, separated by commas (e.g. asp,jsp)",
     )
     dictionary.add_option(
         "--remove-extensions",
@@ -153,7 +152,7 @@ def parse_arguments() -> Values:
         "-C",
         "--capital",
         action="store_true",
-        dest="capitalization",
+        dest="capital",
         help="Capital wordlist",
     )
 
@@ -167,6 +166,12 @@ def parse_arguments() -> Values:
         dest="thread_count",
         metavar="THREADS",
         help="Number of threads",
+    )
+    general.add_option(
+        "--async",
+        action="store_true",
+        dest="async_mode",
+        help="Enable asynchronous mode",
     )
     general.add_option(
         "-r",
@@ -467,12 +472,6 @@ def parse_arguments() -> Values:
         dest="crawl",
         help="Crawl for new paths in responses"
     )
-    advanced.add_option(
-        "--async",
-        action="store_true",
-        dest="async_mode",
-        help="Enable asynchronous mode",
-    )
 
     # View Settings
     view = OptionGroup(parser, "View Settings")
@@ -494,23 +493,41 @@ def parse_arguments() -> Values:
     view.add_option(
         "-q", "--quiet-mode", action="store_true", dest="quiet", help="Quiet mode"
     )
+    view.add_option(
+        "--disable-cli", action="store_true", dest="disable_cli", help="Turn off command-line output"
+    )
 
     # Output Settings
     output = OptionGroup(parser, "Output Settings")
     output.add_option(
-        "-o",
-        "--output",
+        "-O",
+        "--output-formats",
         action="store",
-        dest="output",
-        metavar="PATH/URL",
-        help="Output file or MySQL/PostgreSQL URL (Format: scheme://[username:password@]host[:port]/database-name)",
+        dest="output_formats",
+        metavar="FORMAT",
+        help=f"Report formats, separated by commas (Available: {', '.join(OUTPUT_FORMATS)})",
     )
     output.add_option(
-        "--format",
+        "-o",
+        "--output-file",
         action="store",
-        dest="output_format",
-        metavar="FORMAT",
-        help=f"Report format (Available: {', '.join(OUTPUT_FORMATS)})",
+        dest="output_file",
+        metavar="PATH",
+        help="Output file location",
+    )
+    output.add_option(
+        "--mysql-url",
+        action="store",
+        dest="mysql_url",
+        metavar="URL",
+        help="Database URL for MySQL output (Format: mysql://[username:password@]host[:port]/database-name)",
+    )
+    output.add_option(
+        "--postgres-url",
+        action="store",
+        dest="postgres_url",
+        metavar="URL",
+        help="Database URL for PostgreSQL output (Format: postgres://[username:password@]host[:port]/database-name)",
     )
     output.add_option(
         "--log", action="store", dest="log_file", metavar="PATH", help="Log file"
