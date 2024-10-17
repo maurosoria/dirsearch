@@ -6089,6 +6089,7 @@ logou.php
 logout
 logout.%EXT%
 logout.asp
+logout.php
 logout/
 logs
 logs.htm
