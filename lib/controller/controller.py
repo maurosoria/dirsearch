@@ -277,7 +277,7 @@ class Controller:
                     self.fuzzer.start()
                     self.process()
 
-            except KeyboardInterrupt:
+            except (KeyboardInterrupt, asyncio.CancelledError):
                 pass
 
             finally:
