@@ -277,7 +277,7 @@ class Controller:
                     self.fuzzer.start()
                     self.process()
 
-            except KeyboardInterrupt:
+            except (KeyboardInterrupt, asyncio.CancelledError):
                 pass
 
             finally:
@@ -330,7 +330,7 @@ class Controller:
         if not port:
             port = STANDARD_PORTS.get(parsed.scheme, None)
         elif not 0 < port < 65536:
-            raise InvalidURLException(f"Invalid port number: {port}")            
+            raise InvalidURLException(f"Invalid port number: {port}")
 
         if options["ip"]:
             cache_dns(parsed.hostname, port, options["ip"])
