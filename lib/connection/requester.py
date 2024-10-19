@@ -73,9 +73,6 @@ class BaseRequester:
         if options["cert_file"] and options["key_file"]:
             self._cert = (options["cert_file"], options["key_file"])
 
-        if options["auth"]:
-            self.set_auth(options["auth_type"], options["auth"])
-
         self._socket_options = []
         if options["network_interface"]:
             self._socket_options.append(
@@ -161,6 +158,9 @@ class Requester(BaseRequester):
                     socket_options=self._socket_options,
                 ),
             )
+
+        if options["auth"]:
+            self.set_auth(options["auth_type"], options["auth"])
 
     def set_auth(self, type: str, credential: str) -> None:
         if type in ("bearer", "jwt"):
@@ -311,6 +311,9 @@ class AsyncRequester(BaseRequester):
             timeout=httpx.Timeout(options["timeout"]),
         )
         self.replay_session = None
+
+        if options["auth"]:
+            self.set_auth(options["auth_type"], options["auth"])
 
     def parse_proxy(self, proxy: str) -> str:
         if not proxy:
