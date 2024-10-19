@@ -63,8 +63,8 @@ socket.getaddrinfo = cached_getaddrinfo
 class BaseRequester:
     def __init__(self) -> None:
         self._url: str = ""
-        self._proxy_cred: str = ""
         self._rate = 0
+        self.proxy_cred = options["proxy_auth"]
         self.headers = CaseInsensitiveDict(options["headers"])
         self.agents: list[str] = []
         self.session = None
@@ -108,16 +108,13 @@ class BaseRequester:
         if not proxy.startswith(PROXY_SCHEMES):
             proxy = f"http://{proxy}"
 
-        if self._proxy_cred and "@" not in proxy:
+        if self.proxy_cred and "@" not in proxy:
             # socks5://localhost:9050 => socks5://[credential]@localhost:9050
-            proxy = proxy.replace("://", f"://{self._proxy_cred}@", 1)
+            proxy = proxy.replace("://", f"://{self.proxy_cred}@", 1)
 
         self.session.proxies = {"https": proxy}
         if not proxy.startswith("https://"):
             self.session.proxies["http"] = proxy
-
-    def set_proxy_auth(self, credential: str) -> None:
-        self._proxy_cred = credential
 
     def is_rate_exceeded(self) -> bool:
         return self._rate >= options["max_rate"] > 0
@@ -161,6 +158,9 @@ class Requester(BaseRequester):
                     socket_options=self._socket_options,
                 ),
             )
+
+        if options["auth"]:
+            self.set_auth(options["auth_type"], options["auth"])
 
     def set_auth(self, type: str, credential: str) -> None:
         if type in ("bearer", "jwt"):
@@ -312,6 +312,9 @@ class AsyncRequester(BaseRequester):
         )
         self.replay_session = None
 
+        if options["auth"]:
+            self.set_auth(options["auth_type"], options["auth"])
+
     def parse_proxy(self, proxy: str) -> str:
         if not proxy:
             return None
@@ -319,9 +322,9 @@ class AsyncRequester(BaseRequester):
         if not proxy.startswith(PROXY_SCHEMES):
             proxy = f"http://{proxy}"
 
-        if self._proxy_cred and "@" not in proxy:
+        if self.proxy_cred and "@" not in proxy:
             # socks5://localhost:9050 => socks5://[credential]@localhost:9050
-            proxy = proxy.replace("://", f"://{self._proxy_cred}@", 1)
+            proxy = proxy.replace("://", f"://{self.proxy_cred}@", 1)
 
         return proxy
 
