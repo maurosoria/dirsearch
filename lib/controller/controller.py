@@ -179,11 +179,11 @@ class Controller:
             from lib.connection.requester import AsyncRequester as Requester
             from lib.core.fuzzer import AsyncFuzzer as Fuzzer
 
-        try:
-            import uvloop
-            asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
-        except ImportError:
-            pass
+            try:
+                import uvloop
+                asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+            except ImportError:
+                pass
         else:
             from lib.connection.requester import Requester
             from lib.core.fuzzer import Fuzzer
