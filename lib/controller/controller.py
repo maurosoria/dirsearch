@@ -67,19 +67,6 @@ from lib.utils.file import FileUtils
 from lib.utils.schemedet import detect_scheme
 from lib.view.terminal import interface
 
-if options["async_mode"]:
-    from lib.connection.requester import AsyncRequester as Requester
-    from lib.core.fuzzer import AsyncFuzzer as Fuzzer
-
-    try:
-        import uvloop
-        asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
-    except ImportError:
-        pass
-else:
-    from lib.connection.requester import Requester
-    from lib.core.fuzzer import Fuzzer
-
 
 class Controller:
     def __init__(self) -> None:
@@ -100,7 +87,7 @@ class Controller:
     def _import(self, session_file: str) -> None:
         try:
             with open(session_file, "rb") as fd:
-                indict, last_output, opt = pickle.load(fd)
+                dict_, last_output, opt = pickle.load(fd)
                 options.update(opt)
         except UnpicklingError:
             interface.error(
@@ -108,18 +95,22 @@ class Controller:
             )
             exit(1)
 
-        self.__dict__ = {**indict, **vars(self)}
+        self.__dict__ = {**dict_, **vars(self)}
         print(last_output)
 
     def _export(self, session_file: str) -> None:
         # Save written output
         last_output = interface.buffer.rstrip()
 
-        # Can't pickle Fuzzer class due to _thread.lock objects
-        del self.fuzzer
+        dict_ = vars(self).copy()
+        # Can't pickle some classes due to _thread.lock objects
+        dict_.pop("fuzzer", None)
+        dict_.pop("pause_future", None)
+        dict_.pop("loop", None)
+        dict_.pop("requester", None)
 
         with open(session_file, "wb") as fd:
-            pickle.dump((vars(self), last_output, options), fd)
+            pickle.dump((dict_, last_output, options), fd)
 
     def setup(self) -> None:
         blacklists.update(get_blacklists())
@@ -144,7 +135,6 @@ class Controller:
             if options["cookie"]:
                 options["headers"]["cookie"] = options["cookie"]
 
-        self.requester = Requester()
         self.dictionary = Dictionary(files=options["wordlists"])
         self.start_time = time.time()
         self.passed_urls: set[str] = set()
@@ -152,16 +142,6 @@ class Controller:
         self.jobs_processed = 0
         self.errors = 0
         self.consecutive_errors = 0
-
-        if options["async_mode"]:
-            self.loop = asyncio.new_event_loop()
-            self.loop.add_signal_handler(signal.SIGINT, self.handle_pause)
-
-        if options["auth"]:
-            self.requester.set_auth(options["auth_type"], options["auth"])
-
-        if options["proxy_auth"]:
-            self.requester.set_proxy_auth(options["proxy_auth"])
 
         if options["log_file"]:
             try:
@@ -195,6 +175,19 @@ class Controller:
             interface.log_file(options["log_file"])
 
     def run(self) -> None:
+        if options["async_mode"]:
+            from lib.connection.requester import AsyncRequester as Requester
+            from lib.core.fuzzer import AsyncFuzzer as Fuzzer
+
+        try:
+            import uvloop
+            asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+        except ImportError:
+            pass
+        else:
+            from lib.connection.requester import Requester
+            from lib.core.fuzzer import Fuzzer
+
         # match_callbacks and not_found_callbacks callback values:
         #  - *args[0]: lib.connection.Response() object
         #
@@ -207,6 +200,11 @@ class Controller:
             self.update_progress_bar, self.reset_consecutive_errors
         )
         error_callbacks = (self.raise_error, self.append_error_log)
+
+        self.requester = Requester()
+        if options["async_mode"]:
+            self.loop = asyncio.new_event_loop()
+            self.loop.add_signal_handler(signal.SIGINT, self.handle_pause)
 
         while options["urls"]:
             url = options["urls"][0]
@@ -338,7 +336,7 @@ class Controller:
         if not port:
             port = STANDARD_PORTS.get(parsed.scheme, None)
         elif not 0 < port < 65536:
-            raise InvalidURLException(f"Invalid port number: {port}")            
+            raise InvalidURLException(f"Invalid port number: {port}")
 
         if options["ip"]:
             cache_dns(parsed.hostname, port, options["ip"])
@@ -454,14 +452,6 @@ class Controller:
             option = input()
 
             if option.lower() == "q":
-                if options["async_mode"]:
-                    quitexc = QuitInterrupt("Canceled by the user")
-                    if options["async_mode"]:
-                        self.pause_future.set_exception(quitexc)
-                        break
-                    else:
-                        raise quitexc
-
                 interface.in_line("[s]ave / [q]uit without saving: ")
 
                 option = input()

@@ -168,6 +168,7 @@ def parse_arguments() -> Values:
         help="Number of threads",
     )
     general.add_option(
+        "-a",
         "--async",
         action="store_true",
         dest="async_mode",
