@@ -1,10 +1,7 @@
 PySocks>=1.7.1
 Jinja2>=3.0.0
-certifi>=2017.4.17
 defusedxml>=0.7.0
-markupsafe>=2.0.0
 pyopenssl>=21.0.0
-charset_normalizer~=2.0.0
 requests>=2.27.0
 requests_ntlm>=1.1.0
 colorama>=0.4.4
