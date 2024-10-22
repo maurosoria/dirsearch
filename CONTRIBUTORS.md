@@ -71,7 +71,6 @@
 - [at0m](https://github.com/atomiczsec/)
 - [junmoka](https://github.com/junmoka)
 - [Akshay Ravi](https://www.linkedin.com/in/c09yc47/)
-- [kosyan62](https://https://github.com/kosyan62)
 - [Maxence Zolnieurck](https://github.com/mxcezl)
 - [Giorgos Drosos](https://github.com/gdrosos)
 - [huyphan](https://github.com/huyphan)
