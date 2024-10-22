@@ -27,7 +27,7 @@ from lib.core.installation import check_dependencies, install_dependencies
 from lib.core.settings import OPTIONS_FILE
 from lib.parse.config import ConfigParser
 
-if sys.version_info < (3, 8):
+if sys.version_info < (3, 9):
     sys.stderr.write("Sorry, dirsearch requires Python 3.8 or higher\n")
     sys.exit(1)
 

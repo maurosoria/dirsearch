@@ -57,7 +57,7 @@ class DynamicContentParser:
                 return False
 
         # The number of static patterns is not big enough to say it's a reliable method
-        if len(self._static_patterns) < 20:
+        if len(self._static_patterns) < 20 and len(content.split()) > len(self._base_content.split()):
             return difflib.SequenceMatcher(None, self._base_content, content).ratio() > 0.75
 
         return True
