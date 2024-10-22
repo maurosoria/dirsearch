@@ -62,6 +62,9 @@ class Dictionary:
     def __init__(self, **kwargs: Any) -> None:
         self._index = 0
         self._items = self.generate(**kwargs)
+        # Items in self._extra will be cleared when self.reset() is called
+        self._extra_index = 0
+        self._extra = []
 
     @property
     def index(self) -> int:
@@ -69,23 +72,23 @@ class Dictionary:
 
     @locked
     def __next__(self) -> str:
-        try:
-            path = self._items[self._index]
-        except IndexError:
+        if len(self._extra) > self._extra_index:
+            self._extra_index += 1
+            return self._extra[self._extra_index - 1]
+        elif len(self._items) > self._index:
+            self._index += 1
+            return self._items[self._index - 1]
+        else:
             raise StopIteration
-
-        self._index += 1
-
-        return path
 
     def __contains__(self, item: str) -> bool:
         return item in self._items
 
     def __getstate__(self) -> tuple[list[str], int]:
-        return self._items, self._index
+        return self._items, self._index, self._extra, self._extra_index
 
     def __setstate__(self, state: tuple[list[str], int]) -> None:
-        self._items, self._index = state
+        self._items, self._index, self._extra, self._extra_index = state
 
     def __iter__(self) -> Iterator[str]:
         return iter(self._items)
@@ -209,5 +212,12 @@ class Dictionary:
 
         return True
 
+    def add_extra(self, path) -> None:
+        if path in self._items or path in self._extra:
+            return
+
+        self._extra.append(path)
+
     def reset(self) -> None:
-        self._index = 0
+        self._index = self._extra_index = 0
+        self._extra.clear()
