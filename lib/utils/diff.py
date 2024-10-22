@@ -39,7 +39,7 @@ class DynamicContentParser:
         DynamicContentParser.compare_to() workflow
 
           1. Check if the wildcard response is static or not, if yes, compare two responses.
-          2. If it's not static, get static patterns (splitted by space) and check if the response
+          2. If it's not static, get static patterns (split by space) and check if the response
             has all of them.
           3. In some cases, checking static patterns isn't reliable enough, so we check the similarity
             ratio of the two responses.
