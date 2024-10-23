@@ -53,7 +53,7 @@ class DynamicContentParser:
         for pattern in self._static_patterns:
             try:
                 i = splitted_content.index(pattern, i + 1)
-            except (IndexError, ValueError):
+            except ValueError:
                 return False
 
         # The number of static patterns is not big enough to say it's a reliable method
