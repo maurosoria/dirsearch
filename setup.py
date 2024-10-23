@@ -30,7 +30,7 @@ setuptools.setup(
     entry_points={"console_scripts": ["dirsearch=dirsearch.dirsearch:main"]},
     package_data={"dirsearch": ["*", "db/*"]},
     include_package_data=True,
-    python_requires=">=3.8",
+    python_requires=">=3.9",
     install_requires=get_dependencies(),
     classifiers=[
         "Programming Language :: Python",
@@ -39,7 +39,7 @@ setuptools.setup(
         "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
         "Operating System :: OS Independent",
         "Topic :: Security",
-        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
     ],
     keywords=["infosec", "bug bounty", "pentesting", "security"],
 )

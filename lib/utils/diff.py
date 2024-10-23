@@ -19,7 +19,7 @@
 import difflib
 import re
 
-from lib.core.settings import MAX_MATCH_RATIO
+from lib.utils.common import lstrip_once
 
 
 class DynamicContentParser:
@@ -38,20 +38,29 @@ class DynamicContentParser:
         """
         DynamicContentParser.compare_to() workflow
 
-          1. Check if the wildcard response is static or not, if yes, compare 2 responses
-          2. If it's not static, get static patterns (splitting by space) in both responses
-            and check if they match
-          3. In some rare cases, checking static patterns fails, so make a final confirmation
-            if the similarity ratio of 2 responses is not high enough to prove they are the same
+          1. Check if the wildcard response is static or not, if yes, compare two responses.
+          2. If it's not static, get static patterns (split by space) and check if the response
+            has all of them.
+          3. In some cases, checking static patterns isn't reliable enough, so we check the similarity
+            ratio of the two responses.
         """
 
-        if self._is_static and content == self._base_content:
-            return True
+        if self._is_static:
+            return content == self._base_content
 
-        diff = self._differ.compare(self._base_content.split(), content.split())
-        static_patterns_are_matched = self._static_patterns == self.get_static_patterns(diff)
-        match_ratio = difflib.SequenceMatcher(None, self._base_content, content).ratio()
-        return static_patterns_are_matched or match_ratio > MAX_MATCH_RATIO
+        i = -1
+        splitted_content = content.split()
+        for pattern in self._static_patterns:
+            try:
+                i = splitted_content.index(pattern, i + 1)
+            except IndexError:
+                return False
+
+        # The number of static patterns is not big enough to say it's a reliable method
+        if len(self._static_patterns) < 20 and len(content.split()) > len(self._base_content.split()):
+            return difflib.SequenceMatcher(None, self._base_content, content).ratio() > 0.75
+
+        return True
 
     @staticmethod
     def get_static_patterns(patterns):
@@ -59,7 +68,7 @@ class DynamicContentParser:
         # ["  str1", "- str2", "+ str3", "  str4"]
         #
         # Get only stable patterns in the contents
-        return [pattern for pattern in patterns if pattern.startswith("  ")]
+        return [lstrip_once(pattern, "  ") for pattern in patterns if pattern.startswith("  ")]
 
 
 def generate_matching_regex(string1: str, string2: str) -> str:
