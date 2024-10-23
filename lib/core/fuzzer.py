@@ -38,7 +38,6 @@ from lib.core.settings import (
 )
 from lib.parse.url import clean_path
 from lib.utils.common import get_readable_size, lstrip_once
-from lib.utils.crawl import Crawler
 
 
 class BaseFuzzer:
@@ -51,7 +50,6 @@ class BaseFuzzer:
         not_found_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         error_callbacks: tuple[Callable[[RequestException], Any], ...],
     ) -> None:
-        self._scanned = set()
         self._requester = requester
         self._dictionary = dictionary
         self._base_path: str = ""
@@ -237,13 +235,8 @@ class Fuzzer(BaseFuzzer):
         self._quit_event.set()
         self.play()
 
-    def scan(self, path: str, scanners: Generator[Scanner, None, None]) -> None:
-        # Avoid scanned paths from being re-scanned
-        if path in self._scanned:
-            return
-        else:
-            self._scanned.add(path)
-
+    def scan(self, path: str) -> None:
+        scanners = self.get_scanners_for(path)
         response = self._requester.request(path)
 
         if self.is_excluded(response):
@@ -264,23 +257,13 @@ class Fuzzer(BaseFuzzer):
         except Exception as e:
             self.exc = e
 
-        if options["crawl"]:
-            logger.info(f'THREAD-{threading.get_ident()}: crawling "/{path}"')
-            for path_ in Crawler.crawl(response):
-                if self._dictionary.is_valid(path_):
-                    logger.info(
-                        f'THREAD-{threading.get_ident()}: found new path "/{path_}" in /{path}'
-                    )
-                    self.scan(path_, self.get_scanners_for(path_))
-
     def thread_proc(self) -> None:
         logger.info(f'THREAD-{threading.get_ident()} started"')
 
         while True:
             try:
                 path = next(self._dictionary)
-                scanners = self.get_scanners_for(path)
-                self.scan(self._base_path + path, scanners)
+                self.scan(self._base_path + path)
 
             except StopIteration:
                 break
@@ -397,13 +380,8 @@ class AsyncFuzzer(BaseFuzzer):
         for task in self._background_tasks:
             task.cancel()
 
-    async def scan(self, path: str, scanners: Generator) -> None:
-        # Avoid scanned paths from being re-scanned
-        if path in self._scanned:
-            return
-        else:
-            self._scanned.add(path)
-
+    async def scan(self, path: str) -> None:
+        scanners = self.get_scanners_for(path)
         response = await self._requester.request(path)
 
         if self.is_excluded(response):
@@ -423,16 +401,6 @@ class AsyncFuzzer(BaseFuzzer):
                 callback(response)
         except Exception as e:
             self.exc = e
-
-        if options["crawl"]:
-            task = asyncio.current_task()
-            logger.info(f'{task.get_name()}: crawling "/{path}"')
-            for path_ in Crawler.crawl(response):
-                if self._dictionary.is_valid(path_):
-                    logger.info(
-                        f'{task.get_name()}: found new path "/{path_}" in /{path}'
-                    )
-                    await self.scan(path_, self.get_scanners_for(path_))
 
     async def task_proc(self) -> None:
         async with self.sem:
