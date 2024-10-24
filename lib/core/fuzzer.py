@@ -408,8 +408,7 @@ class AsyncFuzzer(BaseFuzzer):
 
             try:
                 path = next(self._dictionary)
-                scanners = self.get_scanners_for(path)
-                await self.scan(self._base_path + path, scanners)
+                await self.scan(self._base_path + path)
             except StopIteration:
                 pass
             except RequestException as e:
