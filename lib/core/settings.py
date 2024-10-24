@@ -69,9 +69,9 @@ PROXY_SCHEMES = ("http://", "https://", "socks5://", "socks5h://", "socks4://", 
 
 STANDARD_PORTS = {"http": 80, "https": 443}
 
-DEFAULT_TEST_PREFIXES = (".",)
+DEFAULT_TEST_PREFIXES = (".", ".ht")
 
-DEFAULT_TEST_SUFFIXES = ("/",)
+DEFAULT_TEST_SUFFIXES = ("/", "~")
 
 DEFAULT_TOR_PROXIES = ("socks5://127.0.0.1:9050", "socks5://127.0.0.1:9150")
 

@@ -155,13 +155,8 @@ class Fuzzer(BaseFuzzer):
 
     def setup_scanners(self) -> None:
         # Default scanners (wildcard testers)
-        self.scanners["default"].update(
-            {
-                "index": Scanner(self._requester, path=self._base_path),
-                "random": Scanner(
-                    self._requester, path=self._base_path + WILDCARD_TEST_POINT_MARKER
-                ),
-            }
+        self.scanners["default"]["random"] = Scanner(
+            self._requester, path=self._base_path + WILDCARD_TEST_POINT_MARKER
         )
 
         if options["exclude_response"]:
@@ -169,7 +164,7 @@ class Fuzzer(BaseFuzzer):
                 self._requester, tested=self.scanners, path=options["exclude_response"]
             )
 
-        for prefix in options["prefixes"] + DEFAULT_TEST_PREFIXES:
+        for prefix in set(options["prefixes"] + DEFAULT_TEST_PREFIXES):
             self.scanners["prefixes"][prefix] = Scanner(
                 self._requester,
                 tested=self.scanners,
@@ -177,7 +172,7 @@ class Fuzzer(BaseFuzzer):
                 context=f"/{self._base_path}{prefix}***",
             )
 
-        for suffix in options["suffixes"] + DEFAULT_TEST_SUFFIXES:
+        for suffix in set(options["suffixes"] + DEFAULT_TEST_SUFFIXES):
             self.scanners["suffixes"][suffix] = Scanner(
                 self._requester,
                 tested=self.scanners,

