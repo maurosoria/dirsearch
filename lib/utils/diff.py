@@ -50,14 +50,19 @@ class DynamicContentParser:
 
         i = -1
         splitted_content = content.split()
+        # Allow one miss, see https://github.com/maurosoria/dirsearch/issues/1279
+        misses = 0
         for pattern in self._static_patterns:
             try:
                 i = splitted_content.index(pattern, i + 1)
             except ValueError:
-                return False
+                if misses or len(self._static_patterns) < 20:
+                    return False
 
-        # The number of static patterns is not big enough to say it's a reliable method
-        if len(self._static_patterns) < 20 and len(content.split()) > len(self._base_content.split()):
+                misses += 1
+
+        # Static patterns doesn't seem to be a reliable enough method
+        if len(content.split()) > len(self._base_content.split()) and len(self._static_patterns) < 20:
             return difflib.SequenceMatcher(None, self._base_content, content).ratio() > 0.75
 
         return True
