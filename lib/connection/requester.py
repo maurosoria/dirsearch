@@ -284,6 +284,7 @@ class ProxyRoatingTransport(httpx.AsyncBaseTransport):
         ]
 
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        request.extensions["target"] = str(request.url).encode()
         transport = random.choice(self._transports)
         return await transport.handle_async_request(request)
 
@@ -300,7 +301,7 @@ class AsyncRequester(BaseRequester):
         }
         transport = (
             ProxyRoatingTransport(
-                list(map(self.parse_proxy, options["proxies"])), **tpargs
+                [self.parse_proxy(p) for p in options["proxies"]], **tpargs
             )
             if options["proxies"]
             else httpx.AsyncHTTPTransport(**tpargs)
