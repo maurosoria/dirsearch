@@ -57,9 +57,8 @@ class BaseScanner:
         """
         Perform analyzing to see if the response is wildcard or not
         """
-
-        if self.response.status != response.status:
-            return True
+        # if self.response.status != response.status:  # Big mistake
+        #     return True
 
         # Read from line 129 to 138 to understand the workflow of this.
         if self.wildcard_redirect_regex and response.redirect:
@@ -84,6 +83,9 @@ class BaseScanner:
         if self.is_wildcard(response):
             return False
 
+        if self.check_duplicate(response):
+            return False
+
         return True
 
     def get_duplicate(self, response: BaseResponse) -> BaseScanner | None:
@@ -91,17 +93,18 @@ class BaseScanner:
             for tester in self.tested[category].values():
                 if response == tester.response:
                     return tester
-
         return None
 
     def is_wildcard(self, response: BaseResponse) -> bool:
         """Check if response is similar to wildcard response"""
-
         # Compare 2 binary responses (Response.content is empty if the body is binary)
         if not self.response.content and not response.content:
             return self.response.body == response.body
-
         return self.content_parser.compare_to(response.content)
+
+    def check_duplicate(self, response: BaseResponse) -> bool:
+        """Check if the size of the found page has already been found, check the ratio of this content."""
+        return self.content_parser.find_similar_page(response)
 
     @staticmethod
     def generate_redirect_regex(first_loc: str, first_path: str, second_loc: str, second_path: str) -> str:
