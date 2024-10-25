@@ -205,7 +205,9 @@ class Controller:
         self.requester = Requester()
         if options["async_mode"]:
             self.loop = asyncio.new_event_loop()
-            self.loop.add_signal_handler(signal.SIGINT, self.handle_pause)
+            # Credit: https://stackoverflow.com/a/54886771
+            signal.signal(signal.SIGINT, lambda *args: self.handle_pause())
+            signal.signal(signal.SIGTERM, lambda *args: self.handle_pause())
 
         while options["urls"]:
             url = options["urls"][0]
