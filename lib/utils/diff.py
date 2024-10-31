@@ -70,7 +70,7 @@ class DynamicContentParser:
         was_found = False
         if size in self.responsesBySize:
             for page in self.responsesBySize[size]:
-                if page["path"] == response.path:
+                if page["path"] == response.full_path:
                     return False
                 was_found = self.compare_pages(page, response)
                 if was_found:
