@@ -93,13 +93,16 @@ class BaseScanner:
             for tester in self.tested[category].values():
                 if response == tester.response:
                     return tester
+
         return None
 
     def is_wildcard(self, response: BaseResponse) -> bool:
         """Check if response is similar to wildcard response"""
+
         # Compare 2 binary responses (Response.content is empty if the body is binary)
         if not self.response.content and not response.content:
             return self.response.body == response.body
+
         return self.content_parser.compare_to(response.content)
 
     def check_duplicate(self, response: BaseResponse) -> bool:
