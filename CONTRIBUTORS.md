@@ -84,6 +84,7 @@
 - [jxdv](https://github.com/jxdv)
 - [Xeonacid](https://github.com/Xeonacid)
 - [Valentijn Scholten](https://www.github.com/valentijnscholten)
+- [vulnspace](https://github.com/vulnspace)
 
 
 Special thanks to all the people who are named here!

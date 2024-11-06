@@ -57,7 +57,7 @@ class BaseScanner:
         """
         Perform analyzing to see if the response is wildcard or not
         """
-        # if self.response.status != response.status:  # Big mistake
+        # if self.response.status != response.status:
         #     return True
 
         # Read from line 129 to 138 to understand the workflow of this.
