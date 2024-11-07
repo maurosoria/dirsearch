@@ -53,7 +53,6 @@ class BaseFuzzer:
         self._requester = requester
         self._dictionary = dictionary
         self._base_path: str = ""
-        self.exc: Exception | None = None
         self.match_callbacks = match_callbacks
         self.not_found_callbacks = not_found_callbacks
         self.error_callbacks = error_callbacks
@@ -148,6 +147,7 @@ class Fuzzer(BaseFuzzer):
             not_found_callbacks=not_found_callbacks,
             error_callbacks=error_callbacks,
         )
+        self._exc: Exception | None = None
         self._threads = []
         self._play_event = threading.Event()
         self._quit_event = threading.Event()
@@ -207,8 +207,8 @@ class Fuzzer(BaseFuzzer):
             thread.start()
 
     def is_finished(self) -> bool:
-        if self.exc:
-            raise self.exc
+        if self._exc:
+            raise self._exc
 
         for thread in self._threads:
             if thread.is_alive():
@@ -266,7 +266,7 @@ class Fuzzer(BaseFuzzer):
                 break
 
             except Exception as e:
-                self.exc = e
+                self._exc = e
 
             finally:
                 time.sleep(options["delay"])
@@ -358,12 +358,6 @@ class AsyncFuzzer(BaseFuzzer):
 
         await asyncio.gather(*self._background_tasks)
 
-    def is_finished(self) -> bool:
-        if self.exc:
-            raise self.exc
-
-        return len(self._background_tasks) == 0
-
     def play(self) -> None:
         self._play_event.set()
 
@@ -376,7 +370,12 @@ class AsyncFuzzer(BaseFuzzer):
 
     async def scan(self, path: str) -> None:
         scanners = self.get_scanners_for(path)
-        response = await self._requester.request(path)
+        try:
+            response = await self._requester.request(path)
+        except RequestException as e:
+            for callback in self.error_callbacks:
+                callback(e)
+            return
 
         if self.is_excluded(response):
             for callback in self.not_found_callbacks:
@@ -390,11 +389,8 @@ class AsyncFuzzer(BaseFuzzer):
                     callback(response)
                 return
 
-        try:
-            for callback in self.match_callbacks:
-                callback(response)
-        except Exception as e:
-            self.exc = e
+        for callback in self.match_callbacks:
+            callback(response)
 
     async def task_proc(self) -> None:
         async with self.sem:
@@ -405,8 +401,5 @@ class AsyncFuzzer(BaseFuzzer):
                 await self.scan(self._base_path + path)
             except StopIteration:
                 pass
-            except RequestException as e:
-                for callback in self.error_callbacks:
-                    callback(e)
             finally:
                 await asyncio.sleep(options["delay"])
