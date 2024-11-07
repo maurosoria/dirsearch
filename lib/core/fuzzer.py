@@ -232,7 +232,12 @@ class Fuzzer(BaseFuzzer):
 
     def scan(self, path: str) -> None:
         scanners = self.get_scanners_for(path)
-        response = self._requester.request(path)
+        try:
+            response = self._requester.request(path)
+        except RequestException as e:
+            for callback in self.error_callbacks:
+                callback(e)
+            return
 
         if self.is_excluded(response):
             for callback in self.not_found_callbacks:
@@ -246,11 +251,8 @@ class Fuzzer(BaseFuzzer):
                     callback(response)
                 return
 
-        try:
-            for callback in self.match_callbacks:
-                callback(response)
-        except Exception as e:
-            self.exc = e
+        for callback in self.match_callbacks:
+            callback(response)
 
     def thread_proc(self) -> None:
         logger.info(f'THREAD-{threading.get_ident()} started"')
@@ -263,11 +265,8 @@ class Fuzzer(BaseFuzzer):
             except StopIteration:
                 break
 
-            except RequestException as e:
-                for callback in self.error_callbacks:
-                    callback(e)
-
-                continue
+            except Exception as e:
+                self.exc = e
 
             finally:
                 time.sleep(options["delay"])
