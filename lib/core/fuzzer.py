@@ -53,6 +53,7 @@ class BaseFuzzer:
         self._requester = requester
         self._dictionary = dictionary
         self._base_path: str = ""
+        self._hashes: dict = {}
         self.exc: Exception | None = None
         self.match_callbacks = match_callbacks
         self.not_found_callbacks = not_found_callbacks
@@ -82,8 +83,7 @@ class BaseFuzzer:
         for scanner in self.scanners["default"].values():
             yield scanner
 
-    @staticmethod
-    def is_excluded(resp: BaseResponse) -> bool:
+    def is_excluded(self, resp: BaseResponse) -> bool:
         """Validate the response by different filters"""
 
         if resp.status in options["exclude_status_codes"]:
@@ -125,6 +125,12 @@ class BaseFuzzer:
                 options["exclude_redirect"] in resp.redirect
                 or re.search(options["exclude_redirect"], resp.redirect)
             )
+        ):
+            return True
+
+        if (
+            options["filter_threshold"]
+            and self._hashes.get(hash(resp), 0) >= options["filter_threshold"]
         ):
             return True
 
@@ -245,6 +251,11 @@ class Fuzzer(BaseFuzzer):
                 for callback in self.not_found_callbacks:
                     callback(response)
                 return
+
+        if options["filter_threshold"]:
+            hash_ = hash(response)
+            self._hashes.setdefault(hash_, 0)
+            self._hashes[hash_] += 1
 
         try:
             for callback in self.match_callbacks:
@@ -390,6 +401,11 @@ class AsyncFuzzer(BaseFuzzer):
                 for callback in self.not_found_callbacks:
                     callback(response)
                 return
+
+        if options["filter_threshold"]:
+            hash_ = hash(response)
+            self._hashes.setdefault(hash_, 0)
+            self._hashes[hash_] += 1
 
         try:
             for callback in self.match_callbacks:
