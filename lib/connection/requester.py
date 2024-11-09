@@ -188,9 +188,7 @@ class Requester(BaseRequester):
         self.increase_rate()
 
         err_msg = None
-
-        # Safe quote all special characters to prevent them from being encoded
-        url = safequote(self._url + path if self._url else path)
+        url = self._url + safequote(path)
 
         # Why using a loop instead of max_retries argument? Check issue #1009
         for _ in range(options["max_retries"] + 1):
@@ -221,7 +219,7 @@ class Requester(BaseRequester):
                     timeout=options["timeout"],
                     stream=True,
                 )
-                response = Response(origin_response)
+                response = Response(url, origin_response)
 
                 log_msg = f'"{options["http_method"]} {response.url}" {response.status} - {response.length}B'
 
@@ -371,12 +369,9 @@ class AsyncRequester(BaseRequester):
         self.increase_rate()
 
         err_msg = None
-
-        # Safe quote all special characters to prevent them from being encoded
-        url = safequote(self._url + path if self._url else path)
-        parsed_url = urlparse(url)
-
+        url = self._url + safequote(path)
         session = session or self.session
+
         for _ in range(options["max_retries"] + 1):
             try:
                 if self.agents:
@@ -388,16 +383,15 @@ class AsyncRequester(BaseRequester):
                     url,
                     headers=self.headers,
                     data=options["data"],
+                    extensions={"target": f"/{safequote(path)}".encode()},
                 )
-                if p := parsed_url.path:
-                    request.extensions = {"target": p.encode()}
 
                 xresponse = await session.send(
                     request,
                     stream=True,
                     follow_redirects=options["follow_redirects"],
                 )
-                response = await AsyncResponse.create(xresponse)
+                response = await AsyncResponse.create(url, xresponse)
                 await xresponse.aclose()
 
                 log_msg = f'"{options["http_method"]} {response.url}" {response.status} - {response.length}B'
