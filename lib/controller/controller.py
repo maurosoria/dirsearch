@@ -72,11 +72,6 @@ from lib.view.terminal import interface
 class Controller:
     def __init__(self) -> None:
         if options["session_file"]:
-            print("WARNING: Running an untrusted session file might lead to unwanted code execution!")
-            interface.in_line("[c]continue / [q]uit: ")
-            if input() != "c":
-                exit(1)
-
             self._import(options["session_file"])
             self.old_session = True
         else:
