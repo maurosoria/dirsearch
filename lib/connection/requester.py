@@ -359,11 +359,11 @@ class AsyncRequester(BaseRequester):
                 mounts={"all://": transport},
                 timeout=httpx.Timeout(options["timeout"]),
             )
-        return await self.request(path, self.replay_session)
+        return await self.request(path, self.replay_session, replay=True)
 
     # :path: is expected not to start with "/"
     async def request(
-        self, path: str, session: httpx.AsyncClient | None = None
+        self, path: str, session: httpx.AsyncClient | None = None, replay: bool = False
     ) -> AsyncResponse:
         while self.is_rate_exceeded():
             await asyncio.sleep(0.1)
@@ -374,7 +374,6 @@ class AsyncRequester(BaseRequester):
 
         # Safe quote all special characters to prevent them from being encoded
         url = safequote(self._url + path if self._url else path)
-        parsed_url = urlparse(url)
 
         session = session or self.session
         for _ in range(options["max_retries"] + 1):
@@ -389,7 +388,9 @@ class AsyncRequester(BaseRequester):
                     headers=self.headers,
                     data=options["data"],
                 )
-                if p := parsed_url.path:
+                if replay:
+                    request.extensions = {"target": url.encode()}
+                elif p := urlparse(url).path:
                     request.extensions = {"target": p.encode()}
 
                 xresponse = await session.send(
