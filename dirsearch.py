@@ -66,6 +66,11 @@ def main():
 
     options.update(parse_options())
 
+    if options["session_file"]:
+        print("WARNING: Running an untrusted session file might lead to unwanted code execution!")
+        if input("[c]ontinue / [q]uit: ") != "c":
+            exit(1)
+
     from lib.controller.controller import Controller
 
     Controller()
