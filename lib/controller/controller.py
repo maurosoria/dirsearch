@@ -205,12 +205,9 @@ class Controller:
         self.requester = Requester()
         if options["async_mode"]:
             self.loop = asyncio.new_event_loop()
-            try:
-                self.loop.add_signal_handler(signal.SIGINT, self.handle_pause)
-            except NotImplementedError:
-                # Windows
-                signal.signal(signal.SIGINT, self.handle_pause)
-                signal.signal(signal.SIGTERM, self.handle_pause)
+
+        signal.signal(signal.SIGINT, lambda *_: self.handle_pause())
+        signal.signal(signal.SIGTERM, lambda *_: self.handle_pause())
 
         while options["urls"]:
             url = options["urls"][0]
@@ -514,18 +511,14 @@ class Controller:
 
     def process(self) -> None:
         while True:
-            try:
-                while not self.fuzzer.is_finished():
-                    if self.is_timed_out():
-                        raise SkipTargetInterrupt(
-                            "Runtime exceeded the maximum set by the user"
-                        )
-                    time.sleep(0.5)
+            while not self.fuzzer.is_finished():
+                if self.is_timed_out():
+                    raise SkipTargetInterrupt(
+                        "Runtime exceeded the maximum set by the user"
+                    )
+                time.sleep(0.5)
 
-                break
-
-            except KeyboardInterrupt:
-                self.handle_pause()
+            break
 
     def add_directory(self, path: str) -> None:
         """Add directory to the recursion queue"""
