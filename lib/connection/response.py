@@ -35,9 +35,9 @@ from lib.utils.common import get_readable_size, is_binary
 
 
 class BaseResponse:
-    def __init__(self, response: requests.Response | httpx.Response) -> None:
+    def __init__(self, url, response: requests.Response | httpx.Response) -> None:
         self.datetime = time.strftime("%Y-%m-%d %H:%M:%S")
-        self.url = str(response.url)
+        self.url = url
         self.full_path = parse_path(self.url)
         self.path = clean_path(self.full_path)
         self.status = response.status_code
@@ -77,8 +77,8 @@ class BaseResponse:
 
 
 class Response(BaseResponse):
-    def __init__(self, response: requests.Response) -> None:
-        super().__init__(response)
+    def __init__(self, url, response: requests.Response) -> None:
+        super().__init__(url, response)
 
         for chunk in response.iter_content(chunk_size=ITER_CHUNK_SIZE):
             self.body += chunk
@@ -99,8 +99,8 @@ class Response(BaseResponse):
 
 class AsyncResponse(BaseResponse):
     @classmethod
-    async def create(cls, response: httpx.Response) -> AsyncResponse:
-        self = cls(response)
+    async def create(cls, url, response: httpx.Response) -> AsyncResponse:
+        self = cls(url, response)
         async for chunk in response.aiter_bytes(chunk_size=ITER_CHUNK_SIZE):
             self.body += chunk
 
