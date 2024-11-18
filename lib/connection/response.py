@@ -77,8 +77,8 @@ class BaseResponse:
 
 
 class Response(BaseResponse):
-    def __init__(self, response: requests.Response) -> None:
-        super().__init__(response)
+    def __init__(self, url, response: requests.Response) -> None:
+        super().__init__(url, response)
 
         for chunk in response.iter_content(chunk_size=ITER_CHUNK_SIZE):
             self.body += chunk
