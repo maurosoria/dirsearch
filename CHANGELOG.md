@@ -8,6 +8,7 @@
 - Load targets from a Nmap XML report
 - Added --async option to enable asynchronous mode (use coroutines instead of threads)
 - Added option to disable CLI output entirely
+- Added OpenAI and Ollama REST API endpoints to the dictionary
 
 ## [0.4.3] - October 2nd, 2022
 - Automatically detect the URI scheme (`http` or `https`) if no scheme is provided
