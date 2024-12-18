@@ -101,21 +101,6 @@ class BaseRequester:
     def set_header(self, key: str, value: str) -> None:
         self.headers[key] = value.lstrip()
 
-    def set_proxy(self, proxy: str) -> None:
-        if not proxy:
-            return
-
-        if not proxy.startswith(PROXY_SCHEMES):
-            proxy = f"http://{proxy}"
-
-        if self.proxy_cred and "@" not in proxy:
-            # socks5://localhost:9050 => socks5://[credential]@localhost:9050
-            proxy = proxy.replace("://", f"://{self.proxy_cred}@", 1)
-
-        self.session.proxies = {"https": proxy}
-        if not proxy.startswith("https://"):
-            self.session.proxies["http"] = proxy
-
     def is_rate_exceeded(self) -> bool:
         return self._rate >= options["max_rate"] > 0
 
@@ -188,16 +173,24 @@ class Requester(BaseRequester):
         self.increase_rate()
 
         err_msg = None
-
-        # Safe quote all special characters to prevent them from being encoded
-        url = safequote(self._url + path if self._url else path)
+        url = self._url + safequote(path)
 
         # Why using a loop instead of max_retries argument? Check issue #1009
         for _ in range(options["max_retries"] + 1):
             try:
+                proxies = {}
                 try:
-                    proxy = proxy or random.choice(options["proxies"])
-                    self.set_proxy(proxy)
+                    proxy_url = proxy or random.choice(options["proxies"])
+                    if not proxy_url.startswith(PROXY_SCHEMES):
+                        proxy_url = f"http://{proxy_url}"
+
+                    if self.proxy_cred and "@" not in proxy_url:
+                        # socks5://localhost:9050 => socks5://[credential]@localhost:9050
+                        proxy_url = proxy_url.replace("://", f"://{self.proxy_cred}@", 1)
+
+                    proxies["https"] = proxy_url
+                    if not proxy_url.startswith("https://"):
+                        proxies["http"] = proxy_url
                 except IndexError:
                     pass
 
@@ -212,16 +205,17 @@ class Requester(BaseRequester):
                     headers=self.headers,
                     data=options["data"],
                 )
-                prepped = self.session.prepare_request(request)
-                prepped.url = url
+                prep = self.session.prepare_request(request)
+                prep.url = url
 
                 origin_response = self.session.send(
-                    prepped,
+                    prep,
                     allow_redirects=options["follow_redirects"],
                     timeout=options["timeout"],
+                    proxies=proxies,
                     stream=True,
                 )
-                response = Response(origin_response)
+                response = Response(url, origin_response)
 
                 log_msg = f'"{options["http_method"]} {response.url}" {response.status} - {response.length}B'
 
@@ -359,11 +353,11 @@ class AsyncRequester(BaseRequester):
                 mounts={"all://": transport},
                 timeout=httpx.Timeout(options["timeout"]),
             )
-        return await self.request(path, self.replay_session)
+        return await self.request(path, self.replay_session, replay=True)
 
     # :path: is expected not to start with "/"
     async def request(
-        self, path: str, session: httpx.AsyncClient | None = None
+        self, path: str, session: httpx.AsyncClient | None = None, replay: bool = False
     ) -> AsyncResponse:
         while self.is_rate_exceeded():
             await asyncio.sleep(0.1)
@@ -371,12 +365,9 @@ class AsyncRequester(BaseRequester):
         self.increase_rate()
 
         err_msg = None
-
-        # Safe quote all special characters to prevent them from being encoded
-        url = safequote(self._url + path if self._url else path)
-        parsed_url = urlparse(url)
-
+        url = self._url + safequote(path)
         session = session or self.session
+
         for _ in range(options["max_retries"] + 1):
             try:
                 if self.agents:
@@ -388,16 +379,15 @@ class AsyncRequester(BaseRequester):
                     url,
                     headers=self.headers,
                     data=options["data"],
+                    extensions={"target": (url if replay else f"/{safequote(path)}").encode()},
                 )
-                if p := parsed_url.path:
-                    request.extensions = {"target": p.encode()}
 
                 xresponse = await session.send(
                     request,
                     stream=True,
                     follow_redirects=options["follow_redirects"],
                 )
-                response = await AsyncResponse.create(xresponse)
+                response = await AsyncResponse.create(url, xresponse)
                 await xresponse.aclose()
 
                 log_msg = f'"{options["http_method"]} {response.url}" {response.status} - {response.length}B'
