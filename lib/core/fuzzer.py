@@ -202,6 +202,7 @@ class Fuzzer(BaseFuzzer):
         self.setup_scanners()
         self.setup_threads()
         self.play()
+        self._quit_event.clear()
 
         for thread in self._threads:
             thread.start()
