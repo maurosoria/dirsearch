@@ -54,7 +54,6 @@ class BaseFuzzer:
         self._dictionary = dictionary
         self._base_path: str = ""
         self._hashes: dict = {}
-        self.exc: Exception | None = None
         self.match_callbacks = match_callbacks
         self.not_found_callbacks = not_found_callbacks
         self.error_callbacks = error_callbacks
@@ -264,11 +263,8 @@ class Fuzzer(BaseFuzzer):
             self._hashes.setdefault(hash_, 0)
             self._hashes[hash_] += 1
 
-        try:
-            for callback in self.match_callbacks:
-                callback(response)
-        except Exception as e:
-            self.exc = e
+        for callback in self.match_callbacks:
+            callback(response)
 
     def thread_proc(self) -> None:
         logger.info(f'THREAD-{threading.get_ident()} started"')
@@ -410,11 +406,8 @@ class AsyncFuzzer(BaseFuzzer):
             self._hashes.setdefault(hash_, 0)
             self._hashes[hash_] += 1
 
-        try:
-            for callback in self.match_callbacks:
-                callback(response)
-        except Exception as e:
-            self.exc = e
+        for callback in self.match_callbacks:
+            callback(response)
 
     async def task_proc(self) -> None:
         async with self.sem:
