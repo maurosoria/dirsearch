@@ -117,12 +117,6 @@ def parse_arguments() -> Values:
         help="Exclude extension list, separated by commas (e.g. asp,jsp)",
     )
     dictionary.add_option(
-        "--remove-extensions",
-        action="store_true",
-        dest="remove_extensions",
-        help="Remove extensions in all paths (e.g. admin.php -> admin)",
-    )
-    dictionary.add_option(
         "--prefixes",
         action="store",
         dest="prefixes",
@@ -208,6 +202,14 @@ def parse_arguments() -> Values:
         dest="recursion_status_codes",
         metavar="CODES",
         help="Valid status codes to perform recursive scan, support ranges (separated by commas)",
+    )
+    general.add_option(
+        "--filter-threshold",
+        action="store",
+        type="int",
+        dest="filter_threshold",
+        metavar="THRESHOLD",
+        help="Maximum number of results with duplicate responses before getting filtered out",
     )
     general.add_option(
         "--subdirs",
