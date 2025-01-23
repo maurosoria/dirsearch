@@ -35,8 +35,6 @@ COMMAND = " ".join(sys.argv)
 
 START_TIME = time.strftime("%Y-%m-%d %H:%M:%S")
 
-START_DATETIME = time.strftime("%Y-%m-%d")
-
 SCRIPT_PATH = FileUtils.parent(__file__, 3)
 
 OPTIONS_FILE = "options.ini"
