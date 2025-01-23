@@ -2119,6 +2119,7 @@ actuators/logfile
 actuators/mappings
 actuators/shutdown
 actuators/trace
+actuator/prometheus;%2f..%2f..%2f
 ad
 ad_admin.%EXT%
 ad_js.js
