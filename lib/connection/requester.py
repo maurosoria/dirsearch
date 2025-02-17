@@ -240,7 +240,7 @@ class Requester(BaseRequester):
                         err_msg = f"Error with the proxy: {proxy}"
                     else:
                         err_msg = "Error with the system proxy"
-                    # Prevent from re-using it in the future
+                    # Prevent from reusing it in the future
                     if proxy in options["proxies"] and len(options["proxies"]) > 1:
                         options["proxies"].remove(proxy)
                 elif "InvalidURL" in str(e):
