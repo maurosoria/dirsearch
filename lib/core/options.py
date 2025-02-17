@@ -311,6 +311,9 @@ def merge_config(opt: Values) -> Values:
         "general", "skip-on-status", ""
     )
     opt.max_time = opt.max_time or config.safe_getint("general", "max-time")
+    opt.target_max_time = opt.target_max_time or config.safe_getint(
+        "general", "target-max-time"
+    )
     opt.exit_on_error = opt.exit_on_error or config.safe_getboolean(
         "general", "exit-on-error"
     )
