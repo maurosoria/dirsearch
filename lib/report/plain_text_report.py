@@ -31,7 +31,7 @@ class PlainTextReport(FileReportMixin, BaseReport):
     __extension__ = "txt"
 
     def new(self):
-        return f"# Dirsearch started {START_TIME} as: {COMMAND}" + NEW_LINE * 2
+        return f"# Dirsearch started at {START_TIME} as: {COMMAND}" + NEW_LINE
 
     @locked
     def save(self, file, result):

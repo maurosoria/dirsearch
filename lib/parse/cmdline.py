@@ -21,7 +21,7 @@ from optparse import OptionParser, OptionGroup, Values
 
 from lib.core.settings import (
     AUTHENTICATION_TYPES,
-    OUTPUT_FORMATS,
+    FILE_BASED_OUTPUT_FORMATS,
     VERSION,
 )
 from lib.utils.common import get_config_file
@@ -506,7 +506,7 @@ def parse_arguments() -> Values:
         action="store",
         dest="output_formats",
         metavar="FORMAT",
-        help=f"Report formats, separated by commas (Available: {', '.join(OUTPUT_FORMATS)})",
+        help=f"Report formats, separated by commas (Available: {', '.join(FILE_BASED_OUTPUT_FORMATS)})",
     )
     output.add_option(
         "-o",
