@@ -482,22 +482,22 @@ Example: If you add `admin.php` into `db/403_blacklist.txt`, whenever you do a s
 ### Filters
 Use **-i | --include-status** and **-x | --exclude-status** to select allowed and not allowed response status-codes
 
-For more advanced filters: **--exclude-sizes**, **--exclude-texts**, **--exclude-regexps**, **--exclude-redirects** and **--exclude-response**
+For more advanced filters: **--exclude-sizes**, **--exclude-text**, **--exclude-regex**, **--exclude-redirect** and **--exclude-response**
 
 ```
 python3 dirsearch.py -e php,html,js -u https://target --exclude-sizes 1B,243KB
 ```
 
 ```
-python3 dirsearch.py -e php,html,js -u https://target --exclude-texts "403 Forbidden"
+python3 dirsearch.py -e php,html,js -u https://target --exclude-text "403 Forbidden"
 ```
 
 ```
-python3 dirsearch.py -e php,html,js -u https://target --exclude-regexps "^Error$"
+python3 dirsearch.py -e php,html,js -u https://target --exclude-regex "^Error$"
 ```
 
 ```
-python3 dirsearch.py -e php,html,js -u https://target --exclude-redirects "https://(.*).okta.com/*"
+python3 dirsearch.py -e php,html,js -u https://target --exclude-redirect "https://(.*).okta.com/*"
 ```
 
 ```
