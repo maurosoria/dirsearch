@@ -28,7 +28,7 @@ jobs:
         python3 dirsearch.py -w ./tests/static/wordlist.txt -l ./tests/static/targets.txt --subdirs /,admin/ --exclude-extensions conf -q -L -f -i 200 --user-agent a --log tmp_log.log
         python3 dirsearch.py -w ./tests/static/wordlist.txt --nmap-report ./tests/static/nmap.xml --max-rate 2 -H K:V --random-agent --overwrite-extensions --no-color
         python3 dirsearch.py -w ./tests/static/wordlist.txt --raw ./tests/static/raw.txt --prefixes . --suffixes ~ --skip-on-status 404 -m POST -d test=1 --crawl --min-response-size 9
-        echo https://self-signed.badssl.com | python3 dirsearch.py -w ./tests/static/wordlist.txt --stdin --max-time 9 --auth u:p --auth-type basic --scheme http
+        echo https://self-signed.badssl.com | python3 dirsearch.py -w ./tests/static/wordlist.txt --stdin --max-time 8 --auth u:p --auth-type basic --scheme http --target-max-time 9
 
     - name: Unit Test
       run: python3 testing.py
