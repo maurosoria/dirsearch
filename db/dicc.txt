@@ -3062,6 +3062,7 @@ api/embed
 api/embeddings
 api/error_log
 api/generate
+api/heartbeat
 api/index.html
 api/jsonws
 api/jsonws/invoke
