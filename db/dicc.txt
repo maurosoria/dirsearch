@@ -1,8 +1,8 @@
 !.gitignore
 !.htaccess
 !.htpasswd
-%2e%2e//google.com
 %2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/etc/passwd
+%2e%2e//google.com
 %2e%2e;/test
 %3f/
 %C0%AE%C0%AE%C0%AF
@@ -3062,6 +3062,7 @@ api/embed
 api/embeddings
 api/error_log
 api/generate
+api/heartbeat
 api/index.html
 api/jsonws
 api/jsonws/invoke
@@ -9088,6 +9089,7 @@ WarehouseWeb/
 WarehouseWebservlet
 WarehouseWebservlet/
 wavemaker/studioService.download?method=getContent&inUrl=file///etc/passwd
+wc-logs
 wc.php
 wcx_ftp.ini
 web-app/plugins
