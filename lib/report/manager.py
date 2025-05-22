@@ -19,7 +19,7 @@
 from urllib.parse import urlparse
 
 from lib.core.data import options
-from lib.core.settings import STANDARD_PORTS, START_DATETIME
+from lib.core.settings import STANDARD_PORTS, START_TIME
 from lib.report.csv_report import CSVReport
 from lib.report.html_report import HTMLReport
 from lib.report.json_report import JSONReport
@@ -82,8 +82,8 @@ class ReportManager:
         parsed = urlparse(target)
 
         return string.format(
-            # Get date from datetime string
-            date=START_DATETIME.split()[0],
+            datetime=START_TIME.replace(" ", "_"),
+            date=START_TIME.split()[0],
             host=parsed.hostname,
             scheme=parsed.scheme,
             port=parsed.port or STANDARD_PORTS[parsed.scheme],

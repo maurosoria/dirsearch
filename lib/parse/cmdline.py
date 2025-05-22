@@ -308,6 +308,14 @@ def parse_arguments() -> Values:
         help="Maximum runtime for the scan",
     )
     general.add_option(
+        "--target-max-time",
+        action="store",
+        type="int",
+        dest="target_max_time",
+        metavar="SECONDS",
+        help="Maximum runtime for a target",
+    )
+    general.add_option(
         "--exit-on-error",
         action="store_true",
         dest="exit_on_error",

@@ -259,6 +259,8 @@ class Controller:
                 interface.error("Failed to delete old session file, remove it to free some space")
 
     def start(self) -> None:
+        start_time = time.time()
+
         while self.directories:
             try:
                 gc.collect()
@@ -276,10 +278,10 @@ class Controller:
                     # use a future to get exceptions from handle_pause
                     # https://stackoverflow.com/a/64230941
                     self.pause_future = self.loop.create_future()
-                    self.loop.run_until_complete(self._start_coroutines())
+                    self.loop.run_until_complete(self.start_coroutines(start_time))
                 else:
                     self.fuzzer.start()
-                    self.process()
+                    self.process(start_time)
 
             except (KeyboardInterrupt, asyncio.CancelledError):
                 pass
@@ -291,8 +293,14 @@ class Controller:
                 self.jobs_processed += 1
                 self.old_session = False
 
-    async def _start_coroutines(self) -> None:
+    async def start_coroutines(self, start_time: float) -> None:
         task = self.loop.create_task(self.fuzzer.start())
+        timeout = min(
+            t for t in [
+                options["max_time"] - (time.time() - self.start_time),
+                options["target_max_time"] - (time.time() - start_time),
+            ] if t > 0
+        ) if options["max_time"] or options["target_max_time"] else None
 
         try:
             await asyncio.wait_for(
@@ -300,16 +308,36 @@ class Controller:
                     [self.pause_future, task],
                     return_when=asyncio.FIRST_COMPLETED,
                 ),
-                timeout=options["max_time"] if options["max_time"] > 0 else None,
+                timeout=timeout,
             )
         except asyncio.TimeoutError:
-            raise SkipTargetInterrupt("Runtime exceeded the maximum set by the user")
+            if time.time() - self.start_time > options["max_time"] > 0:
+                raise QuitInterrupt("Runtime exceeded the maximum set by the user")
+
+            raise SkipTargetInterrupt("Runtime for target exceeded the maximum set by the user")
 
         if self.pause_future.done():
             task.cancel()
             await self.pause_future  # propagate the exception, if raised
 
         await task  # propagate the exception, if raised
+
+    def process(self, start_time: float) -> None:
+        while True:
+            while not self.fuzzer.is_finished():
+                now = time.time()
+                if now - self.start_time > options["max_time"] > 0:
+                    raise QuitInterrupt(
+                        "Runtime exceeded the maximum set by the user"
+                    )
+                if now - start_time > options["target_max_time"] > 0:
+                    raise SkipTargetInterrupt(
+                        "Runtime for target exceeded the maximum set by the user"
+                    )
+
+                time.sleep(0.5)
+
+            break
 
     def set_target(self, url: str) -> None:
         # If no scheme specified, unset it first
@@ -500,20 +528,6 @@ class Controller:
                     break
                 else:
                     raise skipexc
-
-    def is_timed_out(self) -> bool:
-        return time.time() - self.start_time > options["max_time"] > 0
-
-    def process(self) -> None:
-        while True:
-            while not self.fuzzer.is_finished():
-                if self.is_timed_out():
-                    raise SkipTargetInterrupt(
-                        "Runtime exceeded the maximum set by the user"
-                    )
-                time.sleep(0.5)
-
-            break
 
     def add_directory(self, path: str) -> None:
         """Add directory to the recursion queue"""
