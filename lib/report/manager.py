@@ -31,7 +31,6 @@ from lib.report.simple_report import SimpleReport
 from lib.report.sqlite_report import SQLiteReport
 from lib.report.xml_report import XMLReport
 
-
 output_handlers = {
     "simple": (SimpleReport, [options["output_file"]]),
     "plain": (PlainTextReport, [options["output_file"]]),

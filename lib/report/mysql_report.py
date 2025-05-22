@@ -22,6 +22,7 @@ from mysql.connector.constants import SQLMode
 from urllib.parse import urlparse
 
 from lib.core.exceptions import InvalidURLException
+from lib.core.settings import DB_CONNECTION_TIMEOUT
 from lib.report.factory import BaseReport, SQLReportMixin
 
 
@@ -44,6 +45,7 @@ class MySQLReport(SQLReportMixin, BaseReport):
             user=parsed.username,
             password=parsed.password,
             database=parsed.path.lstrip("/"),
+            connection_timeout=DB_CONNECTION_TIMEOUT,
         )
         conn.sql_mode = [SQLMode.ANSI_QUOTES]
 

@@ -24,7 +24,7 @@ from lib.core.settings import (
     AUTHENTICATION_TYPES,
     COMMON_EXTENSIONS,
     DEFAULT_TOR_PROXIES,
-    OUTPUT_FORMATS,
+    FILE_BASED_OUTPUT_FORMATS,
     SCRIPT_PATH,
 )
 from lib.parse.cmdline import parse_arguments
@@ -197,18 +197,22 @@ def parse_options() -> dict[str, Any]:
         )
         exit(1)
 
-    opt.output_formats = [format.strip() for format in opt.output_formats.split(",")]
-    invalid_formats = set(opt.output_formats).difference(OUTPUT_FORMATS)
+    opt.output_formats = [format.strip() for format in opt.output_formats.split(",") if format]
 
+    invalid_formats = set(opt.output_formats).difference(FILE_BASED_OUTPUT_FORMATS)
     if invalid_formats:
         print(f"Invalid output format(s): {', '.join(invalid_formats)}")
+        exit(1)
+
+    if not len(opt.output_formats) and opt.output_file:
+        print("Please provide output formats (use '-O')")
         exit(1)
 
     # There are multiple file-based output formats but no variable to separate output files for different formats
     if (
         opt.output_file
         and "{format}" not in opt.output_file
-        and len(opt.output_formats) - ("mysql" in opt.output_formats) - ("postgresql" in opt.output_formats) > 1
+        and len(opt.output_formats) > 1
         and (
             "{extension}" not in opt.output_file
             # "plain" and "simple" have the same file extension (txt)
@@ -217,6 +221,12 @@ def parse_options() -> dict[str, Any]:
     ):
         print("Found at least 2 output formats sharing the same output file, make sure you use '{format}' and '{extension} variables in your output file")
         exit(1)
+
+    if opt.mysql_url:
+        opt.output_formats.append("mysql")
+
+    if opt.postgres_url:
+        opt.output_formats.append("postgresql")
 
     if opt.log_file:
         opt.log_file = FileUtils.get_abs_path(opt.log_file)
