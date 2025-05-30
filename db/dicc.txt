@@ -4361,6 +4361,8 @@ databases.yml
 datadog/
 dataobject.ini
 datasource
+dataview
+dataview/
 DateServlet
 davmail.log
 DB
