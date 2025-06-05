@@ -49,7 +49,7 @@ INVALID_CHARS_FOR_WINDOWS_FILENAME = ('"', "*", "<", ">", "?", "\\", "|", "/", "
 
 INVALID_FILENAME_CHAR_REPLACEMENT = "_"
 
-OUTPUT_FORMATS = ("simple", "plain", "json", "xml", "md", "csv", "html", "sqlite", "mysql", "postgresql")
+FILE_BASED_OUTPUT_FORMATS = ("simple", "plain", "json", "xml", "md", "csv", "html", "sqlite")
 
 COMMON_EXTENSIONS = ("php", "jsp", "asp", "aspx", "do", "action", "cgi", "html", "htm", "js", "tar.gz")
 
@@ -108,6 +108,8 @@ DUMMY_DOMAIN = "example.com"
 DUMMY_URL = "https://example.com/"
 
 DUMMY_WORD = "dummyasdf"
+
+DB_CONNECTION_TIMEOUT = 45
 
 SOCKET_TIMEOUT = 6
 
