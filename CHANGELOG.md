@@ -8,6 +8,7 @@
 - Load targets from a Nmap XML report
 - Added option to enable asynchronous mode (use coroutines instead of threads)
 - Added option to disable CLI output entirely
+- Option to detect and filter identical results
 - Maximum runtime per target
 - Added OpenAI and Ollama REST API endpoints to the dictionary
 

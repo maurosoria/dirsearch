@@ -70,7 +70,7 @@ def parse_options() -> dict[str, Any]:
             )
         )
 
-    if not opt.extensions and not opt.remove_extensions:
+    if not opt.extensions:
         print("WARNING: No extension was specified!")
 
     if not opt.wordlists:
@@ -151,9 +151,7 @@ def parse_options() -> dict[str, Any]:
     ]
     opt.exclude_sizes = {size.strip().upper() for size in opt.exclude_sizes.split(",")}
 
-    if opt.remove_extensions:
-        opt.extensions = ("",)
-    elif opt.extensions == "*":
+    if opt.extensions == "*":
         opt.extensions = COMMON_EXTENSIONS
     elif opt.extensions == "CHANGELOG.md":
         print(
@@ -271,6 +269,7 @@ def merge_config(opt: Values) -> Values:
     # General
     opt.thread_count = opt.thread_count or config.safe_getint("general", "threads", 25)
     opt.async_mode = opt.async_mode or config.safe_getboolean("general", "async")
+    opt.filter_threshold = opt.filter_threshold or config.safe_getint("general", "filter-threshold", 0)
     opt.include_status_codes = opt.include_status_codes or config.safe_get(
         "general", "include-status"
     )

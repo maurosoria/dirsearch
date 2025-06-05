@@ -122,9 +122,6 @@ class Dictionary:
                 # Removing leading "/" to work with prefixes later
                 line = lstrip_once(line, "/")
 
-                if options["remove_extensions"]:
-                    line = line.split(".")[0]
-
                 if not self.is_valid(line):
                     continue
 
