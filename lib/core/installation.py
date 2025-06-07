@@ -17,37 +17,66 @@
 #
 #  Author: Mauro Soria
 
-from __future__ import annotations
-
-import subprocess
 import sys
-import pkg_resources
+import subprocess
+from importlib import metadata
+from packaging import requirements, version
 
-from lib.core.exceptions import FailedDependenciesInstallation
-from lib.core.settings import SCRIPT_PATH
-from lib.utils.file import FileUtils
-
-REQUIREMENTS_FILE = f"{SCRIPT_PATH}/requirements.txt"
+from lib.core.exceptions import FailedDependenciesInstallation, DistributionNotFound, VersionConflict
 
 
-def get_dependencies() -> list[str]:
+def get_dependencies():
+    """Get list of required dependencies from requirements.txt"""
+    deps = []
     try:
-        return FileUtils.get_lines(REQUIREMENTS_FILE)
+        with open("requirements.txt", "r") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    deps.append(line)
     except FileNotFoundError:
-        print("Can't find requirements.txt")
-        exit(1)
+        pass
+    
+    return deps
 
 
-# Check if all dependencies are satisfied
 def check_dependencies() -> None:
-    pkg_resources.require(get_dependencies())
+    """Check if all required dependencies are installed with correct versions"""
+    deps = get_dependencies()
+    missing = []
+    conflicts = []
+    
+    for dep_str in deps:
+        try:
+            # Parse the requirement
+            req = requirements.Requirement(dep_str)
+            
+            try:
+                # Check if the package is installed
+                dist = metadata.distribution(req.name)
+                installed_version = version.parse(dist.version)
+                
+                # Check if the installed version satisfies the requirement
+                if req.specifier and installed_version not in req.specifier:
+                    conflicts.append(f"{req.name} {req.specifier} is required but {installed_version} is installed")
+                    
+            except metadata.PackageNotFoundError:
+                missing.append(str(req))
+                
+        except Exception as e:
+            # If we can't parse the requirement, skip it
+            print(f"Warning: Could not parse requirement '{dep_str}': {e}")
+            continue
+    
+    if missing:
+        raise DistributionNotFound(f"Missing required dependencies: {', '.join(missing)}")
+    
+    if conflicts:
+        raise VersionConflict(f"Version conflicts found: {'; '.join(conflicts)}")
 
 
 def install_dependencies() -> None:
     try:
-        subprocess.check_output(
-            [sys.executable, "-m", "pip", "install", "-r", REQUIREMENTS_FILE],
-            stderr=subprocess.STDOUT,
-        )
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
     except subprocess.CalledProcessError:
         raise FailedDependenciesInstallation

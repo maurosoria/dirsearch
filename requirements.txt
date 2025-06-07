@@ -14,3 +14,4 @@ requests-toolbelt>=1.0.0
 setuptools>=66.0.0
 httpx>=0.27.2
 httpx-ntlm>=1.4.0
+packaging>=21.0
