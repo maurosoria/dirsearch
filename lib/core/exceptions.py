@@ -51,3 +51,13 @@ class QuitInterrupt(Exception):
 
 class UnpicklingError(Exception):
     pass
+
+
+class DistributionNotFound(Exception):
+    """Exception raised when a required package is not found"""
+    pass
+
+
+class VersionConflict(Exception):
+    """Exception raised when there's a version conflict with dependencies"""
+    pass

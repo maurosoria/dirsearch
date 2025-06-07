@@ -32,8 +32,9 @@ if sys.version_info < (3, 9):
     sys.exit(1)
 
 # silence pkg_resources deprecation warnings
-warnings.simplefilter("ignore", DeprecationWarning)
-from pkg_resources import DistributionNotFound, VersionConflict  # noqa: E402
+
+# Import custom exceptions instead of pkg_resources
+from lib.core.exceptions import DistributionNotFound, VersionConflict  # noqa: E402
 
 
 def main():
