@@ -71,7 +71,7 @@ class BaseResponse:
                 self.status,
                 # Hash the static parts of the response only.
                 # See https://github.com/maurosoria/dirsearch/pull/1436#issuecomment-2476390956
-                replace_from_all_encodings(self.body, self.full_path.split("#")[0], ""),
+                replace_from_all_encodings(self.body, self.full_path.split("#")[0].encode(), b""),
             )
         )
 
