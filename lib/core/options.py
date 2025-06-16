@@ -125,6 +125,12 @@ def parse_options() -> dict[str, Any]:
 
     opt.headers = headers
 
+    if opt.user_agent:
+        opt.headers["user-agent"] = opt.user_agent
+
+    if opt.cookie:
+        opt.headers["cookie"] = opt.cookie
+
     opt.include_status_codes = _parse_status_codes(opt.include_status_codes)
     opt.exclude_status_codes = _parse_status_codes(opt.exclude_status_codes)
     opt.recursion_status_codes = _parse_status_codes(opt.recursion_status_codes)

@@ -21,6 +21,7 @@
 import unittest
 
 from tests.connection.test_dns import TestDNS  # noqa: F401
+from tests.core.test_scanner import TestScanner  # noqa: F401
 from tests.parse.test_config import TestConfigParser  # noqa: F401
 from tests.parse.test_headers import TestHeadersParser  # noqa: F401
 from tests.parse.test_url import TestURLParsers  # noqa: F401

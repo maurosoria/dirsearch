@@ -22,7 +22,6 @@ import asyncio
 import re
 import time
 from typing import Any
-from urllib.parse import unquote
 
 from lib.connection.requester import AsyncRequester, BaseRequester, Requester
 from lib.connection.response import BaseResponse
@@ -34,6 +33,7 @@ from lib.core.settings import (
     WILDCARD_TEST_POINT_MARKER,
 )
 from lib.parse.url import clean_path
+from lib.utils.common import replace_from_all_encodings
 from lib.utils.diff import DynamicContentParser, generate_matching_regex
 from lib.utils.random import rand_string
 
@@ -61,23 +61,23 @@ class BaseScanner:
         if self.response.status != response.status:
             return True
 
-        # Read from line 129 to 138 to understand the workflow of this.
+        # See the comment in generate_redirect_regex() to understand better
         if self.wildcard_redirect_regex and response.redirect:
-            # - unquote(): Sometimes, some path characters get encoded or decoded in the response redirect
-            # but it's still a wildcard redirect, so unquote everything to prevent false positives
-            # - clean_path(): Get rid of queries and DOM in URL because of weird behaviours could happen
-            # with them, so messy that I give up on finding a way to test them
-            path = unquote(clean_path(path))
-            redirect = unquote(clean_path(response.redirect))
-            regex_to_compare = self.wildcard_redirect_regex.replace(
-                REFLECTED_PATH_MARKER, re.escape(path)
+            """
+            We get rid of queries and DOM in generating redirect regex so we do the same here,
+            and we get rid of queries/DOM in path as well because queries in path are usually
+            reflected in the redirect as queries too (but we have already got rid of them).
+            """
+            redirect = replace_from_all_encodings(
+                clean_path(response.redirect),
+                clean_path(path),
+                REFLECTED_PATH_MARKER,
             )
-            is_wildcard_redirect = re.match(regex_to_compare, redirect, re.IGNORECASE)
 
             # If redirection doesn't match the rule, mark as found
-            if not is_wildcard_redirect:
+            if not re.match(self.wildcard_redirect_regex, redirect, re.IGNORECASE):
                 logger.debug(
-                    f'"{redirect}" doesn\'t match the regular expression "{regex_to_compare}", passing'
+                    f'"{redirect}" doesn\'t match the regular expression "{self.wildcard_redirect_regex}", passing'
                 )
                 return True
 
@@ -113,15 +113,15 @@ class BaseScanner:
         1. Replace path in 2 redirect URLs (if it gets reflected in) with a mark
            (e.g. /path1 -> /foo/path1 and /path2 -> /foo/path2 will become /foo/[mark] for both)
         2. Compare 2 redirects and generate a regex that matches both
-           (e.g. /foo/[mark]?a=1 and /foo/[mark]?a=2 will have the regex: ^/foo/[mark]?a=(.*)$)
-        3. Next time if it redirects, replace mark in regex with the path and check if it matches
-           (e.g. /path3 -> /foo/path3?a=5, the regex becomes ^/foo/path3?a=(.*)$, which matches)
+           (e.g. /foo/[mark] and /foo/[mark] will have the regex: ^/foo/[mark]$)
+        3. To check if a redirect is wildcard, replace path with the mark and check if it matches this regex
+           (e.g. /path3 -> /bar/path3, the redirect becomes /bar/[mark], which doesn't match the regex ^/foo/[mark]$)
         """
 
         if first_path:
-            first_loc = unquote(first_loc).replace(first_path, REFLECTED_PATH_MARKER)
+            first_loc = first_loc.replace(first_path, REFLECTED_PATH_MARKER)
         if second_path:
-            second_loc = unquote(second_loc).replace(second_path, REFLECTED_PATH_MARKER)
+            second_loc = second_loc.replace(second_path, REFLECTED_PATH_MARKER)
 
         return generate_matching_regex(first_loc, second_loc)
 
@@ -167,6 +167,8 @@ class Scanner(BaseScanner):
         time.sleep(options["delay"])
 
         if first_response.redirect and second_response.redirect:
+            # Removing the queries (and DOM) with clean_path() because sometimes
+            # some queries that are assigned random values that are hard to deal with
             self.wildcard_redirect_regex = self.generate_redirect_regex(
                 clean_path(first_response.redirect),
                 first_path,
