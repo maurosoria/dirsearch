@@ -66,14 +66,10 @@ class BaseResponse:
         return get_readable_size(self.length)
 
     def __hash__(self) -> int:
-        return hash(
-            (
-                self.status,
-                # Hash the static parts of the response only.
-                # See https://github.com/maurosoria/dirsearch/pull/1436#issuecomment-2476390956
-                replace_from_all_encodings(self.body, self.full_path.split("#")[0].encode(), b""),
-            )
-        )
+        # Hash the static parts of the response only.
+        # See https://github.com/maurosoria/dirsearch/pull/1436#issuecomment-2476390956
+        body = replace_from_all_encodings(self.content, self.full_path.split("#")[0], "") ? self.content : self.body
+        return hash((self.status, body))
 
     def __eq__(self, other: Any) -> bool:
         return (self.status, self.body, self.redirect) == (
