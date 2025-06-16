@@ -20,8 +20,10 @@ import os
 import sys
 
 from functools import reduce
+from json import dumps
+from html import escape
 from ipaddress import IPv4Network, IPv6Network
-from urllib.parse import quote, urljoin
+from urllib.parse import quote, unquote, urljoin
 
 from lib.core.settings import (
     INVALID_CHARS_FOR_WINDOWS_FILENAME,
@@ -132,3 +134,15 @@ def read_stdin():
         pass
 
     return buffer
+
+
+# Replace a substring from an HTML body, where the substring might be encoded
+# in many different ways (URL encoding, HTML escaping, ...).
+def replace_from_all_encodings(string, to_replace, replace_with):
+    string = string.replace(quote(to_replace), replace_with)
+    string = string.replace(quote(quote(to_replace)), replace_with)
+    string = string.replace(unquote(to_replace), replace_with)
+    string = string.replace(unquote(unquote(to_replace)), replace_with)
+    string = string.replace(escape(to_replace), replace_with)
+    string = string.replace(dumps(to_replace), replace_with)
+    return string.replace(to_replace, replace_with)

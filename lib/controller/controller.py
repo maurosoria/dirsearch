@@ -125,12 +125,6 @@ class Controller:
         else:
             options["headers"] = {**DEFAULT_HEADERS, **options["headers"]}
 
-            if options["user_agent"]:
-                options["headers"]["user-agent"] = options["user_agent"]
-
-            if options["cookie"]:
-                options["headers"]["cookie"] = options["cookie"]
-
         self.dictionary = Dictionary(files=options["wordlists"])
         self.start_time = time.time()
         self.passed_urls: set[str] = set()
