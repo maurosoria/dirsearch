@@ -9091,6 +9091,7 @@ WarehouseWeb/
 WarehouseWebservlet
 WarehouseWebservlet/
 wavemaker/studioService.download?method=getContent&inUrl=file///etc/passwd
+waybackverify.txt
 wc-logs
 wc.php
 wcx_ftp.ini
