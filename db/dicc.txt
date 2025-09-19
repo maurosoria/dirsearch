@@ -5955,6 +5955,7 @@ lists/
 lists/config
 LiveUser_Admin/
 lk/
+llms.txt
 load.php
 local
 local-cgi/
