@@ -21,10 +21,6 @@ class CannotConnectException(Exception):
     pass
 
 
-class FailedDependenciesInstallation(Exception):
-    pass
-
-
 class FileExistsException(Exception):
     pass
 

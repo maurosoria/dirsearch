@@ -37,8 +37,6 @@ START_TIME = time.strftime("%Y-%m-%d %H:%M:%S")
 
 SCRIPT_PATH = FileUtils.parent(__file__, 3)
 
-OPTIONS_FILE = "options.ini"
-
 IS_WINDOWS = sys.platform in ("win32", "msys")
 
 DEFAULT_ENCODING = "utf-8"
