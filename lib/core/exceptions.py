@@ -37,6 +37,10 @@ class InvalidURLException(Exception):
     pass
 
 
+class MissingDependencies(Exception):
+    pass
+
+
 class RequestException(Exception):
     pass
 

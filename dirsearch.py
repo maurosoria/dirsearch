@@ -19,10 +19,9 @@
 #  Author: Mauro Soria
 
 import sys
-import warnings
 
 from lib.core.data import options
-from lib.core.exceptions import FailedDependenciesInstallation
+from lib.core.exceptions import FailedDependenciesInstallation, MissingDependencies
 from lib.core.installation import check_dependencies, install_dependencies
 from lib.core.settings import OPTIONS_FILE
 from lib.parse.config import ConfigParser
@@ -30,10 +29,6 @@ from lib.parse.config import ConfigParser
 if sys.version_info < (3, 9):
     sys.stderr.write("Sorry, dirsearch requires Python 3.9 or higher\n")
     sys.exit(1)
-
-# silence pkg_resources deprecation warnings
-warnings.simplefilter("ignore", DeprecationWarning)
-from pkg_resources import DistributionNotFound, VersionConflict  # noqa: E402
 
 
 def main():
@@ -43,7 +38,7 @@ def main():
     if config.safe_getboolean("options", "check-dependencies", False):
         try:
             check_dependencies()
-        except (DistributionNotFound, VersionConflict):
+        except MissingDependencies:
             option = input("Missing required dependencies to run.\n"
                            "Do you want dirsearch to automatically install them? [Y/n] ")
 

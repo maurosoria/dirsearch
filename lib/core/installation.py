@@ -21,9 +21,12 @@ from __future__ import annotations
 
 import subprocess
 import sys
-import pkg_resources
+import importlib.metadata
 
-from lib.core.exceptions import FailedDependenciesInstallation
+from packaging.specifiers import SpecifierSet
+from packaging.version import Version
+
+from lib.core.exceptions import FailedDependenciesInstallation, MissingDependencies
 from lib.core.settings import SCRIPT_PATH
 from lib.utils.file import FileUtils
 
@@ -32,7 +35,11 @@ REQUIREMENTS_FILE = f"{SCRIPT_PATH}/requirements.txt"
 
 def get_dependencies() -> list[str]:
     try:
-        return FileUtils.get_lines(REQUIREMENTS_FILE)
+        return [
+            line.strip()
+            for line in FileUtils.get_lines(REQUIREMENTS_FILE)
+            if not line.lstrip().startswith("#")
+        ]
     except FileNotFoundError:
         print("Can't find requirements.txt")
         exit(1)
@@ -40,7 +47,17 @@ def get_dependencies() -> list[str]:
 
 # Check if all dependencies are satisfied
 def check_dependencies() -> None:
-    pkg_resources.require(get_dependencies())
+    for pkg in get_dependencies():
+        pkg_name = pkg.split("[")[0].split()[0]
+
+        try:
+            installed_version = importlib.metadata.version(pkg_name)
+        except importlib.metadata.PackageNotFoundError:
+            raise MissingDependencies
+
+        required_version = pkg.split("]")[-1].split(pkg_name)[-1]
+        if Version(installed_version) not in SpecifierSet(required_version):
+            raise MissingDependencies
 
 
 def install_dependencies() -> None:
