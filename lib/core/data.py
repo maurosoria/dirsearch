@@ -96,6 +96,7 @@ options: dict[str, Any] = {
     "quiet": False,
     "disable_cli": False,
     "output_file": None,
+    "output_table": None,
     "output_formats": None,
     "mysql_url": None,
     "postgres_url": None,
