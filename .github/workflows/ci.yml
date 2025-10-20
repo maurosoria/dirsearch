@@ -20,8 +20,8 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install codespell flake8 -r requirements.txt
+        python3 -m pip install --upgrade pip
+        python3 -m pip install codespell flake8 -r requirements.txt
     - name: Test
       run: |
         python3 dirsearch.py -w ./tests/static/wordlist.txt -u https://example.com -o "tmp_report.{extension}" -O json,xml,plain,csv,md,sqlite,html --force-recursive -R 3 --full-url -q

@@ -59,7 +59,7 @@ def check_dependencies() -> None:
         except importlib.metadata.PackageNotFoundError:
             raise MissingDependencies
 
-        # Check if installed version sastisfies the requirement
+        # Check if installed version satisfies the requirement
         required_version = pkg.split("]")[-1].split(pkg_name)[-1].lstrip("<>!=~")
         if (
             ("=" in pkg and "!" not in pkg and required_version == installed_version)
