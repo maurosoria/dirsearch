@@ -31,6 +31,6 @@ class TestScanner(TestCase):
                 "http://example.com/abc/bar/zyx",
                 "bar",
             ),
-            rf"^http://example\.com/abc/{REFLECTED_PATH_MARKER}/.*$",
+            rf"^http://example\.com/abc{REFLECTED_PATH_MARKER}/.*$",
             "Redirect regex generator gives unexpected result"
         )

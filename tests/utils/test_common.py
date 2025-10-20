@@ -29,7 +29,7 @@ from lib.utils.common import (
 class TestCommonUtils(TestCase):
     def test_replace_path(self):
         self.assertEqual(replace_path("/abc or /abc?k=v", "abc", "REPLACED"), "REPLACED or REPLACED?k=v", "Path was not replaced")
-        self.assertEqual(replace_path("http://a.co/abc", "abc", "REPLACED"), "http://a.comREPLACED", "Path was not replaced")
+        self.assertEqual(replace_path("http://a.co/abc", "abc", "REPLACED"), "http://a.coREPLACED", "Path was not replaced")
         self.assertEqual(replace_path("http://a.co/abcdef", "abc", "REPLACED"), "http://a.com/abcdef", "Path was replaced eventhough it should have not")
 
     def test_strip_and_uniquify(self):
