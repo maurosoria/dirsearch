@@ -31,7 +31,7 @@ from lib.core.settings import (
     UNKNOWN,
 )
 from lib.parse.url import clean_path, parse_path
-from lib.utils.common import get_readable_size, is_binary, replace_from_all_encodings
+from lib.utils.common import get_readable_size, is_binary, replace_path
 
 
 class BaseResponse:
@@ -42,7 +42,7 @@ class BaseResponse:
         self.path = clean_path(self.full_path)
         self.status = response.status_code
         self.headers = response.headers
-        self.redirect = self.headers.get("location") or ""
+        self.redirect = self.headers.get("location", "")
         self.history = [str(res.url) for res in response.history]
         self.content = ""
         self.body = b""
@@ -68,7 +68,7 @@ class BaseResponse:
     def __hash__(self) -> int:
         # Hash the static parts of the response only.
         # See https://github.com/maurosoria/dirsearch/pull/1436#issuecomment-2476390956
-        body = replace_from_all_encodings(self.content, self.full_path.split("#")[0], "") if self.content else self.body
+        body = replace_path(self.content, self.full_path.split("#")[0], "") if self.content else self.body
         return hash((self.status, body))
 
     def __eq__(self, other: Any) -> bool:

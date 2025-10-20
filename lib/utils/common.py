@@ -18,6 +18,7 @@
 
 import os
 import sys
+import re
 
 from functools import reduce
 from json import dumps
@@ -136,13 +137,24 @@ def read_stdin():
     return buffer
 
 
-# Replace a substring from an HTML body, where the substring might be encoded
+# Replace a path from an HTML body, where the path might be encoded/decoded
 # in many different ways (URL encoding, HTML escaping, ...).
-def replace_from_all_encodings(string, to_replace, replace_with):
-    string = string.replace(quote(to_replace), replace_with)
-    string = string.replace(quote(quote(to_replace)), replace_with)
-    string = string.replace(unquote(to_replace), replace_with)
-    string = string.replace(unquote(unquote(to_replace)), replace_with)
-    string = string.replace(escape(to_replace), replace_with)
-    string = string.replace(dumps(to_replace), replace_with)
-    return string.replace(to_replace, replace_with)
+#
+# Note:
+# - :path: argument must not start with an "/".
+# - The path in the body followed by an alphanumeric character won't
+# be replaced. For example, "abc" will be replaced from "abc def" but
+# not "abcdef".
+def replace_path(string, path, replace_with):
+    def sub(string, to_replace, replace_with):
+        regex = re.escape(to_replace) + "(?=[^\\w]|$)"
+        return re.sub(to_replace, replace_with, string)
+
+    path = "/" + path
+    string = sub(string, quote(path), replace_with)
+    string = sub(string, quote(quote(path)), replace_with)
+    string = sub(string, unquote(path), replace_with)
+    string = sub(string, unquote(unquote(path)), replace_with)
+    string = sub(string, escape(path), replace_with)
+    string = sub(string, dumps(path), replace_with)
+    return sub(string, path, replace_with)

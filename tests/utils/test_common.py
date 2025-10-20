@@ -18,10 +18,20 @@
 
 from unittest import TestCase
 
-from lib.utils.common import merge_path, strip_and_uniquify, get_valid_filename
+from lib.utils.common import (
+    merge_path,
+    replace_path,
+    strip_and_uniquify,
+    get_valid_filename,
+)
 
 
 class TestCommonUtils(TestCase):
+    def test_replace_path(self):
+        self.assertEqual(replace_path("/abc or /abc?k=v", "abc", "REPLACED"), "REPLACED or REPLACED?k=v", "Path was not replaced")
+        self.assertEqual(replace_path("http://a.co/abc", "abc", "REPLACED"), "http://a.comREPLACED", "Path was not replaced")
+        self.assertEqual(replace_path("http://a.co/abcdef", "abc", "REPLACED"), "http://a.com/abcdef", "Path was replaced eventhough it should have not")
+
     def test_strip_and_uniquify(self):
         self.assertEqual(strip_and_uniquify(["foo", "bar", " bar ", "foo"]), ["foo", "bar"], "The results are not stripped or contain duplicates or in wrong order")
 
