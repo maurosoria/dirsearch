@@ -148,7 +148,7 @@ def read_stdin():
 def replace_path(string, path, replace_with):
     def sub(string, to_replace, replace_with):
         regex = re.escape(to_replace) + "(?=[^\\w]|$)"
-        return re.sub(to_replace, replace_with, string)
+        return re.sub(regex, replace_with, string)
 
     path = "/" + path
     string = sub(string, quote(path), replace_with)
