@@ -2978,6 +2978,7 @@ affiliates
 affiliates.sql
 agadmin
 agent_admin
+AGENTS.md
 aiadmin
 aims/ps/
 ainstall
