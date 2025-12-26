@@ -33,7 +33,7 @@ from lib.core.settings import (
     WILDCARD_TEST_POINT_MARKER,
 )
 from lib.parse.url import clean_path
-from lib.utils.common import replace_from_all_encodings
+from lib.utils.common import replace_path
 from lib.utils.diff import DynamicContentParser, generate_matching_regex
 from lib.utils.random import rand_string
 
@@ -68,7 +68,7 @@ class BaseScanner:
             and we get rid of queries/DOM in path as well because queries in path are usually
             reflected in the redirect as queries too (but we have already got rid of them).
             """
-            redirect = replace_from_all_encodings(
+            redirect = replace_path(
                 clean_path(response.redirect),
                 clean_path(path),
                 REFLECTED_PATH_MARKER,
@@ -111,17 +111,17 @@ class BaseScanner:
 
         How it works:
         1. Replace path in 2 redirect URLs (if it gets reflected in) with a mark
-           (e.g. /path1 -> /foo/path1 and /path2 -> /foo/path2 will become /foo/[mark] for both)
+           (e.g. /path1 -> /foo/path1 and /path2 -> /foo/path2 will become /foo[mark] for both)
         2. Compare 2 redirects and generate a regex that matches both
-           (e.g. /foo/[mark] and /foo/[mark] will have the regex: ^/foo/[mark]$)
+           (e.g. /foo[mark] and /foo[mark] will have the regex: ^/foo[mark]$)
         3. To check if a redirect is wildcard, replace path with the mark and check if it matches this regex
-           (e.g. /path3 -> /bar/path3, the redirect becomes /bar/[mark], which doesn't match the regex ^/foo/[mark]$)
+           (e.g. /path3 -> /bar/path3, the redirect becomes /bar[mark], which doesn't match the regex ^/foo[mark]$)
         """
 
         if first_path:
-            first_loc = first_loc.replace(first_path, REFLECTED_PATH_MARKER)
+            first_loc = first_loc.replace("/" + first_path, REFLECTED_PATH_MARKER)
         if second_path:
-            second_loc = second_loc.replace(second_path, REFLECTED_PATH_MARKER)
+            second_loc = second_loc.replace("/" + second_path, REFLECTED_PATH_MARKER)
 
         return generate_matching_regex(first_loc, second_loc)
 
