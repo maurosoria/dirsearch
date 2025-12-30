@@ -4,7 +4,6 @@ import setuptools
 import shutil
 import tempfile
 
-from lib.core.installation import get_dependencies
 from lib.core.settings import VERSION
 
 
@@ -31,7 +30,24 @@ setuptools.setup(
     package_data={"dirsearch": ["*", "db/*"]},
     include_package_data=True,
     python_requires=">=3.9",
-    install_requires=get_dependencies(),
+    install_requires=[
+        "PySocks>=1.7.1",
+        "Jinja2>=3.0.0",
+        "defusedxml>=0.7.0",
+        "pyopenssl>=21.0.0",
+        "requests>=2.27.0",
+        "requests_ntlm>=1.3.0",
+        "colorama>=0.4.4",
+        "ntlm_auth>=1.5.0",
+        "beautifulsoup4>=4.8.0",
+        "mysql-connector-python>=8.0.20",
+        "psycopg[binary]>=3.0",
+        "defusedcsv>=2.0.0",
+        "requests-toolbelt>=1.0.0",
+        "setuptools>=66.0.0",
+        "httpx>=0.27.2",
+        "httpx-ntlm>=1.4.0"
+    ],
     classifiers=[
         "Programming Language :: Python",
         "Environment :: Console",
