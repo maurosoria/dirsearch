@@ -3,6 +3,12 @@
 #
 # Uses Docker with BuildKit for Linux builds
 # Uses native runners for Windows and macOS builds
+#
+# TODO: Add code signing for binaries
+#   - Windows: Authenticode signing with signtool
+#   - macOS: Code signing with codesign + notarization with notarytool
+#   - Requires secrets: WINDOWS_CERT_PFX, WINDOWS_CERT_PASSWORD,
+#                       APPLE_DEVELOPER_ID, APPLE_TEAM_ID, APPLE_APP_PASSWORD
 
 name: PyInstaller Build
 
