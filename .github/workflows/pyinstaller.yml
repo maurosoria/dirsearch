@@ -363,16 +363,13 @@ jobs:
           retention-days: 30
 
   # ============================================
-  # Create Release (on tag push)
+  # Prepare Artifacts (always runs)
   # ============================================
-  release:
-    name: Create Release
+  prepare-artifacts:
+    name: Prepare Artifacts
     needs: [build-linux, build-windows, build-macos-intel, build-macos-silicon]
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    if: startsWith(github.ref, 'refs/tags/v')
-    permissions:
-      contents: write
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -390,6 +387,32 @@ jobs:
           # Create checksums
           cd release
           sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Upload combined artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dirsearch-all-platforms
+          path: release/
+          retention-days: 30
+
+  # ============================================
+  # Create Release (on tag push only)
+  # ============================================
+  release:
+    name: Create Release
+    needs: [prepare-artifacts]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - name: Download combined artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dirsearch-all-platforms
+          path: release
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
