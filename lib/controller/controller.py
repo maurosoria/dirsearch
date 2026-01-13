@@ -22,6 +22,7 @@ import asyncio
 import gc
 import os
 import signal
+import sys
 import psycopg
 import re
 import time
@@ -89,7 +90,7 @@ class Controller:
             interface.error(
                 f"{session_file} is not a valid session file or it's in an old format"
             )
-            exit(1)
+            sys.exit(1)
 
         self.__dict__ = {**dict_, **vars(self)}
         print(last_output)
@@ -121,7 +122,7 @@ class Controller:
                 )
             except InvalidRawRequest as e:
                 print(str(e))
-                exit(1)
+                sys.exit(1)
         else:
             options["headers"] = {**DEFAULT_HEADERS, **options["headers"]}
 
@@ -145,7 +146,7 @@ class Controller:
                 interface.error(
                     f'Couldn\'t create log file at {options["log_file"]}'
                 )
-                exit(1)
+                sys.exit(1)
 
         interface.header(BANNER)
         interface.config(len(self.dictionary))
@@ -159,7 +160,7 @@ class Controller:
         ) as e:
             logger.exception(e)
             interface.error(str(e))
-            exit(1)
+            sys.exit(1)
 
         if options["log_file"]:
             interface.log_file(options["log_file"])
@@ -238,7 +239,7 @@ class Controller:
             except QuitInterrupt as e:
                 self.reporter.finish()
                 interface.error(e.args[0])
-                exit(0)
+                sys.exit(0)
 
             finally:
                 options["urls"].pop(0)
