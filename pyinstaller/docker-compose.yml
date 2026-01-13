@@ -1,0 +1,56 @@
+# Docker Compose configuration for dirsearch PyInstaller builds
+# Uses BuildKit for improved performance and caching
+#
+# Usage:
+#   DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose build
+#   docker compose up
+#
+# Or build specific targets:
+#   docker compose build linux
+#   docker compose build windows
+
+services:
+  linux:
+    build:
+      context: ..
+      dockerfile: pyinstaller/Dockerfile.linux
+      target: export
+      args:
+        BUILDKIT_INLINE_CACHE: 1
+    image: dirsearch-build-linux
+    volumes:
+      - ./dist:/output
+    entrypoint: ["/bin/sh", "-c", "cp /dirsearch-linux-amd64 /output/ 2>/dev/null || true"]
+
+  windows:
+    build:
+      context: ..
+      dockerfile: pyinstaller/Dockerfile.windows
+      target: export
+      args:
+        BUILDKIT_INLINE_CACHE: 1
+    image: dirsearch-build-windows
+    volumes:
+      - ./dist:/output
+    entrypoint: ["/bin/sh", "-c", "cp /dirsearch-windows-x64.exe /output/ 2>/dev/null || true"]
+
+  # Builder service for extracting artifacts
+  linux-builder:
+    build:
+      context: ..
+      dockerfile: pyinstaller/Dockerfile.linux
+      target: builder
+    image: dirsearch-builder-linux
+    volumes:
+      - ./dist:/dist-output
+    command: ["cp", "-r", "/app/dist/.", "/dist-output/"]
+
+  windows-builder:
+    build:
+      context: ..
+      dockerfile: pyinstaller/Dockerfile.windows
+      target: builder
+    image: dirsearch-builder-windows
+    volumes:
+      - ./dist:/dist-output
+    command: ["cp", "-r", "/app/dist/.", "/dist-output/"]

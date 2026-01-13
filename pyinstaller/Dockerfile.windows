@@ -1,0 +1,81 @@
+# syntax=docker/dockerfile:1.4
+# Dockerfile for building dirsearch Windows x64 binary using Wine
+# Uses BuildKit for improved caching and performance
+
+FROM debian:bookworm-slim AS builder
+
+LABEL maintainer="Mauro Soria"
+LABEL description="PyInstaller build environment for dirsearch - Windows x64 via Wine"
+
+ENV WINEDEBUG=-all
+ENV WINEARCH=win64
+ENV WINEPREFIX=/wine
+
+# Install Wine and dependencies
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    dpkg --add-architecture amd64 && \
+    apt-get update && apt-get install -y --no-install-recommends \
+    wine64 \
+    wine \
+    wget \
+    ca-certificates \
+    xvfb \
+    cabextract \
+    && rm -rf /var/lib/apt/lists/*
+
+# Initialize Wine and install Python
+RUN wineboot --init && \
+    wget -q https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe -O /tmp/python.exe && \
+    xvfb-run wine /tmp/python.exe /quiet InstallAllUsers=1 PrependPath=1 Include_test=0 && \
+    rm /tmp/python.exe
+
+# Set Wine Python path
+ENV WINE_PYTHON="wine python"
+
+WORKDIR /app
+
+# Copy requirements
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN ${WINE_PYTHON} -m pip install --upgrade pip setuptools wheel && \
+    ${WINE_PYTHON} -m pip install -r requirements.txt && \
+    ${WINE_PYTHON} -m pip install pyinstaller
+
+# Copy project files
+COPY . .
+
+# Build the Windows executable
+RUN xvfb-run ${WINE_PYTHON} -m PyInstaller \
+    --onefile \
+    --name dirsearch \
+    --add-data "db;db" \
+    --add-data "config.ini;." \
+    --add-data "lib/report;lib/report" \
+    --hidden-import=requests \
+    --hidden-import=httpx \
+    --hidden-import=urllib3 \
+    --hidden-import=charset_normalizer \
+    --hidden-import=certifi \
+    --hidden-import=PySocks \
+    --hidden-import=socks \
+    --hidden-import=jinja2 \
+    --hidden-import=defusedxml \
+    --hidden-import=OpenSSL \
+    --hidden-import=ntlm_auth \
+    --hidden-import=requests_ntlm \
+    --hidden-import=bs4 \
+    --hidden-import=colorama \
+    --hidden-import=defusedcsv \
+    --hidden-import=httpx_ntlm \
+    --hidden-import=httpcore \
+    --hidden-import=h11 \
+    --hidden-import=anyio \
+    --hidden-import=sniffio \
+    --clean \
+    dirsearch.py
+
+# Final stage - extract binary
+FROM scratch AS export
+COPY --from=builder /app/dist/dirsearch.exe /dirsearch-windows-x64.exe
