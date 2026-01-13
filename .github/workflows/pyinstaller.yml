@@ -197,31 +197,33 @@ jobs:
           retention-days: 30
 
   # ============================================
-  # macOS Intel (x86_64) - Cross-compile from ARM64
+  # macOS Intel (x86_64) - Native Intel runner
   # ============================================
   build-macos-intel:
     name: Build macOS Intel
-    runs-on: macos-15
+    runs-on: macos-15-large
     timeout-minutes: 30
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python (x86_64 via Rosetta)
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
         run: |
-          # Install x86_64 Python via Rosetta for cross-compilation
-          arch -x86_64 /bin/bash -c "$(curl -fsSL https://www.python.org/ftp/python/${{ env.PYTHON_VERSION }}.0/python-${{ env.PYTHON_VERSION }}.0-macos11.pkg)" || true
-          # Use system Python with arch prefix
-          arch -x86_64 python3 -m pip install --upgrade pip setuptools wheel
-          arch -x86_64 python3 -m pip install -r requirements.txt
-          arch -x86_64 python3 -m pip install pyinstaller==${{ env.PYINSTALLER_VERSION }}
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -r requirements.txt
+          pip install pyinstaller==${{ env.PYINSTALLER_VERSION }}
 
       - name: Build macOS Intel binary
         run: |
-          arch -x86_64 python3 -m PyInstaller \
+          pyinstaller \
             --onefile \
             --name dirsearch \
-            --target-arch x86_64 \
             --paths=. \
             --collect-submodules=lib \
             --add-data "db:db" \
@@ -267,8 +269,8 @@ jobs:
 
       - name: Test macOS Intel binary
         run: |
-          arch -x86_64 ./dist/dirsearch-macos-intel --version
-          arch -x86_64 ./dist/dirsearch-macos-intel --help
+          ./dist/dirsearch-macos-intel --version
+          ./dist/dirsearch-macos-intel --help
 
       - name: Upload macOS Intel artifact
         uses: actions/upload-artifact@v4
