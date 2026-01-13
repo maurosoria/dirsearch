@@ -4,58 +4,43 @@ This directory contains the configuration for building standalone dirsearch exec
 
 ## Supported Platforms
 
-| Platform | Architecture | Build Method |
-|----------|--------------|--------------|
-| Linux | AMD64 | Docker + BuildKit |
-| Windows | x64 | Native (GitHub Actions) |
-| macOS | Intel (x86_64) | Native (GitHub Actions) |
-| macOS | Silicon (ARM64) | Native (GitHub Actions) |
+| Platform | Architecture | Runner |
+|----------|--------------|--------|
+| Linux | AMD64 | ubuntu-latest |
+| Windows | x64 | windows-latest |
+| macOS | Intel (x86_64) | macos-13 |
+| macOS | Silicon (ARM64) | macos-14 |
 
 ## Quick Start
 
-### Using Docker Compose (Linux only)
-
-```bash
-cd pyinstaller
-DOCKER_BUILDKIT=1 docker compose build
-docker compose run --rm linux
-```
-
-### Using Build Script
-
-```bash
-# Make script executable
-chmod +x pyinstaller/build.sh
-
-# Build Linux binary using Docker
-./pyinstaller/build.sh linux
-
-# Build for current platform (no Docker needed)
-./pyinstaller/build.sh native
-```
-
-### Manual Build (Current Platform)
+### Build for Current Platform
 
 ```bash
 # Install dependencies
-pip install -r requirements.txt pyinstaller
+pip install -r requirements.txt pyinstaller==6.3.0
 
 # Run PyInstaller
 pyinstaller pyinstaller/dirsearch.spec
 ```
 
+### Using Build Script
+
+```bash
+chmod +x pyinstaller/build.sh
+./pyinstaller/build.sh
+```
+
 ## GitHub Actions
 
 The workflow automatically builds for all platforms when:
-- A version tag is pushed (e.g., `v0.4.3`)
+- A version tag is pushed (e.g., `v0.4.4RC1`)
 - Manually triggered via workflow_dispatch
 
 ### Triggering a Release
 
 ```bash
-# Tag and push
-git tag v0.4.3
-git push origin v0.4.3
+git tag v0.4.4RC1
+git push origin v0.4.4RC1
 ```
 
 This creates a GitHub Release with binaries for all platforms.
@@ -65,20 +50,11 @@ This creates a GitHub Release with binaries for all platforms.
 | File | Description |
 |------|-------------|
 | `dirsearch.spec` | PyInstaller specification file |
-| `Dockerfile.linux` | Docker build for Linux AMD64 |
-| `docker-compose.yml` | Docker Compose with BuildKit |
 | `build.sh` | Build script for local builds |
-
-## BuildKit Features Used
-
-- **Layer caching**: Faster rebuilds with `--mount=type=cache`
-- **Multi-stage builds**: Smaller final images
-- **Build cache export**: GitHub Actions cache integration
-- **Parallel builds**: Independent builds run concurrently
 
 ## Output
 
-Binaries are created in `pyinstaller/dist/`:
+Binaries are created in `dist/`:
 
 ```
 dist/
@@ -92,7 +68,7 @@ dist/
 
 ### Missing modules
 Add hidden imports to the PyInstaller command or `.spec` file:
-```python
+```
 --hidden-import=module_name
 ```
 

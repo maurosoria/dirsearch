@@ -1,67 +1,30 @@
 #!/bin/bash
 # Build script for dirsearch PyInstaller binaries
-# Uses Docker with BuildKit for Linux builds
-# Windows and macOS builds should use native runners (GitHub Actions)
+# Builds for the current platform
 #
 # Usage:
-#   ./build.sh              # Build Linux (default)
-#   ./build.sh linux        # Build Linux only
-#   ./build.sh native       # Build for current platform (no Docker)
+#   ./build.sh
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
-# Enable BuildKit
-export DOCKER_BUILDKIT=1
-export COMPOSE_DOCKER_CLI_BUILD=1
-
-# Colors for output
+# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-log_info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
-}
-
-log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
-}
-
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
+log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
 # Create dist directory
 mkdir -p "$SCRIPT_DIR/dist"
 
-build_linux() {
-    log_info "Building Linux AMD64 binary..."
-    cd "$SCRIPT_DIR"
-
-    docker buildx build \
-        --file Dockerfile.linux \
-        --target builder \
-        --load \
-        --tag dirsearch-builder-linux \
-        "$PROJECT_ROOT"
-
-    # Extract binary
-    docker run --rm \
-        -v "$SCRIPT_DIR/dist:/output" \
-        dirsearch-builder-linux \
-        cp /app/dist/dirsearch /output/dirsearch-linux-amd64
-
-    chmod +x "$SCRIPT_DIR/dist/dirsearch-linux-amd64"
-    log_info "Linux binary created: dist/dirsearch-linux-amd64"
-}
-
-
-build_native() {
-    log_info "Building native binary for current platform..."
+build() {
+    log_info "Building for current platform..."
     cd "$PROJECT_ROOT"
 
     # Determine platform suffix
@@ -76,25 +39,31 @@ build_native() {
         fi
     elif [[ "$PLATFORM" == "linux" ]]; then
         SUFFIX="linux-amd64"
+    elif [[ "$PLATFORM" == "mingw"* ]] || [[ "$PLATFORM" == "msys"* ]]; then
+        SUFFIX="windows-x64"
     else
         SUFFIX="$PLATFORM-$ARCH"
     fi
 
-    # Check for Python and pip
-    if ! command -v python3 &> /dev/null; then
+    # Check for Python
+    if ! command -v python3 &> /dev/null && ! command -v python &> /dev/null; then
         log_error "Python 3 is required"
         exit 1
     fi
 
+    PYTHON_CMD=$(command -v python3 || command -v python)
+
     # Install dependencies
     log_info "Installing dependencies..."
-    python3 -m pip install -r requirements.txt pyinstaller
+    $PYTHON_CMD -m pip install --upgrade pip setuptools wheel
+    $PYTHON_CMD -m pip install -r requirements.txt
+    $PYTHON_CMD -m pip install pyinstaller==6.3.0
 
     # Build
     log_info "Running PyInstaller..."
-    python3 -m PyInstaller \
+    $PYTHON_CMD -m PyInstaller \
         --onefile \
-        --name "dirsearch-$SUFFIX" \
+        --name dirsearch \
         --add-data "db:db" \
         --add-data "config.ini:." \
         --add-data "lib/report:lib/report" \
@@ -123,49 +92,43 @@ build_native() {
         --clean \
         dirsearch.py
 
-    # Move to pyinstaller/dist
-    mv "dist/dirsearch-$SUFFIX" "$SCRIPT_DIR/dist/"
-    log_info "Native binary created: pyinstaller/dist/dirsearch-$SUFFIX"
+    # Move and rename binary
+    if [[ "$SUFFIX" == "windows"* ]]; then
+        mv dist/dirsearch.exe "$SCRIPT_DIR/dist/dirsearch-$SUFFIX.exe"
+        log_info "Binary created: pyinstaller/dist/dirsearch-$SUFFIX.exe"
+    else
+        mv dist/dirsearch "$SCRIPT_DIR/dist/dirsearch-$SUFFIX"
+        chmod +x "$SCRIPT_DIR/dist/dirsearch-$SUFFIX"
+        log_info "Binary created: pyinstaller/dist/dirsearch-$SUFFIX"
+    fi
 }
 
 show_help() {
     echo "dirsearch PyInstaller Build Script"
     echo ""
-    echo "Usage: $0 [target]"
+    echo "Usage: $0"
     echo ""
-    echo "Targets:"
-    echo "  linux      Build Linux AMD64 binary using Docker (default)"
-    echo "  native     Build binary for current platform (no Docker)"
-    echo "  help       Show this help message"
+    echo "Builds a standalone executable for the current platform."
     echo ""
-    echo "Note: Windows and macOS builds should use GitHub Actions with native runners."
-    echo ""
-    echo "Environment variables:"
-    echo "  DOCKER_BUILDKIT=1           Enable BuildKit (default)"
-    echo "  COMPOSE_DOCKER_CLI_BUILD=1  Use Docker CLI for Compose (default)"
-    echo ""
-    echo "Examples:"
-    echo "  $0 linux           # Build Linux binary"
-    echo "  $0 native          # Build for current OS"
+    echo "Supported platforms:"
+    echo "  - Linux AMD64"
+    echo "  - macOS Intel / Silicon"
+    echo "  - Windows x64"
 }
 
-# Main
-case "${1:-linux}" in
-    linux)
-        build_linux
-        ;;
-    native)
-        build_native
+case "${1:-build}" in
+    build|"")
+        build
         ;;
     help|--help|-h)
         show_help
         ;;
     *)
-        log_error "Unknown target: $1"
+        log_error "Unknown command: $1"
         show_help
         exit 1
         ;;
 esac
 
-log_info "Build complete! Binaries are in: $SCRIPT_DIR/dist/"
+log_info "Build complete!"
 ls -la "$SCRIPT_DIR/dist/"
