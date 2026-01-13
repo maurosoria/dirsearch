@@ -64,9 +64,21 @@ build() {
     $PYTHON_CMD -m PyInstaller \
         --onefile \
         --name dirsearch \
+        --paths=. \
+        --collect-submodules=lib \
         --add-data "db:db" \
         --add-data "config.ini:." \
         --add-data "lib/report:lib/report" \
+        --hidden-import=lib \
+        --hidden-import=lib.core \
+        --hidden-import=lib.core.settings \
+        --hidden-import=lib.core.options \
+        --hidden-import=lib.controller \
+        --hidden-import=lib.connection \
+        --hidden-import=lib.parse \
+        --hidden-import=lib.report \
+        --hidden-import=lib.utils \
+        --hidden-import=lib.view \
         --hidden-import=requests \
         --hidden-import=httpx \
         --hidden-import=urllib3 \
