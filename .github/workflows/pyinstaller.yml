@@ -1,8 +1,8 @@
 # GitHub Action for building dirsearch with PyInstaller
 # Targets: Windows x64, Linux AMD64, macOS Intel, macOS Silicon
 #
-# Uses Docker with BuildKit for Linux and Windows builds
-# Uses native runners for macOS builds (required for code signing)
+# Uses Docker with BuildKit for Linux builds
+# Uses native runners for Windows and macOS builds
 
 name: PyInstaller Build
 
@@ -17,9 +17,15 @@ on:
         required: false
         default: 'dev'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   DOCKER_BUILDKIT: 1
   COMPOSE_DOCKER_CLI_BUILD: 1
+  PYTHON_VERSION: '3.11'
+  PYINSTALLER_VERSION: '6.3.0'
 
 jobs:
   # ============================================
@@ -28,6 +34,7 @@ jobs:
   build-linux:
     name: Build Linux AMD64
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -43,22 +50,19 @@ jobs:
         run: |
           docker buildx build \
             --file Dockerfile.linux \
-            --target builder \
-            --output type=local,dest=./build-output \
+            --target export \
+            --output type=local,dest=./dist \
             --cache-from type=gha \
             --cache-to type=gha,mode=max \
             ..
-
-          # Extract binary from build output
-          cp ./build-output/app/dist/dirsearch ./dist/dirsearch-linux-amd64 || \
-          docker compose run --rm linux-builder
 
       - name: Make binary executable
         run: chmod +x pyinstaller/dist/dirsearch-linux-amd64
 
       - name: Test Linux binary
         run: |
-          ./pyinstaller/dist/dirsearch-linux-amd64 --help || true
+          ./pyinstaller/dist/dirsearch-linux-amd64 --version
+          ./pyinstaller/dist/dirsearch-linux-amd64 --help
 
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
@@ -68,41 +72,73 @@ jobs:
           retention-days: 30
 
   # ============================================
-  # Windows x64 - Docker with BuildKit + Wine
+  # Windows x64 - Native runner
   # ============================================
   build-windows:
     name: Build Windows x64
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
 
-      - name: Create output directory
-        run: mkdir -p pyinstaller/dist
-
-      - name: Build Windows binary with Docker BuildKit + Wine
-        working-directory: pyinstaller
+      - name: Install dependencies
         run: |
-          docker buildx build \
-            --file Dockerfile.windows \
-            --target builder \
-            --output type=local,dest=./build-output \
-            --cache-from type=gha \
-            --cache-to type=gha,mode=max \
-            ..
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -r requirements.txt
+          pip install pyinstaller==${{ env.PYINSTALLER_VERSION }}
 
-          # Extract binary from build output
-          cp ./build-output/app/dist/dirsearch.exe ./dist/dirsearch-windows-x64.exe || \
-          docker compose run --rm windows-builder
+      - name: Build Windows binary
+        run: |
+          pyinstaller `
+            --onefile `
+            --name dirsearch `
+            --add-data "db;db" `
+            --add-data "config.ini;." `
+            --add-data "lib/report;lib/report" `
+            --hidden-import=requests `
+            --hidden-import=httpx `
+            --hidden-import=urllib3 `
+            --hidden-import=charset_normalizer `
+            --hidden-import=certifi `
+            --hidden-import=PySocks `
+            --hidden-import=socks `
+            --hidden-import=jinja2 `
+            --hidden-import=defusedxml `
+            --hidden-import=OpenSSL `
+            --hidden-import=ntlm_auth `
+            --hidden-import=requests_ntlm `
+            --hidden-import=bs4 `
+            --hidden-import=colorama `
+            --hidden-import=defusedcsv `
+            --hidden-import=httpx_ntlm `
+            --hidden-import=httpcore `
+            --hidden-import=h11 `
+            --hidden-import=anyio `
+            --hidden-import=sniffio `
+            --hidden-import=socksio `
+            --clean `
+            dirsearch.py
+
+      - name: Rename binary
+        run: mv dist/dirsearch.exe dist/dirsearch-windows-x64.exe
+
+      - name: Test Windows binary
+        run: |
+          ./dist/dirsearch-windows-x64.exe --version
+          ./dist/dirsearch-windows-x64.exe --help
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
           name: dirsearch-windows-x64
-          path: pyinstaller/dist/dirsearch-windows-x64.exe
+          path: dist/dirsearch-windows-x64.exe
           retention-days: 30
 
   # ============================================
@@ -111,6 +147,7 @@ jobs:
   build-macos-intel:
     name: Build macOS Intel
     runs-on: macos-13
+    timeout-minutes: 30
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -118,14 +155,14 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel
           pip install -r requirements.txt
-          pip install pyinstaller
+          pip install pyinstaller==${{ env.PYINSTALLER_VERSION }}
 
       - name: Build macOS Intel binary
         run: |
@@ -165,7 +202,8 @@ jobs:
 
       - name: Test macOS Intel binary
         run: |
-          ./dist/dirsearch-macos-intel --help || true
+          ./dist/dirsearch-macos-intel --version
+          ./dist/dirsearch-macos-intel --help
 
       - name: Upload macOS Intel artifact
         uses: actions/upload-artifact@v4
@@ -180,6 +218,7 @@ jobs:
   build-macos-silicon:
     name: Build macOS Silicon
     runs-on: macos-14
+    timeout-minutes: 30
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -187,14 +226,14 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel
           pip install -r requirements.txt
-          pip install pyinstaller
+          pip install pyinstaller==${{ env.PYINSTALLER_VERSION }}
 
       - name: Build macOS Silicon binary
         run: |
@@ -234,7 +273,8 @@ jobs:
 
       - name: Test macOS Silicon binary
         run: |
-          ./dist/dirsearch-macos-silicon --help || true
+          ./dist/dirsearch-macos-silicon --version
+          ./dist/dirsearch-macos-silicon --help
 
       - name: Upload macOS Silicon artifact
         uses: actions/upload-artifact@v4
@@ -250,6 +290,7 @@ jobs:
     name: Create Release
     needs: [build-linux, build-windows, build-macos-intel, build-macos-silicon]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write

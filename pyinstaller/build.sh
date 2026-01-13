@@ -1,12 +1,12 @@
 #!/bin/bash
 # Build script for dirsearch PyInstaller binaries
-# Uses Docker with BuildKit for cross-platform builds
+# Uses Docker with BuildKit for Linux builds
+# Windows and macOS builds should use native runners (GitHub Actions)
 #
 # Usage:
-#   ./build.sh              # Build all platforms
+#   ./build.sh              # Build Linux (default)
 #   ./build.sh linux        # Build Linux only
-#   ./build.sh windows      # Build Windows only
-#   ./build.sh all          # Build all platforms
+#   ./build.sh native       # Build for current platform (no Docker)
 
 set -e
 
@@ -59,26 +59,6 @@ build_linux() {
     log_info "Linux binary created: dist/dirsearch-linux-amd64"
 }
 
-build_windows() {
-    log_info "Building Windows x64 binary (via Wine)..."
-    log_warn "This may take a while on first run (Wine + Python installation)"
-    cd "$SCRIPT_DIR"
-
-    docker buildx build \
-        --file Dockerfile.windows \
-        --target builder \
-        --load \
-        --tag dirsearch-builder-windows \
-        "$PROJECT_ROOT"
-
-    # Extract binary
-    docker run --rm \
-        -v "$SCRIPT_DIR/dist:/output" \
-        dirsearch-builder-windows \
-        cp /app/dist/dirsearch.exe /output/dirsearch-windows-x64.exe
-
-    log_info "Windows binary created: dist/dirsearch-windows-x64.exe"
-}
 
 build_native() {
     log_info "Building native binary for current platform..."
@@ -154,11 +134,11 @@ show_help() {
     echo "Usage: $0 [target]"
     echo ""
     echo "Targets:"
-    echo "  linux      Build Linux AMD64 binary using Docker"
-    echo "  windows    Build Windows x64 binary using Docker + Wine"
+    echo "  linux      Build Linux AMD64 binary using Docker (default)"
     echo "  native     Build binary for current platform (no Docker)"
-    echo "  all        Build all Docker-based platforms (linux, windows)"
     echo "  help       Show this help message"
+    echo ""
+    echo "Note: Windows and macOS builds should use GitHub Actions with native runners."
     echo ""
     echo "Environment variables:"
     echo "  DOCKER_BUILDKIT=1           Enable BuildKit (default)"
@@ -166,25 +146,16 @@ show_help() {
     echo ""
     echo "Examples:"
     echo "  $0 linux           # Build Linux binary"
-    echo "  $0 windows         # Build Windows binary"
     echo "  $0 native          # Build for current OS"
-    echo "  $0 all             # Build all platforms"
 }
 
 # Main
-case "${1:-all}" in
+case "${1:-linux}" in
     linux)
         build_linux
         ;;
-    windows)
-        build_windows
-        ;;
     native)
         build_native
-        ;;
-    all)
-        build_linux
-        build_windows
         ;;
     help|--help|-h)
         show_help

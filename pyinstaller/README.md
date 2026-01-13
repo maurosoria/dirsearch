@@ -7,26 +7,18 @@ This directory contains the configuration for building standalone dirsearch exec
 | Platform | Architecture | Build Method |
 |----------|--------------|--------------|
 | Linux | AMD64 | Docker + BuildKit |
-| Windows | x64 | Docker + BuildKit + Wine |
+| Windows | x64 | Native (GitHub Actions) |
 | macOS | Intel (x86_64) | Native (GitHub Actions) |
 | macOS | Silicon (ARM64) | Native (GitHub Actions) |
 
 ## Quick Start
 
-### Using Docker Compose (Linux/Windows)
+### Using Docker Compose (Linux only)
 
 ```bash
-# Build all platforms
 cd pyinstaller
 DOCKER_BUILDKIT=1 docker compose build
-
-# Build specific platform
-docker compose build linux
-docker compose build windows
-
-# Extract binaries
-docker compose run --rm linux-builder
-docker compose run --rm windows-builder
+docker compose run --rm linux
 ```
 
 ### Using Build Script
@@ -35,12 +27,8 @@ docker compose run --rm windows-builder
 # Make script executable
 chmod +x pyinstaller/build.sh
 
-# Build all Docker-based platforms
-./pyinstaller/build.sh all
-
-# Build specific platform
+# Build Linux binary using Docker
 ./pyinstaller/build.sh linux
-./pyinstaller/build.sh windows
 
 # Build for current platform (no Docker needed)
 ./pyinstaller/build.sh native
@@ -78,7 +66,6 @@ This creates a GitHub Release with binaries for all platforms.
 |------|-------------|
 | `dirsearch.spec` | PyInstaller specification file |
 | `Dockerfile.linux` | Docker build for Linux AMD64 |
-| `Dockerfile.windows` | Docker build for Windows x64 (Wine) |
 | `docker-compose.yml` | Docker Compose with BuildKit |
 | `build.sh` | Build script for local builds |
 
@@ -102,9 +89,6 @@ dist/
 ```
 
 ## Troubleshooting
-
-### Wine build is slow
-First build downloads and installs Python in Wine. Subsequent builds use cached layers.
 
 ### Missing modules
 Add hidden imports to the PyInstaller command or `.spec` file:
