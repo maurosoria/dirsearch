@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import sys
 from optparse import Values
 from typing import Any
 from lib.core.settings import (
@@ -57,10 +58,10 @@ def parse_options() -> dict[str, Any]:
             opt.urls = parse_nmap(opt.nmap_report)
         except Exception as e:
             print("Error while parsing Nmap report: " + str(e))
-            exit(1)
+            sys.exit(1)
     elif not opt.urls:
         print("URL target is missing, try using -u <url>")
-        exit(1)
+        sys.exit(1)
 
     if not opt.raw_file:
         opt.urls = strip_and_uniquify(
@@ -75,7 +76,7 @@ def parse_options() -> dict[str, Any]:
 
     if not opt.wordlists:
         print("No wordlist was provided, try using -w <wordlist>")
-        exit(1)
+        sys.exit(1)
 
     opt.wordlists = [wordlist.strip() for wordlist in opt.wordlists.split(",")]
 
@@ -88,7 +89,7 @@ def parse_options() -> dict[str, Any]:
 
     if opt.thread_count < 1:
         print("Threads number must be greater than zero")
-        exit(1)
+        sys.exit(1)
 
     if opt.tor:
         opt.proxies = list(DEFAULT_TOR_PROXIES)
@@ -114,14 +115,14 @@ def parse_options() -> dict[str, Any]:
             headers.update(dict(HeadersParser(fd.read())))
         except Exception as e:
             print("Error in headers file: " + str(e))
-            exit(1)
+            sys.exit(1)
 
     if opt.headers:
         try:
             headers.update(dict(HeadersParser("\n".join(opt.headers))))
         except Exception:
             print("Invalid headers")
-            exit(1)
+            sys.exit(1)
 
     opt.headers = headers
 
@@ -164,7 +165,7 @@ def parse_options() -> dict[str, Any]:
             "A weird extension was provided: 'CHANGELOG.md'. Please do not use * as the "
             "extension or enclose it in double quotes"
         )
-        exit(0)
+        sys.exit(0)
     else:
         opt.extensions = tuple(
             strip_and_uniquify(
@@ -183,34 +184,34 @@ def parse_options() -> dict[str, Any]:
 
     if opt.auth and not opt.auth_type:
         print("Please select the authentication type with --auth-type")
-        exit(1)
+        sys.exit(1)
     elif opt.auth_type and not opt.auth:
         print("No authentication credential found")
-        exit(1)
+        sys.exit(1)
     elif opt.auth and opt.auth_type not in AUTHENTICATION_TYPES:
         print(
             f"'{opt.auth_type}' is not in available authentication "
             f"types: {', '.join(AUTHENTICATION_TYPES)}"
         )
-        exit(1)
+        sys.exit(1)
 
     if set(opt.extensions).intersection(opt.exclude_extensions):
         print(
             "Exclude extension list can not contain any extension "
             "that has already in the extension list"
         )
-        exit(1)
+        sys.exit(1)
 
     opt.output_formats = [format.strip() for format in opt.output_formats.split(",") if format]
 
     invalid_formats = set(opt.output_formats).difference(FILE_BASED_OUTPUT_FORMATS)
     if invalid_formats:
         print(f"Invalid output format(s): {', '.join(invalid_formats)}")
-        exit(1)
+        sys.exit(1)
 
     if not len(opt.output_formats) and opt.output_file:
         print("Please provide output formats (use '-O')")
-        exit(1)
+        sys.exit(1)
 
     # There are multiple file-based output formats but no variable to separate output files for different formats
     if (
@@ -224,7 +225,7 @@ def parse_options() -> dict[str, Any]:
         )
     ):
         print("Found at least 2 output formats sharing the same output file, make sure you use '{format}' and '{extension} variables in your output file")
-        exit(1)
+        sys.exit(1)
 
     if opt.mysql_url:
         opt.output_formats.append("mysql")
@@ -256,7 +257,7 @@ def _parse_status_codes(str_: str) -> set[int]:
                 status_codes.add(int(status_code.strip()))
         except ValueError:
             print(f"Invalid status code or status code range: {status_code}")
-            exit(1)
+            sys.exit(1)
 
     return status_codes
 
@@ -265,15 +266,15 @@ def _access_file(path: str) -> File:
     with File(path) as fd:
         if not fd.exists():
             print(f"{path} does not exist")
-            exit(1)
+            sys.exit(1)
 
         if not fd.is_valid():
             print(f"{path} is not a file")
-            exit(1)
+            sys.exit(1)
 
         if not fd.can_read():
             print(f"{path} cannot be read")
-            exit(1)
+            sys.exit(1)
 
         return fd
 
