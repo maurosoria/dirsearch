@@ -1,0 +1,10 @@
+# PyInstaller build artifacts
+dist/
+build/
+build-output/
+*.pyc
+__pycache__/
+
+# PyInstaller temp files
+*.manifest
+*.log

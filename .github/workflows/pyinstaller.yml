@@ -1,0 +1,357 @@
+# GitHub Action for building dirsearch with PyInstaller
+# Targets: Windows x64, Linux AMD64, macOS Intel, macOS Silicon
+#
+# All platforms use native runners for consistency
+#
+# TODO: Add code signing for binaries
+#   - Windows: Authenticode signing with signtool
+#   - macOS: Code signing with codesign + notarization with notarytool
+#   - Requires secrets: WINDOWS_CERT_PFX, WINDOWS_CERT_PASSWORD,
+#                       APPLE_DEVELOPER_ID, APPLE_TEAM_ID, APPLE_APP_PASSWORD
+
+name: PyInstaller Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag for release (e.g., v0.4.3)'
+        required: false
+        default: 'dev'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.11'
+  PYINSTALLER_VERSION: '6.3.0'
+
+jobs:
+  # ============================================
+  # Linux AMD64 - Native runner
+  # ============================================
+  build-linux:
+    name: Build Linux AMD64
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -r requirements.txt
+          pip install pyinstaller==${{ env.PYINSTALLER_VERSION }}
+
+      - name: Build Linux binary
+        run: |
+          pyinstaller \
+            --onefile \
+            --name dirsearch \
+            --add-data "db:db" \
+            --add-data "config.ini:." \
+            --add-data "lib/report:lib/report" \
+            --hidden-import=requests \
+            --hidden-import=httpx \
+            --hidden-import=urllib3 \
+            --hidden-import=charset_normalizer \
+            --hidden-import=certifi \
+            --hidden-import=PySocks \
+            --hidden-import=socks \
+            --hidden-import=jinja2 \
+            --hidden-import=defusedxml \
+            --hidden-import=OpenSSL \
+            --hidden-import=ntlm_auth \
+            --hidden-import=requests_ntlm \
+            --hidden-import=bs4 \
+            --hidden-import=colorama \
+            --hidden-import=defusedcsv \
+            --hidden-import=httpx_ntlm \
+            --hidden-import=httpcore \
+            --hidden-import=h11 \
+            --hidden-import=anyio \
+            --hidden-import=sniffio \
+            --hidden-import=socksio \
+            --strip \
+            --clean \
+            dirsearch.py
+
+      - name: Rename binary
+        run: mv dist/dirsearch dist/dirsearch-linux-amd64
+
+      - name: Test Linux binary
+        run: |
+          ./dist/dirsearch-linux-amd64 --version
+          ./dist/dirsearch-linux-amd64 --help
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dirsearch-linux-amd64
+          path: dist/dirsearch-linux-amd64
+          retention-days: 30
+
+  # ============================================
+  # Windows x64 - Native runner
+  # ============================================
+  build-windows:
+    name: Build Windows x64
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -r requirements.txt
+          pip install pyinstaller==${{ env.PYINSTALLER_VERSION }}
+
+      - name: Build Windows binary
+        run: |
+          pyinstaller `
+            --onefile `
+            --name dirsearch `
+            --add-data "db;db" `
+            --add-data "config.ini;." `
+            --add-data "lib/report;lib/report" `
+            --hidden-import=requests `
+            --hidden-import=httpx `
+            --hidden-import=urllib3 `
+            --hidden-import=charset_normalizer `
+            --hidden-import=certifi `
+            --hidden-import=PySocks `
+            --hidden-import=socks `
+            --hidden-import=jinja2 `
+            --hidden-import=defusedxml `
+            --hidden-import=OpenSSL `
+            --hidden-import=ntlm_auth `
+            --hidden-import=requests_ntlm `
+            --hidden-import=bs4 `
+            --hidden-import=colorama `
+            --hidden-import=defusedcsv `
+            --hidden-import=httpx_ntlm `
+            --hidden-import=httpcore `
+            --hidden-import=h11 `
+            --hidden-import=anyio `
+            --hidden-import=sniffio `
+            --hidden-import=socksio `
+            --clean `
+            dirsearch.py
+
+      - name: Rename binary
+        run: mv dist/dirsearch.exe dist/dirsearch-windows-x64.exe
+
+      - name: Test Windows binary
+        run: |
+          ./dist/dirsearch-windows-x64.exe --version
+          ./dist/dirsearch-windows-x64.exe --help
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dirsearch-windows-x64
+          path: dist/dirsearch-windows-x64.exe
+          retention-days: 30
+
+  # ============================================
+  # macOS Intel (x86_64) - Native runner
+  # ============================================
+  build-macos-intel:
+    name: Build macOS Intel
+    runs-on: macos-13
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -r requirements.txt
+          pip install pyinstaller==${{ env.PYINSTALLER_VERSION }}
+
+      - name: Build macOS Intel binary
+        run: |
+          pyinstaller \
+            --onefile \
+            --name dirsearch \
+            --add-data "db:db" \
+            --add-data "config.ini:." \
+            --add-data "lib/report:lib/report" \
+            --hidden-import=requests \
+            --hidden-import=httpx \
+            --hidden-import=urllib3 \
+            --hidden-import=charset_normalizer \
+            --hidden-import=certifi \
+            --hidden-import=PySocks \
+            --hidden-import=socks \
+            --hidden-import=jinja2 \
+            --hidden-import=defusedxml \
+            --hidden-import=OpenSSL \
+            --hidden-import=ntlm_auth \
+            --hidden-import=requests_ntlm \
+            --hidden-import=bs4 \
+            --hidden-import=colorama \
+            --hidden-import=defusedcsv \
+            --hidden-import=httpx_ntlm \
+            --hidden-import=httpcore \
+            --hidden-import=h11 \
+            --hidden-import=anyio \
+            --hidden-import=sniffio \
+            --hidden-import=socksio \
+            --strip \
+            --clean \
+            dirsearch.py
+
+      - name: Rename binary
+        run: mv dist/dirsearch dist/dirsearch-macos-intel
+
+      - name: Test macOS Intel binary
+        run: |
+          ./dist/dirsearch-macos-intel --version
+          ./dist/dirsearch-macos-intel --help
+
+      - name: Upload macOS Intel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dirsearch-macos-intel
+          path: dist/dirsearch-macos-intel
+          retention-days: 30
+
+  # ============================================
+  # macOS Silicon (ARM64) - Native runner
+  # ============================================
+  build-macos-silicon:
+    name: Build macOS Silicon
+    runs-on: macos-14
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -r requirements.txt
+          pip install pyinstaller==${{ env.PYINSTALLER_VERSION }}
+
+      - name: Build macOS Silicon binary
+        run: |
+          pyinstaller \
+            --onefile \
+            --name dirsearch \
+            --add-data "db:db" \
+            --add-data "config.ini:." \
+            --add-data "lib/report:lib/report" \
+            --hidden-import=requests \
+            --hidden-import=httpx \
+            --hidden-import=urllib3 \
+            --hidden-import=charset_normalizer \
+            --hidden-import=certifi \
+            --hidden-import=PySocks \
+            --hidden-import=socks \
+            --hidden-import=jinja2 \
+            --hidden-import=defusedxml \
+            --hidden-import=OpenSSL \
+            --hidden-import=ntlm_auth \
+            --hidden-import=requests_ntlm \
+            --hidden-import=bs4 \
+            --hidden-import=colorama \
+            --hidden-import=defusedcsv \
+            --hidden-import=httpx_ntlm \
+            --hidden-import=httpcore \
+            --hidden-import=h11 \
+            --hidden-import=anyio \
+            --hidden-import=sniffio \
+            --hidden-import=socksio \
+            --strip \
+            --clean \
+            dirsearch.py
+
+      - name: Rename binary
+        run: mv dist/dirsearch dist/dirsearch-macos-silicon
+
+      - name: Test macOS Silicon binary
+        run: |
+          ./dist/dirsearch-macos-silicon --version
+          ./dist/dirsearch-macos-silicon --help
+
+      - name: Upload macOS Silicon artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dirsearch-macos-silicon
+          path: dist/dirsearch-macos-silicon
+          retention-days: 30
+
+  # ============================================
+  # Create Release (on tag push)
+  # ============================================
+  release:
+    name: Create Release
+    needs: [build-linux, build-windows, build-macos-intel, build-macos-silicon]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release
+          cp artifacts/dirsearch-linux-amd64/dirsearch-linux-amd64 release/
+          cp artifacts/dirsearch-windows-x64/dirsearch-windows-x64.exe release/
+          cp artifacts/dirsearch-macos-intel/dirsearch-macos-intel release/
+          cp artifacts/dirsearch-macos-silicon/dirsearch-macos-silicon release/
+
+          # Create checksums
+          cd release
+          sha256sum * > SHA256SUMS.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/dirsearch-linux-amd64
+            release/dirsearch-windows-x64.exe
+            release/dirsearch-macos-intel
+            release/dirsearch-macos-silicon
+            release/SHA256SUMS.txt
+          generate_release_notes: true
+          draft: false
+          prerelease: false
