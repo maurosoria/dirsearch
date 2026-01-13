@@ -226,12 +226,19 @@ class Fuzzer(BaseFuzzer):
     def play(self) -> None:
         self._play_event.set()
 
-    def pause(self) -> None:
+    def pause(self) -> bool:
+        """Pause all threads and wait for them to acknowledge.
+
+        Returns True if all threads paused successfully, False if timeout occurred.
+        """
         self._play_event.clear()
-        # Wait for all threads to stop
+        # Wait for all threads to stop (with timeout to avoid deadlock)
         for thread in self._threads:
             if thread.is_alive():
-                self._pause_semaphore.acquire()
+                # Use timeout to prevent deadlock when threads are blocked on I/O
+                if not self._pause_semaphore.acquire(timeout=2):
+                    return False
+        return True
 
     def quit(self) -> None:
         self._quit_event.set()

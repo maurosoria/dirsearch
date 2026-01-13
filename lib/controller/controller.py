@@ -72,6 +72,8 @@ from lib.view.terminal import interface
 
 class Controller:
     def __init__(self) -> None:
+        self._handling_pause = False  # Reentrancy guard for signal handler
+
         if options["session_file"]:
             self._import(options["session_file"])
             self.old_session = True
@@ -461,10 +463,26 @@ class Controller:
         logger.exception(exception)
 
     def handle_pause(self) -> None:
-        interface.warning(
-            "CTRL+C detected: Pausing threads, please wait...", do_save=False
-        )
-        self.fuzzer.pause()
+        # Force quit on second Ctrl+C if already handling pause
+        if self._handling_pause:
+            interface.warning("\nForce quit!", do_save=False)
+            os._exit(1)
+
+        self._handling_pause = True
+
+        try:
+            interface.warning(
+                "CTRL+C detected: Pausing threads, please wait...", do_save=False
+            )
+            if not self.fuzzer.pause():
+                interface.warning(
+                    "Could not pause all threads (some may be blocked on I/O). "
+                    "Press CTRL+C again to force quit.",
+                    do_save=False
+                )
+        except Exception:
+            # If pause fails for any reason, still show the menu
+            pass
 
         while True:
             msg = "[q]uit / [c]ontinue"
@@ -509,6 +527,7 @@ class Controller:
                         raise quitexc
 
             elif option.lower() == "c":
+                self._handling_pause = False
                 self.fuzzer.play()
                 break
 
