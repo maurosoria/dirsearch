@@ -79,7 +79,8 @@ DEFAULT_HEADERS = {
     "cache-control": "max-age=0",
 }
 
-DEFAULT_SESSION_FILE = "session.pickle"
+DEFAULT_SESSION_FILE = "session.pickle"  # Legacy format
+DEFAULT_SESSION_DB = "sessions.db"  # SQLite session database
 
 REFLECTED_PATH_MARKER = "__REFLECTED_PATH__"
 

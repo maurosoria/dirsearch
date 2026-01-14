@@ -69,7 +69,43 @@ def parse_arguments() -> Values:
         help="Load targets from nmap report (Ensure the inclusion of the -sV flag during nmap scan for comprehensive results)",
     )
     mandatory.add_option(
-        "-s", "--session", action="store", dest="session_file", help="Session file"
+        "-s", "--session", action="store", dest="session_file",
+        help="Session file (legacy pickle format, use --session-db for SQLite)"
+    )
+    mandatory.add_option(
+        "--session-db",
+        action="store",
+        dest="session_db",
+        metavar="PATH",
+        help="SQLite session database file (default: sessions.db)"
+    )
+    mandatory.add_option(
+        "--resume",
+        action="store",
+        type="int",
+        dest="resume_session",
+        metavar="ID",
+        help="Resume session by ID from SQLite database"
+    )
+    mandatory.add_option(
+        "--list-sessions",
+        action="store_true",
+        dest="list_sessions",
+        help="List all saved sessions in the database"
+    )
+    mandatory.add_option(
+        "--delete-session",
+        action="store",
+        type="int",
+        dest="delete_session",
+        metavar="ID",
+        help="Delete a session by ID from the database"
+    )
+    mandatory.add_option(
+        "--clean-sessions",
+        action="store_true",
+        dest="clean_sessions",
+        help="Remove all completed sessions from the database"
     )
     mandatory.add_option(
         "--config",

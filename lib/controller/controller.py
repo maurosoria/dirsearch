@@ -27,10 +27,7 @@ import psycopg
 import re
 import time
 import mysql.connector
-try:
-    import cPickle as pickle
-except ModuleNotFoundError:
-    import pickle
+from typing import Optional
 
 from urllib.parse import urlparse
 
@@ -47,13 +44,18 @@ from lib.core.exceptions import (
     RequestException,
     SkipTargetInterrupt,
     QuitInterrupt,
-    UnpicklingError,
 )
 from lib.core.logger import enable_logging, logger
+from lib.core.session_db import (
+    SessionDatabase,
+    SessionStatus,
+    TargetStatus,
+    DirectoryStatus,
+)
 from lib.core.settings import (
     BANNER,
     DEFAULT_HEADERS,
-    DEFAULT_SESSION_FILE,
+    DEFAULT_SESSION_DB,
     EXTENSION_RECOGNITION_REGEX,
     MAX_CONSECUTIVE_REQUEST_ERRORS,
     NEW_LINE,
@@ -73,43 +75,369 @@ from lib.view.terminal import interface
 class Controller:
     def __init__(self) -> None:
         self._handling_pause = False  # Reentrancy guard for signal handler
+        self._session_db: Optional[SessionDatabase] = None
+        self._session_id: Optional[int] = None
+        self._current_target_id: Optional[int] = None
+        self._current_directory_id: Optional[int] = None
 
         if options["session_file"]:
-            self._import(options["session_file"])
+            self._import_session(options["session_file"])
             self.old_session = True
+        elif options["resume_session"]:
+            self._resume_session(options["resume_session"])
+            self.old_session = True
+        elif options["list_sessions"]:
+            self._list_sessions()
+            sys.exit(0)
+        elif options.get("delete_session"):
+            self._delete_session(options["delete_session"])
+            sys.exit(0)
+        elif options.get("clean_sessions"):
+            self._clean_sessions()
+            sys.exit(0)
         else:
             self.setup()
             self.old_session = False
 
         self.run()
 
-    def _import(self, session_file: str) -> None:
+    def _get_session_db(self) -> SessionDatabase:
+        """Get or create session database connection."""
+        if self._session_db is None:
+            db_path = options.get("session_db") or DEFAULT_SESSION_DB
+            self._session_db = SessionDatabase(db_path)
+        return self._session_db
+
+    def _list_sessions(self) -> None:
+        """List all saved sessions."""
+        db = self._get_session_db()
+        sessions = db.list_sessions()
+
+        if not sessions:
+            interface.warning("No saved sessions found.")
+            return
+
+        interface.header(BANNER)
+        interface.warning("Saved sessions:\n")
+
+        for session in sessions:
+            status_color = {
+                SessionStatus.PENDING: "",
+                SessionStatus.RUNNING: "[RUNNING] ",
+                SessionStatus.PAUSED: "[PAUSED] ",
+                SessionStatus.COMPLETED: "[DONE] ",
+                SessionStatus.FAILED: "[FAILED] ",
+            }.get(session.status, "")
+
+            created = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(session.created_at))
+            urls = session.options.get("urls", [])
+            url_preview = urls[0] if urls else "N/A"
+            if len(urls) > 1:
+                url_preview += f" (+{len(urls) - 1} more)"
+
+            interface.warning(
+                f"  ID: {session.id} | {status_color}{created} | {url_preview}"
+            )
+
+    def _delete_session(self, session_id: int) -> None:
+        """Delete a session by ID."""
+        db = self._get_session_db()
+        session = db.get_session(session_id)
+
+        if session is None:
+            interface.error(f"Session {session_id} not found")
+            return
+
+        db.delete_session(session_id)
+        interface.warning(f"Session {session_id} deleted successfully")
+
+    def _clean_sessions(self) -> None:
+        """Remove all completed sessions from the database."""
+        db = self._get_session_db()
+        sessions = db.list_sessions(SessionStatus.COMPLETED)
+
+        if not sessions:
+            interface.warning("No completed sessions to clean")
+            return
+
+        count = 0
+        for session in sessions:
+            db.delete_session(session.id)
+            count += 1
+
+        interface.warning(f"Removed {count} completed session(s)")
+        db.vacuum()
+
+    def _resume_session(self, session_id: int) -> None:
+        """Resume a session from SQLite database."""
+        db = self._get_session_db()
+        session = db.get_session(session_id)
+
+        if session is None:
+            interface.error(f"Session {session_id} not found")
+            sys.exit(1)
+
+        if session.status == SessionStatus.COMPLETED:
+            interface.error(f"Session {session_id} is already completed")
+            sys.exit(1)
+
+        # Restore options
+        options.update(session.options)
+        self._session_id = session_id
+
+        # Print saved terminal buffer
+        if session.terminal_buffer:
+            print(session.terminal_buffer)
+
+        # Setup with restored state
+        blacklists.update(get_blacklists())
+
+        if options["raw_file"]:
+            try:
+                options.update(
+                    zip(
+                        ["urls", "http_method", "headers", "data"],
+                        parse_raw(options["raw_file"]),
+                    )
+                )
+            except InvalidRawRequest as e:
+                print(str(e))
+                sys.exit(1)
+        else:
+            options["headers"] = {**DEFAULT_HEADERS, **options["headers"]}
+
+        self.dictionary = Dictionary(files=options["wordlists"])
+        self.start_time = time.time()
+        self.errors = 0
+        self.consecutive_errors = 0
+        self.jobs_processed = 0
+
+        # Restore passed URLs
+        self.passed_urls = db.get_passed_urls(session_id)
+
+        # Restore directories from database
+        self.directories: list[str] = []
+
+        # Get pending targets
+        targets = db.get_targets(session_id)
+        pending_urls = []
+        for target_id, url, status in targets:
+            if status in (TargetStatus.PENDING, TargetStatus.SCANNING):
+                pending_urls.append(url)
+                # Get pending directories for this target
+                dirs = db.get_pending_directories(target_id)
+                for dir_id, path in dirs:
+                    if path not in self.directories:
+                        self.directories.append(path)
+                # Store first pending target
+                if self._current_target_id is None:
+                    self._current_target_id = target_id
+
+        # Update URLs to only include pending
+        if pending_urls:
+            options["urls"] = pending_urls
+
+        # Restore dictionary state
+        dict_state = db.get_dictionary_state(session_id)
+        if dict_state:
+            main_index, extra_index, extra_items = dict_state
+            self.dictionary.set_state(main_index, extra_index, extra_items)
+
+        # Update session status
+        db.update_session_status(session_id, SessionStatus.RUNNING)
+
+        if options["log_file"]:
+            try:
+                FileUtils.create_dir(FileUtils.parent(options["log_file"]))
+                if not FileUtils.can_write(options["log_file"]):
+                    raise Exception
+
+                enable_logging()
+
+            except Exception:
+                interface.error(
+                    f'Couldn\'t create log file at {options["log_file"]}'
+                )
+                sys.exit(1)
+
+        interface.header(BANNER)
+        interface.warning(f"Resuming session {session_id}")
+        interface.config(len(self.dictionary))
+
+        try:
+            self.reporter = ReportManager(options["output_formats"])
+        except (
+            InvalidURLException,
+            mysql.connector.Error,
+            psycopg.Error,
+        ) as e:
+            logger.exception(e)
+            interface.error(str(e))
+            sys.exit(1)
+
+        if options["log_file"]:
+            interface.log_file(options["log_file"])
+
+    def _import_session(self, session_file: str) -> None:
+        """Import session - supports both SQLite (.db) and legacy pickle (.pickle) formats."""
+        if session_file.endswith(".db"):
+            # SQLite format - find latest paused session
+            db = SessionDatabase(session_file)
+            sessions = db.list_sessions(SessionStatus.PAUSED)
+            if not sessions:
+                sessions = db.list_sessions(SessionStatus.RUNNING)
+            if not sessions:
+                interface.error(f"No resumable sessions found in {session_file}")
+                sys.exit(1)
+            self._session_db = db
+            self._resume_session(sessions[0].id)
+        else:
+            # Legacy pickle format - convert to SQLite
+            interface.warning(
+                f"Legacy pickle format detected. Converting to SQLite..."
+            )
+            self._import_legacy_pickle(session_file)
+
+    def _import_legacy_pickle(self, session_file: str) -> None:
+        """Import legacy pickle session and convert to SQLite."""
+        import pickle
+
         try:
             with open(session_file, "rb") as fd:
                 dict_, last_output, opt = pickle.load(fd)
                 options.update(opt)
-        except UnpicklingError:
+        except Exception:
             interface.error(
                 f"{session_file} is not a valid session file or it's in an old format"
             )
             sys.exit(1)
 
-        self.__dict__ = {**dict_, **vars(self)}
-        print(last_output)
+        # Setup from pickle data
+        blacklists.update(get_blacklists())
 
-    def _export(self, session_file: str) -> None:
-        # Save written output
-        last_output = interface.buffer.rstrip()
+        if options["raw_file"]:
+            try:
+                options.update(
+                    zip(
+                        ["urls", "http_method", "headers", "data"],
+                        parse_raw(options["raw_file"]),
+                    )
+                )
+            except InvalidRawRequest as e:
+                print(str(e))
+                sys.exit(1)
+        else:
+            options["headers"] = {**DEFAULT_HEADERS, **options["headers"]}
 
-        dict_ = vars(self).copy()
-        # Can't pickle some classes due to _thread.lock objects
-        dict_.pop("fuzzer", None)
-        dict_.pop("pause_future", None)
-        dict_.pop("loop", None)
-        dict_.pop("requester", None)
+        # Restore state from pickle
+        self.dictionary = dict_.get("dictionary", Dictionary(files=options["wordlists"]))
+        self.start_time = dict_.get("start_time", time.time())
+        self.passed_urls = dict_.get("passed_urls", set())
+        self.directories = dict_.get("directories", [])
+        self.jobs_processed = dict_.get("jobs_processed", 0)
+        self.errors = dict_.get("errors", 0)
+        self.consecutive_errors = dict_.get("consecutive_errors", 0)
 
-        with open(session_file, "wb") as fd:
-            pickle.dump((dict_, last_output, options), fd)
+        # Print saved output
+        if last_output:
+            print(last_output)
+
+        # Create SQLite session for future saves
+        db = self._get_session_db()
+        self._session_id = db.create_session(dict(options))
+
+        # Save URLs and state to SQLite
+        db.add_targets(self._session_id, options["urls"])
+        db.add_passed_urls_bulk(self._session_id, self.passed_urls)
+
+        if options["log_file"]:
+            try:
+                FileUtils.create_dir(FileUtils.parent(options["log_file"]))
+                if not FileUtils.can_write(options["log_file"]):
+                    raise Exception
+                enable_logging()
+            except Exception:
+                interface.error(f'Couldn\'t create log file at {options["log_file"]}')
+                sys.exit(1)
+
+        interface.header(BANNER)
+        interface.warning("Converted legacy session to SQLite format")
+        interface.config(len(self.dictionary))
+
+        try:
+            self.reporter = ReportManager(options["output_formats"])
+        except (InvalidURLException, mysql.connector.Error, psycopg.Error) as e:
+            logger.exception(e)
+            interface.error(str(e))
+            sys.exit(1)
+
+        if options["log_file"]:
+            interface.log_file(options["log_file"])
+
+    def _export_session(self, session_file: str) -> None:
+        """Export session to SQLite database."""
+        # Determine if we should use the provided file or session DB
+        if session_file.endswith(".db"):
+            db_path = session_file
+        else:
+            # Convert .pickle path to .db
+            if session_file.endswith(".pickle"):
+                db_path = session_file[:-7] + ".db"
+            else:
+                db_path = session_file + ".db"
+
+        db = SessionDatabase(db_path)
+
+        # Create or update session
+        if self._session_id is None:
+            self._session_id = db.create_session(dict(options))
+
+        session_id = self._session_id
+
+        # Save terminal buffer
+        db.update_session_buffer(session_id, interface.buffer.rstrip())
+
+        # Save targets
+        db.add_targets(session_id, options["urls"])
+
+        # Save current target and directories
+        targets = db.get_targets(session_id)
+        for target_id, url, _ in targets:
+            if url == options["urls"][0] if options["urls"] else None:
+                self._current_target_id = target_id
+                db.update_target_status(target_id, TargetStatus.SCANNING)
+
+                # Save directories
+                for idx, path in enumerate(self.directories):
+                    dir_id = db.add_directory(target_id, path, idx)
+                    if idx == 0:
+                        self._current_directory_id = dir_id
+                        db.update_directory_status(dir_id, DirectoryStatus.SCANNING)
+                break
+
+        # Save dictionary state
+        db.save_dictionary_state(
+            session_id,
+            self.dictionary.index,
+            self.dictionary.extra_index,
+            self.dictionary.extra_items,
+            self._current_directory_id,
+        )
+
+        # Save thread checkpoints
+        for thread_id, index in self.dictionary.get_thread_indices().items():
+            db.save_thread_checkpoint(
+                session_id, thread_id, index, self._current_directory_id
+            )
+
+        # Save passed URLs
+        db.add_passed_urls_bulk(session_id, self.passed_urls)
+
+        # Update session status
+        db.update_session_status(session_id, SessionStatus.PAUSED)
+
+        self._session_db = db
+        return db_path
 
     def setup(self) -> None:
         blacklists.update(get_blacklists())
@@ -135,6 +463,11 @@ class Controller:
         self.jobs_processed = 0
         self.errors = 0
         self.consecutive_errors = 0
+
+        # Setup checkpoint callback for dictionary (patator-style)
+        self.dictionary.set_checkpoint_callback(
+            self._on_checkpoint, interval=500
+        )
 
         if options["log_file"]:
             try:
@@ -166,6 +499,22 @@ class Controller:
 
         if options["log_file"]:
             interface.log_file(options["log_file"])
+
+    def _on_checkpoint(self, thread_id: int, index: int) -> None:
+        """Callback for dictionary checkpoint - saves thread progress to SQLite."""
+        if self._session_id is None or self._session_db is None:
+            return
+
+        try:
+            self._session_db.save_thread_checkpoint(
+                self._session_id,
+                thread_id,
+                index,
+                self._current_directory_id,
+            )
+        except Exception:
+            # Don't fail scanning on checkpoint errors
+            pass
 
     def run(self) -> None:
         if options["async_mode"]:
@@ -249,7 +598,15 @@ class Controller:
         interface.warning("\nTask Completed")
         self.reporter.finish()
 
-        if options["session_file"]:
+        # Mark session as completed and cleanup
+        if self._session_id and self._session_db:
+            self._session_db.update_session_status(
+                self._session_id, SessionStatus.COMPLETED
+            )
+            self._session_db.close()
+
+        # Remove legacy pickle session file if exists
+        if options.get("session_file") and os.path.exists(options["session_file"]):
             try:
                 os.remove(options["session_file"])
             except Exception:
@@ -503,16 +860,17 @@ class Controller:
                 option = input()
 
                 if option.lower() == "s":
-                    msg = f'Save to file [{options["session_file"] or DEFAULT_SESSION_FILE}]: '
+                    default_session = options.get("session_db") or DEFAULT_SESSION_DB
+                    msg = f"Save to file [{default_session}]: "
 
                     interface.in_line(msg)
 
-                    session_file = (
-                        input() or options["session_file"] or DEFAULT_SESSION_FILE
-                    )
+                    session_file = input() or default_session
 
-                    self._export(session_file)
-                    quitexc = QuitInterrupt(f"Session saved to: {session_file}")
+                    saved_path = self._export_session(session_file)
+                    quitexc = QuitInterrupt(
+                        f"Session {self._session_id} saved to: {saved_path}"
+                    )
                     if options["async_mode"]:
                         self.pause_future.set_exception(quitexc)
                         break

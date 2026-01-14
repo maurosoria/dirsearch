@@ -39,7 +39,8 @@ from lib.parse.nmap import parse_nmap
 def parse_options() -> dict[str, Any]:
     opt = merge_config(parse_arguments())
 
-    if opt.session_file:
+    # Handle session-related options that bypass normal validation
+    if opt.session_file or opt.resume_session or opt.list_sessions or opt.delete_session or opt.clean_sessions:
         return vars(opt)
 
     opt.http_method = opt.http_method.upper()
@@ -414,5 +415,12 @@ def merge_config(opt: Values) -> Values:
     )
     opt.log_file = opt.log_file or config.safe_get("output", "log-file")
     opt.log_file_size = config.safe_getint("output", "log-file-size")
+
+    # Session (SQLite)
+    opt.session_db = opt.session_db or config.safe_get("session", "session-db")
+    opt.resume_session = getattr(opt, "resume_session", None)
+    opt.list_sessions = getattr(opt, "list_sessions", False)
+    opt.delete_session = getattr(opt, "delete_session", None)
+    opt.clean_sessions = getattr(opt, "clean_sessions", False)
 
     return opt

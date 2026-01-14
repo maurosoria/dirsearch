@@ -18,8 +18,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
-from typing import Any, Iterator
+import threading
+from typing import Any, Callable, Iterator, Optional
 
 from lib.core.data import options
 from lib.core.decorators import locked
@@ -61,40 +63,127 @@ def get_blacklists() -> dict[int, Dictionary]:
 class Dictionary:
     def __init__(self, **kwargs: Any) -> None:
         self._index = 0
+        self._wordlist_files = kwargs.get("files", [])
         self._items = self.generate(**kwargs)
         # Items in self._extra will be cleared when self.reset() is called
         self._extra_index = 0
-        self._extra = []
+        self._extra: list[str] = []
+        # Thread checkpoint tracking (patator-style)
+        self._thread_indices: dict[int, int] = {}
+        self._checkpoint_callback: Optional[Callable[[int, int], None]] = None
+        self._checkpoint_interval = 100  # Save checkpoint every N items
+        self._items_since_checkpoint = 0
 
     @property
     def index(self) -> int:
         return self._index
 
+    @property
+    def extra_index(self) -> int:
+        return self._extra_index
+
+    @property
+    def extra_items(self) -> list[str]:
+        return self._extra.copy()
+
+    @property
+    def wordlist_files(self) -> list[str]:
+        return self._wordlist_files
+
+    def get_wordlist_hash(self) -> str:
+        """Generate a hash of wordlist files for verification on resume."""
+        hasher = hashlib.sha256()
+        for filepath in sorted(self._wordlist_files):
+            hasher.update(filepath.encode())
+            try:
+                with open(filepath, "rb") as f:
+                    # Hash first 64KB for speed
+                    hasher.update(f.read(65536))
+            except (OSError, IOError):
+                pass
+        return hasher.hexdigest()[:16]
+
+    def set_checkpoint_callback(
+        self, callback: Callable[[int, int], None], interval: int = 100
+    ) -> None:
+        """
+        Set callback for checkpoint notifications.
+        Callback receives (thread_id, current_index).
+        """
+        self._checkpoint_callback = callback
+        self._checkpoint_interval = interval
+
+    def get_thread_indices(self) -> dict[int, int]:
+        """Get copy of thread indices for checkpoint saving."""
+        return self._thread_indices.copy()
+
+    def get_min_safe_index(self) -> int:
+        """
+        Get minimum index across all threads - safe resume point.
+        All items before this index have been processed by all threads.
+        """
+        if not self._thread_indices:
+            return self._index
+        return min(self._thread_indices.values())
+
     @locked
     def __next__(self) -> str:
+        thread_id = threading.get_ident()
+
         if len(self._extra) > self._extra_index:
             self._extra_index += 1
-            return self._extra[self._extra_index - 1]
+            item = self._extra[self._extra_index - 1]
         elif len(self._items) > self._index:
             self._index += 1
-            return self._items[self._index - 1]
+            item = self._items[self._index - 1]
         else:
             raise StopIteration
+
+        # Track index per thread
+        self._thread_indices[thread_id] = self._index
+
+        # Trigger checkpoint callback periodically
+        self._items_since_checkpoint += 1
+        if (
+            self._checkpoint_callback
+            and self._items_since_checkpoint >= self._checkpoint_interval
+        ):
+            self._items_since_checkpoint = 0
+            self._checkpoint_callback(thread_id, self._index)
+
+        return item
 
     def __contains__(self, item: str) -> bool:
         return item in self._items
 
-    def __getstate__(self) -> tuple[list[str], int]:
+    def __getstate__(self) -> tuple[list[str], int, list[str], int]:
         return self._items, self._index, self._extra, self._extra_index
 
-    def __setstate__(self, state: tuple[list[str], int]) -> None:
+    def __setstate__(self, state: tuple[list[str], int, list[str], int]) -> None:
         self._items, self._index, self._extra, self._extra_index = state
+        self._thread_indices = {}
+        self._checkpoint_callback = None
+        self._checkpoint_interval = 100
+        self._items_since_checkpoint = 0
 
     def __iter__(self) -> Iterator[str]:
         return iter(self._items)
 
     def __len__(self) -> int:
         return len(self._items)
+
+    def set_state(
+        self,
+        main_index: int,
+        extra_index: int = 0,
+        extra_items: Optional[list[str]] = None,
+    ) -> None:
+        """Restore dictionary state from saved checkpoint."""
+        self._index = main_index
+        self._extra_index = extra_index
+        if extra_items:
+            self._extra = extra_items
+        self._thread_indices.clear()
 
     def generate(self, files: list[str] = [], is_blacklist: bool = False) -> list[str]:
         """
@@ -218,3 +307,5 @@ class Dictionary:
     def reset(self) -> None:
         self._index = self._extra_index = 0
         self._extra.clear()
+        self._thread_indices.clear()
+        self._items_since_checkpoint = 0
