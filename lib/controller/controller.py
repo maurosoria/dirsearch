@@ -462,6 +462,29 @@ class Controller:
     def append_error_log(self, exception: RequestException) -> None:
         logger.exception(exception)
 
+    def _force_quit_handler(self, signum, frame) -> None:
+        """Handler for Ctrl+C while waiting for input - does immediate force quit"""
+        interface.warning("\nForce quit!", do_save=False)
+        os._exit(1)
+
+    def _safe_input(self) -> str:
+        """Read input while allowing Ctrl+C to force quit cleanly.
+
+        Changes SIGINT handler to force quit while in input() to avoid
+        readline reentry errors when user presses Ctrl+C multiple times.
+        """
+        # Set up force quit handler while waiting for input
+        old_handler = signal.signal(signal.SIGINT, self._force_quit_handler)
+        try:
+            return input()
+        except RuntimeError:
+            # Readline reentry can still happen due to race conditions
+            interface.warning("\nForce quit!", do_save=False)
+            os._exit(1)
+        finally:
+            # Restore previous handler
+            signal.signal(signal.SIGINT, old_handler)
+
     def handle_pause(self) -> None:
         # Force quit on second Ctrl+C if already handling pause
         if self._handling_pause:
@@ -495,12 +518,12 @@ class Controller:
 
             interface.in_line(msg + ": ")
 
-            option = input()
+            option = self._safe_input()
 
             if option.lower() == "q":
                 interface.in_line("[s]ave / [q]uit without saving: ")
 
-                option = input()
+                option = self._safe_input()
 
                 if option.lower() == "s":
                     msg = f'Save to file [{options["session_file"] or DEFAULT_SESSION_FILE}]: '
@@ -508,7 +531,7 @@ class Controller:
                     interface.in_line(msg)
 
                     session_file = (
-                        input() or options["session_file"] or DEFAULT_SESSION_FILE
+                        self._safe_input() or options["session_file"] or DEFAULT_SESSION_FILE
                     )
 
                     self._export(session_file)
