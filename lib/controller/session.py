@@ -57,6 +57,31 @@ class SessionStore:
     def __init__(self, options: dict[str, Any]) -> None:
         self.options = options
 
+    def list_sessions(self, base_path: str) -> list[dict[str, Any]]:
+        sessions: list[dict[str, Any]] = []
+
+        if os.path.isfile(base_path):
+            summary = self._summarize_session_file(base_path)
+            if summary:
+                sessions.append(summary)
+            return sessions
+
+        if not os.path.isdir(base_path):
+            return sessions
+
+        with os.scandir(base_path) as entries:
+            for entry in entries:
+                summary = None
+                if entry.is_dir():
+                    summary = self._summarize_session_dir(entry.path)
+                elif entry.is_file():
+                    summary = self._summarize_session_file(entry.path)
+                if summary:
+                    sessions.append(summary)
+
+        sessions.sort(key=lambda item: item["path"])
+        return sessions
+
     def load(self, session_path: str) -> dict[str, Any]:
         if os.path.isfile(session_path):
             payload = self._read_json(session_path)
@@ -203,3 +228,55 @@ class SessionStore:
         for key in ("controller", "dictionary", "options"):
             if key not in payload:
                 raise UnpicklingError("Missing required session data")
+
+    def _summarize_session_dir(self, session_dir: str) -> dict[str, Any] | None:
+        meta_path = FileUtils.build_path(session_dir, self.FILES["meta"])
+        if not os.path.isfile(meta_path):
+            return None
+        try:
+            meta_payload = self._read_json(meta_path)
+            if meta_payload.get("version") != self.SESSION_VERSION:
+                return None
+            controller_payload = self._read_json(
+                FileUtils.build_path(session_dir, self.FILES["controller"])
+            )
+            options_payload = self._read_json(
+                FileUtils.build_path(session_dir, self.FILES["options"])
+            )
+        except UnpicklingError:
+            return None
+        return self._build_summary(
+            session_dir, meta_path, controller_payload, options_payload
+        )
+
+    def _summarize_session_file(self, session_file: str) -> dict[str, Any] | None:
+        try:
+            payload = self._read_json(session_file)
+        except UnpicklingError:
+            return None
+        if payload.get("version") != self.SESSION_VERSION:
+            return None
+        controller_payload = payload.get("controller")
+        options_payload = payload.get("options")
+        if controller_payload is None or options_payload is None:
+            return None
+        return self._build_summary(
+            session_file, session_file, controller_payload, options_payload
+        )
+
+    def _build_summary(
+        self,
+        session_path: str,
+        meta_path: str,
+        controller_state: dict[str, Any],
+        options_state: dict[str, Any],
+    ) -> dict[str, Any]:
+        return {
+            "path": session_path,
+            "url": controller_state.get("url", ""),
+            "targets_left": len(options_state.get("urls") or []),
+            "directories_left": len(controller_state.get("directories") or []),
+            "jobs_processed": controller_state.get("jobs_processed", 0),
+            "errors": controller_state.get("errors", 0),
+            "modified": os.path.getmtime(meta_path),
+        }

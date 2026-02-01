@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import sys
+import time
 from optparse import Values
 from typing import Any
 from lib.core.settings import (
@@ -38,6 +39,33 @@ from lib.parse.nmap import parse_nmap
 
 def parse_options() -> dict[str, Any]:
     opt = merge_config(parse_arguments())
+
+    if opt.list_sessions:
+        from lib.controller.session import SessionStore
+
+        base_dir = opt.sessions_dir or "."
+        session_store = SessionStore({})
+        sessions = session_store.list_sessions(base_dir)
+
+        if not sessions:
+            print(f"No resumable sessions found in {base_dir}")
+            sys.exit(0)
+
+        print(f"Resumable sessions in {base_dir}:")
+        for index, session in enumerate(sessions, 1):
+            modified = time.strftime(
+                "%Y-%m-%d %H:%M:%S", time.localtime(session["modified"])
+            )
+            url = session["url"] or "(unknown target)"
+            print(
+                f"{index}. {session['path']} | {url} | "
+                f"targets left: {session['targets_left']} | "
+                f"dirs left: {session['directories_left']} | "
+                f"jobs done: {session['jobs_processed']} | "
+                f"errors: {session['errors']} | "
+                f"modified: {modified}"
+            )
+        sys.exit(0)
 
     if opt.session_file:
         return vars(opt)

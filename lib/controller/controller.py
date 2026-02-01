@@ -21,6 +21,7 @@ from __future__ import annotations
 import asyncio
 import gc
 import os
+import shutil
 import signal
 import sys
 import psycopg
@@ -252,7 +253,10 @@ class Controller:
 
         if options["session_file"]:
             try:
-                os.remove(options["session_file"])
+                if os.path.isdir(options["session_file"]):
+                    shutil.rmtree(options["session_file"])
+                else:
+                    os.remove(options["session_file"])
             except Exception:
                 interface.error("Failed to delete old session file, remove it to free some space")
 
