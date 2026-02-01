@@ -162,6 +162,19 @@ def parse_arguments() -> Values:
         help="Number of threads",
     )
     general.add_option(
+        "--list-sessions",
+        action="store_true",
+        dest="list_sessions",
+        help="List resumable sessions and exit",
+    )
+    general.add_option(
+        "--sessions-dir",
+        action="store",
+        dest="sessions_dir",
+        metavar="PATH",
+        help="Directory to search for resumable sessions (default: current directory)",
+    )
+    general.add_option(
         "-a",
         "--async",
         action="store_true",

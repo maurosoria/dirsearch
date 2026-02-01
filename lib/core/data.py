@@ -29,6 +29,8 @@ options: dict[str, Any] = {
     "cidr": None,
     "raw_file": None,
     "session_file": None,
+    "list_sessions": False,
+    "sessions_dir": None,
     "config": None,
     "wordlists": [],
     "extensions": (),
