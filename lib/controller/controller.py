@@ -84,6 +84,12 @@ class Controller:
 
     def _import(self, session_file: str) -> None:
         try:
+            if os.path.isfile(session_file) and session_file.endswith((".pickle", ".pkl")):
+                interface.warning(
+                    "Pickle session files are no longer supported. "
+                    "Please start a new scan to create a JSON session."
+                )
+                sys.exit(1)
             session_store = SessionStore(options)
             payload = session_store.load(session_file)
             options.update(session_store.restore_options(payload["options"]))
