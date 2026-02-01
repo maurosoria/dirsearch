@@ -141,6 +141,7 @@ Options:
                         results)
     -s SESSION_FILE, --session=SESSION_FILE
                         Session file
+                        Note: legacy .pickle/.pkl sessions are no longer supported.
     --config=PATH       Path to configuration file (Default:
                         'DIRSEARCH_CONFIG' environment variable, otherwise
                         'config.ini')
