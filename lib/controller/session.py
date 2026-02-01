@@ -215,7 +215,12 @@ class SessionStore:
         try:
             with open(path, "r", encoding="utf-8") as file_handle:
                 return json.load(file_handle)
-        except (OSError, json.JSONDecodeError, TypeError) as error:
+        except (
+            OSError,
+            json.JSONDecodeError,
+            TypeError,
+            UnicodeDecodeError,
+        ) as error:
             raise UnpicklingError(str(error)) from error
 
     def _write_json(self, path: str, payload: dict[str, Any]) -> None:
