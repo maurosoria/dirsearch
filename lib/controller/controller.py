@@ -89,6 +89,7 @@ class Controller:
         self._handling_pause = False  # Reentrancy guard for signal handler
         self._sigint_count = 0
         self._last_sigint_time = 0.0
+        self.loop = None  # Will be set if async mode is used
 
         if options["session_file"]:
             self._import(options["session_file"])
@@ -540,6 +541,17 @@ class Controller:
     def append_error_log(self, exception: RequestException) -> None:
         logger.exception(exception)
 
+    def _force_exit(self) -> None:
+        """Force process termination, stopping asyncio loop if running."""
+        interface.warning("\nForce quit!", do_save=False)
+        # Stop asyncio loop first if running (prevents hang in async mode)
+        if self.loop and self.loop.is_running():
+            try:
+                self.loop.stop()
+            except Exception:
+                pass
+        os._exit(1)
+
     def handle_pause(self) -> None:
         # Force quit on second Ctrl+C if already handling pause
         if self._handling_pause:
@@ -551,13 +563,10 @@ class Controller:
                     self._sigint_count = 1
                 self._last_sigint_time = now
                 if self._sigint_count >= 3:
-                    interface.warning("\nForce quit!", do_save=False)
-                    os.kill(os.getpid(), signal.SIGKILL)
-                    os._exit(1)
+                    self._force_exit()
                 return
 
-            interface.warning("\nForce quit!", do_save=False)
-            os._exit(1)
+            self._force_exit()
 
         self._handling_pause = True
         if _is_pyinstaller_linux():
