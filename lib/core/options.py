@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 import time
 from optparse import Values
@@ -25,6 +26,7 @@ from typing import Any
 from lib.core.settings import (
     AUTHENTICATION_TYPES,
     COMMON_EXTENSIONS,
+    DEFAULT_SESSION_DIR,
     DEFAULT_TOR_PROXIES,
     FILE_BASED_OUTPUT_FORMATS,
     SCRIPT_PATH,
@@ -40,12 +42,23 @@ from lib.parse.nmap import parse_nmap
 def parse_options() -> dict[str, Any]:
     opt = merge_config(parse_arguments())
 
+    def _session_debug(message: str) -> None:
+        if not os.environ.get("DIRSEARCH_SESSIONS_DEBUG"):
+            return
+        try:
+            sys.stderr.write(f"[sessions] {message}\n")
+            sys.stderr.flush()
+        except Exception:
+            return
+
     if opt.list_sessions:
         from lib.controller.session import SessionStore
 
-        base_dir = opt.sessions_dir or "."
+        base_dir = opt.sessions_dir or DEFAULT_SESSION_DIR
+        _session_debug(f"--list-sessions enabled base_dir={base_dir!r}")
         session_store = SessionStore({})
         sessions = session_store.list_sessions(base_dir)
+        _session_debug(f"--list-sessions completed total={len(sessions)}")
 
         if not sessions:
             print(f"No resumable sessions found in {base_dir}")
@@ -74,9 +87,11 @@ def parse_options() -> dict[str, Any]:
     if opt.session_id:
         from lib.controller.session import SessionStore
 
-        base_dir = opt.sessions_dir or "."
+        base_dir = opt.sessions_dir or DEFAULT_SESSION_DIR
+        _session_debug(f"--session-id enabled base_dir={base_dir!r}")
         session_store = SessionStore({})
         sessions = session_store.list_sessions(base_dir)
+        _session_debug(f"--session-id sessions found total={len(sessions)}")
         if not sessions:
             print(f"No resumable sessions found in {base_dir}")
             sys.exit(1)
@@ -85,12 +100,14 @@ def parse_options() -> dict[str, Any]:
         except ValueError:
             print(f"Invalid session id: {opt.session_id}")
             sys.exit(1)
+        _session_debug(f"--session-id parsed index={session_index}")
         if session_index < 1 or session_index > len(sessions):
             print(
                 f"Session id out of range: {session_index} (1-{len(sessions)})"
             )
             sys.exit(1)
         opt.session_file = sessions[session_index - 1]["path"]
+        _session_debug(f"--session-id resolved path={opt.session_file!r}")
 
     if opt.session_file:
         return vars(opt)

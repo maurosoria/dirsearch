@@ -79,7 +79,19 @@ DEFAULT_HEADERS = {
     "cache-control": "max-age=0",
 }
 
-DEFAULT_SESSION_FILE = "sessions/{date}/session_{datetime}"
+def _get_default_session_dir() -> str:
+    if getattr(sys, "frozen", False) or hasattr(sys, "_MEIPASS"):
+        home_dir = os.path.expanduser("~")
+        return FileUtils.build_path(home_dir, ".dirsearch", "sessions")
+    return FileUtils.build_path(SCRIPT_PATH, "sessions")
+
+
+DEFAULT_SESSION_DIR = _get_default_session_dir()
+DEFAULT_SESSION_FILE = FileUtils.build_path(
+    DEFAULT_SESSION_DIR,
+    "{date}",
+    "session_{datetime}",
+)
 
 REFLECTED_PATH_MARKER = "__REFLECTED_PATH__"
 

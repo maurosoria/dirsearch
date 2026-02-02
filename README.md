@@ -180,7 +180,8 @@ Options:
                         Number of threads
     --list-sessions     List resumable sessions and exit
     --sessions-dir=PATH Directory to search for resumable sessions (default:
-                        current directory)
+                        dirsearch path /sessions, or $HOME/.dirsearch/sessions
+                        when bundled)
     --async             Enable asynchronous mode
     -r, --recursive     Brute-force recursively
     --deep-recursive    Perform recursive scan on every directory depth (e.g.
