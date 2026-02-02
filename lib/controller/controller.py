@@ -53,11 +53,13 @@ from lib.core.settings import (
     BANNER,
     DEFAULT_HEADERS,
     DEFAULT_SESSION_FILE,
-    START_TIME,
     EXTENSION_RECOGNITION_REGEX,
     MAX_CONSECUTIVE_REQUEST_ERRORS,
     NEW_LINE,
+    SIGINT_FORCE_QUIT_THRESHOLD,
+    SIGINT_WINDOW_SECONDS,
     STANDARD_PORTS,
+    START_TIME,
     UNKNOWN,
 )
 from lib.parse.rawrequest import parse_raw
@@ -71,8 +73,83 @@ from lib.view.terminal import interface
 from lib.controller.session import SessionStore
 
 
-def _is_pyinstaller_linux() -> bool:
-    return getattr(sys, "frozen", False) and sys.platform.startswith("linux")
+class ForceQuitHandler:
+    """Strategy for handling force quit on repeated Ctrl+C.
+
+    Different platforms have different signal handling behaviors. This base
+    class defines the interface, with subclasses implementing platform-specific
+    logic.
+    """
+
+    def check_force_quit(self) -> bool:
+        """Check if force quit should be triggered.
+
+        Returns True if force quit was triggered (program will exit).
+        """
+        raise NotImplementedError
+
+    def on_pause_start(self) -> None:
+        """Called when pause mode is entered."""
+        pass
+
+    def on_resume(self) -> None:
+        """Called when resuming from pause."""
+        pass
+
+
+class StandardForceQuitHandler(ForceQuitHandler):
+    """Force quit handler for standard platforms.
+
+    Immediately exits on any Ctrl+C during pause mode.
+    """
+
+    def check_force_quit(self) -> bool:
+        interface.warning("\nForce quit!", do_save=False)
+        os._exit(1)
+        return True  # Unreachable, but satisfies type checker
+
+
+class PyInstallerLinuxForceQuitHandler(ForceQuitHandler):
+    """Force quit handler for PyInstaller Linux builds.
+
+    PyInstaller on Linux has signal handling quirks that require multiple
+    rapid Ctrl+C presses to force quit. Uses SIGKILL for reliable termination.
+    """
+
+    def __init__(self) -> None:
+        self._sigint_count = 0
+        self._last_sigint_time = 0.0
+
+    def check_force_quit(self) -> bool:
+        now = time.monotonic()
+        if now - self._last_sigint_time <= SIGINT_WINDOW_SECONDS:
+            self._sigint_count += 1
+        else:
+            self._sigint_count = 1
+        self._last_sigint_time = now
+
+        if self._sigint_count >= SIGINT_FORCE_QUIT_THRESHOLD:
+            interface.warning("\nForce quit!", do_save=False)
+            os.kill(os.getpid(), signal.SIGKILL)
+            os._exit(1)
+        return False
+
+    def on_pause_start(self) -> None:
+        self._sigint_count = 1
+        self._last_sigint_time = time.monotonic()
+
+    def on_resume(self) -> None:
+        self._sigint_count = 0
+
+
+def _create_force_quit_handler() -> ForceQuitHandler:
+    """Factory function to create the appropriate force quit handler."""
+    is_pyinstaller_linux = (
+        getattr(sys, "frozen", False) and sys.platform.startswith("linux")
+    )
+    if is_pyinstaller_linux:
+        return PyInstallerLinuxForceQuitHandler()
+    return StandardForceQuitHandler()
 
 
 def format_session_path(path: str) -> str:
@@ -86,9 +163,8 @@ def format_session_path(path: str) -> str:
 
 class Controller:
     def __init__(self) -> None:
-        self._handling_pause = False  # Reentrancy guard for signal handler
-        self._sigint_count = 0
-        self._last_sigint_time = 0.0
+        self._handling_pause = False
+        self._force_quit_handler = _create_force_quit_handler()
         self.loop = None  # Will be set if async mode is used
 
         if options["session_file"]:
@@ -553,25 +629,13 @@ class Controller:
         os._exit(1)
 
     def handle_pause(self) -> None:
-        # Force quit on second Ctrl+C if already handling pause
+        """Handle SIGINT (Ctrl+C) by pausing execution and showing options."""
         if self._handling_pause:
-            if _is_pyinstaller_linux():
-                now = time.monotonic()
-                if now - self._last_sigint_time <= 0.8:
-                    self._sigint_count += 1
-                else:
-                    self._sigint_count = 1
-                self._last_sigint_time = now
-                if self._sigint_count >= 3:
-                    self._force_exit()
-                return
-
-            self._force_exit()
+            self._force_quit_handler.check_force_quit()
+            return
 
         self._handling_pause = True
-        if _is_pyinstaller_linux():
-            self._sigint_count = 1
-            self._last_sigint_time = time.monotonic()
+        self._force_quit_handler.on_pause_start()
 
         try:
             try:
@@ -633,8 +697,7 @@ class Controller:
 
                 elif option.lower() == "c":
                     self._handling_pause = False
-                    if _is_pyinstaller_linux():
-                        self._sigint_count = 0
+                    self._force_quit_handler.on_resume()
                     self.fuzzer.play()
                     break
 
