@@ -21,6 +21,7 @@ from __future__ import annotations
 import asyncio
 import gc
 import os
+import sys
 import shutil
 import signal
 import sys
@@ -71,11 +72,12 @@ from lib.controller.session import SessionStore
 
 
 def format_session_path(path: str) -> str:
-    return (
-        path.replace("{date}", START_TIME.split()[0]).replace(
-            "{datetime}", START_TIME.replace(" ", "_")
-        )
-    )
+    date_token = START_TIME.split()[0]
+    datetime_token = START_TIME.replace(" ", "_")
+    if os.name == "nt" or sys.platform.startswith("win"):
+        # Windows disallows ":" in file/folder names.
+        datetime_token = datetime_token.replace(":", "-")
+    return path.replace("{date}", date_token).replace("{datetime}", datetime_token)
 
 
 class Controller:
