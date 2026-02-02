@@ -535,10 +535,13 @@ class Controller:
         logger.exception(exception)
 
     def handle_pause(self) -> None:
-        # Force quit on second Ctrl+C if already handling pause
+        # Ignore extra Ctrl+C while the pause menu is active
         if self._handling_pause:
-            interface.warning("\nForce quit!", do_save=False)
-            os._exit(1)
+            interface.warning(
+                "\nCTRL+C ignored while pause menu is active. Use the menu to quit.",
+                do_save=False,
+            )
+            return
 
         self._handling_pause = True
 
@@ -556,65 +559,68 @@ class Controller:
             # If pause fails for any reason, still show the menu
             pass
 
-        while True:
-            msg = "[q]uit / [c]ontinue"
+        try:
+            while True:
+                msg = "[q]uit / [c]ontinue"
 
-            if len(self.directories) > 1:
-                msg += " / [n]ext"
+                if len(self.directories) > 1:
+                    msg += " / [n]ext"
 
-            if len(options["urls"]) > 1:
-                msg += " / [s]kip target"
+                if len(options["urls"]) > 1:
+                    msg += " / [s]kip target"
 
-            interface.in_line(msg + ": ")
-
-            option = input()
-
-            if option.lower() == "q":
-                interface.in_line("[s]ave / [q]uit without saving: ")
+                interface.in_line(msg + ": ")
 
                 option = input()
 
-                if option.lower() == "s":
-                    default_session_path = format_session_path(
-                        options["session_file"] or DEFAULT_SESSION_FILE
-                    )
-                    msg = f"Save to file [{default_session_path}]: "
+                if option.lower() == "q":
+                    interface.in_line("[s]ave / [q]uit without saving: ")
 
-                    interface.in_line(msg)
+                    option = input()
 
-                    session_file = format_session_path(input() or default_session_path)
+                    if option.lower() == "s":
+                        default_session_path = format_session_path(
+                            options["session_file"] or DEFAULT_SESSION_FILE
+                        )
+                        msg = f"Save to file [{default_session_path}]: "
 
-                    self._export(session_file)
-                    quitexc = QuitInterrupt(f"Session saved to: {session_file}")
-                    if options["async_mode"]:
-                        self.pause_future.set_exception(quitexc)
-                        break
-                    else:
-                        raise quitexc
-                elif option.lower() == "q":
-                    quitexc = QuitInterrupt("Canceled by the user")
-                    if options["async_mode"]:
-                        self.pause_future.set_exception(quitexc)
-                        break
-                    else:
-                        raise quitexc
+                        interface.in_line(msg)
 
-            elif option.lower() == "c":
-                self._handling_pause = False
-                self.fuzzer.play()
-                break
+                        session_file = format_session_path(input() or default_session_path)
 
-            elif option.lower() == "n" and len(self.directories) > 1:
-                self.fuzzer.quit()
-                break
+                        self._export(session_file)
+                        quitexc = QuitInterrupt(f"Session saved to: {session_file}")
+                        if options["async_mode"]:
+                            self.pause_future.set_exception(quitexc)
+                            break
+                        else:
+                            raise quitexc
+                    elif option.lower() == "q":
+                        quitexc = QuitInterrupt("Canceled by the user")
+                        if options["async_mode"]:
+                            self.pause_future.set_exception(quitexc)
+                            break
+                        else:
+                            raise quitexc
 
-            elif option.lower() == "s" and len(options["urls"]) > 1:
-                skipexc = SkipTargetInterrupt("Target skipped by the user")
-                if options["async_mode"]:
-                    self.pause_future.set_exception(skipexc)
+                elif option.lower() == "c":
+                    self._handling_pause = False
+                    self.fuzzer.play()
                     break
-                else:
-                    raise skipexc
+
+                elif option.lower() == "n" and len(self.directories) > 1:
+                    self.fuzzer.quit()
+                    break
+
+                elif option.lower() == "s" and len(options["urls"]) > 1:
+                    skipexc = SkipTargetInterrupt("Target skipped by the user")
+                    if options["async_mode"]:
+                        self.pause_future.set_exception(skipexc)
+                        break
+                    else:
+                        raise skipexc
+        finally:
+            self._handling_pause = False
 
     def add_directory(self, path: str) -> None:
         """Add directory to the recursion queue"""
