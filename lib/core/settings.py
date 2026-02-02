@@ -79,7 +79,7 @@ DEFAULT_HEADERS = {
     "cache-control": "max-age=0",
 }
 
-DEFAULT_SESSION_FILE = "session.pickle"
+DEFAULT_SESSION_FILE = "sessions/{date}/session_{datetime}"
 
 REFLECTED_PATH_MARKER = "__REFLECTED_PATH__"
 

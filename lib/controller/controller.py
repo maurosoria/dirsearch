@@ -54,6 +54,7 @@ from lib.core.settings import (
     BANNER,
     DEFAULT_HEADERS,
     DEFAULT_SESSION_FILE,
+    START_TIME,
     EXTENSION_RECOGNITION_REGEX,
     MAX_CONSECUTIVE_REQUEST_ERRORS,
     NEW_LINE,
@@ -68,6 +69,14 @@ from lib.utils.crawl import Crawler
 from lib.utils.file import FileUtils
 from lib.utils.schemedet import detect_scheme
 from lib.view.terminal import interface
+
+
+def format_session_path(path: str) -> str:
+    return (
+        path.replace("{date}", START_TIME.split()[0]).replace(
+            "{datetime}", START_TIME.replace(" ", "_")
+        )
+    )
 
 
 class Controller:
@@ -100,6 +109,10 @@ class Controller:
     def _export(self, session_file: str) -> None:
         # Save written output
         last_output = interface.buffer.rstrip()
+        session_file = format_session_path(session_file)
+        parent_dir = FileUtils.parent(session_file)
+        if parent_dir:
+            FileUtils.create_dir(parent_dir)
 
         dict_ = vars(self).copy()
         # Can't pickle some classes due to _thread.lock objects
@@ -503,13 +516,14 @@ class Controller:
                 option = input()
 
                 if option.lower() == "s":
-                    msg = f'Save to file [{options["session_file"] or DEFAULT_SESSION_FILE}]: '
+                    default_session_path = format_session_path(
+                        options["session_file"] or DEFAULT_SESSION_FILE
+                    )
+                    msg = f"Save to file [{default_session_path}]: "
 
                     interface.in_line(msg)
 
-                    session_file = (
-                        input() or options["session_file"] or DEFAULT_SESSION_FILE
-                    )
+                    session_file = format_session_path(input() or default_session_path)
 
                     self._export(session_file)
                     quitexc = QuitInterrupt(f"Session saved to: {session_file}")
