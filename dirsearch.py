@@ -32,7 +32,7 @@ def main():
     options.update(parse_options())
 
     if options["session_file"]:
-        print("WARNING: Running an untrusted session file might lead to unwanted code execution!")
+        print("Loading a session file will override current options.")
         if input("[c]ontinue / [q]uit: ") != "c":
             exit(1)
 

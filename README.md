@@ -141,6 +141,7 @@ Options:
                         results)
     -s SESSION_FILE, --session=SESSION_FILE
                         Session file
+                        Note: legacy .pickle/.pkl sessions are no longer supported.
     --config=PATH       Path to configuration file (Default:
                         'DIRSEARCH_CONFIG' environment variable, otherwise
                         'config.ini')
@@ -177,6 +178,9 @@ Options:
   General Settings:
     -t THREADS, --threads=THREADS
                         Number of threads
+    --list-sessions     List resumable sessions and exit
+    --sessions-dir=PATH Directory to search for resumable sessions (default:
+                        current directory)
     --async             Enable asynchronous mode
     -r, --recursive     Brute-force recursively
     --deep-recursive    Perform recursive scan on every directory depth (e.g.

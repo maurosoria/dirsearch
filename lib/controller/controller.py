@@ -21,16 +21,13 @@ from __future__ import annotations
 import asyncio
 import gc
 import os
+import shutil
 import signal
 import sys
 import psycopg
 import re
 import time
 import mysql.connector
-try:
-    import cPickle as pickle
-except ModuleNotFoundError:
-    import pickle
 
 from urllib.parse import urlparse
 
@@ -69,6 +66,7 @@ from lib.utils.crawl import Crawler
 from lib.utils.file import FileUtils
 from lib.utils.schemedet import detect_scheme
 from lib.view.terminal import interface
+from lib.controller.session import SessionStore
 
 
 def format_session_path(path: str) -> str:
@@ -85,7 +83,8 @@ class Controller:
 
         if options["session_file"]:
             self._import(options["session_file"])
-            self.old_session = True
+            if not hasattr(self, "old_session"):
+                self.old_session = True
         else:
             self.setup()
             self.old_session = False
@@ -94,16 +93,33 @@ class Controller:
 
     def _import(self, session_file: str) -> None:
         try:
-            with open(session_file, "rb") as fd:
-                dict_, last_output, opt = pickle.load(fd)
-                options.update(opt)
-        except UnpicklingError:
+            if os.path.isfile(session_file) and session_file.endswith((".pickle", ".pkl")):
+                interface.warning(
+                    "Pickle session files are no longer supported. "
+                    "Please start a new scan to create a JSON session."
+                )
+                sys.exit(1)
+            session_store = SessionStore(options)
+            payload = session_store.load(session_file)
+            options.update(session_store.restore_options(payload["options"]))
+            if options["log_file"]:
+                try:
+                    FileUtils.create_dir(FileUtils.parent(options["log_file"]))
+                    if not FileUtils.can_write(options["log_file"]):
+                        raise Exception
+                    enable_logging()
+                except Exception:
+                    interface.error(
+                        f'Couldn\'t create log file at {options["log_file"]}'
+                    )
+                    sys.exit(1)
+            last_output = payload.get("last_output", "")
+            session_store.apply_to_controller(self, payload)
+        except (OSError, KeyError, TypeError, UnpicklingError):
             interface.error(
                 f"{session_file} is not a valid session file or it's in an old format"
             )
             sys.exit(1)
-
-        self.__dict__ = {**dict_, **vars(self)}
         print(last_output)
 
     def _export(self, session_file: str) -> None:
@@ -114,15 +130,9 @@ class Controller:
         if parent_dir:
             FileUtils.create_dir(parent_dir)
 
-        dict_ = vars(self).copy()
-        # Can't pickle some classes due to _thread.lock objects
-        dict_.pop("fuzzer", None)
-        dict_.pop("pause_future", None)
-        dict_.pop("loop", None)
-        dict_.pop("requester", None)
+        session_store = SessionStore(options)
+        session_store.save(self, session_file, last_output)
 
-        with open(session_file, "wb") as fd:
-            pickle.dump((dict_, last_output, options), fd)
 
     def setup(self) -> None:
         blacklists.update(get_blacklists())
@@ -264,7 +274,10 @@ class Controller:
 
         if options["session_file"]:
             try:
-                os.remove(options["session_file"])
+                if os.path.isdir(options["session_file"]):
+                    shutil.rmtree(options["session_file"])
+                else:
+                    os.remove(options["session_file"])
             except Exception:
                 interface.error("Failed to delete old session file, remove it to free some space")
 
