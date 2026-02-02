@@ -27,6 +27,7 @@ import psycopg
 
 from lib.core.exceptions import InvalidURLException, UnpicklingError
 from lib.core.logger import logger
+from lib.core.settings import START_TIME
 from lib.report.manager import ReportManager
 from lib.utils.file import FileUtils
 from lib.view.terminal import interface
@@ -56,6 +57,13 @@ class SessionStore:
 
     def __init__(self, options: dict[str, Any]) -> None:
         self.options = options
+
+    @staticmethod
+    def format_session_path(path: str) -> str:
+        return path.format(
+            date=START_TIME.split()[0],
+            datetime=START_TIME.replace(" ", "_"),
+        )
 
     def list_sessions(self, base_path: str) -> list[dict[str, Any]]:
         sessions: list[dict[str, Any]] = []

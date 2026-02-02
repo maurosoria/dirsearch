@@ -514,13 +514,14 @@ class Controller:
                 option = input()
 
                 if option.lower() == "s":
-                    msg = f'Save to file [{options["session_file"] or DEFAULT_SESSION_FILE}]: '
+                    default_session_path = options["session_file"] or SessionStore.format_session_path(
+                        DEFAULT_SESSION_FILE
+                    )
+                    msg = f"Save to file [{default_session_path}]: "
 
                     interface.in_line(msg)
 
-                    session_file = (
-                        input() or options["session_file"] or DEFAULT_SESSION_FILE
-                    )
+                    session_file = input() or default_session_path
 
                     self._export(session_file)
                     quitexc = QuitInterrupt(f"Session saved to: {session_file}")

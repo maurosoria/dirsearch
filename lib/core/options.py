@@ -43,7 +43,9 @@ def parse_options() -> dict[str, Any]:
     if opt.list_sessions:
         from lib.controller.session import SessionStore
 
-        base_dir = opt.sessions_dir or "."
+        from lib.core.settings import DEFAULT_SESSION_DIR
+
+        base_dir = opt.sessions_dir or DEFAULT_SESSION_DIR
         session_store = SessionStore({})
         sessions = session_store.list_sessions(base_dir)
 

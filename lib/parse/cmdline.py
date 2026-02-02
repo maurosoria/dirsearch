@@ -172,7 +172,7 @@ def parse_arguments() -> Values:
         action="store",
         dest="sessions_dir",
         metavar="PATH",
-        help="Directory to search for resumable sessions (default: current directory)",
+        help="Directory to search for resumable sessions (default: sessions)",
     )
     general.add_option(
         "-a",
