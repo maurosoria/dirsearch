@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from typing import Any
 
 import mysql.connector
@@ -57,34 +58,60 @@ class SessionStore:
     def __init__(self, options: dict[str, Any]) -> None:
         self.options = options
 
+    def _debug_sessions(self, message: str) -> None:
+        if not os.environ.get("DIRSEARCH_SESSIONS_DEBUG"):
+            return
+        try:
+            sys.stderr.write(f"[sessions] {message}\n")
+            sys.stderr.flush()
+        except Exception:
+            return
+
     def list_sessions(self, base_path: str) -> list[dict[str, Any]]:
         sessions: list[dict[str, Any]] = []
+        self._debug_sessions(f"list_sessions start base_path={base_path!r}")
 
         if os.path.isfile(base_path):
+            self._debug_sessions("base_path is a file; summarizing")
             summary = self._summarize_session_file(base_path)
             if summary:
                 sessions.append(summary)
+                self._debug_sessions("session summary added from file")
+            else:
+                self._debug_sessions("no session summary extracted from file")
             return sessions
 
         if not os.path.isdir(base_path):
+            self._debug_sessions("base_path is not a directory; returning empty")
             return sessions
 
         for root, dirs, files in os.walk(base_path):
             if root == base_path:
+                self._debug_sessions(
+                    f"walking base directory entries dirs={len(dirs)} files={len(files)}"
+                )
                 for file_name in files:
                     summary = self._summarize_session_file(
                         FileUtils.build_path(root, file_name)
                     )
                     if summary:
                         sessions.append(summary)
+                        self._debug_sessions(
+                            f"session summary added from file {file_name!r}"
+                        )
 
             if self.FILES["meta"] in files:
+                self._debug_sessions(f"session directory found at {root!r}")
                 summary = self._summarize_session_dir(root)
                 if summary:
                     sessions.append(summary)
+                    self._debug_sessions("session summary added from directory")
+                else:
+                    self._debug_sessions("no session summary extracted from directory")
                 dirs.clear()
 
         sessions.sort(key=lambda item: item["path"])
+        self._debug_sessions(f"list_sessions done total={len(sessions)}")
         return sessions
 
     def load(self, session_path: str) -> dict[str, Any]:

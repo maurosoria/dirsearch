@@ -79,7 +79,12 @@ DEFAULT_HEADERS = {
     "cache-control": "max-age=0",
 }
 
-DEFAULT_SESSION_FILE = "sessions/{date}/session_{datetime}"
+DEFAULT_SESSION_DIR = FileUtils.build_path(SCRIPT_PATH, "sessions")
+DEFAULT_SESSION_FILE = FileUtils.build_path(
+    DEFAULT_SESSION_DIR,
+    "{date}",
+    "session_{datetime}",
+)
 
 REFLECTED_PATH_MARKER = "__REFLECTED_PATH__"
 
