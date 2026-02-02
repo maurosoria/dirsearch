@@ -1,0 +1,100 @@
+# GitHub Action for drafting a release from PyInstaller builds
+
+name: PyInstaller Draft Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag for the draft release (e.g., v0.4.3)'
+        required: true
+      target_commitish:
+        description: 'Branch or commit for the tag (default: main)'
+        required: false
+        default: 'main'
+      prerelease:
+        description: 'Mark as prerelease'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.11'
+  PYINSTALLER_VERSION: '6.3.0'
+
+jobs:
+  build-linux:
+    uses: ./.github/workflows/pyinstaller-linux.yml
+
+  build-windows:
+    uses: ./.github/workflows/pyinstaller-windows.yml
+
+  build-macos-intel:
+    uses: ./.github/workflows/pyinstaller-macos-intel.yml
+
+  build-macos-silicon:
+    uses: ./.github/workflows/pyinstaller-macos-silicon.yml
+
+  prepare-artifacts:
+    name: Prepare Artifacts
+    needs: [build-linux, build-windows, build-macos-intel, build-macos-silicon]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release
+          cp artifacts/dirsearch-linux-amd64/dirsearch-linux-amd64 release/
+          cp artifacts/dirsearch-windows-x64/dirsearch-windows-x64.exe release/
+          cp artifacts/dirsearch-macos-intel/dirsearch-macos-intel release/
+          cp artifacts/dirsearch-macos-silicon/dirsearch-macos-silicon release/
+
+          # Create checksums
+          cd release
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Upload combined artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dirsearch-all-platforms
+          path: release/
+          retention-days: 30
+
+  release:
+    name: Draft Release
+    needs: [prepare-artifacts]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Download combined artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dirsearch-all-platforms
+          path: release
+
+      - name: Create GitHub Draft Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/dirsearch-linux-amd64
+            release/dirsearch-windows-x64.exe
+            release/dirsearch-macos-intel
+            release/dirsearch-macos-silicon
+            release/SHA256SUMS.txt
+          generate_release_notes: true
+          draft: true
+          prerelease: ${{ inputs.prerelease }}
+          tag_name: ${{ inputs.tag }}
+          target_commitish: ${{ inputs.target_commitish }}
