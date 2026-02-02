@@ -74,6 +74,8 @@ build() {
         --hidden-import=lib.core.settings \
         --hidden-import=lib.core.options \
         --hidden-import=lib.controller \
+        --hidden-import=lib.controller.controller \
+        --hidden-import=lib.controller.session \
         --hidden-import=lib.connection \
         --hidden-import=lib.parse \
         --hidden-import=lib.report \
