@@ -6,10 +6,6 @@ on:
   workflow_dispatch:
   workflow_call:
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'workflow_call' && github.run_id || github.ref }}
-  cancel-in-progress: true
-
 env:
   PYTHON_VERSION: '3.11'
   PYINSTALLER_VERSION: '6.3.0'
