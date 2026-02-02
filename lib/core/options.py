@@ -67,6 +67,31 @@ def parse_options() -> dict[str, Any]:
             )
         sys.exit(0)
 
+    if opt.session_id and opt.session_file:
+        print("Use either --session or --session-id, not both.")
+        sys.exit(1)
+
+    if opt.session_id:
+        from lib.controller.session import SessionStore
+
+        base_dir = opt.sessions_dir or "."
+        session_store = SessionStore({})
+        sessions = session_store.list_sessions(base_dir)
+        if not sessions:
+            print(f"No resumable sessions found in {base_dir}")
+            sys.exit(1)
+        try:
+            session_index = int(str(opt.session_id), 10)
+        except ValueError:
+            print(f"Invalid session id: {opt.session_id}")
+            sys.exit(1)
+        if session_index < 1 or session_index > len(sessions):
+            print(
+                f"Session id out of range: {session_index} (1-{len(sessions)})"
+            )
+            sys.exit(1)
+        opt.session_file = sessions[session_index - 1]["path"]
+
     if opt.session_file:
         return vars(opt)
 

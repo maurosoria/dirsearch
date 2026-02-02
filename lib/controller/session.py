@@ -69,15 +69,20 @@ class SessionStore:
         if not os.path.isdir(base_path):
             return sessions
 
-        with os.scandir(base_path) as entries:
-            for entry in entries:
-                summary = None
-                if entry.is_dir():
-                    summary = self._summarize_session_dir(entry.path)
-                elif entry.is_file():
-                    summary = self._summarize_session_file(entry.path)
+        for root, dirs, files in os.walk(base_path):
+            if root == base_path:
+                for file_name in files:
+                    summary = self._summarize_session_file(
+                        FileUtils.build_path(root, file_name)
+                    )
+                    if summary:
+                        sessions.append(summary)
+
+            if self.FILES["meta"] in files:
+                summary = self._summarize_session_dir(root)
                 if summary:
                     sessions.append(summary)
+                dirs.clear()
 
         sessions.sort(key=lambda item: item["path"])
         return sessions
@@ -95,6 +100,7 @@ class SessionStore:
         payload = {
             "version": meta_payload["version"],
             "last_output": meta_payload.get("last_output", ""),
+            "output_history": meta_payload.get("output_history", []),
             "controller": self._read_json(
                 FileUtils.build_path(session_dir, self.FILES["controller"])
             ),
@@ -109,6 +115,17 @@ class SessionStore:
         return payload
 
     def save(self, controller: Any, session_path: str, last_output: str) -> None:
+        session_dir = self._get_session_dir(session_path)
+        output_history = self._get_controller_history(controller)
+        if output_history is None:
+            output_history = self._load_output_history(session_dir)
+        else:
+            output_history = list(output_history)
+        if last_output:
+            output_history.append(
+                {"start_time": controller.start_time, "output": last_output}
+            )
+        controller.output_history = output_history
         payload = {
             "version": self.SESSION_VERSION,
             "controller": self._serialize_controller_state(controller),
@@ -116,11 +133,17 @@ class SessionStore:
             "options": self._serialize_options(),
             "last_output": last_output,
         }
-        session_dir = self._get_session_dir(session_path)
         FileUtils.create_dir(session_dir)
 
         meta_path = FileUtils.build_path(session_dir, self.FILES["meta"])
-        self._write_json(meta_path, {"version": payload["version"], "last_output": last_output})
+        self._write_json(
+            meta_path,
+            {
+                "version": payload["version"],
+                "last_output": last_output,
+                "output_history": output_history,
+            },
+        )
         self._write_json(
             FileUtils.build_path(session_dir, self.FILES["controller"]),
             payload["controller"],
@@ -238,6 +261,53 @@ class SessionStore:
         for key in ("controller", "dictionary", "options"):
             if key not in payload:
                 raise UnpicklingError("Missing required session data")
+
+    def _get_controller_history(self, controller: Any) -> list[dict[str, Any]] | None:
+        if not hasattr(controller, "output_history"):
+            return None
+        history = controller.output_history
+        if isinstance(history, list):
+            return history
+        return None
+
+    def _load_output_history(self, session_dir: str) -> list[dict[str, Any]]:
+        meta_path = FileUtils.build_path(session_dir, self.FILES["meta"])
+        if not os.path.isfile(meta_path):
+            return []
+        try:
+            meta_payload = self._read_json(meta_path)
+        except UnpicklingError:
+            return []
+        if meta_payload.get("version") != self.SESSION_VERSION:
+            return []
+        history_payload = meta_payload.get("output_history")
+        if isinstance(history_payload, list):
+            history: list[dict[str, Any]] = []
+            for entry in history_payload:
+                if not isinstance(entry, dict):
+                    continue
+                output = entry.get("output")
+                if output is None:
+                    continue
+                history.append(
+                    {"start_time": entry.get("start_time"), "output": output}
+                )
+            return history
+
+        last_output = meta_payload.get("last_output")
+        if not last_output:
+            return []
+
+        start_time = None
+        controller_path = FileUtils.build_path(session_dir, self.FILES["controller"])
+        if os.path.isfile(controller_path):
+            try:
+                controller_payload = self._read_json(controller_path)
+                start_time = controller_payload.get("start_time")
+            except UnpicklingError:
+                start_time = None
+
+        return [{"start_time": start_time, "output": last_output}]
 
     def _summarize_session_dir(self, session_dir: str) -> dict[str, Any] | None:
         meta_path = FileUtils.build_path(session_dir, self.FILES["meta"])
