@@ -22,34 +22,36 @@ dirsearch - Web path discovery
 
 Table of Contents
 ------------
-* [Installation](#installation--usage)
-* [Wordlists](#wordlists-important)
-* [Options](#options)
-* [Configuration](#configuration)
-* [How to use](#how-to-use)
-  * [Simple usage](#simple-usage)
-  * [Pausing progress](#pausing-progress)
-  * [Recursion](#recursion)
-  * [Threads](#threads)
-  * [Asynchronous](#asynchronous)
-  * [Prefixes / Suffixes](#prefixes--suffixes)
-  * [Blacklist](#blacklist)
-  * [Filters](#filters)
-  * [Raw request](#raw-request)
-  * [Wordlist formats](#wordlist-formats)
-  * [Exclude extensions](#exclude-extensions)
-  * [Scan sub-directories](#scan-sub-directories)
-  * [Proxies](#proxies)
-  * [Reports](#reports)
-  * [More example commands](#more-example-commands)
-* [Support Docker](#support-docker)
-  * [Install Docker Linux](#install-docker-linux)
-  * [Build Image dirsearch](#build-image-dirsearch)
-  * [Using dirsearch](#using-dirsearch)
-* [References](#references)
-* [Tips](#tips)
-* [Contribution](#contribution)
-* [License](#license)
+- [Supported Platforms](#supported-platforms)
+- [Installation & Usage](#installation--usage)
+- [Standalone Binaries](#standalone-binaries)
+- [Wordlists](#wordlists-important)
+- [Options](#options)
+- [Configuration](#configuration)
+- [How to use](#how-to-use)
+- [Session Management](#session-management)
+- [Support Docker](#support-docker)
+- [Building from Source](#building-from-source)
+- [CI/CD & GitHub Workflows](#cicd--github-workflows)
+- [References](#references)
+- [Tips](#tips)
+- [Contribution](#contribution)
+- [License](#license)
+
+
+Supported Platforms
+------------
+
+dirsearch runs on multiple platforms and can be used either via Python or standalone binaries:
+
+| Platform | Python | Standalone Binary |
+|----------|--------|-------------------|
+| **Linux** (x86_64) | Python 3.9+ | `dirsearch-linux-amd64` |
+| **Windows** (x64) | Python 3.9+ | `dirsearch-windows-x64.exe` |
+| **macOS** (Intel) | Python 3.9+ | `dirsearch-macos-intel` |
+| **macOS** (Apple Silicon) | Python 3.9+ | `dirsearch-macos-silicon` |
+
+Standalone binaries are self-contained executables that don't require Python installation.
 
 
 Installation & Usage
@@ -66,6 +68,33 @@ Choose one of these installation options:
 - Install with Kali Linux: `sudo apt-get install dirsearch` (deprecated)
 
 
+Standalone Binaries
+------------
+
+Pre-built standalone binaries are available for all major platforms. These don't require Python to be installed.
+
+**Download from [Releases](https://github.com/maurosoria/dirsearch/releases)**
+
+| Platform | Binary Name | Architecture |
+|----------|-------------|--------------|
+| Linux | `dirsearch-linux-amd64` | x86_64 |
+| Windows | `dirsearch-windows-x64.exe` | x64 |
+| macOS Intel | `dirsearch-macos-intel` | x86_64 |
+| macOS Apple Silicon | `dirsearch-macos-silicon` | ARM64 |
+
+**Usage:**
+```sh
+# Linux/macOS - make executable first
+chmod +x dirsearch-linux-amd64
+./dirsearch-linux-amd64 -u https://target
+
+# Windows
+dirsearch-windows-x64.exe -u https://target
+```
+
+**Note:** Standalone binaries include bundled `db/` wordlists and `config.ini`. Session files are stored in `$HOME/.dirsearch/sessions/` when using bundled builds.
+
+
 Wordlists (IMPORTANT)
 ---------------
 **Summary:**
@@ -74,6 +103,9 @@ Wordlists (IMPORTANT)
   - For wordlists without `%EXT%` (like [SecLists](https://github.com/danielmiessler/SecLists)), **-f | --force-extensions** switch is required to append extensions to every word in wordlist, as well as the `/`.
   - To apply your extensions to wordlist entries that have extensions already, use **-O** | **--overwrite-extensions** (Note: some extensions are excluded from being overwritted such as *.log*, *.json*, *.xml*, ... or media extensions like *.jpg*, *.png*)
   - To use multiple wordlists, you can separate your wordlists with commas. Example: `wordlist1.txt,wordlist2.txt`.
+
+<details>
+<summary><strong>Wordlist Examples (click to expand)</strong></summary>
 
 **Examples:**
 
@@ -117,9 +149,14 @@ login.jsp
 login.jspa
 ```
 
+</details>
+
 
 Options
 -------
+
+<details>
+<summary><strong>Full Options List (click to expand)</strong></summary>
 
 ```
 Usage: dirsearch.py [-u|--url] target [-e|--extensions] extensions [options]
@@ -290,9 +327,14 @@ Options:
     --log=PATH          Log file
 ```
 
+</details>
+
 
 Configuration
 ---------------
+
+<details>
+<summary><strong>Configuration File Reference (click to expand)</strong></summary>
 
 By default, `config.ini` inside your dirsearch directory is used as the configuration file but you can select another file via `--config` flag or `DIRSEARCH_CONFIG` environment variable.
 
@@ -371,6 +413,8 @@ autosave-report-folder = reports/
 # log-file-size = 50000000
 ```
 
+</details>
+
 
 How to use
 ---------------
@@ -391,6 +435,9 @@ python3 dirsearch.py -e php,html,js -u https://target
 ```
 python3 dirsearch.py -e php,html,js -u https://target -w /path/to/wordlist
 ```
+
+<details>
+<summary><strong>More Usage Examples (click to expand)</strong></summary>
 
 ---
 ### Pausing progress
@@ -619,9 +666,84 @@ python3 dirsearch.py -u https://target --header-list rate-limit-bypasses.txt
 
 **There are more to discover, try yourself!**
 
+</details>
+
+
+Session Management
+---------------
+
+dirsearch supports saving and resuming scan sessions, allowing you to pause a long-running scan and continue it later.
+
+### Session Format
+
+Sessions are stored in **JSON format** (directory-based structure) for human readability and easy inspection. Legacy `.pickle`/`.pkl` session files are no longer supported.
+
+**Session directory structure:**
+```
+session_name/
+├── meta.json        # Version, timestamps, output history
+├── controller.json  # Scan state (URLs, directories, progress)
+├── dictionary.json  # Wordlist state and position
+└── options.json     # Command-line options used
+```
+
+### Saving a Session
+
+When you pause a scan with **CTRL+C**, you'll be prompted to save the session:
+
+```
+python3 dirsearch.py -u https://target -e php
+# Press CTRL+C during scan
+# Select "save" and provide a session name
+```
+
+### Resuming a Session
+
+Resume a saved session with the **-s** / **--session** flag:
+
+```
+python3 dirsearch.py -s sessions/my_session
+```
+
+### Listing Available Sessions
+
+View all resumable sessions with **--list-sessions**:
+
+```
+python3 dirsearch.py --list-sessions
+```
+
+This displays:
+- Session path
+- Target URL
+- Remaining targets and directories
+- Jobs processed
+- Error count
+- Last modified time
+
+### Custom Sessions Directory
+
+Specify a custom directory to search for sessions:
+
+```
+python3 dirsearch.py --list-sessions --sessions-dir /path/to/sessions
+```
+
+**Default session locations:**
+- **Source install:** `<dirsearch>/sessions/`
+- **Bundled binary:** `$HOME/.dirsearch/sessions/`
+
+### Output History
+
+Sessions maintain a history of previous scan outputs, allowing you to review results from interrupted scans. Each resume appends to the output history with timestamps.
+
 
 Support Docker
 ---------------
+
+<details>
+<summary><strong>Docker Installation & Usage (click to expand)</strong></summary>
+
 ### Install Docker Linux
 Install Docker
 
@@ -646,9 +768,141 @@ For using
 docker run -it --rm "dirsearch:v0.4.3" -u target -e php,html,js,zip
 ```
 
+</details>
+
+
+Building from Source
+---------------
+
+You can build standalone executables using PyInstaller. This creates a single binary file that includes all dependencies.
+
+### Requirements
+
+- Python 3.9+
+- PyInstaller 6.3.0+
+- All dependencies from `requirements.txt`
+
+### Quick Build
+
+```sh
+# Install dependencies
+pip install -r requirements.txt
+pip install pyinstaller==6.3.0
+
+# Build using the spec file
+pyinstaller pyinstaller/dirsearch.spec
+
+# Binary will be in dist/dirsearch
+./dist/dirsearch --version
+```
+
+### Manual Build (Linux/macOS)
+
+```sh
+pyinstaller \
+  --onefile \
+  --name dirsearch \
+  --paths=. \
+  --collect-submodules=lib \
+  --add-data "db:db" \
+  --add-data "config.ini:." \
+  --add-data "lib/report:lib/report" \
+  --hidden-import=requests \
+  --hidden-import=httpx \
+  --hidden-import=urllib3 \
+  --hidden-import=jinja2 \
+  --hidden-import=colorama \
+  --strip \
+  --clean \
+  dirsearch.py
+```
+
+### Manual Build (Windows)
+
+```powershell
+pyinstaller `
+  --onefile `
+  --name dirsearch `
+  --paths=. `
+  --collect-submodules=lib `
+  --add-data "db;db" `
+  --add-data "config.ini;." `
+  --add-data "lib/report;lib/report" `
+  --hidden-import=requests `
+  --hidden-import=httpx `
+  --hidden-import=urllib3 `
+  --hidden-import=jinja2 `
+  --hidden-import=colorama `
+  --clean `
+  dirsearch.py
+```
+
+**Note:** Windows uses `;` instead of `:` as the path separator in `--add-data`.
+
+### Build Output
+
+After building:
+- **Linux/macOS:** `dist/dirsearch`
+- **Windows:** `dist/dirsearch.exe`
+
+The binary includes:
+- All Python dependencies
+- `db/` directory (wordlists, blacklists)
+- `config.ini` (default configuration)
+- `lib/report/` (Jinja2 templates for reports)
+
+
+CI/CD & GitHub Workflows
+---------------
+
+dirsearch uses GitHub Actions for continuous integration and automated builds.
+
+### Available Workflows
+
+| Workflow | Trigger | Description |
+|----------|---------|-------------|
+| **Inspection** (CI) | Push, PR | Runs tests, linting, and codespell on Python 3.9/3.11 across Ubuntu and Windows |
+| **PyInstaller Linux** | Manual, Workflow call | Builds `dirsearch-linux-amd64` binary |
+| **PyInstaller Windows** | Manual, Workflow call | Builds `dirsearch-windows-x64.exe` binary |
+| **PyInstaller macOS Intel** | Manual, Workflow call | Builds `dirsearch-macos-intel` binary |
+| **PyInstaller macOS Silicon** | Manual, Workflow call | Builds `dirsearch-macos-silicon` binary |
+| **PyInstaller Draft Release** | Manual | Builds all platforms and creates a draft GitHub release |
+| **Docker Image** | Push, PR | Builds and tests Docker image |
+| **CodeQL Analysis** | Push, PR, Schedule | Security scanning with GitHub CodeQL |
+| **Semgrep Analysis** | Push, PR | Static analysis with Semgrep |
+
+### Running Workflows Manually
+
+PyInstaller builds can be triggered manually from the GitHub Actions tab:
+
+1. Go to **Actions** > Select workflow (e.g., "PyInstaller Linux")
+2. Click **Run workflow**
+3. Download artifacts from the completed run
+
+### Creating a Release
+
+To create a new release with all platform binaries:
+
+1. Go to **Actions** > **PyInstaller Draft Release**
+2. Click **Run workflow**
+3. Enter the tag (e.g., `v0.4.4`)
+4. Select target branch
+5. Optionally mark as prerelease
+6. Review and publish the draft release
+
+### Build Matrix
+
+The CI workflow tests on:
+- **Python versions:** 3.9, 3.11
+- **Operating systems:** Ubuntu (latest), Windows (latest)
+
 
 References
 ---------------
+
+<details>
+<summary><strong>Articles & Tutorials (click to expand)</strong></summary>
+
 - [Comprehensive Guide on Dirsearch](https://www.hackingarticles.in/comprehensive-guide-on-dirsearch/) by Shubham Sharma
 - [Comprehensive Guide on Dirsearch Part 2](https://www.hackingarticles.in/comprehensive-guide-on-dirsearch-part-2/) by Shubham Sharma
 - [How to Find Hidden Web Directories with Dirsearch](https://www.geeksforgeeks.org/how-to-find-hidden-web-directories-with-dirsearch/) by GeeksforGeeks
@@ -662,6 +916,8 @@ References
 - [Getting access to 25000 employees details](https://medium.com/@ehsahil/getting-access-to-25k-employees-details-c085d18b73f0) by Sahil Ahamad
 - [Best Tools For Directory Bruteforcing](https://secnhack.in/multiple-ways-to-find-hidden-directory-on-web-server/) by Shubham Goyal
 - [Discover hidden files & directories on a webserver - dirsearch full tutorial](https://www.youtube.com/watch?v=jVxs5at0gxg) by CYBER BYTES
+
+</details>
 
 
 Tips
