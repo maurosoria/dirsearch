@@ -165,6 +165,7 @@ class Controller:
     def __init__(self) -> None:
         self._handling_pause = False
         self._force_quit_handler = _create_force_quit_handler()
+        self.loop = None  # Will be set if async mode is used
 
         if options["session_file"]:
             self._import(options["session_file"])
@@ -615,6 +616,17 @@ class Controller:
 
     def append_error_log(self, exception: RequestException) -> None:
         logger.exception(exception)
+
+    def _force_exit(self) -> None:
+        """Force process termination, stopping asyncio loop if running."""
+        interface.warning("\nForce quit!", do_save=False)
+        # Stop asyncio loop first if running (prevents hang in async mode)
+        if self.loop and self.loop.is_running():
+            try:
+                self.loop.stop()
+            except Exception:
+                pass
+        os._exit(1)
 
     def handle_pause(self) -> None:
         """Handle SIGINT (Ctrl+C) by pausing execution and showing options."""
