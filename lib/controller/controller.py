@@ -28,6 +28,7 @@ import psycopg
 import re
 import time
 import mysql.connector
+from typing import Any
 
 from urllib.parse import urlparse
 
@@ -101,7 +102,10 @@ class Controller:
                 sys.exit(1)
             session_store = SessionStore(options)
             payload = session_store.load(session_file)
+            # Keep the explicit session path so resume/overwrite works as expected.
+            loaded_session_file = session_file
             options.update(session_store.restore_options(payload["options"]))
+            options["session_file"] = loaded_session_file
             if options["log_file"]:
                 try:
                     FileUtils.create_dir(FileUtils.parent(options["log_file"]))
@@ -113,14 +117,54 @@ class Controller:
                         f'Couldn\'t create log file at {options["log_file"]}'
                     )
                     sys.exit(1)
-            last_output = payload.get("last_output", "")
+            output_history = payload.get("output_history") or []
+            if not output_history:
+                legacy_output = payload.get("last_output", "")
+                if legacy_output:
+                    start_time = payload.get("controller", {}).get("start_time")
+                    output_history = [
+                        {"start_time": start_time, "output": legacy_output}
+                    ]
+            self.output_history = output_history
+            if output_history:
+                last_output = self._format_output_history(output_history)
+            else:
+                last_output = ""
             session_store.apply_to_controller(self, payload)
+            self._confirm_session_overwrite(session_file)
         except (OSError, KeyError, TypeError, UnpicklingError):
             interface.error(
                 f"{session_file} is not a valid session file or it's in an old format"
             )
             sys.exit(1)
         print(last_output)
+
+    def _format_output_history(self, output_history: list[dict[str, Any]]) -> str:
+        formatted: list[str] = []
+        for entry in output_history:
+            if not isinstance(entry, dict):
+                continue
+            output = entry.get("output")
+            if not output:
+                continue
+            start_time = entry.get("start_time")
+            if isinstance(start_time, (int, float)):
+                start_label = time.strftime(
+                    "%Y-%m-%d %H:%M:%S", time.localtime(start_time)
+                )
+                formatted.append(f"--- Previous run started: {start_label} ---")
+            else:
+                formatted.append("--- Previous run ---")
+            formatted.append(output.rstrip())
+        return "\n".join(formatted).rstrip()
+
+    def _confirm_session_overwrite(self, session_file: str) -> None:
+        interface.in_line(
+            f"Resume session from {session_file}. Overwrite on save? [o]verwrite/[n]ew: "
+        )
+        choice = input().strip().lower()
+        if choice == "n":
+            options["session_file"] = None
 
     def _export(self, session_file: str) -> None:
         # Save written output

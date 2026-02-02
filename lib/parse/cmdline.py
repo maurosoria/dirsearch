@@ -72,6 +72,13 @@ def parse_arguments() -> Values:
         "-s", "--session", action="store", dest="session_file", help="Session file"
     )
     mandatory.add_option(
+        "--session-id",
+        action="store",
+        dest="session_id",
+        metavar="ID",
+        help="Load session by numeric id (use --list-sessions to see ids)",
+    )
+    mandatory.add_option(
         "--config",
         action="store",
         dest="config",

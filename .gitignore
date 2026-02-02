@@ -6,3 +6,5 @@ __pycache__/
 .idea/
 .ropeproject/
 venv/
+sessions/*
+!sessions/.gitkeep
