@@ -145,7 +145,12 @@ class SessionStore:
         controller.base_path = controller_state.get("base_path", "")
         controller.url = controller_state.get("url", "")
         controller.old_session = controller_state.get("old_session", True)
-        controller.dictionary = controller.dictionary.__class__()
+        if not hasattr(controller, "dictionary") or controller.dictionary is None:
+            from lib.core.dictionary import Dictionary
+
+            controller.dictionary = Dictionary()
+        else:
+            controller.dictionary = controller.dictionary.__class__()
         dictionary_state = payload["dictionary"]
         controller.dictionary.__setstate__(
             (
