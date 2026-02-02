@@ -71,6 +71,10 @@ from lib.view.terminal import interface
 from lib.controller.session import SessionStore
 
 
+def _is_pyinstaller_linux() -> bool:
+    return getattr(sys, "frozen", False) and sys.platform.startswith("linux")
+
+
 def format_session_path(path: str) -> str:
     date_token = START_TIME.split()[0]
     datetime_token = START_TIME.replace(" ", "_")
@@ -83,6 +87,8 @@ def format_session_path(path: str) -> str:
 class Controller:
     def __init__(self) -> None:
         self._handling_pause = False  # Reentrancy guard for signal handler
+        self._sigint_count = 0
+        self._last_sigint_time = 0.0
 
         if options["session_file"]:
             self._import(options["session_file"])
@@ -537,84 +543,105 @@ class Controller:
     def handle_pause(self) -> None:
         # Force quit on second Ctrl+C if already handling pause
         if self._handling_pause:
+            if _is_pyinstaller_linux():
+                now = time.monotonic()
+                if now - self._last_sigint_time <= 0.8:
+                    self._sigint_count += 1
+                else:
+                    self._sigint_count = 1
+                self._last_sigint_time = now
+                if self._sigint_count >= 3:
+                    interface.warning("\nForce quit!", do_save=False)
+                    os.kill(os.getpid(), signal.SIGKILL)
+                    os._exit(1)
+                return
+
             interface.warning("\nForce quit!", do_save=False)
             os._exit(1)
 
         self._handling_pause = True
+        if _is_pyinstaller_linux():
+            self._sigint_count = 1
+            self._last_sigint_time = time.monotonic()
 
         try:
-            interface.warning(
-                "CTRL+C detected: Pausing threads, please wait...", do_save=False
-            )
-            if not self.fuzzer.pause():
+            try:
                 interface.warning(
-                    "Could not pause all threads (some may be blocked on I/O). "
-                    "Press CTRL+C again to force quit.",
-                    do_save=False
+                    "CTRL+C detected: Pausing threads, please wait...", do_save=False
                 )
-        except Exception:
-            # If pause fails for any reason, still show the menu
-            pass
+                if not self.fuzzer.pause():
+                    interface.warning(
+                        "Could not pause all threads (some may be blocked on I/O). "
+                        "Press CTRL+C again to force quit.",
+                        do_save=False
+                    )
+            except Exception:
+                # If pause fails for any reason, still show the menu
+                pass
 
-        while True:
-            msg = "[q]uit / [c]ontinue"
+            while True:
+                msg = "[q]uit / [c]ontinue"
 
-            if len(self.directories) > 1:
-                msg += " / [n]ext"
+                if len(self.directories) > 1:
+                    msg += " / [n]ext"
 
-            if len(options["urls"]) > 1:
-                msg += " / [s]kip target"
+                if len(options["urls"]) > 1:
+                    msg += " / [s]kip target"
 
-            interface.in_line(msg + ": ")
-
-            option = input()
-
-            if option.lower() == "q":
-                interface.in_line("[s]ave / [q]uit without saving: ")
+                interface.in_line(msg + ": ")
 
                 option = input()
 
-                if option.lower() == "s":
-                    default_session_path = format_session_path(
-                        options["session_file"] or DEFAULT_SESSION_FILE
-                    )
-                    msg = f"Save to file [{default_session_path}]: "
+                if option.lower() == "q":
+                    interface.in_line("[s]ave / [q]uit without saving: ")
 
-                    interface.in_line(msg)
+                    option = input()
 
-                    session_file = format_session_path(input() or default_session_path)
+                    if option.lower() == "s":
+                        default_session_path = format_session_path(
+                            options["session_file"] or DEFAULT_SESSION_FILE
+                        )
+                        msg = f"Save to file [{default_session_path}]: "
 
-                    self._export(session_file)
-                    quitexc = QuitInterrupt(f"Session saved to: {session_file}")
-                    if options["async_mode"]:
-                        self.pause_future.set_exception(quitexc)
-                        break
-                    else:
-                        raise quitexc
-                elif option.lower() == "q":
-                    quitexc = QuitInterrupt("Canceled by the user")
-                    if options["async_mode"]:
-                        self.pause_future.set_exception(quitexc)
-                        break
-                    else:
-                        raise quitexc
+                        interface.in_line(msg)
 
-            elif option.lower() == "c":
-                self._handling_pause = False
-                self.fuzzer.play()
-                break
+                        session_file = format_session_path(input() or default_session_path)
 
-            elif option.lower() == "n" and len(self.directories) > 1:
-                self.fuzzer.quit()
-                break
+                        self._export(session_file)
+                        quitexc = QuitInterrupt(f"Session saved to: {session_file}")
+                        if options["async_mode"]:
+                            self.pause_future.set_exception(quitexc)
+                            break
+                        else:
+                            raise quitexc
+                    elif option.lower() == "q":
+                        quitexc = QuitInterrupt("Canceled by the user")
+                        if options["async_mode"]:
+                            self.pause_future.set_exception(quitexc)
+                            break
+                        else:
+                            raise quitexc
 
-            elif option.lower() == "s" and len(options["urls"]) > 1:
-                skipexc = SkipTargetInterrupt("Target skipped by the user")
-                if options["async_mode"]:
-                    self.pause_future.set_exception(skipexc)
+                elif option.lower() == "c":
+                    self._handling_pause = False
+                    if _is_pyinstaller_linux():
+                        self._sigint_count = 0
+                    self.fuzzer.play()
                     break
-                else:
-                    raise skipexc
+
+                elif option.lower() == "n" and len(self.directories) > 1:
+                    self.fuzzer.quit()
+                    break
+
+                elif option.lower() == "s" and len(options["urls"]) > 1:
+                    skipexc = SkipTargetInterrupt("Target skipped by the user")
+                    if options["async_mode"]:
+                        self.pause_future.set_exception(skipexc)
+                        break
+                    else:
+                        raise skipexc
+        finally:
+            pass
 
     def add_directory(self, path: str) -> None:
         """Add directory to the recursion queue"""
