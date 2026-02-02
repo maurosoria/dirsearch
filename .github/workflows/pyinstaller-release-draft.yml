@@ -9,9 +9,9 @@ on:
         description: 'Tag for the draft release (e.g., v0.4.3)'
         required: true
       target_commitish:
-        description: 'Branch or commit for the tag (default: main)'
+        description: 'Branch or commit for the tag (default: master)'
         required: false
-        default: 'main'
+        default: 'master'
       prerelease:
         description: 'Mark as prerelease'
         required: false
