@@ -30,6 +30,8 @@ from lib.core.settings import (
     DEFAULT_TOR_PROXIES,
     FILE_BASED_OUTPUT_FORMATS,
     SCRIPT_PATH,
+    WORDLIST_CATEGORIES,
+    WORDLIST_CATEGORY_DIR,
 )
 from lib.parse.cmdline import parse_arguments
 from lib.parse.config import ConfigParser
@@ -144,18 +146,7 @@ def parse_options() -> dict[str, Any]:
     if not opt.extensions:
         print("WARNING: No extension was specified!")
 
-    if not opt.wordlists:
-        print("No wordlist was provided, try using -w <wordlist>")
-        sys.exit(1)
-
-    opt.wordlists = [wordlist.strip() for wordlist in opt.wordlists.split(",")]
-
-    for wordlist in opt.wordlists:
-        if FileUtils.is_dir(wordlist):
-            opt.wordlists.remove(wordlist)
-            opt.wordlists.extend(FileUtils.get_files(wordlist))
-        else:
-            _access_file(wordlist)
+    opt.wordlists = _resolve_wordlists(opt)
 
     if opt.thread_count < 1:
         print("Threads number must be greater than zero")
@@ -349,6 +340,77 @@ def _access_file(path: str) -> File:
         return fd
 
 
+def _split_csv(value: str | None) -> list[str]:
+    if not value:
+        return []
+    return [entry.strip() for entry in value.split(",") if entry.strip()]
+
+
+def _resolve_wordlist_categories(categories: list[str]) -> list[str]:
+    if not categories:
+        return []
+
+    normalized = [category.strip() for category in categories if category.strip()]
+    include_all = any(category.lower() in ("all", "*") for category in normalized)
+
+    if include_all:
+        return [
+            FileUtils.build_path(WORDLIST_CATEGORY_DIR, filename)
+            for filename in WORDLIST_CATEGORIES.values()
+        ]
+
+    resolved = []
+    unknown = []
+    for category in normalized:
+        key = category.lower()
+        filename = WORDLIST_CATEGORIES.get(key)
+        if filename:
+            resolved.append(FileUtils.build_path(WORDLIST_CATEGORY_DIR, filename))
+        else:
+            unknown.append(category)
+
+    if unknown:
+        print(f"Unknown wordlist categories: {', '.join(unknown)}")
+        print(
+            "Available categories: "
+            + ", ".join(sorted(WORDLIST_CATEGORIES.keys()))
+        )
+        sys.exit(1)
+
+    return resolved
+
+
+def _resolve_wordlists(opt: Values) -> list[str]:
+    wordlists = []
+    wordlists.extend(_split_csv(opt.wordlists))
+    wordlists.extend(
+        _resolve_wordlist_categories(_split_csv(opt.wordlist_categories))
+    )
+
+    if not wordlists:
+        wordlists = [FileUtils.build_path(SCRIPT_PATH, "db", "dicc.txt")]
+
+    expanded = []
+    for wordlist in wordlists:
+        if FileUtils.is_dir(wordlist):
+            expanded.extend(FileUtils.get_files(wordlist))
+        else:
+            expanded.append(wordlist)
+
+    unique = []
+    seen = set()
+    for path in expanded:
+        if path in seen:
+            continue
+        seen.add(path)
+        unique.append(path)
+
+    for path in unique:
+        _access_file(path)
+
+    return unique
+
+
 def merge_config(opt: Values) -> Values:
     config = ConfigParser()
     config.read(opt.config)
@@ -405,10 +467,9 @@ def merge_config(opt: Values) -> Values:
     )
 
     # Dictionary
-    opt.wordlists = opt.wordlists or config.safe_get(
-        "dictionary",
-        "wordlists",
-        FileUtils.build_path(SCRIPT_PATH, "db", "dicc.txt"),
+    opt.wordlists = opt.wordlists or config.safe_get("dictionary", "wordlists")
+    opt.wordlist_categories = opt.wordlist_categories or config.safe_get(
+        "dictionary", "wordlist-categories"
     )
     opt.extensions = opt.extensions or config.safe_get(
         "dictionary", "default-extensions", ""

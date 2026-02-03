@@ -1,5 +1,6 @@
 .badarg.log
 .badsegment.log
+.bak_0.log
 .divzero.log
 .exit.log
 .faultread.log
@@ -9,10 +10,6 @@
 .hello.log
 .java-buildpack.log
 .log
-.log.txt
-.login
-.login_conf
-.logout
 .luna_manager/luna-manager.log
 .nbgrader.log
 .pgdir.log
@@ -80,7 +77,6 @@ development.log
 dump.log
 err.log
 error.log
-error.log.0
 error/error.log
 errors.log
 errors/errors.log
@@ -88,7 +84,6 @@ etcd-events.log
 etcd.log
 exception.log
 firebase-debug.log
-fw.login.php
 hs_err_pid.log
 http_access.log
 httpd/logs/access.log
@@ -97,13 +92,11 @@ import_error.log
 install.log
 install/update.log
 install_mgr.log
-jolokia/exec/ch.qos.logback.classic
 krb.log
 kube-apiserver.log
 kube-controller-manager.log
 kube-proxy.log
 kube-scheduler.log
-lander.logs
 learn/ruubikcms/ruubikcms/tiny_mce/plugins/tinybrowser/error.log
 librepag.log
 liferay.log
@@ -195,6 +188,7 @@ var/log/payment_paypal_express.log
 WEB-INF/logs/log.log
 wp-app.log
 wp-content/debug.log
+WS_FTP.LOG
 WS_FTP.log
 www-error.log
 xphperrors.log

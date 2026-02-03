@@ -1,15 +1,11 @@
+.accdb
+.config/gcloud/access_tokens.db
+.config/gcloud/credentials.db
 .db
-.db3
-.dbshell
-.dbus/
 .mdb
-.sconsign.dblite
 .sql
-.sql.bz2
-.sql.gz
 .sqlite
 .sqlite3
-.sqlite_history
 1.sql
 2.sql
 2000.sql
@@ -46,10 +42,9 @@ buck.sql
 clients.mdb
 clients.sql
 clients.sqlite
-config.sql
+config/database.yml.sqlite3
 customers.mdb
 customers.sql
-customers.sql.gz
 customers.sqlite
 data.mdb
 data.sql
@@ -57,6 +52,7 @@ data.sqlite
 database.mdb
 database.sql
 database.sqlite
+database.yml.sqlite3
 db.mdb
 db.sql
 db.sqlite
@@ -70,7 +66,6 @@ dbdump.sql
 devdata.db
 df_main.sql
 dump.sql
-dump.sql.tgz
 dump.sqlite
 ehthumbs.db
 forum.sql
@@ -84,14 +79,12 @@ logs.sqlite
 main.mdb
 members.mdb
 members.sql
-members.sql.gz
 members.sqlite
 mysql.sql
 mysql_debug.sql
 mysqldump.sql
 mysqlitedb.db
 orders.sql
-orders.sql.gz
 password.mdb
 password.sqlite
 passwords.mdb
@@ -102,7 +95,6 @@ private.mdb
 private.sqlite
 pwd.db
 sales.sql
-sales.sql.gz
 schema.sql
 setup.sql
 site.sql
@@ -127,7 +119,6 @@ uploads/dump.sql
 users.db
 users.mdb
 users.sql
-users.sql.gz
 users.sqlite
 vb.sql
 web.sql
