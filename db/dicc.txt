@@ -5954,6 +5954,7 @@ listinfo
 lists
 lists/
 lists/config
+livewire/update
 LiveUser_Admin/
 lk/
 llms.txt
