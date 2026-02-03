@@ -10,6 +10,8 @@
 - Added option to disable CLI output entirely
 - Option to detect and filter identical results
 - Maximum runtime per target
+- Wordlists by categories
+- Saving and resuming sessions by ID
 
 ## [0.4.3] - October 2nd, 2022
 - Automatically detect the URI scheme (`http` or `https`) if no scheme is provided
