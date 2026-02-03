@@ -12,9 +12,17 @@ env:
 
 jobs:
   build-macos-intel:
-    name: Build macOS Intel
+    name: Build macOS Intel (${{ matrix.variant.name }})
     runs-on: macos-15-large
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        variant:
+          - name: threaded
+            async: "False"
+          - name: async
+            async: "True"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -30,6 +38,10 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           pip install -r requirements.txt
           pip install pyinstaller==${{ env.PYINSTALLER_VERSION }}
+
+      - name: Set default async mode
+        run: |
+          sed -i '' "s/^async = .*/async = ${{ matrix.variant.async }}/" config.ini
 
       - name: Build macOS Intel binary
         run: |
@@ -77,16 +89,16 @@ jobs:
             dirsearch.py
 
       - name: Rename binary
-        run: mv dist/dirsearch dist/dirsearch-macos-intel
+        run: mv dist/dirsearch dist/dirsearch-macos-intel-${{ matrix.variant.name }}
 
       - name: Test macOS Intel binary
         run: |
-          ./dist/dirsearch-macos-intel --version
-          ./dist/dirsearch-macos-intel --help
+          ./dist/dirsearch-macos-intel-${{ matrix.variant.name }} --version
+          ./dist/dirsearch-macos-intel-${{ matrix.variant.name }} --help
 
       - name: Upload macOS Intel artifact
         uses: actions/upload-artifact@v4
         with:
-          name: dirsearch-macos-intel
-          path: dist/dirsearch-macos-intel
+          name: dirsearch-macos-intel-${{ matrix.variant.name }}
+          path: dist/dirsearch-macos-intel-${{ matrix.variant.name }}
           retention-days: 30

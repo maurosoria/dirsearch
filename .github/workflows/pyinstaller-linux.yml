@@ -12,9 +12,17 @@ env:
 
 jobs:
   build-linux:
-    name: Build Linux AMD64
+    name: Build Linux AMD64 (${{ matrix.variant.name }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        variant:
+          - name: threaded
+            async: "False"
+          - name: async
+            async: "True"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -30,6 +38,10 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           pip install -r requirements.txt
           pip install pyinstaller==${{ env.PYINSTALLER_VERSION }}
+
+      - name: Set default async mode
+        run: |
+          sed -i "s/^async = .*/async = ${{ matrix.variant.async }}/" config.ini
 
       - name: Build Linux binary
         run: |
@@ -77,16 +89,16 @@ jobs:
             dirsearch.py
 
       - name: Rename binary
-        run: mv dist/dirsearch dist/dirsearch-linux-amd64
+        run: mv dist/dirsearch dist/dirsearch-linux-amd64-${{ matrix.variant.name }}
 
       - name: Test Linux binary
         run: |
-          ./dist/dirsearch-linux-amd64 --version
-          ./dist/dirsearch-linux-amd64 --help
+          ./dist/dirsearch-linux-amd64-${{ matrix.variant.name }} --version
+          ./dist/dirsearch-linux-amd64-${{ matrix.variant.name }} --help
 
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
-          name: dirsearch-linux-amd64
-          path: dist/dirsearch-linux-amd64
+          name: dirsearch-linux-amd64-${{ matrix.variant.name }}
+          path: dist/dirsearch-linux-amd64-${{ matrix.variant.name }}
           retention-days: 30

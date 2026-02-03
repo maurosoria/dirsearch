@@ -12,9 +12,17 @@ env:
 
 jobs:
   build-windows:
-    name: Build Windows x64
+    name: Build Windows x64 (${{ matrix.variant.name }})
     runs-on: windows-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        variant:
+          - name: threaded
+            async: "False"
+          - name: async
+            async: "True"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -30,6 +38,10 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           pip install -r requirements.txt
           pip install pyinstaller==${{ env.PYINSTALLER_VERSION }}
+
+      - name: Set default async mode
+        run: |
+          (Get-Content config.ini) -replace '^async = .*', 'async = ${{ matrix.variant.async }}' | Set-Content config.ini
 
       - name: Build Windows binary
         run: |
@@ -76,16 +88,16 @@ jobs:
             dirsearch.py
 
       - name: Rename binary
-        run: mv dist/dirsearch.exe dist/dirsearch-windows-x64.exe
+        run: mv dist/dirsearch.exe dist/dirsearch-windows-x64-${{ matrix.variant.name }}.exe
 
       - name: Test Windows binary
         run: |
-          ./dist/dirsearch-windows-x64.exe --version
-          ./dist/dirsearch-windows-x64.exe --help
+          ./dist/dirsearch-windows-x64-${{ matrix.variant.name }}.exe --version
+          ./dist/dirsearch-windows-x64-${{ matrix.variant.name }}.exe --help
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
-          name: dirsearch-windows-x64
-          path: dist/dirsearch-windows-x64.exe
+          name: dirsearch-windows-x64-${{ matrix.variant.name }}
+          path: dist/dirsearch-windows-x64-${{ matrix.variant.name }}.exe
           retention-days: 30

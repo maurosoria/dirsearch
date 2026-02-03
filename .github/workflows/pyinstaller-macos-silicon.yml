@@ -12,9 +12,17 @@ env:
 
 jobs:
   build-macos-silicon:
-    name: Build macOS Silicon
+    name: Build macOS Silicon (${{ matrix.variant.name }})
     runs-on: macos-14
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        variant:
+          - name: threaded
+            async: "False"
+          - name: async
+            async: "True"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -30,6 +38,10 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           pip install -r requirements.txt
           pip install pyinstaller==${{ env.PYINSTALLER_VERSION }}
+
+      - name: Set default async mode
+        run: |
+          sed -i '' "s/^async = .*/async = ${{ matrix.variant.async }}/" config.ini
 
       - name: Build macOS Silicon binary
         run: |
@@ -77,16 +89,16 @@ jobs:
             dirsearch.py
 
       - name: Rename binary
-        run: mv dist/dirsearch dist/dirsearch-macos-silicon
+        run: mv dist/dirsearch dist/dirsearch-macos-silicon-${{ matrix.variant.name }}
 
       - name: Test macOS Silicon binary
         run: |
-          ./dist/dirsearch-macos-silicon --version
-          ./dist/dirsearch-macos-silicon --help
+          ./dist/dirsearch-macos-silicon-${{ matrix.variant.name }} --version
+          ./dist/dirsearch-macos-silicon-${{ matrix.variant.name }} --help
 
       - name: Upload macOS Silicon artifact
         uses: actions/upload-artifact@v4
         with:
-          name: dirsearch-macos-silicon
-          path: dist/dirsearch-macos-silicon
+          name: dirsearch-macos-silicon-${{ matrix.variant.name }}
+          path: dist/dirsearch-macos-silicon-${{ matrix.variant.name }}
           retention-days: 30

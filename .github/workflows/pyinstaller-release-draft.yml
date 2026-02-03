@@ -53,10 +53,14 @@ jobs:
       - name: Prepare release assets
         run: |
           mkdir -p release
-          cp artifacts/dirsearch-linux-amd64/dirsearch-linux-amd64 release/
-          cp artifacts/dirsearch-windows-x64/dirsearch-windows-x64.exe release/
-          cp artifacts/dirsearch-macos-intel/dirsearch-macos-intel release/
-          cp artifacts/dirsearch-macos-silicon/dirsearch-macos-silicon release/
+          cp artifacts/dirsearch-linux-amd64-threaded/dirsearch-linux-amd64-threaded release/
+          cp artifacts/dirsearch-linux-amd64-async/dirsearch-linux-amd64-async release/
+          cp artifacts/dirsearch-windows-x64-threaded/dirsearch-windows-x64-threaded.exe release/
+          cp artifacts/dirsearch-windows-x64-async/dirsearch-windows-x64-async.exe release/
+          cp artifacts/dirsearch-macos-intel-threaded/dirsearch-macos-intel-threaded release/
+          cp artifacts/dirsearch-macos-intel-async/dirsearch-macos-intel-async release/
+          cp artifacts/dirsearch-macos-silicon-threaded/dirsearch-macos-silicon-threaded release/
+          cp artifacts/dirsearch-macos-silicon-async/dirsearch-macos-silicon-async release/
 
           # Create checksums
           cd release
@@ -88,10 +92,14 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            release/dirsearch-linux-amd64
-            release/dirsearch-windows-x64.exe
-            release/dirsearch-macos-intel
-            release/dirsearch-macos-silicon
+            release/dirsearch-linux-amd64-threaded
+            release/dirsearch-linux-amd64-async
+            release/dirsearch-windows-x64-threaded.exe
+            release/dirsearch-windows-x64-async.exe
+            release/dirsearch-macos-intel-threaded
+            release/dirsearch-macos-intel-async
+            release/dirsearch-macos-silicon-threaded
+            release/dirsearch-macos-silicon-async
             release/SHA256SUMS.txt
           generate_release_notes: true
           draft: true
