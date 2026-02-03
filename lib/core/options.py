@@ -541,7 +541,7 @@ def merge_config(opt: Values) -> Values:
     opt.postgres_url = opt.postgres_url or config.safe_get("output", "postgres-url")
     opt.output_table = config.safe_get("output", "output-sql-table")
     opt.output_formats = opt.output_formats or config.safe_get(
-        "output", "output-format", "plain"
+        "output", "output-formats", "plain"
     )
     opt.log_file = opt.log_file or config.safe_get("output", "log-file")
     opt.log_file_size = config.safe_getint("output", "log-file-size")
