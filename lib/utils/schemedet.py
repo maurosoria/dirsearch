@@ -28,7 +28,7 @@ def detect_scheme(host, port):
 
     s = socket.socket()
     s.settimeout(SOCKET_TIMEOUT)
-    conn = ssl.SSLContext().wrap_socket(s)
+    conn = ssl.create_default_context().wrap_socket(s, server_hostname=host)
 
     try:
         conn.connect((host, port))
