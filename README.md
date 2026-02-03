@@ -103,6 +103,7 @@ Wordlists (IMPORTANT)
   - For wordlists without `%EXT%` (like [SecLists](https://github.com/danielmiessler/SecLists)), **-f | --force-extensions** switch is required to append extensions to every word in wordlist, as well as the `/`.
   - To apply your extensions to wordlist entries that have extensions already, use **-O** | **--overwrite-extensions** (Note: some extensions are excluded from being overwritted such as *.log*, *.json*, *.xml*, ... or media extensions like *.jpg*, *.png*)
   - To use multiple wordlists, you can separate your wordlists with commas. Example: `wordlist1.txt,wordlist2.txt`.
+  - Bundled wordlist categories live in `db/categories/` and can be selected with **--wordlist-categories**. Available: `extensions`, `conf`, `vcs`, `backups`, `db`, `logs`, `keys`, `web`, `common` (use `all` to include everything).
 
 <details>
 <summary><strong>Wordlist Examples (click to expand)</strong></summary>
@@ -187,6 +188,10 @@ Options:
     -w WORDLISTS, --wordlists=WORDLISTS
                         Wordlist files or directories contain wordlists
                         (separated by commas)
+    --wordlist-categories=CATEGORIES
+                        Comma-separated wordlist category names (e.g.
+                        common,conf,web). Use 'all' to include all bundled
+                        categories
     -e EXTENSIONS, --extensions=EXTENSIONS
                         Extension list separated by commas (e.g. php,asp)
     -f, --force-extensions

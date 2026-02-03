@@ -39,6 +39,19 @@ SCRIPT_PATH = FileUtils.parent(__file__, 3)
 
 IS_WINDOWS = sys.platform in ("win32", "msys")
 
+WORDLIST_CATEGORY_DIR = FileUtils.build_path(SCRIPT_PATH, "db", "categories")
+WORDLIST_CATEGORIES = {
+    "extensions": "extensions.txt",
+    "conf": "conf.txt",
+    "vcs": "vcs.txt",
+    "backups": "backups.txt",
+    "db": "db.txt",
+    "logs": "logs.txt",
+    "keys": "keys.txt",
+    "web": "web.txt",
+    "common": "common.txt",
+}
+
 DEFAULT_ENCODING = "utf-8"
 
 NEW_LINE = os.linesep

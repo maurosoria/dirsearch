@@ -1,10 +1,9 @@
-.kdbx
 .key
-.keys
 .pem
+.ssh/id_dsa
+.ssh/id_dsa.pub
 .ssh/id_rsa
 .ssh/id_rsa.key
-.ssh/id_rsa.priv
 .ssh/id_rsa.pub
 apiserver-aggregator.key
 apiserver-key.pem
@@ -12,6 +11,7 @@ certs/server.key
 config/master.key
 etcd-apiserver-client.key
 host.key
+id_dsa
 id_rsa
 id_rsa.pub
 key.pem

@@ -97,6 +97,15 @@ def parse_arguments() -> Values:
         help="Wordlist files or directories contain wordlists (separated by commas)",
     )
     dictionary.add_option(
+        "--wordlist-categories",
+        action="store",
+        dest="wordlist_categories",
+        help=(
+            "Comma-separated wordlist category names (e.g. common,conf,web). "
+            "Use 'all' to include all bundled categories"
+        ),
+    )
+    dictionary.add_option(
         "-e",
         "--extensions",
         action="store",
