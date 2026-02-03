@@ -1,0 +1,25 @@
+config/auth.php
+public/index.php
+public/robots.txt
+routes/web.php
+.env.example
+.env
+artisan
+composer.json
+storage/logs/laravel.log
+vendor/
+bootstrap/cache/
+storage/link
+public/storage
+resources/views
+# Laravel 4 and older
+app/config/app.php
+app/config/database.php
+app/routes.php
+app/views/
+app/controllers/
+app/models/
+app/storage/logs/laravel.log
+bootstrap/autoload.php
+bootstrap/start.php
+server.php

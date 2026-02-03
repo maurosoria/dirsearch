@@ -1,0 +1,13 @@
+manage.py
+db.sqlite3
+settings.py
+urls.py
+wsgi.py
+asgi.py
+requirements.txt
+__init__.py
+admin/
+static/
+media/
+templates/
+migrations/

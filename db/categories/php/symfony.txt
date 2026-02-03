@@ -1,0 +1,15 @@
+app/config/parameters.yml
+app/config/config.yml
+var/logs/dev.log
+var/logs/prod.log
+var/cache/
+composer.json
+web/app_dev.php
+public/index.php
+.env
+bin/console
+config/packages/
+config/routes/
+config/services.yaml
+templates/
+src/Controller/

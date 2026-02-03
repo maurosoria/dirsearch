@@ -1,0 +1,6 @@
+wp-content/plugins/akismet/
+wp-content/plugins/contact-form-7/
+wp-content/plugins/yoast-seo/
+wp-content/plugins/jetpack/
+wp-content/plugins/wordfence/
+wp-content/plugins/woocommerce/

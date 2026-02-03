@@ -1,0 +1,11 @@
+appsettings.json
+appsettings.Development.json
+appsettings.Production.json
+wwwroot/
+Program.cs
+Startup.cs
+bin/Debug/netcoreapp3.1/
+bin/Release/netcoreapp3.1/
+web.config
+refs/
+logs/

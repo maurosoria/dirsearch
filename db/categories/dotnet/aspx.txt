@@ -1,0 +1,17 @@
+Web.config
+bin/
+App_Data/
+App_GlobalResources/
+App_LocalResources/
+Global.asax
+Default.aspx
+Login.aspx
+default.aspx
+login.aspx
+index.aspx
+Admin.aspx
+admin.aspx
+Trace.axd
+elmah.axd
+WebResource.axd
+ScriptResource.axd

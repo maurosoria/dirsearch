@@ -363,6 +363,20 @@ def _resolve_wordlist_categories(categories: list[str]) -> list[str]:
     unknown = []
     for category in normalized:
         key = category.lower()
+        if key.endswith("*"):
+            prefix = key[:-1]
+            matches = [
+                filename
+                for name, filename in WORDLIST_CATEGORIES.items()
+                if name.startswith(prefix)
+            ]
+            if matches:
+                resolved.extend(
+                    FileUtils.build_path(WORDLIST_CATEGORY_DIR, filename)
+                    for filename in matches
+                )
+                continue
+
         filename = WORDLIST_CATEGORIES.get(key)
         if filename:
             resolved.append(FileUtils.build_path(WORDLIST_CATEGORY_DIR, filename))

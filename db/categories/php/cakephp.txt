@@ -1,0 +1,14 @@
+config/app.php
+config/database.php
+tmp/logs/error.log
+tmp/logs/debug.log
+webroot/index.php
+bin/cake
+composer.json
+.env
+logs/
+plugins/
+src/
+templates/
+tests/
+vendor/

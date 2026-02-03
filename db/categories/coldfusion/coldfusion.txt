@@ -1,0 +1,13 @@
+Application.cfc
+Application.cfm
+index.cfm
+default.cfm
+login.cfm
+admin.cfm
+CFIDE/
+cfide/
+CFIDE/administrator/
+CFIDE/adminapi/
+cfdocs/
+debug.cfm
+test.cfm

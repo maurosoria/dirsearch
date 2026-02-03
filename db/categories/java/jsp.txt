@@ -1,0 +1,11 @@
+WEB-INF/
+WEB-INF/web.xml
+WEB-INF/classes/
+WEB-INF/lib/
+index.jsp
+default.jsp
+login.jsp
+admin.jsp
+META-INF/
+META-INF/context.xml
+META-INF/MANIFEST.MF

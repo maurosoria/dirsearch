@@ -1,0 +1,9 @@
+faces-config.xml
+WEB-INF/faces-config.xml
+index.xhtml
+index.jsf
+login.xhtml
+login.jsf
+javax.faces.resource/
+resources/
+META-INF/resources/

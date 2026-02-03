@@ -1,0 +1,10 @@
+app.py
+main.py
+run.py
+requirements.txt
+static/
+templates/
+instance/
+config.py
+venv/
+.env

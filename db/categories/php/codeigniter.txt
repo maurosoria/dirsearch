@@ -1,0 +1,11 @@
+application/config/config.php
+application/config/database.php
+index.php
+system/
+composer.json
+application/controllers/
+application/models/
+application/views/
+application/logs/
+user_guide/
+application/cache/

@@ -50,6 +50,43 @@ WORDLIST_CATEGORIES = {
     "keys": "keys.txt",
     "web": "web.txt",
     "common": "common.txt",
+
+    # PHP
+    "php/laravel": "php/laravel.txt",
+    "php/wordpress": "php/wordpress.txt",
+    "php/codeigniter": "php/codeigniter.txt",
+    "php/symfony": "php/symfony.txt",
+    "php/yii": "php/yii.txt",
+    "php/cakephp": "php/cakephp.txt",
+    "php/joomla": "php/joomla.txt",
+    "php/drupal": "php/drupal.txt",
+    "php/magento": "php/magento.txt",
+
+    # .NET
+    "dotnet/aspx": "dotnet/aspx.txt",
+    "dotnet/mvc": "dotnet/mvc.txt",
+    "dotnet/core": "dotnet/core.txt",
+
+    # ColdFusion
+    "coldfusion": "coldfusion/coldfusion.txt",
+
+    # Java
+    "java/jsp": "java/jsp.txt",
+    "java/jsf": "java/jsf.txt",
+    "java/spring": "java/spring.txt",
+
+    # Python
+    "python/django": "python/django.txt",
+    "python/flask": "python/flask.txt",
+    "python/fastapi": "python/fastapi.txt",
+
+    # Node
+    "node/express": "node/express.txt",
+
+    # Infra
+    "infra/docker": "infra/docker.txt",
+    "infra/k8s": "infra/k8s.txt",
+    "infra/aws": "infra/aws.txt",
 }
 
 DEFAULT_ENCODING = "utf-8"

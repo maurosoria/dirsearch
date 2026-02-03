@@ -1,0 +1,15 @@
+application.properties
+application.yml
+application-dev.properties
+application-prod.properties
+META-INF/
+WEB-INF/
+actuator/
+actuator/health
+actuator/info
+actuator/env
+actuator/metrics
+actuator/mappings
+api-docs
+swagger-ui.html
+v2/api-docs

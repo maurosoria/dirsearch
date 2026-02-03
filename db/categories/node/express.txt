@@ -1,0 +1,14 @@
+package.json
+package-lock.json
+npm-debug.log
+yarn.lock
+node_modules/
+app.js
+server.js
+index.js
+routes/
+views/
+public/
+config/
+bin/www
+.env

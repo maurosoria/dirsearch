@@ -1,0 +1,12 @@
+Views/
+Controllers/
+Models/
+Areas/
+bin/
+Web.config
+Global.asax
+Views/Web.config
+Views/_ViewStart.cshtml
+Views/Shared/_Layout.cshtml
+Views/Home/Index.cshtml
+Controllers/HomeController.cs

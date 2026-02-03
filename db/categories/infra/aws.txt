@@ -1,0 +1,11 @@
+.aws/
+.aws/credentials
+.aws/config
+aws/
+s3/
+lambda/
+cloudformation/
+template.yaml
+samconfig.toml
+metadata.json
+user-data

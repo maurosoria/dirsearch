@@ -1,0 +1,10 @@
+k8s/
+kube/
+deployment.yaml
+service.yaml
+ingress.yaml
+values.yaml
+Chart.yaml
+pods.yaml
+.kube/config
+minikube/

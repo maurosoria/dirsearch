@@ -1,0 +1,13 @@
+main.py
+app.py
+requirements.txt
+docs/
+redoc/
+openapi.json
+uvicorn
+gunicorn.conf.py
+metadata/
+app/
+routers/
+schemas/
+models/
