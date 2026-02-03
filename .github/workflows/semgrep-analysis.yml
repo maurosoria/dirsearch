@@ -18,38 +18,28 @@ jobs:
   semgrep:
     name: Scan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     # Skip any PR created by dependabot to avoid permission issues
     if: (github.actor != 'dependabot[bot]')
+    container:
+      image: semgrep/semgrep
     steps:
       # Fetch project source
       - uses: actions/checkout@v4
 
-      - uses: returntocorp/semgrep-action@v1
-        with:
-          config: >- # more at semgrep.dev/explore
-            p/security-audit
-            p/secrets
-
-        # Instead of `config:`, use rules set in Semgrep App.
-        # Get your token from semgrep.dev/manage/settings.
-          publishToken: ${{ secrets.SEMGREP_APP_TOKEN }}
-
-        # Never fail the build due to findings on pushes.
-        # Instead, just collect findings for semgrep.dev/manage/findings
-        #   auditOn: push
-
-        # Upload findings to GitHub Advanced Security Dashboard [step 1/2]
-        # See also the next step.
-          generateSarif: "1"
-
-        # Change job timeout (default is 1800 seconds; set to 0 to disable)
-        # env:
-        #   SEMGREP_TIMEOUT: 300
+      - name: Run Semgrep
+        run: >
+          semgrep scan
+          --config p/security-audit
+          --config p/secrets
+          --sarif
+          --sarif-output=semgrep.sarif
 
       # Upload findings to GitHub Advanced Security Dashboard [step 2/2]
       - name: Upload SARIF file for GitHub Advanced Security Dashboard
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: semgrep.sarif
         if: always()
-
