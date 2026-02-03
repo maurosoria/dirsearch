@@ -155,9 +155,8 @@ def _create_force_quit_handler() -> ForceQuitHandler:
 def format_session_path(path: str) -> str:
     date_token = START_TIME.split()[0]
     datetime_token = START_TIME.replace(" ", "_")
-    if os.name == "nt" or sys.platform.startswith("win"):
-        # Windows disallows ":" in file/folder names.
-        datetime_token = datetime_token.replace(":", "-")
+    # Make session paths cross-platform (Windows disallows ":" in file/folder names).
+    datetime_token = datetime_token.replace(":", "-")
     return path.replace("{date}", date_token).replace("{datetime}", datetime_token)
 
 
