@@ -1,0 +1,184 @@
+name: Build ARM64 Executable
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'pyinstaller/**'
+      - 'lib/**'
+      - 'dirsearch.py'
+      - 'requirements.txt'
+
+jobs:
+  build-arm64:
+    name: Build ARM64 Binary
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          architecture: 'arm64'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            gcc \
+            g++ \
+            make \
+            git \
+            patchelf \
+            file
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -r requirements.txt
+          pip install pyinstaller==6.3.0
+
+      - name: Build ARM64 executable
+        run: |
+          pyinstaller \
+            --onefile \
+            --name dirsearch-arm64 \
+            --paths=. \
+            --collect-submodules=lib \
+            --add-data "db:db" \
+            --add-data "config.ini:." \
+            --add-data "lib/report:lib/report" \
+            --hidden-import=lib \
+            --hidden-import=lib.core \
+            --hidden-import=lib.core.settings \
+            --hidden-import=lib.core.options \
+            --hidden-import=lib.controller \
+            --hidden-import=lib.controller.controller \
+            --hidden-import=lib.controller.session \
+            --hidden-import=lib.connection \
+            --hidden-import=lib.parse \
+            --hidden-import=lib.report \
+            --hidden-import=lib.utils \
+            --hidden-import=lib.view \
+            --hidden-import=requests \
+            --hidden-import=httpx \
+            --hidden-import=urllib3 \
+            --hidden-import=charset_normalizer \
+            --hidden-import=certifi \
+            --hidden-import=PySocks \
+            --hidden-import=socks \
+            --hidden-import=jinja2 \
+            --hidden-import=defusedxml \
+            --hidden-import=OpenSSL \
+            --hidden-import=ntlm_auth \
+            --hidden-import=requests_ntlm \
+            --hidden-import=bs4 \
+            --hidden-import=colorama \
+            --hidden-import=defusedcsv \
+            --hidden-import=httpx_ntlm \
+            --hidden-import=httpcore \
+            --hidden-import=h11 \
+            --hidden-import=anyio \
+            --hidden-import=sniffio \
+            --hidden-import=socksio \
+            --strip \
+            --clean \
+            dirsearch.py
+
+      - name: Verify binary architecture
+        run: |
+          file dist/dirsearch-arm64
+          file dist/dirsearch-arm64 | grep -q "ARM aarch64" || exit 1
+
+      - name: Create output directory
+        run: mkdir -p dist-artifacts
+
+      - name: Copy binary with version
+        run: |
+          VERSION=$(grep "^VERSION = " lib/core/settings.py | cut -d'"' -f2)
+          cp dist/dirsearch-arm64 "dist-artifacts/dirsearch-${VERSION}-linux-arm64"
+          chmod +x "dist-artifacts/dirsearch-${VERSION}-linux-arm64"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dirsearch-arm64-binary
+          path: dist-artifacts/dirsearch-*-linux-arm64
+          retention-days: 30
+
+  build-arm64-self-hosted:
+    name: Build ARM64 on Self-Hosted Runner
+    runs-on: [self-hosted, linux, ARM64]
+    if: false
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -r requirements.txt
+          pip install pyinstaller==6.3.0
+
+      - name: Build ARM64 executable
+        run: |
+          pyinstaller \
+            --onefile \
+            --name dirsearch-arm64 \
+            --paths=. \
+            --collect-submodules=lib \
+            --add-data "db:db" \
+            --add-data "config.ini:." \
+            --add-data "lib/report:lib/report" \
+            --hidden-import=lib \
+            --hidden-import=lib.core \
+            --hidden-import=lib.core.settings \
+            --hidden-import=lib.core.options \
+            --hidden-import=lib.controller \
+            --hidden-import=lib.controller.controller \
+            --hidden-import=lib.controller.session \
+            --hidden-import=lib.connection \
+            --hidden-import=lib.parse \
+            --hidden-import=lib.report \
+            --hidden-import=lib.utils \
+            --hidden-import=lib.view \
+            --hidden-import=requests \
+            --hidden-import=httpx \
+            --hidden-import=urllib3 \
+            --hidden-import=charset_normalizer \
+            --hidden-import=certifi \
+            --hidden-import=PySocks \
+            --hidden-import=socks \
+            --hidden-import=jinja2 \
+            --hidden-import=defusedxml \
+            --hidden-import=OpenSSL \
+            --hidden-import=ntlm_auth \
+            --hidden-import=requests_ntlm \
+            --hidden-import=bs4 \
+            --hidden-import=colorama \
+            --hidden-import=defusedcsv \
+            --hidden-import=httpx_ntlm \
+            --hidden-import=httpcore \
+            --hidden-import=h11 \
+            --hidden-import=anyio \
+            --hidden-import=sniffio \
+            --hidden-import=socksio \
+            --strip \
+            --clean \
+            dirsearch.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dirsearch-arm64-self-hosted
+          path: dist/dirsearch-arm64
+          retention-days: 30
