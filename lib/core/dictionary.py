@@ -145,8 +145,6 @@ class Dictionary:
                         and "." not in line
                         and not line.endswith("/")
                     ):
-                        wordlist.add(line + "/")
-
                         for extension in options["extensions"]:
                             wordlist.add(f"{line}.{extension}")
                     # Overwrite unknown extensions with selected ones (but also keep the origin)
