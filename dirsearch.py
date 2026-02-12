@@ -19,6 +19,7 @@
 #  Author: Mauro Soria
 
 import sys
+from multiprocessing import freeze_support
 
 from lib.core.data import options
 from lib.core.options import parse_options
@@ -42,6 +43,8 @@ def main():
 
 
 if __name__ == "__main__":
+    freeze_support()
+
     try:
         main()
     except KeyboardInterrupt:

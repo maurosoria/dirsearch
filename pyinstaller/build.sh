@@ -57,7 +57,7 @@ build() {
     log_info "Installing dependencies..."
     $PYTHON_CMD -m pip install --upgrade pip setuptools wheel
     $PYTHON_CMD -m pip install -r requirements.txt
-    $PYTHON_CMD -m pip install pyinstaller==6.3.0
+    $PYTHON_CMD -m pip install pyinstaller==6.11.1
 
     # Build
     log_info "Running PyInstaller..."
