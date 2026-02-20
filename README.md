@@ -784,7 +784,7 @@ You can build standalone executables using PyInstaller. This creates a single bi
 ### Requirements
 
 - Python 3.9+
-- PyInstaller 6.3.0+
+- PyInstaller 6.11.1+
 - All dependencies from `requirements.txt`
 
 ### Quick Build
@@ -792,7 +792,7 @@ You can build standalone executables using PyInstaller. This creates a single bi
 ```sh
 # Install dependencies
 pip install -r requirements.txt
-pip install pyinstaller==6.3.0
+pip install pyinstaller==6.11.1
 
 # Build using the spec file
 pyinstaller pyinstaller/dirsearch.spec

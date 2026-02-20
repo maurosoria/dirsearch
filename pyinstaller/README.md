@@ -17,7 +17,7 @@ This directory contains the configuration for building standalone dirsearch exec
 
 ```bash
 # Install dependencies
-pip install -r requirements.txt pyinstaller==6.3.0
+pip install -r requirements.txt pyinstaller==6.11.1
 
 # Run PyInstaller
 pyinstaller pyinstaller/dirsearch.spec

@@ -24,7 +24,7 @@ concurrency:
 
 env:
   PYTHON_VERSION: '3.11'
-  PYINSTALLER_VERSION: '6.3.0'
+  PYINSTALLER_VERSION: '6.11.1'
 
 jobs:
   build-linux:
