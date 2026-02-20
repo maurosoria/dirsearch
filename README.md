@@ -100,7 +100,7 @@ Wordlists (IMPORTANT)
 **Summary:**
   - Wordlist is a text file, each line is a path.
   - About extensions, unlike other tools, dirsearch only replaces the `%EXT%` keyword with extensions from **-e** flag.
-  - For wordlists without `%EXT%` (like [SecLists](https://github.com/danielmiessler/SecLists)), **-f | --force-extensions** switch is required to append extensions to every word in wordlist, as well as the `/`.
+  - For wordlists without `%EXT%` (like [SecLists](https://github.com/danielmiessler/SecLists)), **-f | --force-extensions** switch is required to append extensions to every word in wordlist.
   - To apply your extensions to wordlist entries that have extensions already, use **-O** | **--overwrite-extensions** (Note: some extensions are excluded from being overwritted such as *.log*, *.json*, *.xml*, ... or media extensions like *.jpg*, *.png*)
   - To use multiple wordlists, you can separate your wordlists with commas. Example: `wordlist1.txt,wordlist2.txt`.
   - Bundled wordlist categories live in `db/categories/` and can be selected with **--wordlist-categories**. Available: `extensions`, `conf`, `vcs`, `backups`, `db`, `logs`, `keys`, `web`, `common` (use `all` to include everything).
