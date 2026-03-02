@@ -12,6 +12,8 @@
 - Maximum runtime per target
 - Wordlists by categories
 - Saving and resuming sessions by ID
+- Replace broken setup.py with pyproject.toml
+- Fix SyntaxWarning: `break` in a `finally` block in fuzzer.py
 
 ## [0.4.3] - October 2nd, 2022
 - Automatically detect the URI scheme (`http` or `https`) if no scheme is provided
