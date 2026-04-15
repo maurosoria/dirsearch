@@ -5954,8 +5954,8 @@ listinfo
 lists
 lists/
 lists/config
-livewire/update
 LiveUser_Admin/
+livewire/update
 lk/
 llms.txt
 load.php
@@ -6163,6 +6163,7 @@ Mail/smtp/Admin/smadv.asp
 mailadmin
 mailer/.env
 mailform.%EXT%
+mailinator/
 mailman
 mailman/
 mailman/listinfo
