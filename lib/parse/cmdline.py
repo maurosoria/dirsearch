@@ -22,6 +22,10 @@ from optparse import OptionParser, OptionGroup, Values
 from lib.core.settings import (
     AUTHENTICATION_TYPES,
     FILE_BASED_OUTPUT_FORMATS,
+    MCP_DEFAULT_HOST,
+    MCP_DEFAULT_PATH,
+    MCP_DEFAULT_PORT,
+    MCP_DEFAULT_TRANSPORT,
     VERSION,
 )
 from lib.utils.common import get_config_file
@@ -506,6 +510,47 @@ def parse_arguments() -> Values:
     )
     connection.add_option("--ip", action="store", dest="ip", help="Server IP address")
     connection.add_option("--interface", action="store", dest="network_interface", help="Network interface to use")
+
+    # MCP Server Settings
+    mcp = OptionGroup(parser, "MCP Server")
+    mcp.add_option(
+        "--mcp",
+        action="store_true",
+        dest="mcp",
+        help="Run as MCP server (requires FastMCP installed)",
+    )
+    mcp.add_option(
+        "--mcp-transport",
+        dest="mcp_transport",
+        metavar="TRANSPORT",
+        help="MCP transport to use: {0} (default) or http".format(MCP_DEFAULT_TRANSPORT),
+    )
+    mcp.add_option(
+        "--mcp-host",
+        dest="mcp_host",
+        metavar="HOST",
+        help="HTTP MCP bind host (default: {0})".format(MCP_DEFAULT_HOST),
+    )
+    mcp.add_option(
+        "--mcp-port",
+        type="int",
+        dest="mcp_port",
+        metavar="PORT",
+        help="HTTP MCP bind port (default: {0})".format(MCP_DEFAULT_PORT),
+    )
+    mcp.add_option(
+        "--mcp-path",
+        dest="mcp_path",
+        metavar="PATH",
+        help="HTTP MCP endpoint path (default: {0})".format(MCP_DEFAULT_PATH),
+    )
+    mcp.add_option(
+        "--mcp-token",
+        dest="mcp_token",
+        metavar="TOKEN",
+        help="Enable bearer token authentication (auto-generates if empty)",
+    )
+    parser.add_option_group(mcp)
 
     # Advanced Settings
     advanced = OptionGroup(parser, "Advanced Settings")

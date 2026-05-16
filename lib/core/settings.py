@@ -192,3 +192,9 @@ SIGINT_FORCE_QUIT_THRESHOLD = 3
 URL_SAFE_CHARS = string.punctuation
 
 TEXT_CHARS = bytearray({7, 8, 9, 10, 12, 13, 27} | set(range(0x20, 0x100)) - {0x7F})
+
+# MCP Server Defaults
+MCP_DEFAULT_TRANSPORT = "stdio"
+MCP_DEFAULT_HOST = "127.0.0.1"
+MCP_DEFAULT_PORT = 8000
+MCP_DEFAULT_PATH = "/mcp/"

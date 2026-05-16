@@ -16,6 +16,10 @@ PROJECT_ROOT = os.path.dirname(SPEC_DIR)
 
 # Collect all submodules from lib
 hidden_imports = collect_submodules('lib')
+try:
+    hidden_imports += collect_submodules('fastmcp')
+except ModuleNotFoundError:
+    pass
 
 # Add required dependencies that might not be auto-detected
 hidden_imports += [
