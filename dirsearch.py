@@ -20,15 +20,25 @@
 
 import sys
 
-from lib.core.data import options
-from lib.core.options import parse_options
-
 if sys.version_info < (3, 9):
     sys.stderr.write("Sorry, dirsearch requires Python 3.9 or higher\n")
     sys.exit(1)
 
 
 def main():
+    if "--mcp" in sys.argv:
+        from lib.mcp.server import MCPConfigurationError, main as mcp_main
+
+        try:
+            mcp_main(sys.argv[1:])
+        except MCPConfigurationError as e:
+            sys.stderr.write(f"{e}\n")
+            sys.exit(1)
+        return
+
+    from lib.core.data import options
+    from lib.core.options import parse_options
+
     options.update(parse_options())
 
     if options["session_file"]:

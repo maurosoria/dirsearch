@@ -29,6 +29,7 @@ Table of Contents
 - [Options](#options)
 - [Configuration](#configuration)
 - [How to use](#how-to-use)
+- [MCP mode](#mcp-mode)
 - [Session Management](#session-management)
 - [Support Docker](#support-docker)
 - [Building from Source](#building-from-source)
@@ -674,6 +675,96 @@ python3 dirsearch.py -u https://target --header-list rate-limit-bypasses.txt
 </details>
 
 
+MCP mode
+---------------
+
+dirsearch can run as a [FastMCP](https://fastmcp.wiki/en/getting-started/welcome) server so AI agents can invoke scans through MCP tools.
+
+FastMCP v2 requires Python 3.10+. Install the optional MCP dependency first:
+
+```
+pip install -r requirements/mcp.txt
+```
+
+For packaged installs, use `pip install ".[mcp]"`.
+
+### STDIO transport
+
+STDIO is the default and recommended local mode. It does not listen on a network port and does not require a token.
+
+```
+python3 dirsearch.py --mcp
+```
+
+Example MCP client configuration:
+
+```json
+{
+  "mcpServers": {
+    "dirsearch": {
+      "command": "python3",
+      "args": ["/path/to/dirsearch.py", "--mcp"]
+    }
+  }
+}
+```
+
+### HTTP transport
+
+HTTP mode is optional. It runs as a local server on `127.0.0.1:8000`.
+
+```
+python3 dirsearch.py --mcp --mcp-transport http
+```
+
+### HTTP Authentication
+
+By default, HTTP mode runs without authentication. Enable bearer token protection with `--mcp-token`:
+
+```
+# Use your own token
+python3 dirsearch.py --mcp --mcp-transport http --mcp-token "your-secret-token"
+
+# Auto-generate a random token
+python3 dirsearch.py --mcp --mcp-transport http --mcp-token
+```
+
+When using `--mcp-token` without a value, a secure random token (32 bytes) is automatically generated and printed to stderr. Clients must include `Authorization: Bearer <token>` in their requests.
+
+Custom bind options:
+
+```
+python3 dirsearch.py --mcp --mcp-transport http --mcp-host 127.0.0.1 --mcp-port 8000 --mcp-path /mcp/
+```
+
+Example MCP client configuration (for clients supporting HTTP remote with auth):
+
+```json
+{
+  "mcpServers": {
+    "dirsearch": {
+      "url": "http://127.0.0.1:8000/mcp/",
+      "headers": {
+        "Authorization": "Bearer <YOUR_TOKEN>"
+      }
+    }
+  }
+}
+```
+
+
+### MCP tools
+
+The server exposes two tools:
+
+- `dirsearch_scan`: structured common options such as `url`, `wordlists`, `extensions`, `threads`, `recursive`, `include_status`, `exclude_status`, `headers`, `timeout`, and `max_time`.
+- `dirsearch_scan_cli`: raw dirsearch CLI argument list for advanced usage, for example `["-u", "https://example.com", "-e", "php,js", "-w", "db/dicc.txt", "--recursive"]`.
+
+MCP-managed output is always JSON. The server writes a temporary report, reads it, returns the parsed result to the AI client, and deletes the temporary file. Final report formatting or long-term saving is left to the AI agent or workflow.
+
+For safety, raw CLI mode strips output/session/interactive flags such as `-o`, `--output-file`, `-O`, `--output-formats`, `--mysql-url`, `--postgres-url`, `--log`, `--stdin`, `--session`, `--session-id`, and `--list-sessions`; MCP controls JSON output internally.
+
+
 Session Management
 ---------------
 
@@ -768,9 +859,32 @@ docker build -t "dirsearch:v0.4.3" .
 > **dirsearch** is the name of the image and **v0.4.3** is the version
 
 ### Using dirsearch
+
 For using
 ```sh
 docker run -it --rm "dirsearch:v0.4.3" -u target -e php,html,js,zip
+```
+
+### Building MCP-Supported Image
+
+For MCP mode support, build using the specific file:
+
+```sh
+docker build -f Dockerfile.mcp -t "dirsearch:mcp" .
+```
+
+### Using MCP with Docker
+
+Once the image is built, you can use it with MCP clients:
+
+**STDIO mode:**
+```sh
+docker run -it --rm "dirsearch:mcp" --mcp
+```
+
+**HTTP mode (with custom auth token):**
+```sh
+docker run -it --rm -p 8000:8000 "dirsearch:mcp" --mcp --mcp-transport http --mcp-token "your-secret-token"
 ```
 
 </details>

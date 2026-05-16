@@ -87,6 +87,7 @@ def read_requirements(path: Path) -> list[str]:
 setuptools.setup(
     version=read_version(ROOT / "lib/core/settings.py"),
     install_requires=read_requirements(ROOT / "requirements/runtime.txt"),
+    extras_require={"mcp": read_requirements(ROOT / "requirements/mcp.txt")},
     entry_points={"console_scripts": ["dirsearch=dirsearch.dirsearch:main"]},
     packages=setuptools.find_packages(exclude=("dirsearch.tests", "dirsearch.tests.*")),
     package_data={

@@ -39,7 +39,7 @@ classifiers = [
     "Topic :: Security",
     "Programming Language :: Python :: 3.9",
 ]
-dynamic = ["version", "dependencies"]
+dynamic = ["version", "dependencies", "optional-dependencies"]
 
 [project.scripts]
 dirsearch = "dirsearch.dirsearch:main"
