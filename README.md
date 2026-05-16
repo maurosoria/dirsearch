@@ -737,13 +737,16 @@ Custom bind options:
 python3 dirsearch.py --mcp --mcp-transport http --mcp-host 127.0.0.1 --mcp-port 8000 --mcp-path /mcp/
 ```
 
-Example MCP client configuration (for clients supporting HTTP remote):
+Example MCP client configuration (for clients supporting HTTP remote with auth):
 
 ```json
 {
   "mcpServers": {
     "dirsearch": {
-      "url": "http://127.0.0.1:8000/mcp/"
+      "url": "http://127.0.0.1:8000/mcp/",
+      "headers": {
+        "Authorization": "Bearer <YOUR_TOKEN>"
+      }
     }
   }
 }
@@ -856,9 +859,32 @@ docker build -t "dirsearch:v0.4.3" .
 > **dirsearch** is the name of the image and **v0.4.3** is the version
 
 ### Using dirsearch
+
 For using
 ```sh
 docker run -it --rm "dirsearch:v0.4.3" -u target -e php,html,js,zip
+```
+
+### Building MCP-Supported Image
+
+For MCP mode support, build using the specific file:
+
+```sh
+docker build -f Dockerfile.mcp -t "dirsearch:mcp" .
+```
+
+### Using MCP with Docker
+
+Once the image is built, you can use it with MCP clients:
+
+**STDIO mode:**
+```sh
+docker run -it --rm "dirsearch:mcp" --mcp
+```
+
+**HTTP mode (with custom auth token):**
+```sh
+docker run -it --rm -p 8000:8000 "dirsearch:mcp" --mcp --mcp-transport http --mcp-token "your-secret-token"
 ```
 
 </details>

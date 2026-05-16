@@ -1,2 +1,2 @@
 # Optional dependencies for MCP mode. FastMCP v2 requires Python 3.10+.
-fastmcp==2.14.7
+fastmcp>=2.11
