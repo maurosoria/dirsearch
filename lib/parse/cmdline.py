@@ -388,6 +388,13 @@ def parse_arguments() -> Values:
         help="HTTP method (default: GET)",
     )
     request.add_option(
+        "--request-backend",
+        action="store",
+        dest="request_backend",
+        metavar="BACKEND",
+        help="Request backend: python, native (default: python)",
+    )
+    request.add_option(
         "-d", "--data", action="store", dest="data", help="HTTP request data"
     )
     request.add_option(

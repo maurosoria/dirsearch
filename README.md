@@ -127,6 +127,7 @@ Wordlists (IMPORTANT)
   - To use multiple wordlists, you can separate your wordlists with commas. Example: `wordlist1.txt,wordlist2.txt`.
   - Bundled wordlist categories live in `db/categories/` and can be selected with **--wordlist-categories**. Available: `extensions`, `conf`, `vcs`, `backups`, `db`, `logs`, `keys`, `web`, `common` (use `all` to include everything).
   - Wordlist generation uses **--wordlist-backend=auto** by default. **python** selects the built-in backend and **native** requires a native backend build.
+  - Request scanning uses **--request-backend=python** by default. **native** enables the experimental Rust request backend for supported GET scans.
   - Template wordlists live in `db/templates/` and support placeholders such as `%SUBJECT%`, `%CRUD_OP%`, `%AUTH_OP%`, `%ADMIN_OP%`, `%ENV%`, `%DATE%`, `%API_VERSION%`, `%CATEGORY:name%`, and `%EXT%`.
   - Use **--wordlist-status** to preview resolved wordlist files and generated entry count before scanning. Use **--wordlist-max-size** to cap generation.
 
@@ -305,6 +306,8 @@ Options:
   Request Settings:
     -m METHOD, --http-method=METHOD
                         HTTP method (default: GET)
+    --request-backend=BACKEND
+                        Request backend: python, native (default: python)
     -d DATA, --data=DATA
                         HTTP request data
     --data-file=PATH    File contains HTTP request data
@@ -417,6 +420,7 @@ capitalization = False
 
 [request]
 http-method = get
+request-backend = python
 follow-redirects = False
 # headers-file = /path/to/headers.txt
 # user-agent = MyUserAgent

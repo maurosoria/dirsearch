@@ -5,9 +5,13 @@ from typing import Protocol
 
 from lib.core.data import options
 from lib.core.exceptions import WordlistBackendUnavailableError, WordlistLimitError
-from lib.core.settings import EXCLUDE_OVERWRITE_EXTENSIONS, EXTENSION_RECOGNITION_REGEX
+from lib.core.settings import (
+    EXCLUDE_OVERWRITE_EXTENSIONS,
+    EXTENSION_RECOGNITION_REGEX,
+    EXTENSION_TAG,
+)
 from lib.core.structures import OrderedSet
-from lib.core.wordlist_template import expand_template_line
+from lib.core.wordlist_template import TOKEN_RE, expand_template_line
 from lib.parse.url import clean_path
 from lib.utils.common import lstrip_once
 from lib.utils.file import FileUtils
@@ -125,12 +129,58 @@ class PythonWordlistBackend:
             )
 
 
+class NativeWordlistBackend:
+    name = "native"
+
+    def __init__(self) -> None:
+        try:
+            import dirsearch_native
+        except ImportError as e:
+            raise WordlistBackendUnavailableError(
+                "Native wordlist backend is not available. "
+                "Build it with: python3 -m maturin develop --manifest-path native/Cargo.toml"
+            ) from e
+
+        self._native = dirsearch_native
+
+    def generate(self, files: list[str], is_blacklist: bool = False) -> list[str]:
+        if is_blacklist or self._requires_python_template_expansion(files):
+            return PythonWordlistBackend().generate(files, is_blacklist=is_blacklist)
+
+        return self._native.generate_wordlist(
+            files,
+            list(options["extensions"]),
+            force_extensions=options["force_extensions"],
+            prefixes=list(options["prefixes"]),
+            suffixes=list(options["suffixes"]),
+            exclude_extensions=list(options["exclude_extensions"]),
+            overwrite_exclude_extensions=list(EXCLUDE_OVERWRITE_EXTENSIONS),
+            lowercase=options["lowercase"],
+            uppercase=options["uppercase"],
+            capitalization=options["capitalization"],
+            overwrite_extensions=options["overwrite_extensions"],
+            max_size=options["wordlist_max_size"],
+        )
+
+    def _requires_python_template_expansion(self, files: list[str]) -> bool:
+        extension_token = EXTENSION_TAG.strip("%").upper()
+        for dict_file in files:
+            with open(dict_file, "r", errors="replace") as handle:
+                for line in handle:
+                    if "%" not in line:
+                        continue
+
+                    tokens = {token.upper() for token in TOKEN_RE.findall(line)}
+                    if any(token != extension_token for token in tokens):
+                        return True
+
+        return False
+
+
 def get_wordlist_backend(name: str | None = None) -> WordlistBackend:
     backend = name or options["wordlist_backend"]
     if backend in ("auto", "python"):
         return PythonWordlistBackend()
     if backend == "native":
-        raise WordlistBackendUnavailableError(
-            "Native wordlist backend is not available in this build"
-        )
+        return NativeWordlistBackend()
     raise ValueError(f"Unknown wordlist backend: {backend}")

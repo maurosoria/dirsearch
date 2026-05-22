@@ -24,6 +24,7 @@ import threading
 import time
 from typing import Any, Callable, Generator
 
+from lib.connection.native import NativeHTTPBackend
 from lib.connection.requester import AsyncRequester, BaseRequester, Requester
 from lib.connection.response import BaseResponse
 from lib.core.data import blacklists, options
@@ -135,6 +136,29 @@ class BaseFuzzer:
 
         return False
 
+    def process_response(self, path: str, response: BaseResponse) -> None:
+        scanners = self.get_scanners_for(path)
+
+        if self.is_excluded(response):
+            for callback in self.not_found_callbacks:
+                callback(response)
+            return
+
+        for tester in scanners:
+            # Check if the response is unique, not wildcard
+            if not tester.check(path, response):
+                for callback in self.not_found_callbacks:
+                    callback(response)
+                return
+
+        if options["filter_threshold"]:
+            hash_ = hash(response)
+            self._hashes.setdefault(hash_, 0)
+            self._hashes[hash_] += 1
+
+        for callback in self.match_callbacks:
+            callback(response)
+
 
 class Fuzzer(BaseFuzzer):
     def __init__(
@@ -245,7 +269,6 @@ class Fuzzer(BaseFuzzer):
         self.play()
 
     def scan(self, path: str) -> None:
-        scanners = self.get_scanners_for(path)
         try:
             response = self._requester.request(path)
         except RequestException as e:
@@ -253,25 +276,7 @@ class Fuzzer(BaseFuzzer):
                 callback(e)
             return
 
-        if self.is_excluded(response):
-            for callback in self.not_found_callbacks:
-                callback(response)
-            return
-
-        for tester in scanners:
-            # Check if the response is unique, not wildcard
-            if not tester.check(path, response):
-                for callback in self.not_found_callbacks:
-                    callback(response)
-                return
-
-        if options["filter_threshold"]:
-            hash_ = hash(response)
-            self._hashes.setdefault(hash_, 0)
-            self._hashes[hash_] += 1
-
-        for callback in self.match_callbacks:
-            callback(response)
+        self.process_response(path, response)
 
     def thread_proc(self) -> None:
         logger.info(f'THREAD-{threading.get_ident()} started"')
@@ -302,6 +307,64 @@ class Fuzzer(BaseFuzzer):
 
             if should_quit:
                 break
+
+
+class NativeFuzzer(Fuzzer):
+    def __init__(
+        self,
+        requester: Requester,
+        dictionary: Dictionary,
+        *,
+        match_callbacks: tuple[Callable[[BaseResponse], Any], ...],
+        not_found_callbacks: tuple[Callable[[BaseResponse], Any], ...],
+        error_callbacks: tuple[Callable[[RequestException], Any], ...],
+    ) -> None:
+        super().__init__(
+            requester,
+            dictionary,
+            match_callbacks=match_callbacks,
+            not_found_callbacks=not_found_callbacks,
+            error_callbacks=error_callbacks,
+        )
+        self._finished = False
+        self._native_backend: NativeHTTPBackend | None = None
+
+    def start(self) -> None:
+        self._native_backend = self._native_backend or NativeHTTPBackend()
+        self.setup_scanners()
+        self.play()
+        self._quit_event.clear()
+        self._finished = False
+
+        try:
+            while not self._quit_event.is_set():
+                paths = self._next_chunk()
+                if not paths:
+                    break
+
+                for path, response, error in self._native_backend.scan(self._requester._url, paths):
+                    if self._quit_event.is_set():
+                        break
+                    if error is not None:
+                        for callback in self.error_callbacks:
+                            callback(error)
+                        continue
+                    self.process_response(path, response)
+        finally:
+            self._finished = True
+
+    def _next_chunk(self) -> list[str]:
+        chunk_size = max(1000, options["thread_count"] * 100)
+        paths = []
+        for _ in range(chunk_size):
+            try:
+                paths.append(self._base_path + next(self._dictionary))
+            except StopIteration:
+                break
+        return paths
+
+    def is_finished(self) -> bool:
+        return self._finished
 
 
 class AsyncFuzzer(BaseFuzzer):
@@ -374,7 +437,7 @@ class AsyncFuzzer(BaseFuzzer):
         await self.setup_scanners()
         self.play()
 
-        for _ in range(len(self._dictionary)):
+        for _ in range(min(options["thread_count"], len(self._dictionary))):
             task = asyncio.create_task(self.task_proc())
             self._background_tasks.add(task)
             task.add_done_callback(self._background_tasks.discard)
@@ -392,7 +455,6 @@ class AsyncFuzzer(BaseFuzzer):
             task.cancel()
 
     async def scan(self, path: str) -> None:
-        scanners = self.get_scanners_for(path)
         try:
             response = await self._requester.request(path)
         except RequestException as e:
@@ -400,34 +462,18 @@ class AsyncFuzzer(BaseFuzzer):
                 callback(e)
             return
 
-        if self.is_excluded(response):
-            for callback in self.not_found_callbacks:
-                callback(response)
-            return
-
-        for tester in scanners:
-            # Check if the response is unique, not wildcard
-            if not tester.check(path, response):
-                for callback in self.not_found_callbacks:
-                    callback(response)
-                return
-
-        if options["filter_threshold"]:
-            hash_ = hash(response)
-            self._hashes.setdefault(hash_, 0)
-            self._hashes[hash_] += 1
-
-        for callback in self.match_callbacks:
-            callback(response)
+        self.process_response(path, response)
 
     async def task_proc(self) -> None:
-        async with self.sem:
+        while True:
             await self._play_event.wait()
 
             try:
                 path = next(self._dictionary)
-                await self.scan(self._base_path + path)
             except StopIteration:
-                pass
-            finally:
-                await asyncio.sleep(options["delay"])
+                return
+
+            async with self.sem:
+                await self.scan(self._base_path + path)
+
+            await asyncio.sleep(options["delay"])

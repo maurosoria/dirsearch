@@ -58,7 +58,7 @@ class OrderedSet:
         return self._data.keys() == other._data.keys()
 
     def __iter__(self) -> Iterator[Any]:
-        return iter(list(self._data))
+        return iter(self._data)
 
     def __len__(self) -> int:
         return len(self._data)

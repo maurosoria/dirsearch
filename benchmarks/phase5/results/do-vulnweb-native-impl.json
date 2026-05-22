@@ -1,0 +1,61 @@
+{
+  "zero": {
+    "extensions": [
+      "html"
+    ],
+    "httpx_workers": {
+      "backend": "httpx-workers",
+      "concurrency": 12,
+      "elapsed_s": 1.1522091760000137,
+      "errors": 0,
+      "requests": 300,
+      "requests_per_s": 260.3693897330986,
+      "statuses": {
+        "400": 2,
+        "404": 298
+      }
+    },
+    "native_path_parity": true,
+    "requests": {
+      "backend": "requests",
+      "concurrency": 12,
+      "elapsed_s": 0.6025067800000272,
+      "errors": 0,
+      "requests": 300,
+      "requests_per_s": 497.9197080570387,
+      "statuses": {
+        "400": 2,
+        "404": 298
+      }
+    },
+    "rust_reqwest": {
+      "backend": "rust-reqwest",
+      "concurrency": 12,
+      "elapsed_s": 0.4451962930000093,
+      "errors": 0,
+      "requests": 300,
+      "requests_per_s": 673.8600583989897,
+      "statuses": {
+        "400": 1,
+        "404": 299
+      }
+    },
+    "url": "http://zero.webappsecurity.com/",
+    "wordlist_native": {
+      "backend": "native",
+      "elapsed_s": 0.06607495000000085,
+      "entries_per_s": 145758.71794076083,
+      "generated": 9631,
+      "safe": 9608,
+      "selected": 300
+    },
+    "wordlist_python": {
+      "backend": "python",
+      "elapsed_s": 0.25895642899999416,
+      "entries_per_s": 37191.58484379709,
+      "generated": 9631,
+      "safe": 9608,
+      "selected": 300
+    }
+  }
+}

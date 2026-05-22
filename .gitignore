@@ -6,5 +6,10 @@ __pycache__/
 .idea/
 .ropeproject/
 venv/
+.venv/
+.cache/
+build/
+dist/
+/dirsearch.spec
 sessions/*
 !sessions/.gitkeep

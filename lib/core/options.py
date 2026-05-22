@@ -33,6 +33,10 @@ from lib.core.settings import (
     WORDLIST_CATEGORIES,
     WORDLIST_CATEGORY_DIR,
 )
+from lib.core.request_backend import (
+    REQUEST_BACKENDS,
+    get_native_request_backend_error,
+)
 from lib.core.wordlist_backend import WORDLIST_BACKENDS
 from lib.parse.cmdline import parse_arguments
 from lib.parse.config import ConfigParser
@@ -162,8 +166,9 @@ def parse_options() -> dict[str, Any]:
     if opt.wordlist_backend not in WORDLIST_BACKENDS:
         print("--wordlist-backend must be one of: " + ", ".join(WORDLIST_BACKENDS))
         sys.exit(1)
-    if opt.wordlist_backend == "native":
-        print("Native wordlist backend is not available in this build")
+
+    if opt.request_backend not in REQUEST_BACKENDS:
+        print("--request-backend must be one of: " + ", ".join(REQUEST_BACKENDS))
         sys.exit(1)
 
     if opt.tor:
@@ -313,6 +318,11 @@ def parse_options() -> dict[str, Any]:
 
     if opt.output_file:
         opt.output_file = FileUtils.get_abs_path(opt.output_file)
+
+    if opt.request_backend == "native":
+        if error := get_native_request_backend_error(opt):
+            print(error)
+            sys.exit(1)
 
     return vars(opt)
 
@@ -528,6 +538,9 @@ def merge_config(opt: Values) -> Values:
     # Request
     opt.http_method = opt.http_method or config.safe_get(
         "request", "http-method", "get"
+    )
+    opt.request_backend = opt.request_backend or config.safe_get(
+        "request", "request-backend", "python"
     )
     opt.headers = opt.headers or config.safe_getlist("request", "headers")
     opt.headers_file = opt.headers_file or config.safe_get("request", "headers-file")

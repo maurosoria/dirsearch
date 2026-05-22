@@ -21,9 +21,12 @@
 import unittest
 
 from tests.connection.test_dns import TestDNS  # noqa: F401
+from tests.connection.test_native_response import TestNativeResponse  # noqa: F401
 from tests.controller.test_session_store import TestSessionStore  # noqa: F401
 from tests.core.test_dictionary_templates import TestDictionaryTemplates  # noqa: F401
 from tests.core.test_importable_api import TestImportableAPI  # noqa: F401
+from tests.core.test_native_fuzzer import TestNativeFuzzer  # noqa: F401
+from tests.core.test_request_backend import TestRequestBackend  # noqa: F401
 from tests.core.test_scanner import TestScanner  # noqa: F401
 from tests.core.test_wordlist_backend import TestWordlistBackend  # noqa: F401
 from tests.parse.test_config import TestConfigParser  # noqa: F401

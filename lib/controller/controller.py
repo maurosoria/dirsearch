@@ -317,7 +317,10 @@ class Controller:
             interface.log_file(options["log_file"])
 
     def run(self) -> None:
-        if options["async_mode"]:
+        if options["request_backend"] == "native":
+            from lib.connection.requester import Requester
+            from lib.core.fuzzer import NativeFuzzer as Fuzzer
+        elif options["async_mode"]:
             from lib.connection.requester import AsyncRequester as Requester
             from lib.core.fuzzer import AsyncFuzzer as Fuzzer
 

@@ -1,0 +1,2048 @@
+{
+  "contention": {
+    "1": {
+      "native": {
+        "aggregate_requests_per_s": {
+          "max": 536.4808849975147,
+          "median": 530.7028918545147,
+          "min": 508.27422068990865
+        },
+        "elapsed_s": {
+          "max": 1.967441903000008,
+          "median": 1.8842934819999755,
+          "min": 1.8639993109999295
+        },
+        "failed_processes": 0,
+        "processes": 1,
+        "repeats": 3,
+        "samples": [
+          {
+            "aggregate_requests_per_s": 536.4808849975147,
+            "backend": "native",
+            "elapsed_s": 1.8639993109999295,
+            "failed_processes": 0,
+            "process_results": [
+              {
+                "elapsed_s": 1.8626120100000207,
+                "resource_usage": {
+                  "cpu_percent": "82%",
+                  "involuntary_context_switches": 673,
+                  "max_rss_kb": 63620,
+                  "system_time_s": "0.12",
+                  "user_time_s": "1.41",
+                  "voluntary_context_switches": 607
+                },
+                "returncode": 0,
+                "stderr": ""
+              }
+            ],
+            "processes": 1,
+            "threads_per_process": 12,
+            "total_requests": 1000
+          },
+          {
+            "aggregate_requests_per_s": 530.7028918545147,
+            "backend": "native",
+            "elapsed_s": 1.8842934819999755,
+            "failed_processes": 0,
+            "process_results": [
+              {
+                "elapsed_s": 1.8827436660000103,
+                "resource_usage": {
+                  "cpu_percent": "78%",
+                  "involuntary_context_switches": 582,
+                  "max_rss_kb": 63496,
+                  "system_time_s": "0.10",
+                  "user_time_s": "1.36",
+                  "voluntary_context_switches": 600
+                },
+                "returncode": 0,
+                "stderr": ""
+              }
+            ],
+            "processes": 1,
+            "threads_per_process": 12,
+            "total_requests": 1000
+          },
+          {
+            "aggregate_requests_per_s": 508.27422068990865,
+            "backend": "native",
+            "elapsed_s": 1.967441903000008,
+            "failed_processes": 0,
+            "process_results": [
+              {
+                "elapsed_s": 1.9660998399999698,
+                "resource_usage": {
+                  "cpu_percent": "82%",
+                  "involuntary_context_switches": 643,
+                  "max_rss_kb": 63368,
+                  "system_time_s": "0.14",
+                  "user_time_s": "1.48",
+                  "voluntary_context_switches": 587
+                },
+                "returncode": 0,
+                "stderr": ""
+              }
+            ],
+            "processes": 1,
+            "threads_per_process": 12,
+            "total_requests": 1000
+          }
+        ],
+        "threads_per_process": 12,
+        "total_requests": 1000
+      },
+      "python": {
+        "aggregate_requests_per_s": {
+          "max": 334.0646933716885,
+          "median": 324.2100132012305,
+          "min": 281.9672146974637
+        },
+        "elapsed_s": {
+          "max": 3.54651160800006,
+          "median": 3.084420465999983,
+          "min": 2.9934321700000055
+        },
+        "failed_processes": 0,
+        "processes": 1,
+        "repeats": 3,
+        "samples": [
+          {
+            "aggregate_requests_per_s": 334.0646933716885,
+            "backend": "python",
+            "elapsed_s": 2.9934321700000055,
+            "failed_processes": 0,
+            "process_results": [
+              {
+                "elapsed_s": 2.9910237070000676,
+                "resource_usage": {
+                  "cpu_percent": "95%",
+                  "involuntary_context_switches": 4715,
+                  "max_rss_kb": 61672,
+                  "system_time_s": "0.53",
+                  "user_time_s": "2.30",
+                  "voluntary_context_switches": 23593
+                },
+                "returncode": 0,
+                "stderr": ""
+              }
+            ],
+            "processes": 1,
+            "threads_per_process": 12,
+            "total_requests": 1000
+          },
+          {
+            "aggregate_requests_per_s": 281.9672146974637,
+            "backend": "python",
+            "elapsed_s": 3.54651160800006,
+            "failed_processes": 0,
+            "process_results": [
+              {
+                "elapsed_s": 3.5452362179999,
+                "resource_usage": {
+                  "cpu_percent": "94%",
+                  "involuntary_context_switches": 4665,
+                  "max_rss_kb": 59780,
+                  "system_time_s": "0.62",
+                  "user_time_s": "2.71",
+                  "voluntary_context_switches": 23511
+                },
+                "returncode": 0,
+                "stderr": ""
+              }
+            ],
+            "processes": 1,
+            "threads_per_process": 12,
+            "total_requests": 1000
+          },
+          {
+            "aggregate_requests_per_s": 324.2100132012305,
+            "backend": "python",
+            "elapsed_s": 3.084420465999983,
+            "failed_processes": 0,
+            "process_results": [
+              {
+                "elapsed_s": 3.0830697439999994,
+                "resource_usage": {
+                  "cpu_percent": "100%",
+                  "involuntary_context_switches": 4756,
+                  "max_rss_kb": 61196,
+                  "system_time_s": "0.55",
+                  "user_time_s": "2.54",
+                  "voluntary_context_switches": 23613
+                },
+                "returncode": 0,
+                "stderr": ""
+              }
+            ],
+            "processes": 1,
+            "threads_per_process": 12,
+            "total_requests": 1000
+          }
+        ],
+        "threads_per_process": 12,
+        "total_requests": 1000
+      }
+    },
+    "2": {
+      "native": {
+        "aggregate_requests_per_s": {
+          "max": 1017.5876522299895,
+          "median": 1011.8700046820308,
+          "min": 1000.8244571696614
+        },
+        "elapsed_s": {
+          "max": 1.9983524440000338,
+          "median": 1.9765384790000553,
+          "min": 1.965432653999983
+        },
+        "failed_processes": 0,
+        "processes": 2,
+        "repeats": 3,
+        "samples": [
+          {
+            "aggregate_requests_per_s": 1000.8244571696614,
+            "backend": "native",
+            "elapsed_s": 1.9983524440000338,
+            "failed_processes": 0,
+            "process_results": [
+              {
+                "elapsed_s": 1.9385158349999756,
+                "resource_usage": {
+                  "cpu_percent": "79%",
+                  "involuntary_context_switches": 717,
+                  "max_rss_kb": 63368,
+                  "system_time_s": "0.13",
+                  "user_time_s": "1.41",
+                  "voluntary_context_switches": 498
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 1.9963318129999834,
+                "resource_usage": {
+                  "cpu_percent": "78%",
+                  "involuntary_context_switches": 506,
+                  "max_rss_kb": 63752,
+                  "system_time_s": "0.13",
+                  "user_time_s": "1.42",
+                  "voluntary_context_switches": 546
+                },
+                "returncode": 0,
+                "stderr": ""
+              }
+            ],
+            "processes": 2,
+            "threads_per_process": 12,
+            "total_requests": 2000
+          },
+          {
+            "aggregate_requests_per_s": 1011.8700046820308,
+            "backend": "native",
+            "elapsed_s": 1.9765384790000553,
+            "failed_processes": 0,
+            "process_results": [
+              {
+                "elapsed_s": 1.951907844999937,
+                "resource_usage": {
+                  "cpu_percent": "78%",
+                  "involuntary_context_switches": 507,
+                  "max_rss_kb": 63748,
+                  "system_time_s": "0.11",
+                  "user_time_s": "1.41",
+                  "voluntary_context_switches": 574
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 1.9751607449999256,
+                "resource_usage": {
+                  "cpu_percent": "79%",
+                  "involuntary_context_switches": 683,
+                  "max_rss_kb": 63756,
+                  "system_time_s": "0.14",
+                  "user_time_s": "1.42",
+                  "voluntary_context_switches": 554
+                },
+                "returncode": 0,
+                "stderr": ""
+              }
+            ],
+            "processes": 2,
+            "threads_per_process": 12,
+            "total_requests": 2000
+          },
+          {
+            "aggregate_requests_per_s": 1017.5876522299895,
+            "backend": "native",
+            "elapsed_s": 1.965432653999983,
+            "failed_processes": 0,
+            "process_results": [
+              {
+                "elapsed_s": 1.9617587449999974,
+                "resource_usage": {
+                  "cpu_percent": "80%",
+                  "involuntary_context_switches": 585,
+                  "max_rss_kb": 62980,
+                  "system_time_s": "0.14",
+                  "user_time_s": "1.44",
+                  "voluntary_context_switches": 574
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 1.9634722449999344,
+                "resource_usage": {
+                  "cpu_percent": "80%",
+                  "involuntary_context_switches": 588,
+                  "max_rss_kb": 63240,
+                  "system_time_s": "0.12",
+                  "user_time_s": "1.45",
+                  "voluntary_context_switches": 541
+                },
+                "returncode": 0,
+                "stderr": ""
+              }
+            ],
+            "processes": 2,
+            "threads_per_process": 12,
+            "total_requests": 2000
+          }
+        ],
+        "threads_per_process": 12,
+        "total_requests": 2000
+      },
+      "python": {
+        "aggregate_requests_per_s": {
+          "max": 479.23697525872717,
+          "median": 439.3739405800416,
+          "min": 431.3496902432786
+        },
+        "elapsed_s": {
+          "max": 4.636609334000013,
+          "median": 4.551931317000026,
+          "min": 4.1733006910000086
+        },
+        "failed_processes": 0,
+        "processes": 2,
+        "repeats": 3,
+        "samples": [
+          {
+            "aggregate_requests_per_s": 431.3496902432786,
+            "backend": "python",
+            "elapsed_s": 4.636609334000013,
+            "failed_processes": 0,
+            "process_results": [
+              {
+                "elapsed_s": 4.562266537000028,
+                "resource_usage": {
+                  "cpu_percent": "71%",
+                  "involuntary_context_switches": 6472,
+                  "max_rss_kb": 57348,
+                  "system_time_s": "0.58",
+                  "user_time_s": "2.67",
+                  "voluntary_context_switches": 25227
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 4.634010825999894,
+                "resource_usage": {
+                  "cpu_percent": "70%",
+                  "involuntary_context_switches": 6329,
+                  "max_rss_kb": 57596,
+                  "system_time_s": "0.57",
+                  "user_time_s": "2.70",
+                  "voluntary_context_switches": 24985
+                },
+                "returncode": 0,
+                "stderr": ""
+              }
+            ],
+            "processes": 2,
+            "threads_per_process": 12,
+            "total_requests": 2000
+          },
+          {
+            "aggregate_requests_per_s": 439.3739405800416,
+            "backend": "python",
+            "elapsed_s": 4.551931317000026,
+            "failed_processes": 0,
+            "process_results": [
+              {
+                "elapsed_s": 4.468888929999935,
+                "resource_usage": {
+                  "cpu_percent": "69%",
+                  "involuntary_context_switches": 6620,
+                  "max_rss_kb": 58248,
+                  "system_time_s": "0.58",
+                  "user_time_s": "2.50",
+                  "voluntary_context_switches": 24969
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 4.54984373800005,
+                "resource_usage": {
+                  "cpu_percent": "68%",
+                  "involuntary_context_switches": 6362,
+                  "max_rss_kb": 57608,
+                  "system_time_s": "0.52",
+                  "user_time_s": "2.61",
+                  "voluntary_context_switches": 24611
+                },
+                "returncode": 0,
+                "stderr": ""
+              }
+            ],
+            "processes": 2,
+            "threads_per_process": 12,
+            "total_requests": 2000
+          },
+          {
+            "aggregate_requests_per_s": 479.23697525872717,
+            "backend": "python",
+            "elapsed_s": 4.1733006910000086,
+            "failed_processes": 0,
+            "process_results": [
+              {
+                "elapsed_s": 4.049797549999994,
+                "resource_usage": {
+                  "cpu_percent": "76%",
+                  "involuntary_context_switches": 6398,
+                  "max_rss_kb": 58248,
+                  "system_time_s": "0.52",
+                  "user_time_s": "2.56",
+                  "voluntary_context_switches": 25142
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 4.171208772999989,
+                "resource_usage": {
+                  "cpu_percent": "76%",
+                  "involuntary_context_switches": 6366,
+                  "max_rss_kb": 57996,
+                  "system_time_s": "0.52",
+                  "user_time_s": "2.68",
+                  "voluntary_context_switches": 24827
+                },
+                "returncode": 0,
+                "stderr": ""
+              }
+            ],
+            "processes": 2,
+            "threads_per_process": 12,
+            "total_requests": 2000
+          }
+        ],
+        "threads_per_process": 12,
+        "total_requests": 2000
+      }
+    },
+    "4": {
+      "native": {
+        "aggregate_requests_per_s": {
+          "max": 1103.1733255072645,
+          "median": 1094.3322449425768,
+          "min": 1040.889488698428
+        },
+        "elapsed_s": {
+          "max": 3.84286712800008,
+          "median": 3.65519705600002,
+          "min": 3.6259034800000336
+        },
+        "failed_processes": 0,
+        "processes": 4,
+        "repeats": 3,
+        "samples": [
+          {
+            "aggregate_requests_per_s": 1094.3322449425768,
+            "backend": "native",
+            "elapsed_s": 3.65519705600002,
+            "failed_processes": 0,
+            "process_results": [
+              {
+                "elapsed_s": 3.5816001769999275,
+                "resource_usage": {
+                  "cpu_percent": "48%",
+                  "involuntary_context_switches": 877,
+                  "max_rss_kb": 63496,
+                  "system_time_s": "0.12",
+                  "user_time_s": "1.61",
+                  "voluntary_context_switches": 628
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 3.6269099050000477,
+                "resource_usage": {
+                  "cpu_percent": "48%",
+                  "involuntary_context_switches": 892,
+                  "max_rss_kb": 63632,
+                  "system_time_s": "0.14",
+                  "user_time_s": "1.60",
+                  "voluntary_context_switches": 575
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 3.6489687549999417,
+                "resource_usage": {
+                  "cpu_percent": "48%",
+                  "involuntary_context_switches": 1170,
+                  "max_rss_kb": 63888,
+                  "system_time_s": "0.14",
+                  "user_time_s": "1.63",
+                  "voluntary_context_switches": 675
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 3.652522025000053,
+                "resource_usage": {
+                  "cpu_percent": "48%",
+                  "involuntary_context_switches": 1076,
+                  "max_rss_kb": 63624,
+                  "system_time_s": "0.13",
+                  "user_time_s": "1.62",
+                  "voluntary_context_switches": 517
+                },
+                "returncode": 0,
+                "stderr": ""
+              }
+            ],
+            "processes": 4,
+            "threads_per_process": 12,
+            "total_requests": 4000
+          },
+          {
+            "aggregate_requests_per_s": 1040.889488698428,
+            "backend": "native",
+            "elapsed_s": 3.84286712800008,
+            "failed_processes": 0,
+            "process_results": [
+              {
+                "elapsed_s": 3.732472033000022,
+                "resource_usage": {
+                  "cpu_percent": "48%",
+                  "involuntary_context_switches": 1090,
+                  "max_rss_kb": 63756,
+                  "system_time_s": "0.15",
+                  "user_time_s": "1.63",
+                  "voluntary_context_switches": 614
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 3.764381974999992,
+                "resource_usage": {
+                  "cpu_percent": "48%",
+                  "involuntary_context_switches": 1129,
+                  "max_rss_kb": 63612,
+                  "system_time_s": "0.14",
+                  "user_time_s": "1.67",
+                  "voluntary_context_switches": 537
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 3.7875294749999284,
+                "resource_usage": {
+                  "cpu_percent": "49%",
+                  "involuntary_context_switches": 957,
+                  "max_rss_kb": 63628,
+                  "system_time_s": "0.15",
+                  "user_time_s": "1.71",
+                  "voluntary_context_switches": 640
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 3.8363371719999577,
+                "resource_usage": {
+                  "cpu_percent": "49%",
+                  "involuntary_context_switches": 1006,
+                  "max_rss_kb": 63496,
+                  "system_time_s": "0.17",
+                  "user_time_s": "1.72",
+                  "voluntary_context_switches": 642
+                },
+                "returncode": 0,
+                "stderr": ""
+              }
+            ],
+            "processes": 4,
+            "threads_per_process": 12,
+            "total_requests": 4000
+          },
+          {
+            "aggregate_requests_per_s": 1103.1733255072645,
+            "backend": "native",
+            "elapsed_s": 3.6259034800000336,
+            "failed_processes": 0,
+            "process_results": [
+              {
+                "elapsed_s": 3.5602247699999907,
+                "resource_usage": {
+                  "cpu_percent": "49%",
+                  "involuntary_context_switches": 1006,
+                  "max_rss_kb": 63752,
+                  "system_time_s": "0.13",
+                  "user_time_s": "1.62",
+                  "voluntary_context_switches": 497
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 3.5623607759999913,
+                "resource_usage": {
+                  "cpu_percent": "48%",
+                  "involuntary_context_switches": 1065,
+                  "max_rss_kb": 63752,
+                  "system_time_s": "0.13",
+                  "user_time_s": "1.60",
+                  "voluntary_context_switches": 599
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 3.5949251749999576,
+                "resource_usage": {
+                  "cpu_percent": "48%",
+                  "involuntary_context_switches": 983,
+                  "max_rss_kb": 64004,
+                  "system_time_s": "0.12",
+                  "user_time_s": "1.59",
+                  "voluntary_context_switches": 554
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 3.621740028999966,
+                "resource_usage": {
+                  "cpu_percent": "48%",
+                  "involuntary_context_switches": 957,
+                  "max_rss_kb": 63240,
+                  "system_time_s": "0.11",
+                  "user_time_s": "1.64",
+                  "voluntary_context_switches": 565
+                },
+                "returncode": 0,
+                "stderr": ""
+              }
+            ],
+            "processes": 4,
+            "threads_per_process": 12,
+            "total_requests": 4000
+          }
+        ],
+        "threads_per_process": 12,
+        "total_requests": 4000
+      },
+      "python": {
+        "aggregate_requests_per_s": {
+          "max": 517.6611881420574,
+          "median": 471.9884644254028,
+          "min": 381.35121021494444
+        },
+        "elapsed_s": {
+          "max": 10.489018764999969,
+          "median": 8.474783393000052,
+          "min": 7.727061814999956
+        },
+        "failed_processes": 0,
+        "processes": 4,
+        "repeats": 3,
+        "samples": [
+          {
+            "aggregate_requests_per_s": 517.6611881420574,
+            "backend": "python",
+            "elapsed_s": 7.727061814999956,
+            "failed_processes": 0,
+            "process_results": [
+              {
+                "elapsed_s": 7.104729923999912,
+                "resource_usage": {
+                  "cpu_percent": "45%",
+                  "involuntary_context_switches": 5773,
+                  "max_rss_kb": 56060,
+                  "system_time_s": "0.46",
+                  "user_time_s": "2.77",
+                  "voluntary_context_switches": 21245
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 7.170756169000015,
+                "resource_usage": {
+                  "cpu_percent": "45%",
+                  "involuntary_context_switches": 5570,
+                  "max_rss_kb": 55956,
+                  "system_time_s": "0.51",
+                  "user_time_s": "2.71",
+                  "voluntary_context_switches": 21078
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 7.272751577000008,
+                "resource_usage": {
+                  "cpu_percent": "44%",
+                  "involuntary_context_switches": 5827,
+                  "max_rss_kb": 55564,
+                  "system_time_s": "0.51",
+                  "user_time_s": "2.71",
+                  "voluntary_context_switches": 24559
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 7.724868987999912,
+                "resource_usage": {
+                  "cpu_percent": "42%",
+                  "involuntary_context_switches": 6047,
+                  "max_rss_kb": 55400,
+                  "system_time_s": "0.54",
+                  "user_time_s": "2.76",
+                  "voluntary_context_switches": 27101
+                },
+                "returncode": 0,
+                "stderr": ""
+              }
+            ],
+            "processes": 4,
+            "threads_per_process": 12,
+            "total_requests": 4000
+          },
+          {
+            "aggregate_requests_per_s": 381.35121021494444,
+            "backend": "python",
+            "elapsed_s": 10.489018764999969,
+            "failed_processes": 0,
+            "process_results": [
+              {
+                "elapsed_s": 9.907178423999994,
+                "resource_usage": {
+                  "cpu_percent": "43%",
+                  "involuntary_context_switches": 6586,
+                  "max_rss_kb": 55564,
+                  "system_time_s": "0.72",
+                  "user_time_s": "3.62",
+                  "voluntary_context_switches": 26278
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 10.035635139000078,
+                "resource_usage": {
+                  "cpu_percent": "44%",
+                  "involuntary_context_switches": 6158,
+                  "max_rss_kb": 54908,
+                  "system_time_s": "0.70",
+                  "user_time_s": "3.74",
+                  "voluntary_context_switches": 24102
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 10.09880982499999,
+                "resource_usage": {
+                  "cpu_percent": "44%",
+                  "involuntary_context_switches": 6015,
+                  "max_rss_kb": 55048,
+                  "system_time_s": "0.74",
+                  "user_time_s": "3.72",
+                  "voluntary_context_switches": 22778
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 10.487029871000004,
+                "resource_usage": {
+                  "cpu_percent": "41%",
+                  "involuntary_context_switches": 6245,
+                  "max_rss_kb": 55164,
+                  "system_time_s": "0.75",
+                  "user_time_s": "3.62",
+                  "voluntary_context_switches": 27728
+                },
+                "returncode": 0,
+                "stderr": ""
+              }
+            ],
+            "processes": 4,
+            "threads_per_process": 12,
+            "total_requests": 4000
+          },
+          {
+            "aggregate_requests_per_s": 471.9884644254028,
+            "backend": "python",
+            "elapsed_s": 8.474783393000052,
+            "failed_processes": 0,
+            "process_results": [
+              {
+                "elapsed_s": 8.201577801999974,
+                "resource_usage": {
+                  "cpu_percent": "44%",
+                  "involuntary_context_switches": 6651,
+                  "max_rss_kb": 55308,
+                  "system_time_s": "0.58",
+                  "user_time_s": "3.07",
+                  "voluntary_context_switches": 26503
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 8.215588651000076,
+                "resource_usage": {
+                  "cpu_percent": "44%",
+                  "involuntary_context_switches": 6535,
+                  "max_rss_kb": 54792,
+                  "system_time_s": "0.56",
+                  "user_time_s": "3.12",
+                  "voluntary_context_switches": 28247
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 8.389864768999928,
+                "resource_usage": {
+                  "cpu_percent": "43%",
+                  "involuntary_context_switches": 5862,
+                  "max_rss_kb": 55172,
+                  "system_time_s": "0.52",
+                  "user_time_s": "3.14",
+                  "voluntary_context_switches": 21359
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 8.470883499000024,
+                "resource_usage": {
+                  "cpu_percent": "43%",
+                  "involuntary_context_switches": 6231,
+                  "max_rss_kb": 55300,
+                  "system_time_s": "0.64",
+                  "user_time_s": "3.07",
+                  "voluntary_context_switches": 28239
+                },
+                "returncode": 0,
+                "stderr": ""
+              }
+            ],
+            "processes": 4,
+            "threads_per_process": 12,
+            "total_requests": 4000
+          }
+        ],
+        "threads_per_process": 12,
+        "total_requests": 4000
+      }
+    },
+    "8": {
+      "native": {
+        "aggregate_requests_per_s": {
+          "max": 1107.3208518018637,
+          "median": 1098.9080327390648,
+          "min": 1089.2976163478024
+        },
+        "elapsed_s": {
+          "max": 7.344182048999983,
+          "median": 7.279954065000084,
+          "min": 7.22464494999997
+        },
+        "failed_processes": 0,
+        "processes": 8,
+        "repeats": 3,
+        "samples": [
+          {
+            "aggregate_requests_per_s": 1089.2976163478024,
+            "backend": "native",
+            "elapsed_s": 7.344182048999983,
+            "failed_processes": 0,
+            "process_results": [
+              {
+                "elapsed_s": 7.123010934999911,
+                "resource_usage": {
+                  "cpu_percent": "24%",
+                  "involuntary_context_switches": 1035,
+                  "max_rss_kb": 63492,
+                  "system_time_s": "0.13",
+                  "user_time_s": "1.61",
+                  "voluntary_context_switches": 661
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 7.166874623000012,
+                "resource_usage": {
+                  "cpu_percent": "24%",
+                  "involuntary_context_switches": 1056,
+                  "max_rss_kb": 63880,
+                  "system_time_s": "0.14",
+                  "user_time_s": "1.60",
+                  "voluntary_context_switches": 609
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 7.15897505199996,
+                "resource_usage": {
+                  "cpu_percent": "24%",
+                  "involuntary_context_switches": 978,
+                  "max_rss_kb": 63628,
+                  "system_time_s": "0.13",
+                  "user_time_s": "1.59",
+                  "voluntary_context_switches": 587
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 7.1959366830000135,
+                "resource_usage": {
+                  "cpu_percent": "24%",
+                  "involuntary_context_switches": 1034,
+                  "max_rss_kb": 63744,
+                  "system_time_s": "0.14",
+                  "user_time_s": "1.60",
+                  "voluntary_context_switches": 684
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 7.281383300000016,
+                "resource_usage": {
+                  "cpu_percent": "24%",
+                  "involuntary_context_switches": 944,
+                  "max_rss_kb": 63368,
+                  "system_time_s": "0.15",
+                  "user_time_s": "1.66",
+                  "voluntary_context_switches": 659
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 7.301677512999959,
+                "resource_usage": {
+                  "cpu_percent": "24%",
+                  "involuntary_context_switches": 985,
+                  "max_rss_kb": 63592,
+                  "system_time_s": "0.13",
+                  "user_time_s": "1.68",
+                  "voluntary_context_switches": 576
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 7.3246084809999275,
+                "resource_usage": {
+                  "cpu_percent": "24%",
+                  "involuntary_context_switches": 977,
+                  "max_rss_kb": 63624,
+                  "system_time_s": "0.14",
+                  "user_time_s": "1.66",
+                  "voluntary_context_switches": 628
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 7.340873904999967,
+                "resource_usage": {
+                  "cpu_percent": "24%",
+                  "involuntary_context_switches": 992,
+                  "max_rss_kb": 63432,
+                  "system_time_s": "0.13",
+                  "user_time_s": "1.69",
+                  "voluntary_context_switches": 545
+                },
+                "returncode": 0,
+                "stderr": ""
+              }
+            ],
+            "processes": 8,
+            "threads_per_process": 12,
+            "total_requests": 8000
+          },
+          {
+            "aggregate_requests_per_s": 1107.3208518018637,
+            "backend": "native",
+            "elapsed_s": 7.22464494999997,
+            "failed_processes": 0,
+            "process_results": [
+              {
+                "elapsed_s": 7.0476387720000275,
+                "resource_usage": {
+                  "cpu_percent": "24%",
+                  "involuntary_context_switches": 962,
+                  "max_rss_kb": 63500,
+                  "system_time_s": "0.13",
+                  "user_time_s": "1.59",
+                  "voluntary_context_switches": 677
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 7.050383838000016,
+                "resource_usage": {
+                  "cpu_percent": "24%",
+                  "involuntary_context_switches": 948,
+                  "max_rss_kb": 63364,
+                  "system_time_s": "0.14",
+                  "user_time_s": "1.59",
+                  "voluntary_context_switches": 581
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 7.056843165999908,
+                "resource_usage": {
+                  "cpu_percent": "24%",
+                  "involuntary_context_switches": 959,
+                  "max_rss_kb": 63492,
+                  "system_time_s": "0.12",
+                  "user_time_s": "1.61",
+                  "voluntary_context_switches": 660
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 7.073343990000012,
+                "resource_usage": {
+                  "cpu_percent": "24%",
+                  "involuntary_context_switches": 956,
+                  "max_rss_kb": 63684,
+                  "system_time_s": "0.14",
+                  "user_time_s": "1.59",
+                  "voluntary_context_switches": 656
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 7.19638451600008,
+                "resource_usage": {
+                  "cpu_percent": "24%",
+                  "involuntary_context_switches": 1020,
+                  "max_rss_kb": 63624,
+                  "system_time_s": "0.14",
+                  "user_time_s": "1.62",
+                  "voluntary_context_switches": 641
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 7.216447248999998,
+                "resource_usage": {
+                  "cpu_percent": "24%",
+                  "involuntary_context_switches": 1010,
+                  "max_rss_kb": 63624,
+                  "system_time_s": "0.12",
+                  "user_time_s": "1.65",
+                  "voluntary_context_switches": 692
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 7.217850494999993,
+                "resource_usage": {
+                  "cpu_percent": "24%",
+                  "involuntary_context_switches": 1020,
+                  "max_rss_kb": 63492,
+                  "system_time_s": "0.15",
+                  "user_time_s": "1.62",
+                  "voluntary_context_switches": 569
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 7.2220519730000206,
+                "resource_usage": {
+                  "cpu_percent": "24%",
+                  "involuntary_context_switches": 1055,
+                  "max_rss_kb": 63372,
+                  "system_time_s": "0.13",
+                  "user_time_s": "1.64",
+                  "voluntary_context_switches": 515
+                },
+                "returncode": 0,
+                "stderr": ""
+              }
+            ],
+            "processes": 8,
+            "threads_per_process": 12,
+            "total_requests": 8000
+          },
+          {
+            "aggregate_requests_per_s": 1098.9080327390648,
+            "backend": "native",
+            "elapsed_s": 7.279954065000084,
+            "failed_processes": 0,
+            "process_results": [
+              {
+                "elapsed_s": 7.2230254320000995,
+                "resource_usage": {
+                  "cpu_percent": "24%",
+                  "involuntary_context_switches": 964,
+                  "max_rss_kb": 63500,
+                  "system_time_s": "0.12",
+                  "user_time_s": "1.66",
+                  "voluntary_context_switches": 719
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 7.228463362999946,
+                "resource_usage": {
+                  "cpu_percent": "24%",
+                  "involuntary_context_switches": 935,
+                  "max_rss_kb": 63884,
+                  "system_time_s": "0.15",
+                  "user_time_s": "1.63",
+                  "voluntary_context_switches": 678
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 7.223630606000029,
+                "resource_usage": {
+                  "cpu_percent": "24%",
+                  "involuntary_context_switches": 995,
+                  "max_rss_kb": 63332,
+                  "system_time_s": "0.15",
+                  "user_time_s": "1.61",
+                  "voluntary_context_switches": 717
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 7.251434502999928,
+                "resource_usage": {
+                  "cpu_percent": "24%",
+                  "involuntary_context_switches": 1017,
+                  "max_rss_kb": 63624,
+                  "system_time_s": "0.14",
+                  "user_time_s": "1.62",
+                  "voluntary_context_switches": 664
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 7.24493849299995,
+                "resource_usage": {
+                  "cpu_percent": "24%",
+                  "involuntary_context_switches": 914,
+                  "max_rss_kb": 63644,
+                  "system_time_s": "0.13",
+                  "user_time_s": "1.61",
+                  "voluntary_context_switches": 650
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 7.265990536999993,
+                "resource_usage": {
+                  "cpu_percent": "24%",
+                  "involuntary_context_switches": 947,
+                  "max_rss_kb": 63692,
+                  "system_time_s": "0.13",
+                  "user_time_s": "1.62",
+                  "voluntary_context_switches": 561
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 7.272469502000035,
+                "resource_usage": {
+                  "cpu_percent": "24%",
+                  "involuntary_context_switches": 1057,
+                  "max_rss_kb": 63616,
+                  "system_time_s": "0.14",
+                  "user_time_s": "1.62",
+                  "voluntary_context_switches": 707
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 7.2756891049999695,
+                "resource_usage": {
+                  "cpu_percent": "24%",
+                  "involuntary_context_switches": 965,
+                  "max_rss_kb": 63748,
+                  "system_time_s": "0.14",
+                  "user_time_s": "1.61",
+                  "voluntary_context_switches": 615
+                },
+                "returncode": 0,
+                "stderr": ""
+              }
+            ],
+            "processes": 8,
+            "threads_per_process": 12,
+            "total_requests": 8000
+          }
+        ],
+        "threads_per_process": 12,
+        "total_requests": 8000
+      },
+      "python": {
+        "aggregate_requests_per_s": {
+          "max": 498.0157181870848,
+          "median": 489.3985767914622,
+          "min": 480.30836355058165
+        },
+        "elapsed_s": {
+          "max": 16.655966473000035,
+          "median": 16.346594329000027,
+          "min": 16.063750013999993
+        },
+        "failed_processes": 0,
+        "processes": 8,
+        "repeats": 3,
+        "samples": [
+          {
+            "aggregate_requests_per_s": 480.30836355058165,
+            "backend": "python",
+            "elapsed_s": 16.655966473000035,
+            "failed_processes": 0,
+            "process_results": [
+              {
+                "elapsed_s": 16.193822133000026,
+                "resource_usage": {
+                  "cpu_percent": "23%",
+                  "involuntary_context_switches": 5131,
+                  "max_rss_kb": 54408,
+                  "system_time_s": "0.58",
+                  "user_time_s": "3.24",
+                  "voluntary_context_switches": 26043
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 16.219034290999957,
+                "resource_usage": {
+                  "cpu_percent": "24%",
+                  "involuntary_context_switches": 5194,
+                  "max_rss_kb": 54180,
+                  "system_time_s": "0.62",
+                  "user_time_s": "3.31",
+                  "voluntary_context_switches": 27202
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 16.398707540000032,
+                "resource_usage": {
+                  "cpu_percent": "23%",
+                  "involuntary_context_switches": 5342,
+                  "max_rss_kb": 53676,
+                  "system_time_s": "0.61",
+                  "user_time_s": "3.26",
+                  "voluntary_context_switches": 26703
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 16.477040055999964,
+                "resource_usage": {
+                  "cpu_percent": "23%",
+                  "involuntary_context_switches": 5054,
+                  "max_rss_kb": 53640,
+                  "system_time_s": "0.59",
+                  "user_time_s": "3.28",
+                  "voluntary_context_switches": 26028
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 16.518143012999985,
+                "resource_usage": {
+                  "cpu_percent": "23%",
+                  "involuntary_context_switches": 5339,
+                  "max_rss_kb": 53428,
+                  "system_time_s": "0.60",
+                  "user_time_s": "3.31",
+                  "voluntary_context_switches": 24611
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 16.528693121999936,
+                "resource_usage": {
+                  "cpu_percent": "23%",
+                  "involuntary_context_switches": 5151,
+                  "max_rss_kb": 53632,
+                  "system_time_s": "0.62",
+                  "user_time_s": "3.30",
+                  "voluntary_context_switches": 32552
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 16.560352046000048,
+                "resource_usage": {
+                  "cpu_percent": "24%",
+                  "involuntary_context_switches": 5184,
+                  "max_rss_kb": 54012,
+                  "system_time_s": "0.71",
+                  "user_time_s": "3.26",
+                  "voluntary_context_switches": 32123
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 16.648806694999962,
+                "resource_usage": {
+                  "cpu_percent": "23%",
+                  "involuntary_context_switches": 4922,
+                  "max_rss_kb": 54184,
+                  "system_time_s": "0.66",
+                  "user_time_s": "3.27",
+                  "voluntary_context_switches": 31111
+                },
+                "returncode": 0,
+                "stderr": ""
+              }
+            ],
+            "processes": 8,
+            "threads_per_process": 12,
+            "total_requests": 8000
+          },
+          {
+            "aggregate_requests_per_s": 489.3985767914622,
+            "backend": "python",
+            "elapsed_s": 16.346594329000027,
+            "failed_processes": 0,
+            "process_results": [
+              {
+                "elapsed_s": 15.666791126000021,
+                "resource_usage": {
+                  "cpu_percent": "24%",
+                  "involuntary_context_switches": 4640,
+                  "max_rss_kb": 54064,
+                  "system_time_s": "0.55",
+                  "user_time_s": "3.24",
+                  "voluntary_context_switches": 27433
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 15.969042581000053,
+                "resource_usage": {
+                  "cpu_percent": "23%",
+                  "involuntary_context_switches": 5289,
+                  "max_rss_kb": 54412,
+                  "system_time_s": "0.57",
+                  "user_time_s": "3.22",
+                  "voluntary_context_switches": 26883
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 16.0188927050001,
+                "resource_usage": {
+                  "cpu_percent": "23%",
+                  "involuntary_context_switches": 4423,
+                  "max_rss_kb": 53768,
+                  "system_time_s": "0.57",
+                  "user_time_s": "3.26",
+                  "voluntary_context_switches": 27505
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 16.122057505000043,
+                "resource_usage": {
+                  "cpu_percent": "23%",
+                  "involuntary_context_switches": 4612,
+                  "max_rss_kb": 54152,
+                  "system_time_s": "0.58",
+                  "user_time_s": "3.26",
+                  "voluntary_context_switches": 27922
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 16.198032874999967,
+                "resource_usage": {
+                  "cpu_percent": "23%",
+                  "involuntary_context_switches": 5073,
+                  "max_rss_kb": 53636,
+                  "system_time_s": "0.54",
+                  "user_time_s": "3.30",
+                  "voluntary_context_switches": 23747
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 16.286243773000024,
+                "resource_usage": {
+                  "cpu_percent": "24%",
+                  "involuntary_context_switches": 4786,
+                  "max_rss_kb": 53888,
+                  "system_time_s": "0.59",
+                  "user_time_s": "3.36",
+                  "voluntary_context_switches": 25712
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 16.324889470000016,
+                "resource_usage": {
+                  "cpu_percent": "23%",
+                  "involuntary_context_switches": 4443,
+                  "max_rss_kb": 53760,
+                  "system_time_s": "0.59",
+                  "user_time_s": "3.29",
+                  "voluntary_context_switches": 25488
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 16.340234810000084,
+                "resource_usage": {
+                  "cpu_percent": "24%",
+                  "involuntary_context_switches": 4835,
+                  "max_rss_kb": 53628,
+                  "system_time_s": "0.56",
+                  "user_time_s": "3.36",
+                  "voluntary_context_switches": 24919
+                },
+                "returncode": 0,
+                "stderr": ""
+              }
+            ],
+            "processes": 8,
+            "threads_per_process": 12,
+            "total_requests": 8000
+          },
+          {
+            "aggregate_requests_per_s": 498.0157181870848,
+            "backend": "python",
+            "elapsed_s": 16.063750013999993,
+            "failed_processes": 0,
+            "process_results": [
+              {
+                "elapsed_s": 14.985953775999974,
+                "resource_usage": {
+                  "cpu_percent": "24%",
+                  "involuntary_context_switches": 4749,
+                  "max_rss_kb": 54324,
+                  "system_time_s": "0.53",
+                  "user_time_s": "3.11",
+                  "voluntary_context_switches": 22996
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 15.203154451000046,
+                "resource_usage": {
+                  "cpu_percent": "23%",
+                  "involuntary_context_switches": 4340,
+                  "max_rss_kb": 54792,
+                  "system_time_s": "0.54",
+                  "user_time_s": "3.06",
+                  "voluntary_context_switches": 21644
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 15.284018339999989,
+                "resource_usage": {
+                  "cpu_percent": "24%",
+                  "involuntary_context_switches": 4876,
+                  "max_rss_kb": 55432,
+                  "system_time_s": "0.54",
+                  "user_time_s": "3.16",
+                  "voluntary_context_switches": 26957
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 15.538769662999925,
+                "resource_usage": {
+                  "cpu_percent": "24%",
+                  "involuntary_context_switches": 5505,
+                  "max_rss_kb": 53888,
+                  "system_time_s": "0.53",
+                  "user_time_s": "3.25",
+                  "voluntary_context_switches": 27141
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 15.58995896500005,
+                "resource_usage": {
+                  "cpu_percent": "23%",
+                  "involuntary_context_switches": 4388,
+                  "max_rss_kb": 54788,
+                  "system_time_s": "0.53",
+                  "user_time_s": "3.18",
+                  "voluntary_context_switches": 21152
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 15.599364874000003,
+                "resource_usage": {
+                  "cpu_percent": "23%",
+                  "involuntary_context_switches": 4206,
+                  "max_rss_kb": 54140,
+                  "system_time_s": "0.57",
+                  "user_time_s": "3.11",
+                  "voluntary_context_switches": 23982
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 15.681748515000095,
+                "resource_usage": {
+                  "cpu_percent": "23%",
+                  "involuntary_context_switches": 4270,
+                  "max_rss_kb": 53964,
+                  "system_time_s": "0.56",
+                  "user_time_s": "3.18",
+                  "voluntary_context_switches": 26436
+                },
+                "returncode": 0,
+                "stderr": ""
+              },
+              {
+                "elapsed_s": 16.057019190999995,
+                "resource_usage": {
+                  "cpu_percent": "24%",
+                  "involuntary_context_switches": 4719,
+                  "max_rss_kb": 54812,
+                  "system_time_s": "0.57",
+                  "user_time_s": "3.30",
+                  "voluntary_context_switches": 29044
+                },
+                "returncode": 0,
+                "stderr": ""
+              }
+            ],
+            "processes": 8,
+            "threads_per_process": 12,
+            "total_requests": 8000
+          }
+        ],
+        "threads_per_process": 12,
+        "total_requests": 8000
+      }
+    }
+  },
+  "direct": {
+    "12": {
+      "httpx_workers": {
+        "concurrency": 12,
+        "elapsed_s": {
+          "max": 22.526422335999996,
+          "median": 20.559387808999986,
+          "min": 19.04446585300002
+        },
+        "errors": 0,
+        "repeats": 3,
+        "requests": 5000,
+        "requests_per_s": {
+          "max": 262.54346215818725,
+          "median": 243.1979028972459,
+          "min": 221.96156697325986
+        },
+        "samples": [
+          {
+            "elapsed_s": 22.526422335999996,
+            "errors": 0,
+            "requests_per_s": 221.96156697325986,
+            "statuses": {
+              "200": 250,
+              "404": 4750
+            }
+          },
+          {
+            "elapsed_s": 20.559387808999986,
+            "errors": 0,
+            "requests_per_s": 243.1979028972459,
+            "statuses": {
+              "200": 250,
+              "404": 4750
+            }
+          },
+          {
+            "elapsed_s": 19.04446585300002,
+            "errors": 0,
+            "requests_per_s": 262.54346215818725,
+            "statuses": {
+              "200": 250,
+              "404": 4750
+            }
+          }
+        ],
+        "statuses": {
+          "200": 750,
+          "404": 14250
+        }
+      },
+      "requests": {
+        "concurrency": 12,
+        "elapsed_s": {
+          "max": 12.261575095000012,
+          "median": 12.182863205999979,
+          "min": 11.88299918100003
+        },
+        "errors": 0,
+        "repeats": 3,
+        "requests": 5000,
+        "requests_per_s": {
+          "max": 420.7691950357618,
+          "median": 410.41255372033834,
+          "min": 407.7779535876174
+        },
+        "samples": [
+          {
+            "elapsed_s": 12.261575095000012,
+            "errors": 0,
+            "requests_per_s": 407.7779535876174,
+            "statuses": {
+              "200": 250,
+              "404": 4750
+            }
+          },
+          {
+            "elapsed_s": 12.182863205999979,
+            "errors": 0,
+            "requests_per_s": 410.41255372033834,
+            "statuses": {
+              "200": 250,
+              "404": 4750
+            }
+          },
+          {
+            "elapsed_s": 11.88299918100003,
+            "errors": 0,
+            "requests_per_s": 420.7691950357618,
+            "statuses": {
+              "200": 250,
+              "404": 4750
+            }
+          }
+        ],
+        "statuses": {
+          "200": 750,
+          "404": 14250
+        }
+      },
+      "rust_reqwest": {
+        "concurrency": 12,
+        "elapsed_s": {
+          "max": 2.474442629000009,
+          "median": 2.2395497830000295,
+          "min": 2.0399099730000216
+        },
+        "errors": 0,
+        "repeats": 3,
+        "requests": 5000,
+        "requests_per_s": {
+          "max": 2451.088560857753,
+          "median": 2232.5915851275067,
+          "min": 2020.6570729912773
+        },
+        "samples": [
+          {
+            "elapsed_s": 2.474442629000009,
+            "errors": 0,
+            "requests_per_s": 2020.6570729912773,
+            "statuses": {
+              "200": 250,
+              "404": 4750
+            }
+          },
+          {
+            "elapsed_s": 2.2395497830000295,
+            "errors": 0,
+            "requests_per_s": 2232.5915851275067,
+            "statuses": {
+              "200": 250,
+              "404": 4750
+            }
+          },
+          {
+            "elapsed_s": 2.0399099730000216,
+            "errors": 0,
+            "requests_per_s": 2451.088560857753,
+            "statuses": {
+              "200": 250,
+              "404": 4750
+            }
+          }
+        ],
+        "statuses": {
+          "200": 750,
+          "404": 14250
+        }
+      }
+    },
+    "25": {
+      "httpx_workers": {
+        "concurrency": 25,
+        "elapsed_s": {
+          "max": 27.13875036600001,
+          "median": 24.53116803300003,
+          "min": 24.324956638999993
+        },
+        "errors": 0,
+        "repeats": 3,
+        "requests": 5000,
+        "requests_per_s": {
+          "max": 205.55021224512865,
+          "median": 203.82233708863177,
+          "min": 184.23840201073162
+        },
+        "samples": [
+          {
+            "elapsed_s": 27.13875036600001,
+            "errors": 0,
+            "requests_per_s": 184.23840201073162,
+            "statuses": {
+              "200": 250,
+              "404": 4750
+            }
+          },
+          {
+            "elapsed_s": 24.324956638999993,
+            "errors": 0,
+            "requests_per_s": 205.55021224512865,
+            "statuses": {
+              "200": 250,
+              "404": 4750
+            }
+          },
+          {
+            "elapsed_s": 24.53116803300003,
+            "errors": 0,
+            "requests_per_s": 203.82233708863177,
+            "statuses": {
+              "200": 250,
+              "404": 4750
+            }
+          }
+        ],
+        "statuses": {
+          "200": 750,
+          "404": 14250
+        }
+      },
+      "requests": {
+        "concurrency": 25,
+        "elapsed_s": {
+          "max": 13.409171928999967,
+          "median": 12.487902394000002,
+          "min": 11.67866998200003
+        },
+        "errors": 0,
+        "repeats": 3,
+        "requests": 5000,
+        "requests_per_s": {
+          "max": 428.13094365251726,
+          "median": 400.38749841625315,
+          "min": 372.8791029359925
+        },
+        "samples": [
+          {
+            "elapsed_s": 13.409171928999967,
+            "errors": 0,
+            "requests_per_s": 372.8791029359925,
+            "statuses": {
+              "200": 250,
+              "404": 4750
+            }
+          },
+          {
+            "elapsed_s": 12.487902394000002,
+            "errors": 0,
+            "requests_per_s": 400.38749841625315,
+            "statuses": {
+              "200": 250,
+              "404": 4750
+            }
+          },
+          {
+            "elapsed_s": 11.67866998200003,
+            "errors": 0,
+            "requests_per_s": 428.13094365251726,
+            "statuses": {
+              "200": 250,
+              "404": 4750
+            }
+          }
+        ],
+        "statuses": {
+          "200": 750,
+          "404": 14250
+        }
+      },
+      "rust_reqwest": {
+        "concurrency": 25,
+        "elapsed_s": {
+          "max": 1.7444386349999945,
+          "median": 1.6929329960000246,
+          "min": 1.5721257950000336
+        },
+        "errors": 0,
+        "repeats": 3,
+        "requests": 5000,
+        "requests_per_s": {
+          "max": 3180.407074231546,
+          "median": 2953.4541602141044,
+          "min": 2866.251583564598
+        },
+        "samples": [
+          {
+            "elapsed_s": 1.5721257950000336,
+            "errors": 0,
+            "requests_per_s": 3180.407074231546,
+            "statuses": {
+              "200": 250,
+              "404": 4750
+            }
+          },
+          {
+            "elapsed_s": 1.7444386349999945,
+            "errors": 0,
+            "requests_per_s": 2866.251583564598,
+            "statuses": {
+              "200": 250,
+              "404": 4750
+            }
+          },
+          {
+            "elapsed_s": 1.6929329960000246,
+            "errors": 0,
+            "requests_per_s": 2953.4541602141044,
+            "statuses": {
+              "200": 250,
+              "404": 4750
+            }
+          }
+        ],
+        "statuses": {
+          "200": 750,
+          "404": 14250
+        }
+      }
+    },
+    "50": {
+      "httpx_workers": {
+        "concurrency": 50,
+        "elapsed_s": {
+          "max": 30.382878636999976,
+          "median": 29.386339218000046,
+          "min": 28.019149395
+        },
+        "errors": 0,
+        "repeats": 3,
+        "requests": 5000,
+        "requests_per_s": {
+          "max": 178.44938579371174,
+          "median": 170.14708647129973,
+          "min": 164.56636843854054
+        },
+        "samples": [
+          {
+            "elapsed_s": 28.019149395,
+            "errors": 0,
+            "requests_per_s": 178.44938579371174,
+            "statuses": {
+              "200": 250,
+              "404": 4750
+            }
+          },
+          {
+            "elapsed_s": 29.386339218000046,
+            "errors": 0,
+            "requests_per_s": 170.14708647129973,
+            "statuses": {
+              "200": 250,
+              "404": 4750
+            }
+          },
+          {
+            "elapsed_s": 30.382878636999976,
+            "errors": 0,
+            "requests_per_s": 164.56636843854054,
+            "statuses": {
+              "200": 250,
+              "404": 4750
+            }
+          }
+        ],
+        "statuses": {
+          "200": 750,
+          "404": 14250
+        }
+      },
+      "requests": {
+        "concurrency": 50,
+        "elapsed_s": {
+          "max": 11.90897247199996,
+          "median": 11.858297945000004,
+          "min": 11.667165080000018
+        },
+        "errors": 0,
+        "repeats": 3,
+        "requests": 5000,
+        "requests_per_s": {
+          "max": 428.55312029235404,
+          "median": 421.64567151124976,
+          "min": 419.8515037091453
+        },
+        "samples": [
+          {
+            "elapsed_s": 11.90897247199996,
+            "errors": 0,
+            "requests_per_s": 419.8515037091453,
+            "statuses": {
+              "200": 250,
+              "404": 4750
+            }
+          },
+          {
+            "elapsed_s": 11.858297945000004,
+            "errors": 0,
+            "requests_per_s": 421.64567151124976,
+            "statuses": {
+              "200": 250,
+              "404": 4750
+            }
+          },
+          {
+            "elapsed_s": 11.667165080000018,
+            "errors": 0,
+            "requests_per_s": 428.55312029235404,
+            "statuses": {
+              "200": 250,
+              "404": 4750
+            }
+          }
+        ],
+        "statuses": {
+          "200": 750,
+          "404": 14250
+        }
+      },
+      "rust_reqwest": {
+        "concurrency": 50,
+        "elapsed_s": {
+          "max": 1.7191422429999648,
+          "median": 1.5231083009999793,
+          "min": 1.4926978920000238
+        },
+        "errors": 0,
+        "repeats": 3,
+        "requests": 5000,
+        "requests_per_s": {
+          "max": 3349.639620178361,
+          "median": 3282.7606524876182,
+          "min": 2908.427164976658
+        },
+        "samples": [
+          {
+            "elapsed_s": 1.7191422429999648,
+            "errors": 0,
+            "requests_per_s": 2908.427164976658,
+            "statuses": {
+              "200": 250,
+              "404": 4750
+            }
+          },
+          {
+            "elapsed_s": 1.5231083009999793,
+            "errors": 0,
+            "requests_per_s": 3282.7606524876182,
+            "statuses": {
+              "200": 250,
+              "404": 4750
+            }
+          },
+          {
+            "elapsed_s": 1.4926978920000238,
+            "errors": 0,
+            "requests_per_s": 3349.639620178361,
+            "statuses": {
+              "200": 250,
+              "404": 4750
+            }
+          }
+        ],
+        "statuses": {
+          "200": 750,
+          "404": 14250
+        }
+      }
+    }
+  },
+  "target": "http://127.0.0.1/"
+}

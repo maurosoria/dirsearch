@@ -2,9 +2,9 @@
 
 ## Current Status
 
-Phase 1 is implemented for optional database dependencies. Phase 2 is implemented for the Python 3.14 / `5.0.0` release baseline. Phase 3 is implemented for the first importable Python API. Phase 4 is implemented for template wordlists and generation controls.
+Phase 1 is implemented for optional database dependencies. Phase 2 is implemented for the Python 3.14 / `5.0.0` release baseline. Phase 3 is implemented for the first importable Python API. Phase 4 is implemented for template wordlists and generation controls. Phase 5 is implemented for the native wordlist backend and the experimental native request backend. Phase 6 final Docker and packaging gates are complete.
 
-This is a useful foundation for a future MCP server or REST API because import-time side effects are lower, base installs no longer require database drivers, and the first supported Python API surface is now available. The next work adds the native wordlist implementation and benchmark gates.
+This is a useful foundation for a future MCP server or REST API because import-time side effects are lower, base installs no longer require database drivers, the first supported Python API surface is available, and the optional native backend has measured local and DigitalOcean benchmark coverage.
 
 ## Completed
 
@@ -54,6 +54,12 @@ This is a useful foundation for a future MCP server or REST API because import-t
 - Added `--wordlist-max-size` generation limits.
 - Added template wordlist regression coverage to `testing.py`.
 - Added the wordlist backend interface and `auto|python|native` selection.
+- Added the Rust native wordlist implementation with Python-compatible ordering, deduplication, extension filtering, forced extensions, overwrite extensions, affixes, casing, and size limits.
+- Added the experimental Rust native request backend with `--request-backend=python|native` selection.
+- Added native request response, native request option validation, native fuzzer, and native wordlist backend regression coverage to `testing.py`.
+- Added Phase 5 native backend benchmark scripts and recorded DigitalOcean benchmark artifacts under `benchmarks/phase5/`.
+- Added `.dockerignore` so Docker release gates do not copy local virtualenvs, build output, caches, sessions, or Rust target artifacts into the runtime image.
+- Completed the final Docker gate for base runtime installs, `dirsearch[db]` installs, Python backend tests, native backend tests, CLI smoke checks, packaged import checks, and local benchmark coverage.
 
 ## Verification Run
 
@@ -84,21 +90,26 @@ This is a useful foundation for a future MCP server or REST API because import-t
 - `/home/mauro/dirsearch/.venv/bin/python -m unittest tests.core.test_dictionary_templates tests.core.test_importable_api`
 - `/home/mauro/dirsearch/.venv/bin/python dirsearch.py --wordlist-status -w db/templates/crud.txt -e php`
 - `/home/mauro/dirsearch/.venv/bin/python dirsearch.py --wordlist-status -w db/templates/crud.txt -e php --wordlist-max-size 1`
+- `/home/mauro/dirsearch/.venv/bin/python -m unittest tests.core.test_wordlist_backend tests.core.test_dictionary_templates tests.core.test_request_backend tests.connection.test_native_response tests.core.test_native_fuzzer`
+- `cargo check --manifest-path native/Cargo.toml`
+- `/home/mauro/dirsearch/.venv/bin/python -m maturin develop --manifest-path native/Cargo.toml`
+- `/home/mauro/dirsearch/.venv/bin/python testing.py` (53 tests)
+- Local CLI smoke against a temporary HTTP server with `--request-backend native`
+- `/home/mauro/dirsearch/.venv/bin/python scripts/benchmark_phase5.py --requests 5 --concurrency 2 --wordlist-lines 5 --wordlist-repeats 1 --include-native --json`
+- `docker build -t dirsearch:v5-final-gate .`
+- `docker run --rm --entrypoint python3 dirsearch:v5-final-gate -c "import importlib.util; print(importlib.util.find_spec('mysql')); print(importlib.util.find_spec('psycopg'))"`
+- `docker run --rm --entrypoint python3 dirsearch:v5-final-gate testing.py` (53 tests)
+- `docker run --rm dirsearch:v5-final-gate --version`
+- `docker run --rm dirsearch:v5-final-gate -u https://example.com -w tests/static/wordlist.txt -q`
+- `docker run --rm --entrypoint sh dirsearch:v5-final-gate -c "python3 -m pip install . && python3 tests/check_packaged_install.py"`
+- Docker `dirsearch[db]` install check confirmed `dirsearch==5.0.0`, `mysql.connector`, and `psycopg`.
+- `/home/mauro/dirsearch/.venv/bin/python -m unittest tests.core.test_dictionary_templates tests.core.test_wordlist_backend tests.core.test_importable_api tests.core.test_request_backend tests.connection.test_native_response tests.core.test_native_fuzzer`
+- `cargo check --manifest-path native/Cargo.toml`
+- `/home/mauro/dirsearch/.venv/bin/python scripts/benchmark_phase5.py --include-native --json`
+- `git diff --check`
+- Local-only artifacts removed from the working tree: `.cache/`, `.venv/`, `build/`, `native/target/`, and generated root `dirsearch.spec`.
+- Updated ignore rules for local virtualenvs, caches, build outputs, distribution outputs, and generated root PyInstaller specs.
 
-## Next Phase
+## Final State
 
-### Phase 5: Native Wordlist Backend
-
-- Add backend interface with Python backend first. (done)
-- Add optional native backend with `auto|python|native` selection. (selection done, native implementation pending)
-- Keep native output byte-for-byte compatible with Python output for ordering and deduplication.
-- Add opt-in large dictionary benchmark for generation time, iteration throughput, memory, and startup cost.
-
-### Phase 6: Final Docker Gate
-
-- Validate Docker base install without DB extras.
-- Validate Docker install with `dirsearch[db]`.
-- Run Python backend tests.
-- Run native backend tests.
-- Run large dictionary performance benchmark.
-- Run CLI smoke tests and importable API tests.
+All v5.0.0 release phases in this TODO are complete. The remaining work is normal release mechanics: review the final diff, commit the intended source files and benchmark artifacts, push the branch, and open the release PR.

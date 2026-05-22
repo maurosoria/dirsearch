@@ -122,3 +122,29 @@ class AsyncResponse(BaseResponse):
                 self.content = self.body.decode(DEFAULT_ENCODING, errors="ignore")
 
         return self
+
+
+class NativeResponse(BaseResponse):
+    def __init__(
+        self,
+        url: str,
+        status: int,
+        headers: list[tuple[str, str]],
+        body: bytes | bytearray | list[int],
+        elapsed: float = 0.0,
+    ) -> None:
+        response = type(
+            "NativeHTTPResponse",
+            (),
+            {
+                "status_code": status,
+                "headers": {key.lower(): value for key, value in headers},
+                "history": [],
+                "encoding": None,
+            },
+        )()
+        super().__init__(url, response, elapsed)
+
+        self.body = bytes(body)
+        if not is_binary(self.body):
+            self.content = self.body.decode(DEFAULT_ENCODING, errors="ignore")
