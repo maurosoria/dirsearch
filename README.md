@@ -28,10 +28,10 @@ cd dirsearch
 python3 dirsearch.py -u https://example.com -e php,html,js
 ```
 
-You can also install it from PyPI:
+You can also install the latest source directly from GitHub with pip:
 
 ```sh
-pip3 install dirsearch
+pip3 install git+https://github.com/maurosoria/dirsearch.git
 dirsearch -u https://example.com -e php,html,js
 ```
 

@@ -2,7 +2,7 @@
 
 ## Supported Platforms
 
-dirsearch runs on Python 3.11-3.14 and is distributed as source, PyPI package, Docker image, PyInstaller binary, or portable folder.
+dirsearch runs on Python 3.11-3.14 and is distributed as source, installable from GitHub with pip, Docker image, PyInstaller binary, or portable folder.
 
 | Platform | Architecture | PyInstaller | Portable folder |
 |----------|--------------|-------------|-----------------|
@@ -25,7 +25,7 @@ python3 dirsearch.py -u https://example.com -w tests/static/wordlist.txt -q
 ## Other Install Methods
 
 - ZIP archive: [Download the master branch](https://github.com/maurosoria/dirsearch/archive/master.zip).
-- PyPI: `pip3 install dirsearch` or `pip install dirsearch`.
+- GitHub with pip: `pip3 install git+https://github.com/maurosoria/dirsearch.git`.
 - Docker: `docker pull ghcr.io/maurosoria/dirsearch:v0.5.0-rc1-async`.
 - Kali Linux: `sudo apt-get install dirsearch` (deprecated).
 
