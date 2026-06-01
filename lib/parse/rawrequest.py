@@ -18,10 +18,23 @@
 
 from __future__ import annotations
 
+from urllib.parse import urlsplit
+
 from lib.core.exceptions import InvalidRawRequest
 from lib.core.logger import logger
 from lib.parse.headers import HeadersParser
 from lib.utils.file import File
+
+
+def _target_from_request_line(path: str, host: str) -> str:
+    parsed = urlsplit(path)
+    if parsed.scheme and parsed.netloc:
+        path = parsed.path or "/"
+        if parsed.query:
+            path = f"{path}?{parsed.query}"
+        host = parsed.netloc
+
+    return host + path
 
 
 def parse_raw(raw_file: str) -> tuple[list[str], str, dict[str, str], str | None]:
@@ -47,4 +60,4 @@ def parse_raw(raw_file: str) -> tuple[list[str], str, dict[str, str], str | None
         logger.exception(e)
         raise InvalidRawRequest("The raw request is formatively invalid")
 
-    return [host + path], method, dict(headers), body
+    return [_target_from_request_line(path, host)], method, dict(headers), body

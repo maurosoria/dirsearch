@@ -52,6 +52,7 @@ from tests.core.test_scanner import TestScanner  # noqa: F401
 from tests.core.test_wordlist_backend import TestWordlistBackend  # noqa: F401
 from tests.parse.test_config import TestConfigParser  # noqa: F401
 from tests.parse.test_headers import TestHeadersParser  # noqa: F401
+from tests.parse.test_rawrequest import TestRawRequestParser  # noqa: F401
 from tests.parse.test_url import TestURLParsers  # noqa: F401
 from tests.utils.test_common import TestCommonUtils  # noqa: F401
 from tests.utils.test_crawl import TestCrawl  # noqa: F401
