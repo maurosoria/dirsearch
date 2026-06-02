@@ -47,6 +47,6 @@ class SQLiteReport(SQLReportMixin, BaseReport):
         try:
             conn.cursor().execute("PRAGMA integrity_check")
         except sqlite3.DatabaseError:
-            raise Exception(f"{file} is not empty or is not a SQLite database")
+            raise ValueError(f"{file} is not empty or is not a valid SQLite database")
         else:
             return conn

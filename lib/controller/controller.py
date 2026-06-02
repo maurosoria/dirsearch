@@ -192,7 +192,7 @@ class Controller:
                 try:
                     FileUtils.create_dir(FileUtils.parent(options["log_file"]))
                     if not FileUtils.can_write(options["log_file"]):
-                        raise Exception
+                        raise RuntimeError("Request failed, retrying...")
                     enable_logging()
                 except Exception:
                     interface.error(
@@ -292,7 +292,7 @@ class Controller:
             try:
                 FileUtils.create_dir(FileUtils.parent(options["log_file"]))
                 if not FileUtils.can_write(options["log_file"]):
-                    raise Exception
+                    raise RuntimeError("Request failed, retrying...")
 
                 enable_logging()
 
