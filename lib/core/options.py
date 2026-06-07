@@ -536,6 +536,7 @@ def merge_config(opt: Values) -> Values:
 
     # General
     opt.thread_count = opt.thread_count or config.safe_getint("general", "threads", 25)
+    opt.preflight = opt.preflight or config.safe_getboolean("general", "preflight")
     opt.async_mode = (
         config.safe_getboolean("general", "async", True)
         if opt.async_mode is None

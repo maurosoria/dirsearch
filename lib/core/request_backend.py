@@ -29,8 +29,6 @@ def get_native_request_backend_error(opt: Values) -> str | None:
         return "--request-backend native does not support --interface yet"
     if opt.max_rate:
         return "--request-backend native does not support --max-rate yet"
-    if opt.delay:
-        return "--request-backend native does not support --delay yet"
     if opt.follow_redirects:
         return "--request-backend native does not support --follow-redirects yet"
 

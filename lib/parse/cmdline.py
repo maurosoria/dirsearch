@@ -199,6 +199,12 @@ def parse_arguments() -> Values:
         help="Number of threads",
     )
     general.add_option(
+        "--preflight",
+        action="store_true",
+        dest="preflight",
+        help="Calibrate target concurrency and delay before scanning",
+    )
+    general.add_option(
         "--list-sessions",
         action="store_true",
         dest="list_sessions",

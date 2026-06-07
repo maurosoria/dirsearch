@@ -372,6 +372,7 @@ fn lstrip_once(input: &str, pattern: &str) -> String {
     timeout_secs=7.5,
     headers=Vec::new(),
     max_retries=0,
+    delay_secs=0.0,
     follow_redirects=false,
     max_body_size=83886080,
     include_status_codes=Vec::new(),
@@ -401,6 +402,7 @@ fn scan_http(
     timeout_secs: f64,
     headers: Vec<(String, String)>,
     max_retries: usize,
+    delay_secs: f64,
     follow_redirects: bool,
     max_body_size: usize,
     include_status_codes: Vec<u16>,
@@ -493,6 +495,9 @@ fn scan_http(
                             return native_error_result(path, 0.0, error.to_string());
                         }
                     };
+                    if delay_secs > 0.0 {
+                        tokio::time::sleep(Duration::from_secs_f64(delay_secs)).await;
+                    }
                     let url = format!("{base_url}{path}");
                     let start = Instant::now();
 

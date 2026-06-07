@@ -67,6 +67,7 @@ Options:
   General Settings:
     -t THREADS, --threads=THREADS
                         Number of threads
+    --preflight         Calibrate target concurrency and delay before scanning
     --list-sessions     List resumable sessions and exit
     --sessions-dir=PATH
                         Directory to search for resumable sessions (default:

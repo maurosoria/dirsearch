@@ -51,8 +51,5 @@ class TestRequestBackend(TestCase):
             "--request-backend native does not support proxies yet",
         )
 
-    def test_native_rejects_delay(self):
-        self.assertEqual(
-            get_native_request_backend_error(native_options(delay=0.1)),
-            "--request-backend native does not support --delay yet",
-        )
+    def test_native_accepts_delay(self):
+        self.assertIsNone(get_native_request_backend_error(native_options(delay=0.1)))

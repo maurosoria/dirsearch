@@ -48,6 +48,13 @@ from lib.core.exceptions import (
     WordlistLimitError,
 )
 from lib.core.logger import enable_logging, logger
+from lib.core.preflight import (
+    AsyncPreflightCalibrator,
+    NativePreflightCalibrator,
+    PreflightProfile,
+    PreflightResult,
+    SyncPreflightCalibrator,
+)
 from lib.core.request_backend import get_native_request_backend_error
 from lib.core.settings import (
     BANNER,
@@ -174,6 +181,7 @@ class Controller:
             self.setup()
             self.old_session = False
 
+        self._preflight_original_profile = self._capture_preflight_profile()
         self.run()
 
     def _import(self, session_file: str) -> None:
@@ -361,6 +369,9 @@ class Controller:
 
         while options["urls"]:
             url = options["urls"][0]
+            original_thread_count = options["thread_count"]
+            original_delay = options["delay"]
+            original_max_rate = options["max_rate"]
             self.fuzzer = Fuzzer(
                 self.requester,
                 self.dictionary,
@@ -402,6 +413,9 @@ class Controller:
                 sys.exit(0)
 
             finally:
+                options["thread_count"] = original_thread_count
+                options["delay"] = original_delay
+                options["max_rate"] = original_max_rate
                 options["urls"].pop(0)
 
         interface.warning("\nTask Completed")
@@ -432,6 +446,7 @@ class Controller:
                     interface.warning(msg)
 
                 self.fuzzer.set_base_path(current_directory)
+                self.run_preflight(current_directory)
                 if options["async_mode"]:
                     # use a future to get exceptions from handle_pause
                     # https://stackoverflow.com/a/64230941
@@ -496,6 +511,57 @@ class Controller:
                 time.sleep(0.5)
 
             break
+
+    def run_preflight(self, current_directory: str) -> None:
+        if not options["preflight"]:
+            return
+
+        self.restore_preflight_original_profile()
+        if options["request_backend"] == "native":
+            result = NativePreflightCalibrator(
+                self.requester,
+                self.dictionary,
+                base_path=current_directory,
+            ).run()
+        elif options["async_mode"]:
+            result = self.loop.run_until_complete(
+                AsyncPreflightCalibrator(
+                    self.requester,
+                    self.dictionary,
+                    base_path=current_directory,
+                ).run()
+            )
+        else:
+            result = SyncPreflightCalibrator(
+                self.requester,
+                self.dictionary,
+                base_path=current_directory,
+            ).run()
+
+        self.apply_preflight_result(result)
+
+    def _capture_preflight_profile(self) -> PreflightProfile:
+        return PreflightProfile(
+            "original",
+            max(1, int(options["thread_count"])),
+            max(0.0, float(options["delay"])),
+            max(0, int(options["max_rate"])),
+        )
+
+    def restore_preflight_original_profile(self) -> None:
+        original = self._preflight_original_profile
+        options["thread_count"] = original.thread_count
+        options["delay"] = original.delay
+        options["max_rate"] = original.max_rate
+
+    def apply_preflight_result(self, result: PreflightResult) -> None:
+        options["preflight_result"] = result
+        options["thread_count"] = result.applied_profile.thread_count
+        options["delay"] = result.applied_profile.delay
+        if result.max_rate_supported:
+            options["max_rate"] = result.applied_profile.max_rate
+        self.fuzzer.add_runtime_fingerprints(result.runtime_fingerprints)
+        interface.warning(result.summary())
 
     def set_target(self, url: str) -> None:
         # If no scheme specified, unset it first

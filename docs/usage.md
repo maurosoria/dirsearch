@@ -81,7 +81,7 @@ For example, if you add `admin.php` to `db/403_blacklist.txt`, any `admin.php` r
 
 Use `-i` / `--include-status` and `-x` / `--exclude-status` to include or exclude response status codes.
 
-dirsearch also performs automatic wildcard and soft-404 calibration. You normally do not need to tune this, but `--auto-calibration` forces extra calibration samples from the beginning when a target is especially noisy.
+dirsearch also performs automatic wildcard and soft-404 calibration. You normally do not need to tune this, but `--auto-calibration` forces extra calibration samples from the beginning when a target is especially noisy. For targets that change behavior under burst load, `--preflight` probes scanner fingerprints first and can lower concurrency or add delay before the scan starts.
 
 ```sh
 python3 dirsearch.py -e php,html,js -u https://target --exclude-sizes 1B,243KB

@@ -35,6 +35,7 @@ class TestNativeHTTPBackend(TestCase):
                 "timeout": 3.5,
                 "headers": {"user-agent": "dirsearch-test"},
                 "max_retries": 2,
+                "delay": 0.25,
                 "follow_redirects": False,
                 "include_status_codes": {200, 204},
                 "exclude_status_codes": {500},
@@ -81,6 +82,7 @@ class TestNativeHTTPBackend(TestCase):
         self.assertEqual(args[:2], ("https://example.com/", ["missing%20page"]))
         self.assertEqual(kwargs["concurrency"], 7)
         self.assertEqual(kwargs["timeout_secs"], 3.5)
+        self.assertEqual(kwargs["delay_secs"], 0.25)
         self.assertEqual(kwargs["include_status_codes"], [200, 204])
         self.assertEqual(kwargs["exclude_status_codes"], [500])
         self.assertEqual(kwargs["minimum_response_size"], 10)
@@ -92,3 +94,32 @@ class TestNativeHTTPBackend(TestCase):
         self.assertEqual(kwargs["match_sizes"], [(10, 100)])
         self.assertEqual(kwargs["filter_regex"], "not found")
         self.assertEqual(kwargs["match_time"], [(">", 100.0)])
+
+    def test_scan_can_disable_filter_options(self):
+        fake_native = FakeNativeModule()
+
+        with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
+            backend = NativeHTTPBackend()
+            list(
+                backend.scan(
+                    "https://example.com/",
+                    ["missing page"],
+                    apply_filters=False,
+                )
+            )
+
+        _, kwargs = fake_native.calls[0]
+        self.assertEqual(kwargs["include_status_codes"], [])
+        self.assertEqual(kwargs["exclude_status_codes"], [])
+        self.assertEqual(kwargs["minimum_response_size"], 0)
+        self.assertEqual(kwargs["maximum_response_size"], 0)
+        self.assertEqual(kwargs["matcher_mode"], "or")
+        self.assertEqual(kwargs["filter_mode"], "or")
+        self.assertEqual(kwargs["match_status_codes"], [])
+        self.assertEqual(kwargs["filter_status_codes"], [])
+        self.assertEqual(kwargs["match_sizes"], [])
+        self.assertEqual(kwargs["filter_sizes"], [])
+        self.assertEqual(kwargs["match_regex"], None)
+        self.assertEqual(kwargs["filter_regex"], None)
+        self.assertEqual(kwargs["match_time"], [])
+        self.assertEqual(kwargs["filter_time"], [])

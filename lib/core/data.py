@@ -47,6 +47,8 @@ options: dict[str, Any] = {
     "lowercase": False,
     "capitalization": False,
     "thread_count": 25,
+    "preflight": False,
+    "preflight_result": None,
     "recursive": False,
     "deep_recursive": False,
     "force_recursive": False,

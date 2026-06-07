@@ -44,6 +44,7 @@ from lib.utils.random import rand_stealth_word
 
 AUTO_CALIBRATION_EXTRA_SAMPLES = 2
 AMBIGUOUS_SIMILARITY_THRESHOLD = 0.9
+AMBIGUOUS_SIMILARITY_MAX_CONTENT_LENGTH = 8192
 
 
 class BaseScanner:
@@ -148,6 +149,12 @@ class BaseScanner:
             return False
 
         if self.content_parser.static_patterns and len(self.content_parser.static_patterns) >= 20:
+            return False
+
+        if (
+            len(self.response.content) > AMBIGUOUS_SIMILARITY_MAX_CONTENT_LENGTH
+            or len(response.content) > AMBIGUOUS_SIMILARITY_MAX_CONTENT_LENGTH
+        ):
             return False
 
         similarity = content_similarity(self.response.content, response.content)

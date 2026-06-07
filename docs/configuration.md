@@ -9,6 +9,7 @@ By default, `config.ini` inside the dirsearch directory is used as the configura
 
 [general]
 threads = 25
+preflight = False
 async = True
 recursive = False
 deep-recursive = False

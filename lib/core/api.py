@@ -28,6 +28,8 @@ from urllib.parse import urljoin, urlsplit, urlunsplit
 import requests
 
 from lib.core.exceptions import WordlistLimitError
+from lib.core.fingerprint import fingerprint_headers, merge_fingerprints
+from lib.core.preflight import PreflightProfile, PreflightResult
 from lib.core.settings import DEFAULT_HEADERS, SCRIPT_PATH
 from lib.core.structures import OrderedSet
 from lib.core.wordlist_template import expand_template_line, normalize_placeholders
@@ -41,6 +43,7 @@ __all__ = [
     "DirsearchFuzzer",
     "FuzzerConfig",
     "FuzzerResult",
+    "PreflightResult",
     "Wordlist",
     "WordlistLimitError",
     "WordlistState",
@@ -209,6 +212,7 @@ class FuzzerConfig:
     result_predicate: Callable[[FuzzerResult], bool] | None = None
     session_factory: Callable[[], requests.Session] | None = None
     raise_on_error: bool = False
+    preflight: bool = False
 
     @classmethod
     def from_raw_request(
@@ -228,6 +232,7 @@ class FuzzerConfig:
         result_predicate: Callable[[FuzzerResult], bool] | None = None,
         session_factory: Callable[[], requests.Session] | None = None,
         raise_on_error: bool = False,
+        preflight: bool = False,
     ) -> FuzzerConfig:
         if (raw_request is None) == (raw_file is None):
             raise ValueError("Provide exactly one of raw_request or raw_file")
@@ -253,6 +258,7 @@ class FuzzerConfig:
             result_predicate=result_predicate,
             session_factory=session_factory,
             raise_on_error=raise_on_error,
+            preflight=preflight,
         )
 
     def __post_init__(self) -> None:
@@ -283,9 +289,12 @@ class DirsearchFuzzer:
         self.on_result = on_result
         self.on_not_found = on_not_found
         self.on_error = on_error
+        self.preflight_result: PreflightResult | None = None
 
     def run(self) -> list[FuzzerResult]:
         results: list[FuzzerResult] = []
+        if self.config.preflight:
+            self.preflight_result = self.preflight()
         session = (
             self.config.session_factory()
             if self.config.session_factory
@@ -316,6 +325,35 @@ class DirsearchFuzzer:
         finally:
             session.close()
         return results
+
+    def preflight(self) -> PreflightResult:
+        profile = PreflightProfile("api", 1, 0.0, 0)
+        result = PreflightResult(
+            enabled=True,
+            applied_profile=profile,
+            original_profile=profile,
+        )
+        session = (
+            self.config.session_factory()
+            if self.config.session_factory
+            else requests.Session()
+        )
+        try:
+            session.verify = self.config.verify_tls
+            headers = {**DEFAULT_HEADERS, **dict(self.config.headers)}
+            fingerprints = []
+            for path in list(self._wordlist())[:4]:
+                response = session.get(
+                    self._join_url(self.config.url, path),
+                    headers=headers,
+                    timeout=self.config.timeout,
+                    allow_redirects=self.config.follow_redirects,
+                )
+                fingerprints.append(fingerprint_headers(response.headers))
+            result.fingerprint = merge_fingerprints(fingerprints)
+        finally:
+            session.close()
+        return result
 
     def _wordlist(self) -> Wordlist:
         source = self.config.wordlist

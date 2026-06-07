@@ -26,10 +26,15 @@ class NativeHTTPBackend:
         base_url: str,
         paths: Iterable[str],
         query: str = "",
+        *,
+        apply_filters: bool = True,
     ) -> Iterator[tuple[str, NativeResponse | None, RequestException | None]]:
         raw_paths = list(paths)
         request_paths = [append_query_string(path, query) for path in raw_paths]
         quoted_paths = [safequote(path) for path in request_paths]
+        filter_options = (
+            self._filter_options() if apply_filters else self._disabled_filter_options()
+        )
         results = self._native.scan_http(
             base_url,
             quoted_paths,
@@ -37,9 +42,10 @@ class NativeHTTPBackend:
             timeout_secs=options["timeout"],
             headers=list(options["headers"].items()),
             max_retries=options["max_retries"],
+            delay_secs=options["delay"],
             follow_redirects=options["follow_redirects"],
             max_body_size=MAX_RESPONSE_SIZE,
-            **self._filter_options(),
+            **filter_options,
         )
 
         for path, quoted_path, result in zip(raw_paths, quoted_paths, results):
@@ -83,4 +89,27 @@ class NativeHTTPBackend:
             "filter_regex": options["filter_regex"],
             "match_time": list(options["match_time"]),
             "filter_time": list(options["filter_time"]),
+        }
+
+    @staticmethod
+    def _disabled_filter_options() -> dict[str, Any]:
+        return {
+            "include_status_codes": [],
+            "exclude_status_codes": [],
+            "minimum_response_size": 0,
+            "maximum_response_size": 0,
+            "matcher_mode": "or",
+            "filter_mode": "or",
+            "match_status_codes": [],
+            "filter_status_codes": [],
+            "match_sizes": [],
+            "filter_sizes": [],
+            "match_words": [],
+            "filter_words": [],
+            "match_lines": [],
+            "filter_lines": [],
+            "match_regex": None,
+            "filter_regex": None,
+            "match_time": [],
+            "filter_time": [],
         }

@@ -89,6 +89,7 @@ class TestImportableAPI(TestCase):
             DirsearchFuzzer,
             FuzzerConfig,
             FuzzerResult,
+            PreflightResult,
             Wordlist,
             WordlistLimitError,
             WordlistState,
@@ -98,6 +99,7 @@ class TestImportableAPI(TestCase):
         self.assertIsNotNone(DirsearchFuzzer)
         self.assertIsNotNone(FuzzerConfig)
         self.assertIsNotNone(FuzzerResult)
+        self.assertIsNotNone(PreflightResult)
         self.assertIsNotNone(Wordlist)
         self.assertIsNotNone(WordlistLimitError)
         self.assertIsNotNone(WordlistState)
@@ -175,6 +177,23 @@ class TestImportableAPI(TestCase):
 
         self.assertEqual([result.path for result in results], ["private.txt"])
         self.assertEqual([result.path for result in not_found], ["admin.php"])
+
+    def test_preflight_api_returns_result(self):
+        from dirsearch import DirsearchFuzzer, FuzzerConfig
+
+        with LocalHTTPServer() as server:
+            fuzzer = DirsearchFuzzer(
+                FuzzerConfig(
+                    url=server.url,
+                    wordlist=["admin.php"],
+                    preflight=True,
+                )
+            )
+            results = fuzzer.run()
+
+        self.assertEqual([result.path for result in results], ["admin.php"])
+        self.assertIsNotNone(fuzzer.preflight_result)
+        self.assertTrue(fuzzer.preflight_result.enabled)
 
     def test_session_factory_customizes_requests(self):
         from dirsearch import DirsearchFuzzer, FuzzerConfig
