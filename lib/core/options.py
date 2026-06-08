@@ -43,6 +43,8 @@ from lib.core.native_runtime import (
 )
 from lib.core.filters import (
     parse_numeric_ranges,
+    parse_size,
+    parse_size_list,
     parse_time_filters,
     validate_regex,
 )
@@ -255,6 +257,8 @@ def parse_options() -> dict[str, Any]:
     _validate_advanced_mode(opt.filter_mode, "--filter-mode")
     _validate_advanced_regex(opt.match_regex, "--match-regex")
     _validate_advanced_regex(opt.filter_regex, "--filter-regex")
+    _validate_advanced_regex(opt.match_header_regex, "--match-header-regex")
+    _validate_advanced_regex(opt.filter_header_regex, "--filter-header-regex")
     opt.prefixes = tuple(strip_and_uniquify(opt.prefixes.split(",")))
     opt.suffixes = tuple(strip_and_uniquify(opt.suffixes.split(",")))
     opt.subdirs = [
@@ -275,7 +279,15 @@ def parse_options() -> dict[str, Any]:
             ]
         )
     ]
-    opt.exclude_sizes = {size.strip().upper() for size in opt.exclude_sizes.split(",")}
+    opt.exclude_sizes = _parse_size_list(opt.exclude_sizes, "--exclude-sizes")
+    opt.minimum_response_size = _parse_size(
+        opt.minimum_response_size,
+        "--min-response-size",
+    )
+    opt.maximum_response_size = _parse_size(
+        opt.maximum_response_size,
+        "--max-response-size",
+    )
 
     if opt.extensions == "*":
         opt.extensions = COMMON_EXTENSIONS
@@ -403,6 +415,22 @@ def _parse_advanced_ranges(value: str | None, option_name: str) -> tuple[tuple[i
 def _parse_advanced_times(value: str | None, option_name: str) -> tuple[tuple[str, float], ...]:
     try:
         return parse_time_filters(value)
+    except ValueError as error:
+        print(f"{option_name}: {error}")
+        sys.exit(1)
+
+
+def _parse_size(value: str | int | None, option_name: str) -> int:
+    try:
+        return parse_size(value)
+    except ValueError as error:
+        print(f"{option_name}: {error}")
+        sys.exit(1)
+
+
+def _parse_size_list(value: str | None, option_name: str) -> set[int]:
+    try:
+        return parse_size_list(value)
     except ValueError as error:
         print(f"{option_name}: {error}")
         sys.exit(1)
@@ -620,6 +648,18 @@ def merge_config(opt: Values) -> Values:
     )
     opt.filter_regex = opt.filter_regex or config.safe_get(
         "advanced-filtering", "filter-regex"
+    )
+    opt.match_headers = opt.match_headers or config.safe_getlist(
+        "advanced-filtering", "match-header"
+    )
+    opt.filter_headers = opt.filter_headers or config.safe_getlist(
+        "advanced-filtering", "filter-header"
+    )
+    opt.match_header_regex = opt.match_header_regex or config.safe_get(
+        "advanced-filtering", "match-header-regex"
+    )
+    opt.filter_header_regex = opt.filter_header_regex or config.safe_get(
+        "advanced-filtering", "filter-header-regex"
     )
     opt.match_time = opt.match_time or config.safe_get(
         "advanced-filtering", "match-time", ""

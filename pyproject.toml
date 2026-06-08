@@ -34,7 +34,6 @@ classifiers = [
     "Programming Language :: Python",
     "Environment :: Console",
     "Intended Audience :: Information Technology",
-    "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
     "Operating System :: OS Independent",
     "Topic :: Security",
     "Programming Language :: Python :: 3.11",

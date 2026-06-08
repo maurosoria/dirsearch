@@ -44,12 +44,25 @@ from lib.core.settings import (
     WILDCARD_TEST_POINT_MARKER,
 )
 from lib.parse.url import clean_path
-from lib.utils.common import get_readable_size, lstrip_once
+from lib.utils.common import lstrip_once
 
 
 AUTO_CALIBRATION_DUPLICATE_THRESHOLD = 8
 AUTO_CALIBRATION_FORCED_THRESHOLD = 3
 AUTO_CALIBRATION_MIN_CONTENT_LENGTH = 32
+
+
+def response_headers_text(resp: BaseResponse) -> str:
+    return "\n".join(f"{name}: {value}" for name, value in resp.headers.items())
+
+
+def matches_header_text(resp: BaseResponse, patterns: list[str]) -> bool:
+    headers = response_headers_text(resp).lower()
+    return any(pattern.lower() in headers for pattern in patterns)
+
+
+def matches_header_regex(resp: BaseResponse, pattern: str) -> bool:
+    return bool(re.search(pattern, response_headers_text(resp), re.IGNORECASE))
 
 
 class BaseFuzzer:
@@ -120,7 +133,7 @@ class BaseFuzzer:
         ):
             return True
 
-        if get_readable_size(resp.length).rstrip() in options["exclude_sizes"]:
+        if resp.length in options["exclude_sizes"]:
             return True
 
         if resp.length < options["minimum_response_size"]:
@@ -174,6 +187,10 @@ class BaseFuzzer:
             checks.append(matches_numeric_ranges(resp.lines, options["match_lines"]))
         if options["match_regex"]:
             checks.append(bool(re.search(options["match_regex"], resp.text)))
+        if options["match_headers"]:
+            checks.append(matches_header_text(resp, options["match_headers"]))
+        if options["match_header_regex"]:
+            checks.append(matches_header_regex(resp, options["match_header_regex"]))
         if options["match_time"]:
             checks.append(matches_time_filters(resp.elapsed, options["match_time"]))
 
@@ -192,6 +209,10 @@ class BaseFuzzer:
             checks.append(matches_numeric_ranges(resp.lines, options["filter_lines"]))
         if options["filter_regex"]:
             checks.append(bool(re.search(options["filter_regex"], resp.text)))
+        if options["filter_headers"]:
+            checks.append(matches_header_text(resp, options["filter_headers"]))
+        if options["filter_header_regex"]:
+            checks.append(matches_header_regex(resp, options["filter_header_regex"]))
         if options["filter_time"]:
             checks.append(matches_time_filters(resp.elapsed, options["filter_time"]))
 

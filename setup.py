@@ -18,50 +18,36 @@
 #  Author: Mauro Soria
 
 import ast
-import os
-import shutil
-import tempfile
 from pathlib import Path
 
 import setuptools
 
 
 ROOT = Path(__file__).resolve().parent
-
-# Preserve the historical packaged layout until the repository is reorganized.
-# The built distribution expects a top-level "dirsearch" package that contains
-# the entry module, config.ini, db/, and the lib/ package tree.
-env_dir = tempfile.mkdtemp(prefix="dirsearch-install-")
-package_root = Path(env_dir, "dirsearch")
-shutil.copytree(
-    ROOT,
-    package_root,
-    ignore=shutil.ignore_patterns(
-        ".git",
-        ".github",
-        ".cache",
-        ".venv",
-        "build",
-        "dist",
-        "target",
-        "__pycache__",
-        "*.pyc",
-        "*.pyo",
-        "*.pyd",
-        "tests",
-        "sessions",
-    ),
-)
-
-os.chdir(env_dir)
+PACKAGE_DATA_EXCLUDED_NAMES = {"__pycache__", "target"}
+PACKAGE_DATA_EXCLUDED_SUFFIXES = {".pyc", ".pyo", ".pyd"}
 
 
 def package_files(directory: Path) -> list[str]:
     files: list[str] = []
     for path in sorted(directory.rglob("*")):
+        relative = path.relative_to(directory)
+        if set(relative.parts) & PACKAGE_DATA_EXCLUDED_NAMES:
+            continue
+        if path.suffix in PACKAGE_DATA_EXCLUDED_SUFFIXES:
+            continue
         if path.is_file():
-            files.append(str(path.relative_to(package_root)))
+            files.append(str(path.relative_to(ROOT)))
     return files
+
+
+def package_names() -> list[str]:
+    packages = ["dirsearch"]
+    packages.extend(
+        f"dirsearch.{package}"
+        for package in setuptools.find_packages(include=("lib", "lib.*"))
+    )
+    return packages
 
 
 def read_version(path: Path) -> str:
@@ -94,7 +80,6 @@ setuptools.setup(
         "Programming Language :: Python",
         "Environment :: Console",
         "Intended Audience :: Information Technology",
-        "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
         "Operating System :: OS Independent",
         "Topic :: Security",
         "Programming Language :: Python :: 3.11",
@@ -114,12 +99,16 @@ setuptools.setup(
             "dirsearch-build-native=dirsearch.lib.core.native_builder:main",
         ]
     },
-    packages=setuptools.find_packages(exclude=("dirsearch.tests", "dirsearch.tests.*")),
+    packages=package_names(),
+    package_dir={
+        "dirsearch": ".",
+        "dirsearch.lib": "lib",
+    },
     package_data={
         "dirsearch": [
             "config.ini",
-            *package_files(package_root / "db"),
-            *package_files(package_root / "native"),
+            *package_files(ROOT / "db"),
+            *package_files(ROOT / "native"),
         ],
         "dirsearch.lib.report": ["templates/*.html"],
     },

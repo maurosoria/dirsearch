@@ -101,7 +101,7 @@ Options:
                         ranges (e.g. 301,500-599)
     --exclude-sizes=SIZES
                         Exclude responses by sizes, separated by commas (e.g.
-                        0B,4KB)
+                        0,0B,4KB)
     --exclude-text=TEXTS
                         Exclude responses by text, can use multiple flags
     --exclude-regex=REGEX
@@ -116,9 +116,9 @@ Options:
                         Skip target whenever hit one of these status codes,
                         separated by commas, support ranges
     --min-response-size=LENGTH
-                        Minimum response length
+                        Minimum response length (e.g. 1024,1KB)
     --max-response-size=LENGTH
-                        Maximum response length
+                        Maximum response length (e.g. 1024,1KB)
     --max-time=SECONDS  Maximum runtime for the scan
     --target-max-time=SECONDS
                         Maximum runtime for a target
@@ -158,6 +158,18 @@ Options:
                         Advanced matcher for response body regular expression
     --filter-regex=REGEX, --fr=REGEX
                         Advanced filter for response body regular expression
+    --match-header=TEXT
+                        Advanced matcher for response headers by text, can use
+                        multiple flags
+    --filter-header=TEXT
+                        Advanced filter for response headers by text, can use
+                        multiple flags
+    --match-header-regex=REGEX
+                        Advanced matcher for response headers regular
+                        expression
+    --filter-header-regex=REGEX
+                        Advanced filter for response headers regular
+                        expression
     --match-time=TIME, --mt=TIME
                         Advanced matcher for elapsed milliseconds, e.g. >100
                         or <100

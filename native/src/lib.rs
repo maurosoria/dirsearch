@@ -2,7 +2,7 @@ use indexmap::IndexSet;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use rayon::prelude::*;
-use regex::Regex;
+use regex::{Regex, RegexBuilder};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use std::fs;
 use std::io::{Read, Write};
@@ -55,6 +55,10 @@ struct NativeFilterConfig {
     filter_lines: Vec<NumericRange>,
     match_regex: Option<Regex>,
     filter_regex: Option<Regex>,
+    match_headers: Vec<String>,
+    filter_headers: Vec<String>,
+    match_header_regex: Option<Regex>,
+    filter_header_regex: Option<Regex>,
     match_time: Vec<TimeFilter>,
     filter_time: Vec<TimeFilter>,
 }
@@ -78,6 +82,10 @@ impl NativeFilterConfig {
         filter_lines: Vec<NumericRange>,
         match_regex: Option<String>,
         filter_regex: Option<String>,
+        match_headers: Vec<String>,
+        filter_headers: Vec<String>,
+        match_header_regex: Option<String>,
+        filter_header_regex: Option<String>,
         match_time: Vec<TimeFilter>,
         filter_time: Vec<TimeFilter>,
     ) -> Result<Self, String> {
@@ -98,6 +106,13 @@ impl NativeFilterConfig {
             filter_lines,
             match_regex: compile_regex(match_regex, "--match-regex")?,
             filter_regex: compile_regex(filter_regex, "--filter-regex")?,
+            match_headers,
+            filter_headers,
+            match_header_regex: compile_header_regex(match_header_regex, "--match-header-regex")?,
+            filter_header_regex: compile_header_regex(
+                filter_header_regex,
+                "--filter-header-regex",
+            )?,
             match_time,
             filter_time,
         })
@@ -107,6 +122,7 @@ impl NativeFilterConfig {
         &self,
         status: u16,
         length: usize,
+        headers: &[(String, String)],
         body: &[u8],
         elapsed_ms: f64,
     ) -> Option<&'static str> {
@@ -130,12 +146,14 @@ impl NativeFilterConfig {
             .needs_text()
             .then(|| String::from_utf8_lossy(body).into_owned());
         let text = text.as_deref();
+        let headers_text = self.needs_headers().then(|| headers_to_text(headers));
+        let headers_text = headers_text.as_deref();
 
-        if !self.matches_advanced_matchers(status, length, text, elapsed_ms) {
+        if !self.matches_advanced_matchers(status, length, text, headers_text, elapsed_ms) {
             return Some("advanced_matcher");
         }
 
-        if self.matches_advanced_filters(status, length, text, elapsed_ms) {
+        if self.matches_advanced_filters(status, length, text, headers_text, elapsed_ms) {
             return Some("advanced_filter");
         }
 
@@ -151,11 +169,19 @@ impl NativeFilterConfig {
             || self.filter_regex.is_some()
     }
 
+    fn needs_headers(&self) -> bool {
+        !self.match_headers.is_empty()
+            || !self.filter_headers.is_empty()
+            || self.match_header_regex.is_some()
+            || self.filter_header_regex.is_some()
+    }
+
     fn matches_advanced_matchers(
         &self,
         status: u16,
         length: usize,
         text: Option<&str>,
+        headers_text: Option<&str>,
         elapsed_ms: f64,
     ) -> bool {
         let mut checks = Vec::new();
@@ -175,6 +201,12 @@ impl NativeFilterConfig {
         if let Some(regex) = &self.match_regex {
             checks.push(regex.is_match(text.unwrap_or_default()));
         }
+        if !self.match_headers.is_empty() {
+            checks.push(matches_header_text(headers_text, &self.match_headers));
+        }
+        if let Some(regex) = &self.match_header_regex {
+            checks.push(regex.is_match(headers_text.unwrap_or_default()));
+        }
         if !self.match_time.is_empty() {
             checks.push(matches_time_filters(elapsed_ms, &self.match_time));
         }
@@ -187,6 +219,7 @@ impl NativeFilterConfig {
         status: u16,
         length: usize,
         text: Option<&str>,
+        headers_text: Option<&str>,
         elapsed_ms: f64,
     ) -> bool {
         let mut checks = Vec::new();
@@ -206,6 +239,12 @@ impl NativeFilterConfig {
         if let Some(regex) = &self.filter_regex {
             checks.push(regex.is_match(text.unwrap_or_default()));
         }
+        if !self.filter_headers.is_empty() {
+            checks.push(matches_header_text(headers_text, &self.filter_headers));
+        }
+        if let Some(regex) = &self.filter_header_regex {
+            checks.push(regex.is_match(headers_text.unwrap_or_default()));
+        }
         if !self.filter_time.is_empty() {
             checks.push(matches_time_filters(elapsed_ms, &self.filter_time));
         }
@@ -223,6 +262,19 @@ fn compile_regex(pattern: Option<String>, label: &str) -> Result<Option<Regex>, 
     }
 }
 
+fn compile_header_regex(pattern: Option<String>, label: &str) -> Result<Option<Regex>, String> {
+    match pattern {
+        Some(pattern) => RegexBuilder::new(&pattern)
+            .case_insensitive(true)
+            .build()
+            .map(Some)
+            .map_err(|error| {
+                format!("Invalid {label} regular expression for native backend: {error}")
+            }),
+        None => Ok(None),
+    }
+}
+
 fn matches_numeric_ranges(value: usize, ranges: &[NumericRange]) -> bool {
     ranges
         .iter()
@@ -235,6 +287,21 @@ fn matches_time_filters(elapsed_ms: f64, filters: &[TimeFilter]) -> bool {
             || (operator == "<" && elapsed_ms < *value)
             || (operator == "=" && elapsed_ms == *value)
     })
+}
+
+fn headers_to_text(headers: &[(String, String)]) -> String {
+    headers
+        .iter()
+        .map(|(name, value)| format!("{name}: {value}"))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn matches_header_text(headers_text: Option<&str>, patterns: &[String]) -> bool {
+    let headers_text = headers_text.unwrap_or_default().to_lowercase();
+    patterns
+        .iter()
+        .any(|pattern| headers_text.contains(&pattern.to_lowercase()))
 }
 
 fn combine_advanced_checks(checks: &[bool], mode: &str, default: bool) -> bool {
@@ -400,6 +467,10 @@ fn lstrip_once(input: &str, pattern: &str) -> String {
     filter_lines=Vec::new(),
     match_regex=None,
     filter_regex=None,
+    match_headers=Vec::new(),
+    filter_headers=Vec::new(),
+    match_header_regex=None,
+    filter_header_regex=None,
     match_time=Vec::new(),
     filter_time=Vec::new(),
 ))]
@@ -431,6 +502,10 @@ fn scan_http(
     filter_lines: Vec<NumericRange>,
     match_regex: Option<String>,
     filter_regex: Option<String>,
+    match_headers: Vec<String>,
+    filter_headers: Vec<String>,
+    match_header_regex: Option<String>,
+    filter_header_regex: Option<String>,
     match_time: Vec<TimeFilter>,
     filter_time: Vec<TimeFilter>,
 ) -> PyResult<Vec<NativeHttpResult>> {
@@ -452,6 +527,10 @@ fn scan_http(
             filter_lines,
             match_regex,
             filter_regex,
+            match_headers,
+            filter_headers,
+            match_header_regex,
+            filter_header_regex,
             match_time,
             filter_time,
         )
@@ -620,7 +699,7 @@ fn native_http_result(
 ) -> NativeHttpResult {
     let length = response_length(&headers, body.len());
     let filter_reason = filter_config
-        .filter_reason(status, length, &body, elapsed_ms)
+        .filter_reason(status, length, &headers, &body, elapsed_ms)
         .map(str::to_string);
     let filtered = filter_reason.is_some();
 
@@ -960,6 +1039,10 @@ mod tests {
             None,
             Vec::new(),
             Vec::new(),
+            None,
+            None,
+            Vec::new(),
+            Vec::new(),
         )
         .unwrap()
     }
@@ -1090,6 +1173,54 @@ mod tests {
     }
 
     #[test]
+    fn advanced_header_matchers_and_filters_work() {
+        let mut config = default_filter_config();
+        config.match_headers = vec!["etag: w/\"123".to_string()];
+        config.filter_header_regex = Some(Regex::new("X-Cache: fallback-[0-9]+").unwrap());
+
+        let keep = native_http_result(
+            "real".to_string(),
+            200,
+            vec![
+                ("ETag".to_string(), "W/\"123-abc\"".to_string()),
+                ("X-Cache".to_string(), "real".to_string()),
+            ],
+            b"same body".to_vec(),
+            1.0,
+            &config,
+        );
+        assert!(!keep.filtered);
+
+        let filtered = native_http_result(
+            "fallback".to_string(),
+            200,
+            vec![
+                ("ETag".to_string(), "W/\"123-abc\"".to_string()),
+                ("X-Cache".to_string(), "fallback-404".to_string()),
+            ],
+            b"same body".to_vec(),
+            1.0,
+            &config,
+        );
+        assert!(filtered.filtered);
+        assert_eq!(filtered.filter_reason.as_deref(), Some("advanced_filter"));
+
+        let matcher_miss = native_http_result(
+            "missing-header".to_string(),
+            200,
+            vec![("X-Cache".to_string(), "real".to_string())],
+            b"same body".to_vec(),
+            1.0,
+            &config,
+        );
+        assert!(matcher_miss.filtered);
+        assert_eq!(
+            matcher_miss.filter_reason.as_deref(),
+            Some("advanced_matcher")
+        );
+    }
+
+    #[test]
     fn regex_compile_errors_are_reported() {
         let error = NativeFilterConfig::new(
             Vec::new(),
@@ -1107,6 +1238,10 @@ mod tests {
             Vec::new(),
             Vec::new(),
             Some("(".to_string()),
+            None,
+            Vec::new(),
+            Vec::new(),
+            None,
             None,
             Vec::new(),
             Vec::new(),

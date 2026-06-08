@@ -35,7 +35,6 @@ hidden_imports += [
     'markupsafe',
     'OpenSSL',
     'cryptography',
-    'ntlm_auth',
     'requests_ntlm',
     'bs4',
     'beautifulsoup4',

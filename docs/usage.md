@@ -87,6 +87,10 @@ dirsearch also performs automatic wildcard and soft-404 calibration. You normall
 python3 dirsearch.py -e php,html,js -u https://target --exclude-sizes 1B,243KB
 ```
 
+Response size filters accept raw bytes without a suffix or readable units such as
+`B`, `KB`, `MB`, and `GB`. The same format works for `--exclude-sizes`,
+`--min-response-size`, and `--max-response-size`.
+
 ```sh
 python3 dirsearch.py -e php,html,js -u https://target --exclude-text "403 Forbidden"
 ```
@@ -107,6 +111,14 @@ Advanced ffuf/wfuzz-style filters are available as opt-in controls, not as the m
 
 ```sh
 python3 dirsearch.py -u https://target --match-status 200-299 --filter-regex "not found"
+```
+
+Response headers can also be used in advanced filters. Header text matching is
+case-insensitive; header regex matching uses regular expressions:
+
+```sh
+python3 dirsearch.py -u https://target --filter-header "x-cache: fallback"
+python3 dirsearch.py -u https://target --match-header-regex "etag: W/.+"
 ```
 
 ## Raw Requests

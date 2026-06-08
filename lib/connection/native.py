@@ -88,6 +88,10 @@ class NativeHTTPBackend:
             "filter_lines": list(options["filter_lines"]),
             "match_regex": options["match_regex"],
             "filter_regex": options["filter_regex"],
+            "match_headers": list(options["match_headers"]),
+            "filter_headers": list(options["filter_headers"]),
+            "match_header_regex": options["match_header_regex"],
+            "filter_header_regex": options["filter_header_regex"],
             "match_time": list(options["match_time"]),
             "filter_time": list(options["filter_time"]),
         }

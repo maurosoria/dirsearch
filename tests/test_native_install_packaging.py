@@ -17,7 +17,7 @@ class TestNativeInstallPackaging(TestCase):
     def test_package_data_includes_native_sources(self):
         setup_py = Path("setup.py").read_text(encoding="utf-8")
 
-        self.assertIn('*package_files(package_root / "native")', setup_py)
+        self.assertIn('*package_files(ROOT / "native")', setup_py)
         self.assertIn('"target"', setup_py)
 
     def test_package_data_includes_fingerprint_dataset(self):
@@ -26,7 +26,7 @@ class TestNativeInstallPackaging(TestCase):
 
         self.assertTrue(Path("db/fingerprints/cdn_waf.json").is_file())
         self.assertTrue(Path("db/fingerprints/cdncheck.LICENSE").is_file())
-        self.assertIn('*package_files(package_root / "db")', setup_py)
+        self.assertIn('*package_files(ROOT / "db")', setup_py)
         self.assertIn("(os.path.join(PROJECT_ROOT, 'db'), 'db')", pyinstaller_spec)
 
     def test_fingerprint_dataset_metadata_excludes_cloud(self):
@@ -38,6 +38,32 @@ class TestNativeInstallPackaging(TestCase):
         self.assertEqual(
             data["metadata"]["source_commit"],
             "1e2f9d0d95dd144f274a10ad911fc33e7f7a5562",
+        )
+
+    def test_setup_uses_standard_package_dir_mapping(self):
+        setup_py = Path("setup.py").read_text(encoding="utf-8")
+
+        self.assertIn('"dirsearch": "."', setup_py)
+        self.assertIn('"dirsearch.lib": "lib"', setup_py)
+        self.assertNotIn("tempfile.mkdtemp", setup_py)
+        self.assertNotIn("shutil.copytree", setup_py)
+        self.assertNotIn("os.chdir", setup_py)
+
+    def test_ntlm_auth_is_not_a_direct_dependency(self):
+        requirement_files = (
+            Path("requirements.txt"),
+            Path("requirements/runtime.txt"),
+        )
+
+        for path in requirement_files:
+            with self.subTest(path=str(path)):
+                self.assertNotIn(
+                    "ntlm-auth",
+                    path.read_text(encoding="utf-8"),
+                )
+        self.assertNotIn(
+            "ntlm_auth",
+            Path("pyinstaller/dirsearch.spec").read_text(encoding="utf-8"),
         )
 
     def test_install_docs_use_native_builder_flow(self):

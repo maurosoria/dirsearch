@@ -53,6 +53,10 @@ filter-mode = or
 #filter-lines = 0
 #match-regex = "admin"
 #filter-regex = "not found"
+#match-header = etag: w/
+#filter-header = x-cache: fallback
+#match-header-regex = "etag: .+"
+#filter-header-regex = "x-cache: fallback-[0-9]+"
 #match-time = >100
 #filter-time = >2000
 

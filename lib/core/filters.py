@@ -20,6 +20,18 @@ import re
 
 NumericRange = tuple[int, int]
 TimeFilter = tuple[str, float]
+SIZE_UNITS = {
+    "B": 1,
+    "KB": 1024,
+    "MB": 1024 ** 2,
+    "GB": 1024 ** 3,
+    "TB": 1024 ** 4,
+    "PB": 1024 ** 5,
+    "EB": 1024 ** 6,
+    "ZB": 1024 ** 7,
+    "YB": 1024 ** 8,
+}
+SIZE_RE = re.compile(r"^(\d+)\s*([KMGTPEZY]?B)?$", re.IGNORECASE)
 
 
 def parse_numeric_ranges(value: str | None) -> tuple[NumericRange, ...]:
@@ -75,6 +87,41 @@ def parse_time_filters(value: str | None) -> tuple[TimeFilter, ...]:
             raise ValueError(f"Invalid time filter: {operator}{token}") from error
 
     return tuple(filters)
+
+
+def parse_size(value: str | int | None) -> int:
+    if value is None or value == "":
+        return 0
+
+    if isinstance(value, int):
+        if value < 0:
+            raise ValueError(f"Invalid response size: {value}")
+        return value
+
+    token = value.strip()
+    if not token:
+        return 0
+
+    match = SIZE_RE.fullmatch(token)
+    if not match:
+        raise ValueError(f"Invalid response size: {value}")
+
+    number, unit = match.groups()
+    multiplier = SIZE_UNITS[(unit or "B").upper()]
+    return int(number) * multiplier
+
+
+def parse_size_list(value: str | None) -> set[int]:
+    if not value:
+        return set()
+
+    sizes = set()
+    for token in value.split(","):
+        token = token.strip()
+        if token:
+            sizes.add(parse_size(token))
+
+    return sizes
 
 
 def validate_regex(pattern: str | None, label: str) -> None:

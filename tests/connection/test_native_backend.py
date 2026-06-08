@@ -54,6 +54,10 @@ class TestNativeHTTPBackend(TestCase):
                 "filter_lines": ((0, 0),),
                 "match_regex": "admin",
                 "filter_regex": "not found",
+                "match_headers": ["etag: w/"],
+                "filter_headers": ["x-cache: fallback"],
+                "match_header_regex": "etag: .+",
+                "filter_header_regex": "x-cache: fallback-[0-9]+",
                 "match_time": ((">", 100.0),),
                 "filter_time": ((">", 2000.0),),
             }
@@ -95,6 +99,10 @@ class TestNativeHTTPBackend(TestCase):
         self.assertEqual(kwargs["filter_status_codes"], [404])
         self.assertEqual(kwargs["match_sizes"], [(10, 100)])
         self.assertEqual(kwargs["filter_regex"], "not found")
+        self.assertEqual(kwargs["match_headers"], ["etag: w/"])
+        self.assertEqual(kwargs["filter_headers"], ["x-cache: fallback"])
+        self.assertEqual(kwargs["match_header_regex"], "etag: .+")
+        self.assertEqual(kwargs["filter_header_regex"], "x-cache: fallback-[0-9]+")
         self.assertEqual(kwargs["match_time"], [(">", 100.0)])
 
     def test_scan_can_disable_filter_options(self):
