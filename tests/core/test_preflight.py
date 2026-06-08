@@ -1,6 +1,7 @@
 import threading
 import time
 from unittest import IsolatedAsyncioTestCase, TestCase
+from unittest.mock import patch
 
 from lib.connection.response import NativeResponse
 from lib.core.data import blacklists, options
@@ -190,6 +191,7 @@ class PreflightOptionsMixin:
                 "prefixes": (),
                 "suffixes": (),
                 "exclude_response": None,
+                "ip": "127.0.0.1",
                 "exclude_status_codes": set(),
                 "include_status_codes": set(),
                 "exclude_sizes": set(),
@@ -275,6 +277,19 @@ class TestPreflight(PreflightOptionsMixin, TestCase):
                 for observation in result.observations
             )
         )
+
+    def test_dns_failure_does_not_break_preflight(self):
+        with patch(
+            "lib.core.preflight.resolve_host_records",
+            side_effect=RuntimeError("dns failed"),
+        ):
+            result = FakeSyncPreflightCalibrator(
+                BurstRequester(),
+                DummyDictionary(["admin", "login"]),
+            ).run()
+
+        self.assertTrue(result.enabled)
+        self.assertEqual(result.fingerprint.provider, "cloudflare")
 
     def test_preflight_marks_sustained_fingerprint_shift(self):
         profile = PreflightProfile("test", 4, 0, 0)

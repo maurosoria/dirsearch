@@ -18,8 +18,15 @@
 
 from unittest import TestCase
 from socket import getaddrinfo
+from unittest.mock import patch
 
-from lib.connection.dns import cache_dns, cached_getaddrinfo
+from lib.connection.dns import (
+    DNSResolution,
+    _resolution_cache,
+    cache_dns,
+    cached_getaddrinfo,
+    resolve_host_records,
+)
 from lib.core.settings import DUMMY_DOMAIN
 
 
@@ -31,3 +38,20 @@ class TestDNS(TestCase):
             getaddrinfo("127.0.0.1", 80),
             "Adding DNS cache doesn't work",
         )
+
+    def test_resolve_host_records_uses_explicit_ip(self):
+        self.assertEqual(
+            resolve_host_records("example.com", explicit_ip="203.0.113.10"),
+            DNSResolution(ips=("203.0.113.10",)),
+        )
+
+    def test_resolve_host_records_failure_returns_empty_resolution(self):
+        _resolution_cache.clear()
+        with patch("lib.connection.dns.dns_resolver", object()), patch(
+            "lib.connection.dns._resolve_with_dnspython",
+            side_effect=RuntimeError("dns failed"),
+        ):
+            self.assertEqual(
+                resolve_host_records("failure.example", timeout=0.1),
+                DNSResolution(),
+            )

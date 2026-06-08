@@ -8,11 +8,13 @@ from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING
+from urllib.parse import urlparse
 
+from lib.connection.dns import DNSResolution, resolve_host_records
 from lib.core.data import options
 from lib.core.dictionary import Dictionary
 from lib.core.exceptions import RequestException
-from lib.core.fingerprint import FingerprintResult, fingerprint_headers, merge_fingerprints
+from lib.core.fingerprint import FingerprintResult, fingerprint_response, merge_fingerprints
 from lib.core.settings import DEFAULT_TEST_PREFIXES, DEFAULT_TEST_SUFFIXES, WILDCARD_TEST_POINT_MARKER
 from lib.parse.url import clean_path
 from lib.utils.diff import normalize_dynamic_content
@@ -116,6 +118,7 @@ class PreflightResult:
 
     def summary(self) -> str:
         provider = self.fingerprint.provider or "unknown"
+        category = self.fingerprint.category or "unknown"
         max_rate = (
             str(self.applied_profile.max_rate)
             if self.applied_profile.max_rate > 0
@@ -124,7 +127,8 @@ class PreflightResult:
         if not self.max_rate_supported and self.applied_profile.max_rate > 0:
             max_rate += " recommended-not-applied"
         return (
-            f"preflight provider={provider} confidence={self.fingerprint.confidence:.2f} "
+            f"preflight provider={provider} category={category} "
+            f"confidence={self.fingerprint.confidence:.2f} "
             f"threads={self.applied_profile.thread_count} delay={self.applied_profile.delay:g}s "
             f"max-rate={max_rate}"
         )
@@ -288,6 +292,7 @@ def _response_observation(
     response: BaseResponse,
     scanners: dict[str, dict[str, BaseScanner]],
     *,
+    dns_resolution: DNSResolution = DNSResolution(),
     start_time: float,
 ) -> PreflightObservation:
     decisions = scanner_decisions(scanners, sample.path, response)
@@ -298,7 +303,13 @@ def _response_observation(
         status=response.status,
         scanner_decisions=decisions,
         matched=response_matches_scanners(decisions),
-        fingerprint=fingerprint_headers(response.headers),
+        fingerprint=fingerprint_response(
+            response.headers,
+            body=response.text,
+            dns_cnames=dns_resolution.cnames,
+            resolved_ips=dns_resolution.ips,
+            tls_cert=getattr(response, "tls_cert", None),
+        ),
         runtime_fingerprint=response_fingerprint(response),
         timestamp=time.monotonic() - start_time,
         elapsed=response.elapsed,
@@ -406,6 +417,7 @@ class SyncPreflightCalibrator:
         self.requester = requester
         self.dictionary = dictionary
         self.base_path = base_path
+        self.dns_resolution = preflight_dns_resolution(getattr(requester, "_url", ""))
         self.original_profile = PreflightProfile(
             "original",
             max(1, int(options["thread_count"])),
@@ -531,6 +543,7 @@ class SyncPreflightCalibrator:
                 sample,
                 response,
                 scanners,
+                dns_resolution=self.dns_resolution,
                 start_time=start_time,
             )
 
@@ -595,6 +608,7 @@ class NativePreflightCalibrator(SyncPreflightCalibrator):
                         sample,
                         response,
                         scanners,
+                        dns_resolution=self.dns_resolution,
                         start_time=start_time,
                     )
                 )
@@ -610,6 +624,7 @@ class AsyncPreflightCalibrator:
         self.requester = requester
         self.dictionary = dictionary
         self.base_path = base_path
+        self.dns_resolution = preflight_dns_resolution(getattr(requester, "_url", ""))
         self.original_profile = PreflightProfile(
             "original",
             max(1, int(options["thread_count"])),
@@ -736,6 +751,7 @@ class AsyncPreflightCalibrator:
                     sample,
                     response,
                     scanners,
+                    dns_resolution=self.dns_resolution,
                     start_time=start_time,
                 )
 
@@ -758,3 +774,15 @@ def repeated_match_recalibration(responses: Iterable[BaseResponse]) -> tuple[set
     if count < PREFLIGHT_MATCH_STREAK_THRESHOLD:
         return set(), None
     return {most_common}, "repeated_match_fingerprint"
+
+
+def preflight_dns_resolution(base_url: str) -> DNSResolution:
+    parsed = urlparse(base_url)
+    try:
+        return resolve_host_records(
+            parsed.hostname,
+            timeout=options.get("timeout"),
+            explicit_ip=options.get("ip"),
+        )
+    except Exception:
+        return DNSResolution()

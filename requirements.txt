@@ -14,3 +14,4 @@ requests-toolbelt==1.0.0
 setuptools==82.0.1
 httpx==0.28.1
 httpx-ntlm==1.4.0
+dnspython==2.8.0
