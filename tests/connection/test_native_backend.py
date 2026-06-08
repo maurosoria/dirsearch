@@ -36,6 +36,7 @@ class TestNativeHTTPBackend(TestCase):
                 "headers": {"user-agent": "dirsearch-test"},
                 "max_retries": 2,
                 "delay": 0.25,
+                "max_rate": 3,
                 "follow_redirects": False,
                 "include_status_codes": {200, 204},
                 "exclude_status_codes": {500},
@@ -83,6 +84,7 @@ class TestNativeHTTPBackend(TestCase):
         self.assertEqual(kwargs["concurrency"], 7)
         self.assertEqual(kwargs["timeout_secs"], 3.5)
         self.assertEqual(kwargs["delay_secs"], 0.25)
+        self.assertEqual(kwargs["max_rate"], 3)
         self.assertEqual(kwargs["include_status_codes"], [200, 204])
         self.assertEqual(kwargs["exclude_status_codes"], [500])
         self.assertEqual(kwargs["minimum_response_size"], 10)

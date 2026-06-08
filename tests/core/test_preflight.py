@@ -9,9 +9,12 @@ from lib.core.fingerprint import FingerprintResult
 from lib.core.fuzzer import Fuzzer
 from lib.core.preflight import (
     AsyncPreflightCalibrator,
+    AsyncPreflightScanner,
     NativePreflightCalibrator,
+    NativePreflightScanner,
     PreflightObservation,
     PreflightProfile,
+    PreflightScanner,
     PreflightSample,
     SyncPreflightCalibrator,
     finalize_profile_observations,
@@ -152,29 +155,45 @@ class FakeNativeRateLimitBackend:
                 yield path, response(path, 404, b"missing"), None
 
 
-class FakeSyncPreflightCalibrator(SyncPreflightCalibrator):
+class FakePreflightScanner(PreflightScanner):
     def _build_scanners(self):
         return {"default": {"fake": FakeScanner()}, "prefixes": {}, "suffixes": {}}
 
 
-class FakeAsyncPreflightCalibrator(AsyncPreflightCalibrator):
+class FakeSyncPreflightCalibrator(SyncPreflightCalibrator):
+    scanner_class = FakePreflightScanner
+
+
+class FakeAsyncPreflightScanner(AsyncPreflightScanner):
     async def _build_scanners(self):
         return {"default": {"fake": FakeScanner()}, "prefixes": {}, "suffixes": {}}
 
 
-class FakeNativePreflightCalibrator(NativePreflightCalibrator):
+class FakeAsyncPreflightCalibrator(AsyncPreflightCalibrator):
+    scanner_class = FakeAsyncPreflightScanner
+
+
+class FakeNativePreflightScanner(NativePreflightScanner):
     def __init__(self, requester, dictionary, base_path=""):
-        SyncPreflightCalibrator.__init__(self, requester, dictionary, base_path=base_path)
+        PreflightScanner.__init__(self, requester, dictionary, base_path=base_path)
         self.native_backend = FakeNativeBackend()
 
     def _build_scanners(self):
         return {"default": {"fake": FakeScanner()}, "prefixes": {}, "suffixes": {}}
 
 
-class FakeNativeRateLimitPreflightCalibrator(FakeNativePreflightCalibrator):
+class FakeNativePreflightCalibrator(NativePreflightCalibrator):
+    scanner_class = FakeNativePreflightScanner
+
+
+class FakeNativeRateLimitPreflightScanner(FakeNativePreflightScanner):
     def __init__(self, requester, dictionary, base_path=""):
-        SyncPreflightCalibrator.__init__(self, requester, dictionary, base_path=base_path)
+        PreflightScanner.__init__(self, requester, dictionary, base_path=base_path)
         self.native_backend = FakeNativeRateLimitBackend()
+
+
+class FakeNativeRateLimitPreflightCalibrator(NativePreflightCalibrator):
+    scanner_class = FakeNativeRateLimitPreflightScanner
 
 
 class PreflightOptionsMixin:
@@ -366,20 +385,20 @@ class TestPreflight(PreflightOptionsMixin, TestCase):
 
         self.assertTrue(result.adjusted)
         self.assertLess(result.applied_profile.thread_count, 8)
-        self.assertTrue(calibrator.native_backend.calls)
+        self.assertTrue(calibrator.scanner.native_backend.calls)
         self.assertTrue(
-            all(not call[3] for call in calibrator.native_backend.calls)
+            all(not call[3] for call in calibrator.scanner.native_backend.calls)
         )
 
-    def test_native_preflight_recommends_max_rate_without_support(self):
+    def test_native_preflight_applies_max_rate(self):
         result = FakeNativeRateLimitPreflightCalibrator(
             RateLimitRequester(),
             DummyDictionary(["admin", "login"]),
         ).run()
 
         self.assertEqual(result.applied_profile.max_rate, 2)
-        self.assertFalse(result.max_rate_supported)
-        self.assertIn("recommended-not-applied", result.summary())
+        self.assertTrue(result.max_rate_supported)
+        self.assertIn("max-rate=2", result.summary())
 
     def test_recalibration_filters_future_repeated_matches(self):
         matches = []

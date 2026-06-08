@@ -43,6 +43,7 @@ class NativeHTTPBackend:
             headers=list(options["headers"].items()),
             max_retries=options["max_retries"],
             delay_secs=options["delay"],
+            max_rate=options["max_rate"],
             follow_redirects=options["follow_redirects"],
             max_body_size=MAX_RESPONSE_SIZE,
             **filter_options,

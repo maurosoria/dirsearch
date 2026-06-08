@@ -412,65 +412,116 @@ def _profile_is_clean(observations: Iterable[PreflightObservation]) -> bool:
     ) and not any(observation.denial_reason for observation in observations)
 
 
-class SyncPreflightCalibrator:
+def _original_preflight_profile() -> PreflightProfile:
+    return PreflightProfile(
+        "original",
+        max(1, int(options["thread_count"])),
+        max(0.0, float(options["delay"])),
+        max(0, int(options["max_rate"])),
+    )
+
+
+def _preflight_profiles(original_profile: PreflightProfile) -> tuple[PreflightProfile, ...]:
+    return build_preflight_profiles(
+        original_profile.thread_count,
+        original_profile.delay,
+        original_profile.max_rate,
+    )
+
+
+def _apply_observations_to_result(
+    result: PreflightResult,
+    profile: PreflightProfile,
+    observations: list[PreflightObservation],
+) -> None:
+    result.observations.extend(observations)
+    suspicious = [
+        observation
+        for observation in observations
+        if observation.expected_missing and observation.matched
+    ]
+    if not suspicious:
+        result.applied_profile = profile
+    if suspicious:
+        result.behavior_tags.append("scanner_false_positive_burst")
+    for observation in suspicious:
+        result.runtime_fingerprints.add(observation.runtime_fingerprint)
+    denied = [observation for observation in observations if observation.denial_reason]
+    result.behavior_tags.extend(denial_behavior_tags(denied))
+    for observation in denied:
+        result.runtime_fingerprints.add(observation.runtime_fingerprint)
+
+
+def _finalize_preflight_result(
+    result: PreflightResult,
+    fingerprints: Iterable[FingerprintResult],
+) -> PreflightResult:
+    result.fingerprint = merge_fingerprints(
+        fingerprints,
+        behavior_tags=result.behavior_tags,
+    )
+    return result
+
+
+class PreflightScanner:
     def __init__(self, requester: Requester, dictionary: Dictionary, base_path: str = "") -> None:
         self.requester = requester
         self.dictionary = dictionary
         self.base_path = base_path
         self.dns_resolution = preflight_dns_resolution(getattr(requester, "_url", ""))
-        self.original_profile = PreflightProfile(
-            "original",
-            max(1, int(options["thread_count"])),
-            max(0.0, float(options["delay"])),
-            max(0, int(options["max_rate"])),
-        )
+        self._samples: tuple[PreflightSample, ...] | None = None
+        self._scanners: dict[str, dict[str, BaseScanner]] | None = None
 
-    def run(self) -> PreflightResult:
-        scanners = self._build_scanners()
-        samples = sample_preflight_paths(
-            self.dictionary,
-            base_path=self.base_path,
-            extensions=options["extensions"],
-        )
-        profiles = build_preflight_profiles(
-            self.original_profile.thread_count,
-            self.original_profile.delay,
-            self.original_profile.max_rate,
-        )
-        result = PreflightResult(
-            enabled=True,
-            applied_profile=profiles[-1],
-            original_profile=self.original_profile,
-        )
+    @property
+    def samples(self) -> tuple[PreflightSample, ...]:
+        if self._samples is None:
+            self._samples = sample_preflight_paths(
+                self.dictionary,
+                base_path=self.base_path,
+                extensions=options["extensions"],
+            )
+        return self._samples
 
-        fingerprints: list[FingerprintResult] = []
-        for profile in profiles:
-            observations = self._run_profile(profile, samples, scanners)
-            result.observations.extend(observations)
-            fingerprints.extend(observation.fingerprint for observation in observations)
-            suspicious = [
-                observation
-                for observation in observations
-                if observation.expected_missing and observation.matched
-            ]
-            if not suspicious:
-                result.applied_profile = profile
-                if _profile_is_clean(observations):
-                    break
-            if suspicious:
-                result.behavior_tags.append("scanner_false_positive_burst")
-            for observation in suspicious:
-                result.runtime_fingerprints.add(observation.runtime_fingerprint)
-            denied = [observation for observation in observations if observation.denial_reason]
-            result.behavior_tags.extend(denial_behavior_tags(denied))
-            for observation in denied:
-                result.runtime_fingerprints.add(observation.runtime_fingerprint)
+    @property
+    def scanners(self) -> dict[str, dict[str, BaseScanner]]:
+        if self._scanners is None:
+            self._scanners = self._build_scanners()
+        return self._scanners
 
-        result.fingerprint = merge_fingerprints(
-            fingerprints,
-            behavior_tags=result.behavior_tags,
-        )
-        return result
+    def scan_profile(self, profile: PreflightProfile) -> list[PreflightObservation]:
+        original_threads = options["thread_count"]
+        original_delay = options["delay"]
+        original_max_rate = options["max_rate"]
+        options["thread_count"] = profile.thread_count
+        options["delay"] = profile.delay
+        options["max_rate"] = profile.max_rate
+        if hasattr(self.requester, "_rate"):
+            self.requester._rate = 0
+        start_time = time.monotonic()
+
+        def probe(sample: PreflightSample) -> PreflightObservation:
+            try:
+                response = self.requester.request(sample.path)
+            except RequestException as error:
+                return _error_observation(profile, sample, error, start_time=start_time)
+            if profile.delay:
+                time.sleep(profile.delay)
+            return _response_observation(
+                profile,
+                sample,
+                response,
+                self.scanners,
+                dns_resolution=self.dns_resolution,
+                start_time=start_time,
+            )
+
+        try:
+            with ThreadPoolExecutor(max_workers=profile.thread_count) as executor:
+                return finalize_profile_observations(executor.map(probe, self.samples))
+        finally:
+            options["thread_count"] = original_threads
+            options["delay"] = original_delay
+            options["max_rate"] = original_max_rate
 
     def _build_scanners(self) -> dict[str, dict[str, BaseScanner]]:
         from lib.core.scanner import Scanner
@@ -515,65 +566,15 @@ class SyncPreflightCalibrator:
                 )
         return scanners
 
-    def _run_profile(
-        self,
-        profile: PreflightProfile,
-        samples: tuple[PreflightSample, ...],
-        scanners: dict[str, dict[str, BaseScanner]],
-    ) -> list[PreflightObservation]:
-        original_threads = options["thread_count"]
-        original_delay = options["delay"]
-        original_max_rate = options["max_rate"]
-        options["thread_count"] = profile.thread_count
-        options["delay"] = profile.delay
-        options["max_rate"] = profile.max_rate
-        if hasattr(self.requester, "_rate"):
-            self.requester._rate = 0
-        start_time = time.monotonic()
 
-        def probe(sample: PreflightSample) -> PreflightObservation:
-            try:
-                response = self.requester.request(sample.path)
-            except RequestException as error:
-                return _error_observation(profile, sample, error, start_time=start_time)
-            if profile.delay:
-                time.sleep(profile.delay)
-            return _response_observation(
-                profile,
-                sample,
-                response,
-                scanners,
-                dns_resolution=self.dns_resolution,
-                start_time=start_time,
-            )
-
-        try:
-            with ThreadPoolExecutor(max_workers=profile.thread_count) as executor:
-                return finalize_profile_observations(executor.map(probe, samples))
-        finally:
-            options["thread_count"] = original_threads
-            options["delay"] = original_delay
-            options["max_rate"] = original_max_rate
-
-
-class NativePreflightCalibrator(SyncPreflightCalibrator):
+class NativePreflightScanner(PreflightScanner):
     def __init__(self, requester: Requester, dictionary: Dictionary, base_path: str = "") -> None:
         super().__init__(requester, dictionary, base_path=base_path)
         from lib.connection.native import NativeHTTPBackend
 
         self.native_backend = NativeHTTPBackend()
 
-    def run(self) -> PreflightResult:
-        result = super().run()
-        result.max_rate_supported = False
-        return result
-
-    def _run_profile(
-        self,
-        profile: PreflightProfile,
-        samples: tuple[PreflightSample, ...],
-        scanners: dict[str, dict[str, BaseScanner]],
-    ) -> list[PreflightObservation]:
+    def scan_profile(self, profile: PreflightProfile) -> list[PreflightObservation]:
         observations: list[PreflightObservation] = []
         original_threads = options["thread_count"]
         original_delay = options["delay"]
@@ -583,8 +584,8 @@ class NativePreflightCalibrator(SyncPreflightCalibrator):
         options["max_rate"] = profile.max_rate
         start_time = time.monotonic()
         try:
-            paths = [sample.path for sample in samples]
-            by_path = {sample.path: sample for sample in samples}
+            paths = [sample.path for sample in self.samples]
+            by_path = {sample.path: sample for sample in self.samples}
             for path, response, error in self.native_backend.scan(
                 self.requester._url,
                 paths,
@@ -607,7 +608,7 @@ class NativePreflightCalibrator(SyncPreflightCalibrator):
                         profile,
                         sample,
                         response,
-                        scanners,
+                        self.scanners,
                         dns_resolution=self.dns_resolution,
                         start_time=start_time,
                     )
@@ -619,63 +620,66 @@ class NativePreflightCalibrator(SyncPreflightCalibrator):
         return finalize_profile_observations(observations)
 
 
-class AsyncPreflightCalibrator:
-    def __init__(self, requester: AsyncRequester, dictionary: Dictionary, base_path: str = "") -> None:
-        self.requester = requester
-        self.dictionary = dictionary
-        self.base_path = base_path
-        self.dns_resolution = preflight_dns_resolution(getattr(requester, "_url", ""))
-        self.original_profile = PreflightProfile(
-            "original",
-            max(1, int(options["thread_count"])),
-            max(0.0, float(options["delay"])),
-            max(0, int(options["max_rate"])),
-        )
+class SyncPreflightCalibrator:
+    scanner_class = PreflightScanner
 
-    async def run(self) -> PreflightResult:
-        scanners = await self._build_scanners()
-        samples = sample_preflight_paths(
-            self.dictionary,
-            base_path=self.base_path,
-            extensions=options["extensions"],
+    def __init__(self, requester: Requester, dictionary: Dictionary, base_path: str = "") -> None:
+        self.scanner = self.scanner_class(
+            requester,
+            dictionary,
+            base_path=base_path,
         )
-        profiles = build_preflight_profiles(
-            self.original_profile.thread_count,
-            self.original_profile.delay,
-            self.original_profile.max_rate,
-        )
+        self.original_profile = _original_preflight_profile()
+
+    def run(self) -> PreflightResult:
+        profiles = _preflight_profiles(self.original_profile)
         result = PreflightResult(
             enabled=True,
             applied_profile=profiles[-1],
             original_profile=self.original_profile,
         )
+
         fingerprints: list[FingerprintResult] = []
         for profile in profiles:
-            observations = await self._run_profile(profile, samples, scanners)
-            result.observations.extend(observations)
+            observations = self.scanner.scan_profile(profile)
             fingerprints.extend(observation.fingerprint for observation in observations)
-            suspicious = [
-                observation
-                for observation in observations
-                if observation.expected_missing and observation.matched
-            ]
-            if not suspicious:
-                result.applied_profile = profile
-                if _profile_is_clean(observations):
-                    break
-            if suspicious:
-                result.behavior_tags.append("scanner_false_positive_burst")
-            for observation in suspicious:
-                result.runtime_fingerprints.add(observation.runtime_fingerprint)
-            denied = [observation for observation in observations if observation.denial_reason]
-            result.behavior_tags.extend(denial_behavior_tags(denied))
-            for observation in denied:
-                result.runtime_fingerprints.add(observation.runtime_fingerprint)
-        result.fingerprint = merge_fingerprints(
-            fingerprints,
-            behavior_tags=result.behavior_tags,
-        )
-        return result
+            _apply_observations_to_result(result, profile, observations)
+            if result.applied_profile == profile and _profile_is_clean(observations):
+                break
+
+        return _finalize_preflight_result(result, fingerprints)
+
+
+class NativePreflightCalibrator(SyncPreflightCalibrator):
+    scanner_class = NativePreflightScanner
+
+    def __init__(self, requester: Requester, dictionary: Dictionary, base_path: str = "") -> None:
+        super().__init__(requester, dictionary, base_path=base_path)
+
+
+class AsyncPreflightScanner:
+    def __init__(self, requester: AsyncRequester, dictionary: Dictionary, base_path: str = "") -> None:
+        self.requester = requester
+        self.dictionary = dictionary
+        self.base_path = base_path
+        self.dns_resolution = preflight_dns_resolution(getattr(requester, "_url", ""))
+        self._samples: tuple[PreflightSample, ...] | None = None
+        self._scanners: dict[str, dict[str, BaseScanner]] | None = None
+
+    @property
+    def samples(self) -> tuple[PreflightSample, ...]:
+        if self._samples is None:
+            self._samples = sample_preflight_paths(
+                self.dictionary,
+                base_path=self.base_path,
+                extensions=options["extensions"],
+            )
+        return self._samples
+
+    async def scanners(self) -> dict[str, dict[str, BaseScanner]]:
+        if self._scanners is None:
+            self._scanners = await self._build_scanners()
+        return self._scanners
 
     async def _build_scanners(self) -> dict[str, dict[str, BaseScanner]]:
         from lib.core.scanner import AsyncScanner
@@ -720,12 +724,7 @@ class AsyncPreflightCalibrator:
                 )
         return scanners
 
-    async def _run_profile(
-        self,
-        profile: PreflightProfile,
-        samples: tuple[PreflightSample, ...],
-        scanners: dict[str, dict[str, BaseScanner]],
-    ) -> list[PreflightObservation]:
+    async def scan_profile(self, profile: PreflightProfile) -> list[PreflightObservation]:
         observations: list[PreflightObservation] = []
         original_threads = options["thread_count"]
         original_delay = options["delay"]
@@ -737,6 +736,7 @@ class AsyncPreflightCalibrator:
             self.requester._rate = 0
         start_time = time.monotonic()
         semaphore = asyncio.Semaphore(profile.thread_count)
+        scanners = await self.scanners()
 
         async def probe(sample: PreflightSample) -> PreflightObservation:
             async with semaphore:
@@ -757,13 +757,41 @@ class AsyncPreflightCalibrator:
 
         try:
             observations = finalize_profile_observations(
-                await asyncio.gather(*(probe(sample) for sample in samples))
+                await asyncio.gather(*(probe(sample) for sample in self.samples))
             )
         finally:
             options["thread_count"] = original_threads
             options["delay"] = original_delay
             options["max_rate"] = original_max_rate
         return observations
+
+
+class AsyncPreflightCalibrator:
+    scanner_class = AsyncPreflightScanner
+
+    def __init__(self, requester: AsyncRequester, dictionary: Dictionary, base_path: str = "") -> None:
+        self.scanner = self.scanner_class(
+            requester,
+            dictionary,
+            base_path=base_path,
+        )
+        self.original_profile = _original_preflight_profile()
+
+    async def run(self) -> PreflightResult:
+        profiles = _preflight_profiles(self.original_profile)
+        result = PreflightResult(
+            enabled=True,
+            applied_profile=profiles[-1],
+            original_profile=self.original_profile,
+        )
+        fingerprints: list[FingerprintResult] = []
+        for profile in profiles:
+            observations = await self.scanner.scan_profile(profile)
+            fingerprints.extend(observation.fingerprint for observation in observations)
+            _apply_observations_to_result(result, profile, observations)
+            if result.applied_profile == profile and _profile_is_clean(observations):
+                break
+        return _finalize_preflight_result(result, fingerprints)
 
 
 def repeated_match_recalibration(responses: Iterable[BaseResponse]) -> tuple[set[tuple], str | None]:

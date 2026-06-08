@@ -53,3 +53,12 @@ class TestRequestBackend(TestCase):
 
     def test_native_accepts_delay(self):
         self.assertIsNone(get_native_request_backend_error(native_options(delay=0.1)))
+
+    def test_native_accepts_max_rate(self):
+        self.assertIsNone(get_native_request_backend_error(native_options(max_rate=2)))
+
+    def test_native_rejects_follow_redirects(self):
+        self.assertEqual(
+            get_native_request_backend_error(native_options(follow_redirects=True)),
+            "--request-backend native does not support --follow-redirects yet",
+        )

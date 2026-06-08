@@ -249,6 +249,14 @@ fn combine_advanced_checks(checks: &[bool], mode: &str, default: bool) -> bool {
     checks.iter().any(|check| *check)
 }
 
+fn request_start_delay(index: usize, max_rate: usize) -> Duration {
+    if max_rate == 0 {
+        return Duration::ZERO;
+    }
+
+    Duration::from_secs_f64(index as f64 / max_rate as f64)
+}
+
 fn word_count(text: Option<&str>) -> usize {
     text.unwrap_or_default().split_whitespace().count()
 }
@@ -373,6 +381,7 @@ fn lstrip_once(input: &str, pattern: &str) -> String {
     headers=Vec::new(),
     max_retries=0,
     delay_secs=0.0,
+    max_rate=0,
     follow_redirects=false,
     max_body_size=83886080,
     include_status_codes=Vec::new(),
@@ -403,6 +412,7 @@ fn scan_http(
     headers: Vec<(String, String)>,
     max_retries: usize,
     delay_secs: f64,
+    max_rate: usize,
     follow_redirects: bool,
     max_body_size: usize,
     include_status_codes: Vec<u16>,
@@ -482,13 +492,17 @@ fn scan_http(
             let semaphore = std::sync::Arc::new(tokio::sync::Semaphore::new(concurrency.max(1)));
             let mut tasks = Vec::with_capacity(paths.len());
 
-            for path in paths {
+            for (index, path) in paths.into_iter().enumerate() {
                 let client = client.clone();
                 let base_url = base_url.clone();
                 let raw_headers = raw_headers.clone();
                 let semaphore = semaphore.clone();
                 let filter_config = filter_config.clone();
                 tasks.push(tokio::spawn(async move {
+                    let start_delay = request_start_delay(index, max_rate);
+                    if !start_delay.is_zero() {
+                        tokio::time::sleep(start_delay).await;
+                    }
                     let _permit = match semaphore.acquire_owned().await {
                         Ok(permit) => permit,
                         Err(error) => {
@@ -1107,6 +1121,15 @@ mod tests {
     fn response_length_prefers_content_length_header() {
         assert_eq!(response_length(&content_length(123), 2), 123);
         assert_eq!(response_length(&[], 2), 2);
+    }
+
+    #[test]
+    fn request_start_delay_spreads_requests_by_max_rate() {
+        assert_eq!(request_start_delay(0, 0), Duration::ZERO);
+        assert_eq!(request_start_delay(10, 0), Duration::ZERO);
+        assert_eq!(request_start_delay(0, 2), Duration::ZERO);
+        assert_eq!(request_start_delay(1, 2), Duration::from_millis(500));
+        assert_eq!(request_start_delay(2, 2), Duration::from_secs(1));
     }
 }
 
