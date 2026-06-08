@@ -3,6 +3,7 @@ from unittest import IsolatedAsyncioTestCase, TestCase
 
 from lib.connection.response import NativeResponse
 from lib.core.data import blacklists, options
+from lib.core.exceptions import RequestException
 from lib.core.fuzzer import AsyncFuzzer, Fuzzer, NativeFuzzer
 
 
@@ -39,6 +40,11 @@ class DummySyncRequester:
             return stack_response(path, b"keep admin panel")
 
         return stack_response(path, b"not found")
+
+
+class ErrorRequester:
+    def request(self, path):
+        raise RequestException(f"boom: {path}")
 
 
 class DummyAsyncRequester:
@@ -144,6 +150,94 @@ class TestSyncFuzzerFilterStack(FilterStackOptionsMixin, TestCase):
         self.assertEqual([response.full_path for response in matches], ["keep"])
         self.assertEqual([response.full_path for response in misses], ["drop"])
         self.assertEqual(errors, [])
+
+    def test_runtime_filter_is_disabled_by_default(self):
+        dictionary = DummyDictionary([])
+        matches = []
+        misses = []
+        errors = []
+        fuzzer = Fuzzer(
+            DummySyncRequester(),
+            dictionary,
+            match_callbacks=(matches.append,),
+            not_found_callbacks=(misses.append,),
+            error_callbacks=(errors.append,),
+        )
+
+        for index in range(9):
+            fuzzer.process_response(
+                f"block-{index}",
+                stack_response(
+                    f"block-{index}",
+                    f"burst block /block-{index}".encode(),
+                ),
+            )
+
+        self.assertEqual(len(matches), 9)
+        self.assertEqual(misses, [])
+        self.assertEqual(errors, [])
+        self.assertEqual(fuzzer.recalibration_events, [])
+
+    def test_runtime_filter_recalibrates_when_preflight_is_enabled(self):
+        options["preflight"] = True
+        dictionary = DummyDictionary([])
+        matches = []
+        misses = []
+        errors = []
+        fuzzer = Fuzzer(
+            DummySyncRequester(),
+            dictionary,
+            match_callbacks=(matches.append,),
+            not_found_callbacks=(misses.append,),
+            error_callbacks=(errors.append,),
+        )
+
+        for index in range(8):
+            fuzzer.process_response(
+                f"block-{index}",
+                stack_response(
+                    f"block-{index}",
+                    f"burst block /block-{index}".encode(),
+                ),
+            )
+        final_response = stack_response("block-final", b"burst block /block-final")
+        fuzzer.process_response("block-final", final_response)
+
+        self.assertEqual(len(matches), 8)
+        self.assertEqual(misses, [final_response])
+        self.assertEqual(errors, [])
+        self.assertEqual(fuzzer.recalibration_events, ["repeated_match_fingerprint"])
+
+    def test_runtime_filter_resets_match_streak_on_error(self):
+        options["preflight"] = True
+        dictionary = DummyDictionary([])
+        matches = []
+        misses = []
+        errors = []
+        fuzzer = Fuzzer(
+            ErrorRequester(),
+            dictionary,
+            match_callbacks=(matches.append,),
+            not_found_callbacks=(misses.append,),
+            error_callbacks=(errors.append,),
+        )
+
+        for index in range(7):
+            fuzzer.process_response(
+                f"block-{index}",
+                stack_response(
+                    f"block-{index}",
+                    f"burst block /block-{index}".encode(),
+                ),
+            )
+        fuzzer.scan("boom")
+        final_response = stack_response("block-final", b"burst block /block-final")
+        fuzzer.process_response("block-final", final_response)
+
+        self.assertEqual(len(matches), 8)
+        self.assertEqual(misses, [])
+        self.assertEqual(len(errors), 1)
+        self.assertEqual(fuzzer.recalibration_events, [])
 
 
 class TestAsyncFuzzerFilterStack(FilterStackOptionsMixin, IsolatedAsyncioTestCase):

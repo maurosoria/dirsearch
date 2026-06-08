@@ -32,7 +32,7 @@ from lib.core.dictionary import Dictionary
 from lib.core.exceptions import RequestException
 from lib.core.filters import matches_numeric_ranges, matches_time_filters
 from lib.core.logger import logger
-from lib.core.runtime_fingerprint import response_fingerprint
+from lib.core.runtime_fingerprint import build_runtime_filter, response_fingerprint
 from lib.core.scanner import AsyncScanner, BaseScanner, Scanner
 from lib.core.settings import (
     DEFAULT_TEST_PREFIXES,
@@ -80,6 +80,7 @@ class BaseFuzzer:
         self.error_callbacks = error_callbacks
         self._similar_fingerprints: dict[tuple, int] = {}
         self._auto_calibrated_fingerprints: set[tuple] = set()
+        self.runtime_filter = build_runtime_filter(options.get("preflight", False))
 
         self.scanners: dict[str, dict[str, Scanner]] = {
             "default": {},
@@ -285,10 +286,33 @@ class BaseFuzzer:
     def response_fingerprint(resp: BaseResponse) -> tuple:
         return response_fingerprint(resp)
 
+    @property
+    def recalibration_events(self) -> list[str]:
+        return self.runtime_filter.recalibration_events
+
+    def is_runtime_filtered(self, response: BaseResponse) -> bool:
+        return self.runtime_filter.is_filtered(response)
+
+    def add_runtime_fingerprints(self, fingerprints: set[tuple]) -> None:
+        self.runtime_filter.add_fingerprints(fingerprints)
+
+    def reset_match_streak(self) -> None:
+        self.runtime_filter.reset()
+
+    def record_match_for_recalibration(self, response: BaseResponse) -> None:
+        self.runtime_filter.record_match(response)
+
     def process_response(self, path: str, response: BaseResponse) -> None:
         scanners = self.get_scanners_for(path)
 
+        if self.is_runtime_filtered(response):
+            self.reset_match_streak()
+            for callback in self.not_found_callbacks:
+                callback(response)
+            return
+
         if self.is_excluded(response):
+            self.reset_match_streak()
             for callback in self.not_found_callbacks:
                 callback(response)
             return
@@ -296,6 +320,7 @@ class BaseFuzzer:
         for tester in scanners:
             # Check if the response is unique, not wildcard
             if not tester.check(path, response):
+                self.reset_match_streak()
                 for callback in self.not_found_callbacks:
                     callback(response)
                 return
@@ -307,6 +332,8 @@ class BaseFuzzer:
 
         for callback in self.match_callbacks:
             callback(response)
+
+        self.record_match_for_recalibration(response)
 
 
 class Fuzzer(BaseFuzzer):
@@ -421,6 +448,7 @@ class Fuzzer(BaseFuzzer):
         try:
             response = self._requester.request(path)
         except RequestException as e:
+            self.reset_match_streak()
             for callback in self.error_callbacks:
                 callback(e)
             return
@@ -499,10 +527,12 @@ class NativeFuzzer(Fuzzer):
                     if self._quit_event.is_set():
                         break
                     if error is not None:
+                        self.reset_match_streak()
                         for callback in self.error_callbacks:
                             callback(error)
                         continue
                     if response.filtered:
+                        self.reset_match_streak()
                         for callback in self.not_found_callbacks:
                             callback(response)
                         continue
@@ -609,6 +639,7 @@ class AsyncFuzzer(BaseFuzzer):
         try:
             response = await self._requester.request(path)
         except RequestException as e:
+            self.reset_match_streak()
             for callback in self.error_callbacks:
                 callback(e)
             return

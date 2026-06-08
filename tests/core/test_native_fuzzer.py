@@ -151,3 +151,49 @@ class TestNativeFuzzer(TestCase):
         self.assertEqual(misses, [response])
         self.assertEqual(errors, [])
         self.assertEqual(response.length, 64)
+
+    def test_native_filtered_result_resets_preflight_match_streak(self):
+        options["preflight"] = True
+        repeated = [
+            (
+                f"block-{index}",
+                NativeResponse(
+                    f"https://example.com/block-{index}",
+                    200,
+                    [("content-type", "text/plain")],
+                    f"burst block /block-{index}".encode(),
+                ),
+                None,
+            )
+            for index in range(7)
+        ]
+        filtered = NativeResponse(
+            "https://example.com/missing",
+            404,
+            [("content-type", "text/plain")],
+            [],
+            length=64,
+            filtered=True,
+            filter_reason="advanced_filter",
+        )
+        final = NativeResponse(
+            "https://example.com/block-final",
+            200,
+            [("content-type", "text/plain")],
+            b"burst block /block-final",
+        )
+        backend = FakeNativeBackend(
+            repeated + [("missing", filtered, None), ("block-final", final, None)]
+        )
+        dictionary = DummyDictionary([path for path, _, _ in backend.items])
+        matches = []
+        misses = []
+        errors = []
+
+        fuzzer = self.make_fuzzer(backend, dictionary, matches, misses, errors)
+        fuzzer.start()
+
+        self.assertEqual(len(matches), 8)
+        self.assertEqual(misses, [filtered])
+        self.assertEqual(errors, [])
+        self.assertEqual(fuzzer.recalibration_events, [])

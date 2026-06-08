@@ -6,6 +6,9 @@ from unittest import TestCase
 from lib.connection.response import NativeResponse
 from lib.core.runtime_fingerprint import (
     RUNTIME_MATCH_STREAK_THRESHOLD,
+    DisabledRuntimeFilter,
+    PreflightRuntimeFilter,
+    build_runtime_filter,
     repeated_match_recalibration,
     response_fingerprint,
 )
@@ -23,6 +26,37 @@ def runtime_response(path, body, *, status=200, headers=None):
 
 
 class TestRuntimeFingerprint(TestCase):
+    def test_build_runtime_filter_returns_disabled_filter_by_default(self):
+        runtime_filter = build_runtime_filter(False)
+        sample = runtime_response("block", b"Not found /block")
+
+        runtime_filter.record_match(sample)
+        runtime_filter.add_fingerprints({response_fingerprint(sample)})
+
+        self.assertIsInstance(runtime_filter, DisabledRuntimeFilter)
+        self.assertFalse(runtime_filter.is_filtered(sample))
+        self.assertEqual(runtime_filter.recalibration_events, [])
+
+    def test_preflight_runtime_filter_records_repeated_matches(self):
+        runtime_filter = build_runtime_filter(True)
+        responses = [
+            runtime_response(
+                f"block-{index}",
+                f"Not found /block-{index}".encode(),
+            )
+            for index in range(RUNTIME_MATCH_STREAK_THRESHOLD)
+        ]
+
+        for sample in responses:
+            runtime_filter.record_match(sample)
+
+        self.assertIsInstance(runtime_filter, PreflightRuntimeFilter)
+        self.assertTrue(runtime_filter.is_filtered(responses[0]))
+        self.assertEqual(
+            runtime_filter.recalibration_events,
+            ["repeated_match_fingerprint"],
+        )
+
     def test_response_fingerprint_ignores_reflected_path_and_dynamic_tokens(self):
         first = runtime_response(
             "foo/block-1",
