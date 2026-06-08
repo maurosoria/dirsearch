@@ -151,10 +151,18 @@ def replace_path(string, path, replace_with):
         return re.sub(regex, replace_with, string)
 
     path = "/" + path
+    path_with_encoded_segments = "/" + quote(path.lstrip("/"), safe="")
+    path_with_escaped_slashes = path.replace("/", r"\/")
     string = sub(string, quote(path), replace_with)
+    string = sub(string, quote(path, safe=""), replace_with)
+    string = sub(string, path_with_encoded_segments, replace_with)
     string = sub(string, quote(quote(path)), replace_with)
+    string = sub(string, quote(quote(path, safe=""), safe=""), replace_with)
+    string = sub(string, quote(path_with_encoded_segments, safe=""), replace_with)
     string = sub(string, unquote(path), replace_with)
     string = sub(string, unquote(unquote(path)), replace_with)
     string = sub(string, escape(path), replace_with)
+    string = sub(string, path_with_escaped_slashes, replace_with)
+    string = sub(string, dumps(path).replace("/", r"\/"), replace_with)
     string = sub(string, dumps(path), replace_with)
     return sub(string, path, replace_with)
