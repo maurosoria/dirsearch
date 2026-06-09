@@ -25,11 +25,11 @@ def clean_wheel_dir(wheel_dir: Path) -> None:
 def resolve_python(value: str) -> Path:
     candidate = Path(value)
     if candidate.exists() or len(candidate.parts) > 1:
-        return candidate.resolve()
+        return candidate.absolute()
 
     resolved = shutil.which(value)
     if resolved:
-        return Path(resolved).resolve()
+        return Path(resolved).absolute()
 
     return candidate
 
