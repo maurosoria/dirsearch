@@ -3,8 +3,58 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
+from enum import IntEnum
 from ipaddress import ip_address, ip_network
 from typing import Any
+
+
+class Strength(IntEnum):
+    """Intrinsic, curator-assigned strength of a single fingerprint signal.
+
+    Strength is a property of the *signal*, decided once by a human with a
+    single yes/no question, not a tuned probability:
+
+    * ``DEFINITIVE`` - emitted by exactly one provider (e.g. ``cf-ray``,
+      ``x-amz-cf-id``); conclusive on its own.
+    * ``STRONG`` - a vendor name in an otherwise shared field (``server`` /
+      ``via`` values, TLS issuer, branded error text); identifying but
+      spoofable or shared, so it needs corroboration to be conclusive.
+    * ``WEAK`` - generic or shared-infrastructure evidence (IP range, CNAME
+      suffix, generic cache headers, generic block phrases); only corroborating.
+    """
+
+    WEAK = 1
+    STRONG = 2
+    DEFINITIVE = 3
+
+
+class Confidence(IntEnum):
+    """Discrete, rule-derived certainty that the detected provider is correct.
+
+    The value is an ordinal rank used only for comparison and promotion; there
+    is no arithmetic and no calibratable threshold anywhere. See
+    :func:`_certainty_for` for the exact rules that produce it.
+    """
+
+    NONE = 0
+    BEHAVIORAL_ONLY = 1  # runtime denial observed, but no provider identified
+    POSSIBLE = 2
+    LIKELY = 3
+    CONFIRMED = 4
+
+
+# Display-only float projection of ``Confidence``. Kept so the preflight summary
+# string and any legacy caller that prints a number keep working unchanged; it
+# is exposed read-only through ``FingerprintResult.confidence``. Nothing may
+# branch on it - read ``certainty`` instead. Slated for removal once every
+# caller asserts the enum.
+_CONFIDENCE_DISPLAY = {
+    Confidence.NONE: 0.0,
+    Confidence.BEHAVIORAL_ONLY: 0.4,
+    Confidence.POSSIBLE: 0.5,
+    Confidence.LIKELY: 0.75,
+    Confidence.CONFIRMED: 0.95,
+}
 
 
 @dataclass(frozen=True)
@@ -13,184 +63,218 @@ class FingerprintMatch:
     category: str
     technique: str
     signal: str
-    confidence: float
+    strength: Strength
 
 
 @dataclass(frozen=True)
 class FingerprintResult:
     provider: str | None = None
     category: str | None = None
-    confidence: float = 0.0
+    certainty: Confidence = Confidence.NONE
+    reason: str = ""
     signals: tuple[str, ...] = ()
     headers_seen: Mapping[str, str] = field(default_factory=dict)
     behavior_tags: tuple[str, ...] = ()
     matches: tuple[FingerprintMatch, ...] = ()
 
+    @property
+    def confidence(self) -> float:
+        """Display-only float view of :attr:`certainty` (see ``_CONFIDENCE_DISPLAY``).
 
-TECHNIQUE_WEIGHTS = {
-    "header": 3.0,
-    "cookie": 2.5,
-    "body_marker": 2.0,
-    "tls_cert": 2.0,
-    "cname_suffix": 1.5,
-    "ip_cidr": 1.0,
-}
+        Provided for backwards compatibility with callers that print a numeric
+        confidence. Do not branch on this value; use :attr:`certainty`.
+        """
+        return _CONFIDENCE_DISPLAY.get(self.certainty, 0.0)
 
+
+# Higher = preferred when two providers are otherwise tied during selection.
 CATEGORY_PREFERENCE = {
     "waf": 3,
     "cdn": 2,
     "common": 1,
 }
 
+# Techniques observed directly on the HTTP response (vs. inferred from DNS/IP).
+# A provider backed by any of these outranks one known only by network range.
+HTTP_TECHNIQUES = frozenset({"header", "cookie", "body_marker", "tls_cert"})
+
+# Runtime denial tags that mean "the target actively blocked the probe". These
+# mirror the strong denial reasons produced by preflight.denial_behavior_tags();
+# the set is kept local so this leaf module never imports the opt-in preflight
+# engine. A provider is never created from these alone.
+DENIAL_BEHAVIOR_TAGS = frozenset({
+    "waf_rate_limit",
+    "waf_challenge",
+    "waf_5xx_denial",
+    "waf_connection_denial",
+})
+
+# The subset strong enough to upgrade an already-identified provider by exactly
+# one certainty tier. Generic noise (e.g. scanner_false_positive_burst, bare
+# 5xx/connection drops) must not inflate certainty, so it is excluded.
+PROMOTING_BEHAVIOR_TAGS = frozenset({"waf_challenge", "waf_rate_limit"})
+
+
+WEAK, STRONG, DEFINITIVE = Strength.WEAK, Strength.STRONG, Strength.DEFINITIVE
+
+# Each signal carries a discrete Strength (see the Strength docstring), not a
+# tuned float. Read each row as: "if this signal is present, how conclusive is
+# it on its own?". DEFINITIVE = unique to this provider; STRONG = vendor name in
+# a shared/spoofable field; WEAK = generic.
 HTTP_SIGNATURES = (
     {
         "provider": "cloudflare",
         "category": "waf",
         "headers": (
-            ("cf-ray", "", 0.95),
-            ("cf-cache-status", "", 0.85),
-            ("cf-mitigated", "", 0.95),
-            ("cf-chl-out", "", 0.95),
-            ("server", "cloudflare", 0.85),
+            ("cf-ray", "", DEFINITIVE),
+            ("cf-cache-status", "", STRONG),
+            ("cf-mitigated", "", DEFINITIVE),
+            ("cf-chl-out", "", DEFINITIVE),
+            ("server", "cloudflare", STRONG),
         ),
-        "cookies": (("__cf_bm", 0.85), ("_cfuvid", 0.85), ("cf_clearance", 0.95)),
+        "cookies": (("__cf_bm", STRONG), ("_cfuvid", STRONG), ("cf_clearance", DEFINITIVE)),
         "body_markers": (
-            ("checking your browser", 0.75),
-            ("cloudflare ray id", 0.85),
-            ("cf-browser-verification", 0.85),
+            ("checking your browser", WEAK),
+            ("cloudflare ray id", STRONG),
+            ("cf-browser-verification", STRONG),
         ),
-        "tls_cert": (("cloudflare", 0.85),),
+        "tls_cert": (("cloudflare", STRONG),),
     },
     {
         "provider": "akamai",
         "category": "cdn",
         "headers": (
-            ("akamai-grn", "", 0.95),
-            ("aka-global-request-id-uxtime", "", 0.95),
-            ("x-akamai-transformed", "", 0.9),
-            ("server-timing", "ak_p", 0.85),
-            ("server", "akamai", 0.75),
+            ("akamai-grn", "", DEFINITIVE),
+            ("aka-global-request-id-uxtime", "", DEFINITIVE),
+            ("x-akamai-transformed", "", DEFINITIVE),
+            ("server-timing", "ak_p", STRONG),
+            ("server", "akamai", STRONG),
         ),
-        "cookies": (("_abck", 0.8), ("ak_bmsc", 0.85), ("bm_sz", 0.8)),
-        "body_markers": (("reference #", 0.4), ("akamai", 0.65)),
-        "tls_cert": (("akamai", 0.85),),
+        "cookies": (("_abck", STRONG), ("ak_bmsc", STRONG), ("bm_sz", STRONG)),
+        "body_markers": (("reference #", WEAK), ("akamai", STRONG)),
+        "tls_cert": (("akamai", STRONG),),
     },
     {
         "provider": "fastly",
         "category": "cdn",
         "headers": (
-            ("fastly-debug-digest", "", 0.95),
-            ("x-served-by", "cache-", 0.7),
-            ("x-cache-hits", "", 0.65),
-            ("x-timer", "", 0.65),
-            ("server", "fastly", 0.85),
-            ("via", "fastly", 0.85),
+            ("fastly-debug-digest", "", DEFINITIVE),
+            ("x-served-by", "cache-", WEAK),
+            ("x-cache-hits", "", WEAK),
+            ("x-timer", "", WEAK),
+            ("server", "fastly", STRONG),
+            ("via", "fastly", STRONG),
         ),
-        "body_markers": (("fastly error", 0.85),),
-        "tls_cert": (("fastly", 0.85),),
+        "body_markers": (("fastly error", STRONG),),
+        "tls_cert": (("fastly", STRONG),),
     },
     {
         "provider": "cloudfront",
         "category": "cdn",
         "headers": (
-            ("x-amz-cf-id", "", 0.95),
-            ("x-amz-cf-pop", "", 0.95),
-            ("x-cache", "cloudfront", 0.85),
-            ("via", "cloudfront", 0.85),
-            ("server", "cloudfront", 0.85),
+            ("x-amz-cf-id", "", DEFINITIVE),
+            ("x-amz-cf-pop", "", DEFINITIVE),
+            ("x-cache", "cloudfront", STRONG),
+            ("via", "cloudfront", STRONG),
+            ("server", "cloudfront", STRONG),
         ),
-        "body_markers": (("generated by cloudfront", 0.9),),
-        "tls_cert": (("amazon", 0.65), ("aws", 0.65)),
+        "body_markers": (("generated by cloudfront", STRONG),),
+        "tls_cert": (("amazon", WEAK), ("aws", WEAK)),
     },
     {
         "provider": "aws_waf",
         "category": "waf",
         "headers": (
-            ("x-amzn-waf-action", "", 0.95),
-            ("x-amzn-requestid", "", 0.45),
+            ("x-amzn-waf-action", "", DEFINITIVE),
+            ("x-amzn-requestid", "", WEAK),
         ),
-        "body_markers": (("aws waf", 0.9), ("request blocked", 0.6)),
+        # "request blocked" intentionally omitted: it is a generic denial phrase,
+        # not an AWS WAF signal, and x-amzn-requestid is emitted by every AWS
+        # service - together they must not corroborate to a confident verdict.
+        "body_markers": (("aws waf", STRONG),),
     },
     {
         "provider": "incapsula",
         "category": "waf",
         "headers": (
-            ("x-iinfo", "", 0.95),
-            ("x-cdn", "incapsula", 0.9),
-            ("x-ic-request-id", "", 0.9),
-            ("x-incap-client-ip", "", 0.9),
-            ("server", "incapsula", 0.8),
-            ("server", "imperva", 0.8),
+            ("x-iinfo", "", DEFINITIVE),
+            ("x-cdn", "incapsula", STRONG),
+            ("x-ic-request-id", "", DEFINITIVE),
+            ("x-incap-client-ip", "", DEFINITIVE),
+            ("server", "incapsula", STRONG),
+            ("server", "imperva", STRONG),
         ),
-        "cookies": (("incap_ses", 0.9), ("visid_incap", 0.9)),
+        "cookies": (("incap_ses", STRONG), ("visid_incap", STRONG)),
         "body_markers": (
-            ("request unsuccessful. incapsula", 0.9),
-            ("powered by imperva", 0.85),
-            ("incident id", 0.5),
+            ("request unsuccessful. incapsula", STRONG),
+            ("powered by imperva", STRONG),
+            ("incident id", WEAK),
         ),
-        "tls_cert": (("imperva", 0.85), ("incapsula", 0.85)),
+        "tls_cert": (("imperva", STRONG), ("incapsula", STRONG)),
     },
     {
         "provider": "sucuri",
         "category": "waf",
         "headers": (
-            ("x-sucuri-id", "", 0.95),
-            ("x-sucuri-cache", "", 0.85),
-            ("x-sucuri-block", "", 0.95),
-            ("server", "sucuri", 0.85),
+            ("x-sucuri-id", "", DEFINITIVE),
+            ("x-sucuri-cache", "", STRONG),
+            ("x-sucuri-block", "", DEFINITIVE),
+            ("server", "sucuri", STRONG),
         ),
-        "body_markers": (("sucuri website firewall", 0.95), ("access denied - sucuri", 0.9)),
-        "tls_cert": (("sucuri", 0.85),),
+        "body_markers": (("sucuri website firewall", STRONG), ("access denied - sucuri", STRONG)),
+        "tls_cert": (("sucuri", STRONG),),
     },
     {
         "provider": "datadome",
         "category": "waf",
         "headers": (
-            ("x-datadome", "", 0.95),
-            ("datadome", "", 0.95),
+            ("x-datadome", "", DEFINITIVE),
+            ("datadome", "", DEFINITIVE),
         ),
-        "cookies": (("datadome", 0.95),),
-        "body_markers": (("datadome", 0.9),),
+        "cookies": (("datadome", STRONG),),
+        # Bare brand word in body text is corroborating only (it appears in
+        # prose); the cookie/headers carry the conclusive evidence.
+        "body_markers": (("datadome", WEAK),),
     },
     {
         "provider": "f5_bigip",
         "category": "waf",
         "headers": (
-            ("x-wa-info", "", 0.8),
-            ("x-f5", "", 0.8),
-            ("server", "big-ip", 0.75),
-            ("server", "bigip", 0.75),
+            ("x-wa-info", "", STRONG),
+            ("x-f5", "", STRONG),
+            ("server", "big-ip", STRONG),
+            ("server", "bigip", STRONG),
         ),
-        "cookies": (("bigipserver", 0.9), ("f5avrbbbbbbbbbbbb", 0.9)),
-        "body_markers": (("the requested url was rejected", 0.65),),
+        "cookies": (("bigipserver", STRONG), ("f5avrbbbbbbbbbbbb", STRONG)),
+        "body_markers": (("the requested url was rejected", WEAK),),
     },
     {
         "provider": "barracuda",
         "category": "waf",
         "headers": (
-            ("x-barracuda", "", 0.9),
-            ("server", "barracuda", 0.8),
+            ("x-barracuda", "", DEFINITIVE),
+            ("server", "barracuda", STRONG),
         ),
-        "cookies": (("barra_counter_session", 0.9), ("bni_", 0.75)),
-        "body_markers": (("barracuda web application firewall", 0.95),),
-        "tls_cert": (("barracuda", 0.85),),
+        "cookies": (("barra_counter_session", STRONG), ("bni_", WEAK)),
+        "body_markers": (("barracuda web application firewall", STRONG),),
+        "tls_cert": (("barracuda", STRONG),),
     },
     {
         "provider": "cloudbric",
         "category": "waf",
-        "headers": (("x-cloudbric", "", 0.95),),
-        "cookies": (("cloudbric", 0.9),),
-        "body_markers": (("cloudbric", 0.9),),
-        "tls_cert": (("cloudbric", 0.85),),
+        "headers": (("x-cloudbric", "", DEFINITIVE),),
+        "cookies": (("cloudbric", STRONG),),
+        "body_markers": (("cloudbric", STRONG),),
+        "tls_cert": (("cloudbric", STRONG),),
     },
     {
         "provider": "azure_front_door",
         "category": "cdn",
         "headers": (
-            ("x-azure-ref", "", 0.95),
-            ("x-fd-int-roxy-purgeid", "", 0.9),
+            ("x-azure-ref", "", DEFINITIVE),
+            ("x-fd-int-roxy-purgeid", "", DEFINITIVE),
         ),
-        "tls_cert": (("microsoft azure", 0.75), ("azure", 0.55)),
+        "tls_cert": (("microsoft azure", WEAK), ("azure", WEAK)),
     },
 )
 
@@ -215,17 +299,19 @@ def fingerprint_response(
     behavior_tags: Iterable[str] = (),
 ) -> FingerprintResult:
     normalized = _normalize_headers(headers)
+    behavior_tags = tuple(behavior_tags)  # materialize once: it is read twice below
     matches = []
     matches.extend(_match_http_signatures(normalized, body, tls_cert))
     matches.extend(_match_cname_suffixes(dns_cnames, dataset))
     matches.extend(_match_ip_cidrs(resolved_ips, dataset))
     matches = _dedupe_matches(matches)
-    provider, category, confidence = _select_primary_match(matches, behavior_tags)
+    provider, category, certainty, reason = _select_primary_match(matches, behavior_tags)
 
     return FingerprintResult(
         provider=provider,
         category=category,
-        confidence=confidence,
+        certainty=certainty,
+        reason=reason,
         signals=tuple(dict.fromkeys(match.signal for match in matches)),
         headers_seen=normalized,
         behavior_tags=tuple(dict.fromkeys(behavior_tags)),
@@ -249,24 +335,29 @@ def merge_fingerprints(
         signals.extend(fingerprint.signals)
         tags.extend(fingerprint.behavior_tags)
         matches.extend(fingerprint.matches)
-        if fingerprint.provider and not fingerprint.matches:
+        if (
+            fingerprint.provider
+            and not fingerprint.matches
+            and fingerprint.certainty >= Confidence.POSSIBLE
+        ):
             matches.append(
                 FingerprintMatch(
                     fingerprint.provider,
                     fingerprint.category or "common",
                     "legacy",
                     f"legacy:{fingerprint.provider}",
-                    fingerprint.confidence,
+                    _certainty_to_strength(fingerprint.certainty),
                 )
             )
 
     matches = _dedupe_matches(matches)
-    provider, category, confidence = _select_primary_match(matches, tags)
+    provider, category, certainty, reason = _select_primary_match(matches, tags)
 
     return FingerprintResult(
         provider=provider,
         category=category,
-        confidence=confidence,
+        certainty=certainty,
+        reason=reason,
         signals=tuple(dict.fromkeys(signals + [match.signal for match in matches])),
         headers_seen=headers,
         behavior_tags=tuple(dict.fromkeys(tags)),
@@ -290,58 +381,38 @@ def _match_http_signatures(
     for signature in HTTP_SIGNATURES:
         provider = str(signature["provider"])
         category = str(signature["category"])
-        for name, value_pattern, confidence in signature.get("headers", ()):
+        for name, value_pattern, strength in signature.get("headers", ()):
             value = lowered_headers.get(name)
             if value is None:
                 continue
             if value_pattern and str(value_pattern).lower() not in value:
                 continue
             matches.append(
-                FingerprintMatch(
-                    provider,
-                    category,
-                    "header",
-                    f"header:{name}",
-                    float(confidence),
-                )
+                FingerprintMatch(provider, category, "header", f"header:{name}", strength)
             )
 
-        for marker, confidence in signature.get("cookies", ()):
+        for marker, strength in signature.get("cookies", ()):
             marker = str(marker).lower()
             if marker in cookie_source:
                 matches.append(
-                    FingerprintMatch(
-                        provider,
-                        category,
-                        "cookie",
-                        f"cookie:{marker}",
-                        float(confidence),
-                    )
+                    FingerprintMatch(provider, category, "cookie", f"cookie:{marker}", strength)
                 )
 
-        for marker, confidence in signature.get("body_markers", ()):
+        for marker, strength in signature.get("body_markers", ()):
             marker = str(marker).lower()
             if marker in body_text:
                 matches.append(
                     FingerprintMatch(
-                        provider,
-                        category,
-                        "body_marker",
-                        f"body_marker:{marker}",
-                        float(confidence),
+                        provider, category, "body_marker", f"body_marker:{marker}", strength
                     )
                 )
 
-        for marker, confidence in signature.get("tls_cert", ()):
+        for marker, strength in signature.get("tls_cert", ()):
             marker = str(marker).lower()
             if marker in tls_text:
                 matches.append(
                     FingerprintMatch(
-                        provider,
-                        category,
-                        "tls_cert",
-                        f"tls_cert:{marker}",
-                        float(confidence),
+                        provider, category, "tls_cert", f"tls_cert:{marker}", strength
                     )
                 )
 
@@ -365,11 +436,7 @@ def _match_cname_suffixes(
             if normalized == suffix or normalized.endswith(f".{suffix}"):
                 matches.append(
                     FingerprintMatch(
-                        provider,
-                        "common",
-                        "cname_suffix",
-                        f"cname_suffix:{suffix}",
-                        0.65,
+                        provider, "common", "cname_suffix", f"cname_suffix:{suffix}", WEAK
                     )
                 )
     return matches
@@ -397,69 +464,139 @@ def _match_ip_cidrs(
                                 category,
                                 "ip_cidr",
                                 f"ip_cidr:{network.with_prefixlen}",
-                                0.58 if category == "waf" else 0.52,
+                                WEAK,
                             )
                         )
                         break
     return matches
 
 
+def _certainty_for(matches: Iterable[FingerprintMatch]) -> Confidence:
+    """Map a single provider's matches to a discrete certainty via fixed rules.
+
+    Corroboration counts *distinct techniques* (header/cookie/body/tls/cname/ip),
+    not raw signals, so five Cloudflare headers do not masquerade as independent
+    evidence; duplicate-technique hits collapse to their strongest member.
+
+        any DEFINITIVE technique          -> CONFIRMED
+        >= 2 STRONG techniques            -> CONFIRMED   (independent corroboration)
+        exactly 1 STRONG technique        -> LIKELY
+        >= 2 WEAK techniques              -> LIKELY
+        exactly 1 WEAK technique          -> POSSIBLE
+    """
+    strongest_by_technique: dict[str, Strength] = {}
+    for match in matches:
+        current = strongest_by_technique.get(match.technique)
+        if current is None or match.strength > current:
+            strongest_by_technique[match.technique] = match.strength
+
+    if not strongest_by_technique:
+        return Confidence.NONE
+
+    best = max(strongest_by_technique.values())
+    if best == Strength.DEFINITIVE:
+        return Confidence.CONFIRMED
+    if best == Strength.STRONG:
+        strong_techniques = sum(1 for s in strongest_by_technique.values() if s == Strength.STRONG)
+        return Confidence.CONFIRMED if strong_techniques >= 2 else Confidence.LIKELY
+    # Only WEAK techniques remain.
+    return Confidence.LIKELY if len(strongest_by_technique) >= 2 else Confidence.POSSIBLE
+
+
+def _promote_certainty(certainty: Confidence, behavior_tags: Iterable[str]) -> Confidence:
+    """Raise an identified provider's certainty by one tier on active denial.
+
+    A genuine runtime block (waf_challenge / waf_rate_limit) corroborates the
+    static signal, so it bumps the verdict up exactly one tier, capped at
+    CONFIRMED. It can never create a provider or jump more than one tier, so it
+    cannot fabricate CONFIRMED out of WEAK-only evidence.
+    """
+    if certainty >= Confidence.CONFIRMED:
+        return certainty
+    if any(tag in PROMOTING_BEHAVIOR_TAGS for tag in behavior_tags):
+        return Confidence(min(int(Confidence.CONFIRMED), int(certainty) + 1))
+    return certainty
+
+
 def _select_primary_match(
     matches: Iterable[FingerprintMatch],
     behavior_tags: Iterable[str] = (),
-) -> tuple[str | None, str | None, float]:
+) -> tuple[str | None, str | None, Confidence, str]:
     matches = tuple(matches)
+    behavior_tags = tuple(behavior_tags)
     if not matches:
-        return (None, None, 0.4) if tuple(behavior_tags) else (None, None, 0.0)
+        if any(tag in DENIAL_BEHAVIOR_TAGS for tag in behavior_tags):
+            return None, None, Confidence.BEHAVIORAL_ONLY, _behavioral_reason(behavior_tags)
+        return None, None, Confidence.NONE, ""
 
-    provider_scores: dict[str, float] = defaultdict(float)
-    provider_categories: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
-    provider_max_confidence: dict[str, float] = defaultdict(float)
-    provider_http: dict[str, bool] = defaultdict(bool)
-
+    by_provider: dict[str, list[FingerprintMatch]] = defaultdict(list)
     for match in matches:
-        score = TECHNIQUE_WEIGHTS.get(match.technique, 1.0) * match.confidence
-        provider_scores[match.provider] += score
-        provider_categories[match.provider][match.category] += score
-        provider_max_confidence[match.provider] = max(
-            provider_max_confidence[match.provider],
-            match.confidence,
-        )
-        if match.technique in {"header", "cookie", "body_marker", "tls_cert"}:
-            provider_http[match.provider] = True
+        by_provider[match.provider].append(match)
 
-    def provider_rank(provider: str) -> tuple[float, int, int, float, str]:
-        category = _best_category(provider_categories[provider])
+    def provider_rank(provider: str) -> tuple[int, int, int, int, str]:
+        provider_matches = by_provider[provider]
         return (
-            provider_scores[provider],
-            int(provider_http[provider]),
-            CATEGORY_PREFERENCE.get(category or "", 0),
-            provider_max_confidence[provider],
+            int(_certainty_for(provider_matches)),
+            int(any(match.technique in HTTP_TECHNIQUES for match in provider_matches)),
+            len({match.technique for match in provider_matches}),
+            CATEGORY_PREFERENCE.get(_best_category(provider_matches) or "", 0),
             provider,
         )
 
-    provider = max(provider_scores, key=provider_rank)
-    category = _best_category(provider_categories[provider])
-    selected_matches = [match for match in matches if match.provider == provider]
-    confidence = min(
-        1.0,
-        max(match.confidence for match in selected_matches)
-        + 0.1 * max(0, len({match.signal for match in selected_matches}) - 1),
-    )
-    return provider, category, confidence
+    provider = max(by_provider, key=provider_rank)
+    chosen = by_provider[provider]
+    category = _best_category(chosen)
+    raw_certainty = _certainty_for(chosen)
+    certainty = _promote_certainty(raw_certainty, behavior_tags)
+    return provider, category, certainty, _explain(chosen, raw_certainty, certainty)
 
 
-def _best_category(category_scores: Mapping[str, float]) -> str | None:
-    if not category_scores:
+def _best_category(matches: Iterable[FingerprintMatch]) -> str | None:
+    strongest_by_category: dict[str, Strength] = {}
+    for match in matches:
+        current = strongest_by_category.get(match.category)
+        if current is None or match.strength > current:
+            strongest_by_category[match.category] = match.strength
+    if not strongest_by_category:
         return None
     return max(
-        category_scores,
+        strongest_by_category,
         key=lambda category: (
-            category_scores[category],
+            strongest_by_category[category],
             CATEGORY_PREFERENCE.get(category, 0),
             category,
         ),
     )
+
+
+def _explain(
+    matches: Iterable[FingerprintMatch],
+    raw_certainty: Confidence,
+    certainty: Confidence,
+) -> str:
+    matches = tuple(matches)
+    strongest = max(matches, key=lambda match: (match.strength, match.signal))
+    techniques = {match.technique for match in matches}
+    reason = f"{strongest.strength.name.lower()} signal {strongest.signal}"
+    extra = len(techniques) - 1
+    if extra > 0:
+        reason += f" + {extra} corroborating technique{'s' if extra > 1 else ''}"
+    if certainty > raw_certainty:
+        reason += " + runtime denial behavior"
+    return reason
+
+
+def _behavioral_reason(behavior_tags: Iterable[str]) -> str:
+    denial = [tag for tag in behavior_tags if tag in DENIAL_BEHAVIOR_TAGS]
+    return "runtime denial behavior: " + ", ".join(dict.fromkeys(denial))
+
+
+def _certainty_to_strength(certainty: Confidence) -> Strength:
+    if certainty >= Confidence.CONFIRMED:
+        return Strength.DEFINITIVE
+    if certainty >= Confidence.LIKELY:
+        return Strength.STRONG
+    return Strength.WEAK
 
 
 def _dedupe_matches(matches: Iterable[FingerprintMatch]) -> list[FingerprintMatch]:
@@ -467,7 +604,7 @@ def _dedupe_matches(matches: Iterable[FingerprintMatch]) -> list[FingerprintMatc
     for match in matches:
         key = (match.provider, match.category, match.technique, match.signal)
         current = deduped.get(key)
-        if current is None or match.confidence > current.confidence:
+        if current is None or match.strength > current.strength:
             deduped[key] = match
     return list(deduped.values())
 
