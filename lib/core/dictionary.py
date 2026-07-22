@@ -21,7 +21,7 @@ from typing import Any, Iterator
 
 from lib.core.decorators import locked
 from lib.core.settings import SCRIPT_PATH
-from lib.core.wordlist_backend import get_wordlist_backend
+from lib.core.wordlist_backend import get_wordlist_backend, is_valid_path
 from lib.utils.file import FileUtils
 
 
@@ -105,6 +105,9 @@ class Dictionary:
         """
 
         return get_wordlist_backend().generate(files, is_blacklist=is_blacklist)
+
+    def is_valid(self, path: str) -> bool:
+        return is_valid_path(path)
 
     def add_extra(self, path) -> None:
         if path in self._items or path in self._extra:
