@@ -27,6 +27,24 @@ class WordlistBackend(Protocol):
     def generate(self, files: list[str], is_blacklist: bool = False) -> list[str]:
         pass
 
+    def is_valid(self, path: str) -> bool:
+        pass
+
+
+def is_valid_path(path: str) -> bool:
+    # Skip comments and empty lines
+    if not path or path.startswith("#"):
+        return False
+
+    # Skip if the path has excluded extensions
+    cleaned_path = clean_path(path)
+    if cleaned_path.endswith(
+        tuple(f".{extension}" for extension in options["exclude_extensions"])
+    ):
+        return False
+
+    return True
+
 
 class PythonWordlistBackend:
     name = "python"
@@ -108,18 +126,7 @@ class PythonWordlistBackend:
             return list(wordlist)
 
     def is_valid(self, path: str) -> bool:
-        # Skip comments and empty lines
-        if not path or path.startswith("#"):
-            return False
-
-        # Skip if the path has excluded extensions
-        cleaned_path = clean_path(path)
-        if cleaned_path.endswith(
-            tuple(f".{extension}" for extension in options["exclude_extensions"])
-        ):
-            return False
-
-        return True
+        return is_valid_path(path)
 
     def _add_wordlist_entry(self, wordlist: OrderedSet, path: str) -> None:
         wordlist.add(path)
@@ -159,6 +166,9 @@ class NativeWordlistBackend:
             overwrite_extensions=options["overwrite_extensions"],
             max_size=options["wordlist_max_size"],
         )
+
+    def is_valid(self, path: str) -> bool:
+        return is_valid_path(path)
 
     def _requires_python_template_expansion(self, files: list[str]) -> bool:
         extension_token = EXTENSION_TAG.strip("%").upper()

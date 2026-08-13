@@ -69,6 +69,15 @@ class TestDictionaryTemplates(TestCase):
 
         self.assertEqual(list(dictionary), ["index.php", "index.json"])
 
+    def test_is_valid_filters_invalid_crawled_paths(self):
+        options["exclude_extensions"] = ("zip",)
+        dictionary = Dictionary(files=[])
+
+        self.assertTrue(dictionary.is_valid("admin"))
+        self.assertFalse(dictionary.is_valid(""))
+        self.assertFalse(dictionary.is_valid("#comment"))
+        self.assertFalse(dictionary.is_valid("backup.zip?download=1"))
+
     def test_generation_limit(self):
         options["wordlist_max_size"] = 1
 
