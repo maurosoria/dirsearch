@@ -109,6 +109,13 @@ class TestRequestBackend(TestCase):
             "in target URLs yet",
         )
 
+    def test_native_accepts_follow_redirects(self):
+        self.assertIsNone(
+            get_native_request_backend_error(
+                native_options(follow_redirects=True)
+            )
+        )
+
     def test_native_rejects_delay(self):
         self.assertEqual(
             get_native_request_backend_error(native_options(delay=0.1)),
