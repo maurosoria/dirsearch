@@ -21,9 +21,11 @@ def native_options(**overrides):
         "key_file": None,
         "random_agents": False,
         "network_interface": None,
+        "ip": None,
         "max_rate": 0,
         "delay": 0,
         "follow_redirects": False,
+        "urls": ["https://example.com"],
     }
     values.update(overrides)
     return SimpleNamespace(**values)
@@ -49,6 +51,37 @@ class TestRequestBackend(TestCase):
         self.assertEqual(
             get_native_request_backend_error(native_options(proxies=["127.0.0.1:8080"])),
             "--request-backend native does not support proxies yet",
+        )
+
+    def test_native_rejects_ip_override(self):
+        self.assertEqual(
+            get_native_request_backend_error(native_options(ip="127.0.0.1")),
+            "--request-backend native does not support --ip yet",
+        )
+
+    def test_native_accepts_replay_proxy(self):
+        self.assertIsNone(
+            get_native_request_backend_error(
+                native_options(replay_proxy="http://127.0.0.1:8080")
+            )
+        )
+
+    def test_native_rejects_embedded_target_credentials(self):
+        self.assertEqual(
+            get_native_request_backend_error(
+                native_options(urls=["https://user:pass@example.com"])
+            ),
+            "--request-backend native does not support credentials embedded "
+            "in target URLs yet",
+        )
+
+    def test_native_rejects_embedded_target_credentials_without_scheme(self):
+        self.assertEqual(
+            get_native_request_backend_error(
+                native_options(urls=["user:pass@example.com"])
+            ),
+            "--request-backend native does not support credentials embedded "
+            "in target URLs yet",
         )
 
     def test_native_rejects_delay(self):
