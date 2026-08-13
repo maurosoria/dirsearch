@@ -65,10 +65,17 @@ class RequestTargetTCPServer(socketserver.TCPServer):
 
 class RequestTargetHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
-        self.server.targets.append(self.raw_requestline.split(b" ")[1])
+        target = self.raw_requestline.split(b" ")[1]
+        self.server.targets.append(target)
         self.server.proxy_authorizations.append(
             self.headers.get("Proxy-Authorization")
         )
+        if target == b"/redirect":
+            self.send_response(302)
+            self.send_header("location", "/final")
+            self.end_headers()
+            return
+
         body = b"ok"
         self.send_response(200)
         self.send_header("content-type", "text/plain")
@@ -490,6 +497,20 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
                 [normalize_percent_hex(target) for target in server.targets],
                 [expected for _, _, expected in REQUEST_TARGET_CASES],
             )
+
+    def test_native_requester_follows_redirects(self):
+        try:
+            backend = NativeHTTPBackend()
+        except RequestException as error:
+            self.skipTest(str(error))
+
+        options["follow_redirects"] = True
+        with RequestTargetServer() as server:
+            results = list(backend.scan(server.url, ["redirect"]))
+
+            self.assertEqual([error for _, _, error in results], [None])
+            self.assertEqual(results[0][1].status, 200)
+            self.assertEqual(server.targets, [b"/redirect", b"/final"])
 
     def test_native_requester_uses_authenticated_http_proxy(self):
         try:
