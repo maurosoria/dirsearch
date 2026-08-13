@@ -528,7 +528,7 @@ fn scan_http(
     py.allow_threads(move || {
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
-            .worker_threads(concurrency.clamp(1, 256))
+            .worker_threads(runtime_worker_count())
             .build()
             .map_err(|error| PyRuntimeError::new_err(error.to_string()))?;
 
@@ -635,23 +635,23 @@ fn scan_http(
                             )
                         })
                         .collect::<Vec<_>>();
-                    let body = match response.bytes().await {
-                        Ok(body) => body,
-                        Err(error) => {
-                            return native_error_result(
-                                path,
-                                start.elapsed().as_secs_f64() * 1000.0,
-                                error.to_string(),
-                            );
-                        }
-                    };
-                    let length = body.len();
-                    let body = body[..length.min(max_body_size)].to_vec();
-                    native_http_result(
+                    let (body, body_length) =
+                        match read_response_body(response, max_body_size).await {
+                            Ok(result) => result,
+                            Err(error) => {
+                                return native_error_result(
+                                    path,
+                                    start.elapsed().as_secs_f64() * 1000.0,
+                                    error.to_string(),
+                                );
+                            }
+                        };
+                    native_http_result_with_length(
                         path,
                         status,
                         headers,
                         body,
+                        body_length,
                         start.elapsed().as_secs_f64() * 1000.0,
                         filter_config.as_ref(),
                     )
@@ -678,7 +678,28 @@ fn native_http_result(
     elapsed_ms: f64,
     filter_config: &NativeFilterConfig,
 ) -> NativeHttpResult {
-    let length = response_length(&headers, body.len());
+    let body_length = body.len();
+    native_http_result_with_length(
+        path,
+        status,
+        headers,
+        body,
+        body_length,
+        elapsed_ms,
+        filter_config,
+    )
+}
+
+fn native_http_result_with_length(
+    path: String,
+    status: u16,
+    headers: Vec<(String, String)>,
+    body: Vec<u8>,
+    body_length: usize,
+    elapsed_ms: f64,
+    filter_config: &NativeFilterConfig,
+) -> NativeHttpResult {
+    let length = response_length(&headers, body_length);
     let filter_reason = filter_config
         .filter_reason(status, length, &headers, &body, elapsed_ms)
         .map(str::to_string);
@@ -709,6 +730,38 @@ fn native_error_result(path: String, elapsed_ms: f64, error: String) -> NativeHt
         headers: Vec::new(),
         body: Vec::new(),
     }
+}
+
+fn runtime_worker_count() -> usize {
+    std::thread::available_parallelism()
+        .map(usize::from)
+        .unwrap_or(1)
+        .clamp(1, 256)
+}
+
+async fn read_response_body(
+    mut response: reqwest::Response,
+    max_body_size: usize,
+) -> Result<(Vec<u8>, usize), reqwest::Error> {
+    let capacity = response
+        .content_length()
+        .and_then(|length| usize::try_from(length).ok())
+        .unwrap_or_default()
+        .min(max_body_size);
+    let mut body = Vec::with_capacity(capacity);
+    let mut body_length = 0usize;
+
+    while let Some(chunk) = response.chunk().await? {
+        body_length = body_length.saturating_add(chunk.len());
+        append_body_chunk(&mut body, &chunk, max_body_size);
+    }
+
+    Ok((body, body_length))
+}
+
+fn append_body_chunk(body: &mut Vec<u8>, chunk: &[u8], max_body_size: usize) {
+    let remaining = max_body_size.saturating_sub(body.len());
+    body.extend_from_slice(&chunk[..chunk.len().min(remaining)]);
 }
 
 fn response_length(headers: &[(String, String)], body_length: usize) -> usize {
@@ -760,11 +813,12 @@ fn raw_http_get(
     filter_config: &NativeFilterConfig,
 ) -> NativeHttpResult {
     match raw_http_get_inner(base_url, &path, headers, timeout_secs, max_body_size) {
-        Ok((status, headers, body, _length)) => native_http_result(
+        Ok((status, headers, body, length)) => native_http_result_with_length(
             path,
             status,
             headers,
             body,
+            length,
             start.elapsed().as_secs_f64() * 1000.0,
             filter_config,
         ),
@@ -1231,6 +1285,43 @@ mod tests {
         .unwrap();
 
         assert!(error.contains("Invalid --match-regex regular expression"));
+    }
+
+    #[test]
+    fn body_chunks_are_capped_without_losing_transferred_length() {
+        let chunks: [&[u8]; 3] = [b"abc", b"defg", b"hijkl"];
+        let mut body = Vec::new();
+        let mut body_length = 0usize;
+
+        for chunk in chunks {
+            body_length = body_length.saturating_add(chunk.len());
+            append_body_chunk(&mut body, chunk, 6);
+        }
+
+        assert_eq!(body, b"abcdef");
+        assert_eq!(body_length, 12);
+    }
+
+    #[test]
+    fn truncated_body_keeps_transferred_response_length() {
+        let config = default_filter_config();
+        let result = native_http_result_with_length(
+            "large".to_string(),
+            200,
+            Vec::new(),
+            b"abcdef".to_vec(),
+            1024,
+            1.0,
+            &config,
+        );
+
+        assert_eq!(result.length, 1024);
+        assert_eq!(result.body, b"abcdef");
+    }
+
+    #[test]
+    fn runtime_workers_follow_available_cpu_bounds() {
+        assert!((1..=256).contains(&runtime_worker_count()));
     }
 
     #[test]
