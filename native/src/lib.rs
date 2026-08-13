@@ -670,6 +670,7 @@ fn scan_http(
     })
 }
 
+#[cfg(test)]
 fn native_http_result(
     path: String,
     status: u16,
