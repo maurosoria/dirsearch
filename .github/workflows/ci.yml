@@ -42,7 +42,7 @@ jobs:
       run: |
         flake8 .
     - name: Codespell
-      run: codespell -S CONTRIBUTORS.md,./db/categories/*
+      run: codespell -S CONTRIBUTORS.md,./db/categories/*,./build
 
   native:
     name: Native backend
