@@ -36,6 +36,7 @@ class NativeHTTPBackend:
             concurrency=options["thread_count"],
             timeout_secs=options["timeout"],
             headers=list(options["headers"].items()),
+            proxies=self._proxy_urls(),
             max_retries=options["max_retries"],
             follow_redirects=options["follow_redirects"],
             max_body_size=MAX_RESPONSE_SIZE,
@@ -61,6 +62,25 @@ class NativeHTTPBackend:
                 ),
                 None,
             )
+
+    @staticmethod
+    def _proxy_urls() -> list[str]:
+        proxies = []
+        for proxy in options["proxies"]:
+            if "://" not in proxy:
+                proxy = f"http://{proxy}"
+            elif not proxy.startswith(("http://", "https://")):
+                raise RequestException(
+                    "--request-backend native supports HTTP and HTTPS proxies only"
+                )
+
+            if options["proxy_auth"] and "@" not in proxy:
+                proxy = proxy.replace(
+                    "://", f'://{options["proxy_auth"]}@', 1
+                )
+            proxies.append(proxy)
+
+        return proxies
 
     @staticmethod
     def _filter_options() -> dict[str, Any]:

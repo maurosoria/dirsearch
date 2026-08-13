@@ -66,6 +66,9 @@ class RequestTargetTCPServer(socketserver.TCPServer):
 class RequestTargetHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         self.server.targets.append(self.raw_requestline.split(b" ")[1])
+        self.server.proxy_authorizations.append(
+            self.headers.get("Proxy-Authorization")
+        )
         body = b"ok"
         self.send_response(200)
         self.send_header("content-type", "text/plain")
@@ -81,6 +84,7 @@ class RequestTargetServer:
     def __enter__(self):
         self.server = RequestTargetTCPServer(("127.0.0.1", 0), RequestTargetHandler)
         self.server.targets = []
+        self.server.proxy_authorizations = []
         self.thread = threading.Thread(
             target=lambda: self.server.serve_forever(poll_interval=0.05),
             daemon=True,
@@ -101,6 +105,10 @@ class RequestTargetServer:
     @property
     def targets(self):
         return self.server.targets
+
+    @property
+    def proxy_authorizations(self):
+        return self.server.proxy_authorizations
 
 
 def normalize_percent_hex(target: bytes) -> bytes:
@@ -481,6 +489,29 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
             self.assertCountEqual(
                 [normalize_percent_hex(target) for target in server.targets],
                 [expected for _, _, expected in REQUEST_TARGET_CASES],
+            )
+
+    def test_native_requester_uses_authenticated_http_proxy(self):
+        try:
+            backend = NativeHTTPBackend()
+        except RequestException as error:
+            self.skipTest(str(error))
+
+        with RequestTargetServer() as proxy:
+            options["proxies"] = [proxy.url]
+            options["proxy_auth"] = "user:password"
+            results = list(
+                backend.scan("http://origin.invalid/", ["admin"])
+            )
+
+            self.assertEqual([error for _, _, error in results], [None])
+            self.assertEqual(
+                proxy.targets,
+                [b"http://origin.invalid/admin"],
+            )
+            self.assertEqual(
+                proxy.proxy_authorizations,
+                ["Basic dXNlcjpwYXNzd29yZA=="],
             )
 
     def test_native_requester_appends_base_query(self):

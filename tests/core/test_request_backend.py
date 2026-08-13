@@ -47,10 +47,35 @@ class TestRequestBackend(TestCase):
             "--request-backend native currently supports GET requests only",
         )
 
-    def test_native_rejects_proxies(self):
+    def test_native_accepts_http_proxies(self):
+        self.assertIsNone(
+            get_native_request_backend_error(
+                native_options(proxies=["127.0.0.1:8080", "https://proxy.example"])
+            )
+        )
+
+    def test_native_accepts_proxy_authentication(self):
+        self.assertIsNone(
+            get_native_request_backend_error(
+                native_options(
+                    proxies=["127.0.0.1:8080"],
+                    proxy_auth="user:password",
+                )
+            )
+        )
+
+    def test_native_rejects_socks_proxies(self):
         self.assertEqual(
-            get_native_request_backend_error(native_options(proxies=["127.0.0.1:8080"])),
-            "--request-backend native does not support proxies yet",
+            get_native_request_backend_error(
+                native_options(proxies=["socks5://127.0.0.1:1080"])
+            ),
+            "--request-backend native supports HTTP and HTTPS proxies only",
+        )
+
+    def test_native_rejects_tor(self):
+        self.assertEqual(
+            get_native_request_backend_error(native_options(tor=True)),
+            "--request-backend native does not support Tor or SOCKS proxies yet",
         )
 
     def test_native_rejects_ip_override(self):

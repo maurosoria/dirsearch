@@ -430,6 +430,31 @@ fn lstrip_once(input: &str, pattern: &str) -> String {
     input.strip_prefix(pattern).unwrap_or(input).to_string()
 }
 
+fn build_http_client(
+    headers: &HeaderMap,
+    concurrency: usize,
+    timeout_secs: f64,
+    follow_redirects: bool,
+    proxy_url: Option<&str>,
+) -> Result<reqwest::Client, reqwest::Error> {
+    let mut builder = reqwest::Client::builder()
+        .danger_accept_invalid_certs(true)
+        .default_headers(headers.clone())
+        .redirect(if follow_redirects {
+            reqwest::redirect::Policy::limited(10)
+        } else {
+            reqwest::redirect::Policy::none()
+        })
+        .timeout(Duration::from_secs_f64(timeout_secs))
+        .pool_max_idle_per_host(concurrency);
+
+    if let Some(proxy_url) = proxy_url {
+        builder = builder.proxy(reqwest::Proxy::all(proxy_url)?);
+    }
+
+    builder.build()
+}
+
 #[pyfunction]
 #[allow(clippy::too_many_arguments)]
 #[pyo3(signature = (
@@ -438,6 +463,7 @@ fn lstrip_once(input: &str, pattern: &str) -> String {
     concurrency=25,
     timeout_secs=7.5,
     headers=Vec::new(),
+    proxies=Vec::new(),
     max_retries=0,
     follow_redirects=false,
     max_body_size=83886080,
@@ -471,6 +497,7 @@ fn scan_http(
     concurrency: usize,
     timeout_secs: f64,
     headers: Vec<(String, String)>,
+    proxies: Vec<String>,
     max_retries: usize,
     follow_redirects: bool,
     max_body_size: usize,
@@ -543,24 +570,37 @@ fn scan_http(
                 header_map.insert(name, value);
             }
 
-            let client = reqwest::Client::builder()
-                .danger_accept_invalid_certs(true)
-                .default_headers(header_map)
-                .redirect(if follow_redirects {
-                    reqwest::redirect::Policy::limited(10)
-                } else {
-                    reqwest::redirect::Policy::none()
-                })
-                .timeout(std::time::Duration::from_secs_f64(timeout_secs))
-                .pool_max_idle_per_host(concurrency)
-                .build()
-                .map_err(|error| PyRuntimeError::new_err(error.to_string()))?;
+            let use_raw_http = proxies.is_empty();
+            let clients = if proxies.is_empty() {
+                vec![build_http_client(
+                    &header_map,
+                    concurrency,
+                    timeout_secs,
+                    follow_redirects,
+                    None,
+                )
+                .map_err(|error| PyRuntimeError::new_err(error.to_string()))?]
+            } else {
+                proxies
+                    .iter()
+                    .map(|proxy_url| {
+                        build_http_client(
+                            &header_map,
+                            concurrency,
+                            timeout_secs,
+                            follow_redirects,
+                            Some(proxy_url),
+                        )
+                    })
+                    .collect::<Result<Vec<_>, _>>()
+                    .map_err(|error| PyRuntimeError::new_err(error.to_string()))?
+            };
 
             let semaphore = std::sync::Arc::new(tokio::sync::Semaphore::new(concurrency.max(1)));
             let mut tasks = Vec::with_capacity(paths.len());
 
-            for path in paths {
-                let client = client.clone();
+            for (request_index, path) in paths.into_iter().enumerate() {
+                let client = clients[request_index % clients.len()].clone();
                 let base_url = base_url.clone();
                 let raw_headers = raw_headers.clone();
                 let semaphore = semaphore.clone();
@@ -575,7 +615,7 @@ fn scan_http(
                     let url = format!("{base_url}{path}");
                     let start = Instant::now();
 
-                    if should_use_raw_http(&base_url, &path) {
+                    if use_raw_http && should_use_raw_http(&base_url, &path) {
                         let raw_base_url = base_url.clone();
                         let raw_path = path.clone();
                         let raw_filter_config = filter_config.clone();
@@ -1323,6 +1363,19 @@ mod tests {
     #[test]
     fn runtime_workers_follow_available_cpu_bounds() {
         assert!((1..=256).contains(&runtime_worker_count()));
+    }
+
+    #[test]
+    fn http_proxy_client_configuration_builds() {
+        let client = build_http_client(
+            &HeaderMap::new(),
+            25,
+            1.0,
+            false,
+            Some("http://user:password@127.0.0.1:8080"),
+        );
+
+        assert!(client.is_ok());
     }
 
     #[test]

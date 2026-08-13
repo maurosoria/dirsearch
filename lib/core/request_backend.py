@@ -25,10 +25,12 @@ def get_native_request_backend_error(opt: Values) -> str | None:
         return "--request-backend native currently supports GET requests only"
     if opt.data or opt.data_file:
         return "--request-backend native does not support request bodies yet"
-    if opt.proxies or opt.proxies_file or opt.tor:
-        return "--request-backend native does not support proxies yet"
-    if opt.proxy_auth:
-        return "--request-backend native does not support proxy authentication yet"
+    if opt.tor:
+        return "--request-backend native does not support Tor or SOCKS proxies yet"
+    for proxy in opt.proxies:
+        parsed = urlparse(proxy if "://" in proxy else f"http://{proxy}")
+        if parsed.scheme not in ("http", "https"):
+            return "--request-backend native supports HTTP and HTTPS proxies only"
     if opt.auth or opt.auth_type:
         return "--request-backend native does not support authentication yet"
     if opt.cert_file or opt.key_file:
