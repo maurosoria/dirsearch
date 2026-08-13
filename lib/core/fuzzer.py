@@ -277,6 +277,8 @@ class BaseFuzzer:
                 options["match_words"],
                 options["match_lines"],
                 options["match_regex"],
+                options["match_headers"],
+                options["match_header_regex"],
                 options["match_time"],
             )
         )
