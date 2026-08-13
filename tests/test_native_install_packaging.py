@@ -1,5 +1,9 @@
+import os
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest import TestCase
+
+from scripts.build_native import resolve_python
 
 
 class TestNativeInstallPackaging(TestCase):
@@ -52,3 +56,22 @@ class TestNativeInstallPackaging(TestCase):
         self.assertIn("python3.14-dev", docs)
         self.assertIn("python3.14-devel", docs)
         self.assertNotIn("maturin develop", docs)
+
+    def test_pyinstaller_native_build_uses_selected_python(self):
+        build_script = Path("pyinstaller/build.sh").read_text(encoding="utf-8")
+
+        self.assertIn('${VIRTUAL_ENV:-}', build_script)
+        self.assertIn('"$PYTHON_CMD" scripts/build_native.py --python "$PYTHON_CMD"', build_script)
+
+    def test_native_builder_preserves_python_symlink(self):
+        with TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            target = temp_path / "python-real"
+            link = temp_path / "python"
+            target.touch()
+            try:
+                os.symlink(target, link)
+            except (AttributeError, NotImplementedError, OSError) as error:
+                self.skipTest(f"Python symlink unavailable: {error}")
+
+            self.assertEqual(resolve_python(str(link)), link.absolute())

@@ -17,6 +17,14 @@ log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
 python_cmd() {
+    if [[ -n "${PYTHON_CMD:-}" ]]; then
+        echo "$PYTHON_CMD"
+        return
+    fi
+    if [[ -n "${VIRTUAL_ENV:-}" && -x "$VIRTUAL_ENV/bin/python" ]]; then
+        echo "$VIRTUAL_ENV/bin/python"
+        return
+    fi
     command -v python3 || command -v python
 }
 
@@ -54,7 +62,7 @@ build_native() {
         rustup default stable
     fi
     "$PYTHON_CMD" -m pip install --only-binary=:all: maturin
-    "$PYTHON_CMD" scripts/build_native.py --out dist/native-wheels
+    "$PYTHON_CMD" scripts/build_native.py --python "$PYTHON_CMD" --out dist/native-wheels
 }
 
 build_stack() {
