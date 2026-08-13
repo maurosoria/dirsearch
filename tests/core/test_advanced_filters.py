@@ -188,6 +188,26 @@ class TestAdvancedFilters(TestCase):
             )
         )
 
+    def test_header_text_matcher_disables_auto_calibration(self):
+        options["auto_calibration"] = True
+        options["match_headers"] = ["x-result: found"]
+        candidate = response(
+            body=b"repeated response body that is long enough for calibration",
+            headers=[("X-Result", "found")],
+        )
+
+        self.assertFalse(self.fuzzer.should_record_auto_calibration(candidate))
+
+    def test_header_regex_matcher_disables_auto_calibration(self):
+        options["auto_calibration"] = True
+        options["match_header_regex"] = r"X-Result: found-[0-9]+"
+        candidate = response(
+            body=b"repeated response body that is long enough for calibration",
+            headers=[("X-Result", "found-42")],
+        )
+
+        self.assertFalse(self.fuzzer.should_record_auto_calibration(candidate))
+
     def test_forced_auto_calibration_filters_repeated_reflected_responses(self):
         options["auto_calibration"] = True
         repeated = [
