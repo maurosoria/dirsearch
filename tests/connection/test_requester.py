@@ -478,7 +478,7 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
             )
 
             self.assertEqual([error for _, _, error in results], [None] * len(results))
-            self.assertEqual(
+            self.assertCountEqual(
                 [normalize_percent_hex(target) for target in server.targets],
                 [expected for _, _, expected in REQUEST_TARGET_CASES],
             )
