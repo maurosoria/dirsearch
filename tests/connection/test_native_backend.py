@@ -34,6 +34,8 @@ class TestNativeHTTPBackend(TestCase):
                 "thread_count": 7,
                 "timeout": 3.5,
                 "headers": {"user-agent": "dirsearch-test"},
+                "proxies": ["127.0.0.1:8080"],
+                "proxy_auth": "user:password",
                 "max_retries": 2,
                 "follow_redirects": False,
                 "include_status_codes": {200, 204},
@@ -85,6 +87,7 @@ class TestNativeHTTPBackend(TestCase):
         self.assertEqual(args[:2], ("https://example.com/", ["missing%20page"]))
         self.assertEqual(kwargs["concurrency"], 7)
         self.assertEqual(kwargs["timeout_secs"], 3.5)
+        self.assertEqual(kwargs["proxies"], ["http://user:password@127.0.0.1:8080"])
         self.assertEqual(kwargs["include_status_codes"], [200, 204])
         self.assertEqual(kwargs["exclude_status_codes"], [500])
         self.assertEqual(kwargs["minimum_response_size"], 10)
