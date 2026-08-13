@@ -615,10 +615,7 @@ fn scan_http(
                     let url = format!("{base_url}{path}");
                     let start = Instant::now();
 
-                    if use_raw_http
-                        && !follow_redirects
-                        && should_use_raw_http(&base_url, &path)
-                    {
+                    if use_raw_http && !follow_redirects && should_use_raw_http(&base_url, &path) {
                         let raw_base_url = base_url.clone();
                         let raw_path = path.clone();
                         let raw_filter_config = filter_config.clone();
