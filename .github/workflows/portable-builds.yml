@@ -68,6 +68,8 @@ jobs:
           sudo apt-get install -y --no-install-recommends build-essential
 
       - name: Build portable folder
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           if [ "${{ matrix.stack.name }}" = "native-rust" ]; then
             rustup default stable

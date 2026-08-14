@@ -104,6 +104,20 @@ a = Analysis(
     noarchive=False,
 )
 
+# mysql-connector's C extension vendors OpenSSL on macOS. In a one-file
+# bundle, those dylibs can shadow the OpenSSL used by Python's ssl module.
+# Omit the extension and its vendor libraries so Connector/Python falls back
+# to its pure-Python implementation.
+if sys.platform == "darwin":
+    a.binaries = [
+        entry
+        for entry in a.binaries
+        if not (
+            entry[0].replace("\\", "/").startswith("mysql/vendor/")
+            or os.path.basename(entry[0]).startswith("_mysql_connector")
+        )
+    ]
+
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
 exe = EXE(

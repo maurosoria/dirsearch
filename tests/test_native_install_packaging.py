@@ -49,6 +49,22 @@ class TestNativeInstallPackaging(TestCase):
             Path("pyinstaller/dirsearch.spec").read_text(encoding="utf-8"),
         )
 
+    def test_macos_pyinstaller_omits_mysql_vendor_openssl(self):
+        pyinstaller_spec = Path("pyinstaller/dirsearch.spec").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn('if sys.platform == "darwin":', pyinstaller_spec)
+        self.assertIn('startswith("mysql/vendor/")', pyinstaller_spec)
+        self.assertIn('startswith("_mysql_connector")', pyinstaller_spec)
+
+    def test_portable_workflow_uses_github_token(self):
+        workflow = Path(".github/workflows/portable-builds.yml").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("GITHUB_TOKEN: ${{ github.token }}", workflow)
+
     def test_install_docs_use_native_builder_flow(self):
         docs = Path("docs/installation.md").read_text(encoding="utf-8")
 
