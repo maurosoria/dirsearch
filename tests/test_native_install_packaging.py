@@ -55,6 +55,10 @@ class TestNativeInstallPackaging(TestCase):
         )
 
         self.assertIn('if sys.platform == "darwin":', pyinstaller_spec)
+        self.assertIn(
+            'excluded_imports.append("_mysql_connector")',
+            pyinstaller_spec,
+        )
         self.assertIn('startswith("mysql/vendor/")', pyinstaller_spec)
         self.assertIn('startswith("_mysql_connector")', pyinstaller_spec)
 

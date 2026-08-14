@@ -81,6 +81,19 @@ report_templates = os.path.join(PROJECT_ROOT, 'lib', 'report')
 if os.path.exists(report_templates):
     datas.append((report_templates, 'lib/report'))
 
+excluded_imports = [
+    'tkinter',
+    'unittest',
+    'pydoc',
+    'doctest',
+    'test',
+    'tests',
+]
+if sys.platform == "darwin":
+    # Prevent PyInstaller from resolving Python's OpenSSL dependency through
+    # mysql-connector's incompatible vendored OpenSSL during Analysis.
+    excluded_imports.append("_mysql_connector")
+
 a = Analysis(
     [os.path.join(PROJECT_ROOT, 'dirsearch.py')],
     pathex=[PROJECT_ROOT],
@@ -90,14 +103,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[
-        'tkinter',
-        'unittest',
-        'pydoc',
-        'doctest',
-        'test',
-        'tests',
-    ],
+    excludes=excluded_imports,
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
