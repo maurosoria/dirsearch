@@ -16,14 +16,40 @@
 #  Author: Mauro Soria
 
 from unittest import TestCase
+from unittest.mock import Mock, patch
 
-from lib.core.settings import DUMMY_DOMAIN
+from lib.core.settings import SOCKET_TIMEOUT
 from lib.utils.schemedet import detect_scheme
 
 
 class TestSchemedet(TestCase):
-    def test_detect_scheme(self):
-        self.assertEqual(detect_scheme(DUMMY_DOMAIN, 443), "https", "Incorrect scheme detected")
-        # These ports intentionally exercise the failed TLS probe fallback.
-        self.assertEqual(detect_scheme(DUMMY_DOMAIN, 80), "http", "Incorrect scheme detected")
-        self.assertEqual(detect_scheme(DUMMY_DOMAIN, 1234), "http", "Incorrect scheme detected")
+    def run_probe(self, connect_error=None):
+        raw_socket = Mock()
+        connection = Mock()
+        connection.connect.side_effect = connect_error
+        context = Mock()
+        context.wrap_socket.return_value = connection
+
+        with patch(
+            "lib.utils.schemedet.socket.socket", return_value=raw_socket
+        ) as socket_factory, patch(
+            "lib.utils.schemedet.ssl.create_default_context", return_value=context
+        ) as context_factory:
+            scheme = detect_scheme("example.test", 443)
+
+        socket_factory.assert_called_once_with()
+        raw_socket.settimeout.assert_called_once_with(SOCKET_TIMEOUT)
+        context_factory.assert_called_once_with()
+        context.wrap_socket.assert_called_once_with(
+            raw_socket, server_hostname="example.test"
+        )
+        connection.connect.assert_called_once_with(("example.test", 443))
+        connection.close.assert_called_once_with()
+
+        return scheme
+
+    def test_detects_https_when_tls_connection_succeeds(self):
+        self.assertEqual(self.run_probe(), "https")
+
+    def test_falls_back_to_http_when_tls_connection_fails(self):
+        self.assertEqual(self.run_probe(OSError("network unavailable")), "http")
