@@ -604,7 +604,7 @@ class Controller:
             options["find_backup"]
             and "." in response.path.split("/")[-1]
             and response.path[-1].isalnum()
-            and not response.path.endswith(BACKUP_EXTENSIONS) # Already a backup file
+            and not response.path.endswith(BACKUP_EXTENSIONS)  # Already a backup file
         ):
             path = lstrip_once(response.path, self.base_path)
             self.dictionary.add_extra(path + "~")
