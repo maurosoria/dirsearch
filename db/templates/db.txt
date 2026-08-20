@@ -1,5 +1,5 @@
-db.%ARCHIVE%
-database.%ARCHIVE%
-backup_%DB%.%ARCHIVE%
-%DB%_backup.%ARCHIVE%
-dump_%DATE_COMPACT%.%ARCHIVE%
+db.%BACKUP%
+database.%BACKUP%
+backup_%DB%.%BACKUP%
+%DB%_backup.%BACKUP%
+dump_%DATE_COMPACT%.%BACKUP%

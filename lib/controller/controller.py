@@ -53,6 +53,7 @@ from lib.core.request_backend import (
     get_native_target_error,
 )
 from lib.core.settings import (
+    BACKUP_EXTENSIONS,
     BANNER,
     DEFAULT_HEADERS,
     DEFAULT_SESSION_FILE,
@@ -65,6 +66,7 @@ from lib.core.settings import (
     START_TIME,
     UNKNOWN,
 )
+from lib.core.wordlist_template import expand_template_line
 from lib.parse.rawrequest import parse_raw
 from lib.parse.url import clean_path, ensure_trailing_path_slash, parse_path
 from lib.report.manager import ReportManager
@@ -597,6 +599,17 @@ class Controller:
                     continue
                 path = lstrip_once(path, self.base_path)
                 self.dictionary.add_extra(path)
+
+        if (
+            options["find_backup"]
+            and "." in response.path.split("/")[-1]
+            and response.path[-1].isalnum()
+            and not response.path.endswith(BACKUP_EXTENSIONS) # Already a backup file
+        ):
+            path = lstrip_once(response.path, self.base_path)
+            self.dictionary.add_extra(path + "~")
+            for backup in expand_template_line(path + ".%BACKUP%"):
+                self.dictionary.add_extra(backup)
 
     def update_progress_bar(self, response: BaseResponse) -> None:
         jobs_count = (

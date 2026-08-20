@@ -136,7 +136,7 @@ Built-in placeholders:
 - `%ENV%`: dev, development, test, stage, staging, prod, production, local.
 - `%SEP%`: separators `-`, `_`, `.`, and `/`.
 - `%DB%` and `%DB_ENGINE%`: mysql, postgres, postgresql, sqlite, mariadb, mongodb, redis.
-- `%ARCHIVE%` and `%ARCHIVE_EXT%`: zip, tar, tar.gz, tgz, gz, 7z, rar, bak.
+- `%BACKUP%` and `%BACKUP_EXT%`: zip, tar, tar.gz, tgz, gz, 7z, ...
 - `%API_VERSION%`: v1, v2, v3, v4, latest, beta.
 - `%YYYY%`, `%YY%`, `%MM%`, `%DD%`, `%DATE%`, `%DATE_COMPACT%`: current date tokens.
 - `%CATEGORY:name%`: entries from `db/categories/name.txt` or a mapped bundled category.

@@ -1,10 +1,10 @@
 # Changelog
 
 ## [Unreleased]
+- Added option to find backup files
 
 ## [0.5.0] - May 29, 2026
-This release includes all user-facing changes since the last published release,
-`v0.4.3`.
+This release includes all user-facing changes since the last published release, `v0.4.3`.
 
 ### Runtime and scanning
 - Raised the minimum supported Python version to 3.11 and prepared release builds on Python 3.14.

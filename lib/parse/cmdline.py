@@ -697,6 +697,12 @@ def parse_arguments() -> Values:
         dest="crawl",
         help="Crawl for new paths in responses"
     )
+    advanced.add_option(
+        "--find-backup",
+        action="store_true",
+        dest="find_backup",
+        help="Look for backups of discovered files"
+    )
 
     # View Settings
     view = OptionGroup(parser, "View Settings")

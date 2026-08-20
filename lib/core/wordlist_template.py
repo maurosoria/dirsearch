@@ -5,7 +5,13 @@ import re
 from collections.abc import Iterable, Iterator, Mapping
 from datetime import date
 
-from lib.core.settings import EXTENSION_TAG, WORDLIST_CATEGORIES, WORDLIST_CATEGORY_DIR
+from lib.core.settings import (
+    BACKUP_EXTENSIONS,
+    DB_ENGINES,
+    EXTENSION_TAG,
+    WORDLIST_CATEGORIES,
+    WORDLIST_CATEGORY_DIR,
+)
 from lib.utils.file import FileUtils
 
 
@@ -67,10 +73,10 @@ DEFAULT_PLACEHOLDERS: dict[str, tuple[str, ...]] = {
     ),
     "ENV": ("dev", "development", "test", "stage", "staging", "prod", "production", "local"),
     "SEP": ("-", "_", ".", "/"),
-    "DB": ("mysql", "postgres", "postgresql", "sqlite", "mariadb", "mongodb", "redis"),
-    "DB_ENGINE": ("mysql", "postgres", "postgresql", "sqlite", "mariadb", "mongodb", "redis"),
-    "ARCHIVE": ("zip", "tar", "tar.gz", "tgz", "gz", "7z", "rar", "bak"),
-    "ARCHIVE_EXT": ("zip", "tar", "tar.gz", "tgz", "gz", "7z", "rar", "bak"),
+    "DB": DB_ENGINES,
+    "DB_ENGINE": DB_ENGINES,
+    "BACKUP": BACKUP_EXTENSIONS,
+    "BACKUP_EXT": BACKUP_EXTENSIONS,
     "API_VERSION": ("v1", "v2", "v3", "v4", "latest", "beta"),
 }
 

@@ -1,5 +1,5 @@
-backup.%ARCHIVE%
-backup_%DATE%.%ARCHIVE%
-backup_%DATE_COMPACT%.%ARCHIVE%
-%ENV%_backup.%ARCHIVE%
-%SUBJECT%_backup.%ARCHIVE%
+backup.%BACKUP%
+backup_%DATE%.%BACKUP%
+backup_%DATE_COMPACT%.%BACKUP%
+%ENV%_backup.%BACKUP%
+%SUBJECT%_backup.%BACKUP%
