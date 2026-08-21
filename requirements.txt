@@ -10,6 +10,6 @@ beautifulsoup4==4.14.3
 defusedcsv==3.0.0
 defusedxml==0.7.1
 requests-toolbelt==1.0.0
-setuptools==82.0.1
+setuptools==83.0.0
 httpx==0.28.1
 httpx-ntlm==1.4.0
