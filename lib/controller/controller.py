@@ -464,24 +464,29 @@ class Controller:
         ) if options["max_time"] or options["target_max_time"] else None
 
         try:
-            await asyncio.wait_for(
-                asyncio.wait(
-                    [self.pause_future, task],
-                    return_when=asyncio.FIRST_COMPLETED,
-                ),
-                timeout=timeout,
-            )
-        except asyncio.TimeoutError:
-            if time.time() - self.start_time > options["max_time"] > 0:
-                raise QuitInterrupt("Runtime exceeded the maximum set by the user")
+            try:
+                await asyncio.wait_for(
+                    asyncio.wait(
+                        [self.pause_future, task],
+                        return_when=asyncio.FIRST_COMPLETED,
+                    ),
+                    timeout=timeout,
+                )
+            except asyncio.TimeoutError:
+                if time.time() - self.start_time > options["max_time"] > 0:
+                    raise QuitInterrupt("Runtime exceeded the maximum set by the user")
 
-            raise SkipTargetInterrupt("Runtime for target exceeded the maximum set by the user")
+                raise SkipTargetInterrupt("Runtime for target exceeded the maximum set by the user")
 
-        if self.pause_future.done():
-            task.cancel()
-            await self.pause_future  # propagate the exception, if raised
+            if self.pause_future.done():
+                task.cancel()
+                await self.pause_future  # propagate the exception, if raised
 
-        await task  # propagate the exception, if raised
+            await task  # propagate the exception, if raised
+        finally:
+            if not task.done():
+                task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
 
     def process(self, start_time: float) -> None:
         while True:
