@@ -742,6 +742,7 @@ def merge_config(opt: Values) -> Values:
 
     # Advanced
     opt.crawl = opt.crawl or config.safe_getboolean("advanced", "crawl")
+    opt.find_backup = opt.find_backup or config.safe_getboolean("advanced", "find-backup")
 
     # View
     opt.full_url = opt.full_url or config.safe_getboolean("view", "full-url")

@@ -115,6 +115,7 @@ options: dict[str, Any] = {
     "ip": None,
     "exit_on_error": False,
     "crawl": False,
+    "find_backup": False,
     "async_mode": True,
     "full_url": False,
     "redirects_history": False,

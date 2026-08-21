@@ -61,10 +61,12 @@ from lib.core.settings import (
     NEW_LINE,
     SIGINT_FORCE_QUIT_THRESHOLD,
     SIGINT_WINDOW_SECONDS,
+    STATIC_EXTENSIONS,
     STANDARD_PORTS,
     START_TIME,
     UNKNOWN,
 )
+from lib.core.wordlist_template import expand_template_line
 from lib.parse.rawrequest import parse_raw
 from lib.parse.url import clean_path, ensure_trailing_path_slash, parse_path
 from lib.report.manager import ReportManager
@@ -602,6 +604,17 @@ class Controller:
                     continue
                 path = lstrip_once(path, self.base_path)
                 self.dictionary.add_extra(path)
+
+        if (
+            options["find_backup"]
+            and "." in response.path.split("/")[-1]
+            and response.path[-1].isalnum()
+            and not response.path.endswith(STATIC_EXTENSIONS)
+        ):
+            path = lstrip_once(response.path, self.base_path)
+            self.dictionary.add_extra(path + "~")
+            for backup in expand_template_line(path + ".%BACKUP%"):
+                self.dictionary.add_extra(backup)
 
     def update_progress_bar(self, response: BaseResponse) -> None:
         jobs_count = (
