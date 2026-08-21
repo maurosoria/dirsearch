@@ -32,6 +32,7 @@ from lib.core.dictionary import Dictionary
 from lib.core.exceptions import RequestException
 from lib.core.filters import matches_numeric_ranges, matches_time_filters
 from lib.core.logger import logger
+from lib.core.runtime_fingerprint import response_fingerprint
 from lib.core.scanner import AsyncScanner, BaseScanner, Scanner
 from lib.core.settings import (
     DEFAULT_TEST_PREFIXES,
@@ -40,7 +41,6 @@ from lib.core.settings import (
 )
 from lib.parse.url import clean_path
 from lib.utils.common import lstrip_once
-from lib.utils.diff import normalize_dynamic_content
 
 
 AUTO_CALIBRATION_DUPLICATE_THRESHOLD = 8
@@ -285,21 +285,7 @@ class BaseFuzzer:
 
     @staticmethod
     def response_fingerprint(resp: BaseResponse) -> tuple:
-        path = clean_path(resp.full_path).strip("/")
-        body = normalize_dynamic_content(resp.text)
-        redirect = clean_path(resp.redirect)
-
-        if path:
-            body = body.replace(path, "__PATH__")
-            redirect = redirect.replace(path, "__PATH__")
-
-        return (
-            resp.status,
-            resp.type,
-            redirect,
-            len(body) // 64,
-            hash(body[:4096]),
-        )
+        return response_fingerprint(resp)
 
     def process_response(self, path: str, response: BaseResponse) -> None:
         scanners = self.get_scanners_for(path)

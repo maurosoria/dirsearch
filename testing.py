@@ -48,6 +48,7 @@ from tests.core.test_fuzzer_filter_stacks import (  # noqa: F401
 from tests.core.test_importable_api import TestImportableAPI  # noqa: F401
 from tests.core.test_native_fuzzer import TestNativeFuzzer  # noqa: F401
 from tests.core.test_request_backend import TestRequestBackend  # noqa: F401
+from tests.core.test_runtime_fingerprint import TestRuntimeFingerprint  # noqa: F401
 from tests.core.test_scanner import TestScanner  # noqa: F401
 from tests.core.test_wordlist_backend import TestWordlistBackend  # noqa: F401
 from tests.parse.test_config import TestConfigParser  # noqa: F401
