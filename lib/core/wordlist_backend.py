@@ -7,9 +7,9 @@ from lib.core.data import options
 from lib.core.exceptions import WordlistBackendUnavailableError, WordlistLimitError
 from lib.core.native_runtime import get_native_backend_install_error
 from lib.core.settings import (
-    EXCLUDE_OVERWRITE_EXTENSIONS,
     EXTENSION_RECOGNITION_REGEX,
     EXTENSION_TAG,
+    STATIC_EXTENSIONS,
 )
 from lib.core.structures import OrderedSet
 from lib.core.wordlist_template import TOKEN_RE, expand_template_line
@@ -84,7 +84,7 @@ class PythonWordlistBackend:
                     # Overwrite unknown extensions with selected ones (but also keep the origin)
                     elif (
                         options["overwrite_extensions"]
-                        and not line.endswith(options["extensions"] + EXCLUDE_OVERWRITE_EXTENSIONS)
+                        and not line.endswith(options["extensions"] + STATIC_EXTENSIONS)
                         # Paths that have queries in wordlist are usually used for exploiting
                         # disclosed vulnerabilities of services, skip such paths
                         and "?" not in line
@@ -159,7 +159,7 @@ class NativeWordlistBackend:
             prefixes=list(options["prefixes"]),
             suffixes=list(options["suffixes"]),
             exclude_extensions=list(options["exclude_extensions"]),
-            overwrite_exclude_extensions=list(EXCLUDE_OVERWRITE_EXTENSIONS),
+            overwrite_exclude_extensions=list(STATIC_EXTENSIONS),
             lowercase=options["lowercase"],
             uppercase=options["uppercase"],
             capitalization=options["capitalization"],

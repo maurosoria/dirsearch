@@ -53,7 +53,6 @@ from lib.core.request_backend import (
     get_native_target_error,
 )
 from lib.core.settings import (
-    BACKUP_EXTENSIONS,
     BANNER,
     DEFAULT_HEADERS,
     DEFAULT_SESSION_FILE,
@@ -62,6 +61,7 @@ from lib.core.settings import (
     NEW_LINE,
     SIGINT_FORCE_QUIT_THRESHOLD,
     SIGINT_WINDOW_SECONDS,
+    STATIC_EXTENSIONS,
     STANDARD_PORTS,
     START_TIME,
     UNKNOWN,
@@ -604,7 +604,7 @@ class Controller:
             options["find_backup"]
             and "." in response.path.split("/")[-1]
             and response.path[-1].isalnum()
-            and not response.path.endswith(BACKUP_EXTENSIONS)  # Already a backup file
+            and not response.path.endswith(STATIC_EXTENSIONS)
         ):
             path = lstrip_once(response.path, self.base_path)
             self.dictionary.add_extra(path + "~")
