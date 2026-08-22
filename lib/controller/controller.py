@@ -58,6 +58,7 @@ from lib.core.settings import (
     DEFAULT_SESSION_FILE,
     EXTENSION_RECOGNITION_REGEX,
     MAX_CONSECUTIVE_REQUEST_ERRORS,
+    MAX_RECURSIVE_UNIFORM_RESPONSES,
     NEW_LINE,
     SIGINT_FORCE_QUIT_THRESHOLD,
     SIGINT_WINDOW_SECONDS,
@@ -168,6 +169,10 @@ class Controller:
         self._handling_pause = False
         self._force_quit_handler = _create_force_quit_handler()
         self.loop = None  # Will be set if async mode is used
+        # Counters for the runaway recursion guard, keyed by
+        # (branch, status code, content length)
+        self._uniform_response_counts: dict[tuple[str, int, int], int] = {}
+        self._uniform_recursion_warned: set[str] = set()
 
         if options["session_file"]:
             self._import(options["session_file"])
@@ -506,6 +511,9 @@ class Controller:
             break
 
     def set_target(self, url: str) -> None:
+        self._uniform_response_counts.clear()
+        self._uniform_recursion_warned.clear()
+
         if options["request_backend"] == "native":
             if error := get_native_target_error(url):
                 raise InvalidURLException(error)
@@ -577,14 +585,17 @@ class Controller:
                 options["force_recursive"],
             )
         ):
-            if response.redirect:
-                new_path = clean_path(parse_path(response.redirect))
-                added_to_queue = self.recur_for_redirect(response.path, new_path)
-            elif len(response.history):
-                old_path = clean_path(parse_path(response.history[0]))
-                added_to_queue = self.recur_for_redirect(old_path, response.path)
-            else:
-                added_to_queue = self.recur(response.path)
+            added_to_queue: list[str] = []
+
+            if not self.is_runaway_recursion(self.fuzzer.base_path, response):
+                if response.redirect:
+                    new_path = clean_path(parse_path(response.redirect))
+                    added_to_queue = self.recur_for_redirect(response.path, new_path)
+                elif len(response.history):
+                    old_path = clean_path(parse_path(response.history[0]))
+                    added_to_queue = self.recur_for_redirect(old_path, response.path)
+                else:
+                    added_to_queue = self.recur(response.path)
 
             if added_to_queue:
                 interface.new_directories(added_to_queue)
@@ -732,6 +743,33 @@ class Controller:
                         raise skipexc
         finally:
             pass
+
+    def is_runaway_recursion(self, branch: str, response: BaseResponse) -> bool:
+        """Detect runaway recursion caused by servers replying with uniform
+        fallback pages (same status code and content length for every path).
+
+        Counts recursion-triggering responses per scanned branch and, once a
+        branch exceeds MAX_RECURSIVE_UNIFORM_RESPONSES identical responses,
+        stops recursing deeper into it. Returns True when recursion should be
+        skipped.
+        """
+
+        key = (branch, response.status, response.length)
+        count = self._uniform_response_counts.get(key, 0) + 1
+        self._uniform_response_counts[key] = count
+
+        if count < MAX_RECURSIVE_UNIFORM_RESPONSES:
+            return False
+
+        if branch not in self._uniform_recursion_warned:
+            self._uniform_recursion_warned.add(branch)
+            interface.warning(
+                f'{NEW_LINE}Stopped recursing deeper into "{branch}": received '
+                f"{count} responses with identical status ({response.status}) "
+                f"and size ({response.length}), likely wildcard responses"
+            )
+
+        return True
 
     def add_directory(self, path: str) -> None:
         """Add directory to the recursion queue"""
