@@ -184,6 +184,12 @@ TEST_PATH_LENGTH = 6
 
 MAX_CONSECUTIVE_REQUEST_ERRORS = 75
 
+# Maximum number of identical (status code, content length) responses that may
+# trigger recursion within a single scanned branch before recursion is stopped
+# for that branch. Guards against runaway deep-recursive scans on web apps
+# serving the same fallback page for every path
+MAX_RECURSIVE_UNIFORM_RESPONSES = 10
+
 # Signal handling settings for PyInstaller Linux builds
 # Time window (seconds) for detecting rapid consecutive Ctrl+C presses
 SIGINT_WINDOW_SECONDS = 0.8
