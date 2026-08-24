@@ -21,6 +21,7 @@ from unittest import TestCase
 from lib.utils.common import (
     merge_path,
     replace_path,
+    response_filename,
     strip_and_uniquify,
     get_valid_filename,
 )
@@ -37,6 +38,13 @@ class TestCommonUtils(TestCase):
 
     def test_get_valid_filename(self):
         self.assertEqual(get_valid_filename("http://example.com:80/foobar"), "http___example.com_80_foobar", "Invalid filename for Windows")
+
+    def test_response_filename(self):
+        self.assertEqual(response_filename("http://example.com/admin", 200), "example.com_admin_200")
+        self.assertEqual(response_filename("http://example.com/a/b?x=1", 301), "example.com_a_b_x=1_301")
+        self.assertEqual(response_filename("http://example.com/", 200), "example.com_200")
+        long_path = "a" * 500
+        self.assertLessEqual(len(response_filename(f"http://example.com/{long_path}", 200)), 200)
 
     def test_merge_path(self):
         self.assertEqual(merge_path("http://example.com/foo", "bar"), "http://example.com/bar")

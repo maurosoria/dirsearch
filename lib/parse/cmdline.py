@@ -912,6 +912,13 @@ def parse_arguments(arguments: list[str] | None = None) -> Values:
         help="Database URL for PostgreSQL output (Format: postgres://[username:password@]host[:port]/database-name)",
     )
     output.add_option(
+        "--save-response",
+        action="store",
+        dest="save_response",
+        metavar="PATH",
+        help="Save the response body of every found path into the given directory",
+    )
+    output.add_option(
         "--log", action="store", dest="log_file", metavar="PATH", help="Log file"
     )
 

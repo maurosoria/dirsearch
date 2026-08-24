@@ -68,7 +68,7 @@ from lib.core.settings import (
 from lib.parse.rawrequest import parse_raw
 from lib.parse.url import clean_path, ensure_trailing_path_slash, parse_path
 from lib.report.manager import ReportManager
-from lib.utils.common import lstrip_once
+from lib.utils.common import lstrip_once, response_filename
 from lib.utils.crawl import Crawler
 from lib.utils.file import FileUtils
 from lib.utils.schemedet import detect_scheme
@@ -330,6 +330,17 @@ class Controller:
             except OSError:
                 interface.error(
                     f'Couldn\'t create log file at {options["log_file"]}'
+                )
+                sys.exit(1)
+
+        if options["save_response"]:
+            try:
+                FileUtils.create_dir(options["save_response"])
+                if not FileUtils.can_write(options["save_response"]):
+                    raise OSError
+            except OSError:
+                interface.error(
+                    f'Couldn\'t create response directory at {options["save_response"]}'
                 )
                 sys.exit(1)
 
@@ -605,6 +616,26 @@ class Controller:
     def reset_consecutive_errors(self, response: BaseResponse) -> None:
         self.consecutive_errors = 0
 
+    @locked
+    def save_response(self, response: BaseResponse) -> None:
+        base_name = response_filename(response.url, response.status)
+        file_path = FileUtils.build_path(options["save_response"], base_name)
+
+        # Different URLs can sanitize to the same name, don't overwrite them
+        counter = 1
+        while FileUtils.exists(file_path):
+            file_path = FileUtils.build_path(
+                options["save_response"], f"{base_name}_{counter}"
+            )
+            counter += 1
+
+        try:
+            with open(file_path, "wb") as fd:
+                fd.write(response.body)
+        except OSError as e:
+            logger.exception(e)
+            interface.error(f"Couldn't save response for {response.url}: {e}")
+
     def match_callback(self, response: BaseResponse) -> None:
         if response.status in options["skip_on_status"]:
             raise SkipTargetInterrupt(
@@ -612,6 +643,9 @@ class Controller:
             )
 
         interface.status_report(response, options["full_url"])
+
+        if options["save_response"]:
+            self.save_response(response)
 
         if response.status in options["recursion_status_codes"] and any(
             (

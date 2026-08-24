@@ -24,12 +24,13 @@ from functools import reduce
 from json import dumps
 from html import escape
 from ipaddress import IPv4Network, IPv6Network
-from urllib.parse import quote, unquote, urljoin
+from urllib.parse import quote, unquote, urljoin, urlparse
 
 from lib.core.settings import (
     INVALID_CHARS_FOR_WINDOWS_FILENAME,
     INVALID_FILENAME_CHAR_REPLACEMENT,
     IS_WINDOWS,
+    MAX_RESPONSE_FILENAME_LENGTH,
     URL_SAFE_CHARS,
     SCRIPT_PATH,
     TEXT_CHARS,
@@ -78,6 +79,19 @@ def get_valid_filename(string):
         string = string.replace(char, INVALID_FILENAME_CHAR_REPLACEMENT)
 
     return string
+
+
+def response_filename(url, status, max_length=MAX_RESPONSE_FILENAME_LENGTH):
+    parsed = urlparse(url)
+    name = f"{parsed.netloc}{parsed.path}"
+    if parsed.query:
+        name += f"?{parsed.query}"
+
+    name = get_valid_filename(name).strip(INVALID_FILENAME_CHAR_REPLACEMENT)
+    name = name or get_valid_filename(parsed.netloc) or "index"
+
+    suffix = f"_{status}"
+    return f"{name[:max_length - len(suffix)]}{suffix}"
 
 
 def get_readable_size(num):
