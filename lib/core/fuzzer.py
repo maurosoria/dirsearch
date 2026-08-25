@@ -48,6 +48,32 @@ AUTO_CALIBRATION_FORCED_THRESHOLD = 3
 AUTO_CALIBRATION_MIN_CONTENT_LENGTH = 32
 
 
+class FingerprintCache:
+    """Single bookkeeping cache for repeated-response fingerprints.
+
+    Tracks how many times each fingerprint was recorded and which
+    fingerprints have been calibrated as noise. Fingerprints may be exact
+    response hashes or fuzzy response tuples; each caller keeps its own key
+    space, so the two never collide.
+    """
+
+    def __init__(self) -> None:
+        self._counts: dict = {}
+        self._calibrated: set = set()
+
+    def count(self, fingerprint) -> int:
+        return self._counts.get(fingerprint, 0)
+
+    def record(self, fingerprint) -> None:
+        self._counts[fingerprint] = self.count(fingerprint) + 1
+
+    def calibrate(self, fingerprint) -> None:
+        self._calibrated.add(fingerprint)
+
+    def is_calibrated(self, fingerprint) -> bool:
+        return fingerprint in self._calibrated
+
+
 def response_headers_text(resp: BaseResponse) -> str:
     return "\n".join(f"{name}: {value}" for name, value in resp.headers.items())
 
@@ -74,12 +100,10 @@ class BaseFuzzer:
         self._requester = requester
         self._dictionary = dictionary
         self._base_path: str = ""
-        self._hashes: dict = {}
         self.match_callbacks = match_callbacks
         self.not_found_callbacks = not_found_callbacks
         self.error_callbacks = error_callbacks
-        self._similar_fingerprints: dict[tuple, int] = {}
-        self._auto_calibrated_fingerprints: set[tuple] = set()
+        self._fingerprints = FingerprintCache()
 
         self.scanners: dict[str, dict[str, Scanner]] = {
             "default": {},
@@ -161,7 +185,7 @@ class BaseFuzzer:
 
         if (
             options["filter_threshold"]
-            and self._hashes.get(hash(resp), 0) >= options["filter_threshold"]
+            and self._fingerprints.count(hash(resp)) >= options["filter_threshold"]
         ):
             return True
 
@@ -223,26 +247,24 @@ class BaseFuzzer:
 
     def is_auto_calibrated(self, resp: BaseResponse) -> bool:
         fingerprint = self.response_fingerprint(resp)
-        if fingerprint in self._auto_calibrated_fingerprints:
+        if self._fingerprints.is_calibrated(fingerprint):
             logger.debug(f'"{resp.url}" filtered by auto-calibration fingerprint')
             return True
 
         if not self.should_record_auto_calibration(resp):
             return False
 
-        self._similar_fingerprints[fingerprint] = (
-            self._similar_fingerprints.get(fingerprint, 0) + 1
-        )
+        self._fingerprints.record(fingerprint)
         threshold = (
             AUTO_CALIBRATION_FORCED_THRESHOLD
             if options["auto_calibration"]
             else AUTO_CALIBRATION_DUPLICATE_THRESHOLD
         )
 
-        if self._similar_fingerprints[fingerprint] < threshold:
+        if self._fingerprints.count(fingerprint) < threshold:
             return False
 
-        self._auto_calibrated_fingerprints.add(fingerprint)
+        self._fingerprints.calibrate(fingerprint)
         logger.debug(
             f'"{resp.url}" filtered by repeated response auto-calibration '
             f'(threshold={threshold})'
@@ -317,9 +339,7 @@ class BaseFuzzer:
                 return
 
         if options["filter_threshold"]:
-            hash_ = hash(response)
-            self._hashes.setdefault(hash_, 0)
-            self._hashes[hash_] += 1
+            self._fingerprints.record(hash(response))
 
         for callback in self.match_callbacks:
             callback(response)

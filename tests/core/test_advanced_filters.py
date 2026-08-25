@@ -1,4 +1,5 @@
 from unittest import TestCase
+from uuid import uuid4
 
 from lib.connection.response import NativeResponse
 from lib.core.data import blacklists, options
@@ -218,3 +219,43 @@ class TestAdvancedFilters(TestCase):
         self.assertFalse(self.fuzzer.is_excluded(repeated[0]))
         self.assertFalse(self.fuzzer.is_excluded(repeated[1]))
         self.assertTrue(self.fuzzer.is_excluded(repeated[2]))
+
+    def test_filter_threshold_skips_repeated_static_pages(self):
+        options["filter_threshold"] = 2
+        matches = []
+        misses = []
+        fuzzer = BaseFuzzer(
+            None,
+            DummyDictionary(),
+            match_callbacks=(matches.append,),
+            not_found_callbacks=(misses.append,),
+            error_callbacks=(),
+        )
+
+        for _ in range(3):
+            fuzzer.process_response("admin", response(body=b"admin panel"))
+
+        self.assertEqual(len(matches), 2)
+        self.assertEqual(len(misses), 1)
+        self.assertFalse(fuzzer.is_excluded(response(body=b"unique static page")))
+
+    def test_calibrated_fingerprint_filters_dynamic_page_false_positives(self):
+        options["auto_calibration"] = True
+
+        def dynamic_page(index):
+            return response(
+                path=f"missing-{index}",
+                body=(
+                    f"error {uuid4()} while serving session {uuid4()} "
+                    "soft 404 template body shared across dynamic pages"
+                ).encode(),
+            )
+
+        pages = [dynamic_page(index) for index in range(5)]
+        self.assertFalse(self.fuzzer.is_excluded(pages[0]))
+        self.assertFalse(self.fuzzer.is_excluded(pages[1]))
+        self.assertTrue(self.fuzzer.is_excluded(pages[2]))
+
+        for page in pages[3:]:
+            self.assertNotEqual(hash(page), hash(pages[0]))
+            self.assertTrue(self.fuzzer.is_excluded(page))
