@@ -90,6 +90,10 @@ class BaseFuzzer:
     def set_base_path(self, path: str) -> None:
         self._base_path = path
 
+    @property
+    def base_path(self) -> str:
+        return self._base_path
+
     def get_scanners_for(self, path: str) -> Generator[BaseScanner, None, None]:
         # Clean the path, so can check for extensions/suffixes
         path = clean_path(path)
