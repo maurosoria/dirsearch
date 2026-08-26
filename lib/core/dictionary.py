@@ -94,6 +94,15 @@ class Dictionary:
         with self._lock:
             self._claimed.remove(path)
 
+    def requeue_claims(self) -> None:
+        """Move outstanding claims back to the front of the pending queue."""
+        with self._lock:
+            if not self._claimed:
+                return
+
+            self._extra[self._extra_index:self._extra_index] = self._claimed
+            self._claimed.clear()
+
     def __contains__(self, item: str) -> bool:
         return item in self._items
 

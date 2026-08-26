@@ -32,6 +32,8 @@ def create_controller(fuzzer):
     controller.loop = asyncio.get_running_loop()
     controller.pause_future = controller.loop.create_future()
     controller.fuzzer = fuzzer
+    controller._pause_requested = False
+    controller._handling_pause = False
     return controller
 
 
@@ -94,6 +96,33 @@ class TestControllerCleanup(TestCase):
 
 
 class TestAsyncController(IsolatedAsyncioTestCase):
+    async def test_pause_request_is_serviced_by_async_orchestration_task(self):
+        controller = create_controller(BlockingAsyncFuzzer())
+        controller.start_time = time.time()
+        pause_handled = asyncio.Event()
+
+        def handle_pause():
+            controller._pause_requested = False
+            pause_handled.set()
+
+        controller.handle_pause = Mock(side_effect=handle_pause)
+
+        with patch.dict(options, {"max_time": 0, "target_max_time": 0}):
+            run_task = controller.loop.create_task(
+                controller.start_coroutines(time.time())
+            )
+            await controller.fuzzer.started.wait()
+            controller._pause_requested = True
+            await asyncio.wait_for(pause_handled.wait(), timeout=1)
+            controller.pause_future.set_exception(QuitInterrupt("quit"))
+
+            with self.assertRaisesRegex(QuitInterrupt, "quit"):
+                await run_task
+
+        controller.handle_pause.assert_called_once_with()
+        self.assertTrue(controller.fuzzer.task.done())
+        self.assertTrue(controller.fuzzer.task.cancelled())
+
     async def test_quit_drains_cancelled_fuzzer_task(self):
         controller = create_controller(BlockingAsyncFuzzer())
         controller.start_time = time.time()
