@@ -192,6 +192,9 @@ SIGINT_WINDOW_SECONDS = 0.8
 # Number of rapid Ctrl+C presses required to force quit
 SIGINT_FORCE_QUIT_THRESHOLD = 3
 
+PAUSE_POLL_INTERVAL = 0.05
+PAUSE_TIMEOUT_SECONDS = 2.0
+
 URL_SAFE_CHARS = string.punctuation
 
 TEXT_CHARS = bytearray({7, 8, 9, 10, 12, 13, 27} | set(range(0x20, 0x100)) - {0x7F})

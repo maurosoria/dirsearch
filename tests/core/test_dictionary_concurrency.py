@@ -55,6 +55,18 @@ class BlockingItems(list):
 
 
 class TestDictionaryConcurrency(TestCase):
+    def test_requeue_claims_retries_only_unreleased_paths(self):
+        dictionary = make_dictionary(["first", "second", "third"])
+
+        first = dictionary.claim_next()
+        second = dictionary.claim_next()
+        dictionary.claim_next()
+        dictionary.release_claim(second)
+
+        dictionary.requeue_claims()
+
+        self.assertEqual(drain(dictionary), [first, "third"])
+
     def test_independent_dictionaries_do_not_share_operation_lock(self):
         first_entered = threading.Event()
         release_first = threading.Event()

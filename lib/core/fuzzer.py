@@ -37,6 +37,8 @@ from lib.core.scanner import AsyncScanner, BaseScanner, Scanner
 from lib.core.settings import (
     DEFAULT_TEST_PREFIXES,
     DEFAULT_TEST_SUFFIXES,
+    PAUSE_POLL_INTERVAL,
+    PAUSE_TIMEOUT_SECONDS,
     WILDCARD_TEST_POINT_MARKER,
 )
 from lib.parse.url import clean_path
@@ -348,7 +350,9 @@ class Fuzzer(BaseFuzzer):
         self._threads = []
         self._play_event = threading.Event()
         self._quit_event = threading.Event()
-        self._pause_semaphore = threading.Semaphore(0)
+        self._pause_condition = threading.Condition(threading.Lock())
+        self._pause_generation = 0
+        self._paused_workers: dict[int, int] = {}
 
     def setup_scanners(self) -> None:
         # Default scanners (wildcard testers)
@@ -389,6 +393,9 @@ class Fuzzer(BaseFuzzer):
     def setup_threads(self) -> None:
         if self._threads:
             self._threads = []
+        with self._pause_condition:
+            self._pause_generation = 0
+            self._paused_workers.clear()
 
         for _ in range(options["thread_count"]):
             new_thread = threading.Thread(target=self.thread_proc)
@@ -400,6 +407,7 @@ class Fuzzer(BaseFuzzer):
         self.setup_threads()
         self.play()
         self._quit_event.clear()
+        self._exc = None
 
         for thread in self._threads:
             thread.start()
@@ -422,18 +430,45 @@ class Fuzzer(BaseFuzzer):
 
         Returns True if all threads paused successfully, False if timeout occurred.
         """
-        self._play_event.clear()
-        # Wait for all threads to stop (with timeout to avoid deadlock)
-        for thread in self._threads:
-            if thread.is_alive():
-                # Use timeout to prevent deadlock when threads are blocked on I/O
-                if not self._pause_semaphore.acquire(timeout=2):
+        deadline = time.monotonic() + PAUSE_TIMEOUT_SECONDS
+        with self._pause_condition:
+            self._pause_generation += 1
+            generation = self._pause_generation
+            self._play_event.clear()
+
+            while True:
+                alive_workers = {
+                    thread.ident for thread in self._threads if thread.is_alive()
+                }
+                if all(
+                    self._paused_workers.get(worker) == generation
+                    for worker in alive_workers
+                ):
+                    return True
+
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
                     return False
-        return True
+                self._pause_condition.wait(
+                    timeout=min(remaining, PAUSE_POLL_INTERVAL)
+                )
 
     def quit(self) -> None:
         self._quit_event.set()
         self.play()
+
+    def wait(self, timeout: float = PAUSE_TIMEOUT_SECONDS) -> bool:
+        deadline = time.monotonic() + timeout
+        for thread in self._threads:
+            thread.join(timeout=max(0, deadline - time.monotonic()))
+        return all(not thread.is_alive() for thread in self._threads)
+
+    def _wait_if_paused(self) -> None:
+        while not self._play_event.is_set():
+            with self._pause_condition:
+                self._paused_workers[threading.get_ident()] = self._pause_generation
+                self._pause_condition.notify_all()
+            self._play_event.wait()
 
     def scan(self, path: str) -> None:
         try:
@@ -449,9 +484,10 @@ class Fuzzer(BaseFuzzer):
         logger.info(f'THREAD-{threading.get_ident()} started"')
 
         while True:
+            path = None
             should_quit = False
             try:
-                path = next(self._dictionary)
+                path = self._dictionary.claim_next()
                 self.scan(self._base_path + path)
 
             except StopIteration:
@@ -461,12 +497,13 @@ class Fuzzer(BaseFuzzer):
                 self._exc = e
 
             finally:
+                if path is not None:
+                    self._dictionary.release_claim(path)
                 time.sleep(options["delay"])
 
                 if not self._play_event.is_set():
                     logger.info(f'THREAD-{threading.get_ident()} paused"')
-                    self._pause_semaphore.release()
-                    self._play_event.wait()
+                    self._wait_if_paused()
                     logger.info(f'THREAD-{threading.get_ident()} continued"')
 
                 if self._quit_event.is_set():
@@ -493,28 +530,41 @@ class NativeFuzzer(Fuzzer):
             not_found_callbacks=not_found_callbacks,
             error_callbacks=error_callbacks,
         )
-        self._finished = False
         self._native_backend: NativeHTTPBackend | None = None
+        self._paused_event = threading.Event()
 
     def start(self) -> None:
         self._native_backend = self._native_backend or NativeHTTPBackend()
         self.setup_scanners()
         self.play()
         self._quit_event.clear()
-        self._finished = False
+        self._exc = None
+        self._paused_event.clear()
+        self._threads = [threading.Thread(target=self._run_native, daemon=True)]
+        self._threads[0].start()
 
+    def _run_native(self) -> None:
         try:
             while not self._quit_event.is_set():
+                if not self._play_event.is_set():
+                    self._dictionary.requeue_claims()
+                    self._paused_event.set()
+                    self._play_event.wait()
+                    self._paused_event.clear()
+                    continue
+
                 paths = self._next_chunk()
                 if not paths:
                     break
+                if not self._play_event.is_set():
+                    continue
 
                 for path, response, error in self._native_backend.scan(
                     self._requester._url,
                     paths,
                     getattr(self._requester, "_query", ""),
                 ):
-                    if self._quit_event.is_set():
+                    if self._quit_event.is_set() or not self._play_event.is_set():
                         break
                     try:
                         if error is not None:
@@ -529,8 +579,12 @@ class NativeFuzzer(Fuzzer):
                     finally:
                         dictionary_path = lstrip_once(path, self._base_path)
                         self._dictionary.release_claim(dictionary_path)
+        except Exception as error:
+            self._exc = error
         finally:
-            self._finished = True
+            if not self._quit_event.is_set() and not self._play_event.is_set():
+                self._dictionary.requeue_claims()
+            self._paused_event.set()
 
     def _next_chunk(self) -> list[str]:
         chunk_size = max(1000, options["thread_count"] * 100)
@@ -542,8 +596,17 @@ class NativeFuzzer(Fuzzer):
                 break
         return paths
 
-    def is_finished(self) -> bool:
-        return self._finished
+    def pause(self) -> bool:
+        self._play_event.clear()
+        if self._native_backend is not None:
+            self._native_backend.cancel()
+        if self.is_finished():
+            return True
+        return self._paused_event.wait(timeout=PAUSE_TIMEOUT_SECONDS)
+
+    def play(self) -> None:
+        self._paused_event.clear()
+        super().play()
 
     def quit(self) -> None:
         super().quit()

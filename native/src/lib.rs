@@ -6,15 +6,18 @@ use pyo3::prelude::*;
 use rayon::prelude::*;
 use regex::{Regex, RegexBuilder};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
-use std::fs;
+use std::fs::File;
 #[cfg(test)]
 use std::io::Cursor;
+use std::io::Read;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
+use std::thread;
 use std::time::{Duration, Instant};
 use tokio::task::JoinSet;
 
 const SIGNAL_POLL_INTERVAL: Duration = Duration::from_millis(50);
+const WORDLIST_READ_CHUNK_SIZE: usize = 64 * 1024;
 
 #[pyclass]
 struct NativeHttpResult {
@@ -54,6 +57,21 @@ type NumericRange = (usize, usize);
 type TimeFilter = (String, f64);
 type HeaderPairs = Vec<(String, String)>;
 type RawHttpResponse = raw_http::Response;
+
+struct NativeWordlistConfig {
+    files: Vec<String>,
+    extensions: Vec<String>,
+    force_extensions: bool,
+    prefixes: Vec<String>,
+    suffixes: Vec<String>,
+    exclude_extensions: Vec<String>,
+    overwrite_exclude_extensions: Vec<String>,
+    lowercase: bool,
+    uppercase: bool,
+    capitalization: bool,
+    overwrite_extensions: bool,
+    max_size: Option<usize>,
+}
 
 struct RawHttpRequest<'a> {
     base_url: &'a str,
@@ -386,6 +404,7 @@ fn line_count(text: Option<&str>) -> usize {
     max_size=None,
 ))]
 fn generate_wordlist(
+    py: Python<'_>,
     files: Vec<String>,
     extensions: Vec<String>,
     force_extensions: bool,
@@ -399,58 +418,119 @@ fn generate_wordlist(
     overwrite_extensions: bool,
     max_size: Option<usize>,
 ) -> PyResult<Vec<String>> {
-    let file_lines: Vec<Vec<String>> = files
+    let config = NativeWordlistConfig {
+        files,
+        extensions,
+        force_extensions,
+        prefixes,
+        suffixes,
+        exclude_extensions,
+        overwrite_exclude_extensions,
+        lowercase,
+        uppercase,
+        capitalization,
+        overwrite_extensions,
+        max_size,
+    };
+    let cancelled = Arc::new(AtomicBool::new(false));
+    let worker_cancelled = cancelled.clone();
+
+    py.allow_threads(move || {
+        let worker = thread::spawn(move || generate_wordlist_inner(config, &worker_cancelled));
+        let mut signal_error = None;
+
+        while !worker.is_finished() {
+            if let Err(error) = Python::with_gil(|py| py.check_signals()) {
+                cancelled.store(true, Ordering::Release);
+                signal_error = Some(error);
+                break;
+            }
+            thread::sleep(SIGNAL_POLL_INTERVAL);
+        }
+
+        let result = worker
+            .join()
+            .map_err(|_| PyRuntimeError::new_err("Native wordlist worker panicked"))?;
+        if let Some(error) = signal_error {
+            return Err(error);
+        }
+        Python::with_gil(|py| py.check_signals())?;
+        result.map_err(PyRuntimeError::new_err)
+    })
+}
+
+fn generate_wordlist_inner(
+    config: NativeWordlistConfig,
+    cancelled: &AtomicBool,
+) -> Result<Vec<String>, String> {
+    let file_lines: Vec<Vec<String>> = config
+        .files
         .par_iter()
-        .map(|path| read_lines(path))
+        .map(|path| read_lines(path, cancelled))
         .collect::<Result<Vec<_>, _>>()?;
 
     let mut wordlist = IndexSet::new();
     for lines in file_lines {
         for raw_line in lines {
+            check_wordlist_cancelled(cancelled)?;
             let line = lstrip_once(&raw_line, "/");
-            for expanded in expand_ext(&line, &extensions) {
-                if !is_valid(&expanded, &exclude_extensions) {
+            for expanded in expand_ext(&line, &config.extensions) {
+                check_wordlist_cancelled(cancelled)?;
+                if !is_valid(&expanded, &config.exclude_extensions) {
                     continue;
                 }
 
-                add_entry(&mut wordlist, expanded.clone(), max_size)?;
+                add_entry(&mut wordlist, expanded.clone(), config.max_size)?;
 
-                if force_extensions && !expanded.contains('.') && !expanded.ends_with('/') {
-                    add_entry(&mut wordlist, format!("{expanded}/"), max_size)?;
-                    for extension in &extensions {
-                        add_entry(&mut wordlist, format!("{expanded}.{extension}"), max_size)?;
+                if config.force_extensions && !expanded.contains('.') && !expanded.ends_with('/') {
+                    add_entry(&mut wordlist, format!("{expanded}/"), config.max_size)?;
+                    for extension in &config.extensions {
+                        check_wordlist_cancelled(cancelled)?;
+                        add_entry(
+                            &mut wordlist,
+                            format!("{expanded}.{extension}"),
+                            config.max_size,
+                        )?;
                     }
-                } else if overwrite_extensions
+                } else if config.overwrite_extensions
                     && should_overwrite_extension(
                         &expanded,
-                        &extensions,
-                        &overwrite_exclude_extensions,
+                        &config.extensions,
+                        &config.overwrite_exclude_extensions,
                     )
                 {
                     let base = expanded.split('.').next().unwrap_or_default();
-                    for extension in &extensions {
-                        add_entry(&mut wordlist, format!("{base}.{extension}"), max_size)?;
+                    for extension in &config.extensions {
+                        check_wordlist_cancelled(cancelled)?;
+                        add_entry(
+                            &mut wordlist,
+                            format!("{base}.{extension}"),
+                            config.max_size,
+                        )?;
                     }
                 }
             }
         }
     }
 
-    if !prefixes.is_empty() || !suffixes.is_empty() {
+    if !config.prefixes.is_empty() || !config.suffixes.is_empty() {
         let mut altered = IndexSet::new();
         for path in &wordlist {
-            for prefix in &prefixes {
+            check_wordlist_cancelled(cancelled)?;
+            for prefix in &config.prefixes {
+                check_wordlist_cancelled(cancelled)?;
                 if !path.starts_with('/') && !path.starts_with(prefix) {
-                    add_entry(&mut altered, format!("{prefix}{path}"), max_size)?;
+                    add_entry(&mut altered, format!("{prefix}{path}"), config.max_size)?;
                 }
             }
-            for suffix in &suffixes {
+            for suffix in &config.suffixes {
+                check_wordlist_cancelled(cancelled)?;
                 if !path.ends_with('/')
                     && !path.ends_with(suffix)
                     && !path.contains('?')
                     && !path.contains('#')
                 {
-                    add_entry(&mut altered, format!("{path}{suffix}"), max_size)?;
+                    add_entry(&mut altered, format!("{path}{suffix}"), config.max_size)?;
                 }
             }
         }
@@ -459,10 +539,16 @@ fn generate_wordlist(
         }
     }
 
-    let items = wordlist
-        .into_iter()
-        .map(|path| apply_case(path, lowercase, uppercase, capitalization))
-        .collect();
+    let mut items = Vec::with_capacity(wordlist.len());
+    for path in wordlist {
+        check_wordlist_cancelled(cancelled)?;
+        items.push(apply_case(
+            path,
+            config.lowercase,
+            config.uppercase,
+            config.capitalization,
+        ));
+    }
     Ok(items)
 }
 
@@ -1208,8 +1294,25 @@ fn parse_raw_http_response(
     raw_http::parse_response(Cursor::new(raw_response), max_body_size)
 }
 
-fn read_lines(path: &str) -> PyResult<Vec<String>> {
-    let content = fs::read(path).map_err(|error| PyRuntimeError::new_err(error.to_string()))?;
+fn check_wordlist_cancelled(cancelled: &AtomicBool) -> Result<(), String> {
+    if cancelled.load(Ordering::Acquire) {
+        return Err("Native wordlist generation cancelled".to_string());
+    }
+    Ok(())
+}
+
+fn read_lines(path: &str, cancelled: &AtomicBool) -> Result<Vec<String>, String> {
+    let mut file = File::open(path).map_err(|error| error.to_string())?;
+    let mut content = Vec::new();
+    let mut chunk = [0_u8; WORDLIST_READ_CHUNK_SIZE];
+    loop {
+        check_wordlist_cancelled(cancelled)?;
+        let count = file.read(&mut chunk).map_err(|error| error.to_string())?;
+        if count == 0 {
+            break;
+        }
+        content.extend_from_slice(&chunk[..count]);
+    }
     let content = String::from_utf8_lossy(&content);
     Ok(content.lines().map(str::to_string).collect())
 }
@@ -1305,13 +1408,13 @@ fn add_entry(
     wordlist: &mut IndexSet<String>,
     path: String,
     max_size: Option<usize>,
-) -> PyResult<()> {
+) -> Result<(), String> {
     wordlist.insert(path);
     if let Some(limit) = max_size {
         if wordlist.len() > limit {
-            return Err(PyRuntimeError::new_err(format!(
+            return Err(format!(
                 "Generated wordlist exceeded --wordlist-max-size ({limit})"
-            )));
+            ));
         }
     }
     Ok(())
@@ -1370,6 +1473,42 @@ mod tests {
 
     fn content_length(value: usize) -> Vec<(String, String)> {
         vec![("Content-Length".to_string(), value.to_string())]
+    }
+
+    #[test]
+    fn native_wordlist_generation_honors_cancellation() {
+        let path = std::env::temp_dir().join(format!(
+            "dirsearch-native-wordlist-{}-{}.txt",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let mut file = File::create(&path).unwrap();
+        writeln!(file, "admin").unwrap();
+        drop(file);
+
+        let config = NativeWordlistConfig {
+            files: vec![path.to_string_lossy().into_owned()],
+            extensions: Vec::new(),
+            force_extensions: false,
+            prefixes: Vec::new(),
+            suffixes: Vec::new(),
+            exclude_extensions: Vec::new(),
+            overwrite_exclude_extensions: Vec::new(),
+            lowercase: false,
+            uppercase: false,
+            capitalization: false,
+            overwrite_extensions: false,
+            max_size: None,
+        };
+        let cancelled = AtomicBool::new(true);
+
+        let result = generate_wordlist_inner(config, &cancelled);
+        let _ = std::fs::remove_file(path);
+
+        assert_eq!(result.unwrap_err(), "Native wordlist generation cancelled");
     }
 
     #[test]

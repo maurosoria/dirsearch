@@ -123,6 +123,7 @@ class TestNativeFuzzer(TestCase):
         fuzzer = self.make_fuzzer(backend, dictionary, matches, misses, errors)
         fuzzer.start()
 
+        self.assertTrue(fuzzer.wait(timeout=5))
         self.assertTrue(fuzzer.is_finished())
         self.assertEqual(dictionary.index, 1)
         self.assertEqual(matches, [response])
@@ -141,6 +142,7 @@ class TestNativeFuzzer(TestCase):
         fuzzer = self.make_fuzzer(backend, dictionary, matches, misses, errors)
         fuzzer.start()
 
+        self.assertTrue(fuzzer.wait(timeout=5))
         self.assertEqual(matches, [])
         self.assertEqual(misses, [])
         self.assertEqual(errors, [error])
@@ -164,6 +166,7 @@ class TestNativeFuzzer(TestCase):
         fuzzer = self.make_fuzzer(backend, dictionary, matches, misses, errors)
         fuzzer.start()
 
+        self.assertTrue(fuzzer.wait(timeout=5))
         self.assertEqual(matches, [])
         self.assertEqual(misses, [response])
         self.assertEqual(errors, [])
@@ -175,6 +178,7 @@ class TestNativeFuzzer(TestCase):
         fuzzer = self.make_fuzzer(backend, dictionary, [], [], [])
 
         fuzzer.start()
+        self.assertTrue(fuzzer.wait(timeout=5))
         saved_state = dictionary.__getstate__()
 
         resumed = object.__new__(Dictionary)

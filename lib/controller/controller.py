@@ -58,6 +58,8 @@ from lib.core.settings import (
     EXTENSION_RECOGNITION_REGEX,
     MAX_CONSECUTIVE_REQUEST_ERRORS,
     NEW_LINE,
+    PAUSE_POLL_INTERVAL,
+    PAUSE_TIMEOUT_SECONDS,
     SIGINT_FORCE_QUIT_THRESHOLD,
     SIGINT_WINDOW_SECONDS,
     STANDARD_PORTS,
@@ -170,6 +172,7 @@ def format_session_path(path: str) -> str:
 class Controller:
     def __init__(self) -> None:
         self._handling_pause = False
+        self._pause_requested = False
         self._force_quit_handler = _create_force_quit_handler()
         self.loop = None  # Will be set if async mode is used
         self.response_stores = ()
@@ -396,8 +399,8 @@ class Controller:
         if options["async_mode"]:
             self.loop = asyncio.new_event_loop()
 
-        signal.signal(signal.SIGINT, lambda *_: self.handle_pause())
-        signal.signal(signal.SIGTERM, lambda *_: self.handle_pause())
+        signal.signal(signal.SIGINT, self.request_pause)
+        signal.signal(signal.SIGTERM, self.request_pause)
 
         while options["urls"]:
             url = options["urls"][0]
@@ -485,6 +488,10 @@ class Controller:
                 pass
 
             finally:
+                if not options["async_mode"]:
+                    self.fuzzer.quit()
+                    if not self.fuzzer.wait(timeout=PAUSE_TIMEOUT_SECONDS):
+                        raise QuitInterrupt("Could not stop scan workers safely")
                 self.dictionary.reset()
                 self.directories.pop(0)
 
@@ -523,15 +530,33 @@ class Controller:
 
         task = self.loop.create_task(self.fuzzer.start())
 
+        async def wait_for_pause_request() -> None:
+            while not getattr(self, "_pause_requested", False):
+                await asyncio.sleep(PAUSE_POLL_INTERVAL)
+
+        async def wait_for_completion() -> None:
+            pause_task = self.loop.create_task(wait_for_pause_request())
+            try:
+                while True:
+                    done, _ = await asyncio.wait(
+                        [self.pause_future, task, pause_task],
+                        return_when=asyncio.FIRST_COMPLETED,
+                    )
+                    if pause_task in done:
+                        self.handle_pause()
+                        if self.pause_future.done():
+                            return
+                        pause_task = self.loop.create_task(wait_for_pause_request())
+                        continue
+                    return
+            finally:
+                if not pause_task.done():
+                    pause_task.cancel()
+                await asyncio.gather(pause_task, return_exceptions=True)
+
         try:
             try:
-                await asyncio.wait_for(
-                    asyncio.wait(
-                        [self.pause_future, task],
-                        return_when=asyncio.FIRST_COMPLETED,
-                    ),
-                    timeout=timeout,
-                )
+                await asyncio.wait_for(wait_for_completion(), timeout=timeout)
             except asyncio.TimeoutError:
                 if timeout_error is None:
                     raise
@@ -549,20 +574,22 @@ class Controller:
 
     def process(self, start_time: float) -> None:
         while True:
-            while not self.fuzzer.is_finished():
-                now = time.time()
-                if now - self.start_time > options["max_time"] > 0:
-                    raise QuitInterrupt(
-                        "Runtime exceeded the maximum set by the user"
-                    )
-                if now - start_time > options["target_max_time"] > 0:
-                    raise SkipTargetInterrupt(
-                        "Runtime for target exceeded the maximum set by the user"
-                    )
+            if self._pause_requested:
+                self.handle_pause()
+            if self.fuzzer.is_finished():
+                return
 
-                time.sleep(0.5)
+            now = time.time()
+            if now - self.start_time > options["max_time"] > 0:
+                raise QuitInterrupt(
+                    "Runtime exceeded the maximum set by the user"
+                )
+            if now - start_time > options["target_max_time"] > 0:
+                raise SkipTargetInterrupt(
+                    "Runtime for target exceeded the maximum set by the user"
+                )
 
-            break
+            time.sleep(PAUSE_POLL_INTERVAL)
 
     def set_target(self, url: str) -> None:
         if options["request_backend"] == "native":
@@ -777,14 +804,29 @@ class Controller:
                 pass
         os._exit(1)
 
-    def handle_pause(self) -> None:
-        """Handle SIGINT (Ctrl+C) by pausing execution and showing options."""
-        if self._handling_pause:
+    def _stop_fuzzer(self) -> bool:
+        self.fuzzer.quit()
+        if options["async_mode"]:
+            return True
+        return self.fuzzer.wait(timeout=PAUSE_TIMEOUT_SECONDS)
+
+    def _finish_pause(self) -> None:
+        self._pause_requested = False
+        self._handling_pause = False
+        self._force_quit_handler.on_resume()
+
+    def request_pause(self, *_: object) -> None:
+        """Record a signal request without touching fuzzer or session state."""
+        if self._pause_requested or self._handling_pause:
             self._force_quit_handler.check_force_quit()
             return
 
-        self._handling_pause = True
+        self._pause_requested = True
         self._force_quit_handler.on_pause_start()
+
+    def handle_pause(self) -> None:
+        """Pause execution and show options from a safe orchestration point."""
+        self._handling_pause = True
 
         try:
             try:
@@ -830,6 +872,7 @@ class Controller:
                         session_file = format_session_path(input() or default_session_path)
 
                         self._export(session_file)
+                        self._stop_fuzzer()
                         quitexc = QuitInterrupt(f"Session saved to: {session_file}")
                         if options["async_mode"]:
                             self.pause_future.set_exception(quitexc)
@@ -837,6 +880,7 @@ class Controller:
                         else:
                             raise quitexc
                     elif option.lower() == "q":
+                        self._stop_fuzzer()
                         quitexc = QuitInterrupt("Canceled by the user")
                         if options["async_mode"]:
                             self.pause_future.set_exception(quitexc)
@@ -845,16 +889,18 @@ class Controller:
                             raise quitexc
 
                 elif option.lower() == "c":
-                    self._handling_pause = False
-                    self._force_quit_handler.on_resume()
+                    self._finish_pause()
                     self.fuzzer.play()
                     break
 
                 elif option.lower() == "n" and len(self.directories) > 1:
-                    self.fuzzer.quit()
+                    self._finish_pause()
+                    self._stop_fuzzer()
                     break
 
                 elif option.lower() == "s" and len(options["urls"]) > 1:
+                    self._finish_pause()
+                    self._stop_fuzzer()
                     skipexc = SkipTargetInterrupt("Target skipped by the user")
                     if options["async_mode"]:
                         self.pause_future.set_exception(skipexc)
