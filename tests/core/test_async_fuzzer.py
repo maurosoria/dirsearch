@@ -57,11 +57,7 @@ class BlockingAsyncRequester:
 
 def make_dictionary(paths):
     dictionary = object.__new__(Dictionary)
-    dictionary._items = list(paths)
-    dictionary._index = 0
-    dictionary._extra = []
-    dictionary._extra_index = 0
-    dictionary._claimed = []
+    dictionary.__setstate__((list(paths), 0, [], 0))
     return dictionary
 
 

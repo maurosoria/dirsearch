@@ -17,9 +17,9 @@
 #  Author: Mauro Soria
 
 from __future__ import annotations
+import threading
 from typing import Any, Iterator
 
-from lib.core.decorators import locked
 from lib.core.settings import SCRIPT_PATH
 from lib.core.wordlist_backend import get_wordlist_backend, is_valid_path
 from lib.utils.file import FileUtils
@@ -50,6 +50,7 @@ def get_blacklists() -> dict[int, Dictionary]:
 
 class Dictionary:
     def __init__(self, **kwargs: Any) -> None:
+        self._lock = threading.Lock()
         self._index = 0
         self._items = self.generate(**kwargs)
         # Items in self._extra will be cleared when self.reset() is called
@@ -59,53 +60,58 @@ class Dictionary:
 
     @property
     def index(self) -> int:
-        return self._index
+        with self._lock:
+            return self._index
 
-    @locked
     def __next__(self) -> str:
-        if len(self._extra) > self._extra_index:
-            self._extra_index += 1
-            return self._extra[self._extra_index - 1]
-        elif len(self._items) > self._index:
-            self._index += 1
-            return self._items[self._index - 1]
-        else:
-            raise StopIteration
+        with self._lock:
+            if len(self._extra) > self._extra_index:
+                self._extra_index += 1
+                return self._extra[self._extra_index - 1]
+            elif len(self._items) > self._index:
+                self._index += 1
+                return self._items[self._index - 1]
+            else:
+                raise StopIteration
 
-    @locked
     def claim_next(self) -> str:
         """Return the next path and keep it recoverable until released."""
-        if len(self._extra) > self._extra_index:
-            path = self._extra[self._extra_index]
-            self._claimed.append(path)
-            self._extra_index += 1
-            return path
-        elif len(self._items) > self._index:
-            path = self._items[self._index]
-            self._claimed.append(path)
-            self._index += 1
-            return path
-        else:
-            raise StopIteration
+        with self._lock:
+            if len(self._extra) > self._extra_index:
+                path = self._extra[self._extra_index]
+                self._claimed.append(path)
+                self._extra_index += 1
+                return path
+            elif len(self._items) > self._index:
+                path = self._items[self._index]
+                self._claimed.append(path)
+                self._index += 1
+                return path
+            else:
+                raise StopIteration
 
-    @locked
     def release_claim(self, path: str) -> None:
-        self._claimed.remove(path)
+        with self._lock:
+            self._claimed.remove(path)
 
     def __contains__(self, item: str) -> bool:
         return item in self._items
 
     def __getstate__(self) -> tuple[list[str], int, list[str], int]:
-        extra = (
-            self._extra[:self._extra_index]
-            + self._claimed
-            + self._extra[self._extra_index:]
-        )
-        return list(self._items), self._index, extra, self._extra_index
+        with self._lock:
+            extra = (
+                self._extra[:self._extra_index]
+                + self._claimed
+                + self._extra[self._extra_index:]
+            )
+            return list(self._items), self._index, extra, self._extra_index
 
     def __setstate__(self, state: tuple[list[str], int, list[str], int]) -> None:
-        self._items, self._index, self._extra, self._extra_index = state
-        self._claimed = []
+        if not hasattr(self, "_lock"):
+            self._lock = threading.Lock()
+        with self._lock:
+            self._items, self._index, self._extra, self._extra_index = state
+            self._claimed = []
 
     def __iter__(self) -> Iterator[str]:
         return iter(self._items)
@@ -136,13 +142,15 @@ class Dictionary:
     def is_valid(self, path: str) -> bool:
         return is_valid_path(path)
 
-    def add_extra(self, path) -> None:
-        if path in self._items or path in self._extra:
-            return
+    def add_extra(self, path: str) -> None:
+        with self._lock:
+            if path in self._items or path in self._extra:
+                return
 
-        self._extra.append(path)
+            self._extra.append(path)
 
     def reset(self) -> None:
-        self._index = self._extra_index = 0
-        self._extra.clear()
-        self._claimed.clear()
+        with self._lock:
+            self._index = self._extra_index = 0
+            self._extra.clear()
+            self._claimed.clear()
