@@ -75,6 +75,10 @@ mutate CLI globals.
 See [Python API](docs/python-api.md) for examples covering templates, custom
 wordlists, callbacks, authenticated sessions, and agent-oriented scan recipes.
 
+## Related Projects
+
+- [Agentic Bug Bounty Hunter](https://github.com/Awarexone/Agentic-Bug-Hunter) - AI-powered bug bounty toolkit (Claude Code plugin) that orchestrates content-discovery tools like dirsearch alongside recon, vulnerability testing and report writing. Works with or without a subscription.
+
 ## Contributing
 
 Pull requests and feature requests are welcome. See [CONTRIBUTORS.md](CONTRIBUTORS.md) for the people who have helped improve dirsearch.
