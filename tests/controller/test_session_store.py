@@ -20,9 +20,11 @@ from __future__ import annotations
 
 import json
 import os
+import stat
 import tempfile
 from types import SimpleNamespace
-from unittest import TestCase
+from unittest import TestCase, skipIf, skipUnless
+from unittest.mock import patch
 
 from lib.controller.session import SessionStore
 from lib.core.dictionary import Dictionary
@@ -58,6 +60,21 @@ class TestSessionStore(TestCase):
         }
         self._write_json(session_file, payload)
 
+    def _controller(self) -> SimpleNamespace:
+        return SimpleNamespace(
+            start_time="2026-01-01T00:00:00Z",
+            passed_urls=set(),
+            directories=[],
+            jobs_processed=0,
+            errors=0,
+            consecutive_errors=0,
+            base_path="",
+            url="https://example.com/",
+            old_session=False,
+            dictionary=Dictionary(),
+            output_history=[],
+        )
+
     def test_list_sessions_recurses_and_includes_root_files(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             nested_dir = os.path.join(tmpdir, "2024-01-01", "session_01")
@@ -77,19 +94,7 @@ class TestSessionStore(TestCase):
     def test_request_body_bytes_round_trip_through_json_session(self):
         body = "value=\u00e9&currency=\u20ac\r\n".encode("cp1252")
         session_options = {"data": body, "output_formats": []}
-        controller = SimpleNamespace(
-            start_time="2026-01-01T00:00:00Z",
-            passed_urls=set(),
-            directories=[],
-            jobs_processed=0,
-            errors=0,
-            consecutive_errors=0,
-            base_path="",
-            url="https://example.com/",
-            old_session=False,
-            dictionary=Dictionary(),
-            output_history=[],
-        )
+        controller = self._controller()
 
         with tempfile.TemporaryDirectory() as session_dir:
             store = SessionStore(session_options)
@@ -98,6 +103,109 @@ class TestSessionStore(TestCase):
             restored = store.restore_options(payload["options"])
 
         self.assertEqual(restored["data"], body)
+
+    def test_new_session_requests_private_directory_permissions(self):
+        with tempfile.TemporaryDirectory() as root:
+            session_dir = os.path.join(root, "session")
+            with patch(
+                "lib.controller.session.os.makedirs",
+                wraps=os.makedirs,
+            ) as makedirs:
+                SessionStore({}).save(self._controller(), session_dir, "")
+
+        makedirs.assert_called_once_with(
+            session_dir,
+            mode=0o700,
+            exist_ok=True,
+        )
+
+    @skipIf(os.name == "nt", "POSIX mode bits are unavailable on Windows")
+    def test_new_session_directory_and_files_are_private(self):
+        with tempfile.TemporaryDirectory() as root:
+            for umask in (0o000, 0o022):
+                with self.subTest(umask=oct(umask)):
+                    session_dir = os.path.join(root, f"session-{umask:o}")
+                    previous_umask = os.umask(umask)
+                    try:
+                        SessionStore({"auth": "alice:secret"}).save(
+                            self._controller(), session_dir, ""
+                        )
+                    finally:
+                        os.umask(previous_umask)
+
+                    self.assertEqual(
+                        stat.S_IMODE(os.stat(session_dir).st_mode),
+                        0o700,
+                    )
+                    for file_name in SessionStore.FILES.values():
+                        with self.subTest(file_name=file_name):
+                            file_path = os.path.join(session_dir, file_name)
+                            self.assertEqual(
+                                stat.S_IMODE(os.stat(file_path).st_mode),
+                                0o600,
+                            )
+
+    @skipIf(os.name == "nt", "POSIX mode bits are unavailable on Windows")
+    def test_resaving_legacy_session_tightens_file_permissions(self):
+        with tempfile.TemporaryDirectory() as root:
+            session_dir = os.path.join(root, "session")
+            store = SessionStore({"auth": "alice:secret"})
+            store.save(self._controller(), session_dir, "")
+            os.chmod(session_dir, 0o755)
+            for file_name in SessionStore.FILES.values():
+                os.chmod(os.path.join(session_dir, file_name), 0o644)
+
+            store.save(self._controller(), session_dir, "")
+
+            self.assertEqual(
+                stat.S_IMODE(os.stat(session_dir).st_mode),
+                0o755,
+            )
+            for file_name in SessionStore.FILES.values():
+                with self.subTest(file_name=file_name):
+                    file_path = os.path.join(session_dir, file_name)
+                    self.assertEqual(
+                        stat.S_IMODE(os.stat(file_path).st_mode),
+                        0o600,
+                    )
+
+    @skipUnless(hasattr(os, "symlink"), "symbolic links are unavailable")
+    def test_json_write_replaces_symlink_without_following_it(self):
+        with tempfile.TemporaryDirectory() as root:
+            outside_path = os.path.join(root, "outside.json")
+            session_path = os.path.join(root, "options.json")
+            self._write_json(outside_path, {"outside": "preserved"})
+            try:
+                os.symlink(outside_path, session_path)
+            except (NotImplementedError, OSError) as error:
+                self.skipTest(f"symbolic links are unavailable: {error}")
+
+            SessionStore({})._write_json(session_path, {"session": "private"})
+
+            with open(outside_path, encoding="utf-8") as file_handle:
+                self.assertEqual(json.load(file_handle), {"outside": "preserved"})
+            self.assertFalse(os.path.islink(session_path))
+            with open(session_path, encoding="utf-8") as file_handle:
+                self.assertEqual(json.load(file_handle), {"session": "private"})
+
+    def test_failed_json_write_preserves_existing_file(self):
+        with tempfile.TemporaryDirectory() as root:
+            session_path = os.path.join(root, "options.json")
+            self._write_json(session_path, {"session": "preserved"})
+
+            with patch(
+                "lib.controller.session.json.dump",
+                side_effect=OSError("write failed"),
+            ):
+                with self.assertRaisesRegex(OSError, "write failed"):
+                    SessionStore({})._write_json(
+                        session_path,
+                        {"session": "replacement"},
+                    )
+
+            with open(session_path, encoding="utf-8") as file_handle:
+                self.assertEqual(json.load(file_handle), {"session": "preserved"})
+            self.assertEqual(os.listdir(root), ["options.json"])
 
     def test_bytes_marker_in_headers_remains_a_header_mapping(self):
         marker = SessionStore.SESSION_BYTES_MARKER

@@ -22,6 +22,7 @@ import base64
 import binascii
 import json
 import os
+import tempfile
 from typing import Any
 
 from lib.core.exceptions import InvalidURLException, UnpicklingError
@@ -135,7 +136,7 @@ class SessionStore:
             "options": self._serialize_options(),
             "last_output": last_output,
         }
-        FileUtils.create_dir(session_dir)
+        os.makedirs(session_dir, mode=0o700, exist_ok=True)
 
         meta_path = FileUtils.build_path(session_dir, self.FILES["meta"])
         self._write_json(
@@ -283,8 +284,25 @@ class SessionStore:
             raise UnpicklingError(str(error)) from error
 
     def _write_json(self, path: str, payload: dict[str, Any]) -> None:
-        with open(path, "w", encoding="utf-8") as file_handle:
-            json.dump(payload, file_handle, indent=2, ensure_ascii=False)
+        descriptor, temporary_path = tempfile.mkstemp(
+            prefix=f".{os.path.basename(path)}.",
+            suffix=".tmp",
+            dir=FileUtils.parent(path),
+        )
+        try:
+            if os.name != "nt":
+                os.fchmod(descriptor, 0o600)
+            with os.fdopen(descriptor, "w", encoding="utf-8") as file_handle:
+                descriptor = -1
+                json.dump(payload, file_handle, indent=2, ensure_ascii=False)
+            os.replace(temporary_path, path)
+        finally:
+            if descriptor != -1:
+                os.close(descriptor)
+            try:
+                os.remove(temporary_path)
+            except FileNotFoundError:
+                pass
 
     def _validate_payload(self, payload: dict[str, Any]) -> None:
         if payload.get("version") != self.SESSION_VERSION:
