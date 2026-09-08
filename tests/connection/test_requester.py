@@ -39,10 +39,12 @@ from lib.connection.native import NativeHTTPBackend
 from lib.connection.rate_limiter import RequestRateLimiter
 from lib.connection.requester import (
     AsyncRequester,
+    PathPreservingAsyncHTTPTransport,
     PathPreservingHTTPConnectionPool,
     PathPreservingHTTPSConnectionPool,
     PathPreservingSOCKSConnectionPool,
     PathPreservingSOCKSHTTPSConnectionPool,
+    ProxyRoatingTransport,
     Requester,
     _find_ssl_error,
     _format_ssl_error,
@@ -674,6 +676,105 @@ class TestRequesterProxyRouting(BaseRequesterTestCase):
                         requests.utils.select_proxy(prepared_request.url, proxies),
                         proxy_url,
                     )
+
+
+class TestAsyncRequesterProxyRouting(
+    BaseRequesterTestCase, IsolatedAsyncioTestCase
+):
+    async def test_explicit_proxy_overrides_environment_proxy_rules(self):
+        options["proxies"] = ["http://cli.invalid:8080"]
+        environments = (
+            (
+                "uppercase",
+                {
+                    "HTTP_PROXY": "http://environment.invalid:9001",
+                    "HTTPS_PROXY": "http://environment.invalid:9002",
+                    "ALL_PROXY": "http://environment.invalid:9003",
+                    "NO_PROXY": "bypass.invalid",
+                },
+            ),
+            (
+                "lowercase",
+                {
+                    "http_proxy": "http://environment.invalid:9001",
+                    "https_proxy": "http://environment.invalid:9002",
+                    "all_proxy": "http://environment.invalid:9003",
+                    "no_proxy": "bypass.invalid",
+                },
+            ),
+        )
+
+        for environment_case, environment in environments:
+            with self.subTest(environment_case=environment_case):
+                with patch.dict(os.environ, environment, clear=True):
+                    requester = AsyncRequester()
+
+                try:
+                    for url in (
+                        "http://target.invalid/",
+                        "https://target.invalid/",
+                        "https://bypass.invalid/",
+                    ):
+                        with self.subTest(url=url):
+                            selected = requester.session._transport_for_url(
+                                httpx.URL(url)
+                            )
+                            self.assertIsInstance(selected, ProxyRoatingTransport)
+                finally:
+                    await requester.close()
+
+    async def test_environment_proxy_remains_enabled_without_explicit_proxy(self):
+        with RequestTargetServer() as environment_proxy:
+            environment = {
+                "HTTP_PROXY": environment_proxy.url,
+                "HTTPS_PROXY": "",
+                "ALL_PROXY": "",
+                "NO_PROXY": "",
+            }
+            with patch.dict(os.environ, environment, clear=True):
+                requester = AsyncRequester()
+
+            requester.set_url("http://origin.invalid/")
+            try:
+                await requester.request("admin")
+            finally:
+                await requester.close()
+
+        self.assertEqual(len(environment_proxy.targets), 1)
+
+    async def test_replay_proxy_overrides_environment_proxy_rules(self):
+        environment = {
+            "HTTP_PROXY": "http://environment.invalid:9001",
+            "HTTPS_PROXY": "http://environment.invalid:9002",
+            "ALL_PROXY": "http://environment.invalid:9003",
+            "NO_PROXY": "bypass.invalid",
+        }
+        with patch.dict(os.environ, environment, clear=True):
+            requester = AsyncRequester()
+            with patch.object(
+                requester,
+                "request",
+                new=AsyncMock(return_value=object()),
+            ) as request:
+                await requester.replay_request(
+                    "admin", proxy="http://replay.invalid:8080"
+                )
+
+        try:
+            replay_session = request.await_args.args[1]
+            for url in (
+                "http://target.invalid/",
+                "https://target.invalid/",
+                "https://bypass.invalid/",
+            ):
+                with self.subTest(url=url):
+                    selected = replay_session._transport_for_url(httpx.URL(url))
+                    self.assertIsInstance(
+                        selected,
+                        PathPreservingAsyncHTTPTransport,
+                    )
+        finally:
+            await requester.close()
 
 
 class TestAsyncRequesterSSLHandling(BaseRequesterTestCase, IsolatedAsyncioTestCase):
