@@ -258,10 +258,7 @@ def parse_options() -> dict[str, Any]:
     opt.filter_time = _parse_advanced_times(opt.filter_time, "--filter-time")
     _validate_advanced_mode(opt.matcher_mode, "--matcher-mode")
     _validate_advanced_mode(opt.filter_mode, "--filter-mode")
-    _validate_advanced_regex(opt.match_regex, "--match-regex")
-    _validate_advanced_regex(opt.filter_regex, "--filter-regex")
-    _validate_advanced_regex(opt.match_header_regex, "--match-header-regex")
-    _validate_advanced_regex(opt.filter_header_regex, "--filter-header-regex")
+    validate_regex_options(opt)
     opt.prefixes = tuple(strip_and_uniquify(opt.prefixes.split(",")))
     opt.suffixes = tuple(strip_and_uniquify(opt.suffixes.split(",")))
     opt.subdirs = [
@@ -445,12 +442,26 @@ def _parse_size_list(value: str | None, option_name: str) -> set[int]:
         sys.exit(1)
 
 
-def _validate_advanced_regex(pattern: str | None, option_name: str) -> None:
+def _validate_regex_option(pattern: str | None, option_name: str) -> None:
     try:
         validate_regex(pattern, option_name)
     except ValueError as error:
         print(str(error))
         sys.exit(1)
+
+
+def validate_regex_options(opt: Any) -> None:
+    regex_options = (
+        ("exclude_regex", "--exclude-regex"),
+        ("exclude_redirect", "--exclude-redirect"),
+        ("match_regex", "--match-regex"),
+        ("filter_regex", "--filter-regex"),
+        ("match_header_regex", "--match-header-regex"),
+        ("filter_header_regex", "--filter-header-regex"),
+    )
+
+    for option_key, option_name in regex_options:
+        _validate_regex_option(getattr(opt, option_key), option_name)
 
 
 def _validate_advanced_mode(value: str, option_name: str) -> None:
