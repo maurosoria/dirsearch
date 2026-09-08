@@ -15,11 +15,13 @@
 #
 #  Author: Mauro Soria
 
+import ssl
 from unittest import TestCase
 from unittest.mock import Mock, patch
 
 from lib.core.settings import SOCKET_TIMEOUT
 from lib.utils.schemedet import detect_scheme
+from tests.connection.proxy_server import ProxyTestStack
 
 
 class TestSchemedet(TestCase):
@@ -56,5 +58,22 @@ class TestSchemedet(TestCase):
     def test_falls_back_to_http_when_tls_connection_fails(self):
         self.assertEqual(self.run_probe(OSError("network unavailable")), "http")
 
+    def test_certificate_verification_failure_still_identifies_https(self):
+        error = ssl.SSLCertVerificationError(1, "certificate verify failed")
+
+        self.assertEqual(self.run_probe(error), "https")
+
     def test_connects_to_explicit_address_without_changing_tls_hostname(self):
         self.assertEqual(self.run_probe(connect_host="192.0.2.10"), "https")
+
+    def test_detects_self_signed_https_endpoint(self):
+        with ProxyTestStack() as stack:
+            port = stack.https_target.server.server_port
+
+            scheme = detect_scheme(
+                "localhost",
+                port,
+                connect_host="127.0.0.1",
+            )
+
+        self.assertEqual(scheme, "https")

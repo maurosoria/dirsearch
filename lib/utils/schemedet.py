@@ -33,6 +33,8 @@ def detect_scheme(host, port, connect_host=None):
     try:
         conn.connect((connect_host or host, port))
         return "https"
+    except ssl.SSLCertVerificationError:
+        return "https"
     except OSError:
         return "http"
     finally:

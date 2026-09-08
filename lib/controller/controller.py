@@ -654,6 +654,11 @@ class Controller:
         url = ensure_trailing_path_slash(url)
 
         parsed = urlparse(url)
+        if parsed.scheme == UNKNOWN and (options["proxies"] or options["tor"]):
+            raise InvalidURLException(
+                "Cannot auto-detect the scheme when using a proxy or Tor. "
+                "Specify http:// or https:// in the target, or use --scheme"
+            )
         self.base_path = lstrip_once(parsed.path, "/")
 
         # Credentials in URL

@@ -21,6 +21,7 @@ from unittest.mock import Mock, call, patch
 
 from lib.controller.controller import Controller
 from lib.core.data import options
+from lib.core.exceptions import InvalidURLException
 
 
 class TestControllerTargetDNS(TestCase):
@@ -31,6 +32,8 @@ class TestControllerTargetDNS(TestCase):
                 "request_backend": "python",
                 "scheme": None,
                 "ip": "192.0.2.10",
+                "proxies": [],
+                "tor": False,
             }
         )
         self.controller = object.__new__(Controller)
@@ -69,4 +72,62 @@ class TestControllerTargetDNS(TestCase):
         )
         self.controller.requester.set_url.assert_called_once_with(
             "https://forced-origin.invalid/"
+        )
+
+    def test_proxy_or_tor_rejects_scheme_less_target_without_direct_probe(self):
+        routing_options = (
+            {"proxies": ["socks5h://127.0.0.1:9050"], "tor": False},
+            {"proxies": [], "tor": True},
+        )
+
+        for routing in routing_options:
+            with self.subTest(routing=routing):
+                options.update({"ip": None, "proxies": [], "tor": False})
+                options.update(routing)
+                self.controller.requester.reset_mock()
+
+                with patch(
+                    "lib.controller.controller.detect_scheme",
+                    return_value="https",
+                ) as detect_scheme, self.assertRaisesRegex(
+                    InvalidURLException,
+                    "Cannot auto-detect the scheme when using a proxy or Tor",
+                ):
+                    self.controller.set_target("user:secret@private.example")
+
+                detect_scheme.assert_not_called()
+                self.controller.requester.set_auth.assert_not_called()
+                self.controller.requester.set_url.assert_not_called()
+
+    def test_proxy_accepts_an_explicit_url_scheme(self):
+        options.update(
+            {
+                "ip": None,
+                "proxies": ["http://127.0.0.1:8080"],
+            }
+        )
+
+        with patch("lib.controller.controller.detect_scheme") as detect_scheme:
+            self.controller.set_target("https://example.test")
+
+        detect_scheme.assert_not_called()
+        self.controller.requester.set_url.assert_called_once_with(
+            "https://example.test/"
+        )
+
+    def test_proxy_accepts_scheme_option(self):
+        options.update(
+            {
+                "ip": None,
+                "proxies": ["http://127.0.0.1:8080"],
+                "scheme": "https",
+            }
+        )
+
+        with patch("lib.controller.controller.detect_scheme") as detect_scheme:
+            self.controller.set_target("example.test")
+
+        detect_scheme.assert_not_called()
+        self.controller.requester.set_url.assert_called_once_with(
+            "https://example.test/"
         )
