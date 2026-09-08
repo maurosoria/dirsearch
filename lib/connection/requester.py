@@ -724,9 +724,14 @@ class AsyncRequester(BaseRequester):
             )
         )
 
+        transport_options = (
+            {"transport": transport}
+            if options["proxies"]
+            else {"mounts": {"all://": transport}}
+        )
         self.session = httpx.AsyncClient(
-            mounts={"all://": transport},
             timeout=httpx.Timeout(options["timeout"]),
+            **transport_options,
         )
         self.replay_session = None
 
@@ -786,7 +791,7 @@ class AsyncRequester(BaseRequester):
                 socket_options=self._socket_options,
             )
             self.replay_session = httpx.AsyncClient(
-                mounts={"all://": transport},
+                transport=transport,
                 timeout=httpx.Timeout(options["timeout"]),
             )
         return await self.request(path, self.replay_session, replay=True)
