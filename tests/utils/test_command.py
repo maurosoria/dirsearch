@@ -4,76 +4,125 @@ from lib.utils.command import REDACTED_VALUE, redact_command
 
 
 class TestCommandRedaction(TestCase):
-    def test_redacts_sensitive_option_forms_and_preserves_safe_arguments(self):
-        secrets = (
-            "AUTH_EQUALS_SECRET",
-            "PROXY_SPLIT_SECRET",
-            "DATA_SHORT_SECRET",
-            "DATA_SPLIT_SECRET",
-            "HEADER_SPLIT_SECRET",
-            "HEADER_EQUALS_SECRET",
-            "COOKIE_SECRET",
-            "PROXY_URL_SECRET",
-            "REPLAY_SECRET",
-            "MYSQL_SECRET",
-            "POSTGRES_SECRET",
-            "TARGET_SPLIT_SECRET",
-            "TARGET_EQUALS_SECRET",
-            "PROXY_ABBREVIATION_SECRET",
-            "COOKIE_ABBREVIATION_SECRET",
-            "MYSQL_ABBREVIATION_SECRET",
-            "REPLAY_ABBREVIATION_SECRET",
-            "CLUSTER_DATA_SECRET",
-            "CLUSTER_HEADER_SECRET",
-            "CLUSTER_PROXY_SECRET",
-            "CLUSTER_TARGET_SECRET",
+    def test_replaces_realistic_secret_values_with_exact_marker(self):
+        cases = (
+            (
+                "split auth",
+                ["--auth", "alice:auth-password"],
+                ["--auth", REDACTED_VALUE],
+            ),
+            (
+                "equals auth",
+                ["--auth=alice:auth-password"],
+                [f"--auth={REDACTED_VALUE}"],
+            ),
+            (
+                "attached body",
+                ["-dusername=alice&password=body-password"],
+                [f"-d{REDACTED_VALUE}"],
+            ),
+            (
+                "split body",
+                ["--data", "username=alice&password=body-password"],
+                ["--data", REDACTED_VALUE],
+            ),
+            (
+                "authorization header",
+                ["-H", "Authorization: Bearer fake.jwt.signature"],
+                ["-H", REDACTED_VALUE],
+            ),
+            (
+                "cookie header",
+                ["--header=Cookie: session=header-cookie-value"],
+                [f"--header={REDACTED_VALUE}"],
+            ),
+            (
+                "cookie option",
+                ["--cookie", "session=cookie-value; csrftoken=csrf-value"],
+                ["--cookie", REDACTED_VALUE],
+            ),
+            (
+                "attached proxy",
+                ["-phttp://proxy-user:proxy-password@proxy.example"],
+                [f"-p{REDACTED_VALUE}"],
+            ),
+            (
+                "replay proxy",
+                ["--replay-proxy=http://replay-user:replay-password@proxy.example"],
+                [f"--replay-proxy={REDACTED_VALUE}"],
+            ),
+            (
+                "mysql URL",
+                ["--mysql-url", "mysql://reporter:mysql-password@db.example/scan"],
+                ["--mysql-url", REDACTED_VALUE],
+            ),
+            (
+                "postgres URL",
+                [
+                    "--postgres-url=postgresql://reporter:postgres-password"
+                    "@db.example/scan"
+                ],
+                [f"--postgres-url={REDACTED_VALUE}"],
+            ),
+            (
+                "split target userinfo",
+                ["-u", "https://alice:target-password@target.example"],
+                ["-u", REDACTED_VALUE],
+            ),
+            (
+                "equals target userinfo",
+                ["--url=https://alice:target-password@target.example"],
+                [f"--url={REDACTED_VALUE}"],
+            ),
+            (
+                "abbreviated proxy auth",
+                ["--proxy-a", "proxy-user:proxy-auth-password"],
+                ["--proxy-a", REDACTED_VALUE],
+            ),
+            (
+                "abbreviated cookie",
+                ["--cook=session=abbreviated-cookie-value"],
+                [f"--cook={REDACTED_VALUE}"],
+            ),
+            (
+                "abbreviated mysql URL",
+                ["--mys", "mysql://reporter:mysql-password@db.example/scan"],
+                ["--mys", REDACTED_VALUE],
+            ),
+            (
+                "abbreviated replay proxy",
+                ["--replay-p=http://user:replay-password@proxy.example"],
+                [f"--replay-p={REDACTED_VALUE}"],
+            ),
+            (
+                "clustered split body",
+                ["-qd", "username=alice&password=cluster-password"],
+                ["-qd", REDACTED_VALUE],
+            ),
+            (
+                "clustered split header",
+                ["-qH", "Authorization: Bearer clustered-token"],
+                ["-qH", REDACTED_VALUE],
+            ),
+            (
+                "clustered attached proxy",
+                ["-qphttp://user:cluster-password@proxy.example"],
+                [f"-qp{REDACTED_VALUE}"],
+            ),
+            (
+                "clustered attached target",
+                ["-quhttps://alice:cluster-password@target.example"],
+                [f"-qu{REDACTED_VALUE}"],
+            ),
         )
-        arguments = [
-            "dirsearch.py",
-            "--auth=AUTH_EQUALS_SECRET",
-            "--proxy-auth",
-            "PROXY_SPLIT_SECRET",
-            "-dDATA_SHORT_SECRET",
-            "--data",
-            "DATA_SPLIT_SECRET",
-            "-H",
-            "Authorization: HEADER_SPLIT_SECRET",
-            "--header=Cookie: HEADER_EQUALS_SECRET",
-            "--cookie",
-            "COOKIE_SECRET",
-            "-phttp://proxy-user:PROXY_URL_SECRET@proxy.test",
-            "--replay-proxy=http://replay-user:REPLAY_SECRET@proxy.test",
-            "--mysql-url",
-            "mysql://db-user:MYSQL_SECRET@db.test/name",
-            "--postgres-url=postgresql://db-user:POSTGRES_SECRET@db.test/name",
-            "-u",
-            "https://target-user:TARGET_SPLIT_SECRET@example.test",
-            "--url=https://target-user:TARGET_EQUALS_SECRET@example.test",
-            "--proxy-a",
-            "PROXY_ABBREVIATION_SECRET",
-            "--cook=COOKIE_ABBREVIATION_SECRET",
-            "--mys",
-            "mysql://db-user:MYSQL_ABBREVIATION_SECRET@db.test/name",
-            "--replay-p=http://replay-user:REPLAY_ABBREVIATION_SECRET@proxy.test",
-            "-qd",
-            "CLUSTER_DATA_SECRET",
-            "-qH",
-            "Authorization: CLUSTER_HEADER_SECRET",
-            "-qphttp://proxy-user:CLUSTER_PROXY_SECRET@proxy.test",
-            "-quhttps://target-user:CLUSTER_TARGET_SECRET@example.test",
-            "--threads",
-            "7",
-            "--crawl",
-        ]
 
-        command = redact_command(arguments)
-
-        for secret in secrets:
-            with self.subTest(secret=secret):
-                self.assertNotIn(secret, command)
-        self.assertIn(f"--auth={REDACTED_VALUE}", command)
-        self.assertIn(f"-d{REDACTED_VALUE}", command)
-        self.assertIn("--threads 7 --crawl", command)
+        for name, supplied, expected in cases:
+            with self.subTest(name=name):
+                arguments = ["dirsearch.py", *supplied, "--threads", "7"]
+                expected_command = " ".join(
+                    ["dirsearch.py", *expected, "--threads", "7"]
+                )
+                self.assertEqual(redact_command(arguments), expected_command)
 
     def test_preserves_other_short_options_with_attached_values(self):
         arguments = [
