@@ -135,7 +135,7 @@ class SessionStore:
             "options": self._serialize_options(),
             "last_output": last_output,
         }
-        FileUtils.create_dir(session_dir)
+        FileUtils.create_private_dir(session_dir)
 
         meta_path = FileUtils.build_path(session_dir, self.FILES["meta"])
         self._write_json(
@@ -283,7 +283,7 @@ class SessionStore:
             raise UnpicklingError(str(error)) from error
 
     def _write_json(self, path: str, payload: dict[str, Any]) -> None:
-        with open(path, "w", encoding="utf-8") as file_handle:
+        with FileUtils.atomic_write_private_text(path) as file_handle:
             json.dump(payload, file_handle, indent=2, ensure_ascii=False)
 
     def _validate_payload(self, payload: dict[str, Any]) -> None:
