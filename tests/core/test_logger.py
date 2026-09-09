@@ -67,8 +67,10 @@ class TestLogRedaction(TestCase):
                 logger.exception(error)
             logger.info('THREAD-7 started')
 
-            for handler in logger.handlers:
+            for handler in tuple(logger.handlers):
                 handler.flush()
+                handler.close()
+                logger.removeHandler(handler)
             with open(log_path, encoding="utf-8") as log_file:
                 contents = log_file.read()
 
