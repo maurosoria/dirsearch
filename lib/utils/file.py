@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 import os
 import os.path
 import tempfile
@@ -150,6 +151,15 @@ class FileUtils:
         if not cls.exists(directory):
             os.makedirs(directory, exist_ok=True)
 
+    @staticmethod
+    def create_private_dir(directory: str) -> None:
+        """Create a private leaf directory without following a leaf link."""
+        if os.path.islink(directory):
+            raise OSError(f"Refusing symbolic link: {directory}")
+        os.makedirs(directory, mode=0o700, exist_ok=True)
+        if os.path.islink(directory):
+            raise OSError(f"Refusing symbolic link: {directory}")
+
     @classmethod
     def create_writable_dir(cls, directory: str) -> None:
         """Create a directory and prove that files can be created inside it."""
@@ -183,6 +193,30 @@ class FileUtils:
         flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
         flags |= getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
         return os.open(file_name, flags, 0o600)
+
+    @staticmethod
+    @contextmanager
+    def atomic_write_private_text(file_name: str, encoding: str = "utf-8"):
+        """Write text through a private same-directory replacement file."""
+        descriptor, temporary_path = tempfile.mkstemp(
+            prefix=f".{os.path.basename(file_name)}.",
+            suffix=".tmp",
+            dir=FileUtils.parent(file_name),
+        )
+        try:
+            if os.name != "nt":
+                os.fchmod(descriptor, 0o600)
+            with os.fdopen(descriptor, "w", encoding=encoding) as file_handle:
+                descriptor = -1
+                yield file_handle
+            os.replace(temporary_path, file_name)
+        finally:
+            if descriptor != -1:
+                os.close(descriptor)
+            try:
+                os.remove(temporary_path)
+            except FileNotFoundError:
+                pass
 
     @staticmethod
     def _open_exclusive_windows(file_name: str) -> int:

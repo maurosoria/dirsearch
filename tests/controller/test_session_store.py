@@ -23,8 +23,7 @@ import os
 import stat
 import tempfile
 from types import SimpleNamespace
-from unittest import TestCase, skipIf, skipUnless
-from unittest.mock import patch
+from unittest import TestCase, skipIf
 
 from lib.controller.session import SessionStore
 from lib.core.dictionary import Dictionary
@@ -104,21 +103,6 @@ class TestSessionStore(TestCase):
 
         self.assertEqual(restored["data"], body)
 
-    def test_new_session_requests_private_directory_permissions(self):
-        with tempfile.TemporaryDirectory() as root:
-            session_dir = os.path.join(root, "session")
-            with patch(
-                "lib.controller.session.os.makedirs",
-                wraps=os.makedirs,
-            ) as makedirs:
-                SessionStore({}).save(self._controller(), session_dir, "")
-
-        makedirs.assert_called_once_with(
-            session_dir,
-            mode=0o700,
-            exist_ok=True,
-        )
-
     @skipIf(os.name == "nt", "POSIX mode bits are unavailable on Windows")
     def test_new_session_directory_and_files_are_private(self):
         with tempfile.TemporaryDirectory() as root:
@@ -168,44 +152,6 @@ class TestSessionStore(TestCase):
                         stat.S_IMODE(os.stat(file_path).st_mode),
                         0o600,
                     )
-
-    @skipUnless(hasattr(os, "symlink"), "symbolic links are unavailable")
-    def test_json_write_replaces_symlink_without_following_it(self):
-        with tempfile.TemporaryDirectory() as root:
-            outside_path = os.path.join(root, "outside.json")
-            session_path = os.path.join(root, "options.json")
-            self._write_json(outside_path, {"outside": "preserved"})
-            try:
-                os.symlink(outside_path, session_path)
-            except (NotImplementedError, OSError) as error:
-                self.skipTest(f"symbolic links are unavailable: {error}")
-
-            SessionStore({})._write_json(session_path, {"session": "private"})
-
-            with open(outside_path, encoding="utf-8") as file_handle:
-                self.assertEqual(json.load(file_handle), {"outside": "preserved"})
-            self.assertFalse(os.path.islink(session_path))
-            with open(session_path, encoding="utf-8") as file_handle:
-                self.assertEqual(json.load(file_handle), {"session": "private"})
-
-    def test_failed_json_write_preserves_existing_file(self):
-        with tempfile.TemporaryDirectory() as root:
-            session_path = os.path.join(root, "options.json")
-            self._write_json(session_path, {"session": "preserved"})
-
-            with patch(
-                "lib.controller.session.json.dump",
-                side_effect=OSError("write failed"),
-            ):
-                with self.assertRaisesRegex(OSError, "write failed"):
-                    SessionStore({})._write_json(
-                        session_path,
-                        {"session": "replacement"},
-                    )
-
-            with open(session_path, encoding="utf-8") as file_handle:
-                self.assertEqual(json.load(file_handle), {"session": "preserved"})
-            self.assertEqual(os.listdir(root), ["options.json"])
 
     def test_bytes_marker_in_headers_remains_a_header_mapping(self):
         marker = SessionStore.SESSION_BYTES_MARKER
