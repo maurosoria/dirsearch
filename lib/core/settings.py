@@ -21,6 +21,7 @@ import sys
 import string
 import time
 
+from lib.utils.command import redact_command
 from lib.utils.file import FileUtils
 
 # Version format: <major version>.<minor version>.<revision>[.<month>]
@@ -31,7 +32,7 @@ BANNER = f"""
  (_||| _) (/_(_|| (_| )
 """
 
-COMMAND = " ".join(sys.argv)
+COMMAND = redact_command(sys.argv)
 
 START_TIME = time.strftime("%Y-%m-%d %H:%M:%S")
 
