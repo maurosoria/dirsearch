@@ -65,6 +65,7 @@ from lib.core.settings import (
     SIGINT_WINDOW_SECONDS,
     STANDARD_PORTS,
     START_TIME,
+    THREADED_WORKER_SHUTDOWN_TIMEOUT,
     UNKNOWN,
 )
 from lib.core.wordlist_template import generate_backup_paths
@@ -492,6 +493,13 @@ class Controller:
                 pass
 
             finally:
+                if (
+                    options["request_backend"] == "python"
+                    and not options["async_mode"]
+                    and not self.fuzzer.stop(THREADED_WORKER_SHUTDOWN_TIMEOUT)
+                ):
+                    raise QuitInterrupt("Threaded scan did not stop safely")
+
                 native_worker = getattr(self, "_native_worker", None)
                 if native_worker is not None and native_worker.is_alive():
                     raise QuitInterrupt("Native scan did not stop safely")
