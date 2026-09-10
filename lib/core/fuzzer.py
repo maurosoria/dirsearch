@@ -474,8 +474,11 @@ class Fuzzer(BaseFuzzer):
         while True:
             should_quit = False
             try:
-                path = next(self._dictionary)
-                self.scan(self._base_path + path)
+                path = self._dictionary.claim_next()
+                try:
+                    self.scan(self._base_path + path)
+                finally:
+                    self._dictionary.release_claim(path)
 
             except StopIteration:
                 break

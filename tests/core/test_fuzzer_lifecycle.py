@@ -4,6 +4,7 @@ from unittest import IsolatedAsyncioTestCase, TestCase
 from unittest.mock import patch
 
 from lib.core.data import options
+from lib.core.dictionary import Dictionary
 from lib.core.exceptions import RequestException, SkipTargetInterrupt
 from lib.core.fuzzer import AsyncFuzzer, Fuzzer
 
@@ -54,6 +55,18 @@ class CoordinatedSyncRequester:
         raise RequestException(path)
 
 
+class BlockingSyncRequester:
+    def __init__(self):
+        self.started = threading.Event()
+        self.release = threading.Event()
+
+    def request(self, path):
+        self.started.set()
+        if not self.release.wait(timeout=2):
+            raise AssertionError("blocked request was not released")
+        raise RequestException(path)
+
+
 class CoordinatedAsyncRequester:
     def __init__(self):
         self.paths = []
@@ -76,6 +89,43 @@ class CoordinatedAsyncRequester:
 
 
 class TestThreadedFuzzerLifecycle(TestCase):
+    def test_saved_state_retries_in_flight_path(self):
+        dictionary = object.__new__(Dictionary)
+        dictionary.__setstate__((["blocked", "later"], 0, [], 0))
+        requester = BlockingSyncRequester()
+        fuzzer = Fuzzer(
+            requester,
+            dictionary,
+            match_callbacks=(),
+            not_found_callbacks=(),
+            error_callbacks=(),
+        )
+        fuzzer.setup_scanners = lambda: None
+
+        with patch.dict(options, {"thread_count": 1, "delay": 0}):
+            fuzzer.start()
+            try:
+                self.assertTrue(requester.started.wait(timeout=2))
+                saved_state = dictionary.__getstate__()
+            finally:
+                fuzzer.quit()
+                requester.release.set()
+                for worker in fuzzer._threads:
+                    worker.join(timeout=2)
+
+        self.assertFalse(any(worker.is_alive() for worker in fuzzer._threads))
+        resumed = object.__new__(Dictionary)
+        resumed.__setstate__(saved_state)
+        self.assertEqual([next(resumed), next(resumed)], ["blocked", "later"])
+        with self.assertRaises(StopIteration):
+            next(resumed)
+
+        completed = object.__new__(Dictionary)
+        completed.__setstate__(dictionary.__getstate__())
+        self.assertEqual(next(completed), "later")
+        with self.assertRaises(StopIteration):
+            next(completed)
+
     def test_terminal_callback_failure_stops_intake_and_drains_siblings(self):
         requester = CoordinatedSyncRequester()
         callback_failed = threading.Event()
