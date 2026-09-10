@@ -437,6 +437,21 @@ class Fuzzer(BaseFuzzer):
         self._quit_event.set()
         self.play()
 
+    def stop(self, timeout: float) -> bool:
+        workers = [thread for thread in self._threads if thread.is_alive()]
+        if not workers:
+            return True
+
+        self.quit()
+        deadline = time.monotonic() + max(0.0, timeout)
+        for worker in workers:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            worker.join(timeout=remaining)
+
+        return not any(worker.is_alive() for worker in workers)
+
     def _stop_with_exception(self, exception: Exception) -> None:
         with self._exc_lock:
             if self._exc is None:
