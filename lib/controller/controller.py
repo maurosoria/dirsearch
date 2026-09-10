@@ -662,12 +662,13 @@ class Controller:
             )
         self.base_path = lstrip_once(parsed.path, "/")
 
-        # Credentials in URL
+        # Parse target-scoped credentials without changing requester state until
+        # the target has been validated.
+        credential = None
         if parsed.username is not None:
             credential = unquote(parsed.username)
             if parsed.password is not None:
                 credential += f":{unquote(parsed.password)}"
-            self.requester.set_auth("basic", credential)
 
         if parsed.scheme not in (UNKNOWN, "https", "http"):
             raise InvalidURLException(f"Unsupported URI scheme: {parsed.scheme}")
@@ -710,6 +711,9 @@ class Controller:
 
         self.url += "/"
 
+        self.requester.reset_auth()
+        if credential is not None:
+            self.requester.set_auth("basic", credential)
         self.requester.set_url(self.url)
         self.requester.set_query(parsed.query)
 
