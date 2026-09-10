@@ -397,6 +397,7 @@ class BaseRequester:
         self.headers = CaseInsensitiveDict(options["headers"])
         self.agents: list[str] = []
         self.session = None
+        self._configured_auth = None
 
         self._cert = None
         if options["cert_file"] and options["key_file"]:
@@ -439,6 +440,9 @@ class BaseRequester:
     def set_header(self, key: str, value: str) -> None:
         self.headers[key] = value.lstrip()
 
+    def reset_auth(self) -> None:
+        self.session.auth = self._configured_auth
+
     def wait_for_rate_limit(self) -> None:
         self._rate_limiter.wait(options["max_rate"])
 
@@ -478,6 +482,7 @@ class Requester(BaseRequester):
 
         if options["auth"]:
             self.set_auth(options["auth_type"], options["auth"])
+        self._configured_auth = self.session.auth
 
     def set_auth(self, type: str, credential: str) -> None:
         if type in ("bearer", "jwt"):
@@ -737,6 +742,7 @@ class AsyncRequester(BaseRequester):
 
         if options["auth"]:
             self.set_auth(options["auth_type"], options["auth"])
+        self._configured_auth = self.session.auth
 
     def parse_proxy(self, proxy: str) -> str | httpx.Proxy | None:
         if not proxy:
