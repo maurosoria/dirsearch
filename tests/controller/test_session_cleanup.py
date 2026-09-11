@@ -56,7 +56,11 @@ class TestSessionCleanup(TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             session_dir = os.path.join(tmpdir, "session")
             os.makedirs(session_dir)
-            for file_name in SessionStore.FILES.values():
+            owned_files = (
+                *SessionStore.FILES.values(),
+                SessionStore.CHECKPOINT_FILE,
+            )
+            for file_name in owned_files:
                 with open(os.path.join(session_dir, file_name), "w", encoding="utf-8"):
                     pass
             unrelated_path = os.path.join(session_dir, "keep.txt")
@@ -66,14 +70,17 @@ class TestSessionCleanup(TestCase):
             self._complete_scan(session_dir)
 
             self.assertTrue(os.path.isfile(unrelated_path))
-            for file_name in SessionStore.FILES.values():
+            for file_name in owned_files:
                 self.assertFalse(os.path.exists(os.path.join(session_dir, file_name)))
 
     def test_completed_session_removes_empty_owned_directory(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             session_dir = os.path.join(tmpdir, "session")
             os.makedirs(session_dir)
-            for file_name in SessionStore.FILES.values():
+            for file_name in (
+                *SessionStore.FILES.values(),
+                SessionStore.CHECKPOINT_FILE,
+            ):
                 with open(os.path.join(session_dir, file_name), "w", encoding="utf-8"):
                     pass
 

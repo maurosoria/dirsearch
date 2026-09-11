@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+from collections.abc import Iterable
 import json
 import os
 from typing import Any
@@ -34,6 +35,7 @@ from lib.view.terminal import interface
 class SessionStore:
     SESSION_VERSION = 1
     SESSION_BYTES_MARKER = "__dirsearch_bytes_b64__"
+    CHECKPOINT_FILE = "dirsearch-session.json"
     SESSION_OPTION_SET_KEYS = {
         "recursion_status_codes",
         "include_status_codes",
@@ -72,15 +74,21 @@ class SessionStore:
             return sessions
 
         for root, dirs, files in os.walk(base_path):
+            is_session_dir = (
+                self.CHECKPOINT_FILE in files
+                or self.FILES["meta"] in files
+            )
             if root == base_path:
                 for file_name in files:
+                    if is_session_dir and file_name == self.CHECKPOINT_FILE:
+                        continue
                     summary = self._summarize_session_file(
                         FileUtils.build_path(root, file_name)
                     )
                     if summary:
                         sessions.append(summary)
 
-            if self.FILES["meta"] in files:
+            if is_session_dir:
                 summary = self._summarize_session_dir(root)
                 if summary:
                     sessions.append(summary)
@@ -96,6 +104,14 @@ class SessionStore:
             return payload
 
         session_dir = self._get_session_dir(session_path)
+        checkpoint_path = FileUtils.build_path(
+            session_dir, self.CHECKPOINT_FILE
+        )
+        if os.path.isfile(checkpoint_path):
+            payload = self._read_json(checkpoint_path)
+            self._validate_payload(payload)
+            return payload
+
         meta_payload = self._read_json(
             FileUtils.build_path(session_dir, self.FILES["meta"])
         )
@@ -127,37 +143,21 @@ class SessionStore:
             output_history.append(
                 {"start_time": controller.start_time, "output": last_output}
             )
-        controller.output_history = output_history
         payload = {
             "version": self.SESSION_VERSION,
             "controller": self._serialize_controller_state(controller),
             "dictionary": self._serialize_dictionary(controller),
             "options": self._serialize_options(),
             "last_output": last_output,
+            "output_history": output_history,
         }
         FileUtils.create_private_dir(session_dir)
-
-        meta_path = FileUtils.build_path(session_dir, self.FILES["meta"])
         self._write_json(
-            meta_path,
-            {
-                "version": payload["version"],
-                "last_output": last_output,
-                "output_history": output_history,
-            },
+            FileUtils.build_path(session_dir, self.CHECKPOINT_FILE),
+            payload,
         )
-        self._write_json(
-            FileUtils.build_path(session_dir, self.FILES["controller"]),
-            payload["controller"],
-        )
-        self._write_json(
-            FileUtils.build_path(session_dir, self.FILES["dictionary"]),
-            payload["dictionary"],
-        )
-        self._write_json(
-            FileUtils.build_path(session_dir, self.FILES["options"]),
-            payload["options"],
-        )
+        self._delete_session_files(session_dir, self.FILES.values())
+        controller.output_history = output_history
 
     def delete(self, session_path: str) -> None:
         """Delete session-owned files without removing unrelated entries."""
@@ -165,11 +165,10 @@ class SessionStore:
             os.remove(session_path)
             return
 
-        for file_name in self.FILES.values():
-            try:
-                os.remove(FileUtils.build_path(session_path, file_name))
-            except FileNotFoundError:
-                pass
+        self._delete_session_files(
+            session_path,
+            (*self.FILES.values(), self.CHECKPOINT_FILE),
+        )
 
         if not os.listdir(session_path):
             os.rmdir(session_path)
@@ -270,6 +269,17 @@ class SessionStore:
     def _get_session_dir(self, session_path: str) -> str:
         return session_path
 
+    def _delete_session_files(
+        self,
+        session_dir: str,
+        file_names: Iterable[str],
+    ) -> None:
+        for file_name in file_names:
+            try:
+                FileUtils.remove(FileUtils.build_path(session_dir, file_name))
+            except FileNotFoundError:
+                pass
+
     def _read_json(self, path: str) -> dict[str, Any]:
         try:
             with open(path, "r", encoding="utf-8") as file_handle:
@@ -302,6 +312,21 @@ class SessionStore:
         return None
 
     def _load_output_history(self, session_dir: str) -> list[dict[str, Any]]:
+        checkpoint_path = FileUtils.build_path(
+            session_dir, self.CHECKPOINT_FILE
+        )
+        if os.path.isfile(checkpoint_path):
+            try:
+                checkpoint_payload = self._read_json(checkpoint_path)
+            except UnpicklingError:
+                return []
+            if checkpoint_payload.get("version") != self.SESSION_VERSION:
+                return []
+            return self._deserialize_output_history(
+                checkpoint_payload,
+                checkpoint_payload.get("controller", {}).get("start_time"),
+            )
+
         meta_path = FileUtils.build_path(session_dir, self.FILES["meta"])
         if not os.path.isfile(meta_path):
             return []
@@ -311,7 +336,24 @@ class SessionStore:
             return []
         if meta_payload.get("version") != self.SESSION_VERSION:
             return []
-        history_payload = meta_payload.get("output_history")
+        start_time = None
+        controller_path = FileUtils.build_path(
+            session_dir, self.FILES["controller"]
+        )
+        if os.path.isfile(controller_path):
+            try:
+                controller_payload = self._read_json(controller_path)
+                start_time = controller_payload.get("start_time")
+            except UnpicklingError:
+                start_time = None
+        return self._deserialize_output_history(meta_payload, start_time)
+
+    def _deserialize_output_history(
+        self,
+        payload: dict[str, Any],
+        start_time: Any,
+    ) -> list[dict[str, Any]]:
+        history_payload = payload.get("output_history")
         if isinstance(history_payload, list):
             history: list[dict[str, Any]] = []
             for entry in history_payload:
@@ -325,22 +367,29 @@ class SessionStore:
                 )
             return history
 
-        last_output = meta_payload.get("last_output")
+        last_output = payload.get("last_output")
         if not last_output:
             return []
-
-        start_time = None
-        controller_path = FileUtils.build_path(session_dir, self.FILES["controller"])
-        if os.path.isfile(controller_path):
-            try:
-                controller_payload = self._read_json(controller_path)
-                start_time = controller_payload.get("start_time")
-            except UnpicklingError:
-                start_time = None
 
         return [{"start_time": start_time, "output": last_output}]
 
     def _summarize_session_dir(self, session_dir: str) -> dict[str, Any] | None:
+        checkpoint_path = FileUtils.build_path(
+            session_dir, self.CHECKPOINT_FILE
+        )
+        if os.path.isfile(checkpoint_path):
+            try:
+                payload = self._read_json(checkpoint_path)
+                self._validate_payload(payload)
+            except UnpicklingError:
+                return None
+            return self._build_summary(
+                session_dir,
+                checkpoint_path,
+                payload["controller"],
+                payload["options"],
+            )
+
         meta_path = FileUtils.build_path(session_dir, self.FILES["meta"])
         if not os.path.isfile(meta_path):
             return None
