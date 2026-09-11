@@ -23,6 +23,8 @@ class ResponseArtifact:
     redirect: str
     elapsed: float
     body: bytes
+    body_complete: bool
+    body_truncated: bool
 
     @classmethod
     def from_response(cls, response: BaseResponse) -> ResponseArtifact:
@@ -38,6 +40,8 @@ class ResponseArtifact:
             redirect=response.redirect,
             elapsed=response.elapsed,
             body=bytes(response.body),
+            body_complete=response.body_complete,
+            body_truncated=response.body_truncated,
         )
 
 

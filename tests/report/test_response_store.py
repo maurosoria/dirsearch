@@ -97,6 +97,22 @@ class TestResponseArtifact(TestCase):
         self.assertEqual(artifact.content_type, "application/octet-stream")
         self.assertEqual(artifact.elapsed, 0.125)
         self.assertEqual(dict(artifact.headers)["x-response-id"], "test-response")
+        self.assertTrue(artifact.body_complete)
+        self.assertFalse(artifact.body_truncated)
+
+    def test_preserves_truncated_body_state(self):
+        response = NativeResponse(
+            "https://example.com/large",
+            200,
+            [("Content-Type", "application/octet-stream")],
+            b"prefix",
+            length=1024,
+        )
+
+        artifact = ResponseArtifact.from_response(response)
+
+        self.assertFalse(artifact.body_complete)
+        self.assertTrue(artifact.body_truncated)
 
 
 class TestBaseResponseStore(TestCase):
@@ -392,12 +408,37 @@ class TestJsonlResponseStore(TestCase):
             self.assertEqual(records[0]["schema"], JSONL_RESPONSE_SCHEMA)
             self.assertEqual(records[0]["bodyEncoding"], "base64")
             self.assertEqual(records[0]["capturedBodyLength"], len(artifact.body))
+            self.assertTrue(records[0]["bodyComplete"])
+            self.assertFalse(records[0]["bodyTruncated"])
             self.assertEqual(records[0]["url"], artifact.url)
             self.assertEqual(records[0]["status"], artifact.status)
             self.assertEqual(
                 base64.b64decode(records[0]["body"]),
                 artifact.body,
             )
+
+    def test_records_truncated_body_state(self):
+        with tempfile.TemporaryDirectory() as directory:
+            file_path = os.path.join(directory, "responses.jsonl")
+            store = JsonlResponseStore(file_path)
+            artifact = ResponseArtifact.from_response(
+                NativeResponse(
+                    "https://example.com/large",
+                    200,
+                    [("Content-Type", "application/octet-stream")],
+                    b"prefix",
+                    length=1024,
+                )
+            )
+
+            store.save(artifact)
+            store.close()
+
+            record = read_jsonl(file_path)[0]
+            self.assertEqual(record["contentLength"], 1024)
+            self.assertEqual(record["capturedBodyLength"], len(b"prefix"))
+            self.assertFalse(record["bodyComplete"])
+            self.assertTrue(record["bodyTruncated"])
 
     def test_appends_after_existing_record_without_final_newline(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -1147,6 +1147,8 @@ class TestResponseStoreTransportIntegration(
                 self.assertEqual(
                     record["capturedBodyLength"], len(expected_body)
                 )
+                self.assertTrue(record["bodyComplete"])
+                self.assertFalse(record["bodyTruncated"])
                 self.assertEqual(record["headers"]["content-encoding"], "gzip")
                 self.assertEqual(
                     record["headers"]["content-type"],

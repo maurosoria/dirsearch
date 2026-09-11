@@ -141,6 +141,16 @@ class BaseResponse:
         return get_readable_size(self.length)
 
     @property
+    def body_complete(self) -> bool:
+        """Return whether the captured body contains the complete response."""
+        return self._body_complete
+
+    @property
+    def body_truncated(self) -> bool:
+        """Return whether response capture stopped before the body was complete."""
+        return not self.body_complete
+
+    @property
     def text(self) -> str:
         if self.content:
             return self.content
@@ -272,6 +282,7 @@ class NativeResponse(BaseResponse):
         length: int | None = None,
         filtered: bool = False,
         filter_reason: str | None = None,
+        body_complete: bool | None = None,
     ) -> None:
         response = type(
             "NativeHTTPResponse",
@@ -289,7 +300,9 @@ class NativeResponse(BaseResponse):
         self.filtered = filtered
         self.filter_reason = filter_reason
         self.body = bytes(body)
-        if self._length is not None:
+        if body_complete is not None:
+            self._body_complete = body_complete
+        elif self._length is not None:
             self._body_complete = self._length == len(self.body)
         if not is_binary(self.body):
             self.content = self.body.decode(DEFAULT_ENCODING, errors="replace")
