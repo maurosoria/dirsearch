@@ -24,6 +24,7 @@ import stat
 import tempfile
 from types import SimpleNamespace
 from unittest import TestCase, skipIf
+from unittest.mock import patch
 
 from lib.controller.session import SessionStore
 from lib.core.dictionary import Dictionary
@@ -44,6 +45,10 @@ class TestSessionStore(TestCase):
         self._write_json(
             os.path.join(session_dir, SessionStore.FILES["controller"]),
             {"url": url, "directories": [], "jobs_processed": 1, "errors": 0},
+        )
+        self._write_json(
+            os.path.join(session_dir, SessionStore.FILES["dictionary"]),
+            {"items": ["legacy"], "index": 1, "extra": [], "extra_index": 0},
         )
         self._write_json(
             os.path.join(session_dir, SessionStore.FILES["options"]),
@@ -82,12 +87,17 @@ class TestSessionStore(TestCase):
             root_file = os.path.join(tmpdir, "session_root.json")
             self._write_session_file(root_file, "https://root.example.com")
 
+            current_dir = os.path.join(tmpdir, "2026-01-01", "session_02")
+            SessionStore({"urls": [], "output_formats": []}).save(
+                self._controller(), current_dir, ""
+            )
+
             sessions = SessionStore({}).list_sessions(tmpdir)
 
-            self.assertEqual(len(sessions), 2)
+            self.assertEqual(len(sessions), 3)
             self.assertEqual(
                 [session["path"] for session in sessions],
-                sorted([nested_dir, root_file]),
+                sorted([current_dir, nested_dir, root_file]),
             )
 
     def test_request_body_bytes_round_trip_through_json_session(self):
@@ -151,6 +161,54 @@ class TestSessionStore(TestCase):
                 with self.assertRaises(StopIteration):
                     next(resumed.dictionary)
 
+    def test_failed_resave_preserves_complete_previous_checkpoint(self):
+        old_urls = ["https://old.example/"]
+        new_urls = ["https://new.example/"]
+        session_options = {"urls": old_urls, "output_formats": []}
+        controller = self._controller()
+        controller.jobs_processed = 1
+        controller.dictionary = object.__new__(Dictionary)
+        controller.dictionary.__setstate__((["one", "two"], 1, [], 0))
+
+        with tempfile.TemporaryDirectory() as session_dir:
+            store = SessionStore(session_options)
+            store.save(controller, session_dir, "old output")
+
+            controller.jobs_processed = 2
+            controller.dictionary.__setstate__((["one", "two"], 2, [], 0))
+            session_options["urls"] = new_urls
+            original_dump = json.dump
+
+            def fail_during_checkpoint(payload, file_handle, *args, **kwargs):
+                original_dump(payload, file_handle, *args, **kwargs)
+                if "items" in payload or "dictionary" in payload:
+                    raise OSError("injected serialization failure")
+
+            with (
+                patch(
+                    "lib.controller.session.json.dump",
+                    side_effect=fail_during_checkpoint,
+                ),
+                self.assertRaisesRegex(OSError, "injected serialization failure"),
+            ):
+                store.save(controller, session_dir, "new output")
+
+            restored = store.load(session_dir)
+
+        self.assertEqual(restored["controller"]["jobs_processed"], 1)
+        self.assertEqual(restored["dictionary"]["index"], 1)
+        self.assertEqual(restored["options"]["urls"], old_urls)
+        self.assertEqual(restored["last_output"], "old output")
+        self.assertEqual(
+            controller.output_history,
+            [
+                {
+                    "start_time": controller.start_time,
+                    "output": "old output",
+                }
+            ],
+        )
+
     @skipIf(os.name == "nt", "POSIX mode bits are unavailable on Windows")
     def test_new_session_directory_and_files_are_private(self):
         with tempfile.TemporaryDirectory() as root:
@@ -169,23 +227,29 @@ class TestSessionStore(TestCase):
                         stat.S_IMODE(os.stat(session_dir).st_mode),
                         0o700,
                     )
-                    for file_name in SessionStore.FILES.values():
-                        with self.subTest(file_name=file_name):
-                            file_path = os.path.join(session_dir, file_name)
-                            self.assertEqual(
-                                stat.S_IMODE(os.stat(file_path).st_mode),
-                                0o600,
-                            )
+                    self.assertEqual(
+                        os.listdir(session_dir),
+                        [SessionStore.CHECKPOINT_FILE],
+                    )
+                    checkpoint_path = os.path.join(
+                        session_dir, SessionStore.CHECKPOINT_FILE
+                    )
+                    self.assertEqual(
+                        stat.S_IMODE(os.stat(checkpoint_path).st_mode),
+                        0o600,
+                    )
 
     @skipIf(os.name == "nt", "POSIX mode bits are unavailable on Windows")
-    def test_resaving_legacy_session_tightens_file_permissions(self):
+    def test_resaving_session_tightens_checkpoint_permissions(self):
         with tempfile.TemporaryDirectory() as root:
             session_dir = os.path.join(root, "session")
             store = SessionStore({"auth": "alice:secret"})
             store.save(self._controller(), session_dir, "")
             os.chmod(session_dir, 0o755)
-            for file_name in SessionStore.FILES.values():
-                os.chmod(os.path.join(session_dir, file_name), 0o644)
+            checkpoint_path = os.path.join(
+                session_dir, SessionStore.CHECKPOINT_FILE
+            )
+            os.chmod(checkpoint_path, 0o644)
 
             store.save(self._controller(), session_dir, "")
 
@@ -193,13 +257,73 @@ class TestSessionStore(TestCase):
                 stat.S_IMODE(os.stat(session_dir).st_mode),
                 0o755,
             )
+            self.assertEqual(
+                stat.S_IMODE(os.stat(checkpoint_path).st_mode),
+                0o600,
+            )
+
+    def test_resave_migrates_legacy_directory_to_atomic_checkpoint(self):
+        with tempfile.TemporaryDirectory() as root:
+            session_dir = os.path.join(root, "session")
+            self._write_session_dir(session_dir, "https://legacy.example/")
+            controller = self._controller()
+            controller.jobs_processed = 7
+            store = SessionStore({"urls": ["https://current.example/"]})
+
+            store.save(controller, session_dir, "current output")
+            restored = store.load(session_dir)
+
+            self.assertTrue(
+                os.path.isfile(
+                    os.path.join(session_dir, SessionStore.CHECKPOINT_FILE)
+                )
+            )
             for file_name in SessionStore.FILES.values():
-                with self.subTest(file_name=file_name):
-                    file_path = os.path.join(session_dir, file_name)
-                    self.assertEqual(
-                        stat.S_IMODE(os.stat(file_path).st_mode),
-                        0o600,
-                    )
+                self.assertFalse(
+                    os.path.exists(os.path.join(session_dir, file_name))
+                )
+            self.assertEqual(restored["controller"]["jobs_processed"], 7)
+            self.assertEqual(
+                restored["options"]["urls"],
+                ["https://current.example/"],
+            )
+            self.assertEqual(restored["last_output"], "current output")
+
+    def test_failed_legacy_migration_leaves_legacy_checkpoint_loadable(self):
+        with tempfile.TemporaryDirectory() as root:
+            session_dir = os.path.join(root, "session")
+            self._write_session_dir(session_dir, "https://legacy.example/")
+            store = SessionStore({"urls": ["https://new.example/"]})
+            original_dump = json.dump
+
+            def fail_checkpoint(payload, file_handle, *args, **kwargs):
+                original_dump(payload, file_handle, *args, **kwargs)
+                raise OSError("injected migration failure")
+
+            with (
+                patch(
+                    "lib.controller.session.json.dump",
+                    side_effect=fail_checkpoint,
+                ),
+                self.assertRaisesRegex(OSError, "injected migration failure"),
+            ):
+                store.save(self._controller(), session_dir, "new output")
+
+            restored = store.load(session_dir)
+
+            self.assertFalse(
+                os.path.exists(
+                    os.path.join(session_dir, SessionStore.CHECKPOINT_FILE)
+                )
+            )
+            self.assertEqual(
+                restored["controller"]["url"],
+                "https://legacy.example/",
+            )
+            self.assertEqual(
+                restored["options"]["urls"],
+                ["https://example.com"],
+            )
 
     def test_bytes_marker_in_headers_remains_a_header_mapping(self):
         marker = SessionStore.SESSION_BYTES_MARKER

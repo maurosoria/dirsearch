@@ -4,15 +4,24 @@ dirsearch supports saving and resuming scan sessions, allowing you to pause a lo
 
 ## Session Format
 
-Sessions are stored in JSON format using a directory-based structure for human readability and inspection. Legacy `.pickle` and `.pkl` session files are no longer supported.
+Sessions are stored as one JSON checkpoint inside a session directory. The
+checkpoint contains the output history, controller state, wordlist position,
+and command-line options as one atomic snapshot.
 
 ```text
 session_name/
-├── meta.json        # Version, timestamps, output history
-├── controller.json  # Scan state (URLs, directories, progress)
-├── dictionary.json  # Wordlist state and position
-└── options.json     # Command-line options used
+└── dirsearch-session.json
 ```
+
+Replacing one combined checkpoint prevents a failed save from mixing new scan
+state with an older wordlist position or option set. dirsearch can still read
+the previous four-file JSON directory format; successfully saving that session
+again migrates it to the combined checkpoint. Legacy `.pickle` and `.pkl`
+session files are no longer supported.
+
+Support for reading the four-file JSON format is a temporary migration bridge.
+It should be removed in a future breaking release after users have had a
+documented deprecation window in which to resume and resave older sessions.
 
 ## Saving a Session
 
