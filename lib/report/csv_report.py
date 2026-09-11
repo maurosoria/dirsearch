@@ -49,7 +49,7 @@ class CSVReport(FileReportMixin, BaseReport):
         self.write(file, rows)
 
     def write(self, file, rows):
-        with open(file, "w") as fh:
+        with self._atomic_writer(file) as fh:
             writer = csv.writer(fh, delimiter=",", quotechar='"')
             for row in rows:
                 writer.writerow(row)

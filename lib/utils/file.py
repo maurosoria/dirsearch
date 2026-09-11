@@ -196,7 +196,10 @@ class FileUtils:
 
     @staticmethod
     @contextmanager
-    def atomic_write_private_text(file_name: str, encoding: str = "utf-8"):
+    def atomic_write_private_text(
+        file_name: str,
+        encoding: str | None = "utf-8",
+    ):
         """Write text through a private same-directory replacement file."""
         descriptor, temporary_path = tempfile.mkstemp(
             prefix=f".{os.path.basename(file_name)}.",
