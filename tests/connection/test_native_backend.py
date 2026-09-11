@@ -128,6 +128,17 @@ class TestNativeHTTPBackend(TestCase):
         self.assertEqual(kwargs["filter_header_regex"], "x-cache: fallback-[0-9]+")
         self.assertEqual(kwargs["match_time"], [(">", 100.0)])
 
+    def test_proxy_urls_encode_reserved_credentials(self):
+        options["proxy_auth"] = "proxy/user:p@ss/word?#%:tail"
+
+        self.assertEqual(
+            NativeHTTPBackend._proxy_urls(),
+            [
+                "http://proxy%2Fuser:p%40ss%2Fword%3F%23%25%3Atail"
+                "@127.0.0.1:8080"
+            ],
+        )
+
     def test_reuses_engine_across_chunks_and_forwards_cancellation(self):
         fake_native = FakeNativeModule()
 
