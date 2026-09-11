@@ -16,9 +16,48 @@
 #
 #  Author: Mauro Soria
 
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import urljoin, urlsplit, urlunsplit
 
 from lib.utils.common import lstrip_once
+
+
+_DEFAULT_PORTS = {"http": 80, "https": 443}
+
+
+def _origin(value: str) -> tuple[str, str, int | None] | None:
+    try:
+        parsed = urlsplit(value)
+        hostname = parsed.hostname
+        port = parsed.port
+    except ValueError:
+        return None
+
+    scheme = parsed.scheme.lower()
+    if not scheme or hostname is None:
+        return None
+
+    return (
+        scheme,
+        hostname.lower(),
+        port if port is not None else _DEFAULT_PORTS.get(scheme),
+    )
+
+
+def same_origin(first: str, second: str) -> bool:
+    first_origin = _origin(first)
+    return first_origin is not None and first_origin == _origin(second)
+
+
+def same_origin_path(base_url: str, location: str) -> str | None:
+    try:
+        resolved = urljoin(base_url, location)
+    except ValueError:
+        return None
+
+    if not same_origin(base_url, resolved):
+        return None
+
+    return parse_path(resolved)
 
 
 def clean_path(path: str, keep_queries: bool = False, keep_fragment: bool = False) -> str:
