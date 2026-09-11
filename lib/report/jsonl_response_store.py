@@ -83,6 +83,8 @@ class JsonlResponseStore(BaseResponseStore):
             "headers": dict(artifact.headers),
             "contentLength": artifact.content_length,
             "capturedBodyLength": len(artifact.body),
+            "bodyComplete": artifact.body_complete,
+            "bodyTruncated": artifact.body_truncated,
             "contentType": artifact.content_type,
             "redirect": artifact.redirect,
             "elapsed": round(artifact.elapsed, 3),

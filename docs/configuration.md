@@ -15,6 +15,9 @@ filtering, so memory and network use can increase on binary-heavy targets.
 
 `--save-response-jsonl FILE` appends one versioned JSON object per matched
 response. The `body` field is always Base64 encoded and identified by
-`bodyEncoding`, so text and binary responses use the same stable schema. Both
-response-saving options can be enabled together. Existing non-empty JSONL
-files must contain compatible `dirsearch.response.v1` records.
+`bodyEncoding`, so text and binary responses use the same stable schema.
+`capturedBodyLength` records the number of stored bytes, while `bodyComplete`
+and `bodyTruncated` explicitly identify whether the capture limit omitted any
+of the decoded response body. Both response-saving options can be enabled
+together. Existing non-empty JSONL files must contain compatible
+`dirsearch.response.v1` records.

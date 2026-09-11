@@ -133,6 +133,8 @@ class TestResponse(TestCase):
             )
 
         self.assertEqual(response.body, b"abcde")
+        self.assertFalse(response.body_complete)
+        self.assertTrue(response.body_truncated)
 
     def test_binary_responses_with_matching_prefixes_are_not_equal(self):
         prefix = b"\x00" + b"a" * 15
@@ -225,6 +227,8 @@ class TestAsyncResponse(IsolatedAsyncioTestCase):
             )
 
         self.assertEqual(response.body, b"abcde")
+        self.assertFalse(response.body_complete)
+        self.assertTrue(response.body_truncated)
 
     async def test_binary_responses_with_matching_prefixes_are_not_equal(self):
         prefix = b"\x00" + b"a" * 15

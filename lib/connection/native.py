@@ -117,6 +117,7 @@ class NativeHTTPBackend:
                     length=getattr(result, "length", None),
                     filtered=getattr(result, "filtered", False),
                     filter_reason=getattr(result, "filter_reason", None),
+                    body_complete=getattr(result, "body_complete", None),
                 ),
                 None,
             )

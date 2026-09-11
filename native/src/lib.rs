@@ -42,6 +42,8 @@ struct NativeHttpResult {
     headers: Vec<(String, String)>,
     #[pyo3(get)]
     body: Vec<u8>,
+    #[pyo3(get)]
+    body_complete: bool,
 }
 
 #[pyclass]
@@ -1022,6 +1024,7 @@ fn native_http_result_with_length(
         .filter_reason(status, length, &headers, &body, elapsed_ms)
         .map(str::to_string);
     let filtered = filter_reason.is_some();
+    let body_complete = !filtered && body.len() == body_length;
 
     NativeHttpResult {
         path,
@@ -1033,6 +1036,7 @@ fn native_http_result_with_length(
         filter_reason,
         headers,
         body: if filtered { Vec::new() } else { body },
+        body_complete,
     }
 }
 
@@ -1047,6 +1051,7 @@ fn native_error_result(path: String, elapsed_ms: f64, error: String) -> NativeHt
         filter_reason: None,
         headers: Vec::new(),
         body: Vec::new(),
+        body_complete: false,
     }
 }
 
@@ -1882,6 +1887,7 @@ mod tests {
 
         assert_eq!(result.length, 1024);
         assert_eq!(result.body, b"abcdef");
+        assert!(!result.body_complete);
     }
 
     #[test]

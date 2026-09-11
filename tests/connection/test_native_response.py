@@ -115,3 +115,5 @@ class TestNativeResponse(TestCase):
         )
 
         self.assertNotEqual(left, right)
+        self.assertFalse(left.body_complete)
+        self.assertTrue(left.body_truncated)
