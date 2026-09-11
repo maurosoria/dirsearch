@@ -141,6 +141,11 @@ class TestAsyncFuzzer(IsolatedAsyncioTestCase):
         with self.assertRaises(StopIteration):
             next(resumed)
 
+        resumed.reset()
+        self.assertEqual([next(resumed), next(resumed)], ["admin", "login"])
+        with self.assertRaises(StopIteration):
+            next(resumed)
+
     async def test_awaits_async_match_callbacks(self):
         dictionary = DummyDictionary(["home.html"])
         callback_finished = asyncio.Event()

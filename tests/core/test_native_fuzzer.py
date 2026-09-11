@@ -265,6 +265,11 @@ class TestNativeFuzzer(TestCase):
         with self.assertRaises(StopIteration):
             next(resumed)
 
+        resumed.reset()
+        self.assertEqual([next(resumed), next(resumed)], ["admin", "login"])
+        with self.assertRaises(StopIteration):
+            next(resumed)
+
     def test_quit_cancels_active_native_engine(self):
         backend = FakeNativeBackend([])
         fuzzer = self.make_fuzzer(backend, DummyDictionary([]), [], [], [])

@@ -103,6 +103,54 @@ class TestSessionStore(TestCase):
 
         self.assertEqual(restored["data"], body)
 
+    def test_resume_preserves_later_jobs_and_targets_with_full_wordlist(self):
+        target_urls = ["https://first.example/", "https://second.example/"]
+        session_options = {
+            "urls": target_urls,
+            "output_formats": [],
+        }
+        controller = self._controller()
+        controller.directories = ["current/", "next/"]
+        controller.jobs_processed = 3
+        controller.dictionary = object.__new__(Dictionary)
+        controller.dictionary.__setstate__(
+            (["done", "in-flight", "later"], 1, [], 0)
+        )
+        self.assertEqual(controller.dictionary.claim_next(), "in-flight")
+
+        with tempfile.TemporaryDirectory() as session_dir:
+            store = SessionStore(session_options)
+            store.save(controller, session_dir, "")
+            payload = store.load(session_dir)
+            restored_options = store.restore_options(payload["options"])
+            resumed = SimpleNamespace(dictionary=None)
+            SessionStore(restored_options).apply_to_controller(resumed, payload)
+
+        self.assertEqual(resumed.directories, ["current/", "next/"])
+        self.assertEqual(resumed.jobs_processed, 3)
+        self.assertEqual(restored_options["urls"], target_urls)
+
+        self.assertEqual(
+            [next(resumed.dictionary), next(resumed.dictionary)],
+            ["in-flight", "later"],
+        )
+        with self.assertRaises(StopIteration):
+            next(resumed.dictionary)
+
+        for boundary in ("next job", "next target"):
+            with self.subTest(boundary=boundary):
+                resumed.dictionary.reset()
+                self.assertEqual(
+                    [
+                        next(resumed.dictionary),
+                        next(resumed.dictionary),
+                        next(resumed.dictionary),
+                    ],
+                    ["done", "in-flight", "later"],
+                )
+                with self.assertRaises(StopIteration):
+                    next(resumed.dictionary)
+
     @skipIf(os.name == "nt", "POSIX mode bits are unavailable on Windows")
     def test_new_session_directory_and_files_are_private(self):
         with tempfile.TemporaryDirectory() as root:

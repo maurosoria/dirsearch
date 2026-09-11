@@ -120,6 +120,11 @@ class TestThreadedFuzzerLifecycle(TestCase):
         with self.assertRaises(StopIteration):
             next(resumed)
 
+        resumed.reset()
+        self.assertEqual([next(resumed), next(resumed)], ["blocked", "later"])
+        with self.assertRaises(StopIteration):
+            next(resumed)
+
         completed = object.__new__(Dictionary)
         completed.__setstate__(dictionary.__getstate__())
         self.assertEqual(next(completed), "later")
