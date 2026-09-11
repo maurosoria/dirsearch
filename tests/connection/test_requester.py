@@ -82,6 +82,11 @@ INDIC_TEXT = (
 )
 MULTISCRIPT_TEXT = f"{CHINESE_TEXT} | {ARABIC_TEXT} | {INDIC_TEXT}"
 ENCODED_RESPONSE_CASES = (
+    (
+        "encoded/normal-gzip",
+        "utf-8",
+        b"normal native gzip response",
+    ),
     ("encoded/multiscript-utf8%1", "utf-8", MULTISCRIPT_TEXT.encode("utf-8")),
     (
         "encoded/chinese-gb18030%1",

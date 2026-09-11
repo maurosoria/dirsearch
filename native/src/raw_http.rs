@@ -202,7 +202,10 @@ fn content_length(headers: &HeaderPairs) -> Result<Option<usize>, String> {
     Ok(Some(expected))
 }
 
-fn comma_separated_header_values(headers: &HeaderPairs, wanted_name: &str) -> Vec<String> {
+pub(crate) fn comma_separated_header_values(
+    headers: &HeaderPairs,
+    wanted_name: &str,
+) -> Vec<String> {
     headers
         .iter()
         .filter(|(name, _)| name.eq_ignore_ascii_case(wanted_name))

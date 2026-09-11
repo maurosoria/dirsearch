@@ -1,3 +1,4 @@
+import gzip
 import os
 import signal
 import socket
@@ -348,6 +349,32 @@ class TestNativeHttpEngine(TestCase):
             results = engine.scan(
                 server.url,
                 ["gzip%1"],
+                matcher_mode="and",
+                match_words=[(2, 2)],
+                match_regex="hello world",
+            )
+        finally:
+            server.close()
+
+        self.assertIsNone(results[0].error)
+        self.assertFalse(results[0].filtered)
+        self.assertEqual(results[0].body, b"hello world")
+
+    def test_client_decodes_gzip_before_body_matching(self):
+        compressed = gzip.compress(b"hello world", mtime=0)
+        server = RawResponseServer(
+            b"HTTP/1.1 200 OK\r\n"
+            b"Content-Encoding: gzip\r\n"
+            + f"Content-Length: {len(compressed)}\r\n".encode()
+            + b"Connection: close\r\n\r\n"
+            + compressed
+        )
+        engine = dirsearch_native.NativeHttpEngine(timeout_secs=1)
+
+        try:
+            results = engine.scan(
+                server.url,
+                ["gzip"],
                 matcher_mode="and",
                 match_words=[(2, 2)],
                 match_regex="hello world",
