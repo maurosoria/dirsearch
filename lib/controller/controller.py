@@ -929,6 +929,10 @@ class Controller:
                 pass
         os._exit(1)
 
+    def _reset_pause_state(self) -> None:
+        self._handling_pause = False
+        self._force_quit_handler.on_resume()
+
     def handle_pause(self) -> None:
         """Handle SIGINT (Ctrl+C) by pausing execution and showing options."""
         if self._handling_pause:
@@ -997,16 +1001,17 @@ class Controller:
                             raise quitexc
 
                 elif option.lower() == "c":
-                    self._handling_pause = False
-                    self._force_quit_handler.on_resume()
+                    self._reset_pause_state()
                     self.fuzzer.play()
                     break
 
                 elif option.lower() == "n" and len(self.directories) > 1:
+                    self._reset_pause_state()
                     self.fuzzer.quit()
                     break
 
                 elif option.lower() == "s" and len(options["urls"]) > 1:
+                    self._reset_pause_state()
                     skipexc = SkipTargetInterrupt("Target skipped by the user")
                     if options["async_mode"]:
                         self.pause_future.set_exception(skipexc)
