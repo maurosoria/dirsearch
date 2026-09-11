@@ -336,6 +336,17 @@ class DummyAsyncSession:
         self.closed = True
 
 
+class RecordingAsyncTransport:
+    def __init__(self, close_error=None):
+        self.close_error = close_error
+        self.close_calls = 0
+
+    async def aclose(self):
+        self.close_calls += 1
+        if self.close_error is not None:
+            raise self.close_error
+
+
 class BaseRequesterTestCase(TestCase):
     def setUp(self) -> None:
         self.original_options = dict(options)
@@ -686,6 +697,40 @@ class TestRequesterProxyRouting(BaseRequesterTestCase):
 class TestAsyncRequesterProxyRouting(
     BaseRequesterTestCase, IsolatedAsyncioTestCase
 ):
+    async def test_requester_close_closes_every_rotating_proxy_transport(self):
+        options["proxies"] = [
+            "http://proxy-one.invalid:8080",
+            "http://proxy-two.invalid:8080",
+        ]
+        children = [RecordingAsyncTransport(), RecordingAsyncTransport()]
+
+        with patch(
+            "lib.connection.requester.PathPreservingAsyncHTTPTransport",
+            side_effect=children,
+        ):
+            requester = AsyncRequester()
+
+        await requester.close()
+
+        self.assertEqual([child.close_calls for child in children], [1, 1])
+
+    async def test_rotating_proxy_close_continues_after_child_failure(self):
+        failure = RuntimeError("first transport close failed")
+        children = [
+            RecordingAsyncTransport(close_error=failure),
+            RecordingAsyncTransport(
+                close_error=RuntimeError("second transport close failed")
+            ),
+            RecordingAsyncTransport(),
+        ]
+        transport = object.__new__(ProxyRoatingTransport)
+        transport._transports = children
+
+        with self.assertRaisesRegex(RuntimeError, "first transport close failed"):
+            await transport.aclose()
+
+        self.assertEqual([child.close_calls for child in children], [1, 1, 1])
+
     async def test_explicit_proxy_overrides_environment_proxy_rules(self):
         options["proxies"] = ["http://cli.invalid:8080"]
         environments = (
