@@ -169,6 +169,30 @@ class TestFileUtils(TestCase):
 
             self.assertEqual(FileUtils.read_bytes(file_name), b"firstsecond")
 
+    def test_private_text_append_preserves_existing_text(self):
+        with tempfile.TemporaryDirectory() as directory:
+            file_name = FileUtils.build_path(directory, "report.txt")
+
+            FileUtils.append_private_text(file_name, "first\n")
+            FileUtils.append_private_text(file_name, "second\n")
+
+            self.assertEqual(
+                FileUtils.read_bytes(file_name),
+                b"first\nsecond\n",
+            )
+
+    @skipIf(os.name == "nt", "POSIX mode bits are unavailable on Windows")
+    def test_private_text_append_creates_private_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            file_name = FileUtils.build_path(directory, "report.txt")
+            previous_umask = os.umask(0o000)
+            try:
+                FileUtils.append_private_text(file_name, "result\n")
+            finally:
+                os.umask(previous_umask)
+
+            self.assertEqual(stat.S_IMODE(os.stat(file_name).st_mode), 0o600)
+
     @skipUnless(hasattr(os, "symlink"), "symbolic links are unavailable")
     def test_open_binary_append_does_not_follow_symbolic_link(self):
         with tempfile.TemporaryDirectory() as directory:

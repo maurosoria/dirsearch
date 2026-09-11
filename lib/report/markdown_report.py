@@ -41,7 +41,9 @@ class MarkdownReport(FileReportMixin, BaseReport):
 
     @locked
     def save(self, file, result):
-        md = self.parse(file)
         elapsed_ms = int(result.elapsed * 1000) if result.elapsed else "-"
-        md += f"{result.url} | {result.status} | {result.length} | {result.type} | {result.redirect} | {elapsed_ms}" + NEW_LINE
-        self.write(file, md)
+        row = (
+            f"{result.url} | {result.status} | {result.length} | "
+            f"{result.type} | {result.redirect} | {elapsed_ms}{NEW_LINE}"
+        )
+        self.append(file, row)

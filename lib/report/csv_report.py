@@ -16,6 +16,8 @@
 #
 #  Author: Mauro Soria
 
+from io import StringIO
+
 from defusedcsv import csv
 
 from lib.core.decorators import locked
@@ -43,10 +45,19 @@ class CSVReport(FileReportMixin, BaseReport):
 
     @locked
     def save(self, file, result):
-        rows = self.parse(file)
         elapsed = round(result.elapsed, 3) if result.elapsed else ""
-        rows.append([result.url, result.status, result.length, result.type, result.redirect, elapsed])
-        self.write(file, rows)
+        row = StringIO(newline="")
+        csv.writer(row, delimiter=",", quotechar='"').writerow(
+            [
+                result.url,
+                result.status,
+                result.length,
+                result.type,
+                result.redirect,
+                elapsed,
+            ]
+        )
+        self.append(file, row.getvalue())
 
     def write(self, file, rows):
         with self._atomic_writer(file) as fh:

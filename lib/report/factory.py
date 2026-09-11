@@ -87,6 +87,9 @@ class FileReportMixin:
         with self._atomic_writer(file) as fh:
             fh.write(data)
 
+    def append(self, file, data):
+        FileUtils.append_private_text(file, data, encoding=None)
+
     def finish(self):
         pass
 

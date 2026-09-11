@@ -29,16 +29,13 @@ class MemorySimpleReport(SimpleReport):
         self._blocked = False
         self.contents = ""
 
-    def parse(self, _file):
+    def append(self, _file, data):
         if self._entered is not None and not self._blocked:
             self._blocked = True
             self._entered.set()
             if not self._release.wait(timeout=TEST_TIMEOUT):
                 raise TimeoutError("test did not release blocked report")
-        return self.contents
-
-    def write(self, _file, data):
-        self.contents = data
+        self.contents += data
 
 
 class TestReportLocking(TestCase):
