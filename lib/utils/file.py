@@ -184,6 +184,35 @@ class FileUtils:
         flags |= getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
         return os.open(file_name, flags, 0o600)
 
+    @classmethod
+    def append_private_text(
+        cls,
+        file_name: str,
+        data: str,
+        encoding: str | None = "utf-8",
+    ) -> None:
+        """Append text and roll back a failed write to the previous file size."""
+        descriptor = cls.open_binary_append(file_name)
+        rollback_descriptor = -1
+        try:
+            original_size = os.fstat(descriptor).st_size
+            rollback_descriptor = os.dup(descriptor)
+            try:
+                with os.fdopen(descriptor, "a", encoding=encoding) as file_handle:
+                    descriptor = -1
+                    file_handle.write(data)
+            except BaseException:
+                try:
+                    os.ftruncate(rollback_descriptor, original_size)
+                except OSError:
+                    pass
+                raise
+        finally:
+            if descriptor != -1:
+                os.close(descriptor)
+            if rollback_descriptor != -1:
+                os.close(rollback_descriptor)
+
     @staticmethod
     def open_exclusive(file_name: str) -> int:
         """Create a private binary file without replacing or following a path."""

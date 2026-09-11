@@ -86,7 +86,7 @@ class TestAtomicFileReports(TestCase):
 
                     def faulting_fdopen(descriptor, mode="r", *args, **kwargs):
                         file_handle = real_fdopen(descriptor, mode, *args, **kwargs)
-                        if "w" in mode:
+                        if "w" in mode or "a" in mode:
                             return PartialWriteFailure(file_handle)
                         return file_handle
 

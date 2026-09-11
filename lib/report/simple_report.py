@@ -30,6 +30,4 @@ class SimpleReport(FileReportMixin, BaseReport):
 
     @locked
     def save(self, file, result):
-        data = self.parse(file)
-        data += result.url + NEW_LINE
-        self.write(file, data)
+        self.append(file, result.url + NEW_LINE)
