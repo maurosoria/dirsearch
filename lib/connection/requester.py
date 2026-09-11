@@ -707,6 +707,18 @@ class ProxyRoatingTransport(httpx.AsyncBaseTransport):
         transport = random.choice(self._transports)
         return await transport.handle_async_request(request)
 
+    async def aclose(self) -> None:
+        first_error = None
+        for transport in self._transports:
+            try:
+                await transport.aclose()
+            except Exception as error:
+                if first_error is None:
+                    first_error = error
+
+        if first_error is not None:
+            raise first_error
+
 
 class AsyncRequester(BaseRequester):
     def __init__(self) -> None:
