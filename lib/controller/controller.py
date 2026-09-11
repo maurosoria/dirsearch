@@ -27,7 +27,7 @@ import re
 import threading
 import time
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, Awaitable
 
 from urllib.parse import unquote, urlparse
 
@@ -819,7 +819,11 @@ class Controller:
                     f"{store.destination}: {error}"
                 )
 
-    def match_callback(self, response: BaseResponse) -> None:
+    def match_callback(
+        self, response: BaseResponse
+    ) -> Awaitable[BaseResponse] | None:
+        replay = None
+
         if response.status in options["skip_on_status"]:
             raise SkipTargetInterrupt(
                 f"Skipped the target due to {response.status} status code"
@@ -853,9 +857,17 @@ class Controller:
         if options["replay_proxy"]:
             # Replay the request with new proxy
             if options["async_mode"]:
-                self.loop.create_task(self.requester.replay_request(response.full_path, proxy=options["replay_proxy"]))
+                # AsyncFuzzer awaits callback results, so replay remains inside
+                # the scan lifecycle and receives cancellation with its worker.
+                replay = self.requester.replay_request(
+                    response.full_path,
+                    proxy=options["replay_proxy"],
+                )
             else:
-                self.requester.request(response.full_path, proxy=options["replay_proxy"])
+                self.requester.request(
+                    response.full_path,
+                    proxy=options["replay_proxy"],
+                )
 
         if options["crawl"]:
             self.add_crawled_paths(response)
@@ -864,6 +876,8 @@ class Controller:
             path = lstrip_once(response.path, self.base_path)
             for backup_path in generate_backup_paths(path):
                 self.dictionary.add_extra(backup_path)
+
+        return replay
 
     def update_progress_bar(self, response: BaseResponse) -> None:
         jobs_count = (
