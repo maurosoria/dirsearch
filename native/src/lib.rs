@@ -1,5 +1,7 @@
 mod raw_http;
 
+use async_compression::tokio::bufread::{BrotliDecoder, GzipDecoder, ZlibDecoder};
+use futures_util::TryStreamExt;
 use indexmap::IndexSet;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
@@ -7,12 +9,16 @@ use rayon::prelude::*;
 use regex::{Regex, RegexBuilder};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use std::fs;
+use std::io;
 #[cfg(test)]
 use std::io::Cursor;
+use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
+use tokio::io::{AsyncRead, AsyncReadExt, BufReader};
 use tokio::task::JoinSet;
+use tokio_util::io::StreamReader;
 
 const SIGNAL_POLL_INTERVAL: Duration = Duration::from_millis(50);
 
@@ -54,6 +60,7 @@ type NumericRange = (usize, usize);
 type TimeFilter = (String, f64);
 type HeaderPairs = Vec<(String, String)>;
 type RawHttpResponse = raw_http::Response;
+type AsyncBodyReader = Pin<Box<dyn AsyncRead + Send>>;
 
 struct RawHttpRequest<'a> {
     base_url: &'a str,
@@ -948,7 +955,7 @@ async fn request_with_client(
             )
         })
         .collect::<Vec<_>>();
-    let (body, body_length) = match read_response_body(response, max_body_size).await {
+    let (body, body_length) = match read_response_body(response, &headers, max_body_size).await {
         Ok(result) => result,
         Err(error) => {
             return native_error_result(
@@ -1051,20 +1058,54 @@ fn runtime_worker_count() -> usize {
 }
 
 async fn read_response_body(
-    mut response: reqwest::Response,
+    response: reqwest::Response,
+    headers: &HeaderPairs,
     max_body_size: usize,
-) -> Result<(Vec<u8>, usize), reqwest::Error> {
+) -> Result<(Vec<u8>, usize), String> {
     let capacity = response
         .content_length()
         .and_then(|length| usize::try_from(length).ok())
         .unwrap_or_default()
         .min(max_body_size);
+    let encodings = raw_http::comma_separated_header_values(headers, "content-encoding");
+    let stream = response.bytes_stream().map_err(io::Error::other);
+    let mut reader: AsyncBodyReader = Box::pin(StreamReader::new(stream));
+    for encoding in encodings.iter().rev() {
+        if encoding.eq_ignore_ascii_case("identity") {
+            continue;
+        }
+
+        let buffered = BufReader::new(reader);
+        reader = if encoding.eq_ignore_ascii_case("gzip") {
+            Box::pin(GzipDecoder::new(buffered))
+        } else if encoding.eq_ignore_ascii_case("deflate") {
+            Box::pin(ZlibDecoder::new(buffered))
+        } else if encoding.eq_ignore_ascii_case("br") {
+            Box::pin(BrotliDecoder::new(buffered))
+        } else {
+            return Err(format!("Unsupported HTTP Content-Encoding: {encoding}"));
+        };
+    }
     let mut body = Vec::with_capacity(capacity);
     let mut body_length = 0usize;
+    let mut buffer = [0u8; 8192];
 
-    while let Some(chunk) = response.chunk().await? {
-        body_length = body_length.saturating_add(chunk.len());
-        append_body_chunk(&mut body, &chunk, max_body_size);
+    loop {
+        let read = reader.read(&mut buffer).await.map_err(|error| {
+            if encodings.is_empty() {
+                error.to_string()
+            } else {
+                format!(
+                    "Failed to decode {} response body: {error}",
+                    encodings.join(", ")
+                )
+            }
+        })?;
+        if read == 0 {
+            break;
+        }
+        body_length = body_length.saturating_add(read);
+        append_body_chunk(&mut body, &buffer[..read], max_body_size);
     }
 
     Ok((body, body_length))
@@ -1407,6 +1448,90 @@ mod tests {
         let mut response = format!("HTTP/1.1 200 OK\r\n{headers}\r\n\r\n").into_bytes();
         response.extend_from_slice(body);
         response
+    }
+
+    fn compressed_body(encoding: &str, body: &[u8]) -> Vec<u8> {
+        if encoding == "gzip" {
+            let mut encoder =
+                flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+            encoder.write_all(body).unwrap();
+            encoder.finish().unwrap()
+        } else if encoding == "deflate" {
+            let mut encoder =
+                flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
+            encoder.write_all(body).unwrap();
+            encoder.finish().unwrap()
+        } else {
+            let mut compressed = Vec::new();
+            {
+                let mut encoder = brotli::CompressorWriter::new(&mut compressed, 4096, 5, 22);
+                encoder.write_all(body).unwrap();
+            }
+            compressed
+        }
+    }
+
+    fn reqwest_response(body: Vec<u8>, encoding: &str) -> (reqwest::Response, HeaderPairs) {
+        let headers = vec![
+            ("Content-Encoding".to_string(), encoding.to_string()),
+            ("Content-Length".to_string(), body.len().to_string()),
+        ];
+        let response = http::Response::builder()
+            .header("Content-Encoding", encoding)
+            .header("Content-Length", body.len())
+            .body(body)
+            .unwrap()
+            .into();
+        (response, headers)
+    }
+
+    #[test]
+    fn reqwest_response_decoder_streams_supported_content_encodings() {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let plain = b"hello world";
+        let gzip = compressed_body("gzip", plain);
+        let cases = [
+            ("identity", plain.to_vec()),
+            ("gzip", gzip.clone()),
+            ("deflate", compressed_body("deflate", plain)),
+            ("br", compressed_body("br", plain)),
+            ("gzip, br", compressed_body("br", &gzip)),
+        ];
+
+        for (encoding, compressed) in cases {
+            let (response, headers) = reqwest_response(compressed, encoding);
+            let (body, length) = runtime
+                .block_on(read_response_body(response, &headers, 5))
+                .unwrap();
+
+            assert_eq!(body, b"hello");
+            assert_eq!(length, plain.len());
+        }
+    }
+
+    #[test]
+    fn reqwest_response_decoder_rejects_unknown_or_invalid_encodings() {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let (unknown, unknown_headers) = reqwest_response(b"hello world".to_vec(), "compress-test");
+        let unknown_error = runtime
+            .block_on(read_response_body(unknown, &unknown_headers, 80))
+            .unwrap_err();
+        let (invalid, invalid_headers) = reqwest_response(b"not gzip".to_vec(), "gzip");
+        let invalid_error = runtime
+            .block_on(read_response_body(invalid, &invalid_headers, 80))
+            .unwrap_err();
+
+        assert_eq!(
+            unknown_error,
+            "Unsupported HTTP Content-Encoding: compress-test"
+        );
+        assert!(invalid_error.starts_with("Failed to decode gzip response body:"));
     }
 
     #[test]
