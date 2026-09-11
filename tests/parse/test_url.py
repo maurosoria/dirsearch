@@ -19,7 +19,14 @@
 from unittest import TestCase
 
 from lib.core.settings import DUMMY_URL
-from lib.parse.url import append_query_string, clean_path, ensure_trailing_path_slash, parse_path
+from lib.parse.url import (
+    append_query_string,
+    clean_path,
+    ensure_trailing_path_slash,
+    parse_path,
+    same_origin,
+    same_origin_path,
+)
 
 
 class TestURLParsers(TestCase):
@@ -54,3 +61,38 @@ class TestURLParsers(TestCase):
             append_query_string("admin?existing=true", "debug=true"),
             "admin?existing=true",
         )
+
+    def test_same_origin_normalizes_host_case_and_default_ports(self):
+        self.assertTrue(
+            same_origin(
+                "https://example.com/path",
+                "https://EXAMPLE.COM:443/other",
+            )
+        )
+        self.assertTrue(
+            same_origin(
+                "http://[2001:db8::1]/path",
+                "http://[2001:DB8::1]:80/other",
+            )
+        )
+
+    def test_same_origin_rejects_origin_changes_and_invalid_ports(self):
+        base_url = "https://example.com/path"
+
+        for url in (
+            "https://other.example/path",
+            "http://example.com/path",
+            "https://example.com:444/path",
+            "https://example.com:0/path",
+            "https://example.com:invalid/path",
+            "https://[invalid/path",
+        ):
+            with self.subTest(url=url):
+                self.assertFalse(same_origin(base_url, url))
+
+    def test_same_origin_path_resolves_relative_and_protocol_relative_urls(self):
+        base_url = "https://example.com/admin"
+
+        self.assertEqual(same_origin_path(base_url, "admin/"), "admin/")
+        self.assertEqual(same_origin_path(base_url, "/admin/"), "admin/")
+        self.assertIsNone(same_origin_path(base_url, "//other.example/admin/"))

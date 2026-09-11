@@ -70,7 +70,12 @@ from lib.core.settings import (
 )
 from lib.core.wordlist_template import generate_backup_paths
 from lib.parse.rawrequest import parse_raw
-from lib.parse.url import clean_path, ensure_trailing_path_slash, parse_path
+from lib.parse.url import (
+    clean_path,
+    ensure_trailing_path_slash,
+    parse_path,
+    same_origin_path,
+)
 from lib.report.manager import ReportManager
 from lib.report.response_store import (
     BaseResponseStore,
@@ -830,8 +835,12 @@ class Controller:
             )
         ):
             if response.redirect:
-                new_path = clean_path(parse_path(response.redirect))
-                added_to_queue = self.recur_for_redirect(response.path, new_path)
+                new_path = same_origin_path(response.url, response.redirect)
+                added_to_queue = (
+                    self.recur_for_redirect(response.path, clean_path(new_path))
+                    if new_path is not None
+                    else []
+                )
             elif len(response.history):
                 old_path = clean_path(parse_path(response.history[0]))
                 added_to_queue = self.recur_for_redirect(old_path, response.path)
