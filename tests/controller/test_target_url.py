@@ -1,4 +1,5 @@
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import asyncio
 import os
 import socket
 import threading
@@ -9,7 +10,7 @@ from lib.connection.native import NativeHTTPBackend
 from lib.connection.requester import AsyncRequester, Requester
 from lib.controller.controller import Controller
 from lib.core.data import options
-from lib.core.exceptions import RequestException
+from lib.core.exceptions import InvalidURLException, RequestException
 
 
 PROXY_ENVIRONMENT = {
@@ -149,6 +150,97 @@ class TestControllerTargetURL(TestCase):
         self.controller.requester.set_url.assert_called_once_with(
             "https://[2001:db8::1]:8443/"
         )
+
+    def test_invalid_ports_raise_invalid_url_exception(self):
+        targets = (
+            "http://example.test:not-a-port/",
+            "http://example.test:-1/",
+            "http://example.test:65536/",
+            "http://example.test:０/",
+            "http://[::1]:not-a-port/",
+        )
+
+        for request_backend in ("python", "native"):
+            options["request_backend"] = request_backend
+            for target in targets:
+                with self.subTest(
+                    request_backend=request_backend,
+                    target=target,
+                ):
+                    with self.assertRaisesRegex(
+                        InvalidURLException,
+                        "Invalid port in target URL",
+                    ):
+                        self.controller.set_target(target)
+
+    def test_invalid_port_does_not_discard_later_targets(self):
+        stack_cases = (
+            ("threaded", False, "python"),
+            ("async", True, "python"),
+            ("native", False, "native"),
+        )
+
+        for stack, async_mode, request_backend in stack_cases:
+            with self.subTest(stack=stack):
+                controller = object.__new__(Controller)
+                controller.start_time = 0
+                controller.passed_urls = set()
+                controller.directories = []
+                controller.jobs_processed = 0
+                controller.errors = 0
+                controller.consecutive_errors = 0
+                controller.old_session = False
+                controller.dictionary = Mock()
+                controller.output_history = []
+                controller.response_stores = ()
+                controller.reporter = Mock()
+                controller.crawl_target = Mock()
+                controller.start = Mock()
+                requester = Mock()
+
+                run_options = {
+                    "urls": [
+                        "http://bad.example:not-a-port/",
+                        "https://good.example/",
+                    ],
+                    "request_backend": request_backend,
+                    "async_mode": async_mode,
+                    "subdirs": [""],
+                    "session_file": None,
+                }
+
+                with (
+                    patch.dict(options, run_options),
+                    patch(
+                        "lib.connection.requester.Requester",
+                        return_value=requester,
+                    ),
+                    patch(
+                        "lib.connection.requester.AsyncRequester",
+                        return_value=requester,
+                    ),
+                    patch("lib.core.fuzzer.Fuzzer", return_value=Mock()),
+                    patch("lib.core.fuzzer.AsyncFuzzer", return_value=Mock()),
+                    patch("lib.core.fuzzer.NativeFuzzer", return_value=Mock()),
+                    patch("lib.controller.controller.signal.signal"),
+                    patch("lib.controller.controller.interface") as interface,
+                ):
+                    try:
+                        controller.run()
+                    finally:
+                        loop = getattr(controller, "loop", None)
+                        if isinstance(loop, asyncio.AbstractEventLoop):
+                            loop.close()
+
+                controller.start.assert_called_once_with()
+                controller.reporter.prepare.assert_called_once_with(
+                    "https://good.example/"
+                )
+                interface.error.assert_called_once()
+                self.assertIn(
+                    "Invalid port in target URL",
+                    interface.error.call_args.args[0],
+                )
 
     def test_threaded_requester_reaches_ipv6_literal(self):
         with patch.dict(os.environ, PROXY_ENVIRONMENT):

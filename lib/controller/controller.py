@@ -686,7 +686,12 @@ class Controller:
         if parsed.scheme not in (UNKNOWN, "https", "http"):
             raise InvalidURLException(f"Unsupported URI scheme: {parsed.scheme}")
 
-        port = parsed.port
+        try:
+            port = parsed.port
+        except ValueError as error:
+            raise InvalidURLException(
+                f"Invalid port in target URL: {error}"
+            ) from error
         # If no port is specified, set default (80, 443) based on the scheme
         if not port:
             port = STANDARD_PORTS.get(parsed.scheme, None)
