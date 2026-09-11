@@ -178,7 +178,7 @@ class TestFileUtils(TestCase):
 
             self.assertEqual(
                 FileUtils.read_bytes(file_name),
-                b"first\nsecond\n",
+                f"first{os.linesep}second{os.linesep}".encode(),
             )
 
     @skipIf(os.name == "nt", "POSIX mode bits are unavailable on Windows")
