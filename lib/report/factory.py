@@ -77,10 +77,14 @@ class FileReportMixin:
             raise FileExistsException(f"Output file {file} already exists") from error
 
     def parse(self, file):
-        return open(file, "r").read()
+        with open(file, "r") as file_handle:
+            return file_handle.read()
+
+    def _atomic_writer(self, file):
+        return FileUtils.atomic_write_private_text(file, encoding=None)
 
     def write(self, file, data):
-        with open(file, "w") as fh:
+        with self._atomic_writer(file) as fh:
             fh.write(data)
 
     def finish(self):

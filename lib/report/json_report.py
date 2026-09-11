@@ -53,5 +53,5 @@ class JSONReport(FileReportMixin, BaseReport):
         self.write(file, data)
 
     def write(self, file, data):
-        with open(file, "w") as fh:
+        with self._atomic_writer(file) as fh:
             json.dump(data, fh, sort_keys=True, indent=4)
