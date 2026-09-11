@@ -19,6 +19,10 @@ the previous four-file JSON directory format; successfully saving that session
 again migrates it to the combined checkpoint. Legacy `.pickle` and `.pkl`
 session files are no longer supported.
 
+Support for reading the four-file JSON format is a temporary migration bridge.
+It should be removed in a future breaking release after users have had a
+documented deprecation window in which to resume and resave older sessions.
+
 ## Saving a Session
 
 When you pause a scan with `CTRL+C`, dirsearch prompts you to save the session:
