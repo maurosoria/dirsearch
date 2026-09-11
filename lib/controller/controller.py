@@ -717,7 +717,9 @@ class Controller:
         if options["ip"]:
             self.requester.set_ip(parsed.hostname, port, options["ip"])
 
-        self.url = f"{scheme}://{parsed.hostname}"
+        hostname = parsed.hostname
+        url_hostname = f"[{hostname}]" if hostname and ":" in hostname else hostname
+        self.url = f"{scheme}://{url_hostname}"
 
         if port != STANDARD_PORTS[scheme]:
             self.url += f":{port}"
