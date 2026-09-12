@@ -53,7 +53,7 @@ function search(app, result){
     return app.searchQuery.toLowerCase().split(" ").every(
       (v) => result.url.toLowerCase().includes(v) ||
       (result.contentType && result.contentType.toLowerCase().includes(v)) ||
-      result.contentLength.toLowerCase().includes(v) ||
+      String(result.contentLength).includes(v) ||
       result.status.toString().includes(v) ||
       (result.redirect && result.redirect.toLowerCase().includes(v))
     );
@@ -65,7 +65,7 @@ function statusExcludeSearch(app, result){
 }
 function lengthExcludeSearch(app, result){
     return app.lengthExcludeSearchQuery.toLowerCase().split(" ").every(
-      (v) => !result.contentLength.toLowerCase() != v
+      (v) => String(result.contentLength) !== v
     );
 }
 function sort(app, results){
