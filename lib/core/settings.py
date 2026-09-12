@@ -123,7 +123,7 @@ DB_ENGINES = ("mysql", "postgres", "postgresql", "sqlite", "mariadb", "mongodb",
 
 CRAWL_ATTRIBUTES = ("action", "cite", "data", "formaction", "href", "longdesc", "poster", "src", "srcset", "xmlns")
 
-CRAWL_TAGS = ("a", "area", "base", "blockquote", "button", "embed", "form", "frame", "frameset", "html", "iframe", "input", "ins", "noframes", "object", "q", "script", "source")
+CRAWL_TAGS = ("a", "area", "base", "blockquote", "button", "embed", "form", "frame", "frameset", "html", "iframe", "img", "input", "ins", "noframes", "object", "q", "script", "source")
 
 AUTHENTICATION_TYPES = ("basic", "digest", "bearer", "ntlm", "jwt")
 

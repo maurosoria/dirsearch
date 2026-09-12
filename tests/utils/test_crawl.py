@@ -149,6 +149,107 @@ class TestCrawl(TestCase):
         html_doc = f'<a href="{DUMMY_URL}foo">link</a><script src="/bar.js"><img src="/bar.png">'
         self.assertEqual(Crawler.html_crawl(DUMMY_URL, DUMMY_URL, html_doc), {"foo", "bar.js"})
 
+    def test_html_crawl_resolves_only_canonical_same_origin_urls(self):
+        url = "https://example.com/section/page"
+        html_doc = r"""
+            <a href="//EXAMPLE.COM:443/protocol-relative">same origin</a>
+            <a href="https://EXAMPLE.COM:443/absolute">same origin</a>
+            <a href="\\EXAMPLE.COM:443\backslash-relative">same origin</a>
+            <a href="/query?pattern=\d+">query backslash is data</a>
+            <a href="//cdn.example/external">external host</a>
+            <a href="\\cdn.example\external-backslash">external host</a>
+            <a href="http://example.com/wrong-scheme">wrong scheme</a>
+            <a href="https://example.com:444/wrong-port">wrong port</a>
+            <a href="https://example.com:invalid/bad-port">invalid port</a>
+            <a href="https://[invalid/bad-host">invalid host</a>
+            <a href="https://example.com.evil.test/lookalike">lookalike</a>
+        """
+
+        self.assertEqual(
+            Crawler.html_crawl(url, DUMMY_URL, html_doc),
+            {
+                "absolute",
+                "backslash-relative",
+                "protocol-relative",
+                r"query?pattern=\d+",
+            },
+        )
+
+    def test_html_crawl_uses_first_base_without_queueing_it(self):
+        url = "https://example.com/section/page"
+        html_doc = """
+            <base href="/assets/">
+            <base href="/ignored/">
+            <a href="api/users?next=/dashboard#details">API</a>
+            <script src="scripts/app.js"></script>
+        """
+
+        self.assertEqual(
+            Crawler.html_crawl(url, DUMMY_URL, html_doc),
+            {
+                "assets/api/users?next=/dashboard",
+                "assets/scripts/app.js",
+            },
+        )
+
+    def test_html_crawl_does_not_localize_paths_under_external_base(self):
+        url = "https://example.com/section/page"
+        html_doc = """
+            <base href="https://cdn.example/assets/">
+            <a href="relative-api">external through base</a>
+            <a href="https://example.com/local-api">explicitly local</a>
+        """
+
+        self.assertEqual(
+            Crawler.html_crawl(url, DUMMY_URL, html_doc),
+            {"local-api"},
+        )
+
+    def test_html_crawl_ignores_invalid_or_unsafe_first_base(self):
+        url = "https://example.com/section/page"
+
+        for base in (
+            "data:text/html,ignored",
+            "javascript:alert(1)",
+            "http://[invalid",
+        ):
+            with self.subTest(base=base):
+                html_doc = (
+                    f'<base href="{base}">'
+                    '<base href="/second-base-is-ignored/">'
+                    '<a href="relative-api">API</a>'
+                )
+
+                self.assertEqual(
+                    Crawler.html_crawl(url, DUMMY_URL, html_doc),
+                    {"section/relative-api"},
+                )
+
+    def test_html_crawl_parses_source_and_img_srcset_candidates(self):
+        url = "https://example.com/page"
+        html_doc = """
+            <source srcset="/render/small?format=jpg 1x,
+                            /render/large?format=jpg 2x,
+                            /render/no-descriptor,
+                            /render/final-no-descriptor">
+            <img src="/image-endpoint"
+                 srcset="/image?crop=1,2 640w,
+                         //cdn.example/external 2x,
+                         data:image/svg+xml,&lt;svg&gt;&lt;/svg&gt; 3x">
+        """
+
+        self.assertEqual(
+            Crawler.html_crawl(url, DUMMY_URL, html_doc),
+            {
+                "image-endpoint",
+                "image?crop=1,2",
+                "render/large?format=jpg",
+                "render/final-no-descriptor",
+                "render/no-descriptor",
+                "render/small?format=jpg",
+            },
+        )
+
     def test_html_crawl_handles_rtl_override(self):
         html_doc = '<a href="/admin/\u202eexe.txt/">link</a>'
 
