@@ -40,6 +40,20 @@ def root_response():
     )
 
 
+def resolved_html_response():
+    return NativeResponse(
+        "https://example.test/base/page",
+        200,
+        [("Content-Type", "text/html")],
+        (
+            b'<base href="/base/assets/">'
+            b'<a href="api">API</a>'
+            b'<a href="//other.test/external">external</a>'
+            b'<img srcset="/base/render?size=1 1x, /base/render?size=2 2x">'
+        ),
+    )
+
+
 def create_controller(requester):
     controller = object.__new__(Controller)
     controller.requester = requester
@@ -110,6 +124,16 @@ class TestRootCrawl(TestCase):
 
         requester.request.assert_awaited_once_with("base/")
         self.assertEqual(controller.dictionary.extra, ["root-only"])
+
+    def test_crawled_html_paths_are_resolved_before_queueing(self):
+        controller = create_controller(Mock())
+
+        controller.add_crawled_paths(resolved_html_response())
+
+        self.assertEqual(
+            set(controller.dictionary.extra),
+            {"assets/api", "render?size=1", "render?size=2"},
+        )
 
     def test_disabled_crawl_does_not_request_target_root(self):
         requester = Mock()
