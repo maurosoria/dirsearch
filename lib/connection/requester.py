@@ -49,6 +49,7 @@ except ImportError:
 from lib.connection.dns import DNSResolver
 from lib.connection.proxy import (
     PROXY_AUTHENTICATION_REQUIRED,
+    add_proxy_authentication,
     format_proxy_error,
     proxy_error_status,
 )
@@ -522,9 +523,10 @@ class Requester(BaseRequester):
                     if not proxy_url.startswith(PROXY_SCHEMES):
                         proxy_url = f"http://{proxy_url}"
 
-                    if self.proxy_cred and "@" not in proxy_url:
-                        # socks5://localhost:9050 => socks5://[credential]@localhost:9050
-                        proxy_url = proxy_url.replace("://", f"://{self.proxy_cred}@", 1)
+                    proxy_url = add_proxy_authentication(
+                        proxy_url,
+                        self.proxy_cred,
+                    )
 
                     proxies["http"] = proxy_url
                     proxies["https"] = proxy_url
@@ -763,9 +765,7 @@ class AsyncRequester(BaseRequester):
         if not proxy.startswith(PROXY_SCHEMES):
             proxy = f"http://{proxy}"
 
-        if self.proxy_cred and "@" not in proxy:
-            # socks5://localhost:9050 => socks5://[credential]@localhost:9050
-            proxy = proxy.replace("://", f"://{self.proxy_cred}@", 1)
+        proxy = add_proxy_authentication(proxy, self.proxy_cred)
 
         if proxy.startswith("https://"):
             proxy_ssl_context = ssl.create_default_context()

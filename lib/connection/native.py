@@ -7,6 +7,7 @@ from typing import Any
 
 from lib.connection.proxy import (
     PROXY_AUTHENTICATION_REQUIRED,
+    add_proxy_authentication,
     format_proxy_error,
     is_proxy_connect_rejection,
     proxy_error_status,
@@ -133,10 +134,7 @@ class NativeHTTPBackend:
                     "--request-backend native supports HTTP and HTTPS proxies only"
                 )
 
-            if options["proxy_auth"] and "@" not in proxy:
-                proxy = proxy.replace(
-                    "://", f'://{options["proxy_auth"]}@', 1
-                )
+            proxy = add_proxy_authentication(proxy, options["proxy_auth"])
             proxies.append(proxy)
 
         return proxies

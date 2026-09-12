@@ -21,6 +21,8 @@ except ImportError:
 
 
 PROXY_CREDENTIAL = "proxy-user:proxy-password"
+RESERVED_PROXY_CREDENTIAL = "proxy/user:p@ss/word?#%:tail"
+PROXY_CREDENTIALS = (PROXY_CREDENTIAL, RESERVED_PROXY_CREDENTIAL)
 INVALID_PROXY_CREDENTIAL = "wrong:credentials"
 PROXY_AUTHORIZATION = "Basic " + base64.b64encode(
     PROXY_CREDENTIAL.encode()
@@ -173,39 +175,63 @@ class TestProxyIntegration(TestCase):
                 self._assert_case(proxy, target, path, response)
 
     def test_sync_engine_authenticates_http_and_https_proxies(self):
-        for proxy, target in self._cases():
-            with self.subTest(proxy=proxy.scheme, target=target.scheme):
-                path = f"sync-auth-{proxy.scheme}-{target.scheme}"
-                self._prepare_authenticated_case(proxy, target)
-                options["proxy_auth"] = PROXY_CREDENTIAL
-                try:
-                    response, error, _ = self._sync_request(proxy, target, path)
-                finally:
-                    proxy.configure_proxy()
+        for credential in PROXY_CREDENTIALS:
+            for proxy, target in self._cases():
+                with self.subTest(
+                    credential=credential,
+                    proxy=proxy.scheme,
+                    target=target.scheme,
+                ):
+                    path = f"sync-auth-{proxy.scheme}-{target.scheme}"
+                    authorization = self._prepare_authenticated_case(
+                        proxy,
+                        target,
+                        credential,
+                    )
+                    options["proxy_auth"] = credential
+                    try:
+                        response, error, _ = self._sync_request(proxy, target, path)
+                    finally:
+                        proxy.configure_proxy()
 
-                self.assertIsNone(error)
-                self._assert_case(proxy, target, path, response)
-                self.assertEqual(proxy.proxy_authorizations, [PROXY_AUTHORIZATION])
+                    self.assertIsNone(error)
+                    self._assert_case(proxy, target, path, response)
+                    self.assertEqual(
+                        proxy.proxy_authorizations,
+                        [authorization],
+                    )
 
     def test_async_engine_authenticates_http_and_https_proxies(self):
         asyncio.run(self._test_async_engine_authentication())
 
     async def _test_async_engine_authentication(self):
-        for proxy, target in self._cases():
-            with self.subTest(proxy=proxy.scheme, target=target.scheme):
-                path = f"async-auth-{proxy.scheme}-{target.scheme}"
-                self._prepare_authenticated_case(proxy, target)
-                options["proxy_auth"] = PROXY_CREDENTIAL
-                try:
-                    response, error, _ = await self._async_request(
-                        proxy, target, path
+        for credential in PROXY_CREDENTIALS:
+            for proxy, target in self._cases():
+                with self.subTest(
+                    credential=credential,
+                    proxy=proxy.scheme,
+                    target=target.scheme,
+                ):
+                    path = f"async-auth-{proxy.scheme}-{target.scheme}"
+                    authorization = self._prepare_authenticated_case(
+                        proxy,
+                        target,
+                        credential,
                     )
-                finally:
-                    proxy.configure_proxy()
+                    options["proxy_auth"] = credential
+                    try:
+                        response, error, _ = await self._async_request(
+                            proxy, target, path
+                        )
+                    finally:
+                        proxy.configure_proxy()
 
-                self.assertIsNone(error)
-                self._assert_case(proxy, target, path, response)
-                self.assertEqual(proxy.proxy_authorizations, [PROXY_AUTHORIZATION])
+                    self.assertIsNone(error)
+                    self._assert_case(proxy, target, path, response)
+                    self.assertEqual(
+                        proxy.proxy_authorizations,
+                        [authorization],
+                    )
 
     @skipUnless(
         dirsearch_native is not None
@@ -213,19 +239,35 @@ class TestProxyIntegration(TestCase):
         "native extension is not installed",
     )
     def test_native_engine_authenticates_http_and_https_proxies(self):
-        for proxy, target in self._cases():
-            with self.subTest(proxy=proxy.scheme, target=target.scheme):
-                path = f"native-auth-{proxy.scheme}-{target.scheme}"
-                self._prepare_authenticated_case(proxy, target)
-                options["proxy_auth"] = PROXY_CREDENTIAL
-                try:
-                    response, error, _ = self._native_request(proxy, target, path)
-                finally:
-                    proxy.configure_proxy()
+        for credential in PROXY_CREDENTIALS:
+            for proxy, target in self._cases():
+                with self.subTest(
+                    credential=credential,
+                    proxy=proxy.scheme,
+                    target=target.scheme,
+                ):
+                    path = f"native-auth-{proxy.scheme}-{target.scheme}"
+                    authorization = self._prepare_authenticated_case(
+                        proxy,
+                        target,
+                        credential,
+                    )
+                    options["proxy_auth"] = credential
+                    try:
+                        response, error, _ = self._native_request(
+                            proxy,
+                            target,
+                            path,
+                        )
+                    finally:
+                        proxy.configure_proxy()
 
-                self.assertIsNone(error)
-                self._assert_case(proxy, target, path, response)
-                self.assertEqual(proxy.proxy_authorizations, [PROXY_AUTHORIZATION])
+                    self.assertIsNone(error)
+                    self._assert_case(proxy, target, path, response)
+                    self.assertEqual(
+                        proxy.proxy_authorizations,
+                        [authorization],
+                    )
 
     def test_sync_engine_rejects_missing_and_invalid_proxy_credentials(self):
         for credential in (None, INVALID_PROXY_CREDENTIAL):
@@ -382,10 +424,17 @@ class TestProxyIntegration(TestCase):
         target.clear_events()
         options["proxy_auth"] = None
 
-    def _prepare_authenticated_case(self, proxy, target):
+    def _prepare_authenticated_case(
+        self,
+        proxy,
+        target,
+        credential=PROXY_CREDENTIAL,
+    ):
         self._prepare_case(proxy, target)
         options["max_retries"] = 1
-        proxy.configure_proxy(required_authorization=PROXY_AUTHORIZATION)
+        authorization = "Basic " + base64.b64encode(credential.encode()).decode()
+        proxy.configure_proxy(required_authorization=authorization)
+        return authorization
 
     def _prepare_failure_case(self, proxy, target, behavior):
         self._prepare_case(proxy, target)

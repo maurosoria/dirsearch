@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from urllib.parse import quote, urlsplit
 
 
 PROXY_AUTHENTICATION_REQUIRED = 407
@@ -13,6 +14,19 @@ _HTTP_STATUS_PATTERNS = (
     ),
     re.compile(r"^\s*([1-5][0-9]{2})(?:\s|$)"),
 )
+
+
+def add_proxy_authentication(proxy: str, credential: str | None) -> str:
+    """Add percent-encoded configured credentials unless the proxy has userinfo."""
+    if not credential or "@" in urlsplit(proxy).netloc:
+        return proxy
+
+    username, separator, password = credential.partition(":")
+    userinfo = quote(username, safe="")
+    if separator:
+        userinfo += ":" + quote(password, safe="")
+
+    return proxy.replace("://", f"://{userinfo}@", 1)
 
 
 def proxy_error_status(error: BaseException | str) -> int | None:
