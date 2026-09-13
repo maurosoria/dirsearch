@@ -83,6 +83,20 @@ class LocalHTTPServer:
         self.thread.join(timeout=2)
 
 
+class StaticResponseSession(requests.Session):
+    def __init__(self, content_length):
+        super().__init__()
+        self.content_length = content_length
+
+    def request(self, *args, **kwargs):
+        response = requests.Response()
+        response.status_code = 200
+        response._content = b"body"
+        if self.content_length is not None:
+            response.headers["content-length"] = self.content_length
+        return response
+
+
 class TestImportableAPI(TestCase):
     def test_public_imports_are_available(self):
         from dirsearch import (
@@ -277,6 +291,34 @@ class TestImportableAPI(TestCase):
         with self.assertRaises(requests.ConnectionError):
             fuzzer.run()
         self.assertEqual(len(errors), 1)
+
+    def test_response_length_falls_back_for_invalid_headers(self):
+        from dirsearch import DirsearchFuzzer, FuzzerConfig
+
+        for content_length, expected in (
+            ("10", 10),
+            ("0", 0),
+            (None, 4),
+            ("", 4),
+            ("not-a-number", 4),
+            ("-1", 4),
+            ("3, 3", 4),
+        ):
+            with self.subTest(content_length=content_length):
+                errors = []
+                results = DirsearchFuzzer(
+                    FuzzerConfig(
+                        url="https://example.test",
+                        wordlist=["admin"],
+                        session_factory=lambda value=content_length: (
+                            StaticResponseSession(value)
+                        ),
+                    ),
+                    on_error=errors.append,
+                ).run()
+
+                self.assertEqual([result.length for result in results], [expected])
+                self.assertEqual(errors, [])
 
     def test_two_configs_do_not_leak_state(self):
         from dirsearch import DirsearchFuzzer, FuzzerConfig, WordlistTemplate

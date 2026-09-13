@@ -32,7 +32,12 @@ from lib.core.settings import (
     UNKNOWN,
 )
 from lib.parse.url import clean_path, parse_path
-from lib.utils.common import get_readable_size, is_binary, replace_path
+from lib.utils.common import (
+    get_readable_size,
+    get_response_length,
+    is_binary,
+    replace_path,
+)
 
 
 def _decoded_content_length(headers) -> int | None:
@@ -125,16 +130,7 @@ class BaseResponse:
 
     @property
     def length(self) -> int:
-        if cl := self.headers.get("content-length"):
-            try:
-                length = int(cl)
-            except (TypeError, ValueError):
-                return len(self.body)
-
-            if length >= 0:
-                return length
-
-        return len(self.body)
+        return get_response_length(self.headers, len(self.body))
 
     @property
     def size(self) -> str:
