@@ -9,4 +9,5 @@ defusedcsv==3.0.0
 defusedxml==0.7.1
 requests-toolbelt==1.0.0
 httpx==0.28.1
+socksio==1.0.0
 httpx-ntlm==1.4.0

@@ -1,7 +1,10 @@
 from types import SimpleNamespace
 from unittest import TestCase
 
-from lib.core.request_backend import get_native_request_backend_error
+from lib.core.request_backend import (
+    get_async_request_backend_error,
+    get_native_request_backend_error,
+)
 
 
 def native_options(**overrides):
@@ -32,6 +35,44 @@ def native_options(**overrides):
 
 
 class TestRequestBackend(TestCase):
+    def test_async_accepts_http_and_socks5_proxies(self):
+        for proxy in (
+            "http://127.0.0.1:8080",
+            "https://127.0.0.1:8080",
+            "socks5://127.0.0.1:1080",
+            "socks5h://127.0.0.1:1080",
+        ):
+            with self.subTest(proxy=proxy):
+                self.assertIsNone(
+                    get_async_request_backend_error(
+                        native_options(async_mode=True, proxies=[proxy])
+                    )
+                )
+
+    def test_async_rejects_socks4_proxies(self):
+        for scheme in ("socks4", "socks4a"):
+            with self.subTest(scheme=scheme):
+                self.assertEqual(
+                    get_async_request_backend_error(
+                        native_options(
+                            async_mode=True,
+                            proxies=[f"{scheme}://127.0.0.1:1080"],
+                        )
+                    ),
+                    "--async supports SOCKS5 proxies only; use the threaded "
+                    "engine for SOCKS4",
+                )
+
+    def test_threaded_backend_keeps_socks4_support(self):
+        self.assertIsNone(
+            get_async_request_backend_error(
+                native_options(
+                    async_mode=False,
+                    proxies=["socks4://127.0.0.1:1080"],
+                )
+            )
+        )
+
     def test_native_accepts_default_supported_options(self):
         self.assertIsNone(get_native_request_backend_error(native_options()))
 

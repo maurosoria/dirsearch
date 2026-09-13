@@ -7,6 +7,21 @@ from urllib.parse import urlparse
 REQUEST_BACKENDS = ("python", "native")
 
 
+def get_async_request_backend_error(opt: Values) -> str | None:
+    if not opt.async_mode:
+        return None
+
+    for proxy in opt.proxies:
+        parsed = urlparse(proxy if "://" in proxy else f"http://{proxy}")
+        if parsed.scheme in ("socks4", "socks4a"):
+            return (
+                "--async supports SOCKS5 proxies only; use the threaded "
+                "engine for SOCKS4"
+            )
+
+    return None
+
+
 def get_native_target_error(url: str) -> str | None:
     parsed = urlparse(url if "://" in url else f"//{url}")
     if parsed.username is not None:
