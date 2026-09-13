@@ -93,6 +93,15 @@ def get_readable_size(num):
     return f"{num}TB"
 
 
+def get_response_length(headers, body_length):
+    try:
+        length = int(headers.get("content-length"))
+    except (TypeError, ValueError):
+        return body_length
+
+    return length if length >= 0 else body_length
+
+
 def is_binary(bytes) -> bool:
     return bool(bytes.translate(None, TEXT_CHARS))
 

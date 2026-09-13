@@ -33,7 +33,7 @@ from lib.core.structures import OrderedSet
 from lib.core.wordlist_template import expand_template_line, normalize_placeholders
 from lib.parse.rawrequest import parse_raw_content
 from lib.parse.url import append_query_string, ensure_trailing_path_slash
-from lib.utils.common import safequote
+from lib.utils.common import get_response_length, safequote
 from lib.utils.file import FileUtils
 
 
@@ -346,7 +346,7 @@ class DirsearchFuzzer:
             url=url,
             path=path,
             status=response.status_code,
-            length=int(response.headers.get("content-length") or len(body)),
+            length=get_response_length(response.headers, len(body)),
             content_type=response.headers.get("content-type", "").split(";")[0],
             redirect=response.headers.get("location", ""),
             elapsed=time.perf_counter() - start,
