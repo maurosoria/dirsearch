@@ -129,6 +129,8 @@ class RequestTargetHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         target = self.raw_requestline.split(b" ")[1]
         self.server.targets.append(target)
+        self.server.authorizations.append(self.headers.get("Authorization"))
+        self.server.cookies.append(self.headers.get("Cookie"))
         self.server.proxy_authorizations.append(
             self.headers.get("Proxy-Authorization")
         )
@@ -167,6 +169,8 @@ class RequestTargetServer:
     def __enter__(self):
         self.server = RequestTargetTCPServer(("127.0.0.1", 0), RequestTargetHandler)
         self.server.targets = []
+        self.server.authorizations = []
+        self.server.cookies = []
         self.server.proxy_authorizations = []
         self.server.request_bodies = []
         self.thread = threading.Thread(
@@ -193,6 +197,14 @@ class RequestTargetServer:
     @property
     def proxy_authorizations(self):
         return self.server.proxy_authorizations
+
+    @property
+    def authorizations(self):
+        return self.server.authorizations
+
+    @property
+    def cookies(self):
+        return self.server.cookies
 
     @property
     def request_bodies(self):
@@ -637,6 +649,38 @@ class TestRequesterBodyPreservation(BaseRequesterTestCase):
 
 
 class TestRequesterProxyRouting(BaseRequesterTestCase):
+    def test_replay_proxy_preserves_auth_and_cookies(self):
+        options["auth"] = "sync-user:sync-password"
+        options["auth_type"] = "basic"
+        requester = Requester()
+        requester.set_url("http://example.com/")
+        requester.session.cookies.set(
+            "primary",
+            "sync",
+            domain="example.com",
+            path="/",
+        )
+
+        try:
+            with patch.object(
+                requester.session,
+                "send",
+                return_value=DummySyncResponse(),
+            ) as send:
+                requester.request(
+                    "admin",
+                    proxy="http://replay.invalid:8080",
+                )
+        finally:
+            requester.close()
+
+        prepared_request = send.call_args.args[0]
+        self.assertEqual(
+            prepared_request.headers["Authorization"],
+            "Basic c3luYy11c2VyOnN5bmMtcGFzc3dvcmQ=",
+        )
+        self.assertEqual(prepared_request.headers["Cookie"], "primary=sync")
+
     def test_proxy_managers_keep_path_preserving_connection_pools(self):
         requester = Requester()
         adapter = requester.session.get_adapter("http://")
@@ -697,6 +741,70 @@ class TestRequesterProxyRouting(BaseRequesterTestCase):
 class TestAsyncRequesterProxyRouting(
     BaseRequesterTestCase, IsolatedAsyncioTestCase
 ):
+    async def test_only_replay_uses_proxy_with_matching_auth_and_cookies(self):
+        options["auth"] = "first-user:first-password"
+        options["auth_type"] = "basic"
+        with RequestTargetServer() as origin, RequestTargetServer() as replay_proxy:
+            requester = AsyncRequester()
+            requester.set_url(origin.url)
+            requester.session.cookies.set(
+                "primary",
+                "first",
+                domain="127.0.0.1",
+                path="/",
+            )
+
+            try:
+                await requester.request("first")
+                await requester.replay_request(
+                    "first",
+                    proxy=replay_proxy.url,
+                )
+
+                requester.set_auth("bearer", "second-token")
+                requester.session.cookies.clear()
+                requester.session.cookies.set(
+                    "primary",
+                    "second",
+                    domain="127.0.0.1",
+                    path="/",
+                )
+                requester.replay_session.cookies.set(
+                    "stale",
+                    "replay-only",
+                    domain="127.0.0.1",
+                    path="/",
+                )
+                await requester.request("second")
+                await requester.replay_request(
+                    "second",
+                    proxy=replay_proxy.url,
+                )
+            finally:
+                await requester.close()
+
+        self.assertEqual(origin.targets, [b"/first", b"/second"])
+        self.assertEqual(
+            replay_proxy.targets,
+            [
+                f"{origin.url}first".encode(),
+                f"{origin.url}second".encode(),
+            ],
+        )
+        self.assertEqual(
+            origin.authorizations,
+            [
+                "Basic Zmlyc3QtdXNlcjpmaXJzdC1wYXNzd29yZA==",
+                "Bearer second-token",
+            ],
+        )
+        self.assertEqual(replay_proxy.authorizations, origin.authorizations)
+        self.assertEqual(
+            origin.cookies,
+            ["primary=first", "primary=second"],
+        )
+        self.assertEqual(replay_proxy.cookies, origin.cookies)
+
     async def test_requester_close_closes_every_rotating_proxy_transport(self):
         options["proxies"] = [
             "http://proxy-one.invalid:8080",
