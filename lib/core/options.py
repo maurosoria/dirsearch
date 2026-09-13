@@ -36,6 +36,7 @@ from lib.core.settings import (
 )
 from lib.core.request_backend import (
     REQUEST_BACKENDS,
+    get_async_request_backend_error,
     get_native_request_backend_error,
 )
 from lib.core.native_runtime import (
@@ -380,6 +381,9 @@ def parse_options() -> dict[str, Any]:
         if error := get_native_request_backend_error(opt):
             print(error)
             sys.exit(1)
+    elif error := get_async_request_backend_error(opt):
+        print(error)
+        sys.exit(1)
 
     if error := get_native_runtime_error(
         opt.request_backend, opt.wordlist_backend

@@ -741,6 +741,23 @@ class TestRequesterProxyRouting(BaseRequesterTestCase):
 class TestAsyncRequesterProxyRouting(
     BaseRequesterTestCase, IsolatedAsyncioTestCase
 ):
+    async def test_socks5_proxies_build_async_socks_transports(self):
+        for scheme in ("socks5", "socks5h"):
+            with self.subTest(scheme=scheme):
+                options["proxies"] = [f"{scheme}://proxy.invalid:1080"]
+                requester = AsyncRequester()
+                try:
+                    transport = requester.session._transport_for_url(
+                        httpx.URL("https://target.invalid/")
+                    )
+                    self.assertIsInstance(transport, ProxyRoatingTransport)
+                    self.assertEqual(
+                        type(transport._transports[0]._pool).__name__,
+                        "AsyncSOCKSProxy",
+                    )
+                finally:
+                    await requester.close()
+
     async def test_only_replay_uses_proxy_with_matching_auth_and_cookies(self):
         options["auth"] = "first-user:first-password"
         options["auth_type"] = "basic"

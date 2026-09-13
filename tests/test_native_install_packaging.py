@@ -7,6 +7,22 @@ from scripts.build_native import resolve_python
 
 
 class TestNativeInstallPackaging(TestCase):
+    def test_async_socks_dependency_is_packaged(self):
+        for path in (
+            Path("requirements.txt"),
+            Path("requirements/runtime.txt"),
+        ):
+            with self.subTest(path=str(path)):
+                self.assertIn(
+                    "socksio==1.0.0",
+                    path.read_text(encoding="utf-8").splitlines(),
+                )
+
+        self.assertIn(
+            "'socksio'",
+            Path("pyinstaller/dirsearch.spec").read_text(encoding="utf-8"),
+        )
+
     def test_entrypoints_include_native_builder(self):
         self.assertIn(
             'dirsearch-build-native = "dirsearch.lib.core.native_builder:main"',

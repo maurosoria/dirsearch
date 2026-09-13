@@ -4,6 +4,7 @@ import re
 import time
 import warnings
 from unittest import TestCase, skipUnless
+from urllib.parse import urlsplit
 
 from urllib3.exceptions import InsecureRequestWarning
 
@@ -107,6 +108,49 @@ class TestProxyIntegration(TestCase):
 
                 self.assertIsNone(error)
                 self._assert_case(proxy, target, path, response)
+
+    def test_sync_engine_uses_socks5_proxy(self):
+        proxy = self.stack.socks5_proxy
+        target = self.stack.http_target
+        proxy.clear_events()
+        target.clear_events()
+
+        response, error, _ = self._sync_request(proxy, target, "sync-socks5")
+
+        self.assertIsNone(error)
+        self.assertEqual(response.body, b"reached:/sync-socks5")
+        self.assertEqual(target.events, [("GET", "/sync-socks5")])
+        self.assertEqual(proxy.events, [("CONNECT", target.authority)])
+
+    def test_async_engine_uses_socks5_and_socks5h_proxies(self):
+        asyncio.run(self._test_async_socks5_engine())
+
+    async def _test_async_socks5_engine(self):
+        proxy = self.stack.socks5_proxy
+        target = self.stack.http_target
+        port = urlsplit(target.url).port
+
+        for scheme, target_host in (
+            ("socks5", "127.0.0.1"),
+            ("socks5h", "localhost"),
+        ):
+            with self.subTest(scheme=scheme):
+                proxy.clear_events()
+                target.clear_events()
+                options["proxies"] = [proxy.url_for(scheme)]
+                requester = AsyncRequester()
+                requester.set_url(f"http://{target_host}:{port}/")
+                try:
+                    response = await requester.request(f"async-{scheme}")
+                finally:
+                    await requester.close()
+
+                self.assertEqual(response.body, f"reached:/async-{scheme}".encode())
+                self.assertEqual(target.events, [("GET", f"/async-{scheme}")])
+                self.assertEqual(
+                    proxy.events,
+                    [("CONNECT", f"{target_host}:{port}")],
+                )
 
     def test_sync_engine_preserves_raw_targets_through_proxies(self):
         for name, path, expected in RAW_REQUEST_TARGET_CASES:

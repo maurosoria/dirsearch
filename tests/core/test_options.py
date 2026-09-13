@@ -10,6 +10,31 @@ from lib.core.options import parse_options
 
 
 class TestOptions(TestCase):
+    def test_async_socks4_proxy_is_rejected_before_requester_setup(self):
+        args = [
+            "dirsearch.py",
+            "--wordlist-status",
+            "-e",
+            "php",
+            "--async",
+            "--proxy",
+            "socks4://127.0.0.1:1080",
+        ]
+        output = io.StringIO()
+
+        with (
+            patch("sys.argv", args),
+            redirect_stdout(output),
+            self.assertRaises(SystemExit) as ctx,
+        ):
+            parse_options()
+
+        self.assertEqual(ctx.exception.code, 1)
+        self.assertIn(
+            "--async supports SOCKS5 proxies only",
+            output.getvalue(),
+        )
+
     def test_data_file_preserves_request_body_bytes(self):
         bodies = {
             "ascii": b"alpha=1&beta=2\r\nline=two\n",

@@ -190,6 +190,8 @@ python3 dirsearch.py -e php,html,js -u https://target --subdirs /,admin/,folder/
 ## Proxies
 
 dirsearch supports SOCKS and HTTP proxies. You can provide one proxy or a file containing multiple proxies.
+The async engine supports SOCKS5 and SOCKS5h. Use the default threaded engine
+for SOCKS4 and SOCKS4a proxies.
 
 ```sh
 python3 dirsearch.py -e php,html,js -u https://target --proxy 127.0.0.1:8080
