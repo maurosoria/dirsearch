@@ -812,6 +812,9 @@ class AsyncRequester(BaseRequester):
                 transport=transport,
                 timeout=httpx.Timeout(options["timeout"]),
             )
+        self.replay_session.auth = self.session.auth
+        self.replay_session.cookies.clear()
+        self.replay_session.cookies.update(self.session.cookies)
         return await self.request(path, self.replay_session, replay=True)
 
     # :path: is expected not to start with "/"
