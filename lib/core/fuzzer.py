@@ -76,7 +76,7 @@ class BaseFuzzer:
         self._requester = requester
         self._dictionary = dictionary
         self._base_path: str = ""
-        self._hashes: dict = {}
+        self._filter_fingerprints: dict[int, int] = {}
         self.match_callbacks = match_callbacks
         self.not_found_callbacks = not_found_callbacks
         self.error_callbacks = error_callbacks
@@ -163,7 +163,8 @@ class BaseFuzzer:
 
         if (
             options["filter_threshold"]
-            and self._hashes.get(hash(resp), 0) >= options["filter_threshold"]
+            and self._filter_fingerprints.get(resp.filter_fingerprint, 0)
+            >= options["filter_threshold"]
         ):
             return True
 
@@ -317,9 +318,9 @@ class BaseFuzzer:
                 return self.not_found_callbacks
 
         if options["filter_threshold"]:
-            hash_ = hash(response)
-            self._hashes.setdefault(hash_, 0)
-            self._hashes[hash_] += 1
+            fingerprint = response.filter_fingerprint
+            self._filter_fingerprints.setdefault(fingerprint, 0)
+            self._filter_fingerprints[fingerprint] += 1
 
         return self.match_callbacks
 

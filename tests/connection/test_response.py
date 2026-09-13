@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import hashlib
 from unittest import IsolatedAsyncioTestCase, TestCase
 from unittest.mock import patch
 
@@ -36,6 +37,40 @@ class DummyAsyncResponse:
 
 
 class TestResponse(TestCase):
+    def test_equal_responses_have_equal_hashes(self):
+        left = Response(
+            "http://example.com/admin",
+            DummyResponse(body=b"/admin"),
+        )
+        right = Response(
+            "http://example.com/other",
+            DummyResponse(body=b"/admin"),
+        )
+
+        self.assertEqual(left, right)
+        self.assertEqual(hash(left), hash(right))
+        self.assertEqual(len({left, right}), 1)
+
+    def test_response_fingerprints_are_cached(self):
+        response = Response(
+            "http://example.com/admin",
+            DummyResponse(body=b"missing /admin"),
+        )
+
+        with patch(
+            "lib.connection.response.replace_path",
+            return_value="missing ",
+        ) as replace:
+            self.assertEqual(response.filter_fingerprint, response.filter_fingerprint)
+        with patch(
+            "lib.connection.response.hashlib.sha256",
+            wraps=hashlib.sha256,
+        ) as sha256:
+            self.assertEqual(hash(response), hash(response))
+
+        replace.assert_called_once()
+        sha256.assert_called_once_with(response.body)
+
     def test_length_falls_back_to_body_for_invalid_content_length(self):
         response = Response(
             "http://example.com/admin",

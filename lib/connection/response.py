@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import hashlib
 import time
+from functools import cached_property
 from typing import Any
 
 import httpx
@@ -165,8 +166,11 @@ class BaseResponse:
         return self.text.count("\n") + 1
 
     def __hash__(self) -> int:
-        # Hash the static parts of the response only.
-        # See https://github.com/maurosoria/dirsearch/pull/1436#issuecomment-2476390956
+        return hash((self.status, self.redirect, self._body_fingerprint))
+
+    @cached_property
+    def filter_fingerprint(self) -> int:
+        """Return a path-agnostic fingerprint for --filter-threshold."""
         body = (
             replace_path(self.content, self.full_path.split("#")[0], "")
             if self.content
@@ -174,7 +178,7 @@ class BaseResponse:
         )
         return hash((self.status, body))
 
-    @property
+    @cached_property
     def _body_fingerprint(self) -> bytes:
         if self._body_digest is not None:
             return self._body_digest
