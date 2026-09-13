@@ -19,7 +19,7 @@
 import json
 
 from lib.core.decorators import locked
-from lib.core.settings import COMMAND, START_TIME
+from lib.core.settings import COMMAND, DEFAULT_ENCODING, START_TIME
 from lib.report.factory import BaseReport, FileReportMixin
 
 
@@ -34,7 +34,7 @@ class JSONReport(FileReportMixin, BaseReport):
         }
 
     def parse(self, file):
-        with open(file) as fh:
+        with open(file, encoding=DEFAULT_ENCODING) as fh:
             return json.load(fh)
 
     @locked

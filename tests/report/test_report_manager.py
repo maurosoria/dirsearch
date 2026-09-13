@@ -71,6 +71,18 @@ class TestReportManagerDestinations(TestCase):
                     self.assertEqual(len(manager.reports), 1)
                     self.assertEqual(manager.reports[0][1], sources)
 
+    @patch("lib.report.manager.START_TIME", "2026-09-13 07:30:45")
+    def test_datetime_token_is_safe_for_windows_paths(self):
+        manager = ReportManager([])
+
+        destination = manager.format(
+            "report-{datetime}.{extension}",
+            "https://example.test/",
+            DummyReport,
+        )
+
+        self.assertEqual(destination, "report-2026-09-13_07-30-45.txt")
+
     def test_restored_file_and_sqlite_reports_persist_results(self):
         with TemporaryDirectory() as directory:
             output_file = str(Path(directory, "report-{format}.{extension}"))

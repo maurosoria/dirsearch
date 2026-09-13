@@ -28,6 +28,7 @@ from lib.report.plain_text_report import PlainTextReport
 from lib.report.simple_report import SimpleReport
 from lib.report.sqlite_report import SQLiteReport
 from lib.report.xml_report import XMLReport
+from lib.utils.file import FileUtils
 
 # Store option keys so restored session destinations are resolved at manager creation.
 output_handlers = {
@@ -101,7 +102,7 @@ class ReportManager:
         parsed = urlparse(target)
 
         return string.format(
-            datetime=START_TIME.replace(" ", "_"),
+            datetime=FileUtils.format_datetime_for_path(START_TIME),
             date=START_TIME.split()[0],
             host=parsed.hostname,
             scheme=parsed.scheme,

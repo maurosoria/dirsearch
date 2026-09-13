@@ -72,6 +72,10 @@ class FileUtils:
         return path
 
     @staticmethod
+    def format_datetime_for_path(value: str) -> str:
+        return value.replace(" ", "_").replace(":", "-")
+
+    @staticmethod
     def get_abs_path(file_name):
         return os.path.abspath(file_name)
 
@@ -190,6 +194,7 @@ class FileUtils:
         file_name: str,
         data: str,
         encoding: str | None = "utf-8",
+        newline: str | None = None,
     ) -> None:
         """Append text and roll back a failed write to the previous file size."""
         descriptor = cls.open_binary_append(file_name)
@@ -198,7 +203,12 @@ class FileUtils:
             original_size = os.fstat(descriptor).st_size
             rollback_descriptor = os.dup(descriptor)
             try:
-                with os.fdopen(descriptor, "a", encoding=encoding) as file_handle:
+                with os.fdopen(
+                    descriptor,
+                    "a",
+                    encoding=encoding,
+                    newline=newline,
+                ) as file_handle:
                     descriptor = -1
                     file_handle.write(data)
             except BaseException:
@@ -228,6 +238,7 @@ class FileUtils:
     def atomic_write_private_text(
         file_name: str,
         encoding: str | None = "utf-8",
+        newline: str | None = None,
     ):
         """Write text through a private same-directory replacement file."""
         descriptor, temporary_path = tempfile.mkstemp(
@@ -238,7 +249,12 @@ class FileUtils:
         try:
             if os.name != "nt":
                 os.fchmod(descriptor, 0o600)
-            with os.fdopen(descriptor, "w", encoding=encoding) as file_handle:
+            with os.fdopen(
+                descriptor,
+                "w",
+                encoding=encoding,
+                newline=newline,
+            ) as file_handle:
                 descriptor = -1
                 yield file_handle
             os.replace(temporary_path, file_name)

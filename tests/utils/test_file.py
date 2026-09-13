@@ -10,6 +10,12 @@ from lib.utils.file import FileUtils
 
 
 class TestFileUtils(TestCase):
+    def test_formats_datetime_for_cross_platform_paths(self):
+        self.assertEqual(
+            FileUtils.format_datetime_for_path("2026-09-13 07:30:45"),
+            "2026-09-13_07-30-45",
+        )
+
     def test_create_private_dir_requests_private_mode(self):
         with tempfile.TemporaryDirectory() as directory:
             destination = FileUtils.build_path(directory, "session")
