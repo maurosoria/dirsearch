@@ -4,7 +4,7 @@ Use `-h` or `--help` for common options. The complete reference below is
 available from `-hh` or `--help-all`.
 
 ```text
-Usage: dirsearch.py [-u|--url] target [-e|--extensions] extensions [options]
+Usage: dirsearch.py [-u|--url] URL [-e|--extensions] EXTENSIONS [options]
 
 Options:
   --version             show program's version number and exit
@@ -47,7 +47,8 @@ Options:
                         Maximum generated wordlist entries before aborting
                         (default: 500000)
     -e EXTENSIONS, --extensions=EXTENSIONS
-                        Extension list, separated by commas (e.g. php,asp)
+                        Extension list, separated by commas (e.g. php,asp); use
+                        quoted '*' for common extensions
     -f, --force-extensions
                         Add extensions to the end of every wordlist entry. By
                         default dirsearch only replaces the %EXT% keyword with

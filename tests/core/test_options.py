@@ -7,9 +7,23 @@ from unittest import TestCase
 from unittest.mock import patch
 
 from lib.core.options import parse_options
+from lib.core.settings import COMMON_EXTENSIONS
 
 
 class TestOptions(TestCase):
+    def test_quoted_extension_wildcard_uses_common_extensions(self):
+        args = [
+            "dirsearch.py",
+            "--wordlist-status",
+            "-e",
+            "*",
+        ]
+
+        with patch("sys.argv", args):
+            parsed = parse_options()
+
+        self.assertEqual(parsed["extensions"], COMMON_EXTENSIONS)
+
     def test_async_socks4_proxy_is_rejected_before_requester_setup(self):
         args = [
             "dirsearch.py",

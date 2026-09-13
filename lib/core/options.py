@@ -292,12 +292,6 @@ def parse_options() -> dict[str, Any]:
 
     if opt.extensions == "*":
         opt.extensions = COMMON_EXTENSIONS
-    elif opt.extensions == "CHANGELOG.md":
-        print(
-            "A weird extension was provided: 'CHANGELOG.md'. Please do not use * as the "
-            "extension or enclose it in double quotes"
-        )
-        sys.exit(0)
     else:
         opt.extensions = tuple(
             strip_and_uniquify(
