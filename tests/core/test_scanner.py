@@ -21,8 +21,10 @@ from unittest.mock import patch
 
 from lib.connection.response import NativeResponse, Response
 from lib.core.data import options
+from lib.core.fuzzer import BaseFuzzer
 from lib.core.scanner import BaseScanner
 from lib.core.settings import REFLECTED_PATH_MARKER, WILDCARD_TEST_POINT_MARKER
+from lib.utils.diff import DynamicContentParser, normalize_dynamic_content
 
 
 class DynamicSoft404Requester:
@@ -139,10 +141,40 @@ class TestScanner(TestCase):
         self.assertEqual(scanner.classify("admin.bin", response), "wildcard")
         self.assertEqual(scanner.reason, "matches wildcard profile")
 
+    def test_response_normalization_is_reused_across_filter_and_scanner(self):
+        base_content = "missing one two three four five six seven eight nine random"
+        candidate_content = "missing one two three four five six seven eight nine admin"
+        scanner = BaseScanner(None)
+        scanner.response = NativeResponse(
+            "https://example.com/random",
+            200,
+            [("content-type", "text/html")],
+            base_content.encode(),
+        )
+        scanner.content_parser = DynamicContentParser(base_content, base_content)
+        response = NativeResponse(
+            "https://example.com/admin",
+            200,
+            [("content-type", "text/html")],
+            candidate_content.encode(),
+        )
+
+        with patch(
+            "lib.connection.response.normalize_dynamic_content",
+            wraps=normalize_dynamic_content,
+        ) as normalize:
+            BaseFuzzer.response_fingerprint(response)
+            self.assertEqual(scanner.classify("admin", response), "wildcard")
+
+        normalize.assert_called_once_with(candidate_content)
+
     def test_probable_wildcard_skips_expensive_similarity_for_large_bodies(self):
         class DummyParser:
             static_patterns = ()
             is_ambiguous = True
+
+            def similarity_to(self, *_args):
+                raise AssertionError("expensive similarity should be skipped")
 
         large_body = b"a" * 270000
         scanner = BaseScanner(None)
@@ -160,16 +192,19 @@ class TestScanner(TestCase):
             large_body,
         )
 
-        with patch(
-            "lib.core.scanner.content_similarity",
-            side_effect=AssertionError("expensive similarity should be skipped"),
-        ):
-            self.assertFalse(scanner.is_probable_wildcard("admin", response))
+        self.assertFalse(scanner.is_probable_wildcard("admin", response))
 
     def test_probable_wildcard_keeps_similarity_for_medium_bodies(self):
         class DummyParser:
             static_patterns = ()
             is_ambiguous = True
+
+            def __init__(self):
+                self.similarity_calls = []
+
+            def similarity_to(self, *args):
+                self.similarity_calls.append(args)
+                return 1
 
         medium_body = b"a" * 70000
         scanner = BaseScanner(None)
@@ -179,7 +214,8 @@ class TestScanner(TestCase):
             [("content-type", "text/html")],
             medium_body,
         )
-        scanner.content_parser = DummyParser()
+        parser = DummyParser()
+        scanner.content_parser = parser
         response = NativeResponse(
             "https://example.com/admin",
             200,
@@ -187,7 +223,6 @@ class TestScanner(TestCase):
             medium_body,
         )
 
-        with patch("lib.core.scanner.content_similarity", return_value=1) as similarity:
-            self.assertTrue(scanner.is_probable_wildcard("admin", response))
+        self.assertTrue(scanner.is_probable_wildcard("admin", response))
 
-        similarity.assert_called_once()
+        self.assertEqual(len(parser.similarity_calls), 1)

@@ -42,7 +42,6 @@ from lib.core.settings import (
 )
 from lib.parse.url import clean_path
 from lib.utils.common import lstrip_once
-from lib.utils.diff import normalize_dynamic_content
 
 
 AUTO_CALIBRATION_DUPLICATE_THRESHOLD = 8
@@ -289,7 +288,7 @@ class BaseFuzzer:
     @staticmethod
     def response_fingerprint(resp: BaseResponse) -> tuple:
         path = clean_path(resp.full_path).strip("/")
-        body = normalize_dynamic_content(resp.text)
+        body = resp.normalized_content
         redirect = clean_path(resp.redirect)
 
         if path:

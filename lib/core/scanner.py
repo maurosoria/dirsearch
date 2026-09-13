@@ -35,9 +35,7 @@ from lib.parse.url import clean_path
 from lib.utils.common import replace_path
 from lib.utils.diff import (
     DynamicContentParser,
-    content_similarity,
     generate_matching_regex,
-    normalize_dynamic_content,
 )
 from lib.utils.random import rand_stealth_word
 
@@ -128,7 +126,10 @@ class BaseScanner:
         if not self.response.content and not response.content:
             return self.response.has_same_body(response)
 
-        return self.content_parser.compare_to(response.content)
+        return self.content_parser.compare_to(
+            response.content,
+            response.normalized_content,
+        )
 
     def is_probable_wildcard(self, path: str, response: BaseResponse) -> bool:
         """Conservative fallback for dynamic soft-404 templates.
@@ -157,7 +158,10 @@ class BaseScanner:
         ):
             return False
 
-        similarity = content_similarity(self.response.content, response.content)
+        similarity = self.content_parser.similarity_to(
+            response.content,
+            response.normalized_content,
+        )
         if similarity < AMBIGUOUS_SIMILARITY_THRESHOLD:
             return False
 
@@ -166,7 +170,7 @@ class BaseScanner:
         if length_delta > 0.35:
             return False
 
-        normalized_content = normalize_dynamic_content(response.content)
+        normalized_content = response.normalized_content
         normalized_path = clean_path(path).strip("/")
         if normalized_path and normalized_path in normalized_content:
             return True
