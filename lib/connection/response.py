@@ -39,6 +39,7 @@ from lib.utils.common import (
     is_binary,
     replace_path,
 )
+from lib.utils.diff import normalize_dynamic_content
 
 
 def _decoded_content_length(headers) -> int | None:
@@ -153,6 +154,11 @@ class BaseResponse:
             return self.content
 
         return self.body.decode(DEFAULT_ENCODING, errors="ignore")
+
+    @cached_property
+    def normalized_content(self) -> str:
+        """Return cached text with volatile response values normalized."""
+        return normalize_dynamic_content(self.text)
 
     @property
     def words(self) -> int:

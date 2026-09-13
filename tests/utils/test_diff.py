@@ -17,6 +17,7 @@
 #  Author: Mauro Soria
 
 from unittest import TestCase
+from unittest.mock import patch
 
 from lib.utils.diff import DynamicContentParser, generate_matching_regex, normalize_dynamic_content
 
@@ -42,3 +43,19 @@ class TestDiff(TestCase):
             )
         )
         self.assertIn("__DYNAMIC__", normalize_dynamic_content("trace=550e8400-e29b-41d4-a716-446655440000"))
+
+    def test_dynamic_content_parser_normalizes_each_sample_once(self):
+        samples = (
+            "missing alpha with stable template words",
+            "missing beta with stable template words",
+            "missing gamma with stable template words",
+        )
+
+        with patch(
+            "lib.utils.diff.normalize_dynamic_content",
+            wraps=normalize_dynamic_content,
+        ) as normalize:
+            parser = DynamicContentParser(samples[0], samples[1])
+            parser.add_sample(samples[2])
+
+        self.assertEqual(normalize.call_count, len(samples))

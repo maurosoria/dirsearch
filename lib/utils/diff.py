@@ -55,10 +55,19 @@ def normalize_dynamic_content(content: str) -> str:
 def content_similarity(content1: str, content2: str) -> float:
     """Return similarity after removing common dynamic values."""
 
-    return difflib.SequenceMatcher(
-        None,
+    return normalized_content_similarity(
         normalize_dynamic_content(content1),
         normalize_dynamic_content(content2),
+    )
+
+
+def normalized_content_similarity(content1: str, content2: str) -> float:
+    """Return similarity between content that is already normalized."""
+
+    return difflib.SequenceMatcher(
+        None,
+        content1,
+        content2,
     ).ratio()
 
 
@@ -67,6 +76,10 @@ class DynamicContentParser:
         self._static_patterns = None
         self._differ = difflib.Differ()
         self._contents = [content1, content2]
+        self._normalized_contents = [
+            normalize_dynamic_content(content1),
+            normalize_dynamic_content(content2),
+        ]
         self._base_content = content1
         self._is_static = False
 
@@ -81,16 +94,20 @@ class DynamicContentParser:
         if self._is_static:
             return False
 
-        return (
-            len(self.static_patterns) < 8
-            or self.similarity_to(self._contents[-1]) < 0.55
-        )
+        if len(self.static_patterns) < 8:
+            return True
+
+        return self.similarity_to(
+            self._contents[-1],
+            self._normalized_contents[-1],
+        ) < 0.55
 
     def add_sample(self, content):
         self._contents.append(content)
+        self._normalized_contents.append(normalize_dynamic_content(content))
         self._recalculate()
 
-    def compare_to(self, content):
+    def compare_to(self, content, normalized_content=None):
         """
         DynamicContentParser.compare_to() workflow
 
@@ -101,14 +118,17 @@ class DynamicContentParser:
             ratio of the two responses.
         """
 
+        if normalized_content is None:
+            normalized_content = normalize_dynamic_content(content)
+
         if self._is_static:
             return (
                 content == self._base_content
-                or normalize_dynamic_content(content) == normalize_dynamic_content(self._base_content)
+                or normalized_content == self._normalized_contents[0]
             )
 
         i = -1
-        splitted_content = normalize_dynamic_content(content).split()
+        splitted_content = normalized_content.split()
         # Allow one miss, see https://github.com/maurosoria/dirsearch/issues/1279
         misses = 0
         for pattern in self._static_patterns:
@@ -122,12 +142,18 @@ class DynamicContentParser:
 
         # Static patterns doesn't seem to be a reliable enough method
         if len(content.split()) > len(self._base_content.split()) and len(self._static_patterns) < 20:
-            return self.similarity_to(content) > 0.75
+            return self.similarity_to(content, normalized_content) > 0.75
 
         return True
 
-    def similarity_to(self, content):
-        return content_similarity(self._base_content, content)
+    def similarity_to(self, content, normalized_content=None):
+        if normalized_content is None:
+            normalized_content = normalize_dynamic_content(content)
+
+        return normalized_content_similarity(
+            self._normalized_contents[0],
+            normalized_content,
+        )
 
     def _recalculate(self):
         self._is_static = all(content == self._base_content for content in self._contents)
@@ -136,16 +162,13 @@ class DynamicContentParser:
             self._static_patterns = []
             return
 
-        first, second = (
-            normalize_dynamic_content(self._contents[0]),
-            normalize_dynamic_content(self._contents[1]),
-        )
+        first, second = self._normalized_contents[:2]
         patterns = self.get_static_patterns(
             self._differ.compare(first.split(), second.split())
         )
 
-        for content in self._contents[2:]:
-            normalized_words = normalize_dynamic_content(content).split()
+        for normalized_content in self._normalized_contents[2:]:
+            normalized_words = normalized_content.split()
             patterns = [pattern for pattern in patterns if pattern in normalized_words]
 
         self._static_patterns = patterns
