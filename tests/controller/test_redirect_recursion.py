@@ -79,3 +79,16 @@ class TestRedirectRecursionOrigin(TestCase):
         for location in locations:
             with self.subTest(location=location):
                 self.assertEqual(self.queued_directories(location), ["admin/"])
+
+    def test_excluded_subdirectory_matching_is_segment_aware(self):
+        options["exclude_subdirs"] = ["admin/"]
+
+        for path in ("admin/", "nested/admin/"):
+            with self.subTest(path=path):
+                self.controller.directories = []
+                self.controller.passed_urls = set()
+                self.controller.add_directory(path)
+                self.assertEqual(self.controller.directories, [])
+
+        self.controller.add_directory("administrator/")
+        self.assertEqual(self.controller.directories, ["administrator/"])

@@ -54,6 +54,9 @@ Exclude sub-directories from recursive scans:
 python3 dirsearch.py -e php,html,js -u https://target -r --exclude-subdirs image/,media/,css/
 ```
 
+When crawling is enabled, discovered paths inside these sub-directories are
+excluded from the dynamic scan queue as well.
+
 ## Backup Discovery
 
 Use `--find-backup` to queue backup candidates only after dirsearch matches a

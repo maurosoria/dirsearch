@@ -755,7 +755,9 @@ class Controller:
 
     def add_crawled_paths(self, response: BaseResponse) -> None:
         for path in Crawler.crawl(response):
-            self.dictionary.add_extra(lstrip_once(path, self.base_path))
+            path = lstrip_once(path, self.base_path)
+            if not self._is_excluded_subdir(path):
+                self.dictionary.add_extra(path)
 
     def reset_consecutive_errors(self, response: BaseResponse) -> None:
         self.consecutive_errors = 0
@@ -1023,10 +1025,7 @@ class Controller:
         """Add directory to the recursion queue"""
 
         # Pass if path is in exclusive directories
-        if any(
-            path.startswith(dir) or "/" + dir in path
-            for dir in options["exclude_subdirs"]
-        ):
+        if self._is_excluded_subdir(path):
             return
 
         url = self.url + path
@@ -1039,6 +1038,14 @@ class Controller:
 
         self.directories.append(path)
         self.passed_urls.add(url)
+
+    @staticmethod
+    def _is_excluded_subdir(path: str) -> bool:
+        resource_path = path.split("?", 1)[0].lstrip("/")
+        return any(
+            resource_path.startswith(subdir) or f"/{subdir}" in resource_path
+            for subdir in options["exclude_subdirs"]
+        )
 
     @locked
     def recur(self, path: str) -> list[str]:
