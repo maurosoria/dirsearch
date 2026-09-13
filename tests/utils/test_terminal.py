@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+import os
+import stat
+from io import StringIO
 from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import patch
@@ -40,6 +43,7 @@ class TestTerminalOutput(TestCase):
             type="text/plain",
         )
         cli = CLI()
+        self.addCleanup(cli.close)
 
         with patch.object(cli, "new_line") as new_line:
             cli.status_report(response, False)
@@ -48,3 +52,25 @@ class TestTerminalOutput(TestCase):
         self.assertNotIn("\u202e", message)
         self.assertNotIn("\u200d", message)
         self.assertLess(len(message), 900)
+
+    def test_output_history_rolls_to_disk_without_losing_text(self):
+        with (
+            patch("lib.view.terminal.TERMINAL_HISTORY_MEMORY_LIMIT", 32),
+            patch("lib.view.terminal.sys.stdout", new_callable=StringIO),
+        ):
+            cli = CLI()
+            self.addCleanup(cli.close)
+            cli.new_line("café\r\nfirst")
+            cli.new_line("β" * 32)
+            first_read = cli.buffer
+            cli.new_line("last")
+            cli.new_line("not retained", do_save=False)
+
+        self.assertTrue(cli._output_buffer._rolled)
+        self.assertEqual(first_read, "café\r\nfirst\n" + ("β" * 32) + "\n")
+        self.assertEqual(cli.buffer, first_read + "last\n")
+        if os.name != "nt":
+            self.assertEqual(
+                stat.S_IMODE(os.fstat(cli._output_buffer.fileno()).st_mode),
+                0o600,
+            )

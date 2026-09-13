@@ -16,8 +16,10 @@
 #
 #  Author: Mauro Soria
 
-import sys
+import atexit
 import shutil
+import sys
+import tempfile
 import threading
 import unicodedata
 
@@ -36,6 +38,7 @@ if IS_WINDOWS:
 
 
 MAX_DISPLAY_TEXT_LENGTH = 240
+TERMINAL_HISTORY_MEMORY_LIMIT = 1024 * 1024
 
 
 def safe_display_text(value, max_length=MAX_DISPLAY_TEXT_LENGTH):
@@ -56,10 +59,29 @@ class CLI:
     def __init__(self):
         self._operation_lock = threading.Lock()
         self.last_in_line = False
-        self.buffer = ""
+        self._output_buffer = tempfile.SpooledTemporaryFile(
+            max_size=TERMINAL_HISTORY_MEMORY_LIMIT,
+            mode="w+",
+            encoding="utf-8",
+            newline="",
+        )
 
         if not options["color"]:
             disable_color()
+
+    @property
+    @locked
+    def buffer(self):
+        position = self._output_buffer.tell()
+        self._output_buffer.seek(0)
+        content = self._output_buffer.read()
+        self._output_buffer.seek(position)
+
+        return content
+
+    @locked
+    def close(self):
+        self._output_buffer.close()
 
     @staticmethod
     def erase():
@@ -103,8 +125,8 @@ class CLI:
         sys.stdout.flush()
 
         if do_save:
-            self.buffer += string
-            self.buffer += "\n"
+            self._output_buffer.write(string)
+            self._output_buffer.write("\n")
 
     def status_report(self, response, full_url):
         target = safe_display_text(response.url if full_url else "/" + response.full_path)
@@ -261,3 +283,4 @@ class EmptyCLI(QuietCLI):
 
 
 interface = EmptyCLI() if options["disable_cli"] else QuietCLI() if options["quiet"] else CLI()
+atexit.register(interface.close)
