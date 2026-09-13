@@ -26,6 +26,7 @@ from lib.core.exceptions import (
     FileExistsException,
     InvalidURLException,
 )
+from lib.core.settings import DEFAULT_ENCODING
 from lib.utils import safe_xml
 from lib.utils.file import FileUtils
 
@@ -63,6 +64,8 @@ class BaseReport(ABC):
 
 
 class FileReportMixin:
+    _newline = None
+
     def initiate(self, file):
         FileUtils.create_dir(FileUtils.parent(file))
         if FileUtils.exists(file) and not FileUtils.is_empty(file):
@@ -77,18 +80,27 @@ class FileReportMixin:
             raise FileExistsException(f"Output file {file} already exists") from error
 
     def parse(self, file):
-        with open(file, "r") as file_handle:
+        with open(file, "r", encoding=DEFAULT_ENCODING) as file_handle:
             return file_handle.read()
 
     def _atomic_writer(self, file):
-        return FileUtils.atomic_write_private_text(file, encoding=None)
+        return FileUtils.atomic_write_private_text(
+            file,
+            encoding=DEFAULT_ENCODING,
+            newline=self._newline,
+        )
 
     def write(self, file, data):
         with self._atomic_writer(file) as fh:
             fh.write(data)
 
     def append(self, file, data):
-        FileUtils.append_private_text(file, data, encoding=None)
+        FileUtils.append_private_text(
+            file,
+            data,
+            encoding=DEFAULT_ENCODING,
+            newline=self._newline,
+        )
 
     def finish(self):
         pass

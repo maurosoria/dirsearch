@@ -21,18 +21,20 @@ from io import StringIO
 from defusedcsv import csv
 
 from lib.core.decorators import locked
+from lib.core.settings import DEFAULT_ENCODING
 from lib.report.factory import BaseReport, FileReportMixin
 
 
 class CSVReport(FileReportMixin, BaseReport):
     __format__ = "csv"
     __extension__ = "csv"
+    _newline = ""
 
     def new(self):
         return [["URL", "Status", "Size", "Content Type", "Redirection", "Elapsed (s)"]]
 
     def parse(self, file):
-        with open(file) as fh:
+        with open(file, encoding=DEFAULT_ENCODING, newline="") as fh:
             rows = list(csv.reader(fh, delimiter=",", quotechar='"'))
             # Not a dirsearch CSV report
             if rows[0] != self.new()[0]:

@@ -22,7 +22,7 @@ import os
 from jinja2 import Environment, FileSystemLoader
 
 from lib.core.decorators import locked
-from lib.core.settings import COMMAND, START_TIME
+from lib.core.settings import COMMAND, DEFAULT_ENCODING, START_TIME
 from lib.report.factory import BaseReport, FileReportMixin
 
 
@@ -34,7 +34,7 @@ class HTMLReport(FileReportMixin, BaseReport):
         return self.generate([])
 
     def parse(self, file):
-        with open(file) as fh:
+        with open(file, encoding=DEFAULT_ENCODING) as fh:
             while True:
                 line = fh.readline()
                 if not line:
