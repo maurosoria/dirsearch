@@ -645,13 +645,13 @@ class Requester(BaseRequester):
                     err_msg = format_proxy_error(e)
                     if proxy_error_status(e) in (407, 429):
                         raise RequestException(err_msg) from e
-                elif "InvalidURL" in str(e):
-                    err_msg = f"Invalid URL: {url}"
-                elif "InvalidProxyURL" in str(e):
+                elif isinstance(e, requests.exceptions.InvalidProxyURL):
                     err_msg = f"Invalid proxy URL: {proxy}"
+                elif isinstance(e, requests.exceptions.InvalidURL):
+                    err_msg = f"Invalid URL: {url}"
                 elif _is_response_read_error(e):
                     err_msg = f"Failed to read response body: {url}"
-                elif "ConnectionError" in str(e):
+                elif isinstance(e, requests.exceptions.ConnectionError):
                     err_msg = f"Cannot connect to: {urlparse(url).netloc}"
                 elif isinstance(e, http.client.IncompleteRead):
                     err_msg = f"Request timeout: {url}"
