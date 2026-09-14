@@ -80,6 +80,16 @@ class RecordingNativeBackend:
             yield path, response_for(path), None
 
 
+class MembershipTrackingList(list):
+    def __init__(self, values=()):
+        super().__init__(values)
+        self.contains_calls = 0
+
+    def __contains__(self, value):
+        self.contains_calls += 1
+        return super().__contains__(value)
+
+
 class DynamicDictionaryOptionsMixin:
     def setUp(self):
         self._original_options = dict(options)
@@ -138,6 +148,50 @@ class DynamicDictionaryOptionsMixin:
                 dictionary.add_extra("index.php.bak")
 
         return callback
+
+
+class TestDynamicDictionaryMembership(DynamicDictionaryOptionsMixin, TestCase):
+    def test_wordlist_membership_index_is_lazy_and_reused_after_reset(self):
+        dictionary = make_dictionary(["seed"])
+
+        self.assertIsNone(dictionary._item_membership)
+
+        dictionary.add_extra("dynamic")
+        membership = dictionary._item_membership
+        dictionary.reset()
+
+        self.assertIs(dictionary._item_membership, membership)
+
+    def test_add_extra_does_not_scan_wordlist_or_dynamic_queue(self):
+        dictionary = make_dictionary([])
+        dictionary._items = MembershipTrackingList(["seed", "existing"])
+        dictionary._extra = MembershipTrackingList()
+
+        dictionary.add_extra("dynamic-one")
+        dictionary.add_extra("dynamic-two")
+        dictionary.add_extra("dynamic-one")
+        dictionary.add_extra("existing")
+
+        self.assertEqual(dictionary._items.contains_calls, 0)
+        self.assertEqual(dictionary._extra.contains_calls, 0)
+        self.assertEqual(dictionary._extra, ["dynamic-one", "dynamic-two"])
+
+    def test_membership_indexes_follow_session_restore_and_reset(self):
+        dictionary = make_dictionary(["seed"])
+        dictionary.add_extra("dynamic")
+
+        restored = object.__new__(Dictionary)
+        restored.__setstate__(dictionary.__getstate__())
+        restored.add_extra("seed")
+        restored.add_extra("dynamic")
+        restored.add_extra("fresh")
+
+        self.assertEqual(restored._extra, ["dynamic", "fresh"])
+
+        restored.reset()
+        restored.add_extra("dynamic")
+
+        self.assertEqual(restored._extra, ["dynamic"])
 
 
 class TestSyncDynamicDictionary(DynamicDictionaryOptionsMixin, TestCase):

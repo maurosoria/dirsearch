@@ -53,9 +53,11 @@ class Dictionary:
         self._lock = threading.Lock()
         self._index = 0
         self._items = self.generate(**kwargs)
+        self._item_membership: set[str] | None = None
         # Items in self._extra will be cleared when self.reset() is called
         self._extra_index = 0
         self._extra = []
+        self._extra_membership: set[str] = set()
         self._claimed = []
 
     @property
@@ -120,6 +122,8 @@ class Dictionary:
             self._lock = threading.Lock()
         with self._lock:
             self._items, self._index, self._extra, self._extra_index = state
+            self._item_membership = None
+            self._extra_membership = set(self._extra)
             self._claimed = []
 
     def __iter__(self) -> Iterator[str]:
@@ -157,13 +161,18 @@ class Dictionary:
             return
 
         with self._lock:
-            if path in self._items or path in self._extra:
+            if self._item_membership is None:
+                self._item_membership = set(self._items)
+
+            if path in self._item_membership or path in self._extra_membership:
                 return
 
             self._extra.append(path)
+            self._extra_membership.add(path)
 
     def reset(self) -> None:
         with self._lock:
             self._index = self._extra_index = 0
             self._extra.clear()
+            self._extra_membership.clear()
             self._claimed.clear()
