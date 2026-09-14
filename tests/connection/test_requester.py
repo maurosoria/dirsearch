@@ -22,6 +22,7 @@ import http.server
 import json
 import os
 import re
+import socket
 import ssl
 import socketserver
 import tempfile
@@ -32,6 +33,7 @@ from unittest.mock import AsyncMock, patch
 
 import httpx
 import requests
+from requests.packages import urllib3
 
 from lib.connection import requester as requester_module
 from lib.connection import response as response_module
@@ -489,6 +491,28 @@ class TestRequesterErrorClassification(BaseRequesterTestCase):
             str(ctx.exception),
             "Request timeout: http://example.com/admin",
         )
+
+    def test_sync_wrapped_dns_failure_uses_dns_message(self):
+        requester = Requester()
+        requester.set_url("http://example.com/")
+        resolution_error = urllib3.exceptions.NameResolutionError(
+            "example.com",
+            None,
+            socket.gaierror(socket.EAI_NONAME, "Name or service not known"),
+        )
+        error = requests.exceptions.ConnectionError(
+            urllib3.exceptions.MaxRetryError(
+                None,
+                "/admin",
+                resolution_error,
+            )
+        )
+
+        with patch.object(requester.session, "send", side_effect=error):
+            with self.assertRaises(RequestException) as ctx:
+                requester.request("admin")
+
+        self.assertEqual(str(ctx.exception), "Couldn't resolve DNS")
 
     def test_sync_chunked_encoding_error_uses_read_error_message(self):
         requester = Requester()
@@ -995,6 +1019,34 @@ class TestAsyncRequesterSSLHandling(BaseRequesterTestCase, IsolatedAsyncioTestCa
             await requester.request("admin")
 
         self.assertEqual(str(ctx.exception), "Cannot connect to: example.com")
+
+    async def test_async_connect_error_with_dns_cause_uses_dns_message(self):
+        requester = AsyncRequester()
+        requester.set_url("https://example.com/")
+        error = _with_cause(
+            httpx.ConnectError("lookup failed"),
+            socket.gaierror(socket.EAI_NONAME, "Name or service not known"),
+        )
+        requester.session.send = AsyncMock(side_effect=error)
+
+        with self.assertRaises(RequestException) as ctx:
+            await requester.request("admin")
+
+        self.assertEqual(str(ctx.exception), "Couldn't resolve DNS")
+
+    async def test_async_legacy_dns_message_remains_supported(self):
+        requester = AsyncRequester()
+        requester.set_url("https://example.com/")
+        requester.session.send = AsyncMock(
+            side_effect=httpx.ConnectError(
+                "[Errno -2] Name or service not known"
+            )
+        )
+
+        with self.assertRaises(RequestException) as ctx:
+            await requester.request("admin")
+
+        self.assertEqual(str(ctx.exception), "Couldn't resolve DNS")
 
     async def test_async_connect_error_with_cert_context_uses_cert_message(self):
         requester = AsyncRequester()

@@ -272,6 +272,48 @@ def _iter_exception_chain(exc: BaseException) -> Generator[BaseException, None, 
                 pending.append(chained)
 
 
+def _is_dns_error(exc: Exception) -> bool:
+    """Return whether a request failure contains a DNS resolution error.
+
+    Requests stores urllib3 failures in exception arguments and ``reason``
+    attributes instead of always using Python exception chaining. HTTPX keeps
+    the originating ``socket.gaierror`` as a cause on supported versions.
+    Inspect both wrapper styles without treating arbitrary connection errors
+    as DNS failures.
+    """
+    seen = set()
+    pending = [exc]
+
+    while pending:
+        current = pending.pop()
+        if id(current) in seen:
+            continue
+
+        seen.add(id(current))
+        if isinstance(
+            current,
+            (socket.gaierror, urllib3.exceptions.NameResolutionError),
+        ):
+            return True
+
+        for attr in ("__cause__", "__context__", "reason", "_reason"):
+            nested = getattr(current, attr, None)
+            if isinstance(nested, BaseException):
+                pending.append(nested)
+
+        pending.extend(
+            argument
+            for argument in current.args
+            if isinstance(argument, BaseException)
+        )
+
+    # Retain compatibility with HTTPX versions that exposed only the
+    # resolver's Linux errno text instead of the originating gaierror.
+    return isinstance(exc, httpx.ConnectError) and str(exc).startswith(
+        "[Errno -2]"
+    )
+
+
 def _find_ssl_error(exc: Exception) -> ssl.SSLError | None:
     for current in _iter_exception_chain(exc):
         if isinstance(current, ssl.SSLError):
@@ -591,7 +633,7 @@ class Requester(BaseRequester):
             except Exception as e:
                 logger.exception(e)
 
-                if e == socket.gaierror:
+                if _is_dns_error(e):
                     err_msg = "Couldn't resolve DNS"
                 elif _is_timeout_error(e):
                     err_msg = f"Request timeout: {url}"
@@ -889,13 +931,12 @@ class AsyncRequester(BaseRequester):
             except Exception as e:
                 logger.exception(e)
 
-                if _is_timeout_error(e):
+                if _is_dns_error(e):
+                    err_msg = "Couldn't resolve DNS"
+                elif _is_timeout_error(e):
                     err_msg = f"Request timeout: {url}"
                 elif isinstance(e, httpx.ConnectError) and not _is_ssl_error(e):
-                    if str(e).startswith("[Errno -2]"):
-                        err_msg = "Couldn't resolve DNS"
-                    else:
-                        err_msg = f"Cannot connect to: {urlparse(url).netloc}"
+                    err_msg = f"Cannot connect to: {urlparse(url).netloc}"
                 elif _is_ssl_error(e):
                     err_msg = _format_ssl_error(e, url)
                 elif isinstance(e, httpx.TooManyRedirects):
