@@ -162,7 +162,7 @@ def _show_all_help(option, option_string, value, parser: OptionParser) -> None:
 
 
 def parse_arguments(arguments: list[str] | None = None) -> Values:
-    usage = "Usage: %prog [-u|--url] target [-e|--extensions] extensions [options]"
+    usage = "Usage: %prog [-u|--url] URL [-e|--extensions] EXTENSIONS [options]"
     epilog = "See 'config.ini' for the example configuration file"
     parser = DirsearchOptionParser(
         usage=usage,
@@ -283,7 +283,10 @@ def parse_arguments(arguments: list[str] | None = None) -> Values:
         "--extensions",
         action="store",
         dest="extensions",
-        help="Extension list, separated by commas (e.g. php,asp)",
+        help=(
+            "Extension list, separated by commas (e.g. php,asp); "
+            "use quoted '*' for common extensions"
+        ),
     )
     dictionary.add_option(
         "-f",
@@ -946,6 +949,11 @@ def parse_arguments(arguments: list[str] | None = None) -> Values:
     parser.add_option_group(advanced)
     parser.add_option_group(view)
     parser.add_option_group(output)
-    options, _ = parser.parse_args(arguments)
+    options, positional_arguments = parser.parse_args(arguments)
+    if positional_arguments:
+        parser.error(
+            "unexpected positional argument(s); quote shell wildcards such as '*' "
+            "when passing option values"
+        )
 
     return options

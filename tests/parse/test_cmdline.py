@@ -1,5 +1,5 @@
 import io
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from unittest import TestCase
 
 from lib.parse.cmdline import parse_arguments
@@ -61,6 +61,7 @@ class TestCommandLineHelp(TestCase):
             "Number of retries for failed requests (0 or greater)",
             normalized_output,
         )
+        self.assertIn("use quoted '*' for common extensions", normalized_output)
 
     def test_help_change_does_not_affect_normal_parsing(self):
         parsed = parse_arguments(
@@ -75,3 +76,22 @@ class TestCommandLineHelp(TestCase):
         parsed = parse_arguments(["-H", "-hh"])
 
         self.assertEqual(parsed.headers, ["-hh"])
+
+    def test_shell_expanded_extension_wildcard_is_rejected(self):
+        error = io.StringIO()
+
+        with redirect_stderr(error), self.assertRaises(SystemExit) as raised:
+            parse_arguments(
+                [
+                    "-u",
+                    "https://example.com",
+                    "-e",
+                    "AGENTS.md",
+                    "CHANGELOG.md",
+                    "Dockerfile",
+                ]
+            )
+
+        self.assertEqual(raised.exception.code, 2)
+        self.assertIn("unexpected positional argument", error.getvalue())
+        self.assertIn("quote shell wildcards", error.getvalue())
