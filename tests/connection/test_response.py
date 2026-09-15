@@ -140,6 +140,24 @@ class TestResponse(TestCase):
         self.assertEqual(response.content, "��admin")
         self.assertEqual(response.length, len(response.body))
 
+    def test_declared_utf16_keeps_and_decodes_all_chunks(self):
+        body = "hello world".encode("utf-16")
+        chunks = [body[:4], body[4:]]
+        response = Response(
+            "http://example.com/utf16",
+            DummyResponse(
+                headers={
+                    "content-type": "text/plain; charset=utf-16",
+                    "content-length": str(len(body)),
+                },
+                body=chunks,
+                encoding="utf-16",
+            ),
+        )
+
+        self.assertEqual(response.body, body)
+        self.assertEqual(response.content, "hello world")
+
     def test_full_capture_reads_all_binary_chunks_for_saved_responses(self):
         chunks = [b"\x00" + b"a" * 15, b"b" * 16]
         origin = DummyResponse(
@@ -233,6 +251,24 @@ class TestAsyncResponse(IsolatedAsyncioTestCase):
         self.assertEqual(response.body, b"\xff\xfeadmin")
         self.assertEqual(response.content, "��admin")
         self.assertEqual(response.length, len(response.body))
+
+    async def test_declared_utf16_keeps_and_decodes_all_chunks(self):
+        body = "hello world".encode("utf-16")
+        chunks = [body[:4], body[4:]]
+        response = await AsyncResponse.create(
+            "http://example.com/utf16",
+            DummyAsyncResponse(
+                headers={
+                    "content-type": "text/plain; charset=utf-16",
+                    "content-length": str(len(body)),
+                },
+                body=chunks,
+                encoding="utf-16",
+            ),
+        )
+
+        self.assertEqual(response.body, body)
+        self.assertEqual(response.content, "hello world")
 
     async def test_full_capture_reads_all_binary_chunks_for_saved_responses(self):
         chunks = [b"\x00" + b"a" * 15, b"b" * 16]

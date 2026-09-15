@@ -69,6 +69,53 @@ class TestNativeResponse(TestCase):
         self.assertEqual(response.content, "start�end")
         self.assertEqual(response.length, len(response.body))
 
+    def test_native_response_uses_declared_quoted_charset(self):
+        response = NativeResponse(
+            "https://example.com/price",
+            200,
+            [("Content-Type", 'text/plain; Charset="windows-1252"')],
+            b"price \xa3",
+        )
+
+        self.assertEqual(response.body, b"price \xa3")
+        self.assertEqual(response.content, "price £")
+
+    def test_native_response_uses_declared_utf16_for_binary_looking_text(self):
+        body = "hello world".encode("utf-16")
+        response = NativeResponse(
+            "https://example.com/utf16",
+            200,
+            [("Content-Type", "text/plain; charset=utf-16")],
+            body,
+        )
+
+        self.assertEqual(response.body, body)
+        self.assertEqual(response.content, "hello world")
+
+    def test_native_response_ignores_unknown_charset_for_binary_body(self):
+        body = bytes(range(256))
+        response = NativeResponse(
+            "https://example.com/binary",
+            200,
+            [("Content-Type", "text/plain; charset=x-dirsearch-unknown")],
+            body,
+        )
+
+        self.assertEqual(response.body, body)
+        self.assertEqual(response.content, "")
+
+    def test_native_response_does_not_decode_binary_media_with_charset(self):
+        body = bytes(range(256))
+        response = NativeResponse(
+            "https://example.com/image",
+            200,
+            [("Content-Type", "image/png; charset=utf-8")],
+            body,
+        )
+
+        self.assertEqual(response.body, body)
+        self.assertEqual(response.content, "")
+
     def test_native_utf16_bom_artifact_body_does_not_raise_decode_error(self):
         response = NativeResponse(
             "https://example.com/%FF%FEadmin",
