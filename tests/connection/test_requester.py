@@ -514,6 +514,76 @@ class TestRequesterErrorClassification(BaseRequesterTestCase):
 
         self.assertEqual(str(ctx.exception), "Couldn't resolve DNS")
 
+    def test_sync_invalid_url_uses_specific_message(self):
+        requester = Requester()
+        requester.set_url("http://example.com/")
+
+        with patch.object(
+            requester.session,
+            "send",
+            side_effect=requests.exceptions.InvalidURL("bad target"),
+        ):
+            with self.assertRaises(RequestException) as ctx:
+                requester.request("admin")
+
+        self.assertEqual(
+            str(ctx.exception),
+            "Invalid URL: http://example.com/admin",
+        )
+
+    def test_sync_invalid_proxy_url_uses_specific_message(self):
+        requester = Requester()
+        requester.set_url("http://example.com/")
+
+        with patch.object(
+            requester.session,
+            "send",
+            side_effect=requests.exceptions.InvalidProxyURL("bad proxy"),
+        ):
+            with self.assertRaises(RequestException) as ctx:
+                requester.request("admin", proxy="http://proxy.invalid")
+
+        self.assertEqual(
+            str(ctx.exception),
+            "Invalid proxy URL: http://proxy.invalid",
+        )
+
+    def test_sync_connection_error_uses_specific_message(self):
+        requester = Requester()
+        requester.set_url("http://example.com/")
+
+        with patch.object(
+            requester.session,
+            "send",
+            side_effect=requests.exceptions.ConnectionError(
+                "connection refused"
+            ),
+        ):
+            with self.assertRaises(RequestException) as ctx:
+                requester.request("admin")
+
+        self.assertEqual(str(ctx.exception), "Cannot connect to: example.com")
+
+    def test_sync_error_class_names_in_unrelated_text_stay_generic(self):
+        requester = Requester()
+        requester.set_url("http://example.com/")
+
+        for message in ("InvalidURL", "InvalidProxyURL", "ConnectionError"):
+            with self.subTest(message=message):
+                with patch.object(
+                    requester.session,
+                    "send",
+                    side_effect=RuntimeError(message),
+                ):
+                    with self.assertRaises(RequestException) as ctx:
+                        requester.request("admin")
+
+                self.assertEqual(
+                    str(ctx.exception),
+                    "There was a problem in the request to: "
+                    "http://example.com/admin",
+                )
+
     def test_sync_chunked_encoding_error_uses_read_error_message(self):
         requester = Requester()
         requester.set_url("http://example.com/")
