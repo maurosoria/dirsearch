@@ -362,7 +362,7 @@ class NativeResponse(BaseResponse):
             (),
             {
                 "status_code": status,
-                "headers": {key.lower(): value for key, value in headers},
+                "headers": httpx.Headers(headers),
                 "history": [],
                 "encoding": None,
             },

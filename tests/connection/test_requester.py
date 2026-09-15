@@ -143,6 +143,18 @@ class RequestTargetHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             return
 
+        if target == b"/repeated-headers":
+            body = b"repeated headers"
+            self.send_response(200)
+            self.send_header("x-repeat", "one")
+            self.send_header("x-repeat", "two")
+            self.send_header("set-cookie", "first=1; Path=/")
+            self.send_header("set-cookie", "second=2; Path=/")
+            self.send_header("content-length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
         encoded_response = ENCODED_RESPONSES_BY_TARGET.get(target)
         if encoded_response is not None:
             charset, _, wire_body = encoded_response
@@ -1370,6 +1382,50 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
 class TestResponseStoreTransportIntegration(
     BaseRequesterTestCase, IsolatedAsyncioTestCase
 ):
+    def _assert_repeated_headers(self, response):
+        self.assertEqual(response.headers.get("x-repeat"), "one, two")
+        self.assertEqual(
+            response.headers.get("set-cookie"),
+            "first=1; Path=/, second=2; Path=/",
+        )
+
+    def test_sync_repeated_response_headers_are_preserved(self):
+        with RequestTargetServer() as server:
+            requester = Requester()
+            requester.set_url(server.url)
+            try:
+                response = requester.request("repeated-headers")
+            finally:
+                requester.close()
+
+        self._assert_repeated_headers(response)
+
+    async def test_async_repeated_response_headers_are_preserved(self):
+        with RequestTargetServer() as server:
+            requester = AsyncRequester()
+            requester.set_url(server.url)
+            try:
+                response = await requester.request("repeated-headers")
+            finally:
+                await requester.close()
+
+        self._assert_repeated_headers(response)
+
+    def test_native_repeated_response_headers_are_preserved(self):
+        try:
+            backend = NativeHTTPBackend()
+        except RequestException as error:
+            self.skipTest(str(error))
+
+        with RequestTargetServer() as server:
+            results = list(backend.scan(server.url, ["repeated-headers"]))
+
+        self.assertEqual(len(results), 1)
+        _, response, error = results[0]
+        self.assertIsNone(error)
+        self.assertIsNotNone(response)
+        self._assert_repeated_headers(response)
+
     def _assert_jsonl_round_trip(self, responses):
         with tempfile.TemporaryDirectory() as directory:
             file_path = os.path.join(directory, "responses.jsonl")
