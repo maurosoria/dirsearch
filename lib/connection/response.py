@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import hashlib
 import time
+from codecs import lookup
 from functools import cached_property
 from typing import Any
 
@@ -56,6 +57,60 @@ def _decoded_content_length(headers) -> int | None:
         return None
 
     return length if length >= 0 else None
+
+
+def _declared_charset(headers) -> str | None:
+    content_type = headers.get("content-type")
+    if not content_type:
+        return None
+
+    for parameter in content_type.split(";")[1:]:
+        name, separator, value = parameter.partition("=")
+        if separator and name.strip().strip("'\"").lower() == "charset":
+            return value.strip().strip("'\"") or None
+
+    return None
+
+
+def _is_known_charset(charset: str | None) -> bool:
+    if charset is None:
+        return False
+
+    try:
+        lookup(charset)
+    except LookupError:
+        return False
+
+    return True
+
+
+def _has_textual_media_type(headers) -> bool:
+    content_type = (
+        headers.get("content-type", "").split(";", 1)[0].strip().lower()
+    )
+    return (
+        content_type.startswith("text/")
+        or content_type in {"application/json", "application/xml"}
+        or content_type.endswith(("+json", "+xml"))
+    )
+
+
+def _should_decode_binary_text(headers, declared_charset: str | None) -> bool:
+    return _has_textual_media_type(headers) and _is_known_charset(declared_charset)
+
+
+def _decode_response_body(
+    body: bytes,
+    encoding: str | None,
+    decode_binary_text: bool,
+) -> str:
+    if is_binary(body) and not decode_binary_text:
+        return ""
+
+    try:
+        return body.decode(encoding or DEFAULT_ENCODING, errors="replace")
+    except LookupError:
+        return body.decode(DEFAULT_ENCODING, errors="replace")
 
 
 class _BodyCapture:
@@ -226,7 +281,15 @@ class Response(BaseResponse):
         capture_full_body: bool = False,
     ) -> None:
         super().__init__(url, response, elapsed)
-        capture = _BodyCapture(self.headers, capture_full_body)
+        declared_charset = _declared_charset(self.headers)
+        decode_binary_text = _should_decode_binary_text(
+            self.headers,
+            declared_charset,
+        )
+        capture = _BodyCapture(
+            self.headers,
+            capture_full_body or decode_binary_text,
+        )
 
         for chunk in response.iter_content(chunk_size=ITER_CHUNK_SIZE):
             if not capture.add(chunk):
@@ -237,13 +300,11 @@ class Response(BaseResponse):
         self.body = bytes(capture.body)
         self._body_complete = capture.complete
         self._body_digest = capture.body_digest
-        if not is_binary(self.body):
-            try:
-                self.content = self.body.decode(
-                    response.encoding or DEFAULT_ENCODING, errors="replace"
-                )
-            except LookupError:
-                self.content = self.body.decode(DEFAULT_ENCODING, errors="replace")
+        self.content = _decode_response_body(
+            self.body,
+            declared_charset or response.encoding,
+            decode_binary_text,
+        )
 
 
 class AsyncResponse(BaseResponse):
@@ -256,7 +317,15 @@ class AsyncResponse(BaseResponse):
         capture_full_body: bool = False,
     ) -> AsyncResponse:
         self = cls(url, response, elapsed)
-        capture = _BodyCapture(self.headers, capture_full_body)
+        declared_charset = _declared_charset(self.headers)
+        decode_binary_text = _should_decode_binary_text(
+            self.headers,
+            declared_charset,
+        )
+        capture = _BodyCapture(
+            self.headers,
+            capture_full_body or decode_binary_text,
+        )
         async for chunk in response.aiter_bytes(chunk_size=ITER_CHUNK_SIZE):
             if not capture.add(chunk):
                 break
@@ -266,13 +335,11 @@ class AsyncResponse(BaseResponse):
         self.body = bytes(capture.body)
         self._body_complete = capture.complete
         self._body_digest = capture.body_digest
-        if not is_binary(self.body):
-            try:
-                self.content = self.body.decode(
-                    response.encoding or DEFAULT_ENCODING, errors="replace"
-                )
-            except LookupError:
-                self.content = self.body.decode(DEFAULT_ENCODING, errors="replace")
+        self.content = _decode_response_body(
+            self.body,
+            declared_charset or response.encoding,
+            decode_binary_text,
+        )
 
         return self
 
@@ -310,8 +377,12 @@ class NativeResponse(BaseResponse):
             self._body_complete = body_complete
         elif self._length is not None:
             self._body_complete = self._length == len(self.body)
-        if not is_binary(self.body):
-            self.content = self.body.decode(DEFAULT_ENCODING, errors="replace")
+        declared_charset = _declared_charset(self.headers)
+        self.content = _decode_response_body(
+            self.body,
+            declared_charset,
+            _should_decode_binary_text(self.headers, declared_charset),
+        )
 
     @property
     def length(self) -> int:

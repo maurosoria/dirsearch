@@ -89,6 +89,7 @@ ENCODED_RESPONSE_CASES = (
         "utf-8",
         b"normal native gzip response",
     ),
+    ("encoded/ascii-gzip", "ascii", b"plain ascii response"),
     ("encoded/multiscript-utf8%1", "utf-8", MULTISCRIPT_TEXT.encode("utf-8")),
     (
         "encoded/chinese-gb18030%1",
@@ -1408,6 +1409,18 @@ class TestResponseStoreTransportIntegration(
             [body for _, _, body in ENCODED_RESPONSE_CASES],
         )
 
+    def _assert_response_text(self, responses):
+        for response, (_, charset, body) in zip(
+            responses, ENCODED_RESPONSE_CASES
+        ):
+            with self.subTest(charset=charset):
+                expected = (
+                    ""
+                    if charset == "x-dirsearch-unknown"
+                    else body.decode(charset)
+                )
+                self.assertEqual(response.content, expected)
+
     def test_sync_gzip_multiscript_charsets_round_trip(self):
         options["save_response_jsonl"] = "responses.jsonl"
         with RequestTargetServer() as server:
@@ -1422,6 +1435,7 @@ class TestResponseStoreTransportIntegration(
                 requester.close()
 
         self._assert_response_bodies(responses)
+        self._assert_response_text(responses)
         self._assert_jsonl_round_trip(responses)
 
     async def test_async_gzip_multiscript_charsets_round_trip(self):
@@ -1437,6 +1451,7 @@ class TestResponseStoreTransportIntegration(
                 await requester.close()
 
         self._assert_response_bodies(responses)
+        self._assert_response_text(responses)
         self._assert_jsonl_round_trip(responses)
 
     def test_native_gzip_multiscript_charsets_round_trip(self):
@@ -1458,4 +1473,24 @@ class TestResponseStoreTransportIntegration(
         responses = [response for _, response, _ in results]
         self.assertTrue(all(response is not None for response in responses))
         self._assert_response_bodies(responses)
+        self._assert_response_text(responses)
         self._assert_jsonl_round_trip(responses)
+
+    def test_native_non_utf8_matcher_is_deferred_until_after_decoding(self):
+        try:
+            backend = NativeHTTPBackend()
+        except RequestException as error:
+            self.skipTest(str(error))
+
+        options["match_regex"] = ARABIC_TEXT
+        with RequestTargetServer() as server:
+            results = list(
+                backend.scan(server.url, ["encoded/arabic-windows-1256%1"])
+            )
+
+        self.assertEqual(len(results), 1)
+        _, response, error = results[0]
+        self.assertIsNone(error)
+        self.assertIsNotNone(response)
+        self.assertFalse(response.filtered)
+        self.assertEqual(response.content, ARABIC_TEXT)

@@ -191,6 +191,12 @@ impl NativeFilterConfig {
             return Some("maximum_response_size");
         }
 
+        if self.needs_text() && has_non_utf8_charset(headers) {
+            // Python owns charset-aware decoding. Preserve this response so the
+            // common filter stack can evaluate it after NativeResponse decodes it.
+            return None;
+        }
+
         let text = self
             .needs_text()
             .then(|| String::from_utf8_lossy(body).into_owned());
@@ -300,6 +306,32 @@ impl NativeFilterConfig {
 
         combine_advanced_checks(&checks, &self.filter_mode, false)
     }
+}
+
+fn has_non_utf8_charset(headers: &[(String, String)]) -> bool {
+    response_charset(headers).is_some_and(|charset| {
+        charset
+            .chars()
+            .filter(|character| !matches!(character, '-' | '_' | ' '))
+            .flat_map(char::to_lowercase)
+            .collect::<String>()
+            != "utf8"
+    })
+}
+
+fn response_charset(headers: &[(String, String)]) -> Option<&str> {
+    let content_type = headers
+        .iter()
+        .find_map(|(name, value)| name.eq_ignore_ascii_case("content-type").then_some(value))?;
+
+    content_type.split(';').skip(1).find_map(|parameter| {
+        let (name, value) = parameter.split_once('=')?;
+        name.trim().eq_ignore_ascii_case("charset").then(|| {
+            value
+                .trim()
+                .trim_matches(|character| matches!(character, '\'' | '"'))
+        })
+    })
 }
 
 fn compile_regex(pattern: Option<String>, label: &str) -> Result<Option<Regex>, String> {
@@ -1775,6 +1807,51 @@ mod tests {
             &config,
         );
         assert!(!keep.filtered);
+    }
+
+    #[test]
+    fn non_utf8_text_filters_are_deferred_to_python() {
+        let mut config = default_filter_config();
+        config.match_regex = Some(Regex::new("£").unwrap());
+        let body = b"price \xa3".to_vec();
+
+        let result = native_http_result(
+            "price".to_string(),
+            200,
+            vec![(
+                "Content-Type".to_string(),
+                "text/plain; Charset=\"windows-1252\"".to_string(),
+            )],
+            body.clone(),
+            1.0,
+            &config,
+        );
+
+        assert!(!result.filtered);
+        assert_eq!(result.filter_reason, None);
+        assert_eq!(result.body, body);
+    }
+
+    #[test]
+    fn utf8_text_filters_keep_the_native_fast_path() {
+        let mut config = default_filter_config();
+        config.filter_regex = Some(Regex::new("£").unwrap());
+
+        let result = native_http_result(
+            "price".to_string(),
+            200,
+            vec![(
+                "Content-Type".to_string(),
+                "text/plain; Charset=UTF_8".to_string(),
+            )],
+            "price £".as_bytes().to_vec(),
+            1.0,
+            &config,
+        );
+
+        assert!(result.filtered);
+        assert_eq!(result.filter_reason.as_deref(), Some("advanced_filter"));
+        assert!(result.body.is_empty());
     }
 
     #[test]
