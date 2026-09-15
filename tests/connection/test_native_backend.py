@@ -1,7 +1,7 @@
 from unittest import TestCase
 from unittest.mock import patch
 
-from lib.connection.native import NativeHTTPBackend
+from lib.connection.native import NativeHTTPBackend, NativeRequester
 from lib.core.data import options
 
 
@@ -18,14 +18,15 @@ class FakeNativeResult:
 
 
 class FakeNativeEngine:
-    def __init__(self, **config):
+    def __init__(self, results=None, **config):
         self.config = config
         self.calls = []
         self.cancelled = False
+        self.results = results
 
     def scan(self, *args, **kwargs):
         self.calls.append((args, kwargs))
-        return [FakeNativeResult()]
+        return self.results if self.results is not None else [FakeNativeResult()]
 
     def cancel(self):
         self.cancelled = True
@@ -35,13 +36,29 @@ class FakeNativeEngine:
 
 
 class FakeNativeModule:
-    def __init__(self):
+    def __init__(self, results=None):
         self.engines = []
+        self.results = results
 
     def NativeHttpEngine(self, **config):
-        engine = FakeNativeEngine(**config)
+        engine = FakeNativeEngine(self.results, **config)
         self.engines.append(engine)
         return engine
+
+
+class IndexedNativeResult:
+    def __init__(self, request_index, *, filtered, status=404, error=None):
+        self.request_index = request_index
+        self.path = f"path-{request_index}"
+        self.status = status
+        self.length = 2
+        self.elapsed_ms = 1.0
+        self.error = error
+        self.filtered = filtered
+        self.filter_reason = "advanced_filter" if filtered else None
+        self.headers = [("content-type", "text/plain")]
+        self.body = [] if filtered else [111, 107]
+        self.body_complete = True
 
 
 class TestNativeHTTPBackend(TestCase):
@@ -127,6 +144,59 @@ class TestNativeHTTPBackend(TestCase):
         self.assertEqual(kwargs["match_header_regex"], "etag: .+")
         self.assertEqual(kwargs["filter_header_regex"], "x-cache: fallback-[0-9]+")
         self.assertEqual(kwargs["match_time"], [(">", 100.0)])
+
+    def test_scan_batch_only_materializes_actionable_results(self):
+        fake_native = FakeNativeModule(
+            [
+                IndexedNativeResult(1, filtered=False, status=200),
+                IndexedNativeResult(2, filtered=True),
+            ]
+        )
+
+        with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
+            backend = NativeHTTPBackend()
+            batch = backend.scan_batch(
+                "https://example.com/", ["zero", "one", "two"]
+            )
+
+        self.assertEqual(batch.processed_count, 3)
+        self.assertEqual(len(batch.events), 1)
+        event = batch.events[0]
+        self.assertEqual((event.request_index, event.path), (1, "one"))
+        self.assertEqual(event.response.status, 200)
+        self.assertIsNone(event.error)
+        self.assertTrue(fake_native.engines[0].calls[0][1]["compact_filtered"])
+
+    def test_scan_batch_preserves_proxy_authentication_errors(self):
+        fake_native = FakeNativeModule(
+            [IndexedNativeResult(0, filtered=True, status=407)]
+        )
+
+        with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
+            backend = NativeHTTPBackend()
+            batch = backend.scan_batch("https://example.com/", ["admin"])
+
+        self.assertEqual(batch.processed_count, 1)
+        self.assertEqual(len(batch.events), 1)
+        self.assertIsNone(batch.events[0].response)
+        self.assertEqual(str(batch.events[0].error), "Proxy authentication required")
+
+    def test_native_requester_uses_unfiltered_native_engine_for_calibration(self):
+        fake_native = FakeNativeModule(
+            [IndexedNativeResult(0, filtered=False, status=404)]
+        )
+
+        with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
+            requester = NativeRequester()
+            requester.set_url("https://example.com/")
+            requester.set_query("scope=one")
+            response = requester.request("missing page")
+
+        self.assertEqual(response.status, 404)
+        args, kwargs = fake_native.engines[0].calls[0]
+        self.assertEqual(args[:2], ("https://example.com/", ["missing%20page?scope=one"]))
+        self.assertFalse(kwargs["compact_filtered"])
+        self.assertNotIn("include_status_codes", kwargs)
 
     def test_proxy_urls_encode_reserved_credentials(self):
         options["proxy_auth"] = "proxy/user:p@ss/word?#%:tail"

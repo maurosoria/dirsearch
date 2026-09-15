@@ -36,6 +36,29 @@ class TestWordlistBackend(TestCase):
 
         self.assertIsInstance(backend, NativeWordlistBackend)
 
+    def test_percent_encoded_paths_do_not_force_python_expansion(self):
+        backend = object.__new__(NativeWordlistBackend)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            wordlist = Path(temp_dir) / "wordlist.txt"
+            wordlist.write_text(
+                "%2e%2e/etc/passwd\nvalue%20with%20spaces\n",
+                encoding="utf-8",
+            )
+
+            self.assertFalse(
+                backend._requires_python_template_expansion([str(wordlist)])
+            )
+
+    def test_named_templates_still_use_python_expansion(self):
+        backend = object.__new__(NativeWordlistBackend)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            wordlist = Path(temp_dir) / "wordlist.txt"
+            wordlist.write_text("%SUBJECT%/admin\n", encoding="utf-8")
+
+            self.assertTrue(
+                backend._requires_python_template_expansion([str(wordlist)])
+            )
+
     def test_native_matches_python_when_available(self):
         try:
             native = get_wordlist_backend("native")

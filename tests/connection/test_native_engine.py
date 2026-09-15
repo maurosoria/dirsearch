@@ -159,6 +159,24 @@ class CountingHTTPServer(ThreadingHTTPServer):
     "native extension is not installed",
 )
 class TestNativeHttpEngine(TestCase):
+    def test_compact_scan_returns_tail_completion_marker(self):
+        server = CountingHTTPServer()
+        engine = dirsearch_native.NativeHttpEngine(concurrency=2)
+
+        try:
+            results = engine.scan(
+                server.url,
+                ["zero", "one", "two"],
+                include_status_codes=[201],
+                compact_filtered=True,
+            )
+        finally:
+            server.close()
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].request_index, 2)
+        self.assertTrue(results[0].filtered)
+
     def test_reuses_http_connection_across_scans(self):
         server = CountingHTTPServer()
         engine = dirsearch_native.NativeHttpEngine()

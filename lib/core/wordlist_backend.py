@@ -12,7 +12,11 @@ from lib.core.settings import (
     EXTENSION_TAG,
 )
 from lib.core.structures import OrderedSet
-from lib.core.wordlist_template import TOKEN_RE, expand_template_line
+from lib.core.wordlist_template import (
+    TOKEN_RE,
+    expand_template_line,
+    is_template_token,
+)
 from lib.parse.url import clean_path
 from lib.utils.common import lstrip_once
 from lib.utils.file import FileUtils
@@ -180,7 +184,11 @@ class NativeWordlistBackend:
                     if "%" not in line:
                         continue
 
-                    tokens = {token.upper() for token in TOKEN_RE.findall(line)}
+                    tokens = {
+                        token.upper()
+                        for token in TOKEN_RE.findall(line)
+                        if is_template_token(token)
+                    }
                     if any(token != extension_token for token in tokens):
                         return True
 

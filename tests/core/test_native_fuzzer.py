@@ -2,6 +2,7 @@ import threading
 import time
 from unittest import TestCase
 from unittest.mock import patch
+from lib.connection.native import NativeScanBatch, NativeScanEvent
 from lib.connection.response import NativeResponse
 from lib.core.data import blacklists, options
 from lib.core.dictionary import Dictionary
@@ -49,6 +50,19 @@ class FakeNativeBackend:
 
     def cancel(self):
         self.cancelled = True
+
+
+class FakeBatchNativeBackend:
+    def __init__(self, batch):
+        self.batch = batch
+        self.calls = []
+
+    def scan_batch(self, base_url, paths, query=""):
+        self.calls.append((base_url, list(paths), query))
+        return self.batch
+
+    def cancel(self):
+        return None
 
 
 class CoordinatedNativeBackend:
@@ -177,13 +191,24 @@ class TestNativeFuzzer(TestCase):
         blacklists.clear()
         blacklists.update(self.original_blacklists)
 
-    def make_fuzzer(self, backend, dictionary, matches, misses, errors):
+    def make_fuzzer(
+        self,
+        backend,
+        dictionary,
+        matches,
+        misses,
+        errors,
+        filtered_batches=None,
+    ):
         fuzzer = NativeFuzzer(
             DummyRequester(),
             dictionary,
             match_callbacks=(matches.append,),
             not_found_callbacks=(misses.append,),
             error_callbacks=(errors.append,),
+            filtered_batch_callbacks=(filtered_batches.append,)
+            if filtered_batches is not None
+            else (),
         )
         fuzzer._native_backend = backend
         fuzzer.setup_scanners = lambda: None
@@ -250,6 +275,59 @@ class TestNativeFuzzer(TestCase):
         self.assertEqual(misses, [response])
         self.assertEqual(errors, [])
         self.assertEqual(response.length, 64)
+
+    def test_native_fuzzer_processes_filtered_results_as_one_batch(self):
+        dictionary = make_dictionary(["zero", "one", "two"])
+        backend = FakeBatchNativeBackend(NativeScanBatch(3, ()))
+        filtered_batches = []
+
+        fuzzer = self.make_fuzzer(
+            backend,
+            dictionary,
+            [],
+            [],
+            [],
+            filtered_batches,
+        )
+        fuzzer.start()
+
+        self.assertEqual(filtered_batches, [3])
+        self.assertEqual(restored_paths(dictionary.__getstate__()), [])
+
+    def test_native_fuzzer_preserves_event_order_across_filtered_gaps(self):
+        match = NativeResponse(
+            "https://example.com/three",
+            200,
+            [("content-type", "text/plain")],
+            b"ok",
+        )
+        error = RequestException("boom")
+        batch = NativeScanBatch(
+            4,
+            (
+                NativeScanEvent(1, "one", None, error),
+                NativeScanEvent(3, "three", match, None),
+            ),
+        )
+        dictionary = make_dictionary(["zero", "one", "two", "three"])
+        matches = []
+        errors = []
+        filtered_batches = []
+        fuzzer = self.make_fuzzer(
+            FakeBatchNativeBackend(batch),
+            dictionary,
+            matches,
+            [],
+            errors,
+            filtered_batches,
+        )
+
+        fuzzer.start()
+
+        self.assertEqual(filtered_batches, [1, 1])
+        self.assertEqual(errors, [error])
+        self.assertEqual(matches, [match])
+        self.assertEqual(restored_paths(dictionary.__getstate__()), [])
 
     def test_saved_state_retries_unreturned_chunk_paths(self):
         dictionary = make_dictionary(["admin", "login"])

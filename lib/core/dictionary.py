@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 import threading
+from collections import Counter
 from typing import Any, Iterator
 
 from lib.core.settings import SCRIPT_PATH
@@ -95,6 +96,33 @@ class Dictionary:
     def release_claim(self, path: str) -> None:
         with self._lock:
             self._claimed.remove(path)
+
+    def release_claims(self, paths: list[str]) -> None:
+        """Release several completed claims in one bounded lock operation."""
+        if not paths:
+            return
+
+        with self._lock:
+            count = len(paths)
+            # Native batches normally complete in claim order. Removing the
+            # prefix avoids a separate linear search for every path.
+            if self._claimed[:count] == paths:
+                del self._claimed[:count]
+                return
+
+            # Pause/cancellation can leave an out-of-order subset. Preserve
+            # unmatched claims so session recovery can requeue them.
+            pending = Counter(paths)
+            claimed = []
+            for path in self._claimed:
+                if pending[path]:
+                    pending[path] -= 1
+                else:
+                    claimed.append(path)
+
+            if any(pending.values()):
+                raise ValueError("list.remove(x): x not in list")
+            self._claimed = claimed
 
     def requeue_claims(self) -> None:
         """Make outstanding claims available again in their original order."""
