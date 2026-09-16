@@ -110,6 +110,10 @@ class TestSessionResumeQueue(TestCase):
                         "lib.connection.requester.AsyncRequester",
                         return_value=Mock(),
                     ),
+                    patch(
+                        "lib.connection.native.NativeRequester",
+                        return_value=Mock(),
+                    ),
                     patch("lib.core.fuzzer.Fuzzer", create_fuzzer),
                     patch("lib.core.fuzzer.AsyncFuzzer", create_fuzzer),
                     patch("lib.core.fuzzer.NativeFuzzer", create_fuzzer),

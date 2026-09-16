@@ -219,6 +219,10 @@ class TestControllerTargetURL(TestCase):
                         "lib.connection.requester.AsyncRequester",
                         return_value=requester,
                     ),
+                    patch(
+                        "lib.connection.native.NativeRequester",
+                        return_value=requester,
+                    ),
                     patch("lib.core.fuzzer.Fuzzer", return_value=Mock()),
                     patch("lib.core.fuzzer.AsyncFuzzer", return_value=Mock()),
                     patch("lib.core.fuzzer.NativeFuzzer", return_value=Mock()),
