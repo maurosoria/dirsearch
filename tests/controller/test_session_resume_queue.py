@@ -102,16 +102,13 @@ class TestSessionResumeQueue(TestCase):
 
                 with (
                     patch.dict(options, run_options),
+                    patch.dict("sys.modules", {"dirsearch_native": None}),
                     patch(
                         "lib.connection.requester.Requester",
                         return_value=Mock(),
                     ),
                     patch(
                         "lib.connection.requester.AsyncRequester",
-                        return_value=Mock(),
-                    ),
-                    patch(
-                        "lib.connection.native.NativeRequester",
                         return_value=Mock(),
                     ),
                     patch("lib.core.fuzzer.Fuzzer", create_fuzzer),

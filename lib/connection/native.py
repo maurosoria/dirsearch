@@ -282,7 +282,15 @@ class NativeRequester:
     def __init__(self) -> None:
         self._url = ""
         self._query = ""
-        self.backend = NativeHTTPBackend()
+        # Controller creates the requester before entering its per-target error
+        # handler. Delay the optional extension import until a scan actually
+        # starts so a missing build is reported as a normal request error.
+        self.backend: NativeHTTPBackend | None = None
+
+    def get_backend(self) -> NativeHTTPBackend:
+        if self.backend is None:
+            self.backend = NativeHTTPBackend()
+        return self.backend
 
     @property
     def rate(self) -> int:
@@ -306,7 +314,11 @@ class NativeRequester:
         )
 
     def request(self, path: str, proxy: str | None = None) -> NativeResponse:
-        backend = NativeHTTPBackend(proxy_override=proxy) if proxy else self.backend
+        backend = (
+            NativeHTTPBackend(proxy_override=proxy)
+            if proxy
+            else self.get_backend()
+        )
         response, error = backend.scan_unfiltered(self._url, path, self._query)
         if error is not None:
             raise error

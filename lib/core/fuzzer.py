@@ -550,7 +550,11 @@ class NativeFuzzer(Fuzzer):
             self._prepared = False
 
         try:
-            self._native_backend = self._native_backend or NativeHTTPBackend()
+            if self._native_backend is None:
+                get_backend = getattr(self._requester, "get_backend", None)
+                self._native_backend = (
+                    get_backend() if get_backend is not None else NativeHTTPBackend()
+                )
             self.setup_scanners()
             super().play()
             self._started_event.set()
