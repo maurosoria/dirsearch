@@ -24,6 +24,9 @@ const SIGNAL_POLL_INTERVAL: Duration = Duration::from_millis(50);
 
 #[pyclass]
 struct NativeHttpResult {
+    /// Position in the input batch; Python uses gaps to reconstruct filtered runs.
+    #[pyo3(get)]
+    request_index: usize,
     #[pyo3(get)]
     path: String,
     #[pyo3(get)]
@@ -641,6 +644,7 @@ impl NativeHttpEngine {
         filter_header_regex=None,
         match_time=Vec::new(),
         filter_time=Vec::new(),
+        compact_filtered=false,
     ))]
     fn scan(
         &self,
@@ -671,6 +675,7 @@ impl NativeHttpEngine {
         filter_header_regex: Option<String>,
         match_time: Vec<TimeFilter>,
         filter_time: Vec<TimeFilter>,
+        compact_filtered: bool,
     ) -> PyResult<Vec<NativeHttpResult>> {
         let filter_config = Arc::new(
             NativeFilterConfig::new(
@@ -715,93 +720,119 @@ impl NativeHttpEngine {
 
         let result = py.allow_threads(move || {
             runtime.block_on(async move {
-                let semaphore = Arc::new(tokio::sync::Semaphore::new(concurrency));
                 let result_count = paths.len();
-                let mut tasks = JoinSet::new();
+                let mut pending = paths.into_iter().enumerate();
+                // Bound task allocation as well as socket concurrency. Spawning
+                // the whole wordlist would retain one waiting future per path.
+                let mut tasks: JoinSet<(usize, NativeHttpResult)> = JoinSet::new();
+                let spawn_request =
+                    |tasks: &mut JoinSet<(usize, NativeHttpResult)>,
+                     (request_index, path): (usize, String)| {
+                        let client = clients[request_index % clients.len()].clone();
+                        let base_url = base_url.clone();
+                        let raw_headers = raw_headers.clone();
+                        let filter_config = filter_config.clone();
+                        let request_cancelled = cancelled.clone();
+                        tasks.spawn(async move {
+                            let url = format!("{base_url}{path}");
+                            let start = Instant::now();
 
-                for (request_index, path) in paths.into_iter().enumerate() {
-                    let client = clients[request_index % clients.len()].clone();
-                    let base_url = base_url.clone();
-                    let raw_headers = raw_headers.clone();
-                    let semaphore = semaphore.clone();
-                    let filter_config = filter_config.clone();
-                    let request_cancelled = cancelled.clone();
-                    tasks.spawn(async move {
-                        let _permit = match semaphore.acquire_owned().await {
-                            Ok(permit) => permit,
-                            Err(error) => {
-                                return (
-                                    request_index,
-                                    native_error_result(path, 0.0, error.to_string()),
-                                );
-                            }
-                        };
-                        let url = format!("{base_url}{path}");
-                        let start = Instant::now();
-
-                        let result = if use_raw_http
-                            && !follow_redirects
-                            && should_use_raw_http(&base_url, &path)
-                        {
-                            let raw_base_url = base_url.clone();
-                            let raw_path = path.clone();
-                            let raw_filter_config = filter_config.clone();
-                            raw_http_get(
-                                RawHttpRequest {
-                                    base_url: &raw_base_url,
-                                    path: raw_path,
-                                    headers: &raw_headers,
-                                    timeout_secs,
+                            let mut result = if use_raw_http
+                                && !follow_redirects
+                                && should_use_raw_http(&base_url, &path)
+                            {
+                                let raw_base_url = base_url.clone();
+                                let raw_path = path.clone();
+                                let raw_filter_config = filter_config.clone();
+                                raw_http_get(
+                                    RawHttpRequest {
+                                        base_url: &raw_base_url,
+                                        path: raw_path,
+                                        headers: &raw_headers,
+                                        timeout_secs,
+                                        max_body_size,
+                                        start,
+                                        cancelled: request_cancelled,
+                                    },
+                                    raw_filter_config.as_ref(),
+                                )
+                                .await
+                            } else {
+                                request_with_client(
+                                    &client,
+                                    url,
+                                    path,
+                                    max_retries,
                                     max_body_size,
                                     start,
-                                    cancelled: request_cancelled,
-                                },
-                                raw_filter_config.as_ref(),
-                            )
-                            .await
-                        } else {
-                            request_with_client(
-                                &client,
-                                url,
-                                path,
-                                max_retries,
-                                max_body_size,
-                                start,
-                                filter_config.as_ref(),
-                            )
-                            .await
-                        };
-                        (request_index, result)
-                    });
+                                    filter_config.as_ref(),
+                                )
+                                .await
+                            };
+                            result.request_index = request_index;
+                            (request_index, result)
+                        });
+                    };
+
+                for request in pending.by_ref().take(concurrency) {
+                    spawn_request(&mut tasks, request);
                 }
 
                 let mut results = Vec::with_capacity(result_count);
+                // Checking Python signals requires the GIL. Poll on a timer
+                // instead of reacquiring it for every completed request.
+                let mut signal_poll = tokio::time::interval_at(
+                    tokio::time::Instant::now() + SIGNAL_POLL_INTERVAL,
+                    SIGNAL_POLL_INTERVAL,
+                );
+                signal_poll.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
                 while !tasks.is_empty() {
+                    let mut check_signals = false;
                     tokio::select! {
                         joined = tasks.join_next() => {
                             match joined {
-                                Some(Ok(result)) => results.push(result),
+                                Some(Ok(result)) => {
+                                    results.push(result);
+                                    // Replenish one slot at a time so JoinSet
+                                    // never grows beyond `concurrency`.
+                                    if let Some(request) = pending.next() {
+                                        spawn_request(&mut tasks, request);
+                                    }
+                                }
                                 Some(Err(error)) => {
                                     return Err(PyRuntimeError::new_err(error.to_string()));
                                 }
                                 None => break,
                             }
                         }
-                        _ = tokio::time::sleep(SIGNAL_POLL_INTERVAL) => {}
+                        _ = signal_poll.tick() => check_signals = true,
                     }
 
                     if cancelled.load(Ordering::Acquire) {
                         tasks.abort_all();
                         return Ok(Vec::new());
                     }
-                    Python::with_gil(|py| py.check_signals())?;
-                    if cancelled.load(Ordering::Acquire) {
-                        tasks.abort_all();
-                        return Ok(Vec::new());
+                    if check_signals {
+                        Python::with_gil(|py| py.check_signals())?;
+                        if cancelled.load(Ordering::Acquire) {
+                            tasks.abort_all();
+                            return Ok(Vec::new());
+                        }
                     }
                 }
 
                 results.sort_by_key(|(request_index, _)| *request_index);
+                if compact_filtered {
+                    // Python reconstructs filtered runs from index gaps. Keep
+                    // actionable results and one final completion marker so it
+                    // can also account for a filtered tail.
+                    let last_request_index = results.last().map(|(index, _)| *index);
+                    results.retain(|(index, result)| {
+                        !result.filtered
+                            || result.error.is_some()
+                            || Some(*index) == last_request_index
+                    });
+                }
                 Ok(results.into_iter().map(|(_, result)| result).collect())
             })
         });
@@ -937,6 +968,7 @@ fn scan_http(
         filter_header_regex,
         match_time,
         filter_time,
+        false,
     )
 }
 
@@ -1059,6 +1091,7 @@ fn native_http_result_with_length(
     let body_complete = !filtered && body.len() == body_length;
 
     NativeHttpResult {
+        request_index: usize::MAX,
         path,
         status,
         length,
@@ -1074,6 +1107,7 @@ fn native_http_result_with_length(
 
 fn native_error_result(path: String, elapsed_ms: f64, error: String) -> NativeHttpResult {
     NativeHttpResult {
+        request_index: usize::MAX,
         path,
         status: 0,
         length: 0,

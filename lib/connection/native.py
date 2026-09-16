@@ -3,6 +3,7 @@ from __future__ import annotations
 import threading
 
 from collections.abc import Iterable, Iterator
+from dataclasses import dataclass
 from typing import Any
 
 from lib.connection.proxy import (
@@ -21,8 +22,26 @@ from lib.parse.url import append_query_string
 from lib.utils.common import safequote
 
 
+@dataclass(frozen=True, slots=True)
+class NativeScanEvent:
+    """One actionable Rust result, indexed into the original path batch."""
+
+    request_index: int
+    path: str
+    response: NativeResponse | None
+    error: RequestException | None
+
+
+@dataclass(frozen=True, slots=True)
+class NativeScanBatch:
+    """Compact results plus the number of paths Rust finished processing."""
+
+    processed_count: int
+    events: tuple[NativeScanEvent, ...]
+
+
 class NativeHTTPBackend:
-    def __init__(self) -> None:
+    def __init__(self, proxy_override: str | None = None) -> None:
         try:
             import dirsearch_native
         except ImportError as e:
@@ -31,17 +50,23 @@ class NativeHTTPBackend:
         self._native = dirsearch_native
         self._engine = None
         self._engine_config = None
+        self._proxy_override = proxy_override
         self._cancel_lock = threading.Lock()
         # Preserve cancellation requested before lazy engine creation.
         self._cancel_generation = 0
         self._consumed_cancel_generation = 0
 
     def _get_engine(self):
+        proxies = (
+            self._normalize_proxy_urls([self._proxy_override])
+            if self._proxy_override is not None
+            else self._proxy_urls()
+        )
         config = {
             "concurrency": options["thread_count"],
             "timeout_secs": options["timeout"],
             "headers": list(options["headers"].items()),
-            "proxies": self._proxy_urls(),
+            "proxies": proxies,
             "follow_redirects": options["follow_redirects"],
         }
         if self._engine is None or config != self._engine_config:
@@ -67,6 +92,80 @@ class NativeHTTPBackend:
         paths: Iterable[str],
         query: str = "",
     ) -> Iterator[tuple[str, NativeResponse | None, RequestException | None]]:
+        raw_paths, quoted_paths, results = self._scan(
+            base_url, paths, query, compact_filtered=False
+        )
+
+        for path, quoted_path, result in zip(raw_paths, quoted_paths, results):
+            response, error = self._convert_result(base_url, quoted_path, result)
+            yield path, response, error
+
+    def scan_batch(
+        self,
+        base_url: str,
+        paths: Iterable[str],
+        query: str = "",
+    ) -> NativeScanBatch:
+        raw_paths, quoted_paths, results = self._scan(
+            base_url, paths, query, compact_filtered=True
+        )
+        if not results:
+            return NativeScanBatch(0, ())
+
+        # Rust retains the last processed result as a completion marker. Its
+        # index lets Python account for trailing filtered misses without
+        # receiving one PyO3 object for every miss.
+        processed_count = results[-1].request_index + 1
+        events = []
+        for result in results:
+            # Interior filtered results are represented by gaps between event
+            # indexes. Proxy authentication remains actionable as an error.
+            if result.filtered and not (
+                self._using_proxy
+                and result.status == PROXY_AUTHENTICATION_REQUIRED
+            ):
+                continue
+            request_index = result.request_index
+            response, error = self._convert_result(
+                base_url, quoted_paths[request_index], result
+            )
+            events.append(
+                NativeScanEvent(
+                    request_index,
+                    raw_paths[request_index],
+                    response,
+                    error,
+                )
+            )
+
+        return NativeScanBatch(processed_count, tuple(events))
+
+    def scan_unfiltered(
+        self,
+        base_url: str,
+        path: str,
+        query: str = "",
+    ) -> tuple[NativeResponse | None, RequestException | None]:
+        _raw_paths, quoted_paths, results = self._scan(
+            base_url,
+            [path],
+            query,
+            compact_filtered=False,
+            apply_filters=False,
+        )
+        if not results:
+            return None, RequestException("Native request was cancelled")
+        return self._convert_result(base_url, quoted_paths[0], results[0])
+
+    def _scan(
+        self,
+        base_url: str,
+        paths: Iterable[str],
+        query: str,
+        *,
+        compact_filtered: bool,
+        apply_filters: bool = True,
+    ) -> tuple[list[str], list[str], list[Any]]:
         raw_paths = list(paths)
         request_paths = [append_query_string(path, query) for path in raw_paths]
         quoted_paths = [safequote(path) for path in request_paths]
@@ -81,52 +180,58 @@ class NativeHTTPBackend:
             quoted_paths,
             max_retries=options["max_retries"],
             max_body_size=MAX_RESPONSE_SIZE,
-            **self._filter_options(),
+            compact_filtered=compact_filtered,
+            **(self._filter_options() if apply_filters else {}),
         )
         with self._cancel_lock:
             self._consumed_cancel_generation = self._cancel_generation
 
-        for path, quoted_path, result in zip(raw_paths, quoted_paths, results):
-            if result.error is not None:
-                error_message = result.error
-                if (
-                    options["proxies"]
-                    and (
-                        proxy_error_status(error_message) is not None
-                        or is_proxy_connect_rejection(error_message)
-                    )
-                ):
-                    error_message = format_proxy_error(error_message)
-                yield path, None, RequestException(error_message)
-                continue
+        return raw_paths, quoted_paths, results
 
+    def _convert_result(
+        self,
+        base_url: str,
+        quoted_path: str,
+        result: Any,
+    ) -> tuple[NativeResponse | None, RequestException | None]:
+        if result.error is not None:
+            error_message = result.error
             if (
-                options["proxies"]
-                and result.status == PROXY_AUTHENTICATION_REQUIRED
+                self._using_proxy
+                and (
+                    proxy_error_status(error_message) is not None
+                    or is_proxy_connect_rejection(error_message)
+                )
             ):
-                yield path, None, RequestException("Proxy authentication required")
-                continue
+                error_message = format_proxy_error(error_message)
+            return None, RequestException(error_message)
 
-            yield (
-                path,
-                NativeResponse(
-                    base_url + quoted_path,
-                    result.status,
-                    result.headers,
-                    result.body,
-                    result.elapsed_ms / 1000,
-                    length=getattr(result, "length", None),
-                    filtered=getattr(result, "filtered", False),
-                    filter_reason=getattr(result, "filter_reason", None),
-                    body_complete=getattr(result, "body_complete", None),
-                ),
-                None,
-            )
+        if self._using_proxy and result.status == PROXY_AUTHENTICATION_REQUIRED:
+            return None, RequestException("Proxy authentication required")
+
+        return (
+            NativeResponse(
+                base_url + quoted_path,
+                result.status,
+                result.headers,
+                result.body,
+                result.elapsed_ms / 1000,
+                length=getattr(result, "length", None),
+                filtered=getattr(result, "filtered", False),
+                filter_reason=getattr(result, "filter_reason", None),
+                body_complete=getattr(result, "body_complete", None),
+            ),
+            None,
+        )
 
     @staticmethod
     def _proxy_urls() -> list[str]:
+        return NativeHTTPBackend._normalize_proxy_urls(options["proxies"])
+
+    @staticmethod
+    def _normalize_proxy_urls(proxy_values: Iterable[str]) -> list[str]:
         proxies = []
-        for proxy in options["proxies"]:
+        for proxy in proxy_values:
             if "://" not in proxy:
                 proxy = f"http://{proxy}"
             elif not proxy.startswith(("http://", "https://")):
@@ -138,6 +243,10 @@ class NativeHTTPBackend:
             proxies.append(proxy)
 
         return proxies
+
+    @property
+    def _using_proxy(self) -> bool:
+        return self._proxy_override is not None or bool(options["proxies"])
 
     @staticmethod
     def _filter_options() -> dict[str, Any]:
@@ -165,3 +274,45 @@ class NativeHTTPBackend:
             "match_time": list(options["match_time"]),
             "filter_time": list(options["filter_time"]),
         }
+
+
+class NativeRequester:
+    """Minimal requester facade used by native scans and calibration."""
+
+    def __init__(self) -> None:
+        self._url = ""
+        self._query = ""
+        self.backend = NativeHTTPBackend()
+
+    @property
+    def rate(self) -> int:
+        return 0
+
+    def set_url(self, url: str) -> None:
+        self._url = url
+
+    def set_query(self, query: str) -> None:
+        self._query = query
+
+    def set_ip(self, *_args) -> None:
+        raise RequestException("--request-backend native does not support --ip yet")
+
+    def reset_auth(self) -> None:
+        return None
+
+    def set_auth(self, *_args) -> None:
+        raise RequestException(
+            "--request-backend native does not support authentication yet"
+        )
+
+    def request(self, path: str, proxy: str | None = None) -> NativeResponse:
+        backend = NativeHTTPBackend(proxy_override=proxy) if proxy else self.backend
+        response, error = backend.scan_unfiltered(self._url, path, self._query)
+        if error is not None:
+            raise error
+        if response is None:
+            raise RequestException("Native request returned no response")
+        return response
+
+    def close(self) -> None:
+        return None

@@ -370,7 +370,7 @@ class Controller:
 
     def run(self) -> None:
         if options["request_backend"] == "native":
-            from lib.connection.requester import Requester
+            from lib.connection.native import NativeRequester as Requester
             from lib.core.fuzzer import NativeFuzzer as Fuzzer
         elif options["async_mode"]:
             from lib.connection.requester import AsyncRequester as Requester
@@ -412,12 +412,19 @@ class Controller:
 
         while options["urls"]:
             url = options["urls"][0]
+            fuzzer_options = {}
+            if options["request_backend"] == "native":
+                fuzzer_options["filtered_batch_callbacks"] = (
+                    self.update_progress_bar_batch,
+                    self.reset_consecutive_errors_batch,
+                )
             self.fuzzer = Fuzzer(
                 self.requester,
                 self.dictionary,
                 match_callbacks=tuple(match_callbacks),
                 not_found_callbacks=not_found_callbacks,
                 error_callbacks=error_callbacks,
+                **fuzzer_options,
             )
 
             try:
@@ -762,6 +769,9 @@ class Controller:
     def reset_consecutive_errors(self, response: BaseResponse) -> None:
         self.consecutive_errors = 0
 
+    def reset_consecutive_errors_batch(self, _count: int) -> None:
+        self.consecutive_errors = 0
+
     def _prepare_response_stores(self) -> None:
         self.response_stores = ()
         try:
@@ -886,7 +896,7 @@ class Controller:
 
         return replay
 
-    def update_progress_bar(self, response: BaseResponse) -> None:
+    def update_progress_bar(self, response: BaseResponse | None) -> None:
         jobs_count = (
             # Jobs left for unscanned targets
             len(options["subdirs"]) * (len(options["urls"]) - 1)
@@ -904,6 +914,9 @@ class Controller:
             self.requester.rate,
             self.errors,
         )
+
+    def update_progress_bar_batch(self, _count: int) -> None:
+        self.update_progress_bar(None)
 
     def raise_error(self, exception: RequestException) -> None:
         if options["exit_on_error"]:

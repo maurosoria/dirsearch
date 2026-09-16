@@ -92,6 +92,27 @@ def remaining_paths(state: tuple[list[str], int, list[str], int]) -> list[str]:
 
 
 class TestDictionaryConcurrency(TestCase):
+    def test_release_claims_removes_a_completed_batch_atomically(self):
+        dictionary = make_dictionary(["zero", "one", "two"])
+        self.assertEqual(
+            [dictionary.claim_next() for _ in range(3)],
+            ["zero", "one", "two"],
+        )
+
+        dictionary.release_claims(["zero", "one", "two"])
+
+        self.assertEqual(remaining_paths(dictionary.__getstate__()), [])
+
+    def test_release_claims_leaves_state_unchanged_when_a_path_is_missing(self):
+        dictionary = make_dictionary(["zero", "one"])
+        dictionary.claim_next()
+        state = dictionary.__getstate__()
+
+        with self.assertRaises(ValueError):
+            dictionary.release_claims(["missing"])
+
+        self.assertEqual(dictionary.__getstate__(), state)
+
     def test_independent_dictionaries_do_not_share_operation_lock(self):
         first_entered = threading.Event()
         release_first = threading.Event()

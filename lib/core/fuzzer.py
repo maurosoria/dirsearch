@@ -25,7 +25,7 @@ import threading
 import time
 from typing import Any, Callable, Generator
 
-from lib.connection.native import NativeHTTPBackend
+from lib.connection.native import NativeHTTPBackend, NativeScanBatch
 from lib.connection.requester import AsyncRequester, BaseRequester, Requester
 from lib.connection.response import BaseResponse
 from lib.core.data import blacklists, options
@@ -511,6 +511,7 @@ class NativeFuzzer(Fuzzer):
         match_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         not_found_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         error_callbacks: tuple[Callable[[RequestException], Any], ...],
+        filtered_batch_callbacks: tuple[Callable[[int], Any], ...] = (),
     ) -> None:
         super().__init__(
             requester,
@@ -520,7 +521,10 @@ class NativeFuzzer(Fuzzer):
             error_callbacks=error_callbacks,
         )
         self._finished = False
-        self._native_backend: NativeHTTPBackend | None = None
+        self.filtered_batch_callbacks = filtered_batch_callbacks
+        self._native_backend: NativeHTTPBackend | None = getattr(
+            requester, "backend", None
+        )
         self._paused_event = threading.Event()
         self._started_event = threading.Event()
         self._lifecycle_lock = threading.Lock()
@@ -565,29 +569,22 @@ class NativeFuzzer(Fuzzer):
                     break
 
                 try:
-                    for path, response, error in self._native_backend.scan(
-                        self._requester._url,
-                        paths,
-                        getattr(self._requester, "_query", ""),
-                    ):
-                        if (
-                            self._quit_event.is_set()
-                            or not self._play_event.is_set()
-                        ):
-                            break
-                        try:
-                            if error is not None:
-                                for callback in self.error_callbacks:
-                                    callback(error)
-                                continue
-                            if response.filtered:
-                                for callback in self.not_found_callbacks:
-                                    callback(response)
-                                continue
-                            self.process_response(path, response)
-                        finally:
-                            dictionary_path = lstrip_once(path, self._base_path)
-                            self._dictionary.release_claim(dictionary_path)
+                    scan_batch = getattr(self._native_backend, "scan_batch", None)
+                    if scan_batch is not None:
+                        batch = scan_batch(
+                            self._requester._url,
+                            paths,
+                            getattr(self._requester, "_query", ""),
+                        )
+                        self._process_native_batch(paths, batch)
+                    else:
+                        self._process_native_results(
+                            self._native_backend.scan(
+                                self._requester._url,
+                                paths,
+                                getattr(self._requester, "_query", ""),
+                            )
+                        )
                 finally:
                     if not self._play_event.is_set():
                         self._dictionary.requeue_claims()
@@ -595,6 +592,89 @@ class NativeFuzzer(Fuzzer):
             self._finished = True
             self._started_event.set()
             self._paused_event.set()
+
+    def _process_native_results(self, results) -> None:
+        for path, response, error in results:
+            if self._should_stop_processing():
+                break
+            try:
+                self._process_native_result(path, response, error)
+            finally:
+                self._release_paths((path,))
+
+    def _process_native_batch(
+        self,
+        paths: list[str],
+        batch: NativeScanBatch,
+    ) -> None:
+        """Expand Rust's compact event stream without rebuilding miss responses."""
+
+        next_index = 0
+        for event in batch.events:
+            if self._should_stop_processing():
+                return
+            # Missing indexes are responses that Rust already classified as
+            # filtered. Only their progress and dictionary claims matter here.
+            if event.request_index > next_index:
+                self._process_filtered_paths(paths[next_index:event.request_index])
+            if self._should_stop_processing():
+                return
+            try:
+                self._process_native_result(
+                    event.path,
+                    event.response,
+                    event.error,
+                )
+            finally:
+                self._release_paths((event.path,))
+            next_index = event.request_index + 1
+
+        # processed_count comes from Rust's final completion marker, so this
+        # also releases a filtered tail after the last actionable event.
+        if not self._should_stop_processing() and batch.processed_count > next_index:
+            self._process_filtered_paths(paths[next_index:batch.processed_count])
+
+    def _process_filtered_paths(self, paths: list[str]) -> None:
+        if not paths:
+            return
+        try:
+            for callback in self.filtered_batch_callbacks:
+                callback(len(paths))
+        finally:
+            self._release_paths(paths)
+
+    def _process_native_result(
+        self,
+        path: str,
+        response: BaseResponse | None,
+        error: RequestException | None,
+    ) -> None:
+        if error is not None:
+            for callback in self.error_callbacks:
+                callback(error)
+            return
+        if response is None:
+            raise RuntimeError("Native backend returned neither response nor error")
+        if response.filtered:
+            for callback in self.not_found_callbacks:
+                callback(response)
+            return
+        self.process_response(path, response)
+
+    def _release_paths(self, paths) -> None:
+        dictionary_paths = [
+            lstrip_once(path, self._base_path)
+            for path in paths
+        ]
+        release_claims = getattr(self._dictionary, "release_claims", None)
+        if release_claims is not None:
+            release_claims(dictionary_paths)
+            return
+        for path in dictionary_paths:
+            self._dictionary.release_claim(path)
+
+    def _should_stop_processing(self) -> bool:
+        return self._quit_event.is_set() or not self._play_event.is_set()
 
     def _next_chunk(self) -> list[str]:
         chunk_size = max(1000, options["thread_count"] * 100)

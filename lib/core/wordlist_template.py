@@ -84,6 +84,20 @@ DEFAULT_PLACEHOLDERS: dict[str, tuple[str, ...]] = {
     "API_VERSION": ("v1", "v2", "v3", "v4", "latest", "beta"),
 }
 
+DATE_PLACEHOLDERS = frozenset(
+    {"YYYY", "YY", "MM", "DD", "DATE", "DATE_COMPACT"}
+)
+
+
+def is_template_token(token: str) -> bool:
+    normalized = token.strip("%").upper()
+    return (
+        normalized == EXTENSION_TAG.strip("%").upper()
+        or normalized in DEFAULT_PLACEHOLDERS
+        or normalized in DATE_PLACEHOLDERS
+        or normalized.startswith("CATEGORY:")
+    )
+
 
 def generate_backup_paths(path: str) -> Iterator[str]:
     """Yield backup candidates for a discovered file path."""

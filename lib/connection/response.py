@@ -344,6 +344,16 @@ class AsyncResponse(BaseResponse):
         return self
 
 
+class _NativeHTTPResponseAdapter:
+    __slots__ = ("encoding", "headers", "history", "status_code")
+
+    def __init__(self, status: int, headers: list[tuple[str, str]]) -> None:
+        self.status_code = status
+        self.headers = httpx.Headers(headers)
+        self.history = []
+        self.encoding = None
+
+
 class NativeResponse(BaseResponse):
     def __init__(
         self,
@@ -357,16 +367,7 @@ class NativeResponse(BaseResponse):
         filter_reason: str | None = None,
         body_complete: bool | None = None,
     ) -> None:
-        response = type(
-            "NativeHTTPResponse",
-            (),
-            {
-                "status_code": status,
-                "headers": httpx.Headers(headers),
-                "history": [],
-                "encoding": None,
-            },
-        )()
+        response = _NativeHTTPResponseAdapter(status, headers)
         super().__init__(url, response, elapsed)
 
         self._length = length
