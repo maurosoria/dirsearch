@@ -128,6 +128,21 @@ class KeepAliveHandler(BaseHTTPRequestHandler):
         return None
 
 
+class MixedStatusHandler(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+
+    def do_GET(self):
+        status = 200 if self.path == "/match" else 404
+        body = b"ok"
+        self.send_response(status)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, _format, *args):
+        return None
+
+
 class ProxyAuthenticationRequiredHandler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
@@ -191,6 +206,27 @@ class TestNativeHttpEngine(TestCase):
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0].request_index, 2)
         self.assertTrue(results[0].filtered)
+
+    def test_compact_scan_preserves_matches_and_tail_marker(self):
+        server = CountingHTTPServer(MixedStatusHandler)
+        engine = dirsearch_native.NativeHttpEngine(concurrency=2)
+
+        try:
+            results = engine.scan(
+                server.url,
+                ["missing-zero", "match", "missing-two"],
+                include_status_codes=[200],
+                compact_filtered=True,
+            )
+        finally:
+            server.close()
+
+        self.assertEqual(
+            [result.request_index for result in results],
+            [1, 2],
+        )
+        self.assertFalse(results[0].filtered)
+        self.assertTrue(results[1].filtered)
 
     def test_compact_scan_preserves_filtered_proxy_authentication_responses(self):
         proxy = CountingHTTPServer(ProxyAuthenticationRequiredHandler)
