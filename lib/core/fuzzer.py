@@ -573,7 +573,11 @@ class NativeFuzzer(Fuzzer):
                     break
 
                 try:
-                    scan_batch = getattr(self._native_backend, "scan_batch", None)
+                    scan_batch = getattr(
+                        self._native_backend,
+                        "_scan_owned_batch",
+                        None,
+                    ) or getattr(self._native_backend, "scan_batch", None)
                     if scan_batch is not None:
                         batch = scan_batch(
                             self._requester._url,
@@ -636,7 +640,13 @@ class NativeFuzzer(Fuzzer):
         # processed_count comes from Rust's final completion marker, so this
         # also releases a filtered tail after the last actionable event.
         if not self._should_stop_processing() and batch.processed_count > next_index:
-            self._process_filtered_paths(paths[next_index:batch.processed_count])
+            # The common miss-only batch spans the original list. Avoid a
+            # second list of references merely to report/release its progress.
+            if next_index == 0 and batch.processed_count == len(paths):
+                filtered_paths = paths
+            else:
+                filtered_paths = paths[next_index:batch.processed_count]
+            self._process_filtered_paths(filtered_paths)
 
     def _process_filtered_paths(self, paths: list[str]) -> None:
         if not paths:
@@ -666,10 +676,14 @@ class NativeFuzzer(Fuzzer):
         self.process_response(path, response)
 
     def _release_paths(self, paths) -> None:
-        dictionary_paths = [
-            lstrip_once(path, self._base_path)
-            for path in paths
-        ]
+        dictionary_paths = paths
+        if self._base_path:
+            dictionary_paths = [
+                lstrip_once(path, self._base_path)
+                for path in paths
+            ]
+        elif not isinstance(paths, list):
+            dictionary_paths = list(paths)
         release_claims = getattr(self._dictionary, "release_claims", None)
         if release_claims is not None:
             release_claims(dictionary_paths)
@@ -682,6 +696,13 @@ class NativeFuzzer(Fuzzer):
 
     def _next_chunk(self) -> list[str]:
         chunk_size = max(1000, options["thread_count"] * 100)
+        claim_many = getattr(self._dictionary, "claim_many", None)
+        if claim_many is not None:
+            paths = claim_many(chunk_size)
+            if not self._base_path:
+                return paths
+            return [self._base_path + path for path in paths]
+
         paths = []
         for _ in range(chunk_size):
             try:

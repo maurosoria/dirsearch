@@ -92,6 +92,22 @@ def remaining_paths(state: tuple[list[str], int, list[str], int]) -> list[str]:
 
 
 class TestDictionaryConcurrency(TestCase):
+    def test_claim_many_preserves_extra_priority_and_requeue_state(self):
+        dictionary = make_dictionary(["item-zero", "item-one"])
+        dictionary._extra = ["extra-zero", "extra-one"]
+        dictionary._extra_membership = set(dictionary._extra)
+
+        self.assertEqual(
+            dictionary.claim_many(3),
+            ["extra-zero", "extra-one", "item-zero"],
+        )
+
+        dictionary.requeue_claims()
+        self.assertEqual(
+            [next(dictionary) for _ in range(4)],
+            ["extra-zero", "extra-one", "item-zero", "item-one"],
+        )
+
     def test_release_claims_removes_a_completed_batch_atomically(self):
         dictionary = make_dictionary(["zero", "one", "two"])
         self.assertEqual(

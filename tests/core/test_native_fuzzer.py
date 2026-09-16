@@ -294,6 +294,24 @@ class TestNativeFuzzer(TestCase):
         self.assertEqual(filtered_batches, [3])
         self.assertEqual(restored_paths(dictionary.__getstate__()), [])
 
+    def test_native_fuzzer_uses_owned_batch_fast_path_when_available(self):
+        dictionary = make_dictionary(["zero", "one"])
+        backend = FakeBatchNativeBackend(NativeScanBatch(2, ()))
+        owned_calls = []
+
+        def scan_owned_batch(base_url, paths, query=""):
+            owned_calls.append((base_url, paths, query))
+            return backend.batch
+
+        backend._scan_owned_batch = scan_owned_batch
+        fuzzer = self.make_fuzzer(backend, dictionary, [], [], [])
+
+        fuzzer.start()
+
+        self.assertEqual(len(owned_calls), 1)
+        self.assertEqual(owned_calls[0][1], ["zero", "one"])
+        self.assertEqual(backend.calls, [])
+
     def test_native_fuzzer_preserves_event_order_across_filtered_gaps(self):
         match = NativeResponse(
             "https://example.com/three",

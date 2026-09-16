@@ -22,6 +22,14 @@ from lib.parse.url import append_query_string
 from lib.utils.common import safequote
 
 
+def _quote_native_path(path: str) -> str:
+    """Skip urllib's byte round-trip for already URL-safe ASCII paths."""
+
+    if path.isascii() and path.isprintable() and " " not in path:
+        return path
+    return safequote(path)
+
+
 @dataclass(frozen=True, slots=True)
 class NativeScanEvent:
     """One actionable Rust result, indexed into the original path batch."""
@@ -106,8 +114,32 @@ class NativeHTTPBackend:
         paths: Iterable[str],
         query: str = "",
     ) -> NativeScanBatch:
+        return self._scan_batch(base_url, paths, query, reuse_paths=False)
+
+    def _scan_owned_batch(
+        self,
+        base_url: str,
+        paths: list[str],
+        query: str = "",
+    ) -> NativeScanBatch:
+        """Scan NativeFuzzer's private list without another reference copy."""
+
+        return self._scan_batch(base_url, paths, query, reuse_paths=True)
+
+    def _scan_batch(
+        self,
+        base_url: str,
+        paths: Iterable[str],
+        query: str,
+        *,
+        reuse_paths: bool,
+    ) -> NativeScanBatch:
         raw_paths, quoted_paths, results = self._scan(
-            base_url, paths, query, compact_filtered=True
+            base_url,
+            paths,
+            query,
+            compact_filtered=True,
+            reuse_paths=reuse_paths,
         )
         if not results:
             return NativeScanBatch(0, ())
@@ -165,10 +197,15 @@ class NativeHTTPBackend:
         *,
         compact_filtered: bool,
         apply_filters: bool = True,
+        reuse_paths: bool = False,
     ) -> tuple[list[str], list[str], list[Any]]:
-        raw_paths = list(paths)
-        request_paths = [append_query_string(path, query) for path in raw_paths]
-        quoted_paths = [safequote(path) for path in request_paths]
+        # NativeFuzzer already owns a stable list for the duration of this
+        # synchronous call. Reuse it instead of copying every batch boundary.
+        raw_paths = paths if reuse_paths and isinstance(paths, list) else list(paths)
+        quoted_paths = [
+            _quote_native_path(append_query_string(path, query))
+            for path in raw_paths
+        ]
         with self._cancel_lock:
             engine = self._get_engine()
             cancel_generation = self._cancel_generation

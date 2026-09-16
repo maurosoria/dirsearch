@@ -1,9 +1,14 @@
 from unittest import TestCase
 from unittest.mock import patch
 
-from lib.connection.native import NativeHTTPBackend, NativeRequester
+from lib.connection.native import (
+    NativeHTTPBackend,
+    NativeRequester,
+    _quote_native_path,
+)
 from lib.core.data import options
 from lib.core.exceptions import RequestException
+from lib.utils.common import safequote
 
 
 class FakeNativeResult:
@@ -102,6 +107,14 @@ class TestNativeHTTPBackend(TestCase):
     def tearDown(self):
         options.clear()
         options.update(self.original_options)
+
+    def test_native_path_quote_fast_path_matches_common_quoting(self):
+        paths = [chr(value) for value in range(128)]
+        paths += ["admin/login?a=1#part", "missing page", "café", ""]
+
+        for path in paths:
+            with self.subTest(path=path):
+                self.assertEqual(_quote_native_path(path), safequote(path))
 
     def test_scan_passes_filter_options_and_builds_filtered_response(self):
         fake_native = FakeNativeModule()

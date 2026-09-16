@@ -93,6 +93,36 @@ class Dictionary:
             else:
                 raise StopIteration
 
+    def claim_many(self, maximum: int) -> list[str]:
+        """Claim up to maximum paths atomically, preserving queue order."""
+        if maximum <= 0:
+            return []
+
+        with self._lock:
+            extra_count = min(maximum, len(self._extra) - self._extra_index)
+            if extra_count:
+                extra_end = self._extra_index + extra_count
+                paths = self._extra[self._extra_index:extra_end]
+                self._extra_index = extra_end
+            else:
+                paths = []
+
+            item_count = min(
+                maximum - len(paths),
+                len(self._items) - self._index,
+            )
+            if item_count:
+                item_end = self._index + item_count
+                items = self._items[self._index:item_end]
+                if paths:
+                    paths.extend(items)
+                else:
+                    paths = items
+                self._index = item_end
+
+            self._claimed.extend(paths)
+            return paths
+
     def release_claim(self, path: str) -> None:
         with self._lock:
             self._claimed.remove(path)
@@ -106,6 +136,9 @@ class Dictionary:
             count = len(paths)
             # Native batches normally complete in claim order. Removing the
             # prefix avoids a separate linear search for every path.
+            if count == len(self._claimed) and self._claimed == paths:
+                self._claimed.clear()
+                return
             if self._claimed[:count] == paths:
                 del self._claimed[:count]
                 return
