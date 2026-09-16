@@ -28,6 +28,7 @@ import socketserver
 import tempfile
 import threading
 from types import SimpleNamespace
+from urllib.parse import urlsplit
 from unittest import IsolatedAsyncioTestCase, TestCase
 from unittest.mock import AsyncMock, patch
 
@@ -137,9 +138,41 @@ class RequestTargetHandler(http.server.BaseHTTPRequestHandler):
         self.server.proxy_authorizations.append(
             self.headers.get("Proxy-Authorization")
         )
-        if target == b"/redirect":
+        route_target = target
+        if target.startswith((b"http://", b"https://")):
+            parsed_target = urlsplit(target.decode("ascii"))
+            route_target = parsed_target.path.encode("ascii")
+            if parsed_target.query:
+                route_target += b"?" + parsed_target.query.encode("ascii")
+
+        if route_target == b"/redirect":
             self.send_response(302)
             self.send_header("location", "/final")
+            self.end_headers()
+            return
+
+        redirect_chain = {
+            b"/redirect-chain/start?first=%2F": "middle?step=%2F",
+            b"/redirect-chain/middle?step=%2F": "final?done=%2F#ignored",
+        }
+        if route_target in redirect_chain:
+            self.send_response(302)
+            self.send_header("location", redirect_chain[route_target])
+            self.end_headers()
+            return
+
+        if route_target.lower() == b"/digest-auth%3d..%1\\*":
+            if self.headers.get("Authorization") is None:
+                self.send_response(401)
+                self.send_header(
+                    "www-authenticate",
+                    'Digest realm="dirsearch-test", nonce="abcdef0123456789", '
+                    'algorithm=MD5, qop="auth"',
+                )
+            else:
+                self.send_response(302)
+                self.send_header("location", "/final")
+            self.send_header("content-length", "0")
             self.end_headers()
             return
 
@@ -736,6 +769,21 @@ class TestRequesterPathPreservation(BaseRequesterTestCase):
 
             self.assertEqual(server.targets, [b"/admin?debug=true"])
 
+    def test_sync_requester_uses_redirect_target_after_raw_initial_target(self):
+        options["follow_redirects"] = True
+
+        with RequestTargetServer() as server:
+            requester = Requester()
+            requester.set_url(server.url)
+            try:
+                response = requester.request("redirect")
+            finally:
+                requester.close()
+
+            self.assertEqual(response.status, 200)
+            self.assertEqual(response.history, [f"{server.url}redirect"])
+            self.assertEqual(server.targets, [b"/redirect", b"/final"])
+
 
 class TestRequesterBodyPreservation(BaseRequesterTestCase):
     def test_sync_requester_preserves_data_file_encodings(self):
@@ -1277,6 +1325,134 @@ class TestAsyncRequesterPathPreservation(BaseRequesterTestCase, IsolatedAsyncioT
                 await requester.session.aclose()
 
             self.assertEqual(server.targets, [b"/admin?debug=true"])
+
+    async def test_async_requester_uses_redirect_target_after_raw_initial_target(self):
+        options["follow_redirects"] = True
+
+        with RequestTargetServer() as server:
+            requester = AsyncRequester()
+            requester.set_url(server.url)
+            try:
+                response = await requester.request("redirect")
+            finally:
+                await requester.close()
+
+            self.assertEqual(response.status, 200)
+            self.assertEqual(response.history, [f"{server.url}redirect"])
+            self.assertEqual(server.targets, [b"/redirect", b"/final"])
+
+    async def test_async_requester_preserves_multi_hop_redirect_history(self):
+        options["follow_redirects"] = True
+
+        with RequestTargetServer() as server:
+            requester = AsyncRequester()
+            requester.set_url(server.url)
+            try:
+                response = await requester.request(
+                    "redirect-chain/start?first=%2F"
+                )
+            finally:
+                await requester.close()
+
+            self.assertEqual(response.status, 200)
+            self.assertEqual(
+                response.history,
+                [
+                    f"{server.url}redirect-chain/start?first=%2F",
+                    f"{server.url}redirect-chain/middle?step=%2F",
+                ],
+            )
+            self.assertEqual(
+                server.targets,
+                [
+                    b"/redirect-chain/start?first=%2F",
+                    b"/redirect-chain/middle?step=%2F",
+                    b"/redirect-chain/final?done=%2F",
+                ],
+            )
+
+    async def test_async_requester_follows_redirect_with_dns_override(self):
+        options["follow_redirects"] = True
+
+        with RequestTargetServer() as server:
+            parsed_url = urlsplit(server.url)
+            forced_host = "redirect.invalid"
+            forced_url = f"http://{forced_host}:{parsed_url.port}/"
+            requester = AsyncRequester()
+            requester.set_ip(forced_host, parsed_url.port, "127.0.0.1")
+            requester.set_url(forced_url)
+            try:
+                response = await requester.request("redirect")
+            finally:
+                await requester.close()
+
+            self.assertEqual(response.status, 200)
+            self.assertEqual(response.history, [f"{forced_url}redirect"])
+            self.assertEqual(server.targets, [b"/redirect", b"/final"])
+
+    async def test_async_requester_keeps_raw_target_for_auth_retry_then_redirect(self):
+        options["auth"] = "user:password"
+        options["auth_type"] = "digest"
+        options["follow_redirects"] = True
+
+        with RequestTargetServer() as server:
+            requester = AsyncRequester()
+            requester.set_url(server.url)
+            try:
+                response = await requester.request("digest-auth%3d..%1\\*")
+            finally:
+                await requester.close()
+
+            self.assertEqual(response.status, 200)
+            self.assertEqual(
+                server.targets,
+                [
+                    b"/digest-auth%3d..%1\\*",
+                    b"/digest-auth%3d..%1\\*",
+                    b"/final",
+                ],
+            )
+            self.assertIsNone(server.authorizations[0])
+            self.assertTrue(server.authorizations[1].startswith("Digest "))
+
+    async def test_async_requester_does_not_follow_redirects_when_disabled(self):
+        with RequestTargetServer() as server:
+            requester = AsyncRequester()
+            requester.set_url(server.url)
+            try:
+                response = await requester.request("redirect")
+            finally:
+                await requester.close()
+
+            self.assertEqual(response.status, 302)
+            self.assertEqual(response.redirect, "/final")
+            self.assertEqual(response.history, [])
+            self.assertEqual(server.targets, [b"/redirect"])
+
+    async def test_async_proxy_uses_redirect_target_after_raw_initial_target(self):
+        options["follow_redirects"] = True
+
+        with RequestTargetServer() as proxy:
+            options["proxies"] = [proxy.url]
+            requester = AsyncRequester()
+            requester.set_url("http://origin.invalid/")
+            try:
+                response = await requester.request("redirect")
+            finally:
+                await requester.close()
+
+            self.assertEqual(response.status, 200)
+            self.assertEqual(
+                response.history,
+                ["http://origin.invalid/redirect"],
+            )
+            self.assertEqual(
+                proxy.targets,
+                [
+                    b"http://origin.invalid/redirect",
+                    b"http://origin.invalid/final",
+                ],
+            )
 
     async def test_async_requester_preserves_data_file_encodings(self):
         options["http_method"] = "POST"
