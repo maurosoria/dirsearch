@@ -1,3 +1,5 @@
+//! Blocking HTTP/1.1 exchange, framing, and content decoding primitives.
+
 use brotli::Decompressor;
 use flate2::read::{GzDecoder, ZlibDecoder};
 use std::io::{self, BufReader, Read, Write};

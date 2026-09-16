@@ -17,6 +17,19 @@ lightweight events with metadata and an empty body so Python can keep progress
 and not-found callbacks authoritative. Native regex matching uses Rust's
 `regex` crate; patterns unsupported by that engine fail before the scan starts.
 
+## Source layout
+
+`src/lib.rs` only registers the Python module. The implementation is split by
+responsibility:
+
+- `engine.rs` owns the persistent engine, bounded scheduler, and cancellation.
+- `transport.rs` owns reqwest requests and streamed response decoding.
+- `raw_client.rs` selects and drives the byte-preserving HTTP adapter, while
+  `raw_http.rs` implements HTTP/1.1 framing and parsing.
+- `filters.rs`, `result.rs`, and `wordlist.rs` contain their corresponding
+  domain logic without depending on the PyO3 module entrypoint.
+- `tests.rs` contains cross-module native regression tests.
+
 Build the native engine from an installed dirsearch package with Python 3.14,
 Rust/Cargo, Python development headers, and a C compiler:
 
