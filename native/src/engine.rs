@@ -7,7 +7,7 @@ use crate::transport::{build_http_client, request_with_client, HeaderPairs};
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 use tokio::task::JoinSet;
@@ -221,64 +221,43 @@ impl NativeHttpEngine {
         let result = py.allow_threads(move || {
             runtime.block_on(async move {
                 let result_count = paths.len();
-                let mut pending = paths.into_iter().enumerate();
-                // Bound task allocation as well as socket concurrency. Spawning
-                // the whole wordlist would retain one waiting future per path.
-                let mut tasks: JoinSet<(usize, NativeHttpResult)> = JoinSet::new();
-                let spawn_request =
-                    |tasks: &mut JoinSet<(usize, NativeHttpResult)>,
-                     (request_index, path): (usize, String)| {
-                        let client = clients[request_index % clients.len()].clone();
-                        let base_url = base_url.clone();
-                        let raw_headers = raw_headers.clone();
-                        let filter_config = filter_config.clone();
-                        let request_cancelled = cancelled.clone();
-                        tasks.spawn(async move {
-                            let url = format!("{base_url}{path}");
-                            let start = Instant::now();
-
-                            let mut result = if use_raw_http
-                                && !follow_redirects
-                                && should_use_raw_http(&base_url, &path)
-                            {
-                                let raw_base_url = base_url.clone();
-                                let raw_path = path.clone();
-                                let raw_filter_config = filter_config.clone();
-                                raw_http_get(
-                                    RawHttpRequest {
-                                        base_url: &raw_base_url,
-                                        path: raw_path,
-                                        headers: &raw_headers,
-                                        timeout_secs,
-                                        max_body_size,
-                                        start,
-                                        cancelled: request_cancelled,
-                                    },
-                                    raw_filter_config.as_ref(),
-                                )
-                                .await
-                            } else {
-                                request_with_client(
-                                    &client,
-                                    url,
-                                    path,
-                                    max_retries,
-                                    max_body_size,
-                                    start,
-                                    filter_config.as_ref(),
-                                )
-                                .await
-                            };
-                            result.request_index = request_index;
-                            (request_index, result)
-                        });
-                    };
-
-                for request in pending.by_ref().take(concurrency) {
-                    spawn_request(&mut tasks, request);
+                let paths = Arc::new(paths);
+                let next_request = Arc::new(AtomicUsize::new(0));
+                // Reuse a bounded set of worker tasks for the whole batch.
+                // This keeps HTTP concurrency unchanged while avoiding one
+                // Tokio task allocation and context clone per URL.
+                let mut tasks: JoinSet<Vec<(usize, NativeHttpResult)>> = JoinSet::new();
+                let worker_count = concurrency.min(result_count);
+                for _ in 0..worker_count {
+                    let paths = paths.clone();
+                    let next_request = next_request.clone();
+                    let clients = clients.clone();
+                    let base_url = base_url.clone();
+                    let raw_headers = raw_headers.clone();
+                    let filter_config = filter_config.clone();
+                    let worker_cancelled = cancelled.clone();
+                    tasks.spawn(run_scan_worker(
+                        paths,
+                        next_request,
+                        clients,
+                        base_url,
+                        raw_headers,
+                        filter_config,
+                        worker_cancelled,
+                        use_raw_http,
+                        follow_redirects,
+                        timeout_secs,
+                        max_retries,
+                        max_body_size,
+                        compact_filtered,
+                    ));
                 }
 
-                let mut results = Vec::with_capacity(result_count);
+                let mut results = Vec::with_capacity(if compact_filtered {
+                    worker_count
+                } else {
+                    result_count
+                });
                 // Checking Python signals requires the GIL. Poll on a timer
                 // instead of reacquiring it for every completed request.
                 let mut signal_poll = tokio::time::interval_at(
@@ -291,14 +270,7 @@ impl NativeHttpEngine {
                     tokio::select! {
                         joined = tasks.join_next() => {
                             match joined {
-                                Some(Ok(result)) => {
-                                    results.push(result);
-                                    // Replenish one slot at a time so JoinSet
-                                    // never grows beyond `concurrency`.
-                                    if let Some(request) = pending.next() {
-                                        spawn_request(&mut tasks, request);
-                                    }
-                                }
+                                Some(Ok(worker_results)) => results.extend(worker_results),
                                 Some(Err(error)) => {
                                     return Err(PyRuntimeError::new_err(error.to_string()));
                                 }
@@ -321,6 +293,10 @@ impl NativeHttpEngine {
                     }
                 }
 
+                if cancelled.load(Ordering::Acquire) {
+                    return Ok(Vec::new());
+                }
+
                 results.sort_by_key(|(request_index, _)| *request_index);
                 if compact_filtered {
                     // Python reconstructs filtered runs from index gaps. Keep
@@ -341,6 +317,85 @@ impl NativeHttpEngine {
         self.cancelled.store(false, Ordering::Release);
         result
     }
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn run_scan_worker(
+    paths: Arc<Vec<String>>,
+    next_request: Arc<AtomicUsize>,
+    clients: Vec<reqwest::Client>,
+    base_url: String,
+    raw_headers: HeaderPairs,
+    filter_config: Arc<NativeFilterConfig>,
+    cancelled: Arc<AtomicBool>,
+    use_raw_http: bool,
+    follow_redirects: bool,
+    timeout_secs: f64,
+    max_retries: usize,
+    max_body_size: usize,
+    compact_filtered: bool,
+) -> Vec<(usize, NativeHttpResult)> {
+    let mut results = Vec::new();
+    let mut filtered_tail = None;
+    loop {
+        if cancelled.load(Ordering::Acquire) {
+            break;
+        }
+        // Workers only need a unique index here; results are ordered after
+        // every worker finishes, so this counter does not synchronize data.
+        let request_index = next_request.fetch_add(1, Ordering::Relaxed);
+        let Some(path) = paths.get(request_index).cloned() else {
+            break;
+        };
+        let client = &clients[request_index % clients.len()];
+        let url = format!("{base_url}{path}");
+        let start = Instant::now();
+
+        let mut result =
+            if use_raw_http && !follow_redirects && should_use_raw_http(&base_url, &path) {
+                raw_http_get(
+                    RawHttpRequest {
+                        base_url: &base_url,
+                        path,
+                        headers: &raw_headers,
+                        timeout_secs,
+                        max_body_size,
+                        start,
+                        cancelled: cancelled.clone(),
+                    },
+                    filter_config.as_ref(),
+                )
+                .await
+            } else {
+                request_with_client(
+                    client,
+                    url,
+                    path,
+                    max_retries,
+                    max_body_size,
+                    start,
+                    filter_config.as_ref(),
+                )
+                .await
+            };
+        result.request_index = request_index;
+        // A filtered result only carries progress in compact mode. Retain one
+        // tail per worker here; the final ordered pass reduces those tails to
+        // the single completion marker expected by Python.
+        if compact_filtered
+            && result.filtered
+            && result.error.is_none()
+            && result.status != PROXY_AUTHENTICATION_REQUIRED
+        {
+            filtered_tail = Some((request_index, result));
+        } else {
+            results.push((request_index, result));
+        }
+    }
+    if let Some(filtered_tail) = filtered_tail {
+        results.push(filtered_tail);
+    }
+    results
 }
 
 #[pyfunction]
