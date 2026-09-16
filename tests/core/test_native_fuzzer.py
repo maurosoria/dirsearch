@@ -44,9 +44,13 @@ class FakeNativeBackend:
         self.calls = []
         self.cancelled = False
 
-    def scan(self, base_url, paths, query=""):
-        self.calls.append((base_url, list(paths), query))
-        yield from self.items
+    def scan_batch(self, base_url, paths, query=""):
+        self.calls.append((base_url, paths, query))
+        events = tuple(
+            NativeScanEvent(index, path, response, error)
+            for index, (path, response, error) in enumerate(self.items)
+        )
+        return NativeScanBatch(len(self.items), events)
 
     def cancel(self):
         self.cancelled = True
@@ -58,7 +62,7 @@ class FakeBatchNativeBackend:
         self.calls = []
 
     def scan_batch(self, base_url, paths, query=""):
-        self.calls.append((base_url, list(paths), query))
+        self.calls.append((base_url, paths, query))
         return self.batch
 
     def cancel(self):
@@ -71,23 +75,25 @@ class CoordinatedNativeBackend:
         self.cancelled = threading.Event()
         self.waiting_for_cancel = threading.Event()
 
-    def scan(self, _base_url, paths, query=""):
-        paths = list(paths)
+    def scan_batch(self, _base_url, paths, query=""):
         self.calls.append(paths)
 
         if len(self.calls) == 1:
-            yield paths[0], None, RequestException(paths[0])
             self.waiting_for_cancel.set()
             if not self.cancelled.wait(timeout=2):
                 raise AssertionError("native scan was not cancelled while pausing")
+            return NativeScanBatch(
+                1,
+                (NativeScanEvent(0, paths[0], None, RequestException(paths[0])),),
+            )
 
-            # A cancelled backend may still deliver a result that was already
-            # ready. It must not cross the pause acknowledgement boundary.
-            yield paths[1], None, RequestException(f"late-{paths[1]}")
-            return
-
-        for path in paths:
-            yield path, None, RequestException(path)
+        return NativeScanBatch(
+            len(paths),
+            tuple(
+                NativeScanEvent(index, path, None, RequestException(path))
+                for index, path in enumerate(paths)
+            ),
+        )
 
     def cancel(self):
         self.cancelled.set()
@@ -99,11 +105,10 @@ class UncooperativeNativeBackend:
         self.cancelled = threading.Event()
         self.release = threading.Event()
 
-    def scan(self, _base_url, _paths, query=""):
+    def scan_batch(self, _base_url, _paths, query=""):
         self.started.set()
         self.release.wait(timeout=2)
-        if False:
-            yield
+        return NativeScanBatch(0, ())
 
     def cancel(self):
         self.cancelled.set()
@@ -113,11 +118,10 @@ class CancelAwareNativeBackend:
     def __init__(self):
         self.cancelled = threading.Event()
 
-    def scan(self, _base_url, _paths, query=""):
+    def scan_batch(self, _base_url, _paths, query=""):
         if not self.cancelled.wait(timeout=1):
             raise AssertionError("native scan was not cancelled")
-        if False:
-            yield
+        return NativeScanBatch(0, ())
 
     def cancel(self):
         self.cancelled.set()
@@ -294,23 +298,16 @@ class TestNativeFuzzer(TestCase):
         self.assertEqual(filtered_batches, [3])
         self.assertEqual(restored_paths(dictionary.__getstate__()), [])
 
-    def test_native_fuzzer_uses_owned_batch_fast_path_when_available(self):
+    def test_native_fuzzer_passes_its_owned_list_to_scan_batch(self):
         dictionary = make_dictionary(["zero", "one"])
         backend = FakeBatchNativeBackend(NativeScanBatch(2, ()))
-        owned_calls = []
-
-        def scan_owned_batch(base_url, paths, query=""):
-            owned_calls.append((base_url, paths, query))
-            return backend.batch
-
-        backend._scan_owned_batch = scan_owned_batch
         fuzzer = self.make_fuzzer(backend, dictionary, [], [], [])
 
         fuzzer.start()
 
-        self.assertEqual(len(owned_calls), 1)
-        self.assertEqual(owned_calls[0][1], ["zero", "one"])
-        self.assertEqual(backend.calls, [])
+        self.assertEqual(len(backend.calls), 1)
+        self.assertEqual(backend.calls[0][1], ["zero", "one"])
+        self.assertIsInstance(backend.calls[0][1], list)
 
     def test_native_fuzzer_preserves_event_order_across_filtered_gaps(self):
         match = NativeResponse(
@@ -374,15 +371,13 @@ class TestNativeFuzzer(TestCase):
 
         self.assertTrue(backend.cancelled)
 
-    def test_pause_retries_only_results_not_delivered_before_acknowledgement(self):
+    def test_pause_retries_the_in_flight_batch_before_acknowledgement(self):
         dictionary = make_dictionary(["admin", "login"])
         backend = CoordinatedNativeBackend()
         callback_errors = []
-        first_result_processed = threading.Event()
 
         def record_error(error):
             callback_errors.append(str(error))
-            first_result_processed.set()
 
         fuzzer = NativeFuzzer(
             DummyRequester(),
@@ -398,14 +393,13 @@ class TestNativeFuzzer(TestCase):
         worker.start()
 
         try:
-            self.assertTrue(first_result_processed.wait(timeout=1))
             self.assertTrue(backend.waiting_for_cancel.wait(timeout=1))
             self.assertTrue(fuzzer.pause())
             self.assertTrue(backend.cancelled.is_set())
 
             saved_state = dictionary.__getstate__()
-            self.assertEqual(restored_paths(saved_state), ["login"])
-            self.assertEqual(callback_errors, ["admin"])
+            self.assertEqual(restored_paths(saved_state), ["admin", "login"])
+            self.assertEqual(callback_errors, [])
 
             fuzzer.play()
             worker.join(timeout=1)
@@ -416,7 +410,10 @@ class TestNativeFuzzer(TestCase):
 
         self.assertFalse(worker.is_alive())
         self.assertEqual(worker_errors, [])
-        self.assertEqual(backend.calls, [["admin", "login"], ["login"]])
+        self.assertEqual(
+            backend.calls,
+            [["admin", "login"], ["admin", "login"]],
+        )
         self.assertEqual(callback_errors, ["admin", "login"])
         self.assertEqual(restored_paths(dictionary.__getstate__()), [])
 

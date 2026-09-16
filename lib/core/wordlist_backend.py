@@ -5,7 +5,10 @@ from typing import Protocol
 
 from lib.core.data import options
 from lib.core.exceptions import WordlistBackendUnavailableError, WordlistLimitError
-from lib.core.native_runtime import get_native_backend_install_error
+from lib.core.native_runtime import (
+    get_native_backend_install_error,
+    get_native_extension_version_error,
+)
 from lib.core.settings import (
     EXCLUDE_OVERWRITE_EXTENSIONS,
     EXTENSION_RECOGNITION_REGEX,
@@ -151,6 +154,9 @@ class NativeWordlistBackend:
             import dirsearch_native
         except ImportError as e:
             raise WordlistBackendUnavailableError(get_native_backend_install_error()) from e
+
+        if version_error := get_native_extension_version_error(dirsearch_native):
+            raise WordlistBackendUnavailableError(version_error)
 
         self._native = dirsearch_native
 

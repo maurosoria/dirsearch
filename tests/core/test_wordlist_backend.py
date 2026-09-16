@@ -3,6 +3,7 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 from unittest import TestCase
+from unittest.mock import patch
 
 from lib.core.data import options
 from lib.core.exceptions import WordlistBackendUnavailableError
@@ -35,6 +36,22 @@ class TestWordlistBackend(TestCase):
             return
 
         self.assertIsInstance(backend, NativeWordlistBackend)
+
+    def test_native_rejects_an_incompatible_extension(self):
+        incompatible_native = type(
+            "IncompatibleNativeModule",
+            (),
+            {"__version__": "0.1.0"},
+        )()
+
+        with (
+            patch.dict("sys.modules", {"dirsearch_native": incompatible_native}),
+            self.assertRaisesRegex(
+                WordlistBackendUnavailableError,
+                r"expected 0\.2\.0, found 0\.1\.0",
+            ),
+        ):
+            NativeWordlistBackend()
 
     def test_percent_encoded_paths_do_not_force_python_expansion(self):
         backend = object.__new__(NativeWordlistBackend)

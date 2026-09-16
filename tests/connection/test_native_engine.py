@@ -7,6 +7,8 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from unittest import TestCase, skipUnless
 
+from lib.core.native_runtime import NATIVE_EXTENSION_VERSION
+
 try:
     import dirsearch_native
 except ImportError:
@@ -189,6 +191,9 @@ class CountingHTTPServer(ThreadingHTTPServer):
     "native extension is not installed",
 )
 class TestNativeHttpEngine(TestCase):
+    def test_extension_version_matches_python_contract(self):
+        self.assertEqual(dirsearch_native.__version__, NATIVE_EXTENSION_VERSION)
+
     def test_compact_scan_returns_tail_completion_marker(self):
         server = CountingHTTPServer()
         engine = dirsearch_native.NativeHttpEngine(concurrency=2)

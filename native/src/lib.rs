@@ -33,6 +33,8 @@ mod tests;
 
 #[pymodule]
 fn dirsearch_native(module: &Bound<'_, PyModule>) -> PyResult<()> {
+    // Python checks this value before using the tightly coupled native API.
+    module.add("__version__", env!("CARGO_PKG_VERSION"))?;
     module.add_function(wrap_pyfunction!(generate_wordlist, module)?)?;
     module.add_function(wrap_pyfunction!(scan_http, module)?)?;
     module.add_class::<NativeHttpEngine>()?;

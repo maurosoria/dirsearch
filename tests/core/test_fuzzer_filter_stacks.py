@@ -1,6 +1,7 @@
 import time
 from unittest import IsolatedAsyncioTestCase, TestCase
 
+from lib.connection.native import NativeScanBatch, NativeScanEvent
 from lib.connection.response import NativeResponse
 from lib.core.data import blacklists, options
 from lib.core.fuzzer import AsyncFuzzer, Fuzzer, NativeFuzzer
@@ -60,23 +61,23 @@ class DummyNativeRequester:
 
 
 class FilteringNativeBackend:
-    def scan(self, base_url, paths, query=""):
+    def scan_batch(self, base_url, paths, query=""):
         del base_url
         del query
-        for path in paths:
-            if path == "keep":
-                yield path, stack_response(path, b"keep admin panel"), None
-            else:
-                yield (
+        events = []
+        for index, path in enumerate(paths):
+            response = (
+                stack_response(path, b"keep admin panel")
+                if path == "keep"
+                else stack_response(
                     path,
-                    stack_response(
-                        path,
-                        b"not found",
-                        filtered=True,
-                        filter_reason="advanced_filter",
-                    ),
-                    None,
+                    b"not found",
+                    filtered=True,
+                    filter_reason="advanced_filter",
                 )
+            )
+            events.append(NativeScanEvent(index, path, response, None))
+        return NativeScanBatch(len(paths), tuple(events))
 
 
 class FilterStackOptionsMixin:

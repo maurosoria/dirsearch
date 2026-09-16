@@ -2,6 +2,7 @@ import asyncio
 import time
 from unittest import IsolatedAsyncioTestCase, TestCase
 
+from lib.connection.native import NativeScanBatch, NativeScanEvent
 from lib.connection.response import NativeResponse
 from lib.controller.controller import Controller
 from lib.core.data import blacklists, options
@@ -72,12 +73,17 @@ class RecordingNativeBackend:
     def __init__(self):
         self.calls = []
 
-    def scan(self, base_url, paths, query=""):
+    def scan_batch(self, base_url, paths, query=""):
         del base_url
         del query
-        self.calls.append(list(paths))
-        for path in paths:
-            yield path, response_for(path), None
+        self.calls.append(paths)
+        return NativeScanBatch(
+            len(paths),
+            tuple(
+                NativeScanEvent(index, path, response_for(path), None)
+                for index, path in enumerate(paths)
+            ),
+        )
 
 
 class MembershipTrackingList(list):

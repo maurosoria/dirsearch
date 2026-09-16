@@ -8,6 +8,7 @@ from lib.connection.native import (
 )
 from lib.core.data import options
 from lib.core.exceptions import RequestException
+from lib.core.native_runtime import NATIVE_EXTENSION_VERSION
 from lib.utils.common import safequote
 
 
@@ -42,6 +43,8 @@ class FakeNativeEngine:
 
 
 class FakeNativeModule:
+    __version__ = NATIVE_EXTENSION_VERSION
+
     def __init__(self, results=None):
         self.engines = []
         self.results = results
@@ -115,6 +118,19 @@ class TestNativeHTTPBackend(TestCase):
         for path in paths:
             with self.subTest(path=path):
                 self.assertEqual(_quote_native_path(path), safequote(path))
+
+    def test_rejects_an_incompatible_native_extension(self):
+        fake_native = FakeNativeModule()
+        fake_native.__version__ = "0.1.0"
+
+        with (
+            patch.dict("sys.modules", {"dirsearch_native": fake_native}),
+            self.assertRaisesRegex(
+                RequestException,
+                r"expected 0\.2\.0, found 0\.1\.0",
+            ),
+        ):
+            NativeHTTPBackend()
 
     def test_scan_passes_filter_options_and_builds_filtered_response(self):
         fake_native = FakeNativeModule()

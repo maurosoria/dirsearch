@@ -573,26 +573,12 @@ class NativeFuzzer(Fuzzer):
                     break
 
                 try:
-                    scan_batch = getattr(
-                        self._native_backend,
-                        "_scan_owned_batch",
-                        None,
-                    ) or getattr(self._native_backend, "scan_batch", None)
-                    if scan_batch is not None:
-                        batch = scan_batch(
-                            self._requester._url,
-                            paths,
-                            getattr(self._requester, "_query", ""),
-                        )
-                        self._process_native_batch(paths, batch)
-                    else:
-                        self._process_native_results(
-                            self._native_backend.scan(
-                                self._requester._url,
-                                paths,
-                                getattr(self._requester, "_query", ""),
-                            )
-                        )
+                    batch = self._native_backend.scan_batch(
+                        self._requester._url,
+                        paths,
+                        getattr(self._requester, "_query", ""),
+                    )
+                    self._process_native_batch(paths, batch)
                 finally:
                     if not self._play_event.is_set():
                         self._dictionary.requeue_claims()
@@ -600,15 +586,6 @@ class NativeFuzzer(Fuzzer):
             self._finished = True
             self._started_event.set()
             self._paused_event.set()
-
-    def _process_native_results(self, results) -> None:
-        for path, response, error in results:
-            if self._should_stop_processing():
-                break
-            try:
-                self._process_native_result(path, response, error)
-            finally:
-                self._release_paths((path,))
 
     def _process_native_batch(
         self,

@@ -9,6 +9,10 @@ It exposes two PyO3 functions and a class:
 - `NativeHttpEngine` for batch HTTP GET requests using `reqwest` and `tokio`.
 - `scan_http(...)` as the compatibility entrypoint backed by a cached engine.
 
+The module also exposes `__version__`. The Python request and wordlist
+backends require an exact version match so a stale compiled extension fails
+with a rebuild instruction instead of silently using an older native contract.
+
 `NativeHttpEngine` keeps its Tokio runtime and HTTP clients alive across
 multiple batches and supports cooperative cancellation. Its `scan(...)` method
 also evaluates the cheap legacy status/size filters and the

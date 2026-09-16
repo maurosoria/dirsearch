@@ -16,7 +16,10 @@ from lib.connection.proxy import (
 from lib.connection.response import NativeResponse
 from lib.core.data import options
 from lib.core.exceptions import RequestException
-from lib.core.native_runtime import get_native_backend_install_error
+from lib.core.native_runtime import (
+    get_native_backend_install_error,
+    get_native_extension_version_error,
+)
 from lib.core.settings import MAX_RESPONSE_SIZE
 from lib.parse.url import append_query_string
 from lib.utils.common import safequote
@@ -54,6 +57,9 @@ class NativeHTTPBackend:
             import dirsearch_native
         except ImportError as e:
             raise RequestException(get_native_backend_install_error()) from e
+
+        if version_error := get_native_extension_version_error(dirsearch_native):
+            raise RequestException(version_error)
 
         self._native = dirsearch_native
         self._engine = None
@@ -111,35 +117,17 @@ class NativeHTTPBackend:
     def scan_batch(
         self,
         base_url: str,
-        paths: Iterable[str],
-        query: str = "",
-    ) -> NativeScanBatch:
-        return self._scan_batch(base_url, paths, query, reuse_paths=False)
-
-    def _scan_owned_batch(
-        self,
-        base_url: str,
         paths: list[str],
         query: str = "",
     ) -> NativeScanBatch:
-        """Scan NativeFuzzer's private list without another reference copy."""
+        """Scan NativeFuzzer's owned list without copying its references."""
 
-        return self._scan_batch(base_url, paths, query, reuse_paths=True)
-
-    def _scan_batch(
-        self,
-        base_url: str,
-        paths: Iterable[str],
-        query: str,
-        *,
-        reuse_paths: bool,
-    ) -> NativeScanBatch:
         raw_paths, quoted_paths, results = self._scan(
             base_url,
             paths,
             query,
             compact_filtered=True,
-            reuse_paths=reuse_paths,
+            reuse_paths=True,
         )
         if not results:
             return NativeScanBatch(0, ())
