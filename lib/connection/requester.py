@@ -478,7 +478,7 @@ class BaseRequester:
         self._dns_resolver.add_override(host, port, address)
 
     def request_path(self, path: str) -> str:
-        return append_query_string(path, getattr(self, "_query", ""))
+        return append_query_string(path, self._query)
 
     def set_header(self, key: str, value: str) -> None:
         self.headers[key] = value.lstrip()

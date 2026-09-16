@@ -22,6 +22,7 @@ class FakeNativeResult:
     filter_reason = "advanced_filter"
     headers = [("content-type", "text/plain")]
     body = []
+    body_complete = True
 
 
 class FakeNativeEngine:

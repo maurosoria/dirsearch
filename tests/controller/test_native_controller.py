@@ -14,6 +14,10 @@ class BlockingNativeFuzzer:
         self.stopped = threading.Event()
         self.base_paths = []
         self.quit_calls = 0
+        self.prepare_calls = 0
+
+    def prepare_start(self):
+        self.prepare_calls += 1
 
     def set_base_path(self, path):
         self.base_paths.append(path)
@@ -66,6 +70,7 @@ def create_controller(fuzzer):
     controller.fuzzer = fuzzer
     controller.dictionary = Mock()
     controller.jobs_processed = 0
+    controller._native_worker = None
     return controller
 
 
@@ -127,6 +132,7 @@ class TestNativeControllerDeadlines(TestCase):
             controller.start()
 
         self.assertEqual(fuzzer.quit_calls, 0)
+        self.assertEqual(fuzzer.prepare_calls, 1)
         controller.dictionary.reset.assert_called_once_with()
 
     def test_expired_max_time_stops_before_starting_native_fuzzer(self):
@@ -247,7 +253,7 @@ class TestNativeControllerDeadlines(TestCase):
                 controller.start()
         finally:
             fuzzer.release.set()
-            native_worker = getattr(controller, "_native_worker", None)
+            native_worker = controller._native_worker
             if native_worker is not None:
                 native_worker.join(timeout=1)
 

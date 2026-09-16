@@ -180,8 +180,10 @@ class Controller:
         self._operation_lock = threading.Lock()
         self._handling_pause = False
         self._force_quit_handler = _create_force_quit_handler()
+        self.requester = None
         self.loop = None  # Will be set if async mode is used
         self.response_stores = ()
+        self._native_worker = None
 
         try:
             if options["session_file"]:
@@ -200,8 +202,8 @@ class Controller:
                 self._close_response_stores()
 
     def _close_requester(self) -> None:
-        requester = getattr(self, "requester", None)
-        loop = getattr(self, "loop", None)
+        requester = self.requester
+        loop = self.loop
 
         if requester is None:
             if loop is not None:
@@ -510,8 +512,10 @@ class Controller:
                 ):
                     raise QuitInterrupt("Threaded scan did not stop safely")
 
-                native_worker = getattr(self, "_native_worker", None)
-                if native_worker is not None and native_worker.is_alive():
+                if (
+                    self._native_worker is not None
+                    and self._native_worker.is_alive()
+                ):
                     raise QuitInterrupt("Native scan did not stop safely")
 
                 self.dictionary.reset()
@@ -574,9 +578,7 @@ class Controller:
         timer = None
         pending_error = None
         try:
-            prepare_start = getattr(self.fuzzer, "prepare_start", None)
-            if prepare_start is not None:
-                prepare_start()
+            self.fuzzer.prepare_start()
             worker.start()
 
             if timeout is not None:
@@ -826,7 +828,7 @@ class Controller:
         )
 
     def _close_response_stores(self) -> None:
-        for store in getattr(self, "response_stores", ()):
+        for store in self.response_stores:
             try:
                 store.close()
             except OSError as error:

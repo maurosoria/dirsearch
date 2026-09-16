@@ -25,7 +25,7 @@ import threading
 import time
 from typing import Any, Callable, Generator
 
-from lib.connection.native import NativeHTTPBackend, NativeScanBatch
+from lib.connection.native import NativeHTTPBackend, NativeRequester, NativeScanBatch
 from lib.connection.requester import AsyncRequester, BaseRequester, Requester
 from lib.connection.response import BaseResponse
 from lib.core.data import blacklists, options
@@ -505,7 +505,7 @@ class Fuzzer(BaseFuzzer):
 class NativeFuzzer(Fuzzer):
     def __init__(
         self,
-        requester: Requester,
+        requester: NativeRequester,
         dictionary: Dictionary,
         *,
         match_callbacks: tuple[Callable[[BaseResponse], Any], ...],
@@ -522,9 +522,7 @@ class NativeFuzzer(Fuzzer):
         )
         self._finished = False
         self.filtered_batch_callbacks = filtered_batch_callbacks
-        self._native_backend: NativeHTTPBackend | None = getattr(
-            requester, "backend", None
-        )
+        self._native_backend: NativeHTTPBackend | None = requester.backend
         self._paused_event = threading.Event()
         self._started_event = threading.Event()
         self._lifecycle_lock = threading.Lock()
@@ -551,10 +549,7 @@ class NativeFuzzer(Fuzzer):
 
         try:
             if self._native_backend is None:
-                get_backend = getattr(self._requester, "get_backend", None)
-                self._native_backend = (
-                    get_backend() if get_backend is not None else NativeHTTPBackend()
-                )
+                self._native_backend = self._requester.get_backend()
             self.setup_scanners()
             super().play()
             self._started_event.set()
@@ -576,7 +571,7 @@ class NativeFuzzer(Fuzzer):
                     batch = self._native_backend.scan_batch(
                         self._requester._url,
                         paths,
-                        getattr(self._requester, "_query", ""),
+                        self._requester._query,
                     )
                     self._process_native_batch(paths, batch)
                 finally:
@@ -661,32 +656,17 @@ class NativeFuzzer(Fuzzer):
             ]
         elif not isinstance(paths, list):
             dictionary_paths = list(paths)
-        release_claims = getattr(self._dictionary, "release_claims", None)
-        if release_claims is not None:
-            release_claims(dictionary_paths)
-            return
-        for path in dictionary_paths:
-            self._dictionary.release_claim(path)
+        self._dictionary.release_claims(dictionary_paths)
 
     def _should_stop_processing(self) -> bool:
         return self._quit_event.is_set() or not self._play_event.is_set()
 
     def _next_chunk(self) -> list[str]:
         chunk_size = max(1000, options["thread_count"] * 100)
-        claim_many = getattr(self._dictionary, "claim_many", None)
-        if claim_many is not None:
-            paths = claim_many(chunk_size)
-            if not self._base_path:
-                return paths
-            return [self._base_path + path for path in paths]
-
-        paths = []
-        for _ in range(chunk_size):
-            try:
-                paths.append(self._base_path + self._dictionary.claim_next())
-            except StopIteration:
-                break
-        return paths
+        paths = self._dictionary.claim_many(chunk_size)
+        if not self._base_path:
+            return paths
+        return [self._base_path + path for path in paths]
 
     def is_finished(self) -> bool:
         return self._finished
@@ -699,9 +679,7 @@ class NativeFuzzer(Fuzzer):
     def _reset_native_cancellation(self) -> None:
         if self._native_backend is None:
             return
-        reset_cancel = getattr(self._native_backend, "reset_cancel", None)
-        if reset_cancel is not None:
-            reset_cancel()
+        self._native_backend.reset_cancel()
 
     def pause(self) -> bool:
         deadline = time.monotonic() + NATIVE_PAUSE_TIMEOUT

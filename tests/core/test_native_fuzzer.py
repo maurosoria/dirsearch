@@ -27,7 +27,15 @@ class DummyDictionary:
     def claim_next(self):
         return next(self)
 
+    def claim_many(self, maximum):
+        start = self.index
+        self.index = min(len(self.paths), start + maximum)
+        return self.paths[start:self.index]
+
     def release_claim(self, path):
+        return None
+
+    def release_claims(self, paths):
         return None
 
     def requeue_claims(self):
@@ -36,6 +44,13 @@ class DummyDictionary:
 
 class DummyRequester:
     _url = "https://example.com/"
+    _query = ""
+
+    def __init__(self, backend):
+        self.backend = backend
+
+    def get_backend(self):
+        return self.backend
 
 
 class FakeNativeBackend:
@@ -55,6 +70,9 @@ class FakeNativeBackend:
     def cancel(self):
         self.cancelled = True
 
+    def reset_cancel(self):
+        self.cancelled = False
+
 
 class FakeBatchNativeBackend:
     def __init__(self, batch):
@@ -66,6 +84,9 @@ class FakeBatchNativeBackend:
         return self.batch
 
     def cancel(self):
+        return None
+
+    def reset_cancel(self):
         return None
 
 
@@ -98,6 +119,9 @@ class CoordinatedNativeBackend:
     def cancel(self):
         self.cancelled.set()
 
+    def reset_cancel(self):
+        self.cancelled.clear()
+
 
 class UncooperativeNativeBackend:
     def __init__(self):
@@ -113,6 +137,9 @@ class UncooperativeNativeBackend:
     def cancel(self):
         self.cancelled.set()
 
+    def reset_cancel(self):
+        self.cancelled.clear()
+
 
 class CancelAwareNativeBackend:
     def __init__(self):
@@ -125,6 +152,9 @@ class CancelAwareNativeBackend:
 
     def cancel(self):
         self.cancelled.set()
+
+    def reset_cancel(self):
+        self.cancelled.clear()
 
 
 def make_dictionary(paths):
@@ -205,7 +235,7 @@ class TestNativeFuzzer(TestCase):
         filtered_batches=None,
     ):
         fuzzer = NativeFuzzer(
-            DummyRequester(),
+            DummyRequester(backend),
             dictionary,
             match_callbacks=(matches.append,),
             not_found_callbacks=(misses.append,),
@@ -214,7 +244,6 @@ class TestNativeFuzzer(TestCase):
             if filtered_batches is not None
             else (),
         )
-        fuzzer._native_backend = backend
         fuzzer.setup_scanners = lambda: None
         return fuzzer
 
@@ -380,13 +409,12 @@ class TestNativeFuzzer(TestCase):
             callback_errors.append(str(error))
 
         fuzzer = NativeFuzzer(
-            DummyRequester(),
+            DummyRequester(backend),
             dictionary,
             match_callbacks=(),
             not_found_callbacks=(),
             error_callbacks=(record_error,),
         )
-        fuzzer._native_backend = backend
         fuzzer.setup_scanners = lambda: None
         worker_errors = []
         worker = threading.Thread(target=run_fuzzer, args=(fuzzer, worker_errors))

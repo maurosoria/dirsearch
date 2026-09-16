@@ -24,7 +24,15 @@ class DummyDictionary:
     def claim_next(self):
         return next(self)
 
+    def claim_many(self, maximum):
+        start = self.index
+        self.index = min(len(self.paths), start + maximum)
+        return self.paths[start:self.index]
+
     def release_claim(self, path):
+        return None
+
+    def release_claims(self, paths):
         return None
 
 
@@ -58,6 +66,13 @@ class DummyAsyncRequester:
 
 class DummyNativeRequester:
     _url = "https://example.com/"
+    _query = ""
+
+    def __init__(self, backend):
+        self.backend = backend
+
+    def get_backend(self):
+        return self.backend
 
 
 class FilteringNativeBackend:
@@ -78,6 +93,9 @@ class FilteringNativeBackend:
             )
             events.append(NativeScanEvent(index, path, response, None))
         return NativeScanBatch(len(paths), tuple(events))
+
+    def reset_cancel(self):
+        return None
 
 
 class FilterStackOptionsMixin:
@@ -201,14 +219,14 @@ class TestNativeFuzzerFilterStack(FilterStackOptionsMixin, TestCase):
         matches = []
         misses = []
         errors = []
+        backend = FilteringNativeBackend()
         fuzzer = NativeFuzzer(
-            DummyNativeRequester(),
+            DummyNativeRequester(backend),
             dictionary,
             match_callbacks=(matches.append,),
             not_found_callbacks=(misses.append,),
             error_callbacks=(errors.append,),
         )
-        fuzzer._native_backend = FilteringNativeBackend()
         fuzzer.setup_scanners = lambda: None
 
         fuzzer.start()

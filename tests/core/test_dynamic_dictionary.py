@@ -67,6 +67,13 @@ class RecordingAsyncRequester:
 
 class DummyNativeRequester:
     _url = "https://example.com/"
+    _query = ""
+
+    def __init__(self, backend):
+        self.backend = backend
+
+    def get_backend(self):
+        return self.backend
 
 
 class RecordingNativeBackend:
@@ -84,6 +91,9 @@ class RecordingNativeBackend:
                 for index, path in enumerate(paths)
             ),
         )
+
+    def reset_cancel(self):
+        return None
 
 
 class MembershipTrackingList(list):
@@ -307,13 +317,12 @@ class TestNativeDynamicDictionary(DynamicDictionaryOptionsMixin, TestCase):
         add_crawled_paths(dictionary)
         backend = RecordingNativeBackend()
         fuzzer = NativeFuzzer(
-            DummyNativeRequester(),
+            DummyNativeRequester(backend),
             dictionary,
             match_callbacks=(),
             not_found_callbacks=(),
             error_callbacks=(),
         )
-        fuzzer._native_backend = backend
         fuzzer.setup_scanners = lambda: None
 
         fuzzer.start()
@@ -331,13 +340,12 @@ class TestNativeDynamicDictionary(DynamicDictionaryOptionsMixin, TestCase):
         dictionary = make_dictionary(["index.php"])
         backend = RecordingNativeBackend()
         fuzzer = NativeFuzzer(
-            DummyNativeRequester(),
+            DummyNativeRequester(backend),
             dictionary,
             match_callbacks=(self.add_dynamic_path(dictionary),),
             not_found_callbacks=(),
             error_callbacks=(),
         )
-        fuzzer._native_backend = backend
         fuzzer.setup_scanners = lambda: None
 
         fuzzer.start()
