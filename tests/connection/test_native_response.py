@@ -32,6 +32,30 @@ class TestNativeResponse(TestCase):
 
         self.assertEqual(response.redirect, "/login")
 
+    def test_native_response_preserves_repeated_header_values(self):
+        response = NativeResponse(
+            "https://example.com/admin",
+            200,
+            [
+                ("X-Repeat", "one"),
+                ("x-repeat", "two"),
+                ("Set-Cookie", "first=1; Path=/"),
+                ("Set-Cookie", "second=2; Path=/"),
+            ],
+            b"ok",
+        )
+
+        self.assertEqual(response.headers.get("x-repeat"), "one, two")
+        self.assertEqual(
+            response.headers.get("set-cookie"),
+            "first=1; Path=/, second=2; Path=/",
+        )
+        self.assertEqual(response.headers.get_list("x-repeat"), ["one", "two"])
+        self.assertEqual(
+            response.headers.get_list("set-cookie"),
+            ["first=1; Path=/", "second=2; Path=/"],
+        )
+
     def test_native_cjk_length_uses_network_bytes(self):
         body = "测试".encode()
         response = NativeResponse(
