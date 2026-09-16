@@ -211,16 +211,13 @@ class TestControllerTargetURL(TestCase):
 
                 with (
                     patch.dict(options, run_options),
+                    patch.dict("sys.modules", {"dirsearch_native": None}),
                     patch(
                         "lib.connection.requester.Requester",
                         return_value=requester,
                     ),
                     patch(
                         "lib.connection.requester.AsyncRequester",
-                        return_value=requester,
-                    ),
-                    patch(
-                        "lib.connection.native.NativeRequester",
                         return_value=requester,
                     ),
                     patch("lib.core.fuzzer.Fuzzer", return_value=Mock()),
