@@ -128,11 +128,26 @@ class KeepAliveHandler(BaseHTTPRequestHandler):
         return None
 
 
+class ProxyAuthenticationRequiredHandler(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+
+    def do_GET(self):
+        body = b"proxy authentication required"
+        self.send_response(407)
+        self.send_header("Proxy-Authenticate", 'Basic realm="dirsearch-test"')
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, _format, *args):
+        return None
+
+
 class CountingHTTPServer(ThreadingHTTPServer):
     daemon_threads = True
 
-    def __init__(self):
-        super().__init__(("127.0.0.1", 0), KeepAliveHandler)
+    def __init__(self, handler=KeepAliveHandler):
+        super().__init__(("127.0.0.1", 0), handler)
         self.connection_count = 0
         self.thread = threading.Thread(target=self.serve_forever, daemon=True)
         self.thread.start()
@@ -176,6 +191,30 @@ class TestNativeHttpEngine(TestCase):
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0].request_index, 2)
         self.assertTrue(results[0].filtered)
+
+    def test_compact_scan_preserves_filtered_proxy_authentication_responses(self):
+        proxy = CountingHTTPServer(ProxyAuthenticationRequiredHandler)
+        engine = dirsearch_native.NativeHttpEngine(
+            concurrency=1,
+            proxies=[proxy.url],
+        )
+
+        try:
+            results = engine.scan(
+                "http://example.test/",
+                ["zero", "one", "two"],
+                include_status_codes=[200],
+                compact_filtered=True,
+            )
+        finally:
+            proxy.close()
+
+        self.assertEqual(
+            [result.request_index for result in results],
+            [0, 1, 2],
+        )
+        self.assertTrue(all(result.status == 407 for result in results))
+        self.assertTrue(all(result.filtered for result in results))
 
     def test_reuses_http_connection_across_scans(self):
         server = CountingHTTPServer()

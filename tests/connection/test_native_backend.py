@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from lib.connection.native import NativeHTTPBackend, NativeRequester
 from lib.core.data import options
+from lib.core.exceptions import RequestException
 
 
 class FakeNativeResult:
@@ -197,6 +198,14 @@ class TestNativeHTTPBackend(TestCase):
         self.assertEqual(args[:2], ("https://example.com/", ["missing%20page?scope=one"]))
         self.assertFalse(kwargs["compact_filtered"])
         self.assertNotIn("include_status_codes", kwargs)
+
+    def test_native_requester_defers_extension_import_until_first_request(self):
+        with patch.dict("sys.modules", {"dirsearch_native": None}):
+            requester = NativeRequester()
+            requester.set_url("https://example.com/")
+
+            with self.assertRaisesRegex(RequestException, "Native Rust backend"):
+                requester.request("admin")
 
     def test_proxy_urls_encode_reserved_credentials(self):
         options["proxy_auth"] = "proxy/user:p@ss/word?#%:tail"

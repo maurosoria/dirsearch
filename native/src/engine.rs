@@ -13,6 +13,7 @@ use std::time::{Duration, Instant};
 use tokio::task::JoinSet;
 
 const SIGNAL_POLL_INTERVAL: Duration = Duration::from_millis(50);
+const PROXY_AUTHENTICATION_REQUIRED: u16 = 407;
 
 #[pyclass]
 pub(crate) struct NativeHttpEngine {
@@ -323,12 +324,14 @@ impl NativeHttpEngine {
                 results.sort_by_key(|(request_index, _)| *request_index);
                 if compact_filtered {
                     // Python reconstructs filtered runs from index gaps. Keep
-                    // actionable results and one final completion marker so it
-                    // can also account for a filtered tail.
+                    // actionable results, proxy authentication failures for
+                    // Python-side error conversion, and one final completion
+                    // marker so it can also account for a filtered tail.
                     let last_request_index = results.last().map(|(index, _)| *index);
                     results.retain(|(index, result)| {
                         !result.filtered
                             || result.error.is_some()
+                            || result.status == PROXY_AUTHENTICATION_REQUIRED
                             || Some(*index) == last_request_index
                     });
                 }
