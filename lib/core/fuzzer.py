@@ -40,6 +40,7 @@ from lib.core.settings import (
     NATIVE_PAUSE_TIMEOUT,
     WILDCARD_TEST_POINT_MARKER,
 )
+from lib.core.wordlist_backend import NativeWordlistBatch
 from lib.parse.url import clean_path
 from lib.utils.common import lstrip_once
 
@@ -584,7 +585,7 @@ class NativeFuzzer(Fuzzer):
 
     def _process_native_batch(
         self,
-        paths: list[str],
+        paths: list[str] | NativeWordlistBatch,
         batch: NativeScanBatch,
     ) -> None:
         """Expand Rust's compact event stream without rebuilding miss responses."""
@@ -596,7 +597,7 @@ class NativeFuzzer(Fuzzer):
             # Missing indexes are responses that Rust already classified as
             # filtered. Only their progress and dictionary claims matter here.
             if event.request_index > next_index:
-                self._process_filtered_paths(paths[next_index:event.request_index])
+                self._process_filtered_range(paths, next_index, event.request_index)
             if self._should_stop_processing():
                 return
             try:
@@ -606,19 +607,38 @@ class NativeFuzzer(Fuzzer):
                     event.error,
                 )
             finally:
-                self._release_paths((event.path,))
+                if isinstance(paths, NativeWordlistBatch):
+                    self._dictionary.release_native_claims(paths, 1)
+                else:
+                    self._release_paths((event.path,))
             next_index = event.request_index + 1
 
         # processed_count comes from Rust's final completion marker, so this
         # also releases a filtered tail after the last actionable event.
         if not self._should_stop_processing() and batch.processed_count > next_index:
-            # The common miss-only batch spans the original list. Avoid a
-            # second list of references merely to report/release its progress.
-            if next_index == 0 and batch.processed_count == len(paths):
-                filtered_paths = paths
-            else:
-                filtered_paths = paths[next_index:batch.processed_count]
-            self._process_filtered_paths(filtered_paths)
+            self._process_filtered_range(paths, next_index, batch.processed_count)
+
+    def _process_filtered_range(
+        self,
+        paths: list[str] | NativeWordlistBatch,
+        start: int,
+        end: int,
+    ) -> None:
+        count = end - start
+        if count <= 0:
+            return
+        if isinstance(paths, NativeWordlistBatch):
+            try:
+                for callback in self.filtered_batch_callbacks:
+                    callback(count)
+            finally:
+                self._dictionary.release_native_claims(paths, count)
+            return
+
+        # The common miss-only batch spans the original list. Avoid a second
+        # list of references merely to report/release its progress.
+        filtered_paths = paths if start == 0 and end == len(paths) else paths[start:end]
+        self._process_filtered_paths(filtered_paths)
 
     def _process_filtered_paths(self, paths: list[str]) -> None:
         if not paths:
@@ -661,9 +681,11 @@ class NativeFuzzer(Fuzzer):
     def _should_stop_processing(self) -> bool:
         return self._quit_event.is_set() or not self._play_event.is_set()
 
-    def _next_chunk(self) -> list[str]:
+    def _next_chunk(self) -> list[str] | NativeWordlistBatch:
         chunk_size = max(1000, options["thread_count"] * 100)
-        paths = self._dictionary.claim_many(chunk_size)
+        paths = self._dictionary.claim_native_many(chunk_size, self._base_path)
+        if isinstance(paths, NativeWordlistBatch):
+            return paths
         if not self._base_path:
             return paths
         return [self._base_path + path for path in paths]

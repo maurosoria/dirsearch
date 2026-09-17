@@ -3,8 +3,9 @@
 use crate::filters::{NativeFilterConfig, NumericRange, TimeFilter};
 use crate::raw_client::{raw_http_get, should_use_raw_http, RawHttpRequest};
 use crate::request_target::prepare_request_targets;
-use crate::result::NativeHttpResult;
+use crate::result::{native_completion_marker, NativeHttpResult};
 use crate::transport::{build_http_client, request_with_client, HeaderPairs};
+use crate::wordlist::NativeWordlistBatch;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
@@ -43,6 +44,7 @@ static DEFAULT_HTTP_ENGINE: OnceLock<Mutex<CachedNativeHttpEngine>> = OnceLock::
 #[pymethods]
 impl NativeHttpEngine {
     #[new]
+    #[allow(clippy::too_many_arguments)]
     #[pyo3(signature = (
         concurrency=25,
         timeout_secs=7.5,
@@ -124,31 +126,77 @@ impl NativeHttpEngine {
         query="".to_string(),
         max_retries=0,
         max_body_size=83886080,
-        include_status_codes=Vec::new(),
-        exclude_status_codes=Vec::new(),
-        minimum_response_size=0,
-        maximum_response_size=0,
-        matcher_mode="or".to_string(),
-        filter_mode="or".to_string(),
-        match_status_codes=Vec::new(),
-        filter_status_codes=Vec::new(),
-        match_sizes=Vec::new(),
-        filter_sizes=Vec::new(),
-        match_words=Vec::new(),
-        filter_words=Vec::new(),
-        match_lines=Vec::new(),
-        filter_lines=Vec::new(),
-        match_regex=None,
-        filter_regex=None,
-        match_headers=Vec::new(),
-        filter_headers=Vec::new(),
-        match_header_regex=None,
-        filter_header_regex=None,
-        match_time=Vec::new(),
-        filter_time=Vec::new(),
+        filter_config=None,
         compact_filtered=false,
     ))]
     fn scan(
+        &self,
+        py: Python<'_>,
+        base_url: String,
+        paths: Vec<String>,
+        query: String,
+        max_retries: usize,
+        max_body_size: usize,
+        filter_config: Option<Py<NativeFilterConfig>>,
+        compact_filtered: bool,
+    ) -> PyResult<Vec<NativeHttpResult>> {
+        let filter_config = filter_config
+            .map(|config| config.borrow(py).clone())
+            .unwrap_or_default();
+        self.scan_paths(
+            py,
+            base_url,
+            paths,
+            query,
+            max_retries,
+            max_body_size,
+            Arc::new(filter_config),
+            compact_filtered,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    #[pyo3(signature = (
+        base_url,
+        batch,
+        query="".to_string(),
+        max_retries=0,
+        max_body_size=83886080,
+        filter_config=None,
+        compact_filtered=false,
+    ))]
+    fn scan_owned_batch(
+        &self,
+        py: Python<'_>,
+        base_url: String,
+        batch: PyRef<'_, NativeWordlistBatch>,
+        query: String,
+        max_retries: usize,
+        max_body_size: usize,
+        filter_config: Option<Py<NativeFilterConfig>>,
+        compact_filtered: bool,
+    ) -> PyResult<Vec<NativeHttpResult>> {
+        let owned_batch = (*batch).clone();
+        let paths = py.allow_threads(move || owned_batch.to_paths());
+        let filter_config = filter_config
+            .map(|config| config.borrow(py).clone())
+            .unwrap_or_default();
+        self.scan_paths(
+            py,
+            base_url,
+            paths,
+            query,
+            max_retries,
+            max_body_size,
+            Arc::new(filter_config),
+            compact_filtered,
+        )
+    }
+}
+
+impl NativeHttpEngine {
+    #[allow(clippy::too_many_arguments)]
+    fn scan_paths(
         &self,
         py: Python<'_>,
         base_url: String,
@@ -156,58 +204,9 @@ impl NativeHttpEngine {
         query: String,
         max_retries: usize,
         max_body_size: usize,
-        include_status_codes: Vec<u16>,
-        exclude_status_codes: Vec<u16>,
-        minimum_response_size: usize,
-        maximum_response_size: usize,
-        matcher_mode: String,
-        filter_mode: String,
-        match_status_codes: Vec<u16>,
-        filter_status_codes: Vec<u16>,
-        match_sizes: Vec<NumericRange>,
-        filter_sizes: Vec<NumericRange>,
-        match_words: Vec<NumericRange>,
-        filter_words: Vec<NumericRange>,
-        match_lines: Vec<NumericRange>,
-        filter_lines: Vec<NumericRange>,
-        match_regex: Option<String>,
-        filter_regex: Option<String>,
-        match_headers: Vec<String>,
-        filter_headers: Vec<String>,
-        match_header_regex: Option<String>,
-        filter_header_regex: Option<String>,
-        match_time: Vec<TimeFilter>,
-        filter_time: Vec<TimeFilter>,
+        filter_config: Arc<NativeFilterConfig>,
         compact_filtered: bool,
     ) -> PyResult<Vec<NativeHttpResult>> {
-        let filter_config = Arc::new(
-            NativeFilterConfig::new(
-                include_status_codes,
-                exclude_status_codes,
-                minimum_response_size,
-                maximum_response_size,
-                matcher_mode,
-                filter_mode,
-                match_status_codes,
-                filter_status_codes,
-                match_sizes,
-                filter_sizes,
-                match_words,
-                filter_words,
-                match_lines,
-                filter_lines,
-                match_regex,
-                filter_regex,
-                match_headers,
-                filter_headers,
-                match_header_regex,
-                filter_header_regex,
-                match_time,
-                filter_time,
-            )
-            .map_err(PyRuntimeError::new_err)?,
-        );
-
         // Pause may race ahead of the worker's first scan call.
         if self.cancelled.swap(false, Ordering::AcqRel) {
             return Ok(Vec::new());
@@ -230,7 +229,7 @@ impl NativeHttpEngine {
                 // Reuse a bounded set of worker tasks for the whole batch.
                 // This keeps HTTP concurrency unchanged while avoiding one
                 // Tokio task allocation and context clone per URL.
-                let mut tasks: JoinSet<Vec<(usize, NativeHttpResult)>> = JoinSet::new();
+                let mut tasks: JoinSet<WorkerScanResults> = JoinSet::new();
                 let worker_count = concurrency.min(result_count);
                 for _ in 0..worker_count {
                     let paths = paths.clone();
@@ -262,6 +261,7 @@ impl NativeHttpEngine {
                 } else {
                     result_count
                 });
+                let mut last_processed_index = None;
                 // Checking Python signals requires the GIL. Poll on a timer
                 // instead of reacquiring it for every completed request.
                 let mut signal_poll = tokio::time::interval_at(
@@ -274,7 +274,12 @@ impl NativeHttpEngine {
                     tokio::select! {
                         joined = tasks.join_next() => {
                             match joined {
-                                Some(Ok(worker_results)) => results.extend(worker_results),
+                                Some(Ok(worker_results)) => {
+                                    results.extend(worker_results.events);
+                                    last_processed_index = last_processed_index.max(
+                                        worker_results.last_processed_index,
+                                    );
+                                }
                                 Some(Err(error)) => {
                                     return Err(PyRuntimeError::new_err(error.to_string()));
                                 }
@@ -303,17 +308,19 @@ impl NativeHttpEngine {
 
                 results.sort_by_key(|(request_index, _)| *request_index);
                 if compact_filtered {
-                    // Python reconstructs filtered runs from index gaps. Keep
-                    // actionable results, proxy authentication failures for
-                    // Python-side error conversion, and one final completion
-                    // marker so it can also account for a filtered tail.
-                    let last_request_index = results.last().map(|(index, _)| *index);
-                    results.retain(|(index, result)| {
-                        !result.filtered
-                            || result.error.is_some()
-                            || result.status == PROXY_AUTHENTICATION_REQUIRED
-                            || Some(*index) == last_request_index
-                    });
+                    // Gaps represent filtered misses. Add one marker only when
+                    // the final processed path is not already actionable.
+                    if let Some(last_index) = last_processed_index {
+                        if results.last().map(|(index, _)| *index) != Some(last_index) {
+                            results.push((last_index, native_completion_marker(last_index)));
+                        }
+                    }
+                }
+
+                // Request workers only carry indexes. Clone encoded targets
+                // after compaction so filtered misses never allocate a result path.
+                for (request_index, result) in &mut results {
+                    result.path.clone_from(&paths[*request_index]);
                 }
                 Ok(results.into_iter().map(|(_, result)| result).collect())
             })
@@ -321,6 +328,11 @@ impl NativeHttpEngine {
         self.cancelled.store(false, Ordering::Release);
         result
     }
+}
+
+struct WorkerScanResults {
+    events: Vec<(usize, NativeHttpResult)>,
+    last_processed_index: Option<usize>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -338,9 +350,9 @@ async fn run_scan_worker(
     max_retries: usize,
     max_body_size: usize,
     compact_filtered: bool,
-) -> Vec<(usize, NativeHttpResult)> {
+) -> WorkerScanResults {
     let mut results = Vec::new();
-    let mut filtered_tail = None;
+    let mut last_processed_index = None;
     loop {
         if cancelled.load(Ordering::Acquire) {
             break;
@@ -348,15 +360,16 @@ async fn run_scan_worker(
         // Workers only need a unique index here; results are ordered after
         // every worker finishes, so this counter does not synchronize data.
         let request_index = next_request.fetch_add(1, Ordering::Relaxed);
-        let Some(path) = paths.get(request_index).cloned() else {
+        let Some(path) = paths.get(request_index) else {
             break;
         };
+        last_processed_index = Some(request_index);
         let client = &clients[request_index % clients.len()];
         let url = format!("{base_url}{path}");
         let start = Instant::now();
 
         let mut result =
-            if use_raw_http && !follow_redirects && should_use_raw_http(&base_url, &path) {
+            if use_raw_http && !follow_redirects && should_use_raw_http(&base_url, path) {
                 raw_http_get(
                     RawHttpRequest {
                         base_url: &base_url,
@@ -374,32 +387,31 @@ async fn run_scan_worker(
                 request_with_client(
                     client,
                     url,
-                    path,
                     max_retries,
                     max_body_size,
                     start,
                     filter_config.as_ref(),
+                    compact_filtered,
                 )
                 .await
             };
         result.request_index = request_index;
-        // A filtered result only carries progress in compact mode. Retain one
-        // tail per worker here; the final ordered pass reduces those tails to
-        // the single completion marker expected by Python.
+        // Filtered results only carry progress in compact mode. The coordinator
+        // synthesizes one completion marker after every worker has joined.
         if compact_filtered
             && result.filtered
             && result.error.is_none()
             && result.status != PROXY_AUTHENTICATION_REQUIRED
         {
-            filtered_tail = Some((request_index, result));
+            continue;
         } else {
             results.push((request_index, result));
         }
     }
-    if let Some(filtered_tail) = filtered_tail {
-        results.push(filtered_tail);
+    WorkerScanResults {
+        events: results,
+        last_processed_index,
     }
-    results
 }
 
 #[pyfunction]
@@ -503,13 +515,7 @@ pub(crate) fn scan_http(
         cached.as_ref().unwrap().1.clone()
     };
 
-    engine.scan(
-        py,
-        base_url,
-        paths,
-        query,
-        max_retries,
-        max_body_size,
+    let filter_config = NativeFilterConfig::from_options(
         include_status_codes,
         exclude_status_codes,
         minimum_response_size,
@@ -532,6 +538,17 @@ pub(crate) fn scan_http(
         filter_header_regex,
         match_time,
         filter_time,
+    )
+    .map_err(PyRuntimeError::new_err)?;
+
+    engine.scan_paths(
+        py,
+        base_url,
+        paths,
+        query,
+        max_retries,
+        max_body_size,
+        Arc::new(filter_config),
         false,
     )
 }

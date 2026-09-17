@@ -8,6 +8,7 @@ from lib.connection.native import (
 from lib.core.data import options
 from lib.core.exceptions import RequestException
 from lib.core.native_runtime import NATIVE_EXTENSION_VERSION
+from lib.core.wordlist_backend import NativeWordlistBatch
 
 
 class FakeNativeResult:
@@ -27,11 +28,16 @@ class FakeNativeEngine:
     def __init__(self, results=None, **config):
         self.config = config
         self.calls = []
+        self.owned_calls = []
         self.cancelled = False
         self.results = results
 
     def scan(self, *args, **kwargs):
         self.calls.append((args, kwargs))
+        return self.results if self.results is not None else [FakeNativeResult()]
+
+    def scan_owned_batch(self, *args, **kwargs):
+        self.owned_calls.append((args, kwargs))
         return self.results if self.results is not None else [FakeNativeResult()]
 
     def cancel(self):
@@ -46,12 +52,18 @@ class FakeNativeModule:
 
     def __init__(self, results=None):
         self.engines = []
+        self.filter_configs = []
         self.results = results
 
     def NativeHttpEngine(self, **config):
         engine = FakeNativeEngine(self.results, **config)
         self.engines.append(engine)
         return engine
+
+    def NativeFilterConfig(self, **config):
+        filter_config = type("FakeNativeFilterConfig", (), {"config": config})()
+        self.filter_configs.append(filter_config)
+        return filter_config
 
 
 class IndexedNativeResult:
@@ -67,6 +79,22 @@ class IndexedNativeResult:
         self.headers = [("content-type", "text/plain")]
         self.body = [] if filtered else [111, 107]
         self.body_complete = True
+
+
+class FakeOwnedBatch:
+    def __init__(self, paths):
+        self.paths = paths
+        self.path_calls = []
+
+    def len(self):
+        return len(self.paths)
+
+    def path_at(self, index):
+        self.path_calls.append(index)
+        return self.paths[index]
+
+    def to_list(self):
+        return list(self.paths)
 
 
 class TestNativeHTTPBackend(TestCase):
@@ -123,7 +151,7 @@ class TestNativeHTTPBackend(TestCase):
         ):
             NativeHTTPBackend()
 
-    def test_scan_passes_filter_options_and_builds_filtered_response(self):
+    def test_scan_reuses_native_filter_config_and_builds_filtered_response(self):
         fake_native = FakeNativeModule()
 
         with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
@@ -151,21 +179,26 @@ class TestNativeHTTPBackend(TestCase):
         args, kwargs = engine.calls[0]
         self.assertEqual(args[:2], ("https://example.com/", ["missing page"]))
         self.assertEqual(kwargs["query"], "")
-        self.assertEqual(kwargs["include_status_codes"], [200, 204])
-        self.assertEqual(kwargs["exclude_status_codes"], [500])
-        self.assertEqual(kwargs["minimum_response_size"], 10)
-        self.assertEqual(kwargs["maximum_response_size"], 200)
-        self.assertEqual(kwargs["matcher_mode"], "and")
-        self.assertEqual(kwargs["filter_mode"], "or")
-        self.assertEqual(kwargs["match_status_codes"], [200])
-        self.assertEqual(kwargs["filter_status_codes"], [404])
-        self.assertEqual(kwargs["match_sizes"], [(10, 100)])
-        self.assertEqual(kwargs["filter_regex"], "not found")
-        self.assertEqual(kwargs["match_headers"], ["etag: w/"])
-        self.assertEqual(kwargs["filter_headers"], ["x-cache: fallback"])
-        self.assertEqual(kwargs["match_header_regex"], "etag: .+")
-        self.assertEqual(kwargs["filter_header_regex"], "x-cache: fallback-[0-9]+")
-        self.assertEqual(kwargs["match_time"], [(">", 100.0)])
+        self.assertEqual(len(fake_native.filter_configs), 1)
+        filter_options = fake_native.filter_configs[0].config
+        self.assertIs(kwargs["filter_config"], fake_native.filter_configs[0])
+        self.assertEqual(filter_options["include_status_codes"], [200, 204])
+        self.assertEqual(filter_options["exclude_status_codes"], [500])
+        self.assertEqual(filter_options["minimum_response_size"], 10)
+        self.assertEqual(filter_options["maximum_response_size"], 200)
+        self.assertEqual(filter_options["matcher_mode"], "and")
+        self.assertEqual(filter_options["filter_mode"], "or")
+        self.assertEqual(filter_options["match_status_codes"], [200])
+        self.assertEqual(filter_options["filter_status_codes"], [404])
+        self.assertEqual(filter_options["match_sizes"], [(10, 100)])
+        self.assertEqual(filter_options["filter_regex"], "not found")
+        self.assertEqual(filter_options["match_headers"], ["etag: w/"])
+        self.assertEqual(filter_options["filter_headers"], ["x-cache: fallback"])
+        self.assertEqual(filter_options["match_header_regex"], "etag: .+")
+        self.assertEqual(
+            filter_options["filter_header_regex"], "x-cache: fallback-[0-9]+"
+        )
+        self.assertEqual(filter_options["match_time"], [(">", 100.0)])
 
     def test_scan_batch_only_materializes_actionable_results(self):
         fake_native = FakeNativeModule(
@@ -188,6 +221,27 @@ class TestNativeHTTPBackend(TestCase):
         self.assertEqual(event.response.status, 200)
         self.assertIsNone(event.error)
         self.assertTrue(fake_native.engines[0].calls[0][1]["compact_filtered"])
+
+    def test_scan_batch_keeps_owned_wordlist_batch_native(self):
+        fake_native = FakeNativeModule(
+            [
+                IndexedNativeResult(1, filtered=False, status=200),
+                IndexedNativeResult(2, filtered=True),
+            ]
+        )
+        native_batch = FakeOwnedBatch(["zero", "one", "two"])
+        paths = NativeWordlistBatch(native_batch)
+
+        with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
+            backend = NativeHTTPBackend()
+            batch = backend.scan_batch("https://example.com/", paths)
+
+        engine = fake_native.engines[0]
+        self.assertEqual(engine.calls, [])
+        self.assertEqual(len(engine.owned_calls), 1)
+        self.assertIs(engine.owned_calls[0][0][1], native_batch)
+        self.assertEqual(native_batch.path_calls, [1])
+        self.assertEqual(batch.events[0].path, "one")
 
     def test_scan_batch_preserves_proxy_authentication_errors(self):
         fake_native = FakeNativeModule(
@@ -219,7 +273,7 @@ class TestNativeHTTPBackend(TestCase):
         self.assertEqual(args[:2], ("https://example.com/", ["missing page"]))
         self.assertEqual(kwargs["query"], "scope=one")
         self.assertFalse(kwargs["compact_filtered"])
-        self.assertNotIn("include_status_codes", kwargs)
+        self.assertIs(kwargs["filter_config"], fake_native.filter_configs[0])
 
     def test_response_url_uses_the_target_prepared_by_native(self):
         result = FakeNativeResult()
@@ -271,6 +325,11 @@ class TestNativeHTTPBackend(TestCase):
 
         self.assertEqual(len(fake_native.engines), 1)
         self.assertEqual(len(fake_native.engines[0].calls), 2)
+        self.assertEqual(len(fake_native.filter_configs), 1)
+        self.assertIs(
+            fake_native.engines[0].calls[0][1]["filter_config"],
+            fake_native.engines[0].calls[1][1]["filter_config"],
+        )
         self.assertTrue(fake_native.engines[0].cancelled)
 
     def test_cancellation_before_engine_creation_is_forwarded_to_first_scan(self):

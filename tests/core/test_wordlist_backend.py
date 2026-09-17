@@ -9,15 +9,63 @@ from lib.core.data import options
 from lib.core.exceptions import WordlistBackendUnavailableError
 from lib.core.wordlist_backend import (
     NativeWordlistBackend,
+    NativeWordlistCorpus,
     PythonWordlistBackend,
     get_wordlist_backend,
 )
+
+
+class FakeOwnedWordlist:
+    def __init__(self, items):
+        self.items = list(items)
+
+    def len(self):
+        return len(self.items)
+
+    def get(self, index):
+        return self.items[index]
+
+    def slice(self, start, end):
+        return self.items[start:end]
+
+    def contains(self, path):
+        return path in self.items
+
+    def to_list(self):
+        return list(self.items)
+
+    def batch(self, start, count, base_path):
+        return FakeOwnedBatch(self.items[start:start + count], base_path)
+
+
+class FakeOwnedBatch:
+    def __init__(self, items, base_path):
+        self.items = list(items)
+        self.base_path = base_path
+
+    def len(self):
+        return len(self.items)
+
+    def path_at(self, index):
+        return self.base_path + self.items[index]
+
+    def to_list(self):
+        return [self.base_path + item for item in self.items]
+
+
+class FakeNativeModule:
+    __version__ = "0.2.1"
+
+    @staticmethod
+    def generate_wordlist_owned(*_args, **_kwargs):
+        return FakeOwnedWordlist(["admin", "login"])
 
 
 class TestWordlistBackend(TestCase):
     def setUp(self):
         self._original_options = dict(options)
         options["wordlist_backend"] = "auto"
+        options["request_backend"] = "python"
 
     def tearDown(self):
         options.clear()
@@ -28,6 +76,28 @@ class TestWordlistBackend(TestCase):
 
     def test_python_selects_python_backend(self):
         self.assertIsInstance(get_wordlist_backend("python"), PythonWordlistBackend)
+
+    def test_auto_keeps_native_request_wordlist_owned_by_rust(self):
+        options["request_backend"] = "native"
+        with (
+            patch.dict("sys.modules", {"dirsearch_native": FakeNativeModule()}),
+            tempfile.TemporaryDirectory() as temp_dir,
+        ):
+            wordlist = Path(temp_dir) / "wordlist.txt"
+            wordlist.write_text("admin\nlogin\n", encoding="utf-8")
+            corpus = get_wordlist_backend().generate([str(wordlist)])
+
+        self.assertIsInstance(corpus, NativeWordlistCorpus)
+        self.assertEqual(len(corpus), 2)
+        self.assertEqual(corpus[:], ["admin", "login"])
+        self.assertEqual(corpus[-1], "login")
+        with self.assertRaises(IndexError):
+            corpus[-3]
+        self.assertIn("login", corpus)
+        self.assertEqual(corpus.batch(0, 2, "api/").to_list(), [
+            "api/admin",
+            "api/login",
+        ])
 
     def test_native_reports_unavailable(self):
         try:

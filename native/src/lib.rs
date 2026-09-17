@@ -10,14 +10,13 @@ mod transport;
 mod wordlist;
 
 use engine::{scan_http, NativeHttpEngine};
+use filters::NativeFilterConfig;
 use pyo3::prelude::*;
 use result::NativeHttpResult;
-use wordlist::generate_wordlist;
+use wordlist::{generate_wordlist, generate_wordlist_owned, NativeWordlist, NativeWordlistBatch};
 
 #[cfg(test)]
 use engine::runtime_worker_count;
-#[cfg(test)]
-use filters::NativeFilterConfig;
 #[cfg(test)]
 use raw_client::{parse_raw_http_response, should_use_raw_http};
 #[cfg(test)]
@@ -39,8 +38,12 @@ fn dirsearch_native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     // Python checks this value before using the tightly coupled native API.
     module.add("__version__", env!("CARGO_PKG_VERSION"))?;
     module.add_function(wrap_pyfunction!(generate_wordlist, module)?)?;
+    module.add_function(wrap_pyfunction!(generate_wordlist_owned, module)?)?;
     module.add_function(wrap_pyfunction!(scan_http, module)?)?;
+    module.add_class::<NativeFilterConfig>()?;
     module.add_class::<NativeHttpEngine>()?;
     module.add_class::<NativeHttpResult>()?;
+    module.add_class::<NativeWordlist>()?;
+    module.add_class::<NativeWordlistBatch>()?;
     Ok(())
 }

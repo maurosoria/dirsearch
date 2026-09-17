@@ -4,7 +4,7 @@ use super::*;
 use std::io::Write;
 
 fn default_filter_config() -> NativeFilterConfig {
-    NativeFilterConfig::new(
+    NativeFilterConfig::from_options(
         Vec::new(),
         Vec::new(),
         0,
@@ -512,7 +512,7 @@ fn advanced_header_matchers_and_filters_work() {
 
 #[test]
 fn regex_compile_errors_are_reported() {
-    let error = NativeFilterConfig::new(
+    let error = NativeFilterConfig::from_options(
         Vec::new(),
         Vec::new(),
         0,

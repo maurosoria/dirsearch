@@ -21,6 +21,7 @@ from lib.core.native_runtime import (
     get_native_extension_version_error,
 )
 from lib.core.settings import MAX_RESPONSE_SIZE
+from lib.core.wordlist_backend import NativeWordlistBatch
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,6 +55,8 @@ class NativeHTTPBackend:
         self._native = dirsearch_native
         self._engine = None
         self._engine_config = None
+        self._filter_config = None
+        self._empty_filter_config = None
         self._proxy_override = proxy_override
         self._cancel_lock = threading.Lock()
         # Preserve cancellation requested before lazy engine creation.
@@ -107,7 +110,7 @@ class NativeHTTPBackend:
     def scan_batch(
         self,
         base_url: str,
-        paths: list[str],
+        paths: list[str] | NativeWordlistBatch,
         query: str = "",
     ) -> NativeScanBatch:
         """Scan NativeFuzzer's owned list without copying its references."""
@@ -140,7 +143,11 @@ class NativeHTTPBackend:
             events.append(
                 NativeScanEvent(
                     request_index,
-                    raw_paths[request_index],
+                    (
+                        raw_paths.path_at(request_index)
+                        if isinstance(raw_paths, NativeWordlistBatch)
+                        else raw_paths[request_index]
+                    ),
                     response,
                     error,
                 )
@@ -168,31 +175,41 @@ class NativeHTTPBackend:
     def _scan(
         self,
         base_url: str,
-        paths: Iterable[str],
+        paths: Iterable[str] | NativeWordlistBatch,
         query: str,
         *,
         compact_filtered: bool,
         apply_filters: bool = True,
         reuse_paths: bool = False,
-    ) -> tuple[list[str], list[Any]]:
+    ) -> tuple[list[str] | NativeWordlistBatch, list[Any]]:
         # NativeFuzzer already owns a stable list for the duration of this
         # synchronous call. Reuse it instead of copying every batch boundary.
-        raw_paths = paths if reuse_paths and isinstance(paths, list) else list(paths)
+        raw_paths = (
+            paths
+            if reuse_paths and isinstance(paths, (list, NativeWordlistBatch))
+            else list(paths)
+        )
         with self._cancel_lock:
             engine = self._get_engine()
             cancel_generation = self._cancel_generation
             if cancel_generation != self._consumed_cancel_generation:
                 engine.cancel()
 
-        results = engine.scan(
-            base_url,
-            raw_paths,
-            query=query,
-            max_retries=options["max_retries"],
-            max_body_size=MAX_RESPONSE_SIZE,
-            compact_filtered=compact_filtered,
-            **(self._filter_options() if apply_filters else {}),
-        )
+        scan_options = {
+            "query": query,
+            "max_retries": options["max_retries"],
+            "max_body_size": MAX_RESPONSE_SIZE,
+            "filter_config": self._get_filter_config(apply_filters),
+            "compact_filtered": compact_filtered,
+        }
+        if isinstance(raw_paths, NativeWordlistBatch):
+            results = engine.scan_owned_batch(
+                base_url,
+                raw_paths.native,
+                **scan_options,
+            )
+        else:
+            results = engine.scan(base_url, raw_paths, **scan_options)
         with self._cancel_lock:
             self._consumed_cancel_generation = self._cancel_generation
 
@@ -283,6 +300,17 @@ class NativeHTTPBackend:
             "match_time": list(options["match_time"]),
             "filter_time": list(options["filter_time"]),
         }
+
+    def _get_filter_config(self, apply_filters: bool):
+        if not apply_filters:
+            if self._empty_filter_config is None:
+                self._empty_filter_config = self._native.NativeFilterConfig()
+            return self._empty_filter_config
+        if self._filter_config is None:
+            self._filter_config = self._native.NativeFilterConfig(
+                **self._filter_options()
+            )
+        return self._filter_config
 
 
 class NativeRequester:

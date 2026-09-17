@@ -29,10 +29,16 @@ class DummyDictionary:
         self.index = min(len(self.paths), start + maximum)
         return self.paths[start:self.index]
 
+    def claim_native_many(self, maximum, _base_path):
+        return self.claim_many(maximum)
+
     def release_claim(self, path):
         return None
 
     def release_claims(self, paths):
+        return None
+
+    def release_native_claims(self, _batch, _count):
         return None
 
 

@@ -102,6 +102,38 @@ pub(crate) fn native_error_result(
     }
 }
 
+pub(crate) fn native_filtered_marker(status: u16, elapsed_ms: f64) -> NativeHttpResult {
+    NativeHttpResult {
+        request_index: usize::MAX,
+        path: String::new(),
+        status,
+        length: 0,
+        elapsed_ms,
+        error: None,
+        filtered: true,
+        filter_reason: None,
+        headers: Vec::new(),
+        body: Vec::new(),
+        body_complete: false,
+    }
+}
+
+pub(crate) fn native_completion_marker(request_index: usize) -> NativeHttpResult {
+    NativeHttpResult {
+        request_index,
+        path: String::new(),
+        status: 0,
+        length: 0,
+        elapsed_ms: 0.0,
+        error: None,
+        filtered: true,
+        filter_reason: None,
+        headers: Vec::new(),
+        body: Vec::new(),
+        body_complete: false,
+    }
+}
+
 pub(crate) fn response_length(headers: &[(String, String)], body_length: usize) -> usize {
     headers
         .iter()

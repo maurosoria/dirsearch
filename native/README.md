@@ -3,10 +3,12 @@
 This crate is an experimental Phase 5 native backend. It is opt-in for source
 installs and is included in `native-rust` release artifacts.
 
-It exposes two PyO3 functions and a class:
+It exposes a small PyO3 API:
 
 - `generate_wordlist(...)` for deterministic ordered wordlist generation.
+- `generate_wordlist_owned(...)` for keeping native-scan corpora in Rust.
 - `NativeHttpEngine` for batch HTTP GET requests using `reqwest` and `tokio`.
+- `NativeFilterConfig` for compiling and reusing one immutable filter policy.
 - `scan_http(...)` as the compatibility entrypoint backed by a cached engine.
 
 The module also exposes `__version__`. The Python request and wordlist
@@ -14,12 +16,14 @@ backends require an exact version match so a stale compiled extension fails
 with a rebuild instruction instead of silently using an older native contract.
 
 `NativeHttpEngine` keeps its Tokio runtime and HTTP clients alive across
-multiple batches and supports cooperative cancellation. Its `scan(...)` method
-also evaluates the cheap legacy status/size filters and the
-advanced match/filter options in native code. Filtered responses are returned as
-lightweight events with metadata and an empty body so Python can keep progress
-and not-found callbacks authoritative. Native regex matching uses Rust's
-`regex` crate; patterns unsupported by that engine fail before the scan starts.
+multiple batches and supports cooperative cancellation. Python constructs one
+immutable filter configuration and reuses it across those batches. The
+`scan(...)` and `scan_owned_batch(...)` methods evaluate the cheap legacy
+status/size filters and advanced match/filter options in native code. Compact
+status-filter misses drain their response stream for connection reuse without
+retaining headers or body data. Python still owns callbacks, session recovery,
+and dynamically discovered paths. Native regex matching uses Rust's `regex`
+crate; patterns unsupported by that engine fail before the scan starts.
 
 ## Source layout
 
