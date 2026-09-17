@@ -27,6 +27,7 @@ and not-found callbacks authoritative. Native regex matching uses Rust's
 responsibility:
 
 - `engine.rs` owns the persistent engine, bounded scheduler, and cancellation.
+- `request_target.rs` owns query insertion and URL quoting before scheduling.
 - `transport.rs` owns reqwest requests and streamed response decoding.
 - `raw_client.rs` selects and drives the byte-preserving HTTP adapter, while
   `raw_http.rs` implements HTTP/1.1 framing and parsing.

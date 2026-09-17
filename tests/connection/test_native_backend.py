@@ -4,12 +4,10 @@ from unittest.mock import patch
 from lib.connection.native import (
     NativeHTTPBackend,
     NativeRequester,
-    _quote_native_path,
 )
 from lib.core.data import options
 from lib.core.exceptions import RequestException
 from lib.core.native_runtime import NATIVE_EXTENSION_VERSION
-from lib.utils.common import safequote
 
 
 class FakeNativeResult:
@@ -112,23 +110,15 @@ class TestNativeHTTPBackend(TestCase):
         options.clear()
         options.update(self.original_options)
 
-    def test_native_path_quote_fast_path_matches_common_quoting(self):
-        paths = [chr(value) for value in range(128)]
-        paths += ["admin/login?a=1#part", "missing page", "café", ""]
-
-        for path in paths:
-            with self.subTest(path=path):
-                self.assertEqual(_quote_native_path(path), safequote(path))
-
     def test_rejects_an_incompatible_native_extension(self):
         fake_native = FakeNativeModule()
-        fake_native.__version__ = "0.1.0"
+        fake_native.__version__ = "0.2.0"
 
         with (
             patch.dict("sys.modules", {"dirsearch_native": fake_native}),
             self.assertRaisesRegex(
                 RequestException,
-                r"expected 0\.2\.0, found 0\.1\.0",
+                r"expected 0\.2\.1, found 0\.2\.0",
             ),
         ):
             NativeHTTPBackend()
@@ -159,7 +149,8 @@ class TestNativeHTTPBackend(TestCase):
         )
 
         args, kwargs = engine.calls[0]
-        self.assertEqual(args[:2], ("https://example.com/", ["missing%20page"]))
+        self.assertEqual(args[:2], ("https://example.com/", ["missing page"]))
+        self.assertEqual(kwargs["query"], "")
         self.assertEqual(kwargs["include_status_codes"], [200, 204])
         self.assertEqual(kwargs["exclude_status_codes"], [500])
         self.assertEqual(kwargs["minimum_response_size"], 10)
@@ -225,9 +216,30 @@ class TestNativeHTTPBackend(TestCase):
 
         self.assertEqual(response.status, 404)
         args, kwargs = fake_native.engines[0].calls[0]
-        self.assertEqual(args[:2], ("https://example.com/", ["missing%20page?scope=one"]))
+        self.assertEqual(args[:2], ("https://example.com/", ["missing page"]))
+        self.assertEqual(kwargs["query"], "scope=one")
         self.assertFalse(kwargs["compact_filtered"])
         self.assertNotIn("include_status_codes", kwargs)
+
+    def test_response_url_uses_the_target_prepared_by_native(self):
+        result = FakeNativeResult()
+        result.path = "missing%20page?scope=one"
+        fake_native = FakeNativeModule([result])
+
+        with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
+            backend = NativeHTTPBackend()
+            rows = list(
+                backend.scan(
+                    "https://example.com/",
+                    ["different raw path"],
+                    "scope=one",
+                )
+            )
+
+        self.assertEqual(
+            rows[0][1].url,
+            "https://example.com/missing%20page?scope=one",
+        )
 
     def test_native_requester_defers_extension_import_until_first_request(self):
         with patch.dict("sys.modules", {"dirsearch_native": None}):

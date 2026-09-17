@@ -194,6 +194,25 @@ class TestNativeHttpEngine(TestCase):
     def test_extension_version_matches_python_contract(self):
         self.assertEqual(dirsearch_native.__version__, NATIVE_EXTENSION_VERSION)
 
+    def test_native_engine_prepares_raw_paths_and_query(self):
+        server = RawResponseServer(
+            b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"
+        )
+        engine = dirsearch_native.NativeHttpEngine(concurrency=1)
+
+        try:
+            results = engine.scan(
+                server.url,
+                ["missing page/测试"],
+                query="scope=hello world",
+            )
+        finally:
+            server.close()
+
+        expected = "missing%20page/%E6%B5%8B%E8%AF%95?scope=hello%20world"
+        self.assertEqual(server.request_target, f"/{expected}")
+        self.assertEqual(results[0].path, expected)
+
     def test_compact_scan_returns_tail_completion_marker(self):
         server = CountingHTTPServer()
         engine = dirsearch_native.NativeHttpEngine(concurrency=2)

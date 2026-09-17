@@ -21,16 +21,6 @@ from lib.core.native_runtime import (
     get_native_extension_version_error,
 )
 from lib.core.settings import MAX_RESPONSE_SIZE
-from lib.parse.url import append_query_string
-from lib.utils.common import safequote
-
-
-def _quote_native_path(path: str) -> str:
-    """Skip urllib's byte round-trip for already URL-safe ASCII paths."""
-
-    if path.isascii() and path.isprintable() and " " not in path:
-        return path
-    return safequote(path)
 
 
 @dataclass(frozen=True, slots=True)
@@ -106,12 +96,12 @@ class NativeHTTPBackend:
         paths: Iterable[str],
         query: str = "",
     ) -> Iterator[tuple[str, NativeResponse | None, RequestException | None]]:
-        raw_paths, quoted_paths, results = self._scan(
+        raw_paths, results = self._scan(
             base_url, paths, query, compact_filtered=False
         )
 
-        for path, quoted_path, result in zip(raw_paths, quoted_paths, results):
-            response, error = self._convert_result(base_url, quoted_path, result)
+        for path, result in zip(raw_paths, results):
+            response, error = self._convert_result(base_url, result)
             yield path, response, error
 
     def scan_batch(
@@ -122,7 +112,7 @@ class NativeHTTPBackend:
     ) -> NativeScanBatch:
         """Scan NativeFuzzer's owned list without copying its references."""
 
-        raw_paths, quoted_paths, results = self._scan(
+        raw_paths, results = self._scan(
             base_url,
             paths,
             query,
@@ -146,9 +136,7 @@ class NativeHTTPBackend:
             ):
                 continue
             request_index = result.request_index
-            response, error = self._convert_result(
-                base_url, quoted_paths[request_index], result
-            )
+            response, error = self._convert_result(base_url, result)
             events.append(
                 NativeScanEvent(
                     request_index,
@@ -166,7 +154,7 @@ class NativeHTTPBackend:
         path: str,
         query: str = "",
     ) -> tuple[NativeResponse | None, RequestException | None]:
-        _raw_paths, quoted_paths, results = self._scan(
+        _raw_paths, results = self._scan(
             base_url,
             [path],
             query,
@@ -175,7 +163,7 @@ class NativeHTTPBackend:
         )
         if not results:
             return None, RequestException("Native request was cancelled")
-        return self._convert_result(base_url, quoted_paths[0], results[0])
+        return self._convert_result(base_url, results[0])
 
     def _scan(
         self,
@@ -186,14 +174,10 @@ class NativeHTTPBackend:
         compact_filtered: bool,
         apply_filters: bool = True,
         reuse_paths: bool = False,
-    ) -> tuple[list[str], list[str], list[Any]]:
+    ) -> tuple[list[str], list[Any]]:
         # NativeFuzzer already owns a stable list for the duration of this
         # synchronous call. Reuse it instead of copying every batch boundary.
         raw_paths = paths if reuse_paths and isinstance(paths, list) else list(paths)
-        quoted_paths = [
-            _quote_native_path(append_query_string(path, query))
-            for path in raw_paths
-        ]
         with self._cancel_lock:
             engine = self._get_engine()
             cancel_generation = self._cancel_generation
@@ -202,7 +186,8 @@ class NativeHTTPBackend:
 
         results = engine.scan(
             base_url,
-            quoted_paths,
+            raw_paths,
+            query=query,
             max_retries=options["max_retries"],
             max_body_size=MAX_RESPONSE_SIZE,
             compact_filtered=compact_filtered,
@@ -211,12 +196,11 @@ class NativeHTTPBackend:
         with self._cancel_lock:
             self._consumed_cancel_generation = self._cancel_generation
 
-        return raw_paths, quoted_paths, results
+        return raw_paths, results
 
     def _convert_result(
         self,
         base_url: str,
-        quoted_path: str,
         result: Any,
     ) -> tuple[NativeResponse | None, RequestException | None]:
         if result.error is not None:
@@ -236,7 +220,7 @@ class NativeHTTPBackend:
 
         return (
             NativeResponse(
-                base_url + quoted_path,
+                base_url + result.path,
                 result.status,
                 result.headers,
                 result.body,

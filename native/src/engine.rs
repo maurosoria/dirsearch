@@ -2,6 +2,7 @@
 
 use crate::filters::{NativeFilterConfig, NumericRange, TimeFilter};
 use crate::raw_client::{raw_http_get, should_use_raw_http, RawHttpRequest};
+use crate::request_target::prepare_request_targets;
 use crate::result::NativeHttpResult;
 use crate::transport::{build_http_client, request_with_client, HeaderPairs};
 use pyo3::exceptions::PyRuntimeError;
@@ -120,6 +121,7 @@ impl NativeHttpEngine {
     #[pyo3(signature = (
         base_url,
         paths,
+        query="".to_string(),
         max_retries=0,
         max_body_size=83886080,
         include_status_codes=Vec::new(),
@@ -150,7 +152,8 @@ impl NativeHttpEngine {
         &self,
         py: Python<'_>,
         base_url: String,
-        paths: Vec<String>,
+        mut paths: Vec<String>,
+        query: String,
         max_retries: usize,
         max_body_size: usize,
         include_status_codes: Vec<u16>,
@@ -220,6 +223,7 @@ impl NativeHttpEngine {
 
         let result = py.allow_threads(move || {
             runtime.block_on(async move {
+                prepare_request_targets(&mut paths, &query);
                 let result_count = paths.len();
                 let paths = Arc::new(paths);
                 let next_request = Arc::new(AtomicUsize::new(0));
@@ -403,6 +407,7 @@ async fn run_scan_worker(
 #[pyo3(signature = (
     base_url,
     paths,
+    query="".to_string(),
     concurrency=25,
     timeout_secs=7.5,
     headers=Vec::new(),
@@ -437,6 +442,7 @@ pub(crate) fn scan_http(
     py: Python<'_>,
     base_url: String,
     paths: Vec<String>,
+    query: String,
     concurrency: usize,
     timeout_secs: f64,
     headers: HeaderPairs,
@@ -501,6 +507,7 @@ pub(crate) fn scan_http(
         py,
         base_url,
         paths,
+        query,
         max_retries,
         max_body_size,
         include_status_codes,

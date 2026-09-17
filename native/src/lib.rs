@@ -4,6 +4,7 @@ mod engine;
 mod filters;
 mod raw_client;
 mod raw_http;
+mod request_target;
 mod result;
 mod transport;
 mod wordlist;
@@ -21,6 +22,8 @@ use filters::NativeFilterConfig;
 use raw_client::{parse_raw_http_response, should_use_raw_http};
 #[cfg(test)]
 use regex::Regex;
+#[cfg(test)]
+use request_target::prepare_request_target;
 #[cfg(test)]
 use reqwest::header::HeaderMap;
 #[cfg(test)]

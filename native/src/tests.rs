@@ -36,6 +36,40 @@ fn content_length(value: usize) -> Vec<(String, String)> {
 }
 
 #[test]
+fn request_target_quoting_matches_python_ascii_contract() {
+    for value in 0u8..=127 {
+        let mut path = char::from(value).to_string();
+        prepare_request_target(&mut path, "");
+        let expected = if (b'!'..=b'~').contains(&value) {
+            char::from(value).to_string()
+        } else {
+            format!("%{value:02X}")
+        };
+
+        assert_eq!(path, expected, "ASCII value {value}");
+    }
+}
+
+#[test]
+fn request_target_quotes_utf8_and_appends_query_before_fragment() {
+    let mut path = "missing page/测试#part".to_string();
+    prepare_request_target(&mut path, "scope=hello world");
+
+    assert_eq!(
+        path,
+        "missing%20page/%E6%B5%8B%E8%AF%95?scope=hello%20world#part"
+    );
+
+    let mut existing_query = "admin?existing=true#part".to_string();
+    prepare_request_target(&mut existing_query, "ignored=true");
+    assert_eq!(existing_query, "admin?existing=true#part");
+
+    let mut existing_escape = "admin%20panel".to_string();
+    prepare_request_target(&mut existing_escape, "");
+    assert_eq!(existing_escape, "admin%20panel");
+}
+
+#[test]
 fn raw_http_path_preservation_detects_targets_reqwest_may_rewrite() {
     assert!(should_use_raw_http(
         "http://example.com/",
