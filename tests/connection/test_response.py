@@ -4,7 +4,7 @@ import hashlib
 from unittest import IsolatedAsyncioTestCase, TestCase
 from unittest.mock import patch
 
-from lib.connection.response import AsyncResponse, Response
+from lib.connection.response import AsyncResponse, Response, ResponseHeaders
 
 
 class DummyResponse:
@@ -12,7 +12,7 @@ class DummyResponse:
     history = []
 
     def __init__(self, headers=None, body=b"body", encoding="utf-8"):
-        self.headers = headers or {}
+        self.headers = ResponseHeaders((headers or {}).items())
         self._chunks = body if isinstance(body, list) else [body]
         self.encoding = encoding
 
@@ -26,7 +26,7 @@ class DummyAsyncResponse:
     history = []
 
     def __init__(self, headers=None, body=b"body", encoding="utf-8"):
-        self.headers = headers or {}
+        self.headers = ResponseHeaders((headers or {}).items())
         self._chunks = body if isinstance(body, list) else [body]
         self.encoding = encoding
 
@@ -34,6 +34,48 @@ class DummyAsyncResponse:
         del chunk_size
         for chunk in self._chunks:
             yield chunk
+
+
+class TestResponseHeaders(TestCase):
+    def test_headers_are_case_insensitive_and_preserve_duplicate_values(self):
+        headers = ResponseHeaders(
+            [
+                ("X-Repeat", "one"),
+                ("x-repeat", "two"),
+                ("Set-Cookie", "first=1; Path=/"),
+                ("Set-Cookie", "second=2; Path=/"),
+            ]
+        )
+
+        self.assertEqual(headers["X-REPEAT"], "one, two")
+        self.assertEqual(
+            headers.get("set-cookie"),
+            "first=1; Path=/, second=2; Path=/",
+        )
+        self.assertEqual(headers.get_list("x-repeat"), ["one", "two"])
+        self.assertEqual(headers.get_list("missing"), [])
+        self.assertEqual(
+            headers.multi_items(),
+            [
+                ("X-Repeat", "one"),
+                ("x-repeat", "two"),
+                ("Set-Cookie", "first=1; Path=/"),
+                ("Set-Cookie", "second=2; Path=/"),
+            ],
+        )
+        self.assertEqual(
+            list(headers.items()),
+            [
+                ("X-Repeat", "one, two"),
+                ("Set-Cookie", "first=1; Path=/, second=2; Path=/"),
+            ],
+        )
+
+    def test_headers_are_read_only(self):
+        headers = ResponseHeaders([("X-Test", "value")])
+
+        with self.assertRaises(TypeError):
+            headers["X-Test"] = "changed"
 
 
 class TestResponse(TestCase):

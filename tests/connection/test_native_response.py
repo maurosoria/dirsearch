@@ -1,11 +1,53 @@
 # -*- coding: utf-8 -*-
 
+import subprocess
+import sys
+import textwrap
+from pathlib import Path
 from unittest import TestCase
 
 from lib.connection.response import NativeResponse
 
 
 class TestNativeResponse(TestCase):
+    def test_native_response_import_does_not_require_python_http_clients(self):
+        repository_root = Path(__file__).resolve().parents[2]
+        script = textwrap.dedent(
+            """
+            import builtins
+
+            original_import = builtins.__import__
+
+            def reject_http_clients(name, *args, **kwargs):
+                if name.partition(".")[0] in {"httpx", "requests"}:
+                    raise ImportError(f"unexpected HTTP client import: {name}")
+                return original_import(name, *args, **kwargs)
+
+            builtins.__import__ = reject_http_clients
+
+            from lib.connection.response import NativeResponse
+
+            response = NativeResponse(
+                "https://example.com/admin",
+                200,
+                [("Content-Type", "text/plain")],
+                b"ok",
+            )
+            assert response.content == "ok"
+            """
+        )
+
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            cwd=repository_root,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_native_response_decodes_text_body(self):
         response = NativeResponse(
             "https://example.com/admin",
