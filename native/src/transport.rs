@@ -2,10 +2,12 @@
 
 use crate::filters::NativeFilterConfig;
 use crate::raw_http;
-use crate::result::{native_error_result, native_http_result_with_length, NativeHttpResult};
+use crate::result::{
+    native_error_result, native_filtered_marker, native_http_result_with_length, NativeHttpResult,
+};
 use async_compression::tokio::bufread::{BrotliDecoder, GzipDecoder, ZlibDecoder};
 use futures_util::TryStreamExt;
-use reqwest::header::HeaderMap;
+use reqwest::header::{HeaderMap, CONTENT_ENCODING};
 use std::io;
 use std::pin::Pin;
 use std::time::{Duration, Instant};
@@ -43,11 +45,11 @@ pub(crate) fn build_http_client(
 pub(crate) async fn request_with_client(
     client: &reqwest::Client,
     url: String,
-    path: String,
     max_retries: usize,
     max_body_size: usize,
     start: Instant,
     filter_config: &NativeFilterConfig,
+    compact_filtered: bool,
 ) -> NativeHttpResult {
     let mut response = None;
     let mut last_error = None;
@@ -72,13 +74,24 @@ pub(crate) async fn request_with_client(
         Some(response) => response,
         None => {
             return native_error_result(
-                path,
+                String::new(),
                 start.elapsed().as_secs_f64() * 1000.0,
                 last_error.unwrap_or_else(|| "request failed".to_string()),
             );
         }
     };
     let status = response.status().as_u16();
+    if compact_filtered && status != 407 && filter_config.status_filter_reason(status).is_some() {
+        let encodings = response_encodings(response.headers());
+        if let Err(error) = read_decoded_body(response, encodings, 0, false).await {
+            return native_error_result(
+                String::new(),
+                start.elapsed().as_secs_f64() * 1000.0,
+                error,
+            );
+        }
+        return native_filtered_marker(status, start.elapsed().as_secs_f64() * 1000.0);
+    }
     let headers = response
         .headers()
         .iter()
@@ -93,14 +106,14 @@ pub(crate) async fn request_with_client(
         Ok(result) => result,
         Err(error) => {
             return native_error_result(
-                path,
+                String::new(),
                 start.elapsed().as_secs_f64() * 1000.0,
                 error.to_string(),
             );
         }
     };
     native_http_result_with_length(
-        path,
+        String::new(),
         status,
         headers,
         body,
@@ -126,12 +139,37 @@ pub(crate) async fn read_response_body(
     headers: &HeaderPairs,
     max_body_size: usize,
 ) -> Result<(Vec<u8>, usize), String> {
-    let capacity = response
-        .content_length()
-        .and_then(|length| usize::try_from(length).ok())
-        .unwrap_or_default()
-        .min(max_body_size);
     let encodings = raw_http::comma_separated_header_values(headers, "content-encoding");
+    read_decoded_body(response, encodings, max_body_size, true).await
+}
+
+fn response_encodings(headers: &HeaderMap) -> Vec<String> {
+    headers
+        .get_all(CONTENT_ENCODING)
+        .iter()
+        .filter_map(|value| value.to_str().ok())
+        .flat_map(|value| value.split(','))
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .collect()
+}
+
+async fn read_decoded_body(
+    response: reqwest::Response,
+    encodings: Vec<String>,
+    max_body_size: usize,
+    capture_body: bool,
+) -> Result<(Vec<u8>, usize), String> {
+    let capacity = if capture_body {
+        response
+            .content_length()
+            .and_then(|length| usize::try_from(length).ok())
+            .unwrap_or_default()
+            .min(max_body_size)
+    } else {
+        0
+    };
     let stream = response.bytes_stream().map_err(io::Error::other);
     let mut reader: AsyncBodyReader = Box::pin(StreamReader::new(stream));
     for encoding in encodings.iter().rev() {
@@ -169,7 +207,9 @@ pub(crate) async fn read_response_body(
             break;
         }
         body_length = body_length.saturating_add(read);
-        append_body_chunk(&mut body, &buffer[..read], max_body_size);
+        if capture_body {
+            append_body_chunk(&mut body, &buffer[..read], max_body_size);
+        }
     }
 
     Ok((body, body_length))

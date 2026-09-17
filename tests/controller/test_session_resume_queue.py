@@ -16,6 +16,9 @@ class RecordingFuzzer:
     def set_base_path(self, path):
         self.base_path = path
 
+    def prepare_start(self):
+        return None
+
     def _record_job(self):
         paths = []
         while True:
@@ -58,6 +61,7 @@ class TestSessionResumeQueue(TestCase):
         )
         controller.output_history = []
         controller.response_stores = ()
+        controller._native_worker = None
         controller.reporter = Mock()
         controller.crawl_target = Mock()
 

@@ -7,6 +7,8 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from unittest import TestCase, skipUnless
 
+from lib.core.native_runtime import NATIVE_EXTENSION_VERSION
+
 try:
     import dirsearch_native
 except ImportError:
@@ -189,6 +191,28 @@ class CountingHTTPServer(ThreadingHTTPServer):
     "native extension is not installed",
 )
 class TestNativeHttpEngine(TestCase):
+    def test_extension_version_matches_python_contract(self):
+        self.assertEqual(dirsearch_native.__version__, NATIVE_EXTENSION_VERSION)
+
+    def test_native_engine_prepares_raw_paths_and_query(self):
+        server = RawResponseServer(
+            b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"
+        )
+        engine = dirsearch_native.NativeHttpEngine(concurrency=1)
+
+        try:
+            results = engine.scan(
+                server.url,
+                ["missing page/测试"],
+                query="scope=hello world",
+            )
+        finally:
+            server.close()
+
+        expected = "missing%20page/%E6%B5%8B%E8%AF%95?scope=hello%20world"
+        self.assertEqual(server.request_target, f"/{expected}")
+        self.assertEqual(results[0].path, expected)
+
     def test_compact_scan_returns_tail_completion_marker(self):
         server = CountingHTTPServer()
         engine = dirsearch_native.NativeHttpEngine(concurrency=2)
@@ -197,7 +221,9 @@ class TestNativeHttpEngine(TestCase):
             results = engine.scan(
                 server.url,
                 ["zero", "one", "two"],
-                include_status_codes=[201],
+                filter_config=dirsearch_native.NativeFilterConfig(
+                    include_status_codes=[201]
+                ),
                 compact_filtered=True,
             )
         finally:
@@ -206,6 +232,9 @@ class TestNativeHttpEngine(TestCase):
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0].request_index, 2)
         self.assertTrue(results[0].filtered)
+        self.assertEqual(results[0].path, "two")
+        self.assertEqual(results[0].headers, [])
+        self.assertEqual(results[0].body, b"")
 
     def test_compact_scan_preserves_matches_and_tail_marker(self):
         server = CountingHTTPServer(MixedStatusHandler)
@@ -215,7 +244,9 @@ class TestNativeHttpEngine(TestCase):
             results = engine.scan(
                 server.url,
                 ["missing-zero", "match", "missing-two"],
-                include_status_codes=[200],
+                filter_config=dirsearch_native.NativeFilterConfig(
+                    include_status_codes=[200]
+                ),
                 compact_filtered=True,
             )
         finally:
@@ -239,7 +270,9 @@ class TestNativeHttpEngine(TestCase):
             results = engine.scan(
                 "http://example.test/",
                 ["zero", "one", "two"],
-                include_status_codes=[200],
+                filter_config=dirsearch_native.NativeFilterConfig(
+                    include_status_codes=[200]
+                ),
                 compact_filtered=True,
             )
         finally:
@@ -251,6 +284,58 @@ class TestNativeHttpEngine(TestCase):
         )
         self.assertTrue(all(result.status == 407 for result in results))
         self.assertTrue(all(result.filtered for result in results))
+
+    def test_compact_status_filter_preserves_body_decode_errors(self):
+        server = RawResponseServer(
+            b"HTTP/1.1 404 Not Found\r\n"
+            b"Content-Encoding: gzip\r\n"
+            b"Content-Length: 4\r\n"
+            b"Connection: close\r\n\r\n"
+            b"nope"
+        )
+        engine = dirsearch_native.NativeHttpEngine(concurrency=1)
+
+        try:
+            results = engine.scan(
+                server.url,
+                ["broken"],
+                filter_config=dirsearch_native.NativeFilterConfig(
+                    include_status_codes=[200]
+                ),
+                compact_filtered=True,
+            )
+        finally:
+            server.close()
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].path, "broken")
+        self.assertIsNotNone(results[0].error)
+        self.assertIn("decode", results[0].error.lower())
+
+    def test_owned_wordlist_batch_stays_native_until_scan(self):
+        wordlist = dirsearch_native.generate_wordlist_owned(
+            ["tests/static/wordlist.txt"],
+            ["php"],
+        )
+        batch = wordlist.batch(0, 2, "api/")
+        server = CountingHTTPServer()
+        engine = dirsearch_native.NativeHttpEngine(concurrency=1)
+
+        try:
+            results = engine.scan_owned_batch(
+                server.url,
+                batch,
+                query="scope=one",
+            )
+        finally:
+            server.close()
+
+        self.assertEqual(
+            [result.path for result in results],
+            ["api/index.php?scope=one", "api/home.html?scope=one"],
+        )
+        self.assertEqual(batch.path_at(1), "api/home.html")
+        self.assertTrue(wordlist.contains("index.php"))
 
     def test_reuses_http_connection_across_scans(self):
         server = CountingHTTPServer()
@@ -442,9 +527,11 @@ class TestNativeHttpEngine(TestCase):
             results = engine.scan(
                 server.url,
                 ["gzip%1"],
-                matcher_mode="and",
-                match_words=[(2, 2)],
-                match_regex="hello world",
+                filter_config=dirsearch_native.NativeFilterConfig(
+                    matcher_mode="and",
+                    match_words=[(2, 2)],
+                    match_regex="hello world",
+                ),
             )
         finally:
             server.close()
@@ -468,9 +555,11 @@ class TestNativeHttpEngine(TestCase):
             results = engine.scan(
                 server.url,
                 ["gzip"],
-                matcher_mode="and",
-                match_words=[(2, 2)],
-                match_regex="hello world",
+                filter_config=dirsearch_native.NativeFilterConfig(
+                    matcher_mode="and",
+                    match_words=[(2, 2)],
+                    match_regex="hello world",
+                ),
             )
         finally:
             server.close()

@@ -2,6 +2,7 @@ import asyncio
 import time
 from unittest import IsolatedAsyncioTestCase, TestCase
 
+from lib.connection.native import NativeScanBatch, NativeScanEvent
 from lib.connection.response import NativeResponse
 from lib.controller.controller import Controller
 from lib.core.data import blacklists, options
@@ -66,18 +67,33 @@ class RecordingAsyncRequester:
 
 class DummyNativeRequester:
     _url = "https://example.com/"
+    _query = ""
+
+    def __init__(self, backend):
+        self.backend = backend
+
+    def get_backend(self):
+        return self.backend
 
 
 class RecordingNativeBackend:
     def __init__(self):
         self.calls = []
 
-    def scan(self, base_url, paths, query=""):
+    def scan_batch(self, base_url, paths, query=""):
         del base_url
         del query
-        self.calls.append(list(paths))
-        for path in paths:
-            yield path, response_for(path), None
+        self.calls.append(paths)
+        return NativeScanBatch(
+            len(paths),
+            tuple(
+                NativeScanEvent(index, path, response_for(path), None)
+                for index, path in enumerate(paths)
+            ),
+        )
+
+    def reset_cancel(self):
+        return None
 
 
 class MembershipTrackingList(list):
@@ -301,13 +317,12 @@ class TestNativeDynamicDictionary(DynamicDictionaryOptionsMixin, TestCase):
         add_crawled_paths(dictionary)
         backend = RecordingNativeBackend()
         fuzzer = NativeFuzzer(
-            DummyNativeRequester(),
+            DummyNativeRequester(backend),
             dictionary,
             match_callbacks=(),
             not_found_callbacks=(),
             error_callbacks=(),
         )
-        fuzzer._native_backend = backend
         fuzzer.setup_scanners = lambda: None
 
         fuzzer.start()
@@ -325,13 +340,12 @@ class TestNativeDynamicDictionary(DynamicDictionaryOptionsMixin, TestCase):
         dictionary = make_dictionary(["index.php"])
         backend = RecordingNativeBackend()
         fuzzer = NativeFuzzer(
-            DummyNativeRequester(),
+            DummyNativeRequester(backend),
             dictionary,
             match_callbacks=(self.add_dynamic_path(dictionary),),
             not_found_callbacks=(),
             error_callbacks=(),
         )
-        fuzzer._native_backend = backend
         fuzzer.setup_scanners = lambda: None
 
         fuzzer.start()

@@ -1,10 +1,133 @@
 //! Parallel wordlist loading and deterministic entry expansion.
 
 use indexmap::IndexSet;
-use pyo3::exceptions::PyRuntimeError;
+use pyo3::exceptions::{PyIndexError, PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
 use rayon::prelude::*;
+use std::collections::hash_map::DefaultHasher;
+use std::collections::HashSet;
 use std::fs;
+use std::hash::{Hash, Hasher};
+use std::sync::{Arc, OnceLock};
+
+#[pyclass]
+pub(crate) struct NativeWordlist {
+    items: Arc<Vec<String>>,
+    membership: OnceLock<HashSet<u64>>,
+}
+
+#[pyclass]
+#[derive(Clone)]
+pub(crate) struct NativeWordlistBatch {
+    items: Arc<Vec<String>>,
+    start: usize,
+    end: usize,
+    base_path: String,
+}
+
+impl NativeWordlistBatch {
+    pub(crate) fn to_paths(&self) -> Vec<String> {
+        self.items[self.start..self.end]
+            .iter()
+            .map(|path| {
+                if self.base_path.is_empty() {
+                    path.clone()
+                } else {
+                    format!("{}{path}", self.base_path)
+                }
+            })
+            .collect()
+    }
+}
+
+#[pymethods]
+impl NativeWordlist {
+    fn len(&self) -> usize {
+        self.items.len()
+    }
+
+    fn get(&self, index: usize) -> PyResult<String> {
+        self.items
+            .get(index)
+            .cloned()
+            .ok_or_else(|| PyIndexError::new_err("native wordlist index out of range"))
+    }
+
+    fn slice(&self, start: usize, end: usize) -> PyResult<Vec<String>> {
+        self.items
+            .get(start..end)
+            .map(<[String]>::to_vec)
+            .ok_or_else(|| PyIndexError::new_err("native wordlist slice out of range"))
+    }
+
+    fn contains(&self, path: &str) -> bool {
+        let hashes = self
+            .membership
+            .get_or_init(|| self.items.iter().map(|item| wordlist_hash(item)).collect());
+        hashes.contains(&wordlist_hash(path)) && self.items.iter().any(|item| item == path)
+    }
+
+    fn to_list(&self) -> Vec<String> {
+        self.items.as_ref().clone()
+    }
+
+    #[pyo3(signature = (start, count, base_path="".to_string()))]
+    fn batch(
+        &self,
+        start: usize,
+        count: usize,
+        base_path: String,
+    ) -> PyResult<NativeWordlistBatch> {
+        let end = start
+            .checked_add(count)
+            .ok_or_else(|| PyValueError::new_err("native wordlist batch range overflow"))?;
+        if end > self.items.len() {
+            return Err(PyIndexError::new_err(
+                "native wordlist batch range out of bounds",
+            ));
+        }
+        Ok(NativeWordlistBatch {
+            items: self.items.clone(),
+            start,
+            end,
+            base_path,
+        })
+    }
+}
+
+fn wordlist_hash(value: &str) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    value.hash(&mut hasher);
+    hasher.finish()
+}
+
+#[pymethods]
+impl NativeWordlistBatch {
+    fn len(&self) -> usize {
+        self.end - self.start
+    }
+
+    fn path_at(&self, index: usize) -> PyResult<String> {
+        if index >= self.len() {
+            return Err(PyIndexError::new_err(
+                "native wordlist batch index out of range",
+            ));
+        }
+        let path = self
+            .items
+            .get(self.start + index)
+            .ok_or_else(|| PyIndexError::new_err("native wordlist batch index out of range"))?;
+        if self.base_path.is_empty() {
+            Ok(path.clone())
+        } else {
+            Ok(format!("{}{path}", self.base_path))
+        }
+    }
+
+    fn to_list(&self) -> Vec<String> {
+        self.to_paths()
+    }
+}
 
 #[pyfunction]
 #[allow(clippy::too_many_arguments)]
@@ -23,6 +146,87 @@ use std::fs;
     max_size=None,
 ))]
 pub(crate) fn generate_wordlist(
+    files: Vec<String>,
+    extensions: Vec<String>,
+    force_extensions: bool,
+    prefixes: Vec<String>,
+    suffixes: Vec<String>,
+    exclude_extensions: Vec<String>,
+    overwrite_exclude_extensions: Vec<String>,
+    lowercase: bool,
+    uppercase: bool,
+    capitalization: bool,
+    overwrite_extensions: bool,
+    max_size: Option<usize>,
+) -> PyResult<Vec<String>> {
+    generate_wordlist_items(
+        files,
+        extensions,
+        force_extensions,
+        prefixes,
+        suffixes,
+        exclude_extensions,
+        overwrite_exclude_extensions,
+        lowercase,
+        uppercase,
+        capitalization,
+        overwrite_extensions,
+        max_size,
+    )
+}
+
+#[pyfunction]
+#[allow(clippy::too_many_arguments)]
+#[pyo3(signature = (
+    files,
+    extensions,
+    force_extensions=false,
+    prefixes=Vec::new(),
+    suffixes=Vec::new(),
+    exclude_extensions=Vec::new(),
+    overwrite_exclude_extensions=Vec::new(),
+    lowercase=false,
+    uppercase=false,
+    capitalization=false,
+    overwrite_extensions=false,
+    max_size=None,
+))]
+pub(crate) fn generate_wordlist_owned(
+    files: Vec<String>,
+    extensions: Vec<String>,
+    force_extensions: bool,
+    prefixes: Vec<String>,
+    suffixes: Vec<String>,
+    exclude_extensions: Vec<String>,
+    overwrite_exclude_extensions: Vec<String>,
+    lowercase: bool,
+    uppercase: bool,
+    capitalization: bool,
+    overwrite_extensions: bool,
+    max_size: Option<usize>,
+) -> PyResult<NativeWordlist> {
+    let items = generate_wordlist_items(
+        files,
+        extensions,
+        force_extensions,
+        prefixes,
+        suffixes,
+        exclude_extensions,
+        overwrite_exclude_extensions,
+        lowercase,
+        uppercase,
+        capitalization,
+        overwrite_extensions,
+        max_size,
+    )?;
+    Ok(NativeWordlist {
+        items: Arc::new(items),
+        membership: OnceLock::new(),
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn generate_wordlist_items(
     files: Vec<String>,
     extensions: Vec<String>,
     force_extensions: bool,

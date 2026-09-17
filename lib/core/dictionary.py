@@ -19,11 +19,24 @@
 from __future__ import annotations
 import threading
 from collections import Counter
+from dataclasses import dataclass
 from typing import Any, Iterator
 
 from lib.core.settings import SCRIPT_PATH
-from lib.core.wordlist_backend import get_wordlist_backend, is_valid_path
+from lib.core.wordlist_backend import (
+    NativeWordlistBatch,
+    NativeWordlistCorpus,
+    get_wordlist_backend,
+    is_valid_path,
+)
 from lib.utils.file import FileUtils
+
+
+@dataclass
+class _NativeClaim:
+    batch: NativeWordlistBatch
+    start: int
+    released: int = 0
 
 
 # Get ignore paths for status codes.
@@ -60,6 +73,7 @@ class Dictionary:
         self._extra = []
         self._extra_membership: set[str] = set()
         self._claimed = []
+        self._native_claim: _NativeClaim | None = None
 
     @property
     def index(self) -> int:
@@ -93,6 +107,111 @@ class Dictionary:
             else:
                 raise StopIteration
 
+    def claim_many(self, maximum: int) -> list[str]:
+        """Claim up to maximum paths atomically, preserving queue order."""
+        if maximum <= 0:
+            return []
+
+        with self._lock:
+            extra_count = min(maximum, len(self._extra) - self._extra_index)
+            if extra_count:
+                extra_end = self._extra_index + extra_count
+                paths = self._extra[self._extra_index:extra_end]
+                self._extra_index = extra_end
+            else:
+                paths = []
+
+            item_count = min(
+                maximum - len(paths),
+                len(self._items) - self._index,
+            )
+            if item_count:
+                item_end = self._index + item_count
+                items = self._items[self._index:item_end]
+                if paths:
+                    paths.extend(items)
+                else:
+                    paths = items
+                self._index = item_end
+
+            self._claimed.extend(paths)
+            return paths
+
+    def claim_native_many(
+        self,
+        maximum: int,
+        base_path: str,
+    ) -> list[str] | NativeWordlistBatch:
+        """Claim a Rust-owned range without materializing its Python strings."""
+        if maximum <= 0:
+            return []
+
+        with self._lock:
+            if self._native_claim is not None:
+                raise RuntimeError("native dictionary claim is still active")
+
+            if not isinstance(self._items, NativeWordlistCorpus):
+                extra_count = min(maximum, len(self._extra) - self._extra_index)
+                if extra_count:
+                    extra_end = self._extra_index + extra_count
+                    paths = self._extra[self._extra_index:extra_end]
+                    self._extra_index = extra_end
+                else:
+                    paths = []
+
+                item_count = min(
+                    maximum - len(paths),
+                    len(self._items) - self._index,
+                )
+                if item_count:
+                    item_end = self._index + item_count
+                    items = self._items[self._index:item_end]
+                    if paths:
+                        paths.extend(items)
+                    else:
+                        paths = items
+                    self._index = item_end
+                self._claimed.extend(paths)
+                return paths
+
+            # Dynamic discoveries retain priority and stay on the established
+            # Python claim path. The next iteration resumes the native corpus.
+            extra_count = min(maximum, len(self._extra) - self._extra_index)
+            if extra_count:
+                extra_end = self._extra_index + extra_count
+                paths = self._extra[self._extra_index:extra_end]
+                self._extra_index = extra_end
+                self._claimed.extend(paths)
+                return paths
+
+            item_count = min(maximum, len(self._items) - self._index)
+            if not item_count:
+                return []
+            start = self._index
+            batch = self._items.batch(start, item_count, base_path)
+            self._index += item_count
+            self._native_claim = _NativeClaim(batch, start)
+            return batch
+
+    def release_native_claims(
+        self,
+        batch: NativeWordlistBatch,
+        count: int,
+    ) -> None:
+        """Release an ordered prefix from the active Rust-owned claim."""
+        if count <= 0:
+            return
+
+        with self._lock:
+            claim = self._native_claim
+            if claim is None or claim.batch is not batch:
+                raise ValueError("native wordlist batch is not claimed")
+            if claim.released + count > len(batch):
+                raise ValueError("native wordlist release exceeds claimed batch")
+            claim.released += count
+            if claim.released == len(batch):
+                self._native_claim = None
+
     def release_claim(self, path: str) -> None:
         with self._lock:
             self._claimed.remove(path)
@@ -106,6 +225,9 @@ class Dictionary:
             count = len(paths)
             # Native batches normally complete in claim order. Removing the
             # prefix avoids a separate linear search for every path.
+            if count == len(self._claimed) and self._claimed == paths:
+                self._claimed.clear()
+                return
             if self._claimed[:count] == paths:
                 del self._claimed[:count]
                 return
@@ -127,11 +249,18 @@ class Dictionary:
     def requeue_claims(self) -> None:
         """Make outstanding claims available again in their original order."""
         with self._lock:
-            if not self._claimed:
+            if not self._claimed and self._native_claim is None:
                 return
 
-            self._extra[self._extra_index:self._extra_index] = self._claimed
-            self._claimed.clear()
+            if self._claimed:
+                self._extra[self._extra_index:self._extra_index] = self._claimed
+                self._claimed.clear()
+            if self._native_claim is not None:
+                claim = self._native_claim
+                # NativeFuzzer has one synchronous batch in flight, so no later
+                # corpus claim can exist when cancellation rewinds this range.
+                self._index = claim.start + claim.released
+                self._native_claim = None
 
     def __contains__(self, item: str) -> bool:
         return item in self._items
@@ -143,7 +272,15 @@ class Dictionary:
                 + self._claimed
                 + self._extra[self._extra_index:]
             )
-            return list(self._items), self._index, extra, self._extra_index
+            index = self._index
+            if self._native_claim is not None:
+                index = self._native_claim.start + self._native_claim.released
+            items = (
+                self._items.to_list()
+                if isinstance(self._items, NativeWordlistCorpus)
+                else list(self._items)
+            )
+            return items, index, extra, self._extra_index
 
     def __setstate__(self, state: tuple[list[str], int, list[str], int]) -> None:
         if not hasattr(self, "_lock"):
@@ -153,6 +290,7 @@ class Dictionary:
             self._item_membership = None
             self._extra_membership = set(self._extra)
             self._claimed = []
+            self._native_claim = None
 
     def __iter__(self) -> Iterator[str]:
         return iter(self._items)
@@ -160,7 +298,11 @@ class Dictionary:
     def __len__(self) -> int:
         return len(self._items)
 
-    def generate(self, files: list[str] = [], is_blacklist: bool = False) -> list[str]:
+    def generate(
+        self,
+        files: list[str] = [],
+        is_blacklist: bool = False,
+    ) -> list[str] | NativeWordlistCorpus:
         """
         Dictionary.generate() behaviour
 
@@ -189,10 +331,18 @@ class Dictionary:
             return
 
         with self._lock:
-            if self._item_membership is None:
+            if (
+                self._item_membership is None
+                and not isinstance(self._items, NativeWordlistCorpus)
+            ):
                 self._item_membership = set(self._items)
 
-            if path in self._item_membership or path in self._extra_membership:
+            in_items = (
+                path in self._items
+                if isinstance(self._items, NativeWordlistCorpus)
+                else path in self._item_membership
+            )
+            if in_items or path in self._extra_membership:
                 return
 
             self._extra.append(path)
@@ -204,3 +354,4 @@ class Dictionary:
             self._extra.clear()
             self._extra_membership.clear()
             self._claimed.clear()
+            self._native_claim = None

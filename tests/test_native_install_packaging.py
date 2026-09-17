@@ -1,12 +1,23 @@
 import os
+import tomllib
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
 
 from scripts.build_native import resolve_python
+from lib.core.native_runtime import NATIVE_EXTENSION_VERSION
 
 
 class TestNativeInstallPackaging(TestCase):
+    def test_native_package_versions_match_python_contract(self):
+        cargo = tomllib.loads(Path("native/Cargo.toml").read_text(encoding="utf-8"))
+        pyproject = tomllib.loads(
+            Path("native/pyproject.toml").read_text(encoding="utf-8")
+        )
+
+        self.assertEqual(cargo["package"]["version"], NATIVE_EXTENSION_VERSION)
+        self.assertEqual(pyproject["project"]["version"], NATIVE_EXTENSION_VERSION)
+
     def test_async_socks_dependency_is_packaged(self):
         for path in (
             Path("requirements.txt"),

@@ -1,6 +1,7 @@
 import time
 from unittest import IsolatedAsyncioTestCase, TestCase
 
+from lib.connection.native import NativeScanBatch, NativeScanEvent
 from lib.connection.response import NativeResponse
 from lib.core.data import blacklists, options
 from lib.core.fuzzer import AsyncFuzzer, Fuzzer, NativeFuzzer
@@ -23,7 +24,21 @@ class DummyDictionary:
     def claim_next(self):
         return next(self)
 
+    def claim_many(self, maximum):
+        start = self.index
+        self.index = min(len(self.paths), start + maximum)
+        return self.paths[start:self.index]
+
+    def claim_native_many(self, maximum, _base_path):
+        return self.claim_many(maximum)
+
     def release_claim(self, path):
+        return None
+
+    def release_claims(self, paths):
+        return None
+
+    def release_native_claims(self, _batch, _count):
         return None
 
 
@@ -57,26 +72,36 @@ class DummyAsyncRequester:
 
 class DummyNativeRequester:
     _url = "https://example.com/"
+    _query = ""
+
+    def __init__(self, backend):
+        self.backend = backend
+
+    def get_backend(self):
+        return self.backend
 
 
 class FilteringNativeBackend:
-    def scan(self, base_url, paths, query=""):
+    def scan_batch(self, base_url, paths, query=""):
         del base_url
         del query
-        for path in paths:
-            if path == "keep":
-                yield path, stack_response(path, b"keep admin panel"), None
-            else:
-                yield (
+        events = []
+        for index, path in enumerate(paths):
+            response = (
+                stack_response(path, b"keep admin panel")
+                if path == "keep"
+                else stack_response(
                     path,
-                    stack_response(
-                        path,
-                        b"not found",
-                        filtered=True,
-                        filter_reason="advanced_filter",
-                    ),
-                    None,
+                    b"not found",
+                    filtered=True,
+                    filter_reason="advanced_filter",
                 )
+            )
+            events.append(NativeScanEvent(index, path, response, None))
+        return NativeScanBatch(len(paths), tuple(events))
+
+    def reset_cancel(self):
+        return None
 
 
 class FilterStackOptionsMixin:
@@ -200,14 +225,14 @@ class TestNativeFuzzerFilterStack(FilterStackOptionsMixin, TestCase):
         matches = []
         misses = []
         errors = []
+        backend = FilteringNativeBackend()
         fuzzer = NativeFuzzer(
-            DummyNativeRequester(),
+            DummyNativeRequester(backend),
             dictionary,
             match_callbacks=(matches.append,),
             not_found_callbacks=(misses.append,),
             error_callbacks=(errors.append,),
         )
-        fuzzer._native_backend = FilteringNativeBackend()
         fuzzer.setup_scanners = lambda: None
 
         fuzzer.start()

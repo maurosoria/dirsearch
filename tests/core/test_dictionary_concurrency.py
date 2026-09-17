@@ -4,6 +4,7 @@ import time
 from unittest import TestCase
 
 from lib.core.dictionary import Dictionary
+from lib.core.wordlist_backend import NativeWordlistBatch, NativeWordlistCorpus
 
 
 TEST_TIMEOUT = 2.0
@@ -80,6 +81,56 @@ class BlockingSnapshotExtras(list):
         return result
 
 
+class FakeNativeBatchStorage:
+    def __init__(self, items, base_path):
+        self.items = items
+        self.base_path = base_path
+
+    def len(self):
+        return len(self.items)
+
+    def path_at(self, index):
+        return self.base_path + self.items[index]
+
+    def to_list(self):
+        return [self.base_path + item for item in self.items]
+
+
+class FakeNativeCorpusStorage:
+    def __init__(self, items):
+        self.items = list(items)
+        self.to_list_calls = 0
+
+    def len(self):
+        return len(self.items)
+
+    def get(self, index):
+        return self.items[index]
+
+    def slice(self, start, end):
+        return self.items[start:end]
+
+    def contains(self, path):
+        return path in self.items
+
+    def to_list(self):
+        self.to_list_calls += 1
+        return list(self.items)
+
+    def batch(self, start, count, base_path):
+        return FakeNativeBatchStorage(
+            self.items[start:start + count],
+            base_path,
+        )
+
+
+def make_native_dictionary(items=()) -> tuple[Dictionary, FakeNativeCorpusStorage]:
+    dictionary = make_dictionary()
+    storage = FakeNativeCorpusStorage(items)
+    dictionary._items = NativeWordlistCorpus(storage)
+    return dictionary, storage
+
+
 def remaining_paths(state: tuple[list[str], int, list[str], int]) -> list[str]:
     dictionary = object.__new__(Dictionary)
     dictionary.__setstate__(state)
@@ -92,6 +143,62 @@ def remaining_paths(state: tuple[list[str], int, list[str], int]) -> list[str]:
 
 
 class TestDictionaryConcurrency(TestCase):
+    def test_native_claim_requeues_only_its_unreleased_suffix(self):
+        dictionary, storage = make_native_dictionary(["zero", "one", "two"])
+
+        batch = dictionary.claim_native_many(2, "api/")
+        self.assertIsInstance(batch, NativeWordlistBatch)
+        self.assertEqual(storage.to_list_calls, 0)
+        self.assertEqual(batch.path_at(0), "api/zero")
+
+        dictionary.release_native_claims(batch, 1)
+        dictionary.requeue_claims()
+        resumed = dictionary.claim_native_many(2, "api/")
+
+        self.assertIsInstance(resumed, NativeWordlistBatch)
+        self.assertEqual(resumed.to_list(), ["api/one", "api/two"])
+        dictionary.release_native_claims(resumed, 2)
+        self.assertEqual(remaining_paths(dictionary.__getstate__()), [])
+
+    def test_dynamic_paths_keep_priority_without_materializing_native_corpus(self):
+        dictionary, storage = make_native_dictionary(["static"])
+        dictionary.add_extra("dynamic")
+
+        dynamic = dictionary.claim_native_many(10, "api/")
+        self.assertEqual(dynamic, ["dynamic"])
+        dictionary.release_claims(dynamic)
+        static = dictionary.claim_native_many(10, "api/")
+
+        self.assertIsInstance(static, NativeWordlistBatch)
+        self.assertEqual(static.path_at(0), "api/static")
+        self.assertEqual(storage.to_list_calls, 0)
+
+    def test_native_claim_snapshot_records_first_unreleased_index(self):
+        dictionary, storage = make_native_dictionary(["zero", "one", "two"])
+        batch = dictionary.claim_native_many(3, "")
+        dictionary.release_native_claims(batch, 1)
+
+        state = dictionary.__getstate__()
+
+        self.assertEqual(storage.to_list_calls, 1)
+        self.assertEqual(remaining_paths(state), ["one", "two"])
+
+    def test_claim_many_preserves_extra_priority_and_requeue_state(self):
+        dictionary = make_dictionary(["item-zero", "item-one"])
+        dictionary._extra = ["extra-zero", "extra-one"]
+        dictionary._extra_membership = set(dictionary._extra)
+
+        self.assertEqual(
+            dictionary.claim_many(3),
+            ["extra-zero", "extra-one", "item-zero"],
+        )
+
+        dictionary.requeue_claims()
+        self.assertEqual(
+            [next(dictionary) for _ in range(4)],
+            ["extra-zero", "extra-one", "item-zero", "item-one"],
+        )
+
     def test_release_claims_removes_a_completed_batch_atomically(self):
         dictionary = make_dictionary(["zero", "one", "two"])
         self.assertEqual(

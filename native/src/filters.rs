@@ -1,12 +1,24 @@
 //! Native response matcher and filter policy.
 
+use pyo3::exceptions::PyRuntimeError;
+use pyo3::prelude::*;
 use regex::{Regex, RegexBuilder};
+use std::ops::Deref;
+#[cfg(test)]
+use std::ops::DerefMut;
+use std::sync::Arc;
 
 pub(crate) type NumericRange = (usize, usize);
 pub(crate) type TimeFilter = (String, f64);
 
+#[pyclass(frozen)]
 #[derive(Clone)]
 pub(crate) struct NativeFilterConfig {
+    inner: Arc<NativeFilterConfigData>,
+}
+
+#[derive(Clone)]
+pub(crate) struct NativeFilterConfigData {
     pub(crate) include_status_codes: Vec<u16>,
     pub(crate) exclude_status_codes: Vec<u16>,
     pub(crate) minimum_response_size: usize,
@@ -31,9 +43,36 @@ pub(crate) struct NativeFilterConfig {
     pub(crate) filter_time: Vec<TimeFilter>,
 }
 
+impl Deref for NativeFilterConfig {
+    type Target = NativeFilterConfigData;
+
+    fn deref(&self) -> &Self::Target {
+        self.inner.as_ref()
+    }
+}
+
+#[cfg(test)]
+impl DerefMut for NativeFilterConfig {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        Arc::make_mut(&mut self.inner)
+    }
+}
+
 impl NativeFilterConfig {
+    pub(crate) fn status_filter_reason(&self, status: u16) -> Option<&'static str> {
+        if self.exclude_status_codes.contains(&status) {
+            return Some("exclude_status");
+        }
+
+        if !self.include_status_codes.is_empty() && !self.include_status_codes.contains(&status) {
+            return Some("include_status");
+        }
+
+        None
+    }
+
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn new(
+    pub(crate) fn from_options(
         include_status_codes: Vec<u16>,
         exclude_status_codes: Vec<u16>,
         minimum_response_size: usize,
@@ -58,31 +97,36 @@ impl NativeFilterConfig {
         filter_time: Vec<TimeFilter>,
     ) -> Result<Self, String> {
         Ok(Self {
-            include_status_codes,
-            exclude_status_codes,
-            minimum_response_size,
-            maximum_response_size,
-            matcher_mode,
-            filter_mode,
-            match_status_codes,
-            filter_status_codes,
-            match_sizes,
-            filter_sizes,
-            match_words,
-            filter_words,
-            match_lines,
-            filter_lines,
-            match_regex: compile_regex(match_regex, "--match-regex")?,
-            filter_regex: compile_regex(filter_regex, "--filter-regex")?,
-            match_headers,
-            filter_headers,
-            match_header_regex: compile_header_regex(match_header_regex, "--match-header-regex")?,
-            filter_header_regex: compile_header_regex(
-                filter_header_regex,
-                "--filter-header-regex",
-            )?,
-            match_time,
-            filter_time,
+            inner: Arc::new(NativeFilterConfigData {
+                include_status_codes,
+                exclude_status_codes,
+                minimum_response_size,
+                maximum_response_size,
+                matcher_mode,
+                filter_mode,
+                match_status_codes,
+                filter_status_codes,
+                match_sizes,
+                filter_sizes,
+                match_words,
+                filter_words,
+                match_lines,
+                filter_lines,
+                match_regex: compile_regex(match_regex, "--match-regex")?,
+                filter_regex: compile_regex(filter_regex, "--filter-regex")?,
+                match_headers,
+                filter_headers,
+                match_header_regex: compile_header_regex(
+                    match_header_regex,
+                    "--match-header-regex",
+                )?,
+                filter_header_regex: compile_header_regex(
+                    filter_header_regex,
+                    "--filter-header-regex",
+                )?,
+                match_time,
+                filter_time,
+            }),
         })
     }
 
@@ -94,12 +138,8 @@ impl NativeFilterConfig {
         body: &[u8],
         elapsed_ms: f64,
     ) -> Option<&'static str> {
-        if self.exclude_status_codes.contains(&status) {
-            return Some("exclude_status");
-        }
-
-        if !self.include_status_codes.is_empty() && !self.include_status_codes.contains(&status) {
-            return Some("include_status");
+        if let Some(reason) = self.status_filter_reason(status) {
+            return Some(reason);
         }
 
         if length < self.minimum_response_size {
@@ -224,6 +264,116 @@ impl NativeFilterConfig {
         }
 
         combine_advanced_checks(&checks, &self.filter_mode, false)
+    }
+}
+
+impl Default for NativeFilterConfig {
+    fn default() -> Self {
+        Self::from_options(
+            Vec::new(),
+            Vec::new(),
+            0,
+            0,
+            "or".to_string(),
+            "or".to_string(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            None,
+            None,
+            Vec::new(),
+            Vec::new(),
+            None,
+            None,
+            Vec::new(),
+            Vec::new(),
+        )
+        .expect("the empty native filter configuration is valid")
+    }
+}
+
+#[pymethods]
+impl NativeFilterConfig {
+    #[new]
+    #[allow(clippy::too_many_arguments)]
+    #[pyo3(signature = (
+        include_status_codes=Vec::new(),
+        exclude_status_codes=Vec::new(),
+        minimum_response_size=0,
+        maximum_response_size=0,
+        matcher_mode="or".to_string(),
+        filter_mode="or".to_string(),
+        match_status_codes=Vec::new(),
+        filter_status_codes=Vec::new(),
+        match_sizes=Vec::new(),
+        filter_sizes=Vec::new(),
+        match_words=Vec::new(),
+        filter_words=Vec::new(),
+        match_lines=Vec::new(),
+        filter_lines=Vec::new(),
+        match_regex=None,
+        filter_regex=None,
+        match_headers=Vec::new(),
+        filter_headers=Vec::new(),
+        match_header_regex=None,
+        filter_header_regex=None,
+        match_time=Vec::new(),
+        filter_time=Vec::new(),
+    ))]
+    fn py_new(
+        include_status_codes: Vec<u16>,
+        exclude_status_codes: Vec<u16>,
+        minimum_response_size: usize,
+        maximum_response_size: usize,
+        matcher_mode: String,
+        filter_mode: String,
+        match_status_codes: Vec<u16>,
+        filter_status_codes: Vec<u16>,
+        match_sizes: Vec<NumericRange>,
+        filter_sizes: Vec<NumericRange>,
+        match_words: Vec<NumericRange>,
+        filter_words: Vec<NumericRange>,
+        match_lines: Vec<NumericRange>,
+        filter_lines: Vec<NumericRange>,
+        match_regex: Option<String>,
+        filter_regex: Option<String>,
+        match_headers: Vec<String>,
+        filter_headers: Vec<String>,
+        match_header_regex: Option<String>,
+        filter_header_regex: Option<String>,
+        match_time: Vec<TimeFilter>,
+        filter_time: Vec<TimeFilter>,
+    ) -> PyResult<Self> {
+        Self::from_options(
+            include_status_codes,
+            exclude_status_codes,
+            minimum_response_size,
+            maximum_response_size,
+            matcher_mode,
+            filter_mode,
+            match_status_codes,
+            filter_status_codes,
+            match_sizes,
+            filter_sizes,
+            match_words,
+            filter_words,
+            match_lines,
+            filter_lines,
+            match_regex,
+            filter_regex,
+            match_headers,
+            filter_headers,
+            match_header_regex,
+            filter_header_regex,
+            match_time,
+            filter_time,
+        )
+        .map_err(PyRuntimeError::new_err)
     }
 }
 

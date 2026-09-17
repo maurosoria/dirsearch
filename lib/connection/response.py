@@ -21,11 +21,13 @@ from __future__ import annotations
 import hashlib
 import time
 from codecs import lookup
+from collections.abc import Iterable, Iterator, Mapping
 from functools import cached_property
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import httpx
-import requests
+if TYPE_CHECKING:
+    import httpx
+    import requests
 
 from lib.core.settings import (
     DEFAULT_ENCODING,
@@ -113,6 +115,46 @@ def _decode_response_body(
         return body.decode(DEFAULT_ENCODING, errors="replace")
 
 
+class ResponseHeaders(Mapping[str, str]):
+    """Read-only, case-insensitive response headers owned by dirsearch."""
+
+    __slots__ = ("_items", "_names", "_values")
+
+    def __init__(self, headers: Iterable[tuple[str, str]] = ()) -> None:
+        items = tuple(headers)
+        names: dict[str, str] = {}
+        values: dict[str, list[str]] = {}
+
+        for name, value in items:
+            normalized_name = name.lower()
+            names.setdefault(normalized_name, name)
+            values.setdefault(normalized_name, []).append(value)
+
+        self._items = items
+        self._names = names
+        self._values = values
+
+    def __getitem__(self, name: str) -> str:
+        values = self._values[name.lower()]
+        if len(values) == 1:
+            return values[0]
+        return ", ".join(values)
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._names.values())
+
+    def __len__(self) -> int:
+        return len(self._values)
+
+    def get_list(self, name: str) -> list[str]:
+        """Return every value for a header without combining duplicates."""
+        return list(self._values.get(name.lower(), ()))
+
+    def multi_items(self) -> list[tuple[str, str]]:
+        """Return header pairs in their original order, including duplicates."""
+        return list(self._items)
+
+
 class _BodyCapture:
     """Keep response bodies bounded while retaining a complete binary digest."""
 
@@ -163,15 +205,22 @@ class _BodyCapture:
 
 
 class BaseResponse:
-    def __init__(self, url, response: requests.Response | httpx.Response, elapsed: float = 0.0) -> None:
+    def __init__(
+        self,
+        url: str,
+        status: int,
+        headers: Iterable[tuple[str, str]],
+        elapsed: float = 0.0,
+        history: Iterable[str] = (),
+    ) -> None:
         self.datetime = time.strftime("%Y-%m-%d %H:%M:%S")
         self.url = url
         self.full_path = parse_path(self.url)
         self.path = clean_path(self.full_path)
-        self.status = response.status_code
-        self.headers = response.headers
+        self.status = status
+        self.headers = ResponseHeaders(headers)
         self.redirect = self.headers.get("location", "")
-        self.history = [str(res.url) for res in response.history]
+        self.history = list(history)
         self.elapsed = elapsed
         self.content = ""
         self.body = b""
@@ -280,7 +329,13 @@ class Response(BaseResponse):
         elapsed: float = 0.0,
         capture_full_body: bool = False,
     ) -> None:
-        super().__init__(url, response, elapsed)
+        super().__init__(
+            url,
+            response.status_code,
+            response.headers.items(),
+            elapsed,
+            (str(item.url) for item in response.history),
+        )
         declared_charset = _declared_charset(self.headers)
         decode_binary_text = _should_decode_binary_text(
             self.headers,
@@ -316,7 +371,13 @@ class AsyncResponse(BaseResponse):
         elapsed: float = 0.0,
         capture_full_body: bool = False,
     ) -> AsyncResponse:
-        self = cls(url, response, elapsed)
+        self = cls(
+            url,
+            response.status_code,
+            response.headers.multi_items(),
+            elapsed,
+            (str(item.url) for item in response.history),
+        )
         declared_charset = _declared_charset(self.headers)
         decode_binary_text = _should_decode_binary_text(
             self.headers,
@@ -344,16 +405,6 @@ class AsyncResponse(BaseResponse):
         return self
 
 
-class _NativeHTTPResponseAdapter:
-    __slots__ = ("encoding", "headers", "history", "status_code")
-
-    def __init__(self, status: int, headers: list[tuple[str, str]]) -> None:
-        self.status_code = status
-        self.headers = httpx.Headers(headers)
-        self.history = []
-        self.encoding = None
-
-
 class NativeResponse(BaseResponse):
     def __init__(
         self,
@@ -367,8 +418,14 @@ class NativeResponse(BaseResponse):
         filter_reason: str | None = None,
         body_complete: bool | None = None,
     ) -> None:
-        response = _NativeHTTPResponseAdapter(status, headers)
-        super().__init__(url, response, elapsed)
+        # Native previously exposed HTTPX's lowercase header iteration. Keep
+        # that stable while using dirsearch's transport-neutral header model.
+        super().__init__(
+            url,
+            status,
+            ((name.lower(), value) for name, value in headers),
+            elapsed,
+        )
 
         self._length = length
         self.filtered = filtered

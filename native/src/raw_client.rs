@@ -14,7 +14,7 @@ type RawHttpResponse = raw_http::Response;
 
 pub(crate) struct RawHttpRequest<'a> {
     pub(crate) base_url: &'a str,
-    pub(crate) path: String,
+    pub(crate) path: &'a str,
     pub(crate) headers: &'a HeaderPairs,
     pub(crate) timeout_secs: f64,
     pub(crate) max_body_size: usize,
@@ -59,7 +59,7 @@ pub(crate) async fn raw_http_get(
 ) -> NativeHttpResult {
     match raw_http_get_inner(&request).await {
         Ok((status, headers, body, length)) => native_http_result_with_length(
-            request.path,
+            String::new(),
             status,
             headers,
             body,
@@ -68,7 +68,7 @@ pub(crate) async fn raw_http_get(
             filter_config,
         ),
         Err(error) => native_error_result(
-            request.path,
+            String::new(),
             request.start.elapsed().as_secs_f64() * 1000.0,
             error,
         ),
@@ -92,7 +92,7 @@ async fn raw_http_get_inner(request: &RawHttpRequest<'_>) -> Result<RawHttpRespo
         Some(port) => format!("{host}:{port}"),
         None => host.clone(),
     };
-    let target = raw_request_target(url.path(), &request.path);
+    let target = raw_request_target(url.path(), request.path);
     let mut wire_request =
         format!("GET {target} HTTP/1.1\r\nHost: {host_header}\r\nConnection: close\r\n");
     for (name, value) in request.headers {

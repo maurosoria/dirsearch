@@ -60,7 +60,7 @@ def get_native_request_backend_error(opt: Values) -> str | None:
         return "--request-backend native does not support --max-rate yet"
     if opt.delay:
         return "--request-backend native does not support --delay yet"
-    for url in getattr(opt, "urls", ()):
+    for url in opt.urls:
         if error := get_native_target_error(url):
             return error
 

@@ -303,7 +303,7 @@ class DummySyncSession:
 
 class DummyAsyncResponse:
     status_code = 200
-    headers = {"content-type": "text/plain"}
+    headers = httpx.Headers({"content-type": "text/plain"})
     history = []
     encoding = "utf-8"
 
@@ -334,10 +334,12 @@ class MultiChunkAsyncResponse(DummyAsyncResponse):
 
 
 class BinaryMultiChunkAsyncResponse(DummyAsyncResponse):
-    headers = {
-        "content-type": "application/octet-stream",
-        "content-length": "8",
-    }
+    headers = httpx.Headers(
+        {
+            "content-type": "application/octet-stream",
+            "content-length": "8",
+        }
+    )
 
     async def aiter_bytes(self, chunk_size):
         del chunk_size
@@ -617,6 +619,7 @@ class TestRequesterElapsed(TestCase):
         requester = object.__new__(Requester)
         requester._rate_limiter = RequestRateLimiter()
         requester._url = "https://example.com/"
+        requester._query = ""
         requester.proxy_cred = None
         requester.headers = {}
         requester.agents = []
@@ -1170,6 +1173,7 @@ class TestAsyncRequesterElapsed(IsolatedAsyncioTestCase):
         requester = object.__new__(AsyncRequester)
         requester._rate_limiter = RequestRateLimiter()
         requester._url = "https://example.com/"
+        requester._query = ""
         requester.proxy_cred = None
         requester.headers = {}
         requester.agents = []

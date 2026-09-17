@@ -23,6 +23,7 @@ def create_controller(fuzzer, dictionary):
     controller.dictionary = dictionary
     controller.fuzzer = fuzzer
     controller.jobs_processed = 0
+    controller._native_worker = None
     return controller
 
 

@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import re
-from typing import Protocol
+from collections.abc import Iterator
+from typing import Any, Protocol
 
 from lib.core.data import options
 from lib.core.exceptions import WordlistBackendUnavailableError, WordlistLimitError
-from lib.core.native_runtime import get_native_backend_install_error
+from lib.core.native_runtime import (
+    get_native_backend_install_error,
+    get_native_extension_version_error,
+)
 from lib.core.settings import (
     EXCLUDE_OVERWRITE_EXTENSIONS,
     EXTENSION_RECOGNITION_REGEX,
@@ -25,10 +29,63 @@ from lib.utils.file import FileUtils
 WORDLIST_BACKENDS = ("auto", "python", "native")
 
 
+class NativeWordlistBatch:
+    """Python ownership token for a range that remains stored in Rust."""
+
+    def __init__(self, native_batch: Any) -> None:
+        self.native = native_batch
+
+    def __len__(self) -> int:
+        return self.native.len()
+
+    def path_at(self, index: int) -> str:
+        return self.native.path_at(index)
+
+    def to_list(self) -> list[str]:
+        return self.native.to_list()
+
+
+class NativeWordlistCorpus:
+    """Sequence facade that materializes Python strings only when requested."""
+
+    def __init__(self, native_wordlist: Any) -> None:
+        self.native = native_wordlist
+
+    def __len__(self) -> int:
+        return self.native.len()
+
+    def __getitem__(self, index: int | slice) -> str | list[str]:
+        if isinstance(index, slice):
+            start, stop, step = index.indices(len(self))
+            if step == 1:
+                return self.native.slice(start, stop)
+            return [self.native.get(item_index) for item_index in range(start, stop, step)]
+        if index < 0:
+            index += len(self)
+        if index < 0 or index >= len(self):
+            raise IndexError("native wordlist index out of range")
+        return self.native.get(index)
+
+    def __iter__(self) -> Iterator[str]:
+        for index in range(len(self)):
+            yield self.native.get(index)
+
+    def __contains__(self, path: object) -> bool:
+        return isinstance(path, str) and self.native.contains(path)
+
+    def to_list(self) -> list[str]:
+        return self.native.to_list()
+
+    def batch(self, start: int, count: int, base_path: str) -> NativeWordlistBatch:
+        return NativeWordlistBatch(self.native.batch(start, count, base_path))
+
+
 class WordlistBackend(Protocol):
     name: str
 
-    def generate(self, files: list[str], is_blacklist: bool = False) -> list[str]:
+    def generate(
+        self, files: list[str], is_blacklist: bool = False
+    ) -> list[str] | NativeWordlistCorpus:
         pass
 
     def is_valid(self, path: str) -> bool:
@@ -53,7 +110,9 @@ def is_valid_path(path: str) -> bool:
 class PythonWordlistBackend:
     name = "python"
 
-    def generate(self, files: list[str], is_blacklist: bool = False) -> list[str]:
+    def generate(
+        self, files: list[str], is_blacklist: bool = False
+    ) -> list[str] | NativeWordlistCorpus:
         wordlist = OrderedSet()
         for dict_file in files:
             for line in FileUtils.get_lines(dict_file):
@@ -152,13 +211,23 @@ class NativeWordlistBackend:
         except ImportError as e:
             raise WordlistBackendUnavailableError(get_native_backend_install_error()) from e
 
+        if version_error := get_native_extension_version_error(dirsearch_native):
+            raise WordlistBackendUnavailableError(version_error)
+
         self._native = dirsearch_native
 
-    def generate(self, files: list[str], is_blacklist: bool = False) -> list[str]:
+    def generate(
+        self, files: list[str], is_blacklist: bool = False
+    ) -> list[str] | NativeWordlistCorpus:
         if is_blacklist or self._requires_python_template_expansion(files):
             return PythonWordlistBackend().generate(files, is_blacklist=is_blacklist)
 
-        return self._native.generate_wordlist(
+        generate = (
+            self._native.generate_wordlist_owned
+            if options["request_backend"] == "native"
+            else self._native.generate_wordlist
+        )
+        wordlist = generate(
             files,
             list(options["extensions"]),
             force_extensions=options["force_extensions"],
@@ -172,6 +241,9 @@ class NativeWordlistBackend:
             overwrite_extensions=options["overwrite_extensions"],
             max_size=options["wordlist_max_size"],
         )
+        if options["request_backend"] == "native":
+            return NativeWordlistCorpus(wordlist)
+        return wordlist
 
     def is_valid(self, path: str) -> bool:
         return is_valid_path(path)
@@ -197,6 +269,13 @@ class NativeWordlistBackend:
 
 def get_wordlist_backend(name: str | None = None) -> WordlistBackend:
     backend = name or options["wordlist_backend"]
+    if backend == "auto" and options["request_backend"] == "native":
+        try:
+            return NativeWordlistBackend()
+        except WordlistBackendUnavailableError:
+            # Requester initialization owns the actionable native install error.
+            # Keeping auto wordlist selection non-fatal preserves that lazy path.
+            return PythonWordlistBackend()
     if backend in ("auto", "python"):
         return PythonWordlistBackend()
     if backend == "native":

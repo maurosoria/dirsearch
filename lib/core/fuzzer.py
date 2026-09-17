@@ -25,7 +25,7 @@ import threading
 import time
 from typing import Any, Callable, Generator
 
-from lib.connection.native import NativeHTTPBackend, NativeScanBatch
+from lib.connection.native import NativeHTTPBackend, NativeRequester, NativeScanBatch
 from lib.connection.requester import AsyncRequester, BaseRequester, Requester
 from lib.connection.response import BaseResponse
 from lib.core.data import blacklists, options
@@ -40,6 +40,7 @@ from lib.core.settings import (
     NATIVE_PAUSE_TIMEOUT,
     WILDCARD_TEST_POINT_MARKER,
 )
+from lib.core.wordlist_backend import NativeWordlistBatch
 from lib.parse.url import clean_path
 from lib.utils.common import lstrip_once
 
@@ -505,7 +506,7 @@ class Fuzzer(BaseFuzzer):
 class NativeFuzzer(Fuzzer):
     def __init__(
         self,
-        requester: Requester,
+        requester: NativeRequester,
         dictionary: Dictionary,
         *,
         match_callbacks: tuple[Callable[[BaseResponse], Any], ...],
@@ -522,9 +523,7 @@ class NativeFuzzer(Fuzzer):
         )
         self._finished = False
         self.filtered_batch_callbacks = filtered_batch_callbacks
-        self._native_backend: NativeHTTPBackend | None = getattr(
-            requester, "backend", None
-        )
+        self._native_backend: NativeHTTPBackend | None = requester.backend
         self._paused_event = threading.Event()
         self._started_event = threading.Event()
         self._lifecycle_lock = threading.Lock()
@@ -551,10 +550,7 @@ class NativeFuzzer(Fuzzer):
 
         try:
             if self._native_backend is None:
-                get_backend = getattr(self._requester, "get_backend", None)
-                self._native_backend = (
-                    get_backend() if get_backend is not None else NativeHTTPBackend()
-                )
+                self._native_backend = self._requester.get_backend()
             self.setup_scanners()
             super().play()
             self._started_event.set()
@@ -573,22 +569,12 @@ class NativeFuzzer(Fuzzer):
                     break
 
                 try:
-                    scan_batch = getattr(self._native_backend, "scan_batch", None)
-                    if scan_batch is not None:
-                        batch = scan_batch(
-                            self._requester._url,
-                            paths,
-                            getattr(self._requester, "_query", ""),
-                        )
-                        self._process_native_batch(paths, batch)
-                    else:
-                        self._process_native_results(
-                            self._native_backend.scan(
-                                self._requester._url,
-                                paths,
-                                getattr(self._requester, "_query", ""),
-                            )
-                        )
+                    batch = self._native_backend.scan_batch(
+                        self._requester._url,
+                        paths,
+                        self._requester._query,
+                    )
+                    self._process_native_batch(paths, batch)
                 finally:
                     if not self._play_event.is_set():
                         self._dictionary.requeue_claims()
@@ -597,18 +583,9 @@ class NativeFuzzer(Fuzzer):
             self._started_event.set()
             self._paused_event.set()
 
-    def _process_native_results(self, results) -> None:
-        for path, response, error in results:
-            if self._should_stop_processing():
-                break
-            try:
-                self._process_native_result(path, response, error)
-            finally:
-                self._release_paths((path,))
-
     def _process_native_batch(
         self,
-        paths: list[str],
+        paths: list[str] | NativeWordlistBatch,
         batch: NativeScanBatch,
     ) -> None:
         """Expand Rust's compact event stream without rebuilding miss responses."""
@@ -620,7 +597,7 @@ class NativeFuzzer(Fuzzer):
             # Missing indexes are responses that Rust already classified as
             # filtered. Only their progress and dictionary claims matter here.
             if event.request_index > next_index:
-                self._process_filtered_paths(paths[next_index:event.request_index])
+                self._process_filtered_range(paths, next_index, event.request_index)
             if self._should_stop_processing():
                 return
             try:
@@ -630,13 +607,38 @@ class NativeFuzzer(Fuzzer):
                     event.error,
                 )
             finally:
-                self._release_paths((event.path,))
+                if isinstance(paths, NativeWordlistBatch):
+                    self._dictionary.release_native_claims(paths, 1)
+                else:
+                    self._release_paths((event.path,))
             next_index = event.request_index + 1
 
         # processed_count comes from Rust's final completion marker, so this
         # also releases a filtered tail after the last actionable event.
         if not self._should_stop_processing() and batch.processed_count > next_index:
-            self._process_filtered_paths(paths[next_index:batch.processed_count])
+            self._process_filtered_range(paths, next_index, batch.processed_count)
+
+    def _process_filtered_range(
+        self,
+        paths: list[str] | NativeWordlistBatch,
+        start: int,
+        end: int,
+    ) -> None:
+        count = end - start
+        if count <= 0:
+            return
+        if isinstance(paths, NativeWordlistBatch):
+            try:
+                for callback in self.filtered_batch_callbacks:
+                    callback(count)
+            finally:
+                self._dictionary.release_native_claims(paths, count)
+            return
+
+        # The common miss-only batch spans the original list. Avoid a second
+        # list of references merely to report/release its progress.
+        filtered_paths = paths if start == 0 and end == len(paths) else paths[start:end]
+        self._process_filtered_paths(filtered_paths)
 
     def _process_filtered_paths(self, paths: list[str]) -> None:
         if not paths:
@@ -666,29 +668,27 @@ class NativeFuzzer(Fuzzer):
         self.process_response(path, response)
 
     def _release_paths(self, paths) -> None:
-        dictionary_paths = [
-            lstrip_once(path, self._base_path)
-            for path in paths
-        ]
-        release_claims = getattr(self._dictionary, "release_claims", None)
-        if release_claims is not None:
-            release_claims(dictionary_paths)
-            return
-        for path in dictionary_paths:
-            self._dictionary.release_claim(path)
+        dictionary_paths = paths
+        if self._base_path:
+            dictionary_paths = [
+                lstrip_once(path, self._base_path)
+                for path in paths
+            ]
+        elif not isinstance(paths, list):
+            dictionary_paths = list(paths)
+        self._dictionary.release_claims(dictionary_paths)
 
     def _should_stop_processing(self) -> bool:
         return self._quit_event.is_set() or not self._play_event.is_set()
 
-    def _next_chunk(self) -> list[str]:
+    def _next_chunk(self) -> list[str] | NativeWordlistBatch:
         chunk_size = max(1000, options["thread_count"] * 100)
-        paths = []
-        for _ in range(chunk_size):
-            try:
-                paths.append(self._base_path + self._dictionary.claim_next())
-            except StopIteration:
-                break
-        return paths
+        paths = self._dictionary.claim_native_many(chunk_size, self._base_path)
+        if isinstance(paths, NativeWordlistBatch):
+            return paths
+        if not self._base_path:
+            return paths
+        return [self._base_path + path for path in paths]
 
     def is_finished(self) -> bool:
         return self._finished
@@ -701,9 +701,7 @@ class NativeFuzzer(Fuzzer):
     def _reset_native_cancellation(self) -> None:
         if self._native_backend is None:
             return
-        reset_cancel = getattr(self._native_backend, "reset_cancel", None)
-        if reset_cancel is not None:
-            reset_cancel()
+        self._native_backend.reset_cancel()
 
     def pause(self) -> bool:
         deadline = time.monotonic() + NATIVE_PAUSE_TIMEOUT
