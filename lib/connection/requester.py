@@ -684,20 +684,27 @@ class ScopedDNSAsyncTransport(httpx.AsyncBaseTransport):
         port = request.url.port
         address = self._dns_resolver.resolve(host, port)
         if address == host:
-            return await self._transport.handle_async_request(request)
+            response = await self._transport.handle_async_request(request)
+        else:
+            extensions = dict(request.extensions)
+            if request.url.scheme == "https":
+                extensions["sni_hostname"] = host
 
-        extensions = dict(request.extensions)
-        if request.url.scheme == "https":
-            extensions["sni_hostname"] = host
+            resolved_request = httpx.Request(
+                request.method,
+                request.url.copy_with(host=address),
+                headers=request.headers.raw,
+                stream=request.stream,
+                extensions=extensions,
+            )
+            response = await self._transport.handle_async_request(resolved_request)
 
-        resolved_request = httpx.Request(
-            request.method,
-            request.url.copy_with(host=address),
-            headers=request.headers.raw,
-            stream=request.stream,
-            extensions=extensions,
-        )
-        return await self._transport.handle_async_request(resolved_request)
+        if response.has_redirect_location:
+            # The raw target belongs only to the initial request. HTTPX copies
+            # request extensions when it builds a redirect, so leaving this in
+            # place would resend the original path for every redirect hop.
+            request.extensions.pop("target", None)
+        return response
 
     async def aclose(self) -> None:
         await self._transport.aclose()
@@ -732,12 +739,17 @@ class PathPreservingAsyncHTTPTransport(httpx.AsyncHTTPTransport):
         with map_httpcore_exceptions():
             core_response = await self._pool.handle_async_request(core_request)
 
-        return httpx.Response(
+        response = httpx.Response(
             status_code=core_response.status,
             headers=core_response.headers,
             stream=AsyncResponseStream(core_response.stream),
             extensions=core_response.extensions,
         )
+        if response.has_redirect_location:
+            # Keep the override for authentication challenges, but do not let
+            # HTTPX reuse it when constructing a request from Location.
+            request.extensions.pop("target", None)
+        return response
 
 
 class ProxyRoatingTransport(httpx.AsyncBaseTransport):
