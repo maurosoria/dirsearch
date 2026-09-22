@@ -1,7 +1,10 @@
 //! Cross-module regression tests for the native backend contract.
 
 use super::*;
-use std::io::Write;
+use crate::transport::request_with_client;
+use std::io::{Read, Write};
+use std::net::TcpListener;
+use std::thread;
 
 fn default_filter_config() -> NativeFilterConfig {
     NativeFilterConfig::from_options(
@@ -33,6 +36,62 @@ fn default_filter_config() -> NativeFilterConfig {
 
 fn content_length(value: usize) -> Vec<(String, String)> {
     vec![("Content-Length".to_string(), value.to_string())]
+}
+
+#[test]
+fn reqwest_redirects_preserve_every_requested_url_in_history() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let server = thread::spawn(move || {
+        for _ in 0..3 {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0u8; 1024];
+            let read = stream.read(&mut request).unwrap();
+            let target = std::str::from_utf8(&request[..read])
+                .unwrap()
+                .split_whitespace()
+                .nth(1)
+                .unwrap();
+            let response = match target {
+                "/start" => {
+                    "HTTP/1.1 302 Found\r\nLocation: /middle\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                }
+                "/middle" => {
+                    "HTTP/1.1 307 Temporary Redirect\r\nLocation: /final?ok=1\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                }
+                "/final?ok=1" => {
+                    "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"
+                }
+                _ => panic!("unexpected request target: {target}"),
+            };
+            stream.write_all(response.as_bytes()).unwrap();
+        }
+    });
+    let base_url = format!("http://{address}");
+    let start_url = format!("{base_url}/start");
+    let client = build_http_client(&HeaderMap::new(), 1, 2.0, true, None).unwrap();
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+
+    let result = runtime.block_on(request_with_client(
+        &client,
+        start_url.clone(),
+        true,
+        0,
+        80,
+        std::time::Instant::now(),
+        &default_filter_config(),
+        false,
+    ));
+    server.join().unwrap();
+
+    assert_eq!(result.status, 200);
+    assert_eq!(
+        result.history,
+        vec![start_url, format!("{base_url}/middle")]
+    );
 }
 
 #[test]

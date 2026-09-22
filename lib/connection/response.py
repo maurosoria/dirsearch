@@ -417,6 +417,7 @@ class NativeResponse(BaseResponse):
         filtered: bool = False,
         filter_reason: str | None = None,
         body_complete: bool | None = None,
+        history: Iterable[str] = (),
     ) -> None:
         # Native previously exposed HTTPX's lowercase header iteration. Keep
         # that stable while using dirsearch's transport-neutral header model.
@@ -425,6 +426,7 @@ class NativeResponse(BaseResponse):
             status,
             ((name.lower(), value) for name, value in headers),
             elapsed,
+            history,
         )
 
         self._length = length

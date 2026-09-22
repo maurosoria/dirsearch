@@ -74,6 +74,26 @@ class TestNativeResponse(TestCase):
 
         self.assertEqual(response.redirect, "/login")
 
+    def test_native_response_preserves_redirect_history(self):
+        response = NativeResponse(
+            "https://example.com/final",
+            200,
+            [],
+            b"ok",
+            history=(
+                "https://example.com/start",
+                "https://example.com/middle",
+            ),
+        )
+
+        self.assertEqual(
+            response.history,
+            [
+                "https://example.com/start",
+                "https://example.com/middle",
+            ],
+        )
+
     def test_native_response_preserves_repeated_header_values(self):
         response = NativeResponse(
             "https://example.com/admin",

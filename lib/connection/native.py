@@ -246,6 +246,7 @@ class NativeHTTPBackend:
                 filtered=result.filtered,
                 filter_reason=result.filter_reason,
                 body_complete=result.body_complete,
+                history=result.history,
             ),
             None,
         )

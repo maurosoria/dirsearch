@@ -1522,7 +1522,41 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
 
             self.assertEqual([error for _, _, error in results], [None])
             self.assertEqual(results[0][1].status, 200)
+            self.assertEqual(results[0][1].history, [f"{server.url}redirect"])
             self.assertEqual(server.targets, [b"/redirect", b"/final"])
+
+    def test_native_requester_preserves_multi_hop_redirect_history(self):
+        try:
+            backend = NativeHTTPBackend()
+        except RequestException as error:
+            self.skipTest(str(error))
+
+        options["follow_redirects"] = True
+        with RequestTargetServer() as server:
+            results = list(
+                backend.scan(
+                    server.url,
+                    ["redirect-chain/start?first=%2F"],
+                )
+            )
+
+            self.assertEqual([error for _, _, error in results], [None])
+            self.assertEqual(results[0][1].status, 200)
+            self.assertEqual(
+                results[0][1].history,
+                [
+                    f"{server.url}redirect-chain/start?first=%2F",
+                    f"{server.url}redirect-chain/middle?step=%2F",
+                ],
+            )
+            self.assertEqual(
+                server.targets,
+                [
+                    b"/redirect-chain/start?first=%2F",
+                    b"/redirect-chain/middle?step=%2F",
+                    b"/redirect-chain/final?done=%2F",
+                ],
+            )
 
     def test_native_requester_uses_authenticated_http_proxy(self):
         try:
