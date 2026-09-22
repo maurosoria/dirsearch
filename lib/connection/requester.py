@@ -785,10 +785,14 @@ class AsyncRequester(BaseRequester):
             )
         )
 
+        # httpx 0.28 pre-registers "http://" and "https://" mounts and returns
+        # the first pattern that matches, so a bare "all://" mount is never
+        # reached and the custom transport is silently bypassed. Mount the
+        # concrete schemes instead so ScopedDNSAsyncTransport stays in the path.
         transport_options = (
             {"transport": transport}
             if options["proxies"]
-            else {"mounts": {"all://": transport}}
+            else {"mounts": {"http://": transport, "https://": transport}}
         )
         self.session = httpx.AsyncClient(
             timeout=httpx.Timeout(options["timeout"]),

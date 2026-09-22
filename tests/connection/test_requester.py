@@ -48,6 +48,7 @@ from lib.connection.requester import (
     PathPreservingSOCKSHTTPSConnectionPool,
     ProxyRoatingTransport,
     Requester,
+    ScopedDNSAsyncTransport,
     _find_ssl_error,
     _format_ssl_error,
 )
@@ -851,6 +852,32 @@ class TestRequesterProxyRouting(BaseRequesterTestCase):
 class TestAsyncRequesterProxyRouting(
     BaseRequesterTestCase, IsolatedAsyncioTestCase
 ):
+    async def test_direct_requests_use_scoped_dns_transport(self):
+        """Without proxies the scoped DNS transport must stay in the request path.
+
+        Regression guard: httpx pre-registers concrete `http://` and `https://`
+        mounts and `_transport_for_url()` returns the first matching pattern. A
+        bare `all://` mount is therefore never selected, which silently bypassed
+        ScopedDNSAsyncTransport and made the default async backend return zero
+        results on every target without printing any error.
+        """
+        options["proxies"] = []
+        requester = AsyncRequester()
+        try:
+            for url in (
+                "http://target.invalid/",
+                "https://target.invalid/",
+                "http://target.invalid/nested/path",
+                "https://target.invalid/nested/path",
+            ):
+                with self.subTest(url=url):
+                    transport = requester.session._transport_for_url(
+                        httpx.URL(url)
+                    )
+                    self.assertIsInstance(transport, ScopedDNSAsyncTransport)
+        finally:
+            await requester.close()
+
     async def test_socks5_proxies_build_async_socks_transports(self):
         for scheme in ("socks5", "socks5h"):
             with self.subTest(scheme=scheme):
