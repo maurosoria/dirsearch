@@ -4,6 +4,7 @@ import re
 import time
 import warnings
 from unittest import TestCase, skipUnless
+from unittest.mock import patch
 from urllib.parse import urlsplit
 
 from urllib3.exceptions import InsecureRequestWarning
@@ -108,6 +109,115 @@ class TestProxyIntegration(TestCase):
 
                 self.assertIsNone(error)
                 self._assert_case(proxy, target, path, response)
+
+    def test_async_inherited_proxy_preserves_raw_targets(self):
+        asyncio.run(self._test_async_inherited_proxy_raw_targets())
+
+    async def _test_async_inherited_proxy_raw_targets(self):
+        proxy = self.stack.http_proxy
+        path = "admin%3d..%1\\*"
+        expected = "/admin%3D..%1\\*"
+
+        proxy_settings = (
+            {"http": proxy.url, "https": proxy.url},
+            {"all": proxy.url},
+        )
+        for settings in proxy_settings:
+            for target in self.stack.targets:
+                with self.subTest(settings=settings, scheme=target.scheme):
+                    self._prepare_case(proxy, target)
+                    with patch("httpx._utils.getproxies", return_value=settings):
+                        requester = AsyncRequester()
+                    requester.set_url(target.url)
+                    try:
+                        response = await requester.request(path)
+                    finally:
+                        await requester.close()
+
+                    self._assert_raw_target(target, expected, response)
+                    self.assertEqual(
+                        proxy.events,
+                        [self._expected_proxy_event(target, path)],
+                    )
+
+    def test_async_no_proxy_bypass_keeps_ip_override(self):
+        asyncio.run(self._test_async_no_proxy_bypass())
+
+    async def _test_async_no_proxy_bypass(self):
+        proxy = self.stack.http_proxy
+        forced_host = "127.0.0.2"
+
+        for target in self.stack.targets:
+            with self.subTest(scheme=target.scheme):
+                self._prepare_case(proxy, target)
+                port = urlsplit(target.url).port
+                with patch(
+                    "httpx._utils.getproxies",
+                    return_value={
+                        "http": proxy.url,
+                        "https": proxy.url,
+                        "no": forced_host,
+                    },
+                ):
+                    requester = AsyncRequester()
+                requester.set_ip(forced_host, port, "127.0.0.1")
+                requester.set_url(f"{target.scheme}://{forced_host}:{port}/")
+                try:
+                    response = await requester.request("bypassed")
+                finally:
+                    await requester.close()
+
+                self.assertEqual(response.status, 200)
+                self.assertEqual(target.events, [("GET", "/bypassed")])
+                self.assertEqual(proxy.events, [])
+
+    def test_async_inherited_proxy_407_is_not_a_target_result(self):
+        asyncio.run(self._test_async_inherited_proxy_407())
+
+    async def _test_async_inherited_proxy_407(self):
+        proxy = self.stack.http_proxy
+        target = self.stack.http_target
+        self._prepare_authenticated_case(proxy, target)
+        options["max_retries"] = 0
+        with patch(
+            "httpx._utils.getproxies",
+            return_value={"http": proxy.url},
+        ):
+            requester = AsyncRequester()
+        requester.set_url(target.url)
+        try:
+            with self.assertRaisesRegex(
+                RequestException, "Proxy authentication required"
+            ):
+                await requester.request("inherited-proxy-auth")
+        finally:
+            await requester.close()
+            proxy.configure_proxy()
+
+        self.assertEqual(target.events, [])
+        self.assertEqual(len(proxy.events), 1)
+
+    def test_async_no_proxy_origin_407_remains_a_target_result(self):
+        asyncio.run(self._test_async_no_proxy_origin_407())
+
+    async def _test_async_no_proxy_origin_407(self):
+        proxy = self.stack.http_proxy
+        target = self.stack.http_target
+        self._prepare_case(proxy, target)
+        with patch(
+            "httpx._utils.getproxies",
+            return_value={"http": proxy.url, "no": "127.0.0.1"},
+        ):
+            requester = AsyncRequester()
+        requester.set_url(target.url)
+        try:
+            response = await requester.request("origin-407")
+        finally:
+            await requester.close()
+
+        self.assertEqual(response.status, 407)
+        self.assertEqual(target.events, [("GET", "/origin-407")])
+        self.assertEqual(proxy.events, [])
 
     def test_sync_engine_uses_socks5_proxy(self):
         proxy = self.stack.socks5_proxy
