@@ -1112,7 +1112,8 @@ class TestAsyncRequesterProxyRouting(
 
 class TestAsyncRequesterSSLHandling(BaseRequesterTestCase, IsolatedAsyncioTestCase):
     async def test_async_origin_407_remains_a_response_without_a_proxy(self):
-        requester = AsyncRequester()
+        with patch("httpx._utils.getproxies", return_value={}):
+            requester = AsyncRequester()
         requester.set_url("http://example.com/")
         response = DummyAsyncResponse()
         response.status_code = 407

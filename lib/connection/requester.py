@@ -30,6 +30,7 @@ from urllib.parse import urlparse
 
 import httpx
 import requests
+from httpx._utils import get_environment_proxies
 from httpx._transports.default import AsyncResponseStream, map_httpcore_exceptions
 from requests.auth import AuthBase, HTTPBasicAuth, HTTPDigestAuth
 from requests.packages import urllib3
@@ -796,31 +797,59 @@ class AsyncRequester(BaseRequester):
             "limits": httpx.Limits(max_connections=options["thread_count"]),
             "socket_options": self._socket_options,
         }
-        transport = (
-            ProxyRoatingTransport(
+        self._inherited_proxy_transports: set[httpx.AsyncBaseTransport] = set()
+        if options["proxies"]:
+            transport = ProxyRoatingTransport(
                 [self.parse_proxy(p) for p in options["proxies"]], **tpargs
             )
-            if options["proxies"]
-            else IPOverrideAsyncTransport(
+            mounts = None
+        else:
+            transport = IPOverrideAsyncTransport(
                 httpx.AsyncHTTPTransport(**tpargs),
                 self._ip_overrides,
             )
-        )
+            mounts = self._environment_proxy_mounts(tpargs)
 
-        transport_options = (
-            {"transport": transport}
-            if options["proxies"]
-            else {"mounts": {"all://": transport}}
-        )
         self.session = httpx.AsyncClient(
+            transport=transport,
+            mounts=mounts,
             timeout=httpx.Timeout(options["timeout"]),
-            **transport_options,
         )
         self.replay_session = None
 
         if options["auth"]:
             self.set_auth(options["auth_type"], options["auth"])
         self._configured_auth = self.session.auth
+
+    def _environment_proxy_mounts(
+        self, transport_options: dict[str, Any]
+    ) -> dict[str, httpx.AsyncBaseTransport | None]:
+        # Supplying a default transport makes HTTPX skip environment proxies.
+        # Rebuild its proxy map so NO_PROXY uses the IP-override transport and
+        # inherited proxies still preserve dirsearch's raw request targets.
+        mounts: dict[str, httpx.AsyncBaseTransport | None] = {}
+        for pattern, proxy in get_environment_proxies().items():
+            if proxy is None:
+                mounts[pattern] = None
+                continue
+
+            proxy_transport = PathPreservingAsyncHTTPTransport(
+                proxy=proxy, **transport_options
+            )
+            mounts[pattern] = proxy_transport
+            self._inherited_proxy_transports.add(proxy_transport)
+        return mounts
+
+    def _uses_inherited_proxy(
+        self, session: httpx.AsyncClient, response: httpx.Response
+    ) -> bool:
+        # Inspect the final request URL: redirects may change proxy routing.
+        if session is not self.session or not self._inherited_proxy_transports:
+            return False
+        return (
+            session._transport_for_url(response.request.url)
+            in self._inherited_proxy_transports
+        )
 
     def parse_proxy(self, proxy: str) -> str | httpx.Proxy | None:
         if not proxy:
@@ -920,9 +949,11 @@ class AsyncRequester(BaseRequester):
                 )
                 try:
                     if (
-                        using_proxy
-                        and xresponse.status_code
-                        == PROXY_AUTHENTICATION_REQUIRED
+                        xresponse.status_code == PROXY_AUTHENTICATION_REQUIRED
+                        and (
+                            using_proxy
+                            or self._uses_inherited_proxy(session, xresponse)
+                        )
                     ):
                         raise RequestException("Proxy authentication required")
                     response = await AsyncResponse.create(
