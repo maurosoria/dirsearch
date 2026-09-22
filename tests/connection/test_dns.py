@@ -23,11 +23,12 @@ import threading
 import warnings
 from concurrent.futures import ThreadPoolExecutor
 from unittest import TestCase
+from unittest.mock import patch
 from urllib.parse import urlsplit
 
 from urllib3.exceptions import InsecureRequestWarning
 
-from lib.connection.dns import DNSResolver
+from lib.connection.ip_overrides import IPOverrides
 from lib.connection.requester import AsyncRequester, Requester
 from lib.core.data import options
 from tests.connection.proxy_server import ProxyTestStack
@@ -36,7 +37,7 @@ from tests.connection.proxy_server import ProxyTestStack
 FORCED_HOST = "forced-origin.invalid"
 
 
-class TestDNSIsolation(TestCase):
+class TestIPOverrideIsolation(TestCase):
     def test_importing_requester_does_not_replace_socket_getaddrinfo(self):
         result = subprocess.run(
             [
@@ -54,15 +55,25 @@ class TestDNSIsolation(TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_overrides_are_isolated_by_requester_and_port(self):
-        first = DNSResolver()
-        second = DNSResolver()
-        first.add_override(FORCED_HOST, 443, "192.0.2.10")
+        first = IPOverrides()
+        second = IPOverrides()
+        first.set_override(FORCED_HOST, 443, "192.0.2.10")
 
-        self.assertEqual(first.resolve(FORCED_HOST, 443), "192.0.2.10")
-        self.assertEqual(first.resolve(FORCED_HOST, 80), FORCED_HOST)
-        self.assertEqual(second.resolve(FORCED_HOST, 443), FORCED_HOST)
+        self.assertEqual(first.get_override(FORCED_HOST, 443), "192.0.2.10")
+        self.assertIsNone(first.get_override(FORCED_HOST, 80))
+        self.assertIsNone(second.get_override(FORCED_HOST, 443))
 
-    def test_resolve_does_not_serialize_connection_workers(self):
+    def test_override_lookup_does_not_resolve_dns(self):
+        overrides = IPOverrides()
+        overrides.set_override(FORCED_HOST, 443, "192.0.2.10")
+
+        with patch("socket.getaddrinfo") as getaddrinfo:
+            self.assertEqual(overrides.get_override(FORCED_HOST, 443), "192.0.2.10")
+            self.assertIsNone(overrides.get_override(FORCED_HOST, 80))
+
+        getaddrinfo.assert_not_called()
+
+    def test_override_lookup_does_not_serialize_connection_workers(self):
         barrier = threading.Barrier(2)
 
         class ConcurrentReadMapping(dict):
@@ -70,14 +81,14 @@ class TestDNSIsolation(TestCase):
                 barrier.wait(timeout=2)
                 return super().get(key, default)
 
-        resolver = DNSResolver()
-        resolver.add_override(FORCED_HOST, 443, "192.0.2.10")
-        resolver._overrides = ConcurrentReadMapping(resolver._overrides)
+        overrides = IPOverrides()
+        overrides.set_override(FORCED_HOST, 443, "192.0.2.10")
+        overrides._overrides = ConcurrentReadMapping(overrides._overrides)
 
         with ThreadPoolExecutor(max_workers=2) as executor:
             results = list(
                 executor.map(
-                    lambda _: resolver.resolve(FORCED_HOST, 443),
+                    lambda _: overrides.get_override(FORCED_HOST, 443),
                     range(2),
                 )
             )
@@ -85,7 +96,7 @@ class TestDNSIsolation(TestCase):
         self.assertEqual(results, ["192.0.2.10", "192.0.2.10"])
 
 
-class TestDNSOverrideIntegration(TestCase):
+class TestIPOverrideIntegration(TestCase):
     @classmethod
     def setUpClass(cls):
         cls.stack_context = ProxyTestStack()

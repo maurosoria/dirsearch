@@ -46,7 +46,7 @@ try:
 except ImportError:
     SSLCertVerificationError = None
 
-from lib.connection.dns import DNSResolver
+from lib.connection.ip_overrides import IPOverrides
 from lib.connection.proxy import (
     PROXY_AUTHENTICATION_REQUIRED,
     add_proxy_authentication,
@@ -82,26 +82,33 @@ def _join_request_target(base_url: str, quoted_path: str) -> str:
     return target + quoted_path.lstrip("/")
 
 
-# urllib3 encodes origin-form targets before writing them to the socket. Keep
-# the already-quoted dirsearch target for direct requests so fuzzed characters
-# such as malformed percent escapes and backslashes reach the server unchanged.
-class _ScopedDNSConnection:
-    def __init__(self, *args, dns_resolver: DNSResolver | None = None, **kwargs):
-        self._dns_resolver = dns_resolver
+class _IPOverrideConnection:
+    """Change the connection IP without changing the URL hostname or TLS SNI."""
+
+    def __init__(self, *args, ip_overrides: IPOverrides | None = None, **kwargs):
+        self._ip_overrides = ip_overrides
         super().__init__(*args, **kwargs)
 
     def _new_conn(self):
-        if self._dns_resolver is None:
+        if self._ip_overrides is None:
             return super()._new_conn()
 
         original_host = self._dns_host
-        self._dns_host = self._dns_resolver.resolve(original_host, self.port)
+        forced_ip = self._ip_overrides.get_override(original_host, self.port)
+        if forced_ip is None:
+            # Let urllib3 resolve every A/AAAA candidate using the hostname.
+            return super()._new_conn()
+
+        self._dns_host = forced_ip
         try:
             return super()._new_conn()
         finally:
             self._dns_host = original_host
 
 
+# urllib3 encodes origin-form targets before writing them to the socket. Keep
+# the already-quoted dirsearch target for direct requests so fuzzed characters
+# such as malformed percent escapes and backslashes reach the server unchanged.
 class _PathPreservingRequestMixin:
     def request(self, method, url, body=None, headers=None, *args, **kwargs):
         target = getattr(_request_target_state, "target", None)
@@ -113,7 +120,7 @@ class _PathPreservingRequestMixin:
 
 class PathPreservingHTTPConnection(
     _PathPreservingRequestMixin,
-    _ScopedDNSConnection,
+    _IPOverrideConnection,
     urllib3_connection.HTTPConnection,
 ):
     pass
@@ -121,7 +128,7 @@ class PathPreservingHTTPConnection(
 
 class PathPreservingHTTPSConnection(
     _PathPreservingRequestMixin,
-    _ScopedDNSConnection,
+    _IPOverrideConnection,
     urllib3_connection.HTTPSConnection,
 ):
     pass
@@ -160,8 +167,8 @@ class PathPreservingSOCKSHTTPSConnectionPool(
 
 
 class PathPreservingPoolManager(urllib3_poolmanager.PoolManager):
-    def __init__(self, *args, dns_resolver: DNSResolver, **kwargs):
-        self._dns_resolver = dns_resolver
+    def __init__(self, *args, ip_overrides: IPOverrides, **kwargs):
+        self._ip_overrides = ip_overrides
         super().__init__(*args, **kwargs)
         self.pool_classes_by_scheme = {
             "http": PathPreservingHTTPConnectionPool,
@@ -170,13 +177,13 @@ class PathPreservingPoolManager(urllib3_poolmanager.PoolManager):
 
     def _new_pool(self, scheme, host, port, request_context=None):
         pool = super()._new_pool(scheme, host, port, request_context)
-        pool.conn_kw["dns_resolver"] = self._dns_resolver
+        pool.conn_kw["ip_overrides"] = self._ip_overrides
         return pool
 
 
 class PathPreservingSocketOptionsAdapter(SocketOptionsAdapter):
     def __init__(self, **kwargs):
-        self._dns_resolver = kwargs.pop("dns_resolver")
+        self._ip_overrides = kwargs.pop("ip_overrides")
         super().__init__(**kwargs)
 
     def init_poolmanager(self, connections, maxsize, block=False):
@@ -185,7 +192,7 @@ class PathPreservingSocketOptionsAdapter(SocketOptionsAdapter):
             maxsize=maxsize,
             block=block,
             socket_options=self.socket_options,
-            dns_resolver=self._dns_resolver,
+            ip_overrides=self._ip_overrides,
         )
 
     def request_url(self, request: requests.PreparedRequest, proxies: dict[str, str]) -> str:
@@ -434,7 +441,7 @@ class BaseRequester:
     def __init__(self) -> None:
         self._url: str = ""
         self._query: str = ""
-        self._dns_resolver = DNSResolver()
+        self._ip_overrides = IPOverrides()
         self._rate_limiter = RequestRateLimiter()
         self.proxy_cred = options["proxy_auth"]
         self.headers = CaseInsensitiveDict(options["headers"])
@@ -474,8 +481,9 @@ class BaseRequester:
     def set_query(self, query: str) -> None:
         self._query = query
 
-    def set_ip(self, host: str, port: int, address: str) -> None:
-        self._dns_resolver.add_override(host, port, address)
+    def set_ip(self, host: str, port: int, ip_address: str) -> None:
+        """Force the connection IP for a host while preserving its Host and SNI."""
+        self._ip_overrides.set_override(host, port, ip_address)
 
     def request_path(self, path: str) -> str:
         return append_query_string(path, self._query)
@@ -519,7 +527,7 @@ class Requester(BaseRequester):
                     max_retries=0,
                     pool_maxsize=options["thread_count"],
                     socket_options=self._socket_options,
-                    dns_resolver=self._dns_resolver,
+                    ip_overrides=self._ip_overrides,
                 ),
             )
 
@@ -670,34 +678,43 @@ class HTTPXBearerAuth(httpx.Auth):
         yield request
 
 
-class ScopedDNSAsyncTransport(httpx.AsyncBaseTransport):
+class IPOverrideAsyncTransport(httpx.AsyncBaseTransport):
     def __init__(
         self,
         transport: httpx.AsyncBaseTransport,
-        dns_resolver: DNSResolver,
+        ip_overrides: IPOverrides,
     ) -> None:
         self._transport = transport
-        self._dns_resolver = dns_resolver
+        self._ip_overrides = ip_overrides
 
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
         host = request.url.host
         port = request.url.port
-        address = self._dns_resolver.resolve(host, port)
-        if address == host:
-            return await self._transport.handle_async_request(request)
+        forced_ip = self._ip_overrides.get_override(host, port)
+        if forced_ip is None:
+            # No override: let HTTPX resolve the hostname and choose an IP.
+            response = await self._transport.handle_async_request(request)
+        else:
+            extensions = dict(request.extensions)
+            if request.url.scheme == "https":
+                # Keep the original hostname for certificate validation and SNI.
+                extensions["sni_hostname"] = host
 
-        extensions = dict(request.extensions)
-        if request.url.scheme == "https":
-            extensions["sni_hostname"] = host
+            overridden_request = httpx.Request(
+                request.method,
+                request.url.copy_with(host=forced_ip),
+                headers=request.headers.raw,
+                stream=request.stream,
+                extensions=extensions,
+            )
+            response = await self._transport.handle_async_request(overridden_request)
 
-        resolved_request = httpx.Request(
-            request.method,
-            request.url.copy_with(host=address),
-            headers=request.headers.raw,
-            stream=request.stream,
-            extensions=extensions,
-        )
-        return await self._transport.handle_async_request(resolved_request)
+        if response.has_redirect_location:
+            # The raw target belongs only to the initial request. HTTPX copies
+            # request extensions when it builds a redirect, so leaving this in
+            # place would resend the original path for every redirect hop.
+            request.extensions.pop("target", None)
+        return response
 
     async def aclose(self) -> None:
         await self._transport.aclose()
@@ -732,12 +749,17 @@ class PathPreservingAsyncHTTPTransport(httpx.AsyncHTTPTransport):
         with map_httpcore_exceptions():
             core_response = await self._pool.handle_async_request(core_request)
 
-        return httpx.Response(
+        response = httpx.Response(
             status_code=core_response.status,
             headers=core_response.headers,
             stream=AsyncResponseStream(core_response.stream),
             extensions=core_response.extensions,
         )
+        if response.has_redirect_location:
+            # Keep the override for authentication challenges, but do not let
+            # HTTPX reuse it when constructing a request from Location.
+            request.extensions.pop("target", None)
+        return response
 
 
 class ProxyRoatingTransport(httpx.AsyncBaseTransport):
@@ -779,9 +801,9 @@ class AsyncRequester(BaseRequester):
                 [self.parse_proxy(p) for p in options["proxies"]], **tpargs
             )
             if options["proxies"]
-            else ScopedDNSAsyncTransport(
+            else IPOverrideAsyncTransport(
                 httpx.AsyncHTTPTransport(**tpargs),
-                self._dns_resolver,
+                self._ip_overrides,
             )
         )
 

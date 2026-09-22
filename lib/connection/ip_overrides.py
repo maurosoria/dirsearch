@@ -19,12 +19,13 @@
 from __future__ import annotations
 
 
-class DNSResolver:
-    """Requester-owned hostname overrides used by the --ip option.
+class IPOverrides:
+    """Requester-owned connection IPs configured by the --ip option.
 
-    The controller configures overrides between targets before request workers
-    start. Connection workers only read this mapping, so the hot path does not
-    require synchronization.
+    This mapping does not resolve DNS or collect a hostname's A/AAAA records.
+    Without an override, the HTTP transport resolves the hostname normally.
+    The controller configures overrides before workers start, and workers only
+    read the mapping, so the connection hot path needs no synchronization.
     """
 
     def __init__(self) -> None:
@@ -34,8 +35,9 @@ class DNSResolver:
     def _key(host: str, port: int) -> tuple[str, int]:
         return host.rstrip(".").casefold(), port
 
-    def add_override(self, host: str, port: int, address: str) -> None:
-        self._overrides[self._key(host, port)] = address
+    def set_override(self, host: str, port: int, ip_address: str) -> None:
+        self._overrides[self._key(host, port)] = ip_address
 
-    def resolve(self, host: str, port: int) -> str:
-        return self._overrides.get(self._key(host, port), host)
+    def get_override(self, host: str, port: int) -> str | None:
+        """Return one forced connection IP, or None for normal DNS lookup."""
+        return self._overrides.get(self._key(host, port))
