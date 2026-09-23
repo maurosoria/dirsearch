@@ -4,7 +4,7 @@ import io
 import sys
 import tempfile
 
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr
 from pathlib import Path
 from unittest import TestCase
 from unittest.mock import patch
@@ -24,7 +24,7 @@ class TestNumericOptionValidation(TestCase):
 
     def assert_rejected(self, arguments, message):
         output = io.StringIO()
-        with redirect_stdout(output), self.assertRaises(SystemExit) as raised:
+        with redirect_stderr(output), self.assertRaises(SystemExit) as raised:
             self.parse(*arguments)
 
         self.assertEqual(raised.exception.code, 1)
@@ -117,7 +117,7 @@ class TestNumericOptionValidation(TestCase):
         with (
             patch.dict(runtime_options),
             patch.object(SessionStore, "load", return_value=payload),
-            redirect_stdout(output),
+            redirect_stderr(output),
             self.assertRaises(SystemExit) as raised,
         ):
             controller._import("session.json")

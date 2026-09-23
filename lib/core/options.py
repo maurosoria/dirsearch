@@ -55,6 +55,8 @@ from lib.parse.cmdline import parse_arguments
 from lib.parse.config import ConfigParser
 from lib.parse.headers import HeadersParser
 from lib.utils import safe_xml
+from lib.utils.cli import fail as _fail
+from lib.utils.cli import print_diagnostic as _print_diagnostic
 from lib.utils.common import iprange, read_stdin, strip_and_uniquify
 from lib.utils.file import File, FileUtils
 from lib.parse.nmap import parse_nmap
@@ -102,8 +104,7 @@ def parse_options() -> dict[str, Any]:
         sys.exit(0)
 
     if opt.session_id and opt.session_file:
-        print("Use either --session or --session-id, not both.")
-        sys.exit(1)
+        _fail("Use either --session or --session-id, not both.")
 
     if opt.session_id:
         from lib.controller.session import SessionStore
@@ -114,19 +115,16 @@ def parse_options() -> dict[str, Any]:
         sessions = session_store.list_sessions(base_dir)
         _session_debug(f"--session-id sessions found total={len(sessions)}")
         if not sessions:
-            print(f"No resumable sessions found in {base_dir}")
-            sys.exit(1)
+            _fail(f"No resumable sessions found in {base_dir}")
         try:
             session_index = int(str(opt.session_id), 10)
         except ValueError:
-            print(f"Invalid session id: {opt.session_id}")
-            sys.exit(1)
+            _fail(f"Invalid session id: {opt.session_id}")
         _session_debug(f"--session-id parsed index={session_index}")
         if session_index < 1 or session_index > len(sessions):
-            print(
+            _fail(
                 f"Session id out of range: {session_index} (1-{len(sessions)})"
             )
-            sys.exit(1)
         opt.session_file = sessions[session_index - 1]["path"]
         _session_debug(f"--session-id resolved path={opt.session_file!r}")
 
@@ -154,11 +152,9 @@ def parse_options() -> dict[str, Any]:
             safe_xml.ParseError,
             safe_xml.UnsafeXML,
         ) as e:
-            print("Error while parsing Nmap report: " + str(e))
-            sys.exit(1)
+            _fail("Error while parsing Nmap report: " + str(e))
     elif not opt.urls and not opt.wordlist_status:
-        print("URL target is missing, try using -u <url>")
-        sys.exit(1)
+        _fail("URL target is missing, try using -u <url>")
 
     if opt.wordlist_status and not opt.urls:
         opt.urls = []
@@ -171,36 +167,31 @@ def parse_options() -> dict[str, Any]:
         )
 
     if not opt.extensions:
-        print("WARNING: No extension was specified!")
+        _print_diagnostic("WARNING: No extension was specified!")
 
     opt.wordlists = _resolve_wordlists(opt)
 
     if opt.thread_count < 1:
-        print("Threads number must be greater than zero")
-        sys.exit(1)
+        _fail("Threads number must be greater than zero")
 
     if opt.wordlist_max_size < 1:
-        print("--wordlist-max-size must be greater than zero")
-        sys.exit(1)
+        _fail("--wordlist-max-size must be greater than zero")
 
     validate_numeric_options(opt)
 
     if opt.wordlist_backend not in WORDLIST_BACKENDS:
-        print("--wordlist-backend must be one of: " + ", ".join(WORDLIST_BACKENDS))
-        sys.exit(1)
+        _fail("--wordlist-backend must be one of: " + ", ".join(WORDLIST_BACKENDS))
 
     if opt.request_backend == "native" and not _is_cli_flag_present("-a", "--async"):
         opt.async_mode = False
 
     if opt.request_backend not in REQUEST_BACKENDS:
-        print("--request-backend must be one of: " + ", ".join(REQUEST_BACKENDS))
-        sys.exit(1)
+        _fail("--request-backend must be one of: " + ", ".join(REQUEST_BACKENDS))
 
     if (
         opt.request_backend == "native" or opt.wordlist_backend == "native"
     ) and (error := get_native_python_version_error()):
-        print(error)
-        sys.exit(1)
+        _fail(error)
 
     if opt.tor:
         opt.proxies = list(DEFAULT_TOR_PROXIES)
@@ -225,15 +216,13 @@ def parse_options() -> dict[str, Any]:
             fd = _access_file(opt.headers_file)
             headers.update(dict(HeadersParser(fd.read())))
         except (OSError, UnicodeError, ValueError) as e:
-            print("Error in headers file: " + str(e))
-            sys.exit(1)
+            _fail("Error in headers file: " + str(e))
 
     if opt.headers:
         try:
             headers.update(dict(HeadersParser("\n".join(opt.headers))))
         except (UnicodeError, ValueError):
-            print("Invalid headers")
-            sys.exit(1)
+            _fail("Invalid headers")
 
     opt.headers = headers
 
@@ -309,35 +298,29 @@ def parse_options() -> dict[str, Any]:
     )
 
     if opt.auth and not opt.auth_type:
-        print("Please select the authentication type with --auth-type")
-        sys.exit(1)
+        _fail("Please select the authentication type with --auth-type")
     elif opt.auth_type and not opt.auth:
-        print("No authentication credential found")
-        sys.exit(1)
+        _fail("No authentication credential found")
     elif opt.auth and opt.auth_type not in AUTHENTICATION_TYPES:
-        print(
+        _fail(
             f"'{opt.auth_type}' is not in available authentication "
             f"types: {', '.join(AUTHENTICATION_TYPES)}"
         )
-        sys.exit(1)
 
     if set(opt.extensions).intersection(opt.exclude_extensions):
-        print(
+        _fail(
             "Exclude extension list can not contain any extension "
             "that has already in the extension list"
         )
-        sys.exit(1)
 
     opt.output_formats = [format.strip() for format in opt.output_formats.split(",") if format]
 
     invalid_formats = set(opt.output_formats).difference(FILE_BASED_OUTPUT_FORMATS)
     if invalid_formats:
-        print(f"Invalid output format(s): {', '.join(invalid_formats)}")
-        sys.exit(1)
+        _fail(f"Invalid output format(s): {', '.join(invalid_formats)}")
 
     if not len(opt.output_formats) and opt.output_file:
-        print("Please provide output formats (use '-O')")
-        sys.exit(1)
+        _fail("Please provide output formats (use '-O')")
 
     # There are multiple file-based output formats but no variable to separate output files for different formats
     if (
@@ -350,8 +333,7 @@ def parse_options() -> dict[str, Any]:
             or {"plain", "simple"}.issubset(opt.output_formats)
         )
     ):
-        print("Found at least 2 output formats sharing the same output file, make sure you use '{format}' and '{extension} variables in your output file")
-        sys.exit(1)
+        _fail("Found at least 2 output formats sharing the same output file, make sure you use '{format}' and '{extension} variables in your output file")
 
     if opt.mysql_url:
         opt.output_formats.append("mysql")
@@ -373,17 +355,14 @@ def parse_options() -> dict[str, Any]:
 
     if opt.request_backend == "native":
         if error := get_native_request_backend_error(opt):
-            print(error)
-            sys.exit(1)
+            _fail(error)
     elif error := get_async_request_backend_error(opt):
-        print(error)
-        sys.exit(1)
+        _fail(error)
 
     if error := get_native_runtime_error(
         opt.request_backend, opt.wordlist_backend
     ):
-        print(error)
-        sys.exit(1)
+        _fail(error)
 
     return vars(opt)
 
@@ -402,8 +381,7 @@ def _parse_status_codes(str_: str) -> set[int]:
             else:
                 status_codes.add(int(status_code.strip()))
         except ValueError:
-            print(f"Invalid status code or status code range: {status_code}")
-            sys.exit(1)
+            _fail(f"Invalid status code or status code range: {status_code}")
 
     return status_codes
 
@@ -412,40 +390,35 @@ def _parse_advanced_ranges(value: str | None, option_name: str) -> tuple[tuple[i
     try:
         return parse_numeric_ranges(value)
     except ValueError as error:
-        print(f"{option_name}: {error}")
-        sys.exit(1)
+        _fail(f"{option_name}: {error}")
 
 
 def _parse_advanced_times(value: str | None, option_name: str) -> tuple[tuple[str, float], ...]:
     try:
         return parse_time_filters(value)
     except ValueError as error:
-        print(f"{option_name}: {error}")
-        sys.exit(1)
+        _fail(f"{option_name}: {error}")
 
 
 def _parse_size(value: str | int | None, option_name: str) -> int:
     try:
         return parse_size(value)
     except ValueError as error:
-        print(f"{option_name}: {error}")
-        sys.exit(1)
+        _fail(f"{option_name}: {error}")
 
 
 def _parse_size_list(value: str | None, option_name: str) -> set[int]:
     try:
         return parse_size_list(value)
     except ValueError as error:
-        print(f"{option_name}: {error}")
-        sys.exit(1)
+        _fail(f"{option_name}: {error}")
 
 
 def _validate_regex_option(pattern: str | None, option_name: str) -> None:
     try:
         validate_regex(pattern, option_name)
     except ValueError as error:
-        print(str(error))
-        sys.exit(1)
+        _fail(error)
 
 
 def validate_regex_options(opt: Any) -> None:
@@ -466,18 +439,15 @@ def _validate_advanced_mode(value: str, option_name: str) -> None:
     if value in ("and", "or"):
         return
 
-    print(f"{option_name} must be either 'and' or 'or'")
-    sys.exit(1)
+    _fail(f"{option_name} must be either 'and' or 'or'")
 
 
 def validate_numeric_options(opt: Any) -> None:
     if not math.isfinite(opt.timeout) or opt.timeout <= 0:
-        print("--timeout must be finite and greater than zero")
-        sys.exit(1)
+        _fail("--timeout must be finite and greater than zero")
 
     if not math.isfinite(opt.delay) or opt.delay < 0:
-        print("--delay must be finite and zero or greater")
-        sys.exit(1)
+        _fail("--delay must be finite and zero or greater")
 
     for attribute, option_name in (
         ("max_retries", "--retries"),
@@ -485,8 +455,7 @@ def validate_numeric_options(opt: Any) -> None:
         ("recursion_depth", "--max-recursion-depth"),
     ):
         if getattr(opt, attribute) < 0:
-            print(f"{option_name} must be zero or greater")
-            sys.exit(1)
+            _fail(f"{option_name} must be zero or greater")
 
 
 def _is_cli_flag_present(*flags: str) -> bool:
@@ -496,16 +465,13 @@ def _is_cli_flag_present(*flags: str) -> bool:
 def _access_file(path: str) -> File:
     with File(path) as fd:
         if not fd.exists():
-            print(f"{path} does not exist")
-            sys.exit(1)
+            _fail(f"{path} does not exist")
 
         if not fd.is_valid():
-            print(f"{path} is not a file")
-            sys.exit(1)
+            _fail(f"{path} is not a file")
 
         if not fd.can_read():
-            print(f"{path} cannot be read")
-            sys.exit(1)
+            _fail(f"{path} cannot be read")
 
         return fd
 
@@ -554,12 +520,10 @@ def _resolve_wordlist_categories(categories: list[str]) -> list[str]:
             unknown.append(category)
 
     if unknown:
-        print(f"Unknown wordlist categories: {', '.join(unknown)}")
-        print(
-            "Available categories: "
-            + ", ".join(sorted(WORDLIST_CATEGORIES.keys()))
+        _fail(
+            f"Unknown wordlist categories: {', '.join(unknown)}",
+            "Available categories: " + ", ".join(sorted(WORDLIST_CATEGORIES.keys())),
         )
-        sys.exit(1)
 
     return resolved
 
