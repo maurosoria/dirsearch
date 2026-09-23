@@ -246,7 +246,12 @@ class NativeHTTPBackend:
                 filtered=result.filtered,
                 filter_reason=result.filter_reason,
                 body_complete=result.body_complete,
-                history=result.history,
+                history=(
+                    result.history
+                    if self._engine_config is not None
+                    and self._engine_config["follow_redirects"]
+                    else ()
+                ),
             ),
             None,
         )
