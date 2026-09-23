@@ -385,6 +385,7 @@ async fn run_scan_worker(
                         start,
                         cancelled: cancelled.clone(),
                     },
+                    max_retries,
                     filter_config.as_ref(),
                 )
                 .await
