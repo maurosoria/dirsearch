@@ -1,10 +1,18 @@
 //! Cross-module regression tests for the native backend contract.
 
 use super::*;
+use crate::raw_client::{raw_http_get, RawHttpRequest};
 use crate::transport::request_with_client;
-use std::io::{Read, Write};
+use std::io::{ErrorKind, Read, Write};
 use std::net::TcpListener;
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 use std::thread;
+use std::time::{Duration, Instant};
+
+const INCOMPLETE_BODY_RESPONSE: &[u8] =
+    b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\nConnection: close\r\n\r\nno";
+const OK_RESPONSE: &[u8] = b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok";
 
 fn default_filter_config() -> NativeFilterConfig {
     NativeFilterConfig::from_options(
@@ -36,6 +44,89 @@ fn default_filter_config() -> NativeFilterConfig {
 
 fn content_length(value: usize) -> Vec<(String, String)> {
     vec![("Content-Length".to_string(), value.to_string())]
+}
+
+fn spawn_retry_body_server(responses: Vec<&'static [u8]>) -> (String, thread::JoinHandle<()>) {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    listener.set_nonblocking(true).unwrap();
+    let address = listener.local_addr().unwrap();
+    let server = thread::spawn(move || {
+        for response in responses {
+            let deadline = Instant::now() + Duration::from_secs(2);
+            let (mut stream, _) = loop {
+                match listener.accept() {
+                    Ok(connection) => break connection,
+                    Err(error)
+                        if error.kind() == ErrorKind::WouldBlock && Instant::now() < deadline =>
+                    {
+                        thread::sleep(Duration::from_millis(1));
+                    }
+                    Err(error) => panic!("test server did not receive request: {error}"),
+                }
+            };
+            stream
+                .set_read_timeout(Some(Duration::from_secs(1)))
+                .unwrap();
+            let mut request = [0u8; 1024];
+            assert!(stream.read(&mut request).unwrap() > 0);
+            stream.write_all(response).unwrap();
+        }
+    });
+
+    (format!("http://{address}"), server)
+}
+
+fn run_reqwest_retry(responses: Vec<&'static [u8]>) -> NativeHttpResult {
+    let (base_url, server) = spawn_retry_body_server(responses);
+    let client = build_http_client(&HeaderMap::new(), 1, 2.0, false, 30, None).unwrap();
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    let result = runtime.block_on(request_with_client(
+        &client,
+        &format!("{base_url}/retry"),
+        false,
+        1,
+        80,
+        Instant::now() - Duration::from_secs(5),
+        &default_filter_config(),
+        false,
+    ));
+    server.join().unwrap();
+    result
+}
+
+fn run_raw_retry(responses: Vec<&'static [u8]>) -> NativeHttpResult {
+    let (base_url, server) = spawn_retry_body_server(responses);
+    let headers = Vec::new();
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    let result = runtime.block_on(raw_http_get(
+        RawHttpRequest {
+            base_url: &base_url,
+            path: "retry%1",
+            headers: &headers,
+            timeout_secs: 30.0,
+            max_body_size: 80,
+            start: Instant::now() - Duration::from_secs(5),
+            cancelled: Arc::new(AtomicBool::new(false)),
+        },
+        1,
+        &default_filter_config(),
+    ));
+    server.join().unwrap();
+    result
+}
+
+fn assert_final_attempt_elapsed(result: &NativeHttpResult) {
+    assert!(
+        result.elapsed_ms < 1_000.0,
+        "elapsed included an earlier failed attempt: {} ms",
+        result.elapsed_ms
+    );
 }
 
 #[test]
@@ -93,6 +184,40 @@ fn reqwest_redirects_preserve_every_requested_url_in_history() {
         result.history,
         vec![start_url, format!("{base_url}/middle")]
     );
+}
+
+#[test]
+fn reqwest_retry_elapsed_reports_only_the_successful_attempt() {
+    let result = run_reqwest_retry(vec![INCOMPLETE_BODY_RESPONSE, OK_RESPONSE]);
+
+    assert_eq!(result.status, 200);
+    assert_eq!(result.body, b"ok");
+    assert_final_attempt_elapsed(&result);
+}
+
+#[test]
+fn reqwest_exhausted_retry_elapsed_reports_only_the_final_attempt() {
+    let result = run_reqwest_retry(vec![INCOMPLETE_BODY_RESPONSE, INCOMPLETE_BODY_RESPONSE]);
+
+    assert!(result.error.is_some());
+    assert_final_attempt_elapsed(&result);
+}
+
+#[test]
+fn raw_retry_elapsed_reports_only_the_successful_attempt() {
+    let result = run_raw_retry(vec![INCOMPLETE_BODY_RESPONSE, OK_RESPONSE]);
+
+    assert_eq!(result.status, 200);
+    assert_eq!(result.body, b"ok");
+    assert_final_attempt_elapsed(&result);
+}
+
+#[test]
+fn raw_exhausted_retry_elapsed_reports_only_the_final_attempt() {
+    let result = run_raw_retry(vec![INCOMPLETE_BODY_RESPONSE, INCOMPLETE_BODY_RESPONSE]);
+
+    assert!(result.error.is_some());
+    assert_final_attempt_elapsed(&result);
 }
 
 #[test]

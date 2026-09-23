@@ -72,13 +72,14 @@ pub(crate) async fn request_with_client(
     compact_filtered: bool,
 ) -> NativeHttpResult {
     let mut last_error = None;
-    for _ in 0..=max_retries {
+    let mut attempt_start = start;
+    for attempt in 0..=max_retries {
         match request_once(
             client,
             url,
             capture_redirect_history,
             max_body_size,
-            start,
+            attempt_start,
             filter_config,
             compact_filtered,
         )
@@ -88,16 +89,19 @@ pub(crate) async fn request_with_client(
             Err(error) => {
                 let retryable = !error.contains("tunnel error: unsuccessful");
                 last_error = Some(error);
-                if !retryable {
+                if !retryable || attempt == max_retries {
                     break;
                 }
+                // Python requesters report elapsed time for the final attempt,
+                // rather than accumulating time spent in earlier failures.
+                attempt_start = Instant::now();
             }
         }
     }
 
     native_error_result(
         String::new(),
-        start.elapsed().as_secs_f64() * 1000.0,
+        attempt_start.elapsed().as_secs_f64() * 1000.0,
         last_error.unwrap_or_else(|| "request failed".to_string()),
     )
 }

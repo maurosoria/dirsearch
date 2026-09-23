@@ -703,6 +703,41 @@ class TestRequesterElapsed(TestCase):
 
         self.assertEqual(response.elapsed, 0.25, "Sync elapsed should measure the full streamed request lifecycle")
 
+    def test_retry_elapsed_reports_only_the_successful_attempt(self):
+        requester = object.__new__(Requester)
+        requester._rate_limiter = RequestRateLimiter()
+        requester._url = "https://example.com/"
+        requester._query = ""
+        requester.proxy_cred = None
+        requester.headers = {}
+        requester.agents = []
+        failed = DummySyncResponse(
+            requests.exceptions.ChunkedEncodingError("incomplete body")
+        )
+        successful = DummySyncResponse()
+        requester.session = DummySyncSession(successful)
+
+        with (
+            patch.dict(options, {"max_retries": 1}),
+            patch.object(
+                requester.session,
+                "send",
+                side_effect=[failed, successful],
+            ),
+            patch.object(
+                requester_module.time,
+                "perf_counter",
+                side_effect=[1.0, 10.0, 10.25],
+            ),
+            patch.object(requester_module.logger, "info"),
+            patch.object(requester_module.logger, "exception"),
+        ):
+            response = requester.request("admin")
+
+        self.assertEqual(response.elapsed, 0.25)
+        self.assertTrue(failed.closed)
+        self.assertTrue(successful.closed)
+
 
 class TestRequesterRateLimiting(BaseRequesterTestCase):
     def test_unlimited_requests_do_not_spawn_timer_threads(self):
@@ -1318,6 +1353,36 @@ class TestAsyncRequesterElapsed(IsolatedAsyncioTestCase):
 
         self.assertEqual(response.elapsed, 0.5, "Async elapsed should measure the full streamed request lifecycle")
         self.assertTrue(requester.session.response.closed, "Streamed async responses should be closed before elapsed is used")
+
+    async def test_retry_elapsed_reports_only_the_successful_attempt(self):
+        requester = object.__new__(AsyncRequester)
+        requester._rate_limiter = RequestRateLimiter()
+        requester._url = "https://example.com/"
+        requester._query = ""
+        requester.proxy_cred = None
+        requester.headers = {}
+        requester.agents = []
+        requester._inherited_proxy_transports = set()
+        failed = DummyAsyncResponse(httpx.ReadError("incomplete body"))
+        successful = DummyAsyncResponse()
+        requester.session = DummyAsyncSession(successful)
+        requester.session.send = AsyncMock(side_effect=[failed, successful])
+
+        with (
+            patch.dict(options, {"max_retries": 1}),
+            patch.object(
+                requester_module.time,
+                "perf_counter",
+                side_effect=[1.0, 10.0, 10.25],
+            ),
+            patch.object(requester_module.logger, "info"),
+            patch.object(requester_module.logger, "exception"),
+        ):
+            response = await requester.request("admin")
+
+        self.assertEqual(response.elapsed, 0.25)
+        self.assertTrue(failed.closed)
+        self.assertTrue(successful.closed)
 
 
 class TestAsyncRequesterResponseCleanup(
