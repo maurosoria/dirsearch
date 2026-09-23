@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import tempfile
 from pathlib import Path
 from unittest import TestCase
@@ -7,6 +8,7 @@ from unittest.mock import patch
 
 from lib.core.data import options
 from lib.core.exceptions import WordlistBackendUnavailableError
+from lib.core.native_runtime import NATIVE_EXTENSION_VERSION
 from lib.core.wordlist_backend import (
     NativeWordlistBackend,
     NativeWordlistCorpus,
@@ -54,7 +56,7 @@ class FakeOwnedBatch:
 
 
 class FakeNativeModule:
-    __version__ = "0.2.1"
+    __version__ = NATIVE_EXTENSION_VERSION
 
     @staticmethod
     def generate_wordlist_owned(*_args, **_kwargs):
@@ -118,7 +120,7 @@ class TestWordlistBackend(TestCase):
             patch.dict("sys.modules", {"dirsearch_native": incompatible_native}),
             self.assertRaisesRegex(
                 WordlistBackendUnavailableError,
-                r"expected 0\.2\.1, found 0\.2\.0",
+                rf"expected {re.escape(NATIVE_EXTENSION_VERSION)}, found 0\.2\.0",
             ),
         ):
             NativeWordlistBackend()

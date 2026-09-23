@@ -8,6 +8,7 @@ use crate::result::{
 use async_compression::tokio::bufread::{BrotliDecoder, GzipDecoder, ZlibDecoder};
 use futures_util::TryStreamExt;
 use reqwest::header::{HeaderMap, CONTENT_ENCODING};
+use std::cell::RefCell;
 use std::io;
 use std::pin::Pin;
 use std::time::{Duration, Instant};
@@ -16,6 +17,10 @@ use tokio_util::io::StreamReader;
 
 pub(crate) type HeaderPairs = Vec<(String, String)>;
 type AsyncBodyReader = Pin<Box<dyn AsyncRead + Send>>;
+
+tokio::task_local! {
+    static REDIRECT_HISTORY: RefCell<Vec<String>>;
+}
 
 pub(crate) fn build_http_client(
     headers: &HeaderMap,
@@ -28,7 +33,16 @@ pub(crate) fn build_http_client(
         .danger_accept_invalid_certs(true)
         .default_headers(headers.clone())
         .redirect(if follow_redirects {
-            reqwest::redirect::Policy::limited(10)
+            let limited = reqwest::redirect::Policy::limited(10);
+            reqwest::redirect::Policy::custom(move |attempt| {
+                // Reqwest clones its redirect state per request. Mirror that
+                // isolation here so concurrent scans cannot mix URL chains.
+                let _ = REDIRECT_HISTORY.try_with(|history| {
+                    *history.borrow_mut() =
+                        attempt.previous().iter().map(ToString::to_string).collect();
+                });
+                limited.redirect(attempt)
+            })
         } else {
             reqwest::redirect::Policy::none()
         })
@@ -42,9 +56,11 @@ pub(crate) fn build_http_client(
     builder.build()
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn request_with_client(
     client: &reqwest::Client,
     url: String,
+    capture_redirect_history: bool,
     max_retries: usize,
     max_body_size: usize,
     start: Instant,
@@ -54,9 +70,20 @@ pub(crate) async fn request_with_client(
     let mut response = None;
     let mut last_error = None;
     for _ in 0..=max_retries {
-        match client.get(&url).send().await {
+        let (request_result, redirect_history) = if capture_redirect_history {
+            REDIRECT_HISTORY
+                .scope(RefCell::new(Vec::new()), async {
+                    let result = client.get(&url).send().await;
+                    let history = REDIRECT_HISTORY.with(|history| history.borrow().clone());
+                    (result, history)
+                })
+                .await
+        } else {
+            (client.get(&url).send().await, Vec::new())
+        };
+        match request_result {
             Ok(value) => {
-                response = Some(value);
+                response = Some((value, redirect_history));
                 last_error = None;
                 break;
             }
@@ -70,7 +97,7 @@ pub(crate) async fn request_with_client(
             }
         }
     }
-    let response = match response {
+    let (response, redirect_history) = match response {
         Some(response) => response,
         None => {
             return native_error_result(
@@ -90,7 +117,9 @@ pub(crate) async fn request_with_client(
                 error,
             );
         }
-        return native_filtered_marker(status, start.elapsed().as_secs_f64() * 1000.0);
+        let mut result = native_filtered_marker(status, start.elapsed().as_secs_f64() * 1000.0);
+        result.history = redirect_history;
+        return result;
     }
     let headers = response
         .headers()
@@ -112,7 +141,7 @@ pub(crate) async fn request_with_client(
             );
         }
     };
-    native_http_result_with_length(
+    let mut result = native_http_result_with_length(
         String::new(),
         status,
         headers,
@@ -120,7 +149,9 @@ pub(crate) async fn request_with_client(
         body_length,
         start.elapsed().as_secs_f64() * 1000.0,
         filter_config,
-    )
+    );
+    result.history = redirect_history;
+    result
 }
 
 fn format_error_chain(error: &dyn std::error::Error) -> String {

@@ -387,6 +387,7 @@ async fn run_scan_worker(
                 request_with_client(
                     client,
                     url,
+                    follow_redirects,
                     max_retries,
                     max_body_size,
                     start,

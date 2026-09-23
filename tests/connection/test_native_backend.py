@@ -1,3 +1,4 @@
+import re
 from unittest import TestCase
 from unittest.mock import patch
 
@@ -22,6 +23,7 @@ class FakeNativeResult:
     headers = [("content-type", "text/plain")]
     body = []
     body_complete = True
+    history = ["https://example.com/before"]
 
 
 class FakeNativeEngine:
@@ -79,6 +81,7 @@ class IndexedNativeResult:
         self.headers = [("content-type", "text/plain")]
         self.body = [] if filtered else [111, 107]
         self.body_complete = True
+        self.history = []
 
 
 class FakeOwnedBatch:
@@ -146,7 +149,7 @@ class TestNativeHTTPBackend(TestCase):
             patch.dict("sys.modules", {"dirsearch_native": fake_native}),
             self.assertRaisesRegex(
                 RequestException,
-                r"expected 0\.2\.1, found 0\.2\.0",
+                rf"expected {re.escape(NATIVE_EXTENSION_VERSION)}, found 0\.2\.0",
             ),
         ):
             NativeHTTPBackend()
@@ -166,6 +169,7 @@ class TestNativeHTTPBackend(TestCase):
         self.assertEqual(response.filter_reason, "advanced_filter")
         self.assertEqual(response.body, b"")
         self.assertEqual(response.length, 64)
+        self.assertEqual(response.history, ["https://example.com/before"])
 
         self.assertEqual(len(fake_native.engines), 1)
         engine = fake_native.engines[0]

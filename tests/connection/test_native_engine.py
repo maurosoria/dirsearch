@@ -145,6 +145,29 @@ class MixedStatusHandler(BaseHTTPRequestHandler):
         return None
 
 
+class RedirectChainHandler(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+
+    def do_GET(self):
+        if self.path == "/start":
+            self.send_response(302)
+            self.send_header("Location", "/middle")
+            body = b""
+        elif self.path == "/middle":
+            self.send_response(307)
+            self.send_header("Location", "/final?ok=1")
+            body = b""
+        else:
+            self.send_response(200)
+            body = b"ok"
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, _format, *args):
+        return None
+
+
 class ProxyAuthenticationRequiredHandler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
@@ -212,6 +235,25 @@ class TestNativeHttpEngine(TestCase):
         expected = "missing%20page/%E6%B5%8B%E8%AF%95?scope=hello%20world"
         self.assertEqual(server.request_target, f"/{expected}")
         self.assertEqual(results[0].path, expected)
+
+    def test_followed_redirects_preserve_every_requested_url_in_history(self):
+        server = CountingHTTPServer(RedirectChainHandler)
+        base_url = server.url
+        engine = dirsearch_native.NativeHttpEngine(
+            concurrency=1,
+            follow_redirects=True,
+        )
+
+        try:
+            result = engine.scan(base_url, ["start"])[0]
+        finally:
+            server.close()
+
+        self.assertEqual(result.status, 200)
+        self.assertEqual(
+            result.history,
+            [f"{base_url}start", f"{base_url}middle"],
+        )
 
     def test_compact_scan_returns_tail_completion_marker(self):
         server = CountingHTTPServer()
