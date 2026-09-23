@@ -27,13 +27,14 @@ pub(crate) fn build_http_client(
     concurrency: usize,
     timeout_secs: f64,
     follow_redirects: bool,
+    max_redirects: usize,
     proxy_url: Option<&str>,
 ) -> Result<reqwest::Client, reqwest::Error> {
     let mut builder = reqwest::Client::builder()
         .danger_accept_invalid_certs(true)
         .default_headers(headers.clone())
         .redirect(if follow_redirects {
-            let limited = reqwest::redirect::Policy::limited(10);
+            let limited = reqwest::redirect::Policy::limited(max_redirects);
             reqwest::redirect::Policy::custom(move |attempt| {
                 // Reqwest clones its redirect state per request. Mirror that
                 // isolation here so concurrent scans cannot mix URL chains.
