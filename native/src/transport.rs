@@ -38,8 +38,11 @@ pub(crate) fn build_http_client(
                 // Reqwest clones its redirect state per request. Mirror that
                 // isolation here so concurrent scans cannot mix URL chains.
                 let _ = REDIRECT_HISTORY.try_with(|history| {
-                    *history.borrow_mut() =
-                        attempt.previous().iter().map(ToString::to_string).collect();
+                    // The callback runs once per hop. Only append the URL that
+                    // produced this redirect instead of rebuilding the chain.
+                    if let Some(previous_url) = attempt.previous().last() {
+                        history.borrow_mut().push(previous_url.to_string());
+                    }
                 });
                 limited.redirect(attempt)
             })

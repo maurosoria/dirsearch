@@ -26,6 +26,17 @@ class FakeNativeResult:
     history = ["https://example.com/before"]
 
 
+class HistoryTrackingNativeResult(FakeNativeResult):
+    def __init__(self, history):
+        self._history = history
+        self.history_reads = 0
+
+    @property
+    def history(self):
+        self.history_reads += 1
+        return self._history
+
+
 class FakeNativeEngine:
     def __init__(self, results=None, **config):
         self.config = config
@@ -154,6 +165,32 @@ class TestNativeHTTPBackend(TestCase):
         ):
             NativeHTTPBackend()
 
+    def test_disabled_redirects_do_not_materialize_native_history(self):
+        result = HistoryTrackingNativeResult(
+            ["https://example.com/unexpected-redirect"]
+        )
+        fake_native = FakeNativeModule([result])
+
+        with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
+            backend = NativeHTTPBackend()
+            response = list(backend.scan("https://example.com/", ["admin"]))[0][1]
+
+        self.assertEqual(result.history_reads, 0)
+        self.assertEqual(response.history, [])
+
+    def test_enabled_redirects_materialize_native_history_once(self):
+        options["follow_redirects"] = True
+        history = ["https://example.com/before"]
+        result = HistoryTrackingNativeResult(history)
+        fake_native = FakeNativeModule([result])
+
+        with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
+            backend = NativeHTTPBackend()
+            response = list(backend.scan("https://example.com/", ["admin"]))[0][1]
+
+        self.assertEqual(result.history_reads, 1)
+        self.assertEqual(response.history, history)
+
     def test_scan_reuses_native_filter_config_and_builds_filtered_response(self):
         fake_native = FakeNativeModule()
 
@@ -169,7 +206,7 @@ class TestNativeHTTPBackend(TestCase):
         self.assertEqual(response.filter_reason, "advanced_filter")
         self.assertEqual(response.body, b"")
         self.assertEqual(response.length, 64)
-        self.assertEqual(response.history, ["https://example.com/before"])
+        self.assertEqual(response.history, [])
 
         self.assertEqual(len(fake_native.engines), 1)
         engine = fake_native.engines[0]
