@@ -909,6 +909,18 @@ def parse_arguments(arguments: list[str] | None = None) -> Values:
         help="Output file location",
     )
     output.add_option(
+        "--sqlite-commit-batch-size",
+        action="store",
+        type="int",
+        dest="sqlite_commit_batch_size",
+        metavar="COUNT",
+        help=(
+            "Commit SQLite reports every COUNT results (default: 1); "
+            "values above 1 may lose up to COUNT-1 recent rows after an "
+            "abrupt exit"
+        ),
+    )
+    output.add_option(
         "--mysql-url",
         action="store",
         dest="mysql_url",

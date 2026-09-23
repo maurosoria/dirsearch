@@ -38,12 +38,14 @@ class TestCommandLineHelp(TestCase):
         self.assertIn("--wordlist-backend", short_output)
         self.assertIn("--match-header-regex", short_output)
         self.assertIn("--mysql-url", short_output)
+        self.assertIn("--sqlite-commit-batch-size", short_output)
         self.assertIn("--find-backup", short_output)
         self.assertIn(
             "Read request body from file without encoding or newline conversion",
             short_output.replace("\n                        ", " "),
         )
         normalized_output = short_output.replace("\n                        ", " ")
+        self.assertIn("may lose up to COUNT-1 recent rows", normalized_output)
         self.assertIn("Maximum recursion depth (0 means unlimited)", normalized_output)
         self.assertIn(
             "Connection timeout in seconds (greater than 0)",

@@ -126,6 +126,7 @@ options: dict[str, Any] = {
     "output_file": None,
     "output_table": None,
     "output_formats": None,
+    "sqlite_commit_batch_size": 1,
     "mysql_url": None,
     "postgres_url": None,
     "save_response": None,

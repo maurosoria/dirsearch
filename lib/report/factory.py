@@ -62,6 +62,9 @@ class BaseReport(ABC):
     def save(self, result):
         raise NotImplementedError
 
+    def flush(self):
+        pass
+
 
 class FileReportMixin:
     _newline = None
@@ -117,15 +120,33 @@ class SQLReportMixin:
             return self.connect(database)
 
         if self._conn is not None and self._conn_database != database:
-            self._conn.close()
-            self._conn = None
-            self._conn_database = None
+            self._close_connection()
 
         if self._conn is None:
             self._conn = self.connect(database)
             self._conn_database = database
 
         return self._conn
+
+    def _commit(self, conn):
+        conn.commit()
+
+    def _after_save(self, conn):
+        self._commit(conn)
+
+    def _close_connection(self):
+        conn = self._conn
+        if conn is None:
+            return
+
+        try:
+            self._commit(conn)
+        finally:
+            try:
+                conn.close()
+            finally:
+                self._conn = None
+                self._conn_database = None
 
     def get_create_table_query(self, table):
         return (f'''CREATE TABLE IF NOT EXISTS "{table}" (
@@ -151,7 +172,7 @@ class SQLReportMixin:
         cursor = conn.cursor()
 
         cursor.execute(*self.get_create_table_query(table))
-        conn.commit()
+        self._commit(conn)
 
         if not self._reuse:
             conn.close()
@@ -174,15 +195,16 @@ class SQLReportMixin:
                 ),
             )
         )
-        conn.commit()
+        self._after_save(conn)
 
         if not self._reuse:
             conn.close()
 
-    def finish(self):
+    @locked
+    def flush(self):
         if self._conn is not None:
-            try:
-                self._conn.close()
-            finally:
-                self._conn = None
-                self._conn_database = None
+            self._commit(self._conn)
+
+    @locked
+    def finish(self):
+        self._close_connection()
