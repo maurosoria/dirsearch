@@ -77,7 +77,7 @@ fn reqwest_redirects_preserve_every_requested_url_in_history() {
 
     let result = runtime.block_on(request_with_client(
         &client,
-        start_url.clone(),
+        &start_url,
         true,
         0,
         80,
@@ -88,6 +88,7 @@ fn reqwest_redirects_preserve_every_requested_url_in_history() {
     server.join().unwrap();
 
     assert_eq!(result.status, 200);
+    assert_eq!(result.final_url, format!("{base_url}/final?ok=1"));
     assert_eq!(
         result.history,
         vec![start_url, format!("{base_url}/middle")]

@@ -62,7 +62,7 @@ pub(crate) fn build_http_client(
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn request_with_client(
     client: &reqwest::Client,
-    url: String,
+    url: &str,
     capture_redirect_history: bool,
     max_retries: usize,
     max_body_size: usize,
@@ -76,13 +76,13 @@ pub(crate) async fn request_with_client(
         let (request_result, redirect_history) = if capture_redirect_history {
             REDIRECT_HISTORY
                 .scope(RefCell::new(Vec::new()), async {
-                    let result = client.get(&url).send().await;
+                    let result = client.get(url).send().await;
                     let history = REDIRECT_HISTORY.with(|history| history.borrow().clone());
                     (result, history)
                 })
                 .await
         } else {
-            (client.get(&url).send().await, Vec::new())
+            (client.get(url).send().await, Vec::new())
         };
         match request_result {
             Ok(value) => {
@@ -111,6 +111,7 @@ pub(crate) async fn request_with_client(
         }
     };
     let status = response.status().as_u16();
+    let final_url = response.url().to_string();
     if compact_filtered && status != 407 && filter_config.status_filter_reason(status).is_some() {
         let encodings = response_encodings(response.headers());
         if let Err(error) = read_decoded_body(response, encodings, 0, false).await {
@@ -122,6 +123,7 @@ pub(crate) async fn request_with_client(
         }
         let mut result = native_filtered_marker(status, start.elapsed().as_secs_f64() * 1000.0);
         result.history = redirect_history;
+        result.final_url = final_url;
         return result;
     }
     let headers = response
@@ -154,6 +156,7 @@ pub(crate) async fn request_with_client(
         filter_config,
     );
     result.history = redirect_history;
+    result.final_url = final_url;
     result
 }
 

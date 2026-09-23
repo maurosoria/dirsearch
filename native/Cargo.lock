@@ -177,7 +177,7 @@ checksum = "d0a5c400df2834b80a4c3327b3aad3a4c4cd4de0629063962b03235697506a28"
 
 [[package]]
 name = "dirsearch_native"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "async-compression",
  "brotli",

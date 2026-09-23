@@ -24,6 +24,7 @@ class FakeNativeResult:
     body = []
     body_complete = True
     history = ["https://example.com/before"]
+    final_url = "https://example.com/missing%20page"
 
 
 class HistoryTrackingNativeResult(FakeNativeResult):
@@ -93,6 +94,7 @@ class IndexedNativeResult:
         self.body = [] if filtered else [111, 107]
         self.body_complete = True
         self.history = []
+        self.final_url = f"https://example.com/{self.path}"
 
 
 class FakeOwnedBatch:
