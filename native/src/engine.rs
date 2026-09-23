@@ -36,6 +36,7 @@ struct NativeHttpEngineConfig {
     headers: HeaderPairs,
     proxies: Vec<String>,
     follow_redirects: bool,
+    max_redirects: usize,
 }
 
 type CachedNativeHttpEngine = Option<(NativeHttpEngineConfig, Arc<NativeHttpEngine>)>;
@@ -51,6 +52,7 @@ impl NativeHttpEngine {
         headers=Vec::new(),
         proxies=Vec::new(),
         follow_redirects=false,
+        max_redirects=30,
     ))]
     fn new(
         concurrency: usize,
@@ -58,6 +60,7 @@ impl NativeHttpEngine {
         headers: HeaderPairs,
         proxies: Vec<String>,
         follow_redirects: bool,
+        max_redirects: usize,
     ) -> PyResult<Self> {
         let mut header_map = HeaderMap::new();
         for (name, value) in &headers {
@@ -75,6 +78,7 @@ impl NativeHttpEngine {
                 concurrency,
                 timeout_secs,
                 follow_redirects,
+                max_redirects,
                 None,
             )
             .map_err(|error| PyRuntimeError::new_err(error.to_string()))?]
@@ -87,6 +91,7 @@ impl NativeHttpEngine {
                         concurrency,
                         timeout_secs,
                         follow_redirects,
+                        max_redirects,
                         Some(proxy_url),
                     )
                 })
@@ -453,6 +458,7 @@ async fn run_scan_worker(
     filter_header_regex=None,
     match_time=Vec::new(),
     filter_time=Vec::new(),
+    max_redirects=30,
 ))]
 pub(crate) fn scan_http(
     py: Python<'_>,
@@ -488,6 +494,7 @@ pub(crate) fn scan_http(
     filter_header_regex: Option<String>,
     match_time: Vec<TimeFilter>,
     filter_time: Vec<TimeFilter>,
+    max_redirects: usize,
 ) -> PyResult<Vec<NativeHttpResult>> {
     let config = NativeHttpEngineConfig {
         concurrency,
@@ -495,6 +502,7 @@ pub(crate) fn scan_http(
         headers: headers.clone(),
         proxies: proxies.clone(),
         follow_redirects,
+        max_redirects,
     };
     let engine = {
         let cache = DEFAULT_HTTP_ENGINE.get_or_init(|| Mutex::new(None));
@@ -513,6 +521,7 @@ pub(crate) fn scan_http(
                     headers,
                     proxies,
                     follow_redirects,
+                    max_redirects,
                 )?),
             ));
         }

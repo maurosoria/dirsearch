@@ -20,7 +20,7 @@ from lib.core.native_runtime import (
     get_native_backend_install_error,
     get_native_extension_version_error,
 )
-from lib.core.settings import MAX_RESPONSE_SIZE
+from lib.core.settings import MAX_REDIRECTS, MAX_RESPONSE_SIZE
 from lib.core.wordlist_backend import NativeWordlistBatch
 
 
@@ -75,6 +75,7 @@ class NativeHTTPBackend:
             "headers": list(options["headers"].items()),
             "proxies": proxies,
             "follow_redirects": options["follow_redirects"],
+            "max_redirects": MAX_REDIRECTS,
         }
         if self._engine is None or config != self._engine_config:
             self._engine = self._native.NativeHttpEngine(**config)

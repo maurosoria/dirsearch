@@ -54,6 +54,7 @@ from lib.connection.requester import (
 )
 from lib.core.data import options
 from lib.core.exceptions import RequestException
+from lib.core.settings import MAX_REDIRECTS
 from lib.report.jsonl_response_store import JsonlResponseStore
 from lib.report.response_store import ResponseArtifact
 
@@ -150,6 +151,17 @@ class RequestTargetHandler(http.server.BaseHTTPRequestHandler):
             self.send_header("location", "/final")
             self.end_headers()
             return
+
+        if route_target.startswith(b"/redirect-count/"):
+            redirects_left = int(route_target.rsplit(b"/", 1)[1])
+            if redirects_left:
+                self.send_response(302)
+                self.send_header(
+                    "location",
+                    f"/redirect-count/{redirects_left - 1}",
+                )
+                self.end_headers()
+                return
 
         redirect_chain = {
             b"/redirect-chain/start?first=%2F": "middle?step=%2F",
@@ -784,6 +796,37 @@ class TestRequesterPathPreservation(BaseRequesterTestCase):
             self.assertEqual(response.history, [f"{server.url}redirect"])
             self.assertEqual(server.targets, [b"/redirect", b"/final"])
 
+    def test_sync_requester_follows_shared_redirect_limit(self):
+        options["follow_redirects"] = True
+
+        with RequestTargetServer() as server:
+            requester = Requester()
+            requester.set_url(server.url)
+            try:
+                response = requester.request(
+                    f"redirect-count/{MAX_REDIRECTS}"
+                )
+            finally:
+                requester.close()
+
+            self.assertEqual(response.status, 200)
+            self.assertEqual(len(response.history), MAX_REDIRECTS)
+
+    def test_sync_requester_rejects_redirects_above_shared_limit(self):
+        options["follow_redirects"] = True
+
+        with RequestTargetServer() as server:
+            requester = Requester()
+            requester.set_url(server.url)
+            try:
+                with self.assertRaisesRegex(
+                    RequestException,
+                    "Too many redirects",
+                ):
+                    requester.request(f"redirect-count/{MAX_REDIRECTS + 1}")
+            finally:
+                requester.close()
+
 
 class TestRequesterBodyPreservation(BaseRequesterTestCase):
     def test_sync_requester_preserves_data_file_encodings(self):
@@ -1372,6 +1415,39 @@ class TestAsyncRequesterPathPreservation(BaseRequesterTestCase, IsolatedAsyncioT
                 ],
             )
 
+    async def test_async_requester_follows_shared_redirect_limit(self):
+        options["follow_redirects"] = True
+
+        with RequestTargetServer() as server:
+            requester = AsyncRequester()
+            requester.set_url(server.url)
+            try:
+                response = await requester.request(
+                    f"redirect-count/{MAX_REDIRECTS}"
+                )
+            finally:
+                await requester.close()
+
+            self.assertEqual(response.status, 200)
+            self.assertEqual(len(response.history), MAX_REDIRECTS)
+
+    async def test_async_requester_rejects_redirects_above_shared_limit(self):
+        options["follow_redirects"] = True
+
+        with RequestTargetServer() as server:
+            requester = AsyncRequester()
+            requester.set_url(server.url)
+            try:
+                with self.assertRaisesRegex(
+                    RequestException,
+                    "Too many redirects",
+                ):
+                    await requester.request(
+                        f"redirect-count/{MAX_REDIRECTS + 1}"
+                    )
+            finally:
+                await requester.close()
+
     async def test_async_requester_follows_redirect_with_dns_override(self):
         options["follow_redirects"] = True
 
@@ -1557,6 +1633,47 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
                     b"/redirect-chain/final?done=%2F",
                 ],
             )
+
+    def test_native_requester_follows_shared_redirect_limit(self):
+        try:
+            backend = NativeHTTPBackend()
+        except RequestException as error:
+            self.skipTest(str(error))
+
+        options["follow_redirects"] = True
+        with RequestTargetServer() as server:
+            result = list(
+                backend.scan(
+                    server.url,
+                    [f"redirect-count/{MAX_REDIRECTS}"],
+                )
+            )[0]
+
+            self.assertIsNone(result[2])
+            self.assertEqual(result[1].status, 200)
+            self.assertEqual(
+                len(result[1].history),
+                MAX_REDIRECTS,
+            )
+
+    def test_native_requester_rejects_redirects_above_shared_limit(self):
+        try:
+            backend = NativeHTTPBackend()
+        except RequestException as error:
+            self.skipTest(str(error))
+
+        options["follow_redirects"] = True
+        with RequestTargetServer() as server:
+            result = list(
+                backend.scan(
+                    server.url,
+                    [f"redirect-count/{MAX_REDIRECTS + 1}"],
+                )
+            )[0]
+
+            self.assertIsNone(result[1])
+            self.assertIsNotNone(result[2])
+            self.assertIn("too many redirects", str(result[2]).lower())
 
     def test_native_requester_uses_authenticated_http_proxy(self):
         try:

@@ -214,6 +214,7 @@ class TestNativeHTTPBackend(TestCase):
         engine = fake_native.engines[0]
         self.assertEqual(engine.config["concurrency"], 7)
         self.assertEqual(engine.config["timeout_secs"], 3.5)
+        self.assertEqual(engine.config["max_redirects"], 30)
         self.assertEqual(
             engine.config["proxies"],
             ["http://user:password@127.0.0.1:8080"],

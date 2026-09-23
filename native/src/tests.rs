@@ -69,7 +69,7 @@ fn reqwest_redirects_preserve_every_requested_url_in_history() {
     });
     let base_url = format!("http://{address}");
     let start_url = format!("{base_url}/start");
-    let client = build_http_client(&HeaderMap::new(), 1, 2.0, true, None).unwrap();
+    let client = build_http_client(&HeaderMap::new(), 1, 2.0, true, 30, None).unwrap();
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -647,6 +647,7 @@ fn http_proxy_client_configuration_builds() {
         25,
         1.0,
         false,
+        30,
         Some("http://user:password@127.0.0.1:8080"),
     );
 

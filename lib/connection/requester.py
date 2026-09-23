@@ -61,6 +61,7 @@ from lib.core.decorators import cached
 from lib.core.exceptions import RequestException
 from lib.core.logger import logger
 from lib.core.settings import (
+    MAX_REDIRECTS,
     PROXY_SCHEMES,
     RATE_UPDATE_DELAY,
     READ_RESPONSE_ERROR_REGEX,
@@ -518,6 +519,7 @@ class Requester(BaseRequester):
         super().__init__()
 
         self.session = requests.Session()
+        self.session.max_redirects = MAX_REDIRECTS
         self.session.verify = False
         self.session.cert = self._cert
 
@@ -814,6 +816,7 @@ class AsyncRequester(BaseRequester):
             transport=transport,
             mounts=mounts,
             timeout=httpx.Timeout(options["timeout"]),
+            max_redirects=MAX_REDIRECTS,
         )
         self.replay_session = None
 
@@ -904,6 +907,7 @@ class AsyncRequester(BaseRequester):
             self.replay_session = httpx.AsyncClient(
                 transport=transport,
                 timeout=httpx.Timeout(options["timeout"]),
+                max_redirects=MAX_REDIRECTS,
             )
         self.replay_session.auth = self.session.auth
         self.replay_session.cookies.clear()
