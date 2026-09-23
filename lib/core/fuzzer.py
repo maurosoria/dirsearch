@@ -82,6 +82,7 @@ class BaseFuzzer:
         self.error_callbacks = error_callbacks
         self._similar_fingerprints: dict[tuple, int] = {}
         self._auto_calibrated_fingerprints: set[tuple] = set()
+        self._filter_state_lock = threading.Lock()
 
         self.scanners: dict[str, dict[str, Scanner]] = {
             "default": {},
@@ -161,13 +162,6 @@ class BaseFuzzer:
         if self.is_auto_calibrated(resp):
             return True
 
-        if (
-            options["filter_threshold"]
-            and self._filter_fingerprints.get(resp.filter_fingerprint, 0)
-            >= options["filter_threshold"]
-        ):
-            return True
-
         return False
 
     def matches_advanced_matchers(self, resp: BaseResponse) -> bool:
@@ -226,31 +220,46 @@ class BaseFuzzer:
 
     def is_auto_calibrated(self, resp: BaseResponse) -> bool:
         fingerprint = self.response_fingerprint(resp)
-        if fingerprint in self._auto_calibrated_fingerprints:
-            logger.debug(f'"{resp.url}" filtered by auto-calibration fingerprint')
-            return True
-
-        if not self.should_record_auto_calibration(resp):
-            return False
-
-        self._similar_fingerprints[fingerprint] = (
-            self._similar_fingerprints.get(fingerprint, 0) + 1
-        )
+        should_record = self.should_record_auto_calibration(resp)
         threshold = (
             AUTO_CALIBRATION_FORCED_THRESHOLD
             if options["auto_calibration"]
             else AUTO_CALIBRATION_DUPLICATE_THRESHOLD
         )
+        repeated_fingerprint = False
+        with self._filter_state_lock:
+            if fingerprint in self._auto_calibrated_fingerprints:
+                repeated_fingerprint = True
+            elif not should_record:
+                return False
+            else:
+                count = self._similar_fingerprints.get(fingerprint, 0) + 1
+                self._similar_fingerprints[fingerprint] = count
+                if count < threshold:
+                    return False
+                self._auto_calibrated_fingerprints.add(fingerprint)
 
-        if self._similar_fingerprints[fingerprint] < threshold:
+        if repeated_fingerprint:
+            logger.debug(f'"{resp.url}" filtered by auto-calibration fingerprint')
+        else:
+            logger.debug(
+                f'"{resp.url}" filtered by repeated response auto-calibration '
+                f'(threshold={threshold})'
+            )
+        return True
+
+    def is_filter_threshold_reached(self, resp: BaseResponse) -> bool:
+        threshold = options["filter_threshold"]
+        if not threshold:
             return False
 
-        self._auto_calibrated_fingerprints.add(fingerprint)
-        logger.debug(
-            f'"{resp.url}" filtered by repeated response auto-calibration '
-            f'(threshold={threshold})'
-        )
-        return True
+        fingerprint = resp.filter_fingerprint
+        with self._filter_state_lock:
+            count = self._filter_fingerprints.get(fingerprint, 0)
+            if count >= threshold:
+                return True
+            self._filter_fingerprints[fingerprint] = count + 1
+        return False
 
     def should_record_auto_calibration(self, resp: BaseResponse) -> bool:
         if self.has_advanced_matchers():
@@ -317,10 +326,8 @@ class BaseFuzzer:
             if not tester.check(path, response):
                 return self.not_found_callbacks
 
-        if options["filter_threshold"]:
-            fingerprint = response.filter_fingerprint
-            self._filter_fingerprints.setdefault(fingerprint, 0)
-            self._filter_fingerprints[fingerprint] += 1
+        if self.is_filter_threshold_reached(response):
+            return self.not_found_callbacks
 
         return self.match_callbacks
 
