@@ -4,6 +4,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest import TestCase
+from unittest.mock import call, patch
 
 from lib.report.factory import SQLReportMixin
 from lib.report.sqlite_report import SQLiteReport
@@ -21,6 +22,71 @@ def make_result(url):
 
 
 class TestSQLReportPersistence(TestCase):
+    def test_sqlite_report_reuses_one_connection_for_multiple_results(self):
+        with TemporaryDirectory() as directory:
+            database = str(Path(directory, "report.sqlite"))
+            report = SQLiteReport()
+
+            with patch.object(report, "connect", wraps=report.connect) as connect:
+                report.initiate(database, "results")
+                report.save(database, "results", make_result("https://one.example/"))
+                report.save(database, "results", make_result("https://two.example/"))
+                report.finish()
+
+            self.assertEqual(connect.call_args_list, [call(database)])
+            self.assertIsNone(report._conn)
+            self.assertIsNone(report._conn_database)
+
+            with closing(sqlite3.connect(database)) as connection:
+                rows = connection.execute(
+                    'SELECT url FROM "results" ORDER BY rowid'
+                ).fetchall()
+
+        self.assertEqual(
+            rows,
+            [("https://one.example/",), ("https://two.example/",)],
+        )
+
+    def test_sqlite_report_switches_connections_for_formatted_destinations(self):
+        with TemporaryDirectory() as directory:
+            first_database = str(Path(directory, "first.sqlite"))
+            second_database = str(Path(directory, "second.sqlite"))
+            report = SQLiteReport()
+
+            with patch.object(report, "connect", wraps=report.connect) as connect:
+                report.initiate(first_database, "results")
+                report.save(
+                    first_database,
+                    "results",
+                    make_result("https://one.example/"),
+                )
+                report.initiate(second_database, "results")
+                report.save(
+                    second_database,
+                    "results",
+                    make_result("https://two.example/"),
+                )
+                report.finish()
+
+            self.assertEqual(
+                connect.call_args_list,
+                [call(first_database), call(second_database)],
+            )
+            self.assertIsNone(report._conn)
+            self.assertIsNone(report._conn_database)
+
+            with closing(sqlite3.connect(first_database)) as connection:
+                first_rows = connection.execute(
+                    'SELECT url FROM "results" ORDER BY rowid'
+                ).fetchall()
+            with closing(sqlite3.connect(second_database)) as connection:
+                second_rows = connection.execute(
+                    'SELECT url FROM "results" ORDER BY rowid'
+                ).fetchall()
+
+        self.assertEqual(first_rows, [("https://one.example/",)])
+        self.assertEqual(second_rows, [("https://two.example/",)])
+
     def test_reinitializing_sqlite_table_preserves_existing_results(self):
         with TemporaryDirectory() as directory:
             database = str(Path(directory, "report.sqlite"))
@@ -29,7 +95,10 @@ class TestSQLReportPersistence(TestCase):
             report.save(database, "results", make_result("https://one.example/"))
 
             report.initiate(database, "results")
-            SQLiteReport().initiate(database, "results")
+            second_report = SQLiteReport()
+            second_report.initiate(database, "results")
+            second_report.finish()
+            report.finish()
 
             with closing(sqlite3.connect(database)) as connection:
                 rows = connection.execute(
@@ -44,6 +113,7 @@ class TestSQLReportPersistence(TestCase):
             report = SQLiteReport()
             report.initiate(database, "results")
             report.save(database, "results", make_result("https://example.test/"))
+            report.finish()
 
             with closing(sqlite3.connect(database)) as connection:
                 columns = [
@@ -75,7 +145,9 @@ class TestSQLReportPersistence(TestCase):
                 connection.execute('INSERT INTO "results" VALUES (?)', ("keep-me",))
                 connection.commit()
 
-            SQLiteReport().initiate(database, "results")
+            report = SQLiteReport()
+            report.initiate(database, "results")
+            report.finish()
 
             with closing(sqlite3.connect(database)) as connection:
                 columns = [

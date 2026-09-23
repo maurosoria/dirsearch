@@ -109,14 +109,21 @@ class FileReportMixin:
 class SQLReportMixin:
     # Reuse the connection
     _conn = None
+    _conn_database = None
 
     def get_connection(self, database):
         # Reuse the old connection
         if not self._reuse:
             return self.connect(database)
 
-        if not self._conn:
+        if self._conn is not None and self._conn_database != database:
+            self._conn.close()
+            self._conn = None
+            self._conn_database = None
+
+        if self._conn is None:
             self._conn = self.connect(database)
+            self._conn_database = database
 
         return self._conn
 
@@ -173,5 +180,9 @@ class SQLReportMixin:
             conn.close()
 
     def finish(self):
-        if self._conn:
-            self._conn.close()
+        if self._conn is not None:
+            try:
+                self._conn.close()
+            finally:
+                self._conn = None
+                self._conn_database = None

@@ -25,7 +25,7 @@ from lib.utils.file import FileUtils
 class SQLiteReport(SQLReportMixin, BaseReport):
     __format__ = "sql"
     __extension__ = "sqlite"
-    _reuse = False
+    _reuse = True
 
     def get_create_table_query(self, table):
         return (f'''CREATE TABLE IF NOT EXISTS "{table}" (
