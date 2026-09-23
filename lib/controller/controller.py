@@ -304,6 +304,8 @@ class Controller:
         if parent_dir:
             FileUtils.create_dir(parent_dir)
 
+        # A saved session must never advance beyond durable report rows.
+        self.reporter.flush()
         session_store = SessionStore(options)
         session_store.save(self, session_file, last_output)
 

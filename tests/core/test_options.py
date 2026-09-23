@@ -11,6 +11,61 @@ from lib.core.settings import COMMON_EXTENSIONS
 
 
 class TestOptions(TestCase):
+    def test_sqlite_commit_batch_size_is_loaded_from_cli(self):
+        args = [
+            "dirsearch.py",
+            "--wordlist-status",
+            "-e",
+            "php",
+            "--sqlite-commit-batch-size",
+            "50",
+        ]
+
+        with patch("sys.argv", args):
+            parsed = parse_options()
+
+        self.assertEqual(parsed["sqlite_commit_batch_size"], 50)
+
+    def test_sqlite_commit_batch_size_is_loaded_from_config(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config_path = os.path.join(directory, "config.ini")
+            with open(config_path, "w", encoding="utf-8") as config:
+                config.write("[output]\nsqlite-commit-batch-size = 25\n")
+            args = [
+                "dirsearch.py",
+                "--wordlist-status",
+                "-e",
+                "php",
+                "--config",
+                config_path,
+            ]
+
+            with patch("sys.argv", args):
+                parsed = parse_options()
+
+        self.assertEqual(parsed["sqlite_commit_batch_size"], 25)
+
+    def test_sqlite_commit_batch_size_must_be_positive(self):
+        for value in ("0", "-1"):
+            with self.subTest(value=value):
+                args = [
+                    "dirsearch.py",
+                    "--wordlist-status",
+                    "-e",
+                    "php",
+                    "--sqlite-commit-batch-size",
+                    value,
+                ]
+
+                with (
+                    patch("sys.argv", args),
+                    redirect_stderr(io.StringIO()),
+                    self.assertRaises(SystemExit) as raised,
+                ):
+                    parse_options()
+
+                self.assertEqual(raised.exception.code, 1)
+
     def test_quoted_extension_wildcard_uses_common_extensions(self):
         args = [
             "dirsearch.py",

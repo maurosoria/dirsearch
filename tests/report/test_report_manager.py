@@ -71,6 +71,19 @@ class TestReportManagerDestinations(TestCase):
                     self.assertEqual(len(manager.reports), 1)
                     self.assertEqual(manager.reports[0][1], sources)
 
+    def test_sqlite_report_uses_configured_commit_batch_size(self):
+        options.update(
+            {
+                "output_file": "/tmp/report.sqlite",
+                "output_table": "results",
+                "sqlite_commit_batch_size": 25,
+            }
+        )
+
+        manager = ReportManager(["sqlite"])
+
+        self.assertEqual(manager.reports[0][0]._commit_batch_size, 25)
+
     @patch("lib.report.manager.START_TIME", "2026-09-13 07:30:45")
     def test_datetime_token_is_safe_for_windows_paths(self):
         manager = ReportManager([])

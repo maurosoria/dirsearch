@@ -18,6 +18,7 @@
 
 import sqlite3
 
+from lib.core.data import options
 from lib.report.factory import BaseReport, SQLReportMixin
 from lib.utils.file import FileUtils
 
@@ -26,6 +27,25 @@ class SQLiteReport(SQLReportMixin, BaseReport):
     __format__ = "sql"
     __extension__ = "sqlite"
     _reuse = True
+
+    def __init__(self, commit_batch_size=None):
+        super().__init__()
+        if commit_batch_size is None:
+            commit_batch_size = options.get("sqlite_commit_batch_size", 1)
+        if not isinstance(commit_batch_size, int) or commit_batch_size < 1:
+            raise ValueError("SQLite commit batch size must be a positive integer")
+
+        self._commit_batch_size = commit_batch_size
+        self._pending_writes = 0
+
+    def _commit(self, conn):
+        conn.commit()
+        self._pending_writes = 0
+
+    def _after_save(self, conn):
+        self._pending_writes += 1
+        if self._pending_writes >= self._commit_batch_size:
+            self._commit(conn)
 
     def get_create_table_query(self, table):
         return (f'''CREATE TABLE IF NOT EXISTS "{table}" (

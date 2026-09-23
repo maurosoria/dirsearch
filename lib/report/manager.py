@@ -94,6 +94,10 @@ class ReportManager:
                 result,
             )
 
+    def flush(self):
+        for reporter, sources in self.reports:
+            reporter.flush()
+
     def finish(self):
         for reporter, sources in self.reports:
             reporter.finish()

@@ -97,3 +97,22 @@ class TestSessionCleanup(TestCase):
             self._complete_scan(session_file)
 
             self.assertFalse(os.path.exists(session_file))
+
+    def test_session_export_flushes_reports_before_saving_checkpoint(self):
+        controller = object.__new__(Controller)
+        controller.reporter = Mock()
+        events = []
+        controller.reporter.flush.side_effect = lambda: events.append("report")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            session_path = os.path.join(tmpdir, "session")
+            with (
+                patch.object(
+                    SessionStore,
+                    "save",
+                    side_effect=lambda *args: events.append("session"),
+                ),
+            ):
+                controller._export(session_path)
+
+        self.assertEqual(events, ["report", "session"])

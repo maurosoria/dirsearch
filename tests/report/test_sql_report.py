@@ -22,6 +22,109 @@ def make_result(url):
 
 
 class TestSQLReportPersistence(TestCase):
+    def test_sqlite_batch_commits_at_configured_boundary(self):
+        with TemporaryDirectory() as directory:
+            database = str(Path(directory, "report.sqlite"))
+            report = SQLiteReport(commit_batch_size=3)
+            report.initiate(database, "results")
+
+            report.save(database, "results", make_result("https://one.example/"))
+            report.save(database, "results", make_result("https://two.example/"))
+
+            with closing(sqlite3.connect(database)) as connection:
+                pending_rows = connection.execute(
+                    'SELECT url FROM "results" ORDER BY rowid'
+                ).fetchall()
+
+            report.save(database, "results", make_result("https://three.example/"))
+
+            with closing(sqlite3.connect(database)) as connection:
+                committed_rows = connection.execute(
+                    'SELECT url FROM "results" ORDER BY rowid'
+                ).fetchall()
+
+            report.finish()
+
+        self.assertEqual(pending_rows, [])
+        self.assertEqual(
+            committed_rows,
+            [
+                ("https://one.example/",),
+                ("https://two.example/",),
+                ("https://three.example/",),
+            ],
+        )
+
+    def test_sqlite_finish_flushes_partial_batch(self):
+        with TemporaryDirectory() as directory:
+            database = str(Path(directory, "report.sqlite"))
+            report = SQLiteReport(commit_batch_size=10)
+            report.initiate(database, "results")
+            report.save(database, "results", make_result("https://one.example/"))
+
+            report.finish()
+
+            with closing(sqlite3.connect(database)) as connection:
+                rows = connection.execute(
+                    'SELECT url FROM "results" ORDER BY rowid'
+                ).fetchall()
+
+        self.assertEqual(rows, [("https://one.example/",)])
+
+    def test_sqlite_flush_makes_partial_batch_durable(self):
+        with TemporaryDirectory() as directory:
+            database = str(Path(directory, "report.sqlite"))
+            report = SQLiteReport(commit_batch_size=10)
+            report.initiate(database, "results")
+            report.save(database, "results", make_result("https://one.example/"))
+
+            report.flush()
+
+            with closing(sqlite3.connect(database)) as connection:
+                rows = connection.execute(
+                    'SELECT url FROM "results" ORDER BY rowid'
+                ).fetchall()
+            report.finish()
+
+        self.assertEqual(rows, [("https://one.example/",)])
+
+    def test_sqlite_destination_switch_flushes_partial_batch(self):
+        with TemporaryDirectory() as directory:
+            first_database = str(Path(directory, "first.sqlite"))
+            second_database = str(Path(directory, "second.sqlite"))
+            report = SQLiteReport(commit_batch_size=10)
+            report.initiate(first_database, "results")
+            report.save(
+                first_database,
+                "results",
+                make_result("https://one.example/"),
+            )
+
+            report.initiate(second_database, "results")
+
+            with closing(sqlite3.connect(first_database)) as connection:
+                first_rows = connection.execute(
+                    'SELECT url FROM "results" ORDER BY rowid'
+                ).fetchall()
+            report.finish()
+
+        self.assertEqual(first_rows, [("https://one.example/",)])
+
+    def test_sqlite_batch_size_one_preserves_commit_per_result(self):
+        with TemporaryDirectory() as directory:
+            database = str(Path(directory, "report.sqlite"))
+            report = SQLiteReport(commit_batch_size=1)
+            report.initiate(database, "results")
+            report.save(database, "results", make_result("https://one.example/"))
+
+            with closing(sqlite3.connect(database)) as connection:
+                rows = connection.execute(
+                    'SELECT url FROM "results" ORDER BY rowid'
+                ).fetchall()
+            report.finish()
+
+        self.assertEqual(rows, [("https://one.example/",)])
+
     def test_sqlite_report_reuses_one_connection_for_multiple_results(self):
         with TemporaryDirectory() as directory:
             database = str(Path(directory, "report.sqlite"))

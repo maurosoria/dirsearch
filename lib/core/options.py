@@ -449,6 +449,9 @@ def validate_numeric_options(opt: Any) -> None:
     if not math.isfinite(opt.delay) or opt.delay < 0:
         _fail("--delay must be finite and zero or greater")
 
+    if opt.sqlite_commit_batch_size < 1:
+        _fail("--sqlite-commit-batch-size must be greater than zero")
+
     for attribute, option_name in (
         ("max_retries", "--retries"),
         ("max_rate", "--max-rate"),
@@ -790,6 +793,11 @@ def merge_config(opt: Values) -> Values:
     opt.output_table = config.safe_get("output", "output-sql-table")
     opt.output_formats = opt.output_formats or config.safe_get(
         "output", "output-formats", "plain"
+    )
+    opt.sqlite_commit_batch_size = (
+        config.safe_getint("output", "sqlite-commit-batch-size", 1)
+        if opt.sqlite_commit_batch_size is None
+        else opt.sqlite_commit_batch_size
     )
     opt.save_response = opt.save_response or config.safe_get(
         "output", "save-response"
