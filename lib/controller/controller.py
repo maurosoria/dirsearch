@@ -81,6 +81,7 @@ from lib.report.response_store import (
     ResponseArtifact,
     create_response_stores,
 )
+from lib.utils.cli import fail
 from lib.utils.common import lstrip_once
 from lib.utils.crawl import Crawler
 from lib.utils.file import FileUtils
@@ -318,13 +319,11 @@ class Controller:
                     )
                 )
             except InvalidRawRequest as e:
-                print(str(e))
-                sys.exit(1)
+                fail(e)
 
             if options["request_backend"] == "native":
                 if error := get_native_request_backend_error(SimpleNamespace(**options)):
-                    print(error)
-                    sys.exit(1)
+                    fail(error)
         else:
             options["headers"] = {**DEFAULT_HEADERS, **options["headers"]}
 

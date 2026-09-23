@@ -31,6 +31,7 @@ from lib.core.api import (
 from lib.core.data import options
 from lib.core.exceptions import WordlistLimitError
 from lib.core.options import parse_options
+from lib.utils.cli import fail
 
 __all__ = [
     "main",
@@ -56,8 +57,7 @@ def main():
         try:
             dictionary = Dictionary(files=options["wordlists"])
         except WordlistLimitError as error:
-            print(str(error))
-            sys.exit(1)
+            fail(error)
 
         print("Wordlist status")
         print(f"Files: {len(options['wordlists'])}")

@@ -1,7 +1,7 @@
 import io
 import os
 import tempfile
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr
 from pathlib import Path
 from unittest import TestCase
 from unittest.mock import patch
@@ -38,7 +38,7 @@ class TestOptions(TestCase):
 
         with (
             patch("sys.argv", args),
-            redirect_stdout(output),
+            redirect_stderr(output),
             self.assertRaises(SystemExit) as ctx,
         ):
             parse_options()
@@ -297,5 +297,5 @@ class TestOptions(TestCase):
             "(",
         ]
 
-        with patch("sys.argv", args), redirect_stdout(io.StringIO()), self.assertRaises(SystemExit):
+        with patch("sys.argv", args), redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
             parse_options()

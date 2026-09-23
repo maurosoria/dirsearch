@@ -1,7 +1,7 @@
 import io
 import sys
 import tempfile
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr
 from pathlib import Path
 from unittest import TestCase
 from unittest.mock import patch
@@ -24,7 +24,7 @@ class TestRegexOptionValidation(TestCase):
         output = io.StringIO()
         with (
             patch.object(sys, "argv", [*self.BASE_ARGUMENTS, *arguments]),
-            redirect_stdout(output),
+            redirect_stderr(output),
             self.assertRaises(SystemExit) as raised,
         ):
             parse_options()
@@ -63,7 +63,7 @@ class TestRegexOptionValidation(TestCase):
                 with (
                     patch.dict(runtime_options),
                     patch.object(SessionStore, "load", return_value=payload),
-                    redirect_stdout(output),
+                    redirect_stderr(output),
                     self.assertRaises(SystemExit) as raised,
                 ):
                     controller._import("session.json")
