@@ -73,7 +73,6 @@ from lib.parse.rawrequest import parse_raw
 from lib.parse.url import (
     clean_path,
     ensure_trailing_path_slash,
-    parse_path,
     same_origin_path,
 )
 from lib.report.manager import ReportManager
@@ -865,8 +864,15 @@ class Controller:
                     else []
                 )
             elif len(response.history):
-                old_path = clean_path(parse_path(response.history[0]))
-                added_to_queue = self.recur_for_redirect(old_path, response.path)
+                final_path = same_origin_path(response.url, response.final_url)
+                added_to_queue = (
+                    self.recur_for_redirect(
+                        response.path,
+                        clean_path(final_path),
+                    )
+                    if final_path is not None
+                    else []
+                )
             else:
                 added_to_queue = self.recur(response.path)
 

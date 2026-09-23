@@ -252,6 +252,7 @@ class NativeHTTPBackend:
                     and self._engine_config["follow_redirects"]
                     else ()
                 ),
+                final_url=result.final_url,
             ),
             None,
         )

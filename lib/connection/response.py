@@ -212,9 +212,11 @@ class BaseResponse:
         headers: Iterable[tuple[str, str]],
         elapsed: float = 0.0,
         history: Iterable[str] = (),
+        final_url: str | None = None,
     ) -> None:
         self.datetime = time.strftime("%Y-%m-%d %H:%M:%S")
         self.url = url
+        self.final_url = final_url or url
         self.full_path = parse_path(self.url)
         self.path = clean_path(self.full_path)
         self.status = status
@@ -335,6 +337,7 @@ class Response(BaseResponse):
             response.headers.items(),
             elapsed,
             (str(item.url) for item in response.history),
+            final_url=str(getattr(response, "url", url)),
         )
         declared_charset = _declared_charset(self.headers)
         decode_binary_text = _should_decode_binary_text(
@@ -377,6 +380,7 @@ class AsyncResponse(BaseResponse):
             response.headers.multi_items(),
             elapsed,
             (str(item.url) for item in response.history),
+            final_url=str(getattr(response, "url", url)),
         )
         declared_charset = _declared_charset(self.headers)
         decode_binary_text = _should_decode_binary_text(
@@ -418,6 +422,7 @@ class NativeResponse(BaseResponse):
         filter_reason: str | None = None,
         body_complete: bool | None = None,
         history: Iterable[str] = (),
+        final_url: str | None = None,
     ) -> None:
         # Native previously exposed HTTPX's lowercase header iteration. Keep
         # that stable while using dirsearch's transport-neutral header model.
@@ -427,6 +432,7 @@ class NativeResponse(BaseResponse):
             ((name.lower(), value) for name, value in headers),
             elapsed,
             history,
+            final_url,
         )
 
         self._length = length

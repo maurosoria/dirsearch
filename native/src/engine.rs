@@ -386,7 +386,7 @@ async fn run_scan_worker(
             } else {
                 request_with_client(
                     client,
-                    url,
+                    &url,
                     follow_redirects,
                     max_retries,
                     max_body_size,
@@ -396,6 +396,9 @@ async fn run_scan_worker(
                 )
                 .await
             };
+        if result.final_url.is_empty() {
+            result.final_url = url;
+        }
         result.request_index = request_index;
         // Filtered results only carry progress in compact mode. The coordinator
         // synthesizes one completion marker after every worker has joined.
