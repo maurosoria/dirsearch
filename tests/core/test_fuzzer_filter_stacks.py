@@ -1,3 +1,4 @@
+import threading
 import time
 from unittest import IsolatedAsyncioTestCase, TestCase
 
@@ -168,6 +169,54 @@ class TestSyncFuzzerFilterStack(FilterStackOptionsMixin, TestCase):
 
         self.assertEqual(fuzzer.response_callbacks("first", first), (matches.append,))
         self.assertEqual(fuzzer.response_callbacks("second", second), (misses.append,))
+
+    def test_filter_threshold_is_atomic_across_threaded_responses(self):
+        options["filter_threshold"] = 1
+        matches = []
+        misses = []
+        fuzzer = Fuzzer(
+            DummySyncRequester(),
+            DummyDictionary([]),
+            match_callbacks=(matches.append,),
+            not_found_callbacks=(misses.append,),
+            error_callbacks=(),
+        )
+        scanner_barrier = threading.Barrier(2)
+
+        class BarrierScanner:
+            def check(self, path, response):
+                del path
+                del response
+                scanner_barrier.wait(timeout=2)
+                return True
+
+        fuzzer.scanners["default"]["barrier"] = BarrierScanner()
+        responses = (
+            stack_response("first", b"missing /first"),
+            stack_response("second", b"missing /second"),
+        )
+        callbacks = []
+        errors = []
+
+        def classify(path, response):
+            try:
+                callbacks.append(fuzzer.response_callbacks(path, response))
+            except BaseException as error:
+                errors.append(error)
+
+        workers = [
+            threading.Thread(target=classify, args=(path, response))
+            for path, response in zip(("first", "second"), responses)
+        ]
+        for worker in workers:
+            worker.start()
+        for worker in workers:
+            worker.join(timeout=3)
+
+        self.assertFalse(any(worker.is_alive() for worker in workers))
+        self.assertEqual(errors, [])
+        self.assertEqual(callbacks.count((matches.append,)), 1)
+        self.assertEqual(callbacks.count((misses.append,)), 1)
 
     def test_advanced_filters_apply_in_sync_stack(self):
         dictionary = DummyDictionary(["keep", "drop"])
