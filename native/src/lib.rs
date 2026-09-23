@@ -18,9 +18,9 @@ use wordlist::{generate_wordlist, generate_wordlist_owned, NativeWordlist, Nativ
 #[cfg(test)]
 use engine::runtime_worker_count;
 #[cfg(test)]
-use raw_client::{parse_raw_http_response, should_use_raw_http};
+use filters::{compile_header_regex, compile_regex};
 #[cfg(test)]
-use regex::Regex;
+use raw_client::{parse_raw_http_response, should_use_raw_http};
 #[cfg(test)]
 use request_target::prepare_request_target;
 #[cfg(test)]

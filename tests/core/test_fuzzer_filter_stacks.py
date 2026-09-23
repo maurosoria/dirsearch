@@ -243,3 +243,74 @@ class TestNativeFuzzerFilterStack(FilterStackOptionsMixin, TestCase):
         self.assertEqual(misses[0].filter_reason, "advanced_filter")
         self.assertEqual(misses[0].body, b"")
         self.assertEqual(errors, [])
+
+
+class TestAdvancedRegexFilterParity(
+    FilterStackOptionsMixin,
+    IsolatedAsyncioTestCase,
+):
+    async def test_lookahead_filter_has_parity_across_all_stacks(self):
+        options["filter_regex"] = r"(?=not found)not found"
+        stack_results = {}
+
+        sync_matches = []
+        sync_misses = []
+        sync_errors = []
+        sync_fuzzer = Fuzzer(
+            DummySyncRequester(),
+            DummyDictionary(["keep", "drop"]),
+            match_callbacks=(sync_matches.append,),
+            not_found_callbacks=(sync_misses.append,),
+            error_callbacks=(sync_errors.append,),
+        )
+        sync_fuzzer.setup_scanners = lambda: None
+        sync_fuzzer.start()
+        deadline = time.time() + 2
+        while not sync_fuzzer.is_finished() and time.time() < deadline:
+            time.sleep(0.01)
+        self.assertTrue(sync_fuzzer.is_finished())
+        stack_results["threaded"] = (sync_matches, sync_misses, sync_errors)
+
+        async_matches = []
+        async_misses = []
+        async_errors = []
+        async_fuzzer = AsyncFuzzer(
+            DummyAsyncRequester(),
+            DummyDictionary(["keep", "drop"]),
+            match_callbacks=(async_matches.append,),
+            not_found_callbacks=(async_misses.append,),
+            error_callbacks=(async_errors.append,),
+        )
+
+        async def setup_scanners():
+            return None
+
+        async_fuzzer.setup_scanners = setup_scanners
+        await async_fuzzer.start()
+        stack_results["async"] = (async_matches, async_misses, async_errors)
+
+        native_matches = []
+        native_misses = []
+        native_errors = []
+        native_fuzzer = NativeFuzzer(
+            DummyNativeRequester(FilteringNativeBackend()),
+            DummyDictionary(["keep", "drop"]),
+            match_callbacks=(native_matches.append,),
+            not_found_callbacks=(native_misses.append,),
+            error_callbacks=(native_errors.append,),
+        )
+        native_fuzzer.setup_scanners = lambda: None
+        native_fuzzer.start()
+        stack_results["native"] = (native_matches, native_misses, native_errors)
+
+        for stack, (matches, misses, errors) in stack_results.items():
+            with self.subTest(stack=stack):
+                self.assertEqual(
+                    [response.full_path for response in matches],
+                    ["keep"],
+                )
+                self.assertEqual(
+                    [response.full_path for response in misses],
+                    ["drop"],
+                )
+                self.assertEqual(errors, [])

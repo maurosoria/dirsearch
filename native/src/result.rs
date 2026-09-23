@@ -65,9 +65,27 @@ pub(crate) fn native_http_result_with_length(
     filter_config: &NativeFilterConfig,
 ) -> NativeHttpResult {
     let length = response_length(&headers, body_length);
-    let filter_reason = filter_config
-        .filter_reason(status, length, &headers, &body, elapsed_ms)
-        .map(str::to_string);
+    let filter_reason =
+        match filter_config.filter_reason(status, length, &headers, &body, elapsed_ms) {
+            Ok(reason) => reason.map(str::to_string),
+            Err(error) => {
+                return NativeHttpResult {
+                    request_index: usize::MAX,
+                    path,
+                    status,
+                    length,
+                    elapsed_ms,
+                    error: Some(error),
+                    filtered: false,
+                    filter_reason: None,
+                    headers: Vec::new(),
+                    body: Vec::new(),
+                    body_complete: false,
+                    history: Vec::new(),
+                    final_url: String::new(),
+                };
+            }
+        };
     let filtered = filter_reason.is_some();
     let body_complete = !filtered && body.len() == body_length;
 

@@ -22,8 +22,9 @@ immutable filter configuration and reuses it across those batches. The
 status/size filters and advanced match/filter options in native code. Compact
 status-filter misses drain their response stream for connection reuse without
 retaining headers or body data. Python still owns callbacks, session recovery,
-and dynamically discovered paths. Native regex matching uses Rust's `regex`
-crate; patterns unsupported by that engine fail before the scan starts.
+and dynamically discovered paths. Native regex matching uses the hybrid
+`fancy-regex` engine: ordinary expressions retain the finite-automata fast path,
+while lookarounds and backreferences run in its bounded backtracking engine.
 
 ## Source layout
 
