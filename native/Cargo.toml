@@ -1,6 +1,6 @@
 [package]
 name = "dirsearch_native"
-version = "0.2.5"
+version = "0.2.6"
 edition = "2021"
 license = "GPL-2.0-only"
 
@@ -11,13 +11,13 @@ crate-type = ["cdylib"]
 [dependencies]
 async-compression = { version = "0.4", features = ["brotli", "gzip", "tokio", "zlib"] }
 brotli = "8.0"
+fancy-regex = "0.19.2"
 flate2 = "1.1"
 futures-util = "0.3"
 indexmap = "2.7"
 pyo3 = { version = "0.24", features = ["extension-module", "abi3-py313"] }
 rayon = "1.10"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "http2", "stream"] }
-regex = "1.11"
 tokio = { version = "1.43", features = ["rt-multi-thread", "macros", "net", "time", "io-util"] }
 tokio-util = { version = "0.7", features = ["io"] }
 

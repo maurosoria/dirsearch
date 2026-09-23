@@ -408,7 +408,7 @@ fn advanced_matchers_and_filters_respect_modes() {
     config.match_words = vec![(2, 2)];
     config.match_lines = vec![(1, 1)];
     config.match_time = vec![(">".to_string(), 10.0)];
-    config.filter_regex = Some(Regex::new("not found").unwrap());
+    config.filter_regex = compile_regex(Some("not found".to_string()), "--filter-regex").unwrap();
 
     let keep = native_http_result(
         "admin".to_string(),
@@ -480,7 +480,7 @@ fn advanced_filter_and_mode_requires_all_checks() {
 #[test]
 fn non_utf8_text_filters_are_deferred_to_python() {
     let mut config = default_filter_config();
-    config.match_regex = Some(Regex::new("£").unwrap());
+    config.match_regex = compile_regex(Some("£".to_string()), "--match-regex").unwrap();
     let body = b"price \xa3".to_vec();
 
     let result = native_http_result(
@@ -503,7 +503,7 @@ fn non_utf8_text_filters_are_deferred_to_python() {
 #[test]
 fn utf8_text_filters_keep_the_native_fast_path() {
     let mut config = default_filter_config();
-    config.filter_regex = Some(Regex::new("£").unwrap());
+    config.filter_regex = compile_regex(Some("£".to_string()), "--filter-regex").unwrap();
 
     let result = native_http_result(
         "price".to_string(),
@@ -526,7 +526,11 @@ fn utf8_text_filters_keep_the_native_fast_path() {
 fn advanced_header_matchers_and_filters_work() {
     let mut config = default_filter_config();
     config.match_headers = vec!["etag: w/\"123".to_string()];
-    config.filter_header_regex = Some(Regex::new("X-Cache: fallback-[0-9]+").unwrap());
+    config.filter_header_regex = compile_header_regex(
+        Some("X-Cache: fallback-[0-9]+".to_string()),
+        "--filter-header-regex",
+    )
+    .unwrap();
 
     let keep = native_http_result(
         "real".to_string(),
@@ -600,6 +604,94 @@ fn regex_compile_errors_are_reported() {
     .unwrap();
 
     assert!(error.contains("Invalid --match-regex regular expression"));
+}
+
+#[test]
+fn python_lookarounds_execute_in_native_filters() {
+    for (pattern, body) in [
+        (r"(?=admin)admin", b"admin panel".as_slice()),
+        (r"(?<=token=)secret", b"token=secret".as_slice()),
+        (r"admin(?!istrator)", b"admin panel".as_slice()),
+        (r"(?<!super)admin", b"plain admin".as_slice()),
+    ] {
+        let mut config = default_filter_config();
+        config.filter_regex = compile_regex(Some(pattern.to_string()), "--filter-regex").unwrap();
+
+        let result = native_http_result(
+            "advanced".to_string(),
+            200,
+            Vec::new(),
+            body.to_vec(),
+            1.0,
+            &config,
+        );
+
+        assert!(result.filtered, "pattern did not match: {pattern}");
+    }
+}
+
+#[test]
+fn python_backreferences_execute_in_native_filters() {
+    for (pattern, body) in [
+        (r"\b([a-z]+)\s+\1\b", b"the the".as_slice()),
+        (
+            r"\b(?P<word>[a-z]+)\s+(?P=word)\b",
+            b"repeat repeat".as_slice(),
+        ),
+    ] {
+        let mut config = default_filter_config();
+        config.filter_regex = compile_regex(Some(pattern.to_string()), "--filter-regex").unwrap();
+
+        let result = native_http_result(
+            "advanced".to_string(),
+            200,
+            Vec::new(),
+            body.to_vec(),
+            1.0,
+            &config,
+        );
+
+        assert!(result.filtered, "pattern did not match: {pattern}");
+    }
+}
+
+#[test]
+fn python_header_backreferences_remain_case_insensitive() {
+    let mut config = default_filter_config();
+    config.filter_header_regex = compile_header_regex(
+        Some(r"x-token: (?P<value>[a-z]+)-(?P=value)".to_string()),
+        "--filter-header-regex",
+    )
+    .unwrap();
+
+    let result = native_http_result(
+        "advanced".to_string(),
+        200,
+        vec![("X-Token".to_string(), "Secret-secret".to_string())],
+        b"body".to_vec(),
+        1.0,
+        &config,
+    );
+
+    assert!(result.filtered);
+}
+
+#[test]
+fn advanced_regex_backtracking_limit_becomes_a_scan_error() {
+    let mut config = default_filter_config();
+    config.filter_regex =
+        compile_regex(Some(r"^(a|aa)+\1b$".to_string()), "--filter-regex").unwrap();
+    let mut body = vec![b'a'; 128];
+    body.push(b'c');
+
+    let result = native_http_result("bounded".to_string(), 200, Vec::new(), body, 1.0, &config);
+
+    assert!(result
+        .error
+        .as_deref()
+        .is_some_and(|error| error.contains("backtracking count exceeded")));
+    assert!(!result.filtered);
+    assert!(result.body.is_empty());
 }
 
 #[test]

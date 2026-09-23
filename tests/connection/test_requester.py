@@ -213,6 +213,15 @@ class RequestTargetHandler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(body)
             return
 
+        if target == b"/regex-backreference":
+            body = b"repeat repeat"
+            self.send_response(200)
+            self.send_header("content-type", "text/plain")
+            self.send_header("content-length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
         encoded_response = ENCODED_RESPONSES_BY_TARGET.get(target)
         if encoded_response is not None:
             charset, _, wire_body = encoded_response
@@ -1767,6 +1776,28 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
             self.assertTrue(all(error is not None for _, _, error in results))
             self.assertEqual(server.target_counts[b"/retry-body"], 1)
             self.assertEqual(server.target_counts[b"/retry-body%1"], 1)
+
+    def test_native_batch_filters_advanced_python_regexes_in_rust(self):
+        with RequestTargetServer() as server:
+            cases = (
+                ("lookahead", "admin", r"(?=ok)ok"),
+                (
+                    "named-backreference",
+                    "regex-backreference",
+                    r"\b(?P<word>[a-z]+)\s+(?P=word)\b",
+                ),
+            )
+            for name, path, pattern in cases:
+                with self.subTest(name=name):
+                    options["filter_regex"] = pattern
+                    try:
+                        backend = NativeHTTPBackend()
+                    except RequestException as error:
+                        self.skipTest(str(error))
+                    batch = backend.scan_batch(server.url, [path])
+
+                    self.assertEqual(batch.processed_count, 1)
+                    self.assertEqual(batch.events, ())
 
     def test_native_requester_uses_authenticated_http_proxy(self):
         try:

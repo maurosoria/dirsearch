@@ -1,8 +1,8 @@
 //! Native response matcher and filter policy.
 
+use fancy_regex::{Regex, RegexBuilder};
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
-use regex::{Regex, RegexBuilder};
 use std::ops::Deref;
 #[cfg(test)]
 use std::ops::DerefMut;
@@ -10,6 +10,9 @@ use std::sync::Arc;
 
 pub(crate) type NumericRange = (usize, usize);
 pub(crate) type TimeFilter = (String, f64);
+// Advanced patterns run against target-controlled response data. Bound their
+// backtracking work so one hostile response cannot stall a native worker.
+const REGEX_BACKTRACK_LIMIT: usize = 1_000_000;
 
 #[pyclass(frozen)]
 #[derive(Clone)]
@@ -137,23 +140,23 @@ impl NativeFilterConfig {
         headers: &[(String, String)],
         body: &[u8],
         elapsed_ms: f64,
-    ) -> Option<&'static str> {
+    ) -> Result<Option<&'static str>, String> {
         if let Some(reason) = self.status_filter_reason(status) {
-            return Some(reason);
+            return Ok(Some(reason));
         }
 
         if length < self.minimum_response_size {
-            return Some("minimum_response_size");
+            return Ok(Some("minimum_response_size"));
         }
 
         if self.maximum_response_size > 0 && length > self.maximum_response_size {
-            return Some("maximum_response_size");
+            return Ok(Some("maximum_response_size"));
         }
 
         if self.needs_text() && has_non_utf8_charset(headers) {
             // Python owns charset-aware decoding. Preserve this response so the
             // common filter stack can evaluate it after NativeResponse decodes it.
-            return None;
+            return Ok(None);
         }
 
         let text = self
@@ -163,15 +166,15 @@ impl NativeFilterConfig {
         let headers_text = self.needs_headers().then(|| headers_to_text(headers));
         let headers_text = headers_text.as_deref();
 
-        if !self.matches_advanced_matchers(status, length, text, headers_text, elapsed_ms) {
-            return Some("advanced_matcher");
+        if !self.matches_advanced_matchers(status, length, text, headers_text, elapsed_ms)? {
+            return Ok(Some("advanced_matcher"));
         }
 
-        if self.matches_advanced_filters(status, length, text, headers_text, elapsed_ms) {
-            return Some("advanced_filter");
+        if self.matches_advanced_filters(status, length, text, headers_text, elapsed_ms)? {
+            return Ok(Some("advanced_filter"));
         }
 
-        None
+        Ok(None)
     }
 
     fn needs_text(&self) -> bool {
@@ -197,7 +200,7 @@ impl NativeFilterConfig {
         text: Option<&str>,
         headers_text: Option<&str>,
         elapsed_ms: f64,
-    ) -> bool {
+    ) -> Result<bool, String> {
         let mut checks = Vec::new();
 
         if !self.match_status_codes.is_empty() {
@@ -213,19 +216,27 @@ impl NativeFilterConfig {
             checks.push(matches_numeric_ranges(line_count(text), &self.match_lines));
         }
         if let Some(regex) = &self.match_regex {
-            checks.push(regex.is_match(text.unwrap_or_default()));
+            checks.push(evaluate_regex(
+                regex,
+                text.unwrap_or_default(),
+                "--match-regex",
+            )?);
         }
         if !self.match_headers.is_empty() {
             checks.push(matches_header_text(headers_text, &self.match_headers));
         }
         if let Some(regex) = &self.match_header_regex {
-            checks.push(regex.is_match(headers_text.unwrap_or_default()));
+            checks.push(evaluate_regex(
+                regex,
+                headers_text.unwrap_or_default(),
+                "--match-header-regex",
+            )?);
         }
         if !self.match_time.is_empty() {
             checks.push(matches_time_filters(elapsed_ms, &self.match_time));
         }
 
-        combine_advanced_checks(&checks, &self.matcher_mode, true)
+        Ok(combine_advanced_checks(&checks, &self.matcher_mode, true))
     }
 
     fn matches_advanced_filters(
@@ -235,7 +246,7 @@ impl NativeFilterConfig {
         text: Option<&str>,
         headers_text: Option<&str>,
         elapsed_ms: f64,
-    ) -> bool {
+    ) -> Result<bool, String> {
         let mut checks = Vec::new();
 
         if !self.filter_status_codes.is_empty() {
@@ -251,19 +262,27 @@ impl NativeFilterConfig {
             checks.push(matches_numeric_ranges(line_count(text), &self.filter_lines));
         }
         if let Some(regex) = &self.filter_regex {
-            checks.push(regex.is_match(text.unwrap_or_default()));
+            checks.push(evaluate_regex(
+                regex,
+                text.unwrap_or_default(),
+                "--filter-regex",
+            )?);
         }
         if !self.filter_headers.is_empty() {
             checks.push(matches_header_text(headers_text, &self.filter_headers));
         }
         if let Some(regex) = &self.filter_header_regex {
-            checks.push(regex.is_match(headers_text.unwrap_or_default()));
+            checks.push(evaluate_regex(
+                regex,
+                headers_text.unwrap_or_default(),
+                "--filter-header-regex",
+            )?);
         }
         if !self.filter_time.is_empty() {
             checks.push(matches_time_filters(elapsed_ms, &self.filter_time));
         }
 
-        combine_advanced_checks(&checks, &self.filter_mode, false)
+        Ok(combine_advanced_checks(&checks, &self.filter_mode, false))
     }
 }
 
@@ -403,26 +422,39 @@ fn response_charset(headers: &[(String, String)]) -> Option<&str> {
     })
 }
 
-fn compile_regex(pattern: Option<String>, label: &str) -> Result<Option<Regex>, String> {
+pub(crate) fn compile_regex(pattern: Option<String>, label: &str) -> Result<Option<Regex>, String> {
     match pattern {
-        Some(pattern) => Regex::new(&pattern).map(Some).map_err(|error| {
+        Some(pattern) => build_regex(&pattern, false).map(Some).map_err(|error| {
             format!("Invalid {label} regular expression for native backend: {error}")
         }),
         None => Ok(None),
     }
 }
 
-fn compile_header_regex(pattern: Option<String>, label: &str) -> Result<Option<Regex>, String> {
+pub(crate) fn compile_header_regex(
+    pattern: Option<String>,
+    label: &str,
+) -> Result<Option<Regex>, String> {
     match pattern {
-        Some(pattern) => RegexBuilder::new(&pattern)
-            .case_insensitive(true)
-            .build()
-            .map(Some)
-            .map_err(|error| {
-                format!("Invalid {label} regular expression for native backend: {error}")
-            }),
+        Some(pattern) => build_regex(&pattern, true).map(Some).map_err(|error| {
+            format!("Invalid {label} regular expression for native backend: {error}")
+        }),
         None => Ok(None),
     }
+}
+
+fn build_regex(pattern: &str, case_insensitive: bool) -> fancy_regex::Result<Regex> {
+    let mut builder = RegexBuilder::new(pattern);
+    builder
+        .case_insensitive(case_insensitive)
+        .backtrack_limit(REGEX_BACKTRACK_LIMIT);
+    builder.build()
+}
+
+fn evaluate_regex(regex: &Regex, text: &str, label: &str) -> Result<bool, String> {
+    regex
+        .is_match(text)
+        .map_err(|error| format!("Failed to evaluate {label} in native backend: {error}"))
 }
 
 fn matches_numeric_ranges(value: usize, ranges: &[NumericRange]) -> bool {
