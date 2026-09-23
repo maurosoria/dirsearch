@@ -5,7 +5,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest import TestCase
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from lib.controller.session import SessionStore
 from lib.core.data import options
@@ -153,3 +153,16 @@ class TestReportManagerDestinations(TestCase):
 
         self.assertEqual(manager.reports, [])
         load_report.assert_not_called()
+
+    def test_finish_attempts_every_report_before_reraising_first_error(self):
+        first = Mock()
+        second = Mock()
+        first.finish.side_effect = OSError("first close failed")
+        manager = ReportManager([])
+        manager.reports = [(first, []), (second, [])]
+
+        with self.assertRaisesRegex(OSError, "first close failed"):
+            manager.finish()
+
+        first.finish.assert_called_once_with()
+        second.finish.assert_called_once_with()
