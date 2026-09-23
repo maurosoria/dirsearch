@@ -146,6 +146,19 @@ class RequestTargetHandler(http.server.BaseHTTPRequestHandler):
             if parsed_target.query:
                 route_target += b"?" + parsed_target.query.encode("ascii")
 
+        attempt = self.server.target_counts.get(route_target, 0) + 1
+        self.server.target_counts[route_target] = attempt
+        if route_target in (b"/retry-body", b"/retry-body%1") and attempt == 1:
+            self.send_response(200)
+            self.send_header("content-type", "text/plain")
+            self.send_header("content-length", "4")
+            self.end_headers()
+            self.wfile.write(b"no")
+            self.wfile.flush()
+            self.close_connection = True
+            self.connection.shutdown(socket.SHUT_WR)
+            return
+
         if route_target == b"/redirect":
             self.send_response(302)
             self.send_header("location", "/final")
@@ -233,6 +246,7 @@ class RequestTargetServer:
         self.server.cookies = []
         self.server.proxy_authorizations = []
         self.server.request_bodies = []
+        self.server.target_counts = {}
         self.thread = threading.Thread(
             target=lambda: self.server.serve_forever(poll_interval=0.05),
             daemon=True,
@@ -269,6 +283,10 @@ class RequestTargetServer:
     @property
     def request_bodies(self):
         return self.server.request_bodies
+
+    @property
+    def target_counts(self):
+        return self.server.target_counts
 
 
 def normalize_percent_hex(target: bytes) -> bytes:
@@ -826,6 +844,20 @@ class TestRequesterPathPreservation(BaseRequesterTestCase):
                     requester.request(f"redirect-count/{MAX_REDIRECTS + 1}")
             finally:
                 requester.close()
+
+    def test_sync_requester_retries_response_body_read_failures(self):
+        options["max_retries"] = 1
+
+        with RequestTargetServer() as server:
+            requester = Requester()
+            requester.set_url(server.url)
+            try:
+                response = requester.request("retry-body")
+            finally:
+                requester.close()
+
+            self.assertEqual(response.body, b"ok")
+            self.assertEqual(server.target_counts[b"/retry-body"], 2)
 
 
 class TestRequesterBodyPreservation(BaseRequesterTestCase):
@@ -1448,6 +1480,20 @@ class TestAsyncRequesterPathPreservation(BaseRequesterTestCase, IsolatedAsyncioT
             finally:
                 await requester.close()
 
+    async def test_async_requester_retries_response_body_read_failures(self):
+        options["max_retries"] = 1
+
+        with RequestTargetServer() as server:
+            requester = AsyncRequester()
+            requester.set_url(server.url)
+            try:
+                response = await requester.request("retry-body")
+            finally:
+                await requester.close()
+
+            self.assertEqual(response.body, b"ok")
+            self.assertEqual(server.target_counts[b"/retry-body"], 2)
+
     async def test_async_requester_follows_redirect_with_dns_override(self):
         options["follow_redirects"] = True
 
@@ -1674,6 +1720,53 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
             self.assertIsNone(result[1])
             self.assertIsNotNone(result[2])
             self.assertIn("too many redirects", str(result[2]).lower())
+
+    def test_native_requester_retries_response_body_read_failures(self):
+        try:
+            backend = NativeHTTPBackend()
+        except RequestException as error:
+            self.skipTest(str(error))
+
+        options["max_retries"] = 1
+        with RequestTargetServer() as server:
+            result = list(backend.scan(server.url, ["retry-body"]))[0]
+
+            self.assertIsNone(result[2])
+            self.assertEqual(result[1].body, b"ok")
+            self.assertEqual(server.target_counts[b"/retry-body"], 2)
+
+    def test_native_raw_request_retries_response_body_read_failures(self):
+        try:
+            backend = NativeHTTPBackend()
+        except RequestException as error:
+            self.skipTest(str(error))
+
+        options["max_retries"] = 1
+        with RequestTargetServer() as server:
+            result = list(backend.scan(server.url, ["retry-body%1"]))[0]
+
+            self.assertIsNone(result[2])
+            self.assertEqual(result[1].body, b"ok")
+            self.assertEqual(server.target_counts[b"/retry-body%1"], 2)
+
+    def test_native_requester_does_not_retry_body_reads_when_disabled(self):
+        try:
+            backend = NativeHTTPBackend()
+        except RequestException as error:
+            self.skipTest(str(error))
+
+        with RequestTargetServer() as server:
+            results = list(
+                backend.scan(
+                    server.url,
+                    ["retry-body", "retry-body%1"],
+                )
+            )
+
+            self.assertEqual([response for _, response, _ in results], [None, None])
+            self.assertTrue(all(error is not None for _, _, error in results))
+            self.assertEqual(server.target_counts[b"/retry-body"], 1)
+            self.assertEqual(server.target_counts[b"/retry-body%1"], 1)
 
     def test_native_requester_uses_authenticated_http_proxy(self):
         try:

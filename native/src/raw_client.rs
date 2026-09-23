@@ -6,7 +6,7 @@ use crate::result::{native_error_result, native_http_result_with_length, NativeH
 use crate::transport::HeaderPairs;
 #[cfg(test)]
 use std::io::Cursor;
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -55,24 +55,37 @@ fn has_malformed_percent_escape(path: &str) -> bool {
 
 pub(crate) async fn raw_http_get(
     request: RawHttpRequest<'_>,
+    max_retries: usize,
     filter_config: &NativeFilterConfig,
 ) -> NativeHttpResult {
-    match raw_http_get_inner(&request).await {
-        Ok((status, headers, body, length)) => native_http_result_with_length(
-            String::new(),
-            status,
-            headers,
-            body,
-            length,
-            request.start.elapsed().as_secs_f64() * 1000.0,
-            filter_config,
-        ),
-        Err(error) => native_error_result(
-            String::new(),
-            request.start.elapsed().as_secs_f64() * 1000.0,
-            error,
-        ),
+    let mut last_error = None;
+    for attempt in 0..=max_retries {
+        match raw_http_get_inner(&request).await {
+            Ok((status, headers, body, length)) => {
+                return native_http_result_with_length(
+                    String::new(),
+                    status,
+                    headers,
+                    body,
+                    length,
+                    request.start.elapsed().as_secs_f64() * 1000.0,
+                    filter_config,
+                );
+            }
+            Err(error) => {
+                last_error = Some(error);
+                if request.cancelled.load(Ordering::Acquire) || attempt == max_retries {
+                    break;
+                }
+            }
+        }
     }
+
+    native_error_result(
+        String::new(),
+        request.start.elapsed().as_secs_f64() * 1000.0,
+        last_error.unwrap_or_else(|| "request failed".to_string()),
+    )
 }
 
 async fn raw_http_get_inner(request: &RawHttpRequest<'_>) -> Result<RawHttpResponse, String> {

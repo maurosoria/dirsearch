@@ -71,28 +71,21 @@ pub(crate) async fn request_with_client(
     filter_config: &NativeFilterConfig,
     compact_filtered: bool,
 ) -> NativeHttpResult {
-    let mut response = None;
     let mut last_error = None;
     for _ in 0..=max_retries {
-        let (request_result, redirect_history) = if capture_redirect_history {
-            REDIRECT_HISTORY
-                .scope(RefCell::new(Vec::new()), async {
-                    let result = client.get(url).send().await;
-                    let history = REDIRECT_HISTORY.with(|history| history.borrow().clone());
-                    (result, history)
-                })
-                .await
-        } else {
-            (client.get(url).send().await, Vec::new())
-        };
-        match request_result {
-            Ok(value) => {
-                response = Some((value, redirect_history));
-                last_error = None;
-                break;
-            }
+        match request_once(
+            client,
+            url,
+            capture_redirect_history,
+            max_body_size,
+            start,
+            filter_config,
+            compact_filtered,
+        )
+        .await
+        {
+            Ok(result) => return result,
             Err(error) => {
-                let error = format_error_chain(&error);
                 let retryable = !error.contains("tunnel error: unsuccessful");
                 last_error = Some(error);
                 if !retryable {
@@ -101,31 +94,45 @@ pub(crate) async fn request_with_client(
             }
         }
     }
-    let (response, redirect_history) = match response {
-        Some(response) => response,
-        None => {
-            return native_error_result(
-                String::new(),
-                start.elapsed().as_secs_f64() * 1000.0,
-                last_error.unwrap_or_else(|| "request failed".to_string()),
-            );
-        }
+
+    native_error_result(
+        String::new(),
+        start.elapsed().as_secs_f64() * 1000.0,
+        last_error.unwrap_or_else(|| "request failed".to_string()),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn request_once(
+    client: &reqwest::Client,
+    url: &str,
+    capture_redirect_history: bool,
+    max_body_size: usize,
+    start: Instant,
+    filter_config: &NativeFilterConfig,
+    compact_filtered: bool,
+) -> Result<NativeHttpResult, String> {
+    let (response, redirect_history) = if capture_redirect_history {
+        REDIRECT_HISTORY
+            .scope(RefCell::new(Vec::new()), async {
+                let result = client.get(url).send().await;
+                let history = REDIRECT_HISTORY.with(|history| history.borrow().clone());
+                (result, history)
+            })
+            .await
+    } else {
+        (client.get(url).send().await, Vec::new())
     };
+    let response = response.map_err(|error| format_error_chain(&error))?;
     let status = response.status().as_u16();
     let final_url = response.url().to_string();
     if compact_filtered && status != 407 && filter_config.status_filter_reason(status).is_some() {
         let encodings = response_encodings(response.headers());
-        if let Err(error) = read_decoded_body(response, encodings, 0, false).await {
-            return native_error_result(
-                String::new(),
-                start.elapsed().as_secs_f64() * 1000.0,
-                error,
-            );
-        }
+        read_decoded_body(response, encodings, 0, false).await?;
         let mut result = native_filtered_marker(status, start.elapsed().as_secs_f64() * 1000.0);
         result.history = redirect_history;
         result.final_url = final_url;
-        return result;
+        return Ok(result);
     }
     let headers = response
         .headers()
@@ -137,16 +144,7 @@ pub(crate) async fn request_with_client(
             )
         })
         .collect::<Vec<_>>();
-    let (body, body_length) = match read_response_body(response, &headers, max_body_size).await {
-        Ok(result) => result,
-        Err(error) => {
-            return native_error_result(
-                String::new(),
-                start.elapsed().as_secs_f64() * 1000.0,
-                error.to_string(),
-            );
-        }
-    };
+    let (body, body_length) = read_response_body(response, &headers, max_body_size).await?;
     let mut result = native_http_result_with_length(
         String::new(),
         status,
@@ -158,7 +156,7 @@ pub(crate) async fn request_with_client(
     );
     result.history = redirect_history;
     result.final_url = final_url;
-    result
+    Ok(result)
 }
 
 fn format_error_chain(error: &dyn std::error::Error) -> String {
