@@ -182,6 +182,8 @@ class Controller:
         self._force_quit_handler = _create_force_quit_handler()
         self.requester = None
         self.loop = None  # Will be set if async mode is used
+        self.reporter = None
+        self._reporter_finished = False
         self.response_stores = ()
         self._native_worker = None
 
@@ -197,9 +199,22 @@ class Controller:
             self.run()
         finally:
             try:
-                self._close_requester()
+                self._close_reporter()
             finally:
-                self._close_response_stores()
+                try:
+                    self._close_requester()
+                finally:
+                    self._close_response_stores()
+
+    def _close_reporter(self) -> None:
+        reporter = self.reporter
+        if reporter is None or getattr(self, "_reporter_finished", False):
+            return
+
+        try:
+            reporter.finish()
+        finally:
+            self._reporter_finished = True
 
     def _close_requester(self) -> None:
         requester = self.requester
@@ -458,7 +473,7 @@ class Controller:
                     interface.error(str(e))
 
             except QuitInterrupt as e:
-                self.reporter.finish()
+                self._close_reporter()
                 interface.error(e.args[0])
                 sys.exit(0)
 
@@ -466,7 +481,7 @@ class Controller:
                 options["urls"].pop(0)
 
         interface.warning("\nTask Completed")
-        self.reporter.finish()
+        self._close_reporter()
 
         if options["session_file"]:
             try:

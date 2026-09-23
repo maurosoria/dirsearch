@@ -99,8 +99,16 @@ class ReportManager:
             reporter.flush()
 
     def finish(self):
+        first_error = None
         for reporter, sources in self.reports:
-            reporter.finish()
+            try:
+                reporter.finish()
+            except BaseException as error:
+                if first_error is None:
+                    first_error = error
+
+        if first_error is not None:
+            raise first_error
 
     def format(self, string, target, handler):
         parsed = urlparse(target)

@@ -92,6 +92,29 @@ class TestControllerCleanup(TestCase):
         self.assertTrue(requester.closed)
         self.assertTrue(loop.closed)
 
+    def test_report_finish_failure_does_not_skip_other_cleanup(self):
+        reporter = Mock()
+        requester = Mock()
+        response_store = Mock()
+        reporter.finish.side_effect = OSError("report close failed")
+
+        def setup(controller):
+            controller.reporter = reporter
+            controller.requester = requester
+            controller.response_stores = (response_store,)
+
+        with (
+            patch.dict(options, {"session_file": None}),
+            patch.object(Controller, "setup", new=setup),
+            patch.object(Controller, "run"),
+            self.assertRaisesRegex(OSError, "report close failed"),
+        ):
+            Controller()
+
+        reporter.finish.assert_called_once_with()
+        requester.close.assert_called_once_with()
+        response_store.close.assert_called_once_with()
+
 
 class TestAsyncController(IsolatedAsyncioTestCase):
     async def test_quit_drains_cancelled_fuzzer_task(self):
