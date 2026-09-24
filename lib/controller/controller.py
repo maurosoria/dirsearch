@@ -407,7 +407,7 @@ class Controller:
         #
         # error_callbacks callback values:
         #  - *args[0]: exception
-        match_callbacks = [self.match_callback, self.reporter.save]
+        match_callbacks = [self.match_callback, self._report_match_callback()]
         if self.response_stores:
             match_callbacks.append(
                 self.save_response_async
@@ -488,6 +488,15 @@ class Controller:
                 SessionStore(options).delete(options["session_file"])
             except OSError:
                 interface.error("Failed to delete old session file, remove it to free some space")
+
+    def _report_match_callback(self):
+        if (
+            self.reporter.reports
+            and options["request_backend"] != "native"
+            and options["async_mode"]
+        ):
+            return self.reporter.save_async
+        return self.reporter.save
 
     def start(self) -> None:
         start_time = time.time()

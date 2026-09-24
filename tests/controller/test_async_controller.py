@@ -1,5 +1,6 @@
 import asyncio
 import time
+from types import SimpleNamespace
 from unittest import IsolatedAsyncioTestCase, TestCase
 from unittest.mock import Mock, patch
 
@@ -117,6 +118,69 @@ class TestControllerCleanup(TestCase):
 
 
 class TestAsyncController(IsolatedAsyncioTestCase):
+    async def test_async_python_scan_uses_non_blocking_report_callback(self):
+        sync_callback = object()
+        async_callback = object()
+        controller = object.__new__(Controller)
+        controller.reporter = SimpleNamespace(
+            reports=[object()],
+            save=sync_callback,
+            save_async=async_callback,
+        )
+
+        with patch.dict(
+            options,
+            {"request_backend": "python", "async_mode": True},
+        ):
+            callback = controller._report_match_callback()
+
+        self.assertIs(callback, async_callback)
+
+    async def test_async_python_without_reports_keeps_noop_sync_callback(self):
+        sync_callback = object()
+        controller = object.__new__(Controller)
+        controller.reporter = SimpleNamespace(
+            reports=[],
+            save=sync_callback,
+            save_async=object(),
+        )
+
+        with patch.dict(
+            options,
+            {"request_backend": "python", "async_mode": True},
+        ):
+            callback = controller._report_match_callback()
+
+        self.assertIs(callback, sync_callback)
+
+    async def test_sync_and_native_scans_keep_synchronous_report_callback(self):
+        sync_callback = object()
+        controller = object.__new__(Controller)
+        controller.reporter = SimpleNamespace(
+            reports=[object()],
+            save=sync_callback,
+            save_async=object(),
+        )
+
+        for request_backend, async_mode in (
+            ("python", False),
+            ("native", False),
+            ("native", True),
+        ):
+            with self.subTest(
+                request_backend=request_backend,
+                async_mode=async_mode,
+            ), patch.dict(
+                options,
+                {
+                    "request_backend": request_backend,
+                    "async_mode": async_mode,
+                },
+            ):
+                callback = controller._report_match_callback()
+
+            self.assertIs(callback, sync_callback)
+
     async def test_quit_drains_cancelled_fuzzer_task(self):
         controller = create_controller(BlockingAsyncFuzzer())
         controller.start_time = time.time()

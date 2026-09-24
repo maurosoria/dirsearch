@@ -16,6 +16,7 @@
 #
 #  Author: Mauro Soria
 
+import asyncio
 from urllib.parse import urlparse
 
 from lib.core.data import options
@@ -56,6 +57,10 @@ output_handlers = {
 class ReportManager:
     def __init__(self, formats):
         self.reports = []
+        # Reporters share files and database connections. Queue async saves
+        # before entering the executor instead of occupying worker threads on
+        # their per-reporter locks.
+        self._async_save_lock = asyncio.Lock()
 
         for format in formats:
             # No output location provided
@@ -93,6 +98,26 @@ class ReportManager:
                 ),
                 result,
             )
+
+    async def save_async(self, result):
+        if not self.reports:
+            return
+
+        async with self._async_save_lock:
+            save_task = asyncio.create_task(asyncio.to_thread(self.save, result))
+            cancelled = False
+            while not save_task.done():
+                try:
+                    await asyncio.shield(save_task)
+                except asyncio.CancelledError:
+                    # A worker thread cannot be cancelled. Keep draining through
+                    # repeated cancellation so checkpoints and reporter shutdown
+                    # cannot race a late write.
+                    cancelled = True
+
+            save_task.result()
+            if cancelled:
+                raise asyncio.CancelledError
 
     def flush(self):
         for reporter, sources in self.reports:
