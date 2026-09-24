@@ -1,10 +1,12 @@
+import asyncio
 import json
 import sqlite3
+import threading
 from contextlib import closing
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
-from unittest import TestCase
+from unittest import IsolatedAsyncioTestCase, TestCase
 from unittest.mock import Mock, patch
 
 from lib.controller.session import SessionStore
@@ -15,6 +17,19 @@ from lib.report.manager import ReportManager
 class DummyReport:
     __format__ = "dummy"
     __extension__ = "txt"
+
+
+class BlockingReport(DummyReport):
+    def __init__(self):
+        self.entered = threading.Event()
+        self.release = threading.Event()
+        self.finished = threading.Event()
+
+    def save(self, _destination, _result):
+        self.entered.set()
+        if not self.release.wait(timeout=2):
+            raise TimeoutError("test did not release blocked report write")
+        self.finished.set()
 
 
 def make_result(url):
@@ -166,3 +181,119 @@ class TestReportManagerDestinations(TestCase):
 
         first.finish.assert_called_once_with()
         second.finish.assert_called_once_with()
+
+
+class TestAsyncReportManager(IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.original_options = dict(options)
+
+    def tearDown(self):
+        options.clear()
+        options.update(self.original_options)
+
+    async def test_async_save_without_reports_avoids_thread_handoff(self):
+        manager = ReportManager([])
+
+        with patch(
+            "lib.report.manager.asyncio.to_thread",
+            side_effect=AssertionError("empty report manager used a thread"),
+        ):
+            await manager.save_async(
+                make_result("https://example.test/admin")
+            )
+
+    async def test_concurrent_async_saves_preserve_file_and_sqlite_results(self):
+        with TemporaryDirectory() as directory:
+            options.update(
+                {
+                    "output_file": str(
+                        Path(directory, "report-{format}.{extension}")
+                    ),
+                    "output_table": "results",
+                }
+            )
+            manager = ReportManager(["json", "sqlite"])
+            manager.prepare("https://example.test/")
+            urls = {
+                f"https://example.test/result-{index}"
+                for index in range(8)
+            }
+
+            await asyncio.gather(
+                *(manager.save_async(make_result(url)) for url in urls)
+            )
+            manager.finish()
+
+            json_path = Path(directory, "report-json.json")
+            sqlite_path = Path(directory, "report-sql.sqlite")
+            json_urls = {
+                result["url"]
+                for result in json.loads(
+                    json_path.read_text(encoding="utf-8")
+                )["results"]
+            }
+            with closing(sqlite3.connect(sqlite_path)) as connection:
+                sqlite_urls = {
+                    row[0]
+                    for row in connection.execute(
+                        'SELECT url FROM "results"'
+                    ).fetchall()
+                }
+
+        self.assertEqual(json_urls, urls)
+        self.assertEqual(sqlite_urls, urls)
+
+    async def test_async_save_keeps_event_loop_responsive(self):
+        manager = ReportManager([])
+        report = BlockingReport()
+        manager.reports = [(report, ["unused"])]
+        entered_waiter = asyncio.create_task(
+            asyncio.to_thread(report.entered.wait, 2)
+        )
+        await asyncio.sleep(0)
+
+        save_task = asyncio.create_task(
+            manager.save_async(make_result("https://example.test/admin"))
+        )
+        try:
+            self.assertTrue(await entered_waiter)
+            probe = asyncio.Event()
+            asyncio.get_running_loop().call_soon(probe.set)
+            await asyncio.wait_for(probe.wait(), timeout=0.5)
+            self.assertFalse(save_task.done())
+        finally:
+            report.release.set()
+            await asyncio.wait_for(
+                asyncio.gather(save_task, return_exceptions=True),
+                timeout=2,
+            )
+
+        self.assertTrue(report.finished.is_set())
+
+    async def test_async_save_cancellation_drains_started_write(self):
+        manager = ReportManager([])
+        report = BlockingReport()
+        manager.reports = [(report, ["unused"])]
+        save_task = asyncio.create_task(
+            manager.save_async(make_result("https://example.test/admin"))
+        )
+
+        try:
+            self.assertTrue(await asyncio.to_thread(report.entered.wait, 2))
+            save_task.cancel()
+            await asyncio.sleep(0)
+            save_task.cancel()
+            await asyncio.sleep(0)
+            self.assertFalse(
+                save_task.done(),
+                "repeated cancellation returned while the report write was active",
+            )
+        finally:
+            report.release.set()
+
+        results = await asyncio.wait_for(
+            asyncio.gather(save_task, return_exceptions=True),
+            timeout=2,
+        )
+        self.assertIsInstance(results[0], asyncio.CancelledError)
+        self.assertTrue(report.finished.is_set())
