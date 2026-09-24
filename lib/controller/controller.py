@@ -47,7 +47,11 @@ from lib.core.exceptions import (
     WordlistLimitError,
 )
 from lib.core.logger import enable_logging, logger
-from lib.core.options import validate_numeric_options, validate_regex_options
+from lib.core.options import (
+    validate_numeric_options,
+    validate_random_agent_headers,
+    validate_regex_options,
+)
 from lib.core.request_backend import (
     get_native_request_backend_error,
     get_native_target_error,
@@ -248,6 +252,7 @@ class Controller:
             loaded_session_file = session_file
             options.update(session_store.restore_options(payload["options"]))
             options["session_file"] = loaded_session_file
+            validate_random_agent_headers(SimpleNamespace(**options))
             validate_numeric_options(SimpleNamespace(**options))
             validate_regex_options(SimpleNamespace(**options))
             if options["log_file"]:
@@ -335,6 +340,7 @@ class Controller:
                         parse_raw(options["raw_file"]),
                     )
                 )
+                validate_random_agent_headers(SimpleNamespace(**options))
             except InvalidRawRequest as e:
                 fail(e)
 
