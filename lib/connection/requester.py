@@ -493,6 +493,14 @@ class BaseRequester:
     def set_header(self, key: str, value: str) -> None:
         self.headers[key] = value.lstrip()
 
+    def _request_headers(self) -> CaseInsensitiveDict:
+        if not self.agents:
+            return self.headers
+
+        request_headers = CaseInsensitiveDict(self.headers)
+        request_headers["user-agent"] = random.choice(self.agents)
+        return request_headers
+
     def reset_auth(self) -> None:
         self.session.auth = self._configured_auth
 
@@ -586,15 +594,12 @@ class Requester(BaseRequester):
                 except IndexError:
                     pass
 
-                if self.agents:
-                    self.set_header("user-agent", random.choice(self.agents))
-
                 # Use prepared request to avoid the URL path from being normalized
                 # Reference: https://github.com/psf/requests/issues/5289
                 request = requests.Request(
                     options["http_method"],
                     url,
-                    headers=self.headers,
+                    headers=self._request_headers(),
                     data=options["data"],
                 )
                 prep = self.session.prepare_request(request)
@@ -929,14 +934,11 @@ class AsyncRequester(BaseRequester):
 
         for _ in range(options["max_retries"] + 1):
             try:
-                if self.agents:
-                    self.set_header("user-agent", random.choice(self.agents))
-
                 # Use "target" extension to avoid the URL path from being normalized
                 request = session.build_request(
                     options["http_method"],
                     url,
-                    headers=self.headers,
+                    headers=self._request_headers(),
                     content=options["data"],
                     extensions={
                         "target": _join_request_target(
