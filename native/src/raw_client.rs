@@ -59,8 +59,9 @@ pub(crate) async fn raw_http_get(
     filter_config: &NativeFilterConfig,
 ) -> NativeHttpResult {
     let mut last_error = None;
+    let mut attempt_start = request.start;
     for attempt in 0..=max_retries {
-        match raw_http_get_inner(&request).await {
+        match raw_http_get_inner(&request, attempt_start).await {
             Ok((status, headers, body, length)) => {
                 return native_http_result_with_length(
                     String::new(),
@@ -68,7 +69,7 @@ pub(crate) async fn raw_http_get(
                     headers,
                     body,
                     length,
-                    request.start.elapsed().as_secs_f64() * 1000.0,
+                    attempt_start.elapsed().as_secs_f64() * 1000.0,
                     filter_config,
                 );
             }
@@ -77,18 +78,24 @@ pub(crate) async fn raw_http_get(
                 if request.cancelled.load(Ordering::Acquire) || attempt == max_retries {
                     break;
                 }
+                // Keep elapsed and the per-attempt timeout aligned with the
+                // Python requesters when another attempt starts.
+                attempt_start = Instant::now();
             }
         }
     }
 
     native_error_result(
         String::new(),
-        request.start.elapsed().as_secs_f64() * 1000.0,
+        attempt_start.elapsed().as_secs_f64() * 1000.0,
         last_error.unwrap_or_else(|| "request failed".to_string()),
     )
 }
 
-async fn raw_http_get_inner(request: &RawHttpRequest<'_>) -> Result<RawHttpResponse, String> {
+async fn raw_http_get_inner(
+    request: &RawHttpRequest<'_>,
+    attempt_start: Instant,
+) -> Result<RawHttpResponse, String> {
     let url = reqwest::Url::parse(request.base_url).map_err(|error| error.to_string())?;
     if url.scheme() != "http" {
         return Err("Raw HTTP path preservation only supports http:// URLs".to_string());
@@ -117,8 +124,7 @@ async fn raw_http_get_inner(request: &RawHttpRequest<'_>) -> Result<RawHttpRespo
     wire_request.push_str("\r\n");
 
     let timeout = Duration::from_secs_f64(request.timeout_secs);
-    let deadline = request
-        .start
+    let deadline = attempt_start
         .checked_add(timeout)
         .ok_or_else(|| "Raw HTTP timeout exceeded the supported duration".to_string())?;
     let stream = tokio::time::timeout_at(
