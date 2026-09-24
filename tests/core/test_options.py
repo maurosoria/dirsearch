@@ -11,6 +11,74 @@ from lib.core.settings import COMMON_EXTENSIONS
 
 
 class TestOptions(TestCase):
+    def test_random_agent_rejects_fixed_user_agent_cli_sources(self):
+        with tempfile.TemporaryDirectory() as directory:
+            headers_path = os.path.join(directory, "headers.txt")
+            with open(headers_path, "w", encoding="utf-8") as headers_file:
+                headers_file.write("uSeR-aGeNt: fixed-from-file\n")
+
+            cases = {
+                "dedicated option": ["--user-agent", "fixed-from-option"],
+                "header option": ["--header", "User-Agent: fixed-from-header"],
+                "headers file": ["--headers-file", headers_path],
+            }
+            for source, extra_args in cases.items():
+                with self.subTest(source=source):
+                    args = [
+                        "dirsearch.py",
+                        "--wordlist-status",
+                        "-e",
+                        "php",
+                        "--random-agent",
+                        *extra_args,
+                    ]
+                    output = io.StringIO()
+
+                    with (
+                        patch("sys.argv", args),
+                        redirect_stderr(output),
+                        self.assertRaises(SystemExit) as raised,
+                    ):
+                        parse_options()
+
+                    self.assertEqual(raised.exception.code, 1)
+                    self.assertIn(
+                        "--random-agent cannot be combined with a fixed User-Agent",
+                        output.getvalue(),
+                    )
+
+    def test_random_agent_rejects_fixed_user_agent_from_config(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config_path = os.path.join(directory, "config.ini")
+            with open(config_path, "w", encoding="utf-8") as config_file:
+                config_file.write(
+                    "[request]\n"
+                    "random-user-agents = True\n"
+                    "user-agent = fixed-from-config\n"
+                )
+            args = [
+                "dirsearch.py",
+                "--wordlist-status",
+                "-e",
+                "php",
+                "--config",
+                config_path,
+            ]
+            output = io.StringIO()
+
+            with (
+                patch("sys.argv", args),
+                redirect_stderr(output),
+                self.assertRaises(SystemExit) as raised,
+            ):
+                parse_options()
+
+        self.assertEqual(raised.exception.code, 1)
+        self.assertIn(
+            "--random-agent cannot be combined with a fixed User-Agent",
+            output.getvalue(),
+        )
+
     def test_sqlite_commit_batch_size_is_loaded_from_cli(self):
         args = [
             "dirsearch.py",

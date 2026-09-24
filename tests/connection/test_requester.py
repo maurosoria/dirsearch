@@ -361,12 +361,13 @@ class BinaryMultiChunkSyncResponse(DummySyncResponse):
 
 
 class DummySyncSession:
-    @staticmethod
-    def prepare_request(request):
+    def prepare_request(self, request):
+        self.request_headers = dict(request.headers)
         return SimpleNamespace(url=request.url)
 
     def __init__(self, response):
         self.response = response
+        self.request_headers = None
 
     def send(self, prep, **kwargs):
         del prep, kwargs
@@ -420,14 +421,15 @@ class BinaryMultiChunkAsyncResponse(DummyAsyncResponse):
 
 
 class DummyAsyncSession:
-    @staticmethod
-    def build_request(*args, **kwargs):
-        del args, kwargs
+    def build_request(self, *args, **kwargs):
+        del args
+        self.request_headers = dict(kwargs["headers"])
         return object()
 
     def __init__(self, response):
         self.response = response
         self.closed = False
+        self.request_headers = None
 
     async def send(self, request, **kwargs):
         del request, kwargs
@@ -687,6 +689,32 @@ class TestRequesterErrorClassification(BaseRequesterTestCase):
 
 
 class TestRequesterElapsed(TestCase):
+    def test_random_agent_is_request_local(self):
+        requester = object.__new__(Requester)
+        requester._rate_limiter = RequestRateLimiter()
+        requester._url = "https://example.com/"
+        requester._query = ""
+        requester.proxy_cred = None
+        requester.headers = {"x-base": "preserved"}
+        requester.agents = ["random-agent"]
+        requester.session = DummySyncSession(DummySyncResponse())
+
+        with (
+            patch.object(
+                requester_module.random,
+                "choice",
+                side_effect=[IndexError, "random-agent"],
+            ),
+            patch.object(requester_module.logger, "info"),
+        ):
+            requester.request("admin")
+
+        self.assertEqual(requester.headers, {"x-base": "preserved"})
+        self.assertEqual(
+            requester.session.request_headers["user-agent"],
+            "random-agent",
+        )
+
     def test_request_elapsed_includes_stream_read(self):
         requester = object.__new__(Requester)
         requester._rate_limiter = RequestRateLimiter()
@@ -1337,6 +1365,33 @@ class TestAsyncRequesterSSLHandling(BaseRequesterTestCase, IsolatedAsyncioTestCa
 
 
 class TestAsyncRequesterElapsed(IsolatedAsyncioTestCase):
+    async def test_random_agent_is_request_local(self):
+        requester = object.__new__(AsyncRequester)
+        requester._rate_limiter = RequestRateLimiter()
+        requester._url = "https://example.com/"
+        requester._query = ""
+        requester.proxy_cred = None
+        requester.headers = {"x-base": "preserved"}
+        requester.agents = ["random-agent"]
+        requester._inherited_proxy_transports = set()
+        requester.session = DummyAsyncSession(DummyAsyncResponse())
+
+        with (
+            patch.object(
+                requester_module.random,
+                "choice",
+                return_value="random-agent",
+            ),
+            patch.object(requester_module.logger, "info"),
+        ):
+            await requester.request("admin")
+
+        self.assertEqual(requester.headers, {"x-base": "preserved"})
+        self.assertEqual(
+            requester.session.request_headers["user-agent"],
+            "random-agent",
+        )
+
     async def test_request_elapsed_waits_for_stream_close(self):
         requester = object.__new__(AsyncRequester)
         requester._rate_limiter = RequestRateLimiter()
