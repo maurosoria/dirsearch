@@ -169,6 +169,13 @@ class TestRequestBackend(TestCase):
             )
         )
 
+    def test_native_accepts_random_agents(self):
+        self.assertIsNone(
+            get_native_request_backend_error(
+                native_options(random_agents=True)
+            )
+        )
+
     def test_native_rejects_incomplete_client_certificate_pair(self):
         for overrides in (
             {"cert_file": "client-cert.pem"},

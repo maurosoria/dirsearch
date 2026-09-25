@@ -61,6 +61,7 @@ class RawResponseServer:
     def __init__(self, response):
         self.response = response
         self.request_target = None
+        self.request_headers = None
         self.listener = socket.socket()
         self.listener.bind(("127.0.0.1", 0))
         self.listener.listen()
@@ -83,6 +84,7 @@ class RawResponseServer:
                         return
                     request.extend(chunk)
                 self.request_target = request.split(b" ", 2)[1].decode("ascii")
+                self.request_headers = bytes(request).split(b"\r\n\r\n", 1)[0]
                 connection.sendall(self.response)
         except OSError:
             pass
@@ -128,6 +130,13 @@ class KeepAliveHandler(BaseHTTPRequestHandler):
 
     def log_message(self, _format, *args):
         return None
+
+
+class UserAgentCaptureHandler(KeepAliveHandler):
+    def do_GET(self):
+        with self.server.user_agents_lock:
+            self.server.user_agents.append(self.headers.get("User-Agent"))
+        super().do_GET()
 
 
 class MixedStatusHandler(BaseHTTPRequestHandler):
@@ -189,6 +198,8 @@ class CountingHTTPServer(ThreadingHTTPServer):
     def __init__(self, handler=KeepAliveHandler):
         super().__init__(("127.0.0.1", 0), handler)
         self.connection_count = 0
+        self.user_agents = []
+        self.user_agents_lock = threading.Lock()
         self.thread = threading.Thread(target=self.serve_forever, daemon=True)
         self.thread.start()
 
@@ -235,6 +246,26 @@ class TestNativeHttpEngine(TestCase):
                     client_key=key,
                 )
 
+    def test_random_agents_reject_a_fixed_user_agent_header(self):
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "Random User-Agent values cannot be combined with a fixed "
+            "User-Agent header",
+        ):
+            dirsearch_native.NativeHttpEngine(
+                headers=[("User-Agent", "fixed-agent")],
+                random_user_agents=["random-agent"],
+            )
+
+    def test_invalid_random_agent_value_is_rejected_at_the_python_boundary(self):
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "Invalid random User-Agent value",
+        ):
+            dirsearch_native.NativeHttpEngine(
+                random_user_agents=["valid-agent", "invalid\r\nheader"]
+            )
+
     def test_native_engine_prepares_raw_paths_and_query(self):
         server = RawResponseServer(
             b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"
@@ -253,6 +284,27 @@ class TestNativeHttpEngine(TestCase):
         expected = "missing%20page/%E6%B5%8B%E8%AF%95?scope=hello%20world"
         self.assertEqual(server.request_target, f"/{expected}")
         self.assertEqual(results[0].path, expected)
+
+    def test_raw_path_request_receives_request_local_random_agent(self):
+        server = RawResponseServer(
+            b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n"
+            b"Connection: close\r\n\r\nok"
+        )
+        engine = dirsearch_native.NativeHttpEngine(
+            concurrency=1,
+            random_user_agents=["raw-path-agent"],
+        )
+
+        try:
+            results = engine.scan(server.url, ["malformed%1"])
+        finally:
+            server.close()
+
+        self.assertEqual(results[0].status, 200)
+        self.assertIn(
+            b"\r\nUser-Agent: raw-path-agent\r\n",
+            b"\r\n" + server.request_headers + b"\r\n",
+        )
 
     def test_followed_redirects_preserve_every_requested_url_in_history(self):
         server = CountingHTTPServer(RedirectChainHandler)
@@ -410,6 +462,50 @@ class TestNativeHttpEngine(TestCase):
         self.assertEqual([first[0].status, second[0].status], [200, 200])
         self.assertEqual(server.connection_count, 1)
 
+    def test_concurrent_requests_keep_random_agents_request_local(self):
+        server = CountingHTTPServer(UserAgentCaptureHandler)
+        agents = ["native-agent-one", "native-agent-two"]
+        engine = dirsearch_native.NativeHttpEngine(
+            concurrency=8,
+            random_user_agents=agents,
+        )
+
+        try:
+            results = engine.scan(
+                server.url,
+                [f"request-{index}" for index in range(32)],
+            )
+        finally:
+            server.close()
+
+        self.assertEqual(len(results), 32)
+        self.assertEqual(len(server.user_agents), 32)
+        self.assertTrue(
+            all(user_agent in agents for user_agent in server.user_agents)
+        )
+
+    def test_every_proxy_client_receives_request_local_random_agents(self):
+        first_proxy = CountingHTTPServer(UserAgentCaptureHandler)
+        second_proxy = CountingHTTPServer(UserAgentCaptureHandler)
+        engine = dirsearch_native.NativeHttpEngine(
+            concurrency=4,
+            proxies=[first_proxy.url, second_proxy.url],
+            random_user_agents=["proxy-agent"],
+        )
+
+        try:
+            results = engine.scan(
+                "http://example.test/",
+                [f"proxy-request-{index}" for index in range(4)],
+            )
+        finally:
+            first_proxy.close()
+            second_proxy.close()
+
+        self.assertEqual(len(results), 4)
+        self.assertEqual(first_proxy.user_agents, ["proxy-agent"] * 2)
+        self.assertEqual(second_proxy.user_agents, ["proxy-agent"] * 2)
+
     def test_compatibility_function_reuses_http_connection(self):
         server = CountingHTTPServer()
 
@@ -421,6 +517,29 @@ class TestNativeHttpEngine(TestCase):
 
         self.assertEqual([first[0].status, second[0].status], [200, 200])
         self.assertEqual(server.connection_count, 1)
+
+    def test_compatibility_function_rebuilds_for_random_agent_configuration(self):
+        server = CountingHTTPServer(UserAgentCaptureHandler)
+
+        try:
+            first = dirsearch_native.scan_http(
+                server.url,
+                ["first"],
+                random_user_agents=["legacy-agent-one"],
+            )
+            second = dirsearch_native.scan_http(
+                server.url,
+                ["second"],
+                random_user_agents=["legacy-agent-two"],
+            )
+        finally:
+            server.close()
+
+        self.assertEqual([first[0].status, second[0].status], [200, 200])
+        self.assertEqual(
+            server.user_agents,
+            ["legacy-agent-one", "legacy-agent-two"],
+        )
 
     def test_explicit_cancellation_interrupts_active_scan(self):
         server = StalledHTTPServer()

@@ -30,7 +30,7 @@ use result::{native_http_result, native_http_result_with_length, response_length
 #[cfg(test)]
 use transport::{
     append_body_chunk, build_http_client, is_non_retryable_proxy_error, read_response_body,
-    HeaderPairs,
+    HeaderPairs, RandomUserAgentPool,
 };
 
 #[cfg(test)]

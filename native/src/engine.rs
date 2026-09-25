@@ -4,7 +4,7 @@ use crate::filters::{NativeFilterConfig, NumericRange, TimeFilter};
 use crate::raw_client::{raw_http_request, should_use_raw_http, RawHttpRequest};
 use crate::request_target::prepare_request_targets;
 use crate::result::{native_completion_marker, NativeHttpResult};
-use crate::transport::{build_http_client, request_with_client, HeaderPairs};
+use crate::transport::{build_http_client, request_with_client, HeaderPairs, RandomUserAgentPool};
 use crate::wordlist::NativeWordlistBatch;
 use bytes::Bytes;
 use pyo3::exceptions::PyRuntimeError;
@@ -18,6 +18,8 @@ use tokio::task::JoinSet;
 
 const SIGNAL_POLL_INTERVAL: Duration = Duration::from_millis(50);
 const PROXY_AUTHENTICATION_REQUIRED: u16 = 407;
+const RANDOM_USER_AGENT_CONFLICT_ERROR: &str =
+    "Random User-Agent values cannot be combined with a fixed User-Agent header";
 
 #[pyclass]
 pub(crate) struct NativeHttpEngine {
@@ -30,6 +32,7 @@ pub(crate) struct NativeHttpEngine {
     use_raw_http: bool,
     method: Method,
     body: Bytes,
+    random_user_agents: Option<RandomUserAgentPool>,
     cancelled: Arc<AtomicBool>,
 }
 
@@ -45,6 +48,7 @@ struct NativeHttpEngineConfig {
     body: Vec<u8>,
     client_certificate: Vec<u8>,
     client_key: Vec<u8>,
+    random_user_agents: Vec<String>,
 }
 
 type CachedNativeHttpEngine = Option<(NativeHttpEngineConfig, Arc<NativeHttpEngine>)>;
@@ -65,6 +69,7 @@ impl NativeHttpEngine {
         body=Vec::new(),
         client_certificate=Vec::new(),
         client_key=Vec::new(),
+        random_user_agents=Vec::new(),
     ))]
     fn new(
         concurrency: usize,
@@ -77,9 +82,19 @@ impl NativeHttpEngine {
         body: Vec<u8>,
         client_certificate: Vec<u8>,
         client_key: Vec<u8>,
+        random_user_agents: Vec<String>,
     ) -> PyResult<Self> {
         let method = Method::from_bytes(method.as_bytes())
             .map_err(|error| PyRuntimeError::new_err(error.to_string()))?;
+        if !random_user_agents.is_empty()
+            && headers
+                .iter()
+                .any(|(name, _)| name.eq_ignore_ascii_case("user-agent"))
+        {
+            return Err(PyRuntimeError::new_err(RANDOM_USER_AGENT_CONFLICT_ERROR));
+        }
+        let random_user_agents = RandomUserAgentPool::from_values(random_user_agents)
+            .map_err(PyRuntimeError::new_err)?;
         let mut header_map = HeaderMap::new();
         for (name, value) in &headers {
             let name = HeaderName::from_bytes(name.as_bytes())
@@ -136,6 +151,7 @@ impl NativeHttpEngine {
             use_raw_http,
             method,
             body: Bytes::from(body),
+            random_user_agents,
             cancelled: Arc::new(AtomicBool::new(false)),
         })
     }
@@ -249,6 +265,7 @@ impl NativeHttpEngine {
         let use_raw_http = self.use_raw_http;
         let method = self.method.clone();
         let body = self.body.clone();
+        let random_user_agents = self.random_user_agents.clone();
         let runtime = &self.runtime;
 
         let result = py.detach(move || {
@@ -272,6 +289,7 @@ impl NativeHttpEngine {
                     let worker_cancelled = cancelled.clone();
                     let method = method.clone();
                     let body = body.clone();
+                    let random_user_agents = random_user_agents.clone();
                     tasks.spawn(run_scan_worker(
                         paths,
                         next_request,
@@ -288,6 +306,7 @@ impl NativeHttpEngine {
                         compact_filtered,
                         method,
                         body,
+                        random_user_agents,
                     ));
                 }
 
@@ -387,6 +406,7 @@ async fn run_scan_worker(
     compact_filtered: bool,
     method: Method,
     body: Bytes,
+    random_user_agents: Option<RandomUserAgentPool>,
 ) -> WorkerScanResults {
     let mut results = Vec::new();
     let mut last_processed_index = None;
@@ -414,6 +434,7 @@ async fn run_scan_worker(
                         method: method.as_str(),
                         body: body.as_ref(),
                         headers: &raw_headers,
+                        random_user_agents: random_user_agents.as_ref(),
                         timeout_secs,
                         max_body_size,
                         start,
@@ -435,6 +456,7 @@ async fn run_scan_worker(
                     start,
                     filter_config.as_ref(),
                     compact_filtered,
+                    random_user_agents.as_ref(),
                 )
                 .await
             };
@@ -500,6 +522,7 @@ async fn run_scan_worker(
     body=Vec::new(),
     client_certificate=Vec::new(),
     client_key=Vec::new(),
+    random_user_agents=Vec::new(),
 ))]
 pub(crate) fn scan_http(
     py: Python<'_>,
@@ -540,6 +563,7 @@ pub(crate) fn scan_http(
     body: Vec<u8>,
     client_certificate: Vec<u8>,
     client_key: Vec<u8>,
+    random_user_agents: Vec<String>,
 ) -> PyResult<Vec<NativeHttpResult>> {
     let config = NativeHttpEngineConfig {
         concurrency,
@@ -552,6 +576,7 @@ pub(crate) fn scan_http(
         body: body.clone(),
         client_certificate: client_certificate.clone(),
         client_key: client_key.clone(),
+        random_user_agents: random_user_agents.clone(),
     };
     let engine = {
         let cache = DEFAULT_HTTP_ENGINE.get_or_init(|| Mutex::new(None));
@@ -575,6 +600,7 @@ pub(crate) fn scan_http(
                     body,
                     client_certificate,
                     client_key,
+                    random_user_agents,
                 )?),
             ));
         }

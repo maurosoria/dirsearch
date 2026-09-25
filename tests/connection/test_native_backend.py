@@ -127,6 +127,7 @@ class TestNativeHTTPBackend(TestCase):
                 "proxy_auth": "user:password",
                 "cert_file": None,
                 "key_file": None,
+                "random_agents": False,
                 "max_retries": 2,
                 "follow_redirects": False,
                 "include_status_codes": {200, 204},
@@ -288,6 +289,48 @@ class TestNativeHTTPBackend(TestCase):
         config = fake_native.engines[0].config
         self.assertEqual(config["client_certificate"], b"CERTIFICATE BYTES")
         self.assertEqual(config["client_key"], b"PRIVATE KEY BYTES")
+
+    def test_engine_receives_random_agents_without_shared_user_agent_header(self):
+        options["random_agents"] = True
+        options["headers"]["x-scan"] = "native"
+        fake_native = FakeNativeModule()
+
+        with (
+            patch.dict("sys.modules", {"dirsearch_native": fake_native}),
+            patch(
+                "lib.connection.native.FileUtils.get_lines",
+                return_value=["agent-one", "agent-two"],
+            ) as get_lines,
+        ):
+            backend = NativeHTTPBackend()
+            list(backend.scan("https://example.com/", ["admin"]))
+            list(backend.scan("https://example.com/", ["second"]))
+
+        get_lines.assert_called_once()
+        self.assertEqual(len(fake_native.engines), 1)
+        config = fake_native.engines[0].config
+        self.assertEqual(
+            config["random_user_agents"], ["agent-one", "agent-two"]
+        )
+        self.assertEqual(config["headers"], [("x-scan", "native")])
+
+    def test_random_agent_list_read_failure_is_a_request_error(self):
+        options["random_agents"] = True
+
+        with (
+            patch.dict(
+                "sys.modules", {"dirsearch_native": FakeNativeModule()}
+            ),
+            patch(
+                "lib.connection.native.FileUtils.get_lines",
+                side_effect=OSError("agent list disappeared"),
+            ),
+            self.assertRaisesRegex(
+                RequestException,
+                "Could not read random User-Agent list: agent list disappeared",
+            ),
+        ):
+            NativeHTTPBackend()
 
     def test_incomplete_client_identity_fails_before_engine_creation(self):
         options["cert_file"] = "client-cert.pem"
