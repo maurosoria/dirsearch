@@ -193,8 +193,11 @@ python3 dirsearch.py -e php,html,js -u https://target --subdirs /,admin/,folder/
 ## Proxies
 
 dirsearch supports SOCKS and HTTP proxies. You can provide one proxy or a file containing multiple proxies.
-The async engine supports SOCKS5 and SOCKS5h. Use the default threaded engine
-for SOCKS4 and SOCKS4a proxies.
+The threaded and native request engines support SOCKS4, SOCKS4a, SOCKS5, and
+SOCKS5h. The async engine supports SOCKS5 and SOCKS5h.
+The native engine supports username/password proxy authentication for HTTP(S)
+and SOCKS5. SOCKS4 only defines a user ID; use the threaded engine when a
+SOCKS4 proxy requires one.
 
 ```sh
 python3 dirsearch.py -e php,html,js -u https://target --proxy 127.0.0.1:8080

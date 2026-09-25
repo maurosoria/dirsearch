@@ -190,6 +190,19 @@ fn assert_final_attempt_elapsed(result: &NativeHttpResult) {
 }
 
 #[test]
+fn proxy_authentication_failures_are_not_retryable() {
+    for error in [
+        "tunnel error: unsuccessful",
+        "tunnel error: proxy authorization required",
+        "SOCKS error: credentials not accepted",
+    ] {
+        assert!(is_non_retryable_proxy_error(error), "{error}");
+    }
+
+    assert!(!is_non_retryable_proxy_error("connection reset by peer"));
+}
+
+#[test]
 fn reqwest_redirects_preserve_every_requested_url_in_history() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
@@ -960,17 +973,19 @@ fn runtime_workers_follow_available_cpu_bounds() {
 }
 
 #[test]
-fn http_proxy_client_configuration_builds() {
-    let client = build_http_client(
-        &HeaderMap::new(),
-        25,
-        1.0,
-        false,
-        30,
-        Some("http://user:password@127.0.0.1:8080"),
-    );
+fn every_supported_proxy_client_configuration_builds() {
+    for proxy in [
+        "http://user:password@127.0.0.1:8080",
+        "https://user:password@127.0.0.1:8443",
+        "socks4://127.0.0.1:1080",
+        "socks4a://127.0.0.1:1080",
+        "socks5://user:password@127.0.0.1:1080",
+        "socks5h://user:password@127.0.0.1:1080",
+    ] {
+        let client = build_http_client(&HeaderMap::new(), 25, 1.0, false, 30, Some(proxy));
 
-    assert!(client.is_ok());
+        assert!(client.is_ok(), "{proxy}");
+    }
 }
 
 #[test]

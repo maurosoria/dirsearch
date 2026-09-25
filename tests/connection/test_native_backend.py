@@ -395,6 +395,71 @@ class TestNativeHTTPBackend(TestCase):
             ],
         )
 
+    def test_proxy_urls_preserve_every_supported_proxy_scheme(self):
+        options["proxy_auth"] = None
+        options["proxies"] = [
+            "proxy.example:8080",
+            "https://proxy.example:8443",
+            "socks4://proxy.example:1080",
+            "socks4a://proxy.example:1080",
+            "socks5://proxy.example:1080",
+            "socks5h://proxy.example:1080",
+        ]
+
+        self.assertEqual(
+            NativeHTTPBackend._proxy_urls(),
+            [
+                "http://proxy.example:8080",
+                "https://proxy.example:8443",
+                "socks4://proxy.example:1080",
+                "socks4a://proxy.example:1080",
+                "socks5://proxy.example:1080",
+                "socks5h://proxy.example:1080",
+            ],
+        )
+
+    def test_socks5_proxy_urls_encode_handshake_credentials(self):
+        options["proxy_auth"] = "proxy/user:p@ss/word?#%:tail"
+        options["proxies"] = ["socks5h://proxy.example:1080"]
+
+        self.assertEqual(
+            NativeHTTPBackend._proxy_urls(),
+            [
+                "socks5h://proxy%2Fuser:p%40ss%2Fword%3F%23%25%3Atail"
+                "@proxy.example:1080"
+            ],
+        )
+
+    def test_proxy_override_uses_the_same_socks_normalization(self):
+        options["proxy_auth"] = "user:password"
+        options["proxies"] = []
+        fake_native = FakeNativeModule()
+
+        with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
+            backend = NativeHTTPBackend(
+                proxy_override="socks5://proxy.example:1080"
+            )
+            list(backend.scan("https://example.com/", ["admin"]))
+
+        self.assertEqual(
+            fake_native.engines[0].config["proxies"],
+            ["socks5://user:password@proxy.example:1080"],
+        )
+
+    def test_socks4_proxy_credentials_are_not_silently_ignored(self):
+        for proxy, proxy_auth in (
+            ("socks4://proxy.example:1080", "user:password"),
+            ("socks4a://user@proxy.example:1080", None),
+        ):
+            with self.subTest(proxy=proxy, proxy_auth=proxy_auth):
+                options["proxy_auth"] = proxy_auth
+                options["proxies"] = [proxy]
+                with self.assertRaisesRegex(
+                    RequestException,
+                    "does not support SOCKS4 user IDs",
+                ):
+                    NativeHTTPBackend._proxy_urls()
+
     def test_reuses_engine_across_chunks_and_forwards_cancellation(self):
         fake_native = FakeNativeModule()
 

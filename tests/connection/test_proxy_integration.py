@@ -9,7 +9,7 @@ from urllib.parse import urlsplit
 
 from urllib3.exceptions import InsecureRequestWarning
 
-from lib.connection.native import NativeHTTPBackend
+from lib.connection.native import NativeHTTPBackend, NativeRequester
 from lib.connection.requester import AsyncRequester, Requester
 from lib.core.data import options
 from lib.core.exceptions import RequestException
@@ -220,7 +220,7 @@ class TestProxyIntegration(TestCase):
         self.assertEqual(proxy.events, [])
 
     def test_sync_engine_uses_socks5_proxy(self):
-        proxy = self.stack.socks5_proxy
+        proxy = self.stack.socks_proxy
         target = self.stack.http_target
         proxy.clear_events()
         target.clear_events()
@@ -236,7 +236,7 @@ class TestProxyIntegration(TestCase):
         asyncio.run(self._test_async_socks5_engine())
 
     async def _test_async_socks5_engine(self):
-        proxy = self.stack.socks5_proxy
+        proxy = self.stack.socks_proxy
         target = self.stack.http_target
         port = urlsplit(target.url).port
 
@@ -327,6 +327,149 @@ class TestProxyIntegration(TestCase):
                 response, error, _ = self._native_request(proxy, target, path)
                 self.assertIsNone(error)
                 self._assert_case(proxy, target, path, response)
+
+    @skipUnless(
+        dirsearch_native is not None
+        and hasattr(dirsearch_native, "NativeHttpEngine"),
+        "native extension is not installed",
+    )
+    def test_native_engine_uses_every_socks_proxy_for_both_targets(self):
+        proxy = self.stack.socks_proxy
+        proxy.configure_authentication()
+
+        for scheme in ("socks4", "socks4a", "socks5", "socks5h"):
+            for target in self.stack.targets:
+                with self.subTest(scheme=scheme, target=target.scheme):
+                    proxy.clear_events()
+                    target.clear_events()
+                    options["proxy_auth"] = None
+                    target_host = (
+                        "localhost" if scheme in ("socks4a", "socks5h")
+                        else "127.0.0.1"
+                    )
+                    target_port = urlsplit(target.url).port
+                    target_url = (
+                        f"{target.scheme}://{target_host}:{target_port}/"
+                    )
+                    path = f"native-{scheme}-{target.scheme}"
+
+                    response, error, _ = self._native_request(
+                        proxy,
+                        target,
+                        path,
+                        proxy_url=proxy.url_for(scheme),
+                        target_url=target_url,
+                    )
+
+                    self.assertIsNone(error)
+                    self.assertEqual(response.status, 200)
+                    self.assertEqual(response.body, f"reached:/{path}".encode())
+                    self.assertEqual(target.events, [("GET", f"/{path}")])
+                    self.assertEqual(target.proxy_authorizations, [None])
+                    self.assertEqual(
+                        proxy.events,
+                        [("CONNECT", f"{target_host}:{target_port}")],
+                    )
+
+    @skipUnless(
+        dirsearch_native is not None
+        and hasattr(dirsearch_native, "NativeHttpEngine"),
+        "native extension is not installed",
+    )
+    def test_native_engine_authenticates_socks5_proxies_in_the_handshake(self):
+        proxy = self.stack.socks_proxy
+        target = self.stack.http_target
+
+        for credential in PROXY_CREDENTIALS:
+            username, _, password = credential.partition(":")
+            for scheme in ("socks5", "socks5h"):
+                with self.subTest(credential=credential, scheme=scheme):
+                    proxy.clear_events()
+                    target.clear_events()
+                    proxy.configure_authentication((username, password))
+                    options["proxy_auth"] = credential
+                    target_host = (
+                        "localhost" if scheme == "socks5h" else "127.0.0.1"
+                    )
+                    target_port = urlsplit(target.url).port
+                    path = f"native-auth-{scheme}"
+                    try:
+                        response, error, _ = self._native_request(
+                            proxy,
+                            target,
+                            path,
+                            proxy_url=proxy.url_for(scheme),
+                            target_url=f"http://{target_host}:{target_port}/",
+                        )
+                    finally:
+                        proxy.configure_authentication()
+
+                    self.assertIsNone(error)
+                    self.assertEqual(response.status, 200)
+                    self.assertEqual(
+                        proxy.authentication_attempts,
+                        [(username, password)],
+                    )
+                    self.assertEqual(target.proxy_authorizations, [None])
+
+    @skipUnless(
+        dirsearch_native is not None
+        and hasattr(dirsearch_native, "NativeHttpEngine"),
+        "native extension is not installed",
+    )
+    def test_native_engine_rejects_invalid_socks5_credentials(self):
+        proxy = self.stack.socks_proxy
+        target = self.stack.http_target
+        required_username, _, required_password = PROXY_CREDENTIAL.partition(
+            ":"
+        )
+        proxy.clear_events()
+        target.clear_events()
+        proxy.configure_authentication((required_username, required_password))
+        options["proxy_auth"] = INVALID_PROXY_CREDENTIAL
+        options["max_retries"] = 1
+        try:
+            response, error, elapsed = self._native_request(
+                proxy,
+                target,
+                "native-invalid-socks5-auth",
+                proxy_url=proxy.url_for("socks5"),
+            )
+        finally:
+            proxy.configure_authentication()
+
+        self.assertIsNone(response)
+        self.assertIsNotNone(error)
+        self.assertLess(elapsed, PROXY_CASE_DEADLINE)
+        self.assertEqual(
+            proxy.authentication_attempts,
+            [("wrong", "credentials")],
+        )
+        self.assertEqual(target.events, [])
+
+    @skipUnless(
+        dirsearch_native is not None
+        and hasattr(dirsearch_native, "NativeHttpEngine"),
+        "native extension is not installed",
+    )
+    def test_native_replay_uses_socks_proxy_without_origin_auth_headers(self):
+        proxy = self.stack.socks_proxy
+        target = self.stack.http_target
+        proxy.clear_events()
+        target.clear_events()
+        options["proxies"] = []
+        requester = NativeRequester()
+        requester.set_url(target.url)
+
+        response = requester.request(
+            "native-socks-replay",
+            proxy=proxy.url_for("socks5"),
+        )
+
+        self.assertEqual(response.status, 200)
+        self.assertEqual(target.events, [("GET", "/native-socks-replay")])
+        self.assertEqual(target.proxy_authorizations, [None])
+        self.assertEqual(proxy.events, [("CONNECT", target.authority)])
 
     def test_sync_engine_authenticates_http_and_https_proxies(self):
         for credential in PROXY_CREDENTIALS:
@@ -496,7 +639,6 @@ class TestProxyIntegration(TestCase):
                         target,
                         response,
                         error,
-                        connect_status_available=False,
                     )
 
     def test_sync_engine_bounds_proxy_failures_and_handles_429(self):
@@ -641,11 +783,18 @@ class TestProxyIntegration(TestCase):
             await requester.close()
 
     @staticmethod
-    def _native_request(proxy, target, path):
-        options["proxies"] = [proxy.url]
+    def _native_request(
+        proxy,
+        target,
+        path,
+        *,
+        proxy_url=None,
+        target_url=None,
+    ):
+        options["proxies"] = [proxy_url or proxy.url]
         backend = NativeHTTPBackend()
         started = time.monotonic()
-        rows = list(backend.scan(target.url, [path]))
+        rows = list(backend.scan(target_url or target.url, [path]))
         elapsed = time.monotonic() - started
 
         if len(rows) != 1:

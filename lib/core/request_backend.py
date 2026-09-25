@@ -5,6 +5,22 @@ from urllib.parse import urlparse
 
 
 REQUEST_BACKENDS = ("python", "native")
+NATIVE_PROXY_SCHEMES = (
+    "http",
+    "https",
+    "socks4",
+    "socks4a",
+    "socks5",
+    "socks5h",
+)
+NATIVE_PROXY_SCHEME_ERROR = (
+    "--request-backend native supports HTTP, HTTPS, SOCKS4, SOCKS4a, "
+    "SOCKS5, and SOCKS5h proxies only"
+)
+NATIVE_SOCKS4_AUTH_ERROR = (
+    "--request-backend native does not support SOCKS4 user IDs; "
+    "use SOCKS5 or the threaded engine when proxy credentials are required"
+)
 
 
 def get_async_request_backend_error(opt: Values) -> str | None:
@@ -36,12 +52,14 @@ def get_native_target_error(url: str) -> str | None:
 def get_native_request_backend_error(opt: Values) -> str | None:
     if opt.async_mode:
         return "--request-backend native cannot be combined with --async"
-    if opt.tor:
-        return "--request-backend native does not support Tor or SOCKS proxies yet"
     for proxy in opt.proxies:
         parsed = urlparse(proxy if "://" in proxy else f"http://{proxy}")
-        if parsed.scheme not in ("http", "https"):
-            return "--request-backend native supports HTTP and HTTPS proxies only"
+        if parsed.scheme not in NATIVE_PROXY_SCHEMES:
+            return NATIVE_PROXY_SCHEME_ERROR
+        if parsed.scheme in ("socks4", "socks4a") and (
+            opt.proxy_auth or parsed.username is not None
+        ):
+            return NATIVE_SOCKS4_AUTH_ERROR
     if opt.auth or opt.auth_type:
         return "--request-backend native does not support authentication yet"
     if opt.cert_file or opt.key_file:

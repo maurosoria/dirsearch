@@ -93,7 +93,7 @@ pub(crate) async fn request_with_client(
         {
             Ok(result) => return result,
             Err(error) => {
-                let retryable = !error.contains("tunnel error: unsuccessful");
+                let retryable = !is_non_retryable_proxy_error(&error);
                 last_error = Some(error);
                 if !retryable || attempt == max_retries {
                     break;
@@ -110,6 +110,18 @@ pub(crate) async fn request_with_client(
         attempt_start.elapsed().as_secs_f64() * 1000.0,
         last_error.unwrap_or_else(|| "request failed".to_string()),
     )
+}
+
+pub(crate) fn is_non_retryable_proxy_error(error: &str) -> bool {
+    let error = error.to_ascii_lowercase();
+    [
+        "tunnel error: unsuccessful",
+        "proxy authentication required",
+        "proxy authorization required",
+        "socks error: credentials not accepted",
+    ]
+    .iter()
+    .any(|marker| error.contains(marker))
 }
 
 #[allow(clippy::too_many_arguments)]
