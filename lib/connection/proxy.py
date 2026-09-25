@@ -46,6 +46,22 @@ def is_proxy_connect_rejection(error: BaseException | str) -> bool:
     )
 
 
+def is_proxy_authentication_error(error: BaseException | str) -> bool:
+    if proxy_error_status(error) == PROXY_AUTHENTICATION_REQUIRED:
+        return True
+
+    markers = (
+        "proxy authentication required",
+        "proxy authorization required",
+        "socks error: credentials not accepted",
+    )
+    return any(
+        marker in message.lower()
+        for message in _error_messages(error)
+        for marker in markers
+    )
+
+
 def _error_messages(error: BaseException | str):
     pending: list[BaseException | str] = [error]
     seen = set()
@@ -65,9 +81,9 @@ def _error_messages(error: BaseException | str):
 
 
 def format_proxy_error(error: BaseException | str) -> str:
-    status = proxy_error_status(error)
-    if status == PROXY_AUTHENTICATION_REQUIRED:
+    if is_proxy_authentication_error(error):
         return "Proxy authentication required"
+    status = proxy_error_status(error)
     if status is not None:
         return f"Proxy connection failed with HTTP {status}"
     if is_proxy_connect_rejection(error):

@@ -5,11 +5,13 @@ import threading
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import urlsplit
 
 from lib.connection.proxy import (
     PROXY_AUTHENTICATION_REQUIRED,
     add_proxy_authentication,
     format_proxy_error,
+    is_proxy_authentication_error,
     is_proxy_connect_rejection,
     proxy_error_status,
 )
@@ -20,7 +22,11 @@ from lib.core.native_runtime import (
     get_native_backend_install_error,
     get_native_extension_version_error,
 )
-from lib.core.settings import MAX_REDIRECTS, MAX_RESPONSE_SIZE
+from lib.core.request_backend import (
+    NATIVE_PROXY_SCHEME_ERROR,
+    NATIVE_SOCKS4_AUTH_ERROR,
+)
+from lib.core.settings import MAX_REDIRECTS, MAX_RESPONSE_SIZE, PROXY_SCHEMES
 from lib.core.wordlist_backend import NativeWordlistBatch
 from lib.utils.mimetype import guess_mimetype
 
@@ -244,6 +250,7 @@ class NativeHTTPBackend:
                 self._using_proxy
                 and (
                     proxy_error_status(error_message) is not None
+                    or is_proxy_authentication_error(error_message)
                     or is_proxy_connect_rejection(error_message)
                 )
             ):
@@ -285,10 +292,14 @@ class NativeHTTPBackend:
         for proxy in proxy_values:
             if "://" not in proxy:
                 proxy = f"http://{proxy}"
-            elif not proxy.startswith(("http://", "https://")):
-                raise RequestException(
-                    "--request-backend native supports HTTP and HTTPS proxies only"
-                )
+            elif not proxy.lower().startswith(PROXY_SCHEMES):
+                raise RequestException(NATIVE_PROXY_SCHEME_ERROR)
+
+            parsed = urlsplit(proxy)
+            if parsed.scheme.lower() in ("socks4", "socks4a") and (
+                options["proxy_auth"] or parsed.username is not None
+            ):
+                raise RequestException(NATIVE_SOCKS4_AUTH_ERROR)
 
             proxy = add_proxy_authentication(proxy, options["proxy_auth"])
             proxies.append(proxy)

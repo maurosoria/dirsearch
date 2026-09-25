@@ -96,12 +96,21 @@ class TestRequestBackend(TestCase):
                     get_native_request_backend_error(native_options(**overrides))
                 )
 
-    def test_native_accepts_http_proxies(self):
-        self.assertIsNone(
-            get_native_request_backend_error(
-                native_options(proxies=["127.0.0.1:8080", "https://proxy.example"])
-            )
-        )
+    def test_native_accepts_http_and_socks_proxies(self):
+        for proxy in (
+            "127.0.0.1:8080",
+            "https://proxy.example",
+            "socks4://127.0.0.1:1080",
+            "socks4a://127.0.0.1:1080",
+            "socks5://127.0.0.1:1080",
+            "socks5h://127.0.0.1:1080",
+        ):
+            with self.subTest(proxy=proxy):
+                self.assertIsNone(
+                    get_native_request_backend_error(
+                        native_options(proxies=[proxy])
+                    )
+                )
 
     def test_native_accepts_proxy_authentication(self):
         self.assertIsNone(
@@ -113,19 +122,42 @@ class TestRequestBackend(TestCase):
             )
         )
 
-    def test_native_rejects_socks_proxies(self):
+    def test_native_rejects_unknown_proxy_schemes(self):
         self.assertEqual(
             get_native_request_backend_error(
-                native_options(proxies=["socks5://127.0.0.1:1080"])
+                native_options(proxies=["ftp://127.0.0.1:21"])
             ),
-            "--request-backend native supports HTTP and HTTPS proxies only",
+            "--request-backend native supports HTTP, HTTPS, SOCKS4, SOCKS4a, "
+            "SOCKS5, and SOCKS5h proxies only",
         )
 
-    def test_native_rejects_tor(self):
-        self.assertEqual(
-            get_native_request_backend_error(native_options(tor=True)),
-            "--request-backend native does not support Tor or SOCKS proxies yet",
+    def test_native_accepts_tor(self):
+        self.assertIsNone(
+            get_native_request_backend_error(
+                native_options(
+                    tor=True,
+                    proxies=["socks5://127.0.0.1:9050"],
+                )
+            )
         )
+
+    def test_native_rejects_socks4_user_ids_instead_of_ignoring_them(self):
+        for overrides in (
+            {
+                "proxies": ["socks4://127.0.0.1:1080"],
+                "proxy_auth": "user:password",
+            },
+            {"proxies": ["socks4a://user@127.0.0.1:1080"]},
+        ):
+            with self.subTest(overrides=overrides):
+                self.assertEqual(
+                    get_native_request_backend_error(
+                        native_options(**overrides)
+                    ),
+                    "--request-backend native does not support SOCKS4 user IDs; "
+                    "use SOCKS5 or the threaded engine when proxy credentials "
+                    "are required",
+                )
 
     def test_native_rejects_ip_override(self):
         self.assertEqual(

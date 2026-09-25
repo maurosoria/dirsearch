@@ -3,6 +3,7 @@ from unittest import TestCase
 from lib.connection import proxy as proxy_utils
 from lib.connection.proxy import (
     format_proxy_error,
+    is_proxy_authentication_error,
     is_proxy_connect_rejection,
     proxy_error_status,
 )
@@ -91,3 +92,15 @@ class TestProxyErrors(TestCase):
             format_proxy_error(error),
             "Proxy CONNECT request was rejected",
         )
+
+    def test_formats_native_http_and_socks_authentication_failures(self):
+        for error in (
+            "tunnel error: proxy authorization required",
+            "SOCKS error: credentials not accepted",
+        ):
+            with self.subTest(error=error):
+                self.assertTrue(is_proxy_authentication_error(error))
+                self.assertEqual(
+                    format_proxy_error(error),
+                    "Proxy authentication required",
+                )

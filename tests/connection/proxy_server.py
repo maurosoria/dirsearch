@@ -121,7 +121,7 @@ class RecordingHTTPServer(socketserver.ThreadingMixIn, HTTPServer):
         stall_release.set()
 
 
-class RecordingSOCKS5Server(socketserver.ThreadingMixIn, socketserver.TCPServer):
+class RecordingSOCKSServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     allow_reuse_address = True
     block_on_close = True
     daemon_threads = False
@@ -129,54 +129,129 @@ class RecordingSOCKS5Server(socketserver.ThreadingMixIn, socketserver.TCPServer)
     def __init__(self, server_address, handler_class):
         super().__init__(server_address, handler_class)
         self._events = []
+        self._authentication_attempts = []
         self._events_lock = threading.Lock()
+        self._required_credentials = None
 
     def record(self, host: str, port: int) -> None:
         with self._events_lock:
             self._events.append(("CONNECT", f"{host}:{port}"))
 
+    def record_authentication(self, username: str, password: str) -> bool:
+        credentials = (username, password)
+        with self._events_lock:
+            self._authentication_attempts.append(credentials)
+            return credentials == self._required_credentials
+
+    def configure_authentication(
+        self,
+        required_credentials: tuple[str, str] | None = None,
+    ) -> None:
+        with self._events_lock:
+            self._required_credentials = required_credentials
+
+    @property
+    def required_credentials(self) -> tuple[str, str] | None:
+        with self._events_lock:
+            return self._required_credentials
+
     def clear_events(self) -> None:
         with self._events_lock:
             self._events.clear()
+            self._authentication_attempts.clear()
 
     @property
     def events(self) -> list[tuple[str, str]]:
         with self._events_lock:
             return list(self._events)
 
+    @property
+    def authentication_attempts(self) -> list[tuple[str, str]]:
+        with self._events_lock:
+            return list(self._authentication_attempts)
 
-class SOCKS5ProxyHandler(socketserver.BaseRequestHandler):
+
+class SOCKSProxyHandler(socketserver.BaseRequestHandler):
     def handle(self) -> None:
         self.request.settimeout(IO_TIMEOUT)
         upstream = None
         try:
-            version, method_count = self._read_exact(2)
-            methods = self._read_exact(method_count)
-            if version != 5 or 0 not in methods:
-                self.request.sendall(b"\x05\xff")
+            version, second_byte = self._read_exact(2)
+            if version == 4:
+                upstream = self._handle_socks4(second_byte)
+            elif version == 5:
+                upstream = self._handle_socks5(second_byte)
+            else:
                 return
 
-            self.request.sendall(b"\x05\x00")
-            version, command, _reserved, address_type = self._read_exact(4)
-            if version != 5 or command != 1:
-                self._send_reply(7)
-                return
-
-            host = self._read_host(address_type)
-            port = int.from_bytes(self._read_exact(2), "big")
-            self.server.record(host, port)
-            if host not in LOCAL_HOSTS:
-                self._send_reply(2)
-                return
-
-            upstream = socket.create_connection((host, port), timeout=IO_TIMEOUT)
-            self._send_reply(0, upstream.getsockname())
-            self._relay(upstream)
+            if upstream is not None:
+                self._relay(upstream)
         except (EOFError, OSError, UnicodeError, ValueError):
             return
         finally:
             if upstream is not None:
                 upstream.close()
+
+    def _handle_socks4(self, command: int) -> socket.socket | None:
+        port = int.from_bytes(self._read_exact(2), "big")
+        encoded_host = self._read_exact(4)
+        self._read_until_null()  # USERID is not authentication in SOCKS4.
+        if command != 1:
+            self._send_socks4_reply(91)
+            return None
+
+        if encoded_host[:3] == b"\x00\x00\x00" and encoded_host[3] != 0:
+            host = self._read_until_null().decode("idna")
+        else:
+            host = socket.inet_ntop(socket.AF_INET, encoded_host)
+
+        self.server.record(host, port)
+        if host not in LOCAL_HOSTS:
+            self._send_socks4_reply(91)
+            return None
+
+        upstream = socket.create_connection((host, port), timeout=IO_TIMEOUT)
+        self._send_socks4_reply(90)
+        return upstream
+
+    def _handle_socks5(self, method_count: int) -> socket.socket | None:
+        methods = self._read_exact(method_count)
+        required_credentials = self.server.required_credentials
+        selected_method = 2 if required_credentials is not None else 0
+        if selected_method not in methods:
+            self.request.sendall(b"\x05\xff")
+            return None
+
+        self.request.sendall(bytes((5, selected_method)))
+        if selected_method == 2 and not self._authenticate_socks5():
+            return None
+
+        version, command, _reserved, address_type = self._read_exact(4)
+        if version != 5 or command != 1:
+            self._send_reply(7)
+            return None
+
+        host = self._read_host(address_type)
+        port = int.from_bytes(self._read_exact(2), "big")
+        self.server.record(host, port)
+        if host not in LOCAL_HOSTS:
+            self._send_reply(2)
+            return None
+
+        upstream = socket.create_connection((host, port), timeout=IO_TIMEOUT)
+        self._send_reply(0, upstream.getsockname())
+        return upstream
+
+    def _authenticate_socks5(self) -> bool:
+        version, username_length = self._read_exact(2)
+        if version != 1:
+            return False
+        username = self._read_exact(username_length).decode("utf-8")
+        password_length = self._read_exact(1)[0]
+        password = self._read_exact(password_length).decode("utf-8")
+        accepted = self.server.record_authentication(username, password)
+        self.request.sendall(bytes((1, 0 if accepted else 1)))
+        return accepted
 
     def _read_exact(self, size: int) -> bytes:
         data = bytearray()
@@ -186,6 +261,14 @@ class SOCKS5ProxyHandler(socketserver.BaseRequestHandler):
                 raise EOFError("SOCKS client closed the connection")
             data.extend(chunk)
         return bytes(data)
+
+    def _read_until_null(self) -> bytes:
+        data = bytearray()
+        while True:
+            byte = self._read_exact(1)
+            if byte == b"\x00":
+                return bytes(data)
+            data.extend(byte)
 
     def _read_host(self, address_type: int) -> str:
         if address_type == 1:
@@ -206,6 +289,9 @@ class SOCKS5ProxyHandler(socketserver.BaseRequestHandler):
         self.request.sendall(
             b"\x05" + bytes((status, 0, 1)) + encoded_host + port.to_bytes(2, "big")
         )
+
+    def _send_socks4_reply(self, status: int) -> None:
+        self.request.sendall(b"\x00" + bytes((status,)) + b"\x00" * 6)
 
     def _relay(self, upstream: socket.socket) -> None:
         connections = (self.request, upstream)
@@ -481,17 +567,17 @@ class LocalHTTPServer:
             raise RuntimeError(f"{self.scheme} test server did not stop")
 
 
-class LocalSOCKS5Proxy:
+class LocalSOCKSProxy:
     scheme = "socks5"
 
     def __init__(self) -> None:
-        self.server = RecordingSOCKS5Server(
+        self.server = RecordingSOCKSServer(
             ("127.0.0.1", 0),
-            SOCKS5ProxyHandler,
+            SOCKSProxyHandler,
         )
         self.thread = threading.Thread(
             target=self.server.serve_forever,
-            name="dirsearch-test-socks5-proxy",
+            name="dirsearch-test-socks-proxy",
         )
         self.thread.start()
 
@@ -507,6 +593,16 @@ class LocalSOCKS5Proxy:
     def events(self) -> list[tuple[str, str]]:
         return self.server.events
 
+    @property
+    def authentication_attempts(self) -> list[tuple[str, str]]:
+        return self.server.authentication_attempts
+
+    def configure_authentication(
+        self,
+        required_credentials: tuple[str, str] | None = None,
+    ) -> None:
+        self.server.configure_authentication(required_credentials)
+
     def clear_events(self) -> None:
         self.server.clear_events()
 
@@ -515,7 +611,7 @@ class LocalSOCKS5Proxy:
         self.server.server_close()
         self.thread.join(timeout=IO_TIMEOUT)
         if self.thread.is_alive():
-            raise RuntimeError("SOCKS5 test proxy did not stop")
+            raise RuntimeError("SOCKS test proxy did not stop")
 
 
 class ProxyTestStack:
@@ -540,8 +636,8 @@ class ProxyTestStack:
                 certificate,
                 private_key,
             )
-            self.socks5_proxy = LocalSOCKS5Proxy()
-            self._servers.append(self.socks5_proxy)
+            self.socks_proxy = LocalSOCKSProxy()
+            self._servers.append(self.socks_proxy)
         except Exception:
             self.close()
             raise
