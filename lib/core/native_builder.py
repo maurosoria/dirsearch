@@ -67,7 +67,7 @@ def install_hint(os_release: dict[str, str] | None = None) -> str:
         )
 
     return (
-        "Install Python 3.14 development headers, Rust/Cargo, and a C compiler "
+        "Install Python 3.14 development headers, Rust 1.86 or newer, and a C compiler "
         "with your system package manager."
     )
 

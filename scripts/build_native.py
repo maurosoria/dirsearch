@@ -5,6 +5,7 @@ import argparse
 import shutil
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 
@@ -32,6 +33,35 @@ def resolve_python(value: str) -> Path:
         return Path(resolved).absolute()
 
     return candidate
+
+
+def read_native_version(manifest: Path) -> str:
+    cargo = tomllib.loads(manifest.read_text(encoding="utf-8"))
+    return cargo["package"]["version"]
+
+
+def install_native_wheel(python: Path, wheel: Path, expected_version: str) -> None:
+    # Reinstall even when the version matches: reused build environments may
+    # otherwise keep an older binary and package it into release artifacts.
+    run(
+        [
+            str(python),
+            "-m",
+            "pip",
+            "install",
+            "--force-reinstall",
+            "--no-deps",
+            str(wheel),
+        ]
+    )
+    verification = (
+        "import dirsearch_native; "
+        f"expected = {expected_version!r}; "
+        "actual = getattr(dirsearch_native, '__version__', None); "
+        "assert actual == expected, "
+        "f'native extension version mismatch: expected {expected}, found {actual}'"
+    )
+    run([str(python), "-c", verification])
 
 
 def build_native(args: argparse.Namespace) -> Path:
@@ -94,9 +124,8 @@ def main() -> None:
 
     wheel = build_native(args)
     python = resolve_python(args.python)
-    # Install the exact wheel path so Windows PowerShell never passes "*.whl" literally.
-    run([str(python), "-m", "pip", "install", str(wheel)])
-    run([str(python), "-c", "import dirsearch_native"])
+    expected_version = read_native_version(Path(args.manifest_path).resolve())
+    install_native_wheel(python, wheel, expected_version)
 
     if not args.keep_target:
         target_dir = Path(args.target_dir).resolve() if args.target_dir else PROJECT_ROOT / "native" / "target"

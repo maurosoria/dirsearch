@@ -14,7 +14,7 @@ pub(crate) type TimeFilter = (String, f64);
 // backtracking work so one hostile response cannot stall a native worker.
 const REGEX_BACKTRACK_LIMIT: usize = 1_000_000;
 
-#[pyclass(frozen)]
+#[pyclass(frozen, skip_from_py_object)]
 #[derive(Clone)]
 pub(crate) struct NativeFilterConfig {
     inner: Arc<NativeFilterConfigData>,

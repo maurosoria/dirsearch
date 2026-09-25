@@ -33,7 +33,9 @@ use transport::{append_body_chunk, build_http_client, read_response_body, Header
 #[cfg(test)]
 mod tests;
 
-#[pymodule]
+// Keep the established GIL-required contract. Free-threaded Python support
+// needs its own concurrency validation before it can be advertised safely.
+#[pymodule(gil_used = true)]
 fn dirsearch_native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     // Python checks this value before using the tightly coupled native API.
     module.add("__version__", env!("CARGO_PKG_VERSION"))?;

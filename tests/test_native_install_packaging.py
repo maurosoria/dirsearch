@@ -3,8 +3,9 @@ import tomllib
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
+from unittest.mock import patch
 
-from scripts.build_native import resolve_python
+from scripts.build_native import install_native_wheel, resolve_python
 from lib.core.native_runtime import NATIVE_EXTENSION_VERSION
 
 
@@ -122,3 +123,25 @@ class TestNativeInstallPackaging(TestCase):
                 self.skipTest(f"Python symlink unavailable: {error}")
 
             self.assertEqual(resolve_python(str(link)), link.absolute())
+
+    def test_native_builder_force_reinstalls_and_verifies_exact_wheel(self):
+        python = Path("/usr/bin/python3.14")
+        wheel = Path("/tmp/dirsearch_native-0.2.8.whl")
+
+        with patch("scripts.build_native.run") as run:
+            install_native_wheel(python, wheel, NATIVE_EXTENSION_VERSION)
+
+        self.assertEqual(run.call_count, 2)
+        install_command = run.call_args_list[0].args[0]
+        self.assertEqual(
+            install_command[:4],
+            [str(python), "-m", "pip", "install"],
+        )
+        self.assertIn("--force-reinstall", install_command)
+        self.assertIn("--no-deps", install_command)
+        self.assertEqual(install_command[-1], str(wheel))
+
+        verify_command = run.call_args_list[1].args[0]
+        self.assertEqual(verify_command[:2], [str(python), "-c"])
+        self.assertIn("import dirsearch_native", verify_command[2])
+        self.assertIn(repr(NATIVE_EXTENSION_VERSION), verify_command[2])

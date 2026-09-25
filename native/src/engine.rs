@@ -182,7 +182,7 @@ impl NativeHttpEngine {
         compact_filtered: bool,
     ) -> PyResult<Vec<NativeHttpResult>> {
         let owned_batch = (*batch).clone();
-        let paths = py.allow_threads(move || owned_batch.to_paths());
+        let paths = py.detach(move || owned_batch.to_paths());
         let filter_config = filter_config
             .map(|config| config.borrow(py).clone())
             .unwrap_or_default();
@@ -225,7 +225,7 @@ impl NativeHttpEngine {
         let use_raw_http = self.use_raw_http;
         let runtime = &self.runtime;
 
-        let result = py.allow_threads(move || {
+        let result = py.detach(move || {
             runtime.block_on(async move {
                 prepare_request_targets(&mut paths, &query);
                 let result_count = paths.len();
@@ -267,8 +267,8 @@ impl NativeHttpEngine {
                     result_count
                 });
                 let mut last_processed_index = None;
-                // Checking Python signals requires the GIL. Poll on a timer
-                // instead of reacquiring it for every completed request.
+                // Checking Python signals requires attaching this worker to
+                // the interpreter. Poll instead of doing that per response.
                 let mut signal_poll = tokio::time::interval_at(
                     tokio::time::Instant::now() + SIGNAL_POLL_INTERVAL,
                     SIGNAL_POLL_INTERVAL,
@@ -299,7 +299,7 @@ impl NativeHttpEngine {
                         return Ok(Vec::new());
                     }
                     if check_signals {
-                        Python::with_gil(|py| py.check_signals())?;
+                        Python::attach(|py| py.check_signals())?;
                         if cancelled.load(Ordering::Acquire) {
                             tasks.abort_all();
                             return Ok(Vec::new());

@@ -6,7 +6,7 @@ from collections.abc import Sequence
 
 
 MIN_NATIVE_PYTHON = (3, 14)
-NATIVE_EXTENSION_VERSION = "0.2.7"
+NATIVE_EXTENSION_VERSION = "0.2.8"
 
 
 def format_python_version(version_info: Sequence[int] | None = None) -> str:
@@ -44,7 +44,7 @@ def get_native_backend_install_error(
         "Native Rust backend is not installed in this Python environment. "
         "Install dirsearch, then compile the native engine with: "
         "dirsearch-build-native. "
-        "The build requires Python 3.14 development headers, Rust/Cargo, "
+        "The build requires Python 3.14 development headers, Rust 1.86 or newer, "
         "and a C compiler."
     )
 
