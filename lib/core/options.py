@@ -62,6 +62,16 @@ from lib.utils.file import File, FileUtils
 from lib.parse.nmap import parse_nmap
 
 
+def validate_random_agent_headers(opt: Any) -> None:
+    if opt.random_agents and any(
+        name.lower() == "user-agent" for name in opt.headers
+    ):
+        _fail(
+            "--random-agent cannot be combined with a fixed User-Agent "
+            "from --user-agent, request headers, raw requests, or configuration"
+        )
+
+
 def parse_options() -> dict[str, Any]:
     opt = merge_config(parse_arguments())
 
@@ -232,13 +242,7 @@ def parse_options() -> dict[str, Any]:
     if opt.cookie:
         opt.headers["cookie"] = opt.cookie
 
-    if opt.random_agents and any(
-        name.lower() == "user-agent" for name in opt.headers
-    ):
-        _fail(
-            "--random-agent cannot be combined with a fixed User-Agent "
-            "from --user-agent, request headers, or configuration"
-        )
+    validate_random_agent_headers(opt)
 
     opt.include_status_codes = _parse_status_codes(opt.include_status_codes)
     opt.exclude_status_codes = _parse_status_codes(opt.exclude_status_codes)
