@@ -1,6 +1,6 @@
 import re
 from unittest import TestCase
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from lib.connection.native import (
     NativeHTTPBackend,
@@ -304,43 +304,80 @@ class TestNativeHTTPBackend(TestCase):
 
         self.assertEqual(fake_native.engines, [])
 
-    def test_empty_client_identity_file_fails_closed(self):
+    def test_empty_client_identity_files_fail_closed(self):
+        options["cert_file"] = "client-cert.pem"
+        options["key_file"] = "client-key.pem"
+
+        for file_contents in (
+            [b"", b"PRIVATE KEY BYTES"],
+            [b"CERTIFICATE BYTES", b""],
+            [b"", b""],
+        ):
+            with self.subTest(file_contents=file_contents):
+                fake_native = FakeNativeModule()
+                with (
+                    patch.dict("sys.modules", {"dirsearch_native": fake_native}),
+                    patch(
+                        "lib.connection.native.FileUtils.read_bytes",
+                        side_effect=file_contents,
+                    ),
+                    self.assertRaisesRegex(
+                        RequestException,
+                        "Client certificate and private key files must not be empty",
+                    ),
+                ):
+                    NativeHTTPBackend()
+
+                self.assertEqual(fake_native.engines, [])
+
+    def test_client_identity_read_failures_are_request_errors(self):
+        options["cert_file"] = "client-cert.pem"
+        options["key_file"] = "client-key.pem"
+
+        for read_effects in (
+            [OSError("certificate disappeared")],
+            [b"CERTIFICATE BYTES", OSError("private key disappeared")],
+        ):
+            with self.subTest(read_effects=read_effects):
+                with (
+                    patch.dict(
+                        "sys.modules", {"dirsearch_native": FakeNativeModule()}
+                    ),
+                    patch(
+                        "lib.connection.native.FileUtils.read_bytes",
+                        side_effect=read_effects,
+                    ),
+                    self.assertRaisesRegex(
+                        RequestException,
+                        "Could not read client certificate or private key: ",
+                    ),
+                ):
+                    NativeHTTPBackend()
+
+    def test_invalid_client_identity_from_native_engine_is_a_request_error(self):
         options["cert_file"] = "client-cert.pem"
         options["key_file"] = "client-key.pem"
         fake_native = FakeNativeModule()
+        fake_native.NativeHttpEngine = Mock(
+            side_effect=RuntimeError(
+                "Invalid client certificate or private key: builder error"
+            )
+        )
 
         with (
             patch.dict("sys.modules", {"dirsearch_native": fake_native}),
             patch(
                 "lib.connection.native.FileUtils.read_bytes",
-                side_effect=[b"", b"PRIVATE KEY BYTES"],
+                side_effect=[b"INVALID CERTIFICATE", b"SECRET PRIVATE KEY"],
             ),
             self.assertRaisesRegex(
                 RequestException,
-                "Client certificate and private key files must not be empty",
-            ),
+                "Invalid client certificate or private key: builder error",
+            ) as raised,
         ):
-            NativeHTTPBackend()
+            list(NativeHTTPBackend().scan("https://example.com/", ["admin"]))
 
-        self.assertEqual(fake_native.engines, [])
-
-    def test_client_identity_read_failure_is_a_request_error(self):
-        options["cert_file"] = "client-cert.pem"
-        options["key_file"] = "client-key.pem"
-
-        with (
-            patch.dict("sys.modules", {"dirsearch_native": FakeNativeModule()}),
-            patch(
-                "lib.connection.native.FileUtils.read_bytes",
-                side_effect=OSError("file disappeared"),
-            ),
-            self.assertRaisesRegex(
-                RequestException,
-                "Could not read client certificate or private key: "
-                "file disappeared",
-            ),
-        ):
-            NativeHTTPBackend()
+        self.assertNotIn("SECRET PRIVATE KEY", str(raised.exception))
 
     def test_explicit_content_type_is_preserved_for_binary_body(self):
         options["http_method"] = "POST"

@@ -5,8 +5,8 @@ use crate::raw_client::{raw_http_request, RawHttpRequest};
 use crate::transport::request_with_client;
 use bytes::Bytes;
 use rcgen::{
-    BasicConstraints, CertificateParams, ExtendedKeyUsagePurpose, IsCa, Issuer, KeyPair,
-    KeyUsagePurpose,
+    date_time_ymd, BasicConstraints, CertificateParams, ExtendedKeyUsagePurpose, IsCa, Issuer,
+    KeyPair, KeyUsagePurpose,
 };
 use reqwest::Method;
 use rustls::pki_types::{PrivateKeyDer, PrivatePkcs8KeyDer};
@@ -995,10 +995,18 @@ fn every_supported_proxy_client_configuration_builds() {
     }
 }
 
+struct PemIdentity {
+    certificate: Vec<u8>,
+    key: Vec<u8>,
+}
+
 struct MutualTlsFixture {
     server_config: Arc<ServerConfig>,
-    client_certificate_pem: Vec<u8>,
-    client_key_pem: Vec<u8>,
+    trusted_client: PemIdentity,
+    untrusted_client: PemIdentity,
+    wrong_usage_client: PemIdentity,
+    expired_client: PemIdentity,
+    unrelated_key: Vec<u8>,
 }
 
 fn mutual_tls_fixture() -> MutualTlsFixture {
@@ -1027,6 +1035,43 @@ fn mutual_tls_fixture() -> MutualTlsFixture {
     client_params.extended_key_usages = vec![ExtendedKeyUsagePurpose::ClientAuth];
     let client_certificate = client_params.signed_by(&client_key, &issuer).unwrap();
 
+    let unrelated_key = KeyPair::generate().unwrap().serialize_pem().into_bytes();
+
+    let wrong_usage_key = KeyPair::generate().unwrap();
+    let mut wrong_usage_params =
+        CertificateParams::new(vec!["wrong-usage-client".to_string()]).unwrap();
+    wrong_usage_params.key_usages = vec![KeyUsagePurpose::DigitalSignature];
+    wrong_usage_params.extended_key_usages = vec![ExtendedKeyUsagePurpose::ServerAuth];
+    let wrong_usage_certificate = wrong_usage_params
+        .signed_by(&wrong_usage_key, &issuer)
+        .unwrap();
+
+    let expired_key = KeyPair::generate().unwrap();
+    let mut expired_params = CertificateParams::new(vec!["expired-client".to_string()]).unwrap();
+    expired_params.key_usages = vec![KeyUsagePurpose::DigitalSignature];
+    expired_params.extended_key_usages = vec![ExtendedKeyUsagePurpose::ClientAuth];
+    expired_params.not_before = date_time_ymd(2000, 1, 1);
+    expired_params.not_after = date_time_ymd(2001, 1, 1);
+    let expired_certificate = expired_params.signed_by(&expired_key, &issuer).unwrap();
+
+    let mut untrusted_ca_params = CertificateParams::new(Vec::<String>::new()).unwrap();
+    untrusted_ca_params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
+    untrusted_ca_params.key_usages = vec![
+        KeyUsagePurpose::DigitalSignature,
+        KeyUsagePurpose::KeyCertSign,
+        KeyUsagePurpose::CrlSign,
+    ];
+    let untrusted_ca_key = KeyPair::generate().unwrap();
+    let untrusted_issuer = Issuer::new(untrusted_ca_params, untrusted_ca_key);
+    let untrusted_key = KeyPair::generate().unwrap();
+    let mut untrusted_params =
+        CertificateParams::new(vec!["untrusted-client".to_string()]).unwrap();
+    untrusted_params.key_usages = vec![KeyUsagePurpose::DigitalSignature];
+    untrusted_params.extended_key_usages = vec![ExtendedKeyUsagePurpose::ClientAuth];
+    let untrusted_certificate = untrusted_params
+        .signed_by(&untrusted_key, &untrusted_issuer)
+        .unwrap();
+
     let mut client_roots = RootCertStore::empty();
     client_roots.add(ca_certificate.der().clone()).unwrap();
     let verifier = WebPkiClientVerifier::builder(Arc::new(client_roots))
@@ -1040,8 +1085,23 @@ fn mutual_tls_fixture() -> MutualTlsFixture {
 
     MutualTlsFixture {
         server_config: Arc::new(server_config),
-        client_certificate_pem: client_certificate.pem().into_bytes(),
-        client_key_pem: client_key.serialize_pem().into_bytes(),
+        trusted_client: PemIdentity {
+            certificate: client_certificate.pem().into_bytes(),
+            key: client_key.serialize_pem().into_bytes(),
+        },
+        untrusted_client: PemIdentity {
+            certificate: untrusted_certificate.pem().into_bytes(),
+            key: untrusted_key.serialize_pem().into_bytes(),
+        },
+        wrong_usage_client: PemIdentity {
+            certificate: wrong_usage_certificate.pem().into_bytes(),
+            key: wrong_usage_key.serialize_pem().into_bytes(),
+        },
+        expired_client: PemIdentity {
+            certificate: expired_certificate.pem().into_bytes(),
+            key: expired_key.serialize_pem().into_bytes(),
+        },
+        unrelated_key,
     }
 }
 
@@ -1057,34 +1117,38 @@ async fn run_mutual_tls_request(
     let address = listener.local_addr().unwrap();
     let acceptor = TlsAcceptor::from(fixture.server_config.clone());
     let server = tokio::spawn(async move {
-        let (stream, _) = listener.accept().await.map_err(|error| error.to_string())?;
-        let mut stream = acceptor
-            .accept(stream)
-            .await
-            .map_err(|error| error.to_string())?;
-        let mut request = Vec::new();
-        loop {
-            let mut buffer = [0u8; 1024];
-            let read = stream
-                .read(&mut buffer)
+        tokio::time::timeout(Duration::from_secs(3), async move {
+            let (stream, _) = listener.accept().await.map_err(|error| error.to_string())?;
+            let mut stream = acceptor
+                .accept(stream)
                 .await
                 .map_err(|error| error.to_string())?;
-            if read == 0 {
-                return Err("client closed before sending a request".to_string());
+            let mut request = Vec::new();
+            loop {
+                let mut buffer = [0u8; 1024];
+                let read = stream
+                    .read(&mut buffer)
+                    .await
+                    .map_err(|error| error.to_string())?;
+                if read == 0 {
+                    return Err("client closed before sending a request".to_string());
+                }
+                request.extend_from_slice(&buffer[..read]);
+                if request.windows(4).any(|window| window == b"\r\n\r\n") {
+                    break;
+                }
             }
-            request.extend_from_slice(&buffer[..read]);
-            if request.windows(4).any(|window| window == b"\r\n\r\n") {
-                break;
+            if !request.starts_with(b"GET /mtls HTTP/1.1\r\n") {
+                return Err("unexpected mutual TLS request target".to_string());
             }
-        }
-        if !request.starts_with(b"GET /mtls HTTP/1.1\r\n") {
-            return Err("unexpected mutual TLS request target".to_string());
-        }
-        stream
-            .write_all(OK_RESPONSE)
-            .await
-            .map_err(|error| error.to_string())?;
-        Ok(())
+            stream
+                .write_all(OK_RESPONSE)
+                .await
+                .map_err(|error| error.to_string())?;
+            Ok(())
+        })
+        .await
+        .map_err(|_| "mutual TLS fixture timed out".to_string())?
     });
 
     let client = build_http_client(
@@ -1129,8 +1193,8 @@ fn client_identity_is_required_and_sent_during_tls_handshake() {
 
     let (authenticated_result, authenticated_server) = runtime.block_on(run_mutual_tls_request(
         &fixture,
-        &fixture.client_certificate_pem,
-        &fixture.client_key_pem,
+        &fixture.trusted_client.certificate,
+        &fixture.trusted_client.key,
     ));
     authenticated_server.unwrap();
     assert_eq!(authenticated_result.status, 200);
@@ -1138,7 +1202,68 @@ fn client_identity_is_required_and_sent_during_tls_handshake() {
 }
 
 #[test]
-fn invalid_client_identity_fails_while_building_the_native_client() {
+fn malformed_or_incomplete_client_identity_fails_during_client_construction() {
+    let fixture = mutual_tls_fixture();
+    let encrypted_key =
+        b"-----BEGIN ENCRYPTED PRIVATE KEY-----\nYWJj\n-----END ENCRYPTED PRIVATE KEY-----\n";
+    let invalid_cases: [(&str, &[u8], &[u8]); 7] = [
+        (
+            "malformed certificate",
+            b"not a certificate",
+            &fixture.trusted_client.key,
+        ),
+        (
+            "malformed private key",
+            &fixture.trusted_client.certificate,
+            b"not a private key",
+        ),
+        ("missing certificate", b"", &fixture.trusted_client.key),
+        (
+            "missing private key",
+            &fixture.trusted_client.certificate,
+            b"",
+        ),
+        (
+            "certificate provided as private key",
+            &fixture.trusted_client.certificate,
+            &fixture.trusted_client.certificate,
+        ),
+        (
+            "private key provided as certificate",
+            &fixture.trusted_client.key,
+            &fixture.trusted_client.key,
+        ),
+        (
+            "encrypted private key",
+            &fixture.trusted_client.certificate,
+            encrypted_key,
+        ),
+    ];
+
+    for (case, certificate, key) in invalid_cases {
+        let error = build_http_client(
+            &HeaderMap::new(),
+            1,
+            2.0,
+            false,
+            30,
+            None,
+            Some((certificate, key)),
+        )
+        .expect_err(case);
+
+        assert!(
+            error.contains("Invalid client certificate or private key"),
+            "{case}: {error}"
+        );
+        assert!(!error.contains("not a private key"), "{case}: {error}");
+        assert!(!error.contains("YWJj"), "{case}: {error}");
+    }
+}
+
+#[test]
+fn client_certificate_and_unrelated_valid_key_are_rejected() {
+    let fixture = mutual_tls_fixture();
     let error = build_http_client(
         &HeaderMap::new(),
         1,
@@ -1146,12 +1271,41 @@ fn invalid_client_identity_fails_while_building_the_native_client() {
         false,
         30,
         None,
-        Some((b"not a certificate", b"not a key")),
+        Some((&fixture.trusted_client.certificate, &fixture.unrelated_key)),
     )
-    .expect_err("invalid client identity was accepted");
+    .expect_err("a certificate paired with another valid key was accepted");
 
-    assert!(error.contains("Invalid client certificate or private key"));
-    assert!(!error.contains("not a key"));
+    assert!(
+        error.contains("Invalid client certificate or private key"),
+        "{error}"
+    );
+}
+
+#[test]
+fn valid_but_unauthorized_client_certificates_fail_the_tls_handshake() {
+    let fixture = mutual_tls_fixture();
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+
+    for (case, identity) in [
+        ("untrusted issuer", &fixture.untrusted_client),
+        (
+            "server-only extended key usage",
+            &fixture.wrong_usage_client,
+        ),
+        ("expired certificate", &fixture.expired_client),
+    ] {
+        let (result, server) = runtime.block_on(run_mutual_tls_request(
+            &fixture,
+            &identity.certificate,
+            &identity.key,
+        ));
+
+        assert!(result.error.is_some(), "{case} was accepted by the client");
+        assert!(server.is_err(), "{case} was accepted by the server");
+    }
 }
 
 #[test]

@@ -217,6 +217,24 @@ class TestNativeHttpEngine(TestCase):
     def test_extension_version_matches_python_contract(self):
         self.assertEqual(dirsearch_native.__version__, NATIVE_EXTENSION_VERSION)
 
+    def test_invalid_client_identity_is_rejected_at_the_python_boundary(self):
+        for certificate, key in (
+            (b"not a certificate", b"not a private key"),
+            (b"", b"not a private key"),
+            (b"not a certificate", b""),
+        ):
+            with (
+                self.subTest(certificate=certificate, key=key),
+                self.assertRaisesRegex(
+                    RuntimeError,
+                    "Invalid client certificate or private key",
+                ),
+            ):
+                dirsearch_native.NativeHttpEngine(
+                    client_certificate=certificate,
+                    client_key=key,
+                )
+
     def test_native_engine_prepares_raw_paths_and_query(self):
         server = RawResponseServer(
             b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"

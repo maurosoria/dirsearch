@@ -33,6 +33,7 @@ pub(crate) fn build_http_client(
     proxy_url: Option<&str>,
     client_identity: Option<(&[u8], &[u8])>,
 ) -> Result<reqwest::Client, String> {
+    let has_client_identity = client_identity.is_some();
     let mut builder = reqwest::Client::builder()
         .danger_accept_invalid_certs(true)
         .default_headers(headers.clone())
@@ -72,7 +73,16 @@ pub(crate) fn build_http_client(
         builder = builder.proxy(reqwest::Proxy::all(proxy_url).map_err(|error| error.to_string())?);
     }
 
-    builder.build().map_err(|error| error.to_string())
+    builder.build().map_err(|error| {
+        if has_client_identity {
+            format!(
+                "Invalid client certificate or private key: {}",
+                format_error_chain(&error)
+            )
+        } else {
+            error.to_string()
+        }
+    })
 }
 
 #[allow(clippy::too_many_arguments)]

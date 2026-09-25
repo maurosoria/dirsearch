@@ -97,7 +97,10 @@ class NativeHTTPBackend:
             "client_key": self._client_key,
         }
         if self._engine is None or config != self._engine_config:
-            self._engine = self._native.NativeHttpEngine(**config)
+            try:
+                self._engine = self._native.NativeHttpEngine(**config)
+            except RuntimeError as error:
+                raise RequestException(str(error)) from error
             self._engine_config = config
         return self._engine
 
