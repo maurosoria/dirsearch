@@ -156,13 +156,13 @@ class TestNativeHTTPBackend(TestCase):
 
     def test_rejects_an_incompatible_native_extension(self):
         fake_native = FakeNativeModule()
-        fake_native.__version__ = "0.2.0"
+        fake_native.__version__ = "0.2.7"
 
         with (
             patch.dict("sys.modules", {"dirsearch_native": fake_native}),
             self.assertRaisesRegex(
                 RequestException,
-                rf"expected {re.escape(NATIVE_EXTENSION_VERSION)}, found 0\.2\.0",
+                rf"expected {re.escape(NATIVE_EXTENSION_VERSION)}, found 0\.2\.7",
             ),
         ):
             NativeHTTPBackend()

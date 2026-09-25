@@ -1,7 +1,8 @@
 [package]
 name = "dirsearch_native"
-version = "0.2.7"
+version = "0.2.8"
 edition = "2021"
+rust-version = "1.86"
 license = "GPL-2.0-only"
 
 [lib]
@@ -15,7 +16,7 @@ fancy-regex = "0.19.2"
 flate2 = "1.1"
 futures-util = "0.3"
 indexmap = "2.7"
-pyo3 = { version = "0.24", features = ["extension-module", "abi3-py313"] }
+pyo3 = { version = "0.29", features = ["extension-module", "abi3-py313"] }
 rayon = "1.10"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "http2", "stream"] }
 tokio = { version = "1.43", features = ["rt-multi-thread", "macros", "net", "time", "io-util"] }

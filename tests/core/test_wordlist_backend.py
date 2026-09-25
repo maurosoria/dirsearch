@@ -113,14 +113,14 @@ class TestWordlistBackend(TestCase):
         incompatible_native = type(
             "IncompatibleNativeModule",
             (),
-            {"__version__": "0.2.0"},
+            {"__version__": "0.2.7"},
         )()
 
         with (
             patch.dict("sys.modules", {"dirsearch_native": incompatible_native}),
             self.assertRaisesRegex(
                 WordlistBackendUnavailableError,
-                rf"expected {re.escape(NATIVE_EXTENSION_VERSION)}, found 0\.2\.0",
+                rf"expected {re.escape(NATIVE_EXTENSION_VERSION)}, found 0\.2\.7",
             ),
         ):
             NativeWordlistBackend()

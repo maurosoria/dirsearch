@@ -33,7 +33,7 @@ python3 dirsearch.py -u https://example.com -w tests/static/wordlist.txt -q
 
 - Use release artifacts when you do not want to compile anything. Single-file PyInstaller binaries and portable archives are available for Windows x64, Linux x64, Linux ARM64, macOS Intel, and macOS Apple Silicon.
 - Use the Python-only pip install when you want the current GitHub source and the default Python request backend. This works on Python 3.11-3.14 and does not compile the Rust native engine.
-- Use the native Rust pip install when you want `--request-backend native` or `--wordlist-backend native`. This requires Python 3.14, Rust/Cargo, Python development headers, and a C compiler.
+- Use the native Rust pip install when you want `--request-backend native` or `--wordlist-backend native`. This requires Python 3.14, Rust 1.86 or newer, Python development headers, and a C compiler.
 - Use the source checkout build only when developing or producing release artifacts. Normal native installs do not require manually cloning the repository.
 
 ## Python-Only Install from GitHub

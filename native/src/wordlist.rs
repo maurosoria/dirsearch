@@ -16,7 +16,7 @@ pub(crate) struct NativeWordlist {
     membership: OnceLock<HashSet<u64>>,
 }
 
-#[pyclass]
+#[pyclass(skip_from_py_object)]
 #[derive(Clone)]
 pub(crate) struct NativeWordlistBatch {
     items: Arc<Vec<String>>,
