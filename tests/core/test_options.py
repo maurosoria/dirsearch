@@ -13,6 +13,33 @@ from lib.core.settings import COMMON_EXTENSIONS
 
 
 class TestOptions(TestCase):
+    def test_client_certificate_and_key_must_be_used_together(self):
+        with tempfile.NamedTemporaryFile() as identity_file:
+            for flag in ("--cert-file", "--key-file"):
+                with self.subTest(flag=flag):
+                    output = io.StringIO()
+                    args = [
+                        "dirsearch.py",
+                        "--wordlist-status",
+                        "-e",
+                        "php",
+                        flag,
+                        identity_file.name,
+                    ]
+
+                    with (
+                        patch("sys.argv", args),
+                        redirect_stderr(output),
+                        self.assertRaises(SystemExit) as raised,
+                    ):
+                        parse_options()
+
+                    self.assertEqual(raised.exception.code, 1)
+                    self.assertIn(
+                        "--cert-file and --key-file must be used together",
+                        output.getvalue(),
+                    )
+
     def test_random_agent_rejects_fixed_user_agent_from_session(self):
         original_options = dict(options)
         session_store = Mock()

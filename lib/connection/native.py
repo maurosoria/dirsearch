@@ -23,11 +23,13 @@ from lib.core.native_runtime import (
     get_native_extension_version_error,
 )
 from lib.core.request_backend import (
+    CLIENT_CERTIFICATE_PAIR_ERROR,
     NATIVE_PROXY_SCHEME_ERROR,
     NATIVE_SOCKS4_AUTH_ERROR,
 )
 from lib.core.settings import MAX_REDIRECTS, MAX_RESPONSE_SIZE, PROXY_SCHEMES
 from lib.core.wordlist_backend import NativeWordlistBatch
+from lib.utils.file import FileUtils
 from lib.utils.mimetype import guess_mimetype
 
 
@@ -65,6 +67,7 @@ class NativeHTTPBackend:
         self._filter_config = None
         self._empty_filter_config = None
         self._proxy_override = proxy_override
+        self._client_certificate, self._client_key = self._load_client_identity()
         self._cancel_lock = threading.Lock()
         # Preserve cancellation requested before lazy engine creation.
         self._cancel_generation = 0
@@ -90,6 +93,8 @@ class NativeHTTPBackend:
             "max_redirects": MAX_REDIRECTS,
             "method": options["http_method"],
             "body": body,
+            "client_certificate": self._client_certificate,
+            "client_key": self._client_key,
         }
         if self._engine is None or config != self._engine_config:
             self._engine = self._native.NativeHttpEngine(**config)
@@ -104,6 +109,25 @@ class NativeHTTPBackend:
         if isinstance(data, str):
             return data.encode("utf-8")
         return bytes(data)
+
+    @staticmethod
+    def _load_client_identity() -> tuple[bytes, bytes]:
+        if bool(options["cert_file"]) != bool(options["key_file"]):
+            raise RequestException(CLIENT_CERTIFICATE_PAIR_ERROR)
+        if not options["cert_file"]:
+            return b"", b""
+        try:
+            certificate = FileUtils.read_bytes(options["cert_file"])
+            key = FileUtils.read_bytes(options["key_file"])
+        except OSError as error:
+            raise RequestException(
+                f"Could not read client certificate or private key: {error}"
+            ) from error
+        if not certificate or not key:
+            raise RequestException(
+                "Client certificate and private key files must not be empty"
+            )
+        return certificate, key
 
     def cancel(self) -> None:
         with self._cancel_lock:

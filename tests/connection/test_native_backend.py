@@ -125,6 +125,8 @@ class TestNativeHTTPBackend(TestCase):
                 "headers": {"user-agent": "dirsearch-test"},
                 "proxies": ["127.0.0.1:8080"],
                 "proxy_auth": "user:password",
+                "cert_file": None,
+                "key_file": None,
                 "max_retries": 2,
                 "follow_redirects": False,
                 "include_status_codes": {200, 204},
@@ -259,6 +261,86 @@ class TestNativeHTTPBackend(TestCase):
         self.assertEqual(config["method"], "PATCH")
         self.assertEqual(config["body"], '{"value":"\u00e9"}\r\n'.encode())
         self.assertIn(("content-type", "application/json"), config["headers"])
+
+    def test_engine_receives_client_identity_bytes(self):
+        options["cert_file"] = "client-cert.pem"
+        options["key_file"] = "client-key.pem"
+        fake_native = FakeNativeModule()
+
+        with (
+            patch.dict("sys.modules", {"dirsearch_native": fake_native}),
+            patch(
+                "lib.connection.native.FileUtils.read_bytes",
+                side_effect=[b"CERTIFICATE BYTES", b"PRIVATE KEY BYTES"],
+            ) as read_bytes,
+        ):
+            backend = NativeHTTPBackend()
+            list(backend.scan("https://example.com/", ["admin"]))
+            list(backend.scan("https://example.com/", ["second"]))
+
+        self.assertEqual(
+            [item.args for item in read_bytes.call_args_list],
+            [
+                ("client-cert.pem",),
+                ("client-key.pem",),
+            ],
+        )
+        config = fake_native.engines[0].config
+        self.assertEqual(config["client_certificate"], b"CERTIFICATE BYTES")
+        self.assertEqual(config["client_key"], b"PRIVATE KEY BYTES")
+
+    def test_incomplete_client_identity_fails_before_engine_creation(self):
+        options["cert_file"] = "client-cert.pem"
+        fake_native = FakeNativeModule()
+
+        with (
+            patch.dict("sys.modules", {"dirsearch_native": fake_native}),
+            self.assertRaisesRegex(
+                RequestException,
+                "--cert-file and --key-file must be used together",
+            ),
+        ):
+            list(NativeHTTPBackend().scan("https://example.com/", ["admin"]))
+
+        self.assertEqual(fake_native.engines, [])
+
+    def test_empty_client_identity_file_fails_closed(self):
+        options["cert_file"] = "client-cert.pem"
+        options["key_file"] = "client-key.pem"
+        fake_native = FakeNativeModule()
+
+        with (
+            patch.dict("sys.modules", {"dirsearch_native": fake_native}),
+            patch(
+                "lib.connection.native.FileUtils.read_bytes",
+                side_effect=[b"", b"PRIVATE KEY BYTES"],
+            ),
+            self.assertRaisesRegex(
+                RequestException,
+                "Client certificate and private key files must not be empty",
+            ),
+        ):
+            NativeHTTPBackend()
+
+        self.assertEqual(fake_native.engines, [])
+
+    def test_client_identity_read_failure_is_a_request_error(self):
+        options["cert_file"] = "client-cert.pem"
+        options["key_file"] = "client-key.pem"
+
+        with (
+            patch.dict("sys.modules", {"dirsearch_native": FakeNativeModule()}),
+            patch(
+                "lib.connection.native.FileUtils.read_bytes",
+                side_effect=OSError("file disappeared"),
+            ),
+            self.assertRaisesRegex(
+                RequestException,
+                "Could not read client certificate or private key: "
+                "file disappeared",
+            ),
+        ):
+            NativeHTTPBackend()
 
     def test_explicit_content_type_is_preserved_for_binary_body(self):
         options["http_method"] = "POST"

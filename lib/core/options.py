@@ -35,6 +35,7 @@ from lib.core.settings import (
     WORDLIST_CATEGORY_DIR,
 )
 from lib.core.request_backend import (
+    CLIENT_CERTIFICATE_PAIR_ERROR,
     REQUEST_BACKENDS,
     get_async_request_backend_error,
     get_native_request_backend_error,
@@ -212,6 +213,9 @@ def parse_options() -> dict[str, Any]:
     if opt.data_file:
         fd = _access_file(opt.data_file)
         opt.data = FileUtils.read_bytes(fd.path)
+
+    if bool(opt.cert_file) != bool(opt.key_file):
+        _fail(CLIENT_CERTIFICATE_PAIR_ERROR)
 
     if opt.cert_file:
         _access_file(opt.cert_file)

@@ -43,6 +43,8 @@ struct NativeHttpEngineConfig {
     max_redirects: usize,
     method: String,
     body: Vec<u8>,
+    client_certificate: Vec<u8>,
+    client_key: Vec<u8>,
 }
 
 type CachedNativeHttpEngine = Option<(NativeHttpEngineConfig, Arc<NativeHttpEngine>)>;
@@ -61,6 +63,8 @@ impl NativeHttpEngine {
         max_redirects=30,
         method="GET".to_string(),
         body=Vec::new(),
+        client_certificate=Vec::new(),
+        client_key=Vec::new(),
     ))]
     fn new(
         concurrency: usize,
@@ -71,6 +75,8 @@ impl NativeHttpEngine {
         max_redirects: usize,
         method: String,
         body: Vec<u8>,
+        client_certificate: Vec<u8>,
+        client_key: Vec<u8>,
     ) -> PyResult<Self> {
         let method = Method::from_bytes(method.as_bytes())
             .map_err(|error| PyRuntimeError::new_err(error.to_string()))?;
@@ -84,6 +90,8 @@ impl NativeHttpEngine {
         }
 
         let use_raw_http = proxies.is_empty();
+        let client_identity = (!client_certificate.is_empty() || !client_key.is_empty())
+            .then_some((client_certificate.as_slice(), client_key.as_slice()));
         let clients = if proxies.is_empty() {
             vec![build_http_client(
                 &header_map,
@@ -92,6 +100,7 @@ impl NativeHttpEngine {
                 follow_redirects,
                 max_redirects,
                 None,
+                client_identity,
             )
             .map_err(|error| PyRuntimeError::new_err(error.to_string()))?]
         } else {
@@ -105,6 +114,7 @@ impl NativeHttpEngine {
                         follow_redirects,
                         max_redirects,
                         Some(proxy_url),
+                        client_identity,
                     )
                 })
                 .collect::<Result<Vec<_>, _>>()
@@ -488,6 +498,8 @@ async fn run_scan_worker(
     max_redirects=30,
     method="GET".to_string(),
     body=Vec::new(),
+    client_certificate=Vec::new(),
+    client_key=Vec::new(),
 ))]
 pub(crate) fn scan_http(
     py: Python<'_>,
@@ -526,6 +538,8 @@ pub(crate) fn scan_http(
     max_redirects: usize,
     method: String,
     body: Vec<u8>,
+    client_certificate: Vec<u8>,
+    client_key: Vec<u8>,
 ) -> PyResult<Vec<NativeHttpResult>> {
     let config = NativeHttpEngineConfig {
         concurrency,
@@ -536,6 +550,8 @@ pub(crate) fn scan_http(
         max_redirects,
         method: method.clone(),
         body: body.clone(),
+        client_certificate: client_certificate.clone(),
+        client_key: client_key.clone(),
     };
     let engine = {
         let cache = DEFAULT_HTTP_ENGINE.get_or_init(|| Mutex::new(None));
@@ -557,6 +573,8 @@ pub(crate) fn scan_http(
                     max_redirects,
                     method,
                     body,
+                    client_certificate,
+                    client_key,
                 )?),
             ));
         }

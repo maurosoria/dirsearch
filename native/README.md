@@ -74,3 +74,7 @@ conversion:
 python3 dirsearch.py -u https://target -w db/dicc.txt \
   --request-backend native --http-method POST --data-file request-body.bin
 ```
+
+Client certificate authentication is also applied inside the Rust HTTP client.
+Pass separate PEM certificate and unencrypted private-key files with
+`--cert-file` and `--key-file`; the two options must be used together.
