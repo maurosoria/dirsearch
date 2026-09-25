@@ -1,8 +1,11 @@
 import json
+import re
 import shutil
 import subprocess
 from pathlib import Path
 from unittest import TestCase, skipUnless
+
+from lib.report.html_report import HTMLReport
 
 
 TEMPLATE_PATH = (
@@ -30,6 +33,36 @@ def extract_function(source, name):
     raise AssertionError(f"Unterminated JavaScript function: {name}")
 
 
+class TestHTMLReportOffline(TestCase):
+    def test_generated_report_has_no_remote_runtime_dependencies(self):
+        source = HTMLReport().generate([])
+
+        self.assertIsNone(re.search(r"<script[^>]+\bsrc=", source))
+        self.assertIsNone(re.search(r"<link[^>]+\bhref=", source))
+
+    def test_generated_report_contains_results_without_javascript(self):
+        result_url = "https://example.test/admin?name=one&mode=two"
+        source = HTMLReport().generate(
+            [
+                {
+                    "url": result_url,
+                    "status": 200,
+                    "contentLength": 42,
+                    "contentType": "text/plain",
+                    "redirect": "/login",
+                }
+            ]
+        )
+
+        table_body = source.split('<tbody id="results-body">', 1)[1].split(
+            "</tbody>", 1
+        )[0]
+        self.assertIn("data-report-result", table_body)
+        self.assertIn("https://example.test/admin?name=one&amp;mode=two", table_body)
+        self.assertIn("text/plain", table_body)
+        self.assertIn("/login", table_body)
+
+
 @skipUnless(shutil.which("node"), "Node.js is required for JavaScript tests")
 class TestHTMLReportFilters(TestCase):
     @classmethod
@@ -37,7 +70,12 @@ class TestHTMLReportFilters(TestCase):
         source = TEMPLATE_PATH.read_text(encoding="utf-8")
         cls.functions = "\n".join(
             extract_function(source, name)
-            for name in ("search", "lengthExcludeSearch")
+            for name in (
+                "queryTokens",
+                "search",
+                "lengthExcludeSearch",
+                "safeHttpUrl",
+            )
         )
 
     def evaluate(self, expression):
@@ -57,6 +95,30 @@ process.stdout.write(JSON.stringify(value));
         )
         self.assertEqual(completed.returncode, 0, completed.stderr)
         return json.loads(completed.stdout)
+
+    def test_generated_inline_javascript_is_valid(self):
+        source = HTMLReport().generate(
+            [
+                {
+                    "url": "https://example.test/admin",
+                    "status": 200,
+                    "contentLength": 42,
+                    "contentType": "text/plain",
+                    "redirect": "/login",
+                }
+            ]
+        )
+        script = source.split("<script>", 1)[1].split("</script>", 1)[0]
+
+        completed = subprocess.run(
+            ["node", "--check", "-"],
+            input=script,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
 
     def test_search_matches_numeric_content_lengths_and_other_fields(self):
         result = self.evaluate(
@@ -116,3 +178,25 @@ return [
         )
 
         self.assertEqual(result, [False, False, True, True, False, False])
+
+    def test_links_accept_http_urls_and_reject_active_schemes(self):
+        result = self.evaluate(
+            """
+return [
+  safeHttpUrl("https://example.test/admin"),
+  safeHttpUrl("/login", "https://example.test/admin"),
+  safeHttpUrl("javascript:alert(1)", "https://example.test/admin"),
+  safeHttpUrl("data:text/html,unsafe", "https://example.test/admin")
+];
+"""
+        )
+
+        self.assertEqual(
+            result,
+            [
+                "https://example.test/admin",
+                "https://example.test/login",
+                None,
+                None,
+            ],
+        )
