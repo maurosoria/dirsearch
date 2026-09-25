@@ -140,11 +140,11 @@ def valid_digest_authorization(
     required = {"realm", "nonce", "uri", "response", "cnonce", "nc", "qop"}
     if not required.issubset(fields):
         return False
-    ha1 = hashlib.md5(
+    ha1 = hashlib.sha256(
         f"{username}:{fields['realm']}:{password}".encode()
     ).hexdigest()
-    ha2 = hashlib.md5(f"{method}:{fields['uri']}".encode()).hexdigest()
-    expected = hashlib.md5(
+    ha2 = hashlib.sha256(f"{method}:{fields['uri']}".encode()).hexdigest()
+    expected = hashlib.sha256(
         (
             f"{ha1}:{fields['nonce']}:{fields['nc']}:"
             f"{fields['cnonce']}:{fields['qop']}:{ha2}"
@@ -348,7 +348,7 @@ class RequestTargetHandler(http.server.BaseHTTPRequestHandler):
                 self.send_header(
                     "www-authenticate",
                     'Digest realm="dirsearch-test", nonce="abcdef0123456789", '
-                    'algorithm=MD5, qop="auth"',
+                    'algorithm=SHA-256, qop="auth"',
                 )
                 self.send_header("content-length", "0")
                 self.end_headers()
@@ -388,7 +388,7 @@ class RequestTargetHandler(http.server.BaseHTTPRequestHandler):
                 self.send_header(
                     "www-authenticate",
                     'Digest realm="dirsearch-test", nonce="abcdef0123456789", '
-                    'algorithm=MD5, qop="auth"',
+                    'algorithm=SHA-256, qop="auth"',
                 )
             else:
                 self.send_response(302)

@@ -26,8 +26,8 @@ use std::time::{Duration, Instant};
 const INCOMPLETE_BODY_RESPONSE: &[u8] =
     b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\nConnection: close\r\n\r\nno";
 const OK_RESPONSE: &[u8] = b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok";
-const DIGEST_CHALLENGE_RESPONSE: &[u8] = b"HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Digest realm=\"dirsearch-test\", nonce=\"abcdef0123456789\", algorithm=MD5, qop=\"auth\"\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
-const DIGEST_COOKIE_CHALLENGE_RESPONSE: &[u8] = b"HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Digest realm=\"dirsearch-test\", nonce=\"abcdef0123456789\", algorithm=MD5, qop=\"auth\"\r\nSet-Cookie: challenge=session; Path=/\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+const DIGEST_CHALLENGE_RESPONSE: &[u8] = b"HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Digest realm=\"dirsearch-test\", nonce=\"abcdef0123456789\", algorithm=SHA-256, qop=\"auth\"\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+const DIGEST_COOKIE_CHALLENGE_RESPONSE: &[u8] = b"HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Digest realm=\"dirsearch-test\", nonce=\"abcdef0123456789\", algorithm=SHA-256, qop=\"auth\"\r\nSet-Cookie: challenge=session; Path=/\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
 const MALFORMED_DIGEST_CHALLENGE_RESPONSE: &[u8] = b"HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Digest realm=\"missing-nonce\"\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
 type CapturedRequests = Arc<Mutex<Vec<Vec<u8>>>>;
 type RetryServer = (String, thread::JoinHandle<()>, CapturedRequests);
