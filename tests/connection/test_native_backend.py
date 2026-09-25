@@ -248,7 +248,7 @@ class TestNativeHTTPBackend(TestCase):
 
     def test_engine_receives_method_body_and_inferred_content_type(self):
         options["http_method"] = "PATCH"
-        options["data"] = '{"name":"caf\u00e9"}\r\n'
+        options["data"] = '{"value":"\u00e9"}\r\n'
         fake_native = FakeNativeModule()
 
         with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
@@ -257,7 +257,7 @@ class TestNativeHTTPBackend(TestCase):
 
         config = fake_native.engines[0].config
         self.assertEqual(config["method"], "PATCH")
-        self.assertEqual(config["body"], '{"name":"caf\u00e9"}\r\n'.encode())
+        self.assertEqual(config["body"], '{"value":"\u00e9"}\r\n'.encode())
         self.assertIn(("content-type", "application/json"), config["headers"])
 
     def test_explicit_content_type_is_preserved_for_binary_body(self):
