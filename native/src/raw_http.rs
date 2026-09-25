@@ -7,6 +7,7 @@ use std::net::{Shutdown, TcpStream};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+use zstd::stream::read::Decoder as ZstdDecoder;
 
 const MAX_HEADER_SIZE: usize = 64 * 1024;
 const MAX_CHUNK_LINE_SIZE: usize = 8 * 1024;
@@ -111,6 +112,11 @@ pub(crate) fn parse_response<R: Read + 'static>(
             Box::new(ZlibDecoder::new(decoded))
         } else if encoding.eq_ignore_ascii_case("br") {
             Box::new(Decompressor::new(decoded, 4096))
+        } else if encoding.eq_ignore_ascii_case("zstd") {
+            Box::new(
+                ZstdDecoder::new(decoded)
+                    .map_err(|error| format!("Failed to decode zstd response body: {error}"))?,
+            )
         } else {
             return Err(format!("Unsupported HTTP Content-Encoding: {encoding}"));
         };

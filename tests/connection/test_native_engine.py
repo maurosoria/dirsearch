@@ -9,6 +9,36 @@ from unittest import TestCase, skipUnless
 
 from lib.core.native_runtime import NATIVE_EXTENSION_VERSION
 
+
+ZSTD_HELLO_WORLD = bytes(
+    [
+        0x28,
+        0xB5,
+        0x2F,
+        0xFD,
+        0x04,
+        0x58,
+        0x59,
+        0x00,
+        0x00,
+        0x68,
+        0x65,
+        0x6C,
+        0x6C,
+        0x6F,
+        0x20,
+        0x77,
+        0x6F,
+        0x72,
+        0x6C,
+        0x64,
+        0x68,
+        0x69,
+        0x1E,
+        0xB2,
+    ]
+)
+
 try:
     import dirsearch_native
 except ImportError:
@@ -615,6 +645,60 @@ class TestNativeHttpEngine(TestCase):
             results = engine.scan(
                 server.url,
                 ["gzip"],
+                filter_config=dirsearch_native.NativeFilterConfig(
+                    matcher_mode="and",
+                    match_words=[(2, 2)],
+                    match_regex="hello world",
+                ),
+            )
+        finally:
+            server.close()
+
+        self.assertIsNone(results[0].error)
+        self.assertFalse(results[0].filtered)
+        self.assertEqual(results[0].body, b"hello world")
+
+    def test_client_decodes_zstd_before_body_matching(self):
+        server = RawResponseServer(
+            b"HTTP/1.1 200 OK\r\n"
+            b"Content-Encoding: zstd\r\n"
+            + f"Content-Length: {len(ZSTD_HELLO_WORLD)}\r\n".encode()
+            + b"Connection: close\r\n\r\n"
+            + ZSTD_HELLO_WORLD
+        )
+        engine = dirsearch_native.NativeHttpEngine(timeout_secs=1)
+
+        try:
+            results = engine.scan(
+                server.url,
+                ["zstd"],
+                filter_config=dirsearch_native.NativeFilterConfig(
+                    matcher_mode="and",
+                    match_words=[(2, 2)],
+                    match_regex="hello world",
+                ),
+            )
+        finally:
+            server.close()
+
+        self.assertIsNone(results[0].error)
+        self.assertFalse(results[0].filtered)
+        self.assertEqual(results[0].body, b"hello world")
+
+    def test_raw_fallback_decodes_zstd_before_body_matching(self):
+        server = RawResponseServer(
+            b"HTTP/1.1 200 OK\r\n"
+            b"Content-Encoding: zstd\r\n"
+            + f"Content-Length: {len(ZSTD_HELLO_WORLD)}\r\n".encode()
+            + b"Connection: close\r\n\r\n"
+            + ZSTD_HELLO_WORLD
+        )
+        engine = dirsearch_native.NativeHttpEngine(timeout_secs=1)
+
+        try:
+            results = engine.scan(
+                server.url,
+                ["zstd%1"],
                 filter_config=dirsearch_native.NativeFilterConfig(
                     matcher_mode="and",
                     match_words=[(2, 2)],
