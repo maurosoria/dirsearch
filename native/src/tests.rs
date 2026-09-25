@@ -1,18 +1,22 @@
 //! Cross-module regression tests for the native backend contract.
 
 use super::*;
-use crate::raw_client::{raw_http_get, RawHttpRequest};
+use crate::raw_client::{raw_http_request, RawHttpRequest};
 use crate::transport::request_with_client;
+use bytes::Bytes;
+use reqwest::Method;
 use std::io::{ErrorKind, Read, Write};
-use std::net::TcpListener;
+use std::net::{TcpListener, TcpStream};
 use std::sync::atomic::AtomicBool;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
 const INCOMPLETE_BODY_RESPONSE: &[u8] =
     b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\nConnection: close\r\n\r\nno";
 const OK_RESPONSE: &[u8] = b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok";
+type CapturedRequests = Arc<Mutex<Vec<Vec<u8>>>>;
+type RetryServer = (String, thread::JoinHandle<()>, CapturedRequests);
 
 fn default_filter_config() -> NativeFilterConfig {
     NativeFilterConfig::from_options(
@@ -46,10 +50,45 @@ fn content_length(value: usize) -> Vec<(String, String)> {
     vec![("Content-Length".to_string(), value.to_string())]
 }
 
-fn spawn_retry_body_server(responses: Vec<&'static [u8]>) -> (String, thread::JoinHandle<()>) {
+fn read_http_request(stream: &mut TcpStream) -> Vec<u8> {
+    stream
+        .set_read_timeout(Some(Duration::from_secs(1)))
+        .unwrap();
+    let mut request = Vec::new();
+    let mut buffer = [0u8; 1024];
+    let header_end = loop {
+        let read = stream.read(&mut buffer).unwrap();
+        assert!(read > 0, "connection closed before request headers");
+        request.extend_from_slice(&buffer[..read]);
+        if let Some(index) = request.windows(4).position(|window| window == b"\r\n\r\n") {
+            break index + 4;
+        }
+    };
+    let headers = String::from_utf8_lossy(&request[..header_end]);
+    let content_length = headers
+        .lines()
+        .find_map(|line| {
+            let (name, value) = line.split_once(':')?;
+            name.eq_ignore_ascii_case("content-length")
+                .then(|| value.trim().parse::<usize>().unwrap())
+        })
+        .unwrap_or_default();
+    let request_length = header_end + content_length;
+    while request.len() < request_length {
+        let read = stream.read(&mut buffer).unwrap();
+        assert!(read > 0, "connection closed before request body");
+        request.extend_from_slice(&buffer[..read]);
+    }
+    request.truncate(request_length);
+    request
+}
+
+fn spawn_retry_body_server(responses: Vec<&'static [u8]>) -> RetryServer {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     listener.set_nonblocking(true).unwrap();
     let address = listener.local_addr().unwrap();
+    let requests = Arc::new(Mutex::new(Vec::new()));
+    let server_requests = requests.clone();
     let server = thread::spawn(move || {
         for response in responses {
             let deadline = Instant::now() + Duration::from_secs(2);
@@ -64,20 +103,26 @@ fn spawn_retry_body_server(responses: Vec<&'static [u8]>) -> (String, thread::Jo
                     Err(error) => panic!("test server did not receive request: {error}"),
                 }
             };
-            stream
-                .set_read_timeout(Some(Duration::from_secs(1)))
-                .unwrap();
-            let mut request = [0u8; 1024];
-            assert!(stream.read(&mut request).unwrap() > 0);
+            let request = read_http_request(&mut stream);
+            server_requests.lock().unwrap().push(request);
             stream.write_all(response).unwrap();
         }
     });
 
-    (format!("http://{address}"), server)
+    (format!("http://{address}"), server, requests)
 }
 
 fn run_reqwest_retry(responses: Vec<&'static [u8]>) -> NativeHttpResult {
-    let (base_url, server) = spawn_retry_body_server(responses);
+    run_reqwest_request(Method::GET, Bytes::new(), responses, 1).0
+}
+
+fn run_reqwest_request(
+    method: Method,
+    body: Bytes,
+    responses: Vec<&'static [u8]>,
+    max_retries: usize,
+) -> (NativeHttpResult, Vec<Vec<u8>>) {
+    let (base_url, server, requests) = spawn_retry_body_server(responses);
     let client = build_http_client(&HeaderMap::new(), 1, 2.0, false, 30, None).unwrap();
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -86,39 +131,54 @@ fn run_reqwest_retry(responses: Vec<&'static [u8]>) -> NativeHttpResult {
     let result = runtime.block_on(request_with_client(
         &client,
         &format!("{base_url}/retry"),
+        &method,
+        body,
         false,
-        1,
+        max_retries,
         80,
         Instant::now() - Duration::from_secs(5),
         &default_filter_config(),
         false,
     ));
     server.join().unwrap();
-    result
+    let requests = Arc::try_unwrap(requests).unwrap().into_inner().unwrap();
+    (result, requests)
 }
 
 fn run_raw_retry(responses: Vec<&'static [u8]>) -> NativeHttpResult {
-    let (base_url, server) = spawn_retry_body_server(responses);
+    run_raw_request("GET", b"", responses, 1).0
+}
+
+fn run_raw_request(
+    method: &str,
+    body: &[u8],
+    responses: Vec<&'static [u8]>,
+    max_retries: usize,
+) -> (NativeHttpResult, Vec<Vec<u8>>) {
+    let (base_url, server, requests) = spawn_retry_body_server(responses);
     let headers = Vec::new();
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
         .unwrap();
-    let result = runtime.block_on(raw_http_get(
+    let result = runtime.block_on(raw_http_request(
         RawHttpRequest {
             base_url: &base_url,
             path: "retry%1",
+            method,
+            body,
             headers: &headers,
             timeout_secs: 30.0,
             max_body_size: 80,
             start: Instant::now() - Duration::from_secs(5),
             cancelled: Arc::new(AtomicBool::new(false)),
         },
-        1,
+        max_retries,
         &default_filter_config(),
     ));
     server.join().unwrap();
-    result
+    let requests = Arc::try_unwrap(requests).unwrap().into_inner().unwrap();
+    (result, requests)
 }
 
 fn assert_final_attempt_elapsed(result: &NativeHttpResult) {
@@ -169,6 +229,8 @@ fn reqwest_redirects_preserve_every_requested_url_in_history() {
     let result = runtime.block_on(request_with_client(
         &client,
         &start_url,
+        &Method::GET,
+        Bytes::new(),
         true,
         0,
         80,
@@ -218,6 +280,46 @@ fn raw_exhausted_retry_elapsed_reports_only_the_final_attempt() {
 
     assert!(result.error.is_some());
     assert_final_attempt_elapsed(&result);
+}
+
+#[test]
+fn reqwest_retries_preserve_method_and_binary_body() {
+    let body = Bytes::from_static(b"value=\xff\r\nnext=line\n");
+    let (result, requests) = run_reqwest_request(
+        Method::PATCH,
+        body.clone(),
+        vec![INCOMPLETE_BODY_RESPONSE, OK_RESPONSE],
+        1,
+    );
+
+    assert_eq!(result.status, 200);
+    assert_eq!(requests.len(), 2);
+    for request in requests {
+        assert!(request.starts_with(b"PATCH /retry HTTP/1.1\r\n"));
+        assert!(request.ends_with(body.as_ref()));
+    }
+}
+
+#[test]
+fn raw_retries_preserve_method_and_binary_body() {
+    let body = b"value=\xff\r\nnext=line\n";
+    let (result, requests) = run_raw_request(
+        "PATCH",
+        body,
+        vec![INCOMPLETE_BODY_RESPONSE, OK_RESPONSE],
+        1,
+    );
+
+    assert_eq!(result.status, 200);
+    assert_eq!(requests.len(), 2);
+    let content_length = format!("Content-Length: {}\r\n", body.len());
+    for request in requests {
+        assert!(request.starts_with(b"PATCH /retry%1 HTTP/1.1\r\n"));
+        assert!(request
+            .windows(content_length.len())
+            .any(|window| window == content_length.as_bytes()));
+        assert!(request.ends_with(body));
+    }
 }
 
 #[test]

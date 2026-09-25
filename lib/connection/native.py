@@ -22,6 +22,7 @@ from lib.core.native_runtime import (
 )
 from lib.core.settings import MAX_REDIRECTS, MAX_RESPONSE_SIZE
 from lib.core.wordlist_backend import NativeWordlistBatch
+from lib.utils.mimetype import guess_mimetype
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,18 +70,34 @@ class NativeHTTPBackend:
             if self._proxy_override is not None
             else self._proxy_urls()
         )
+        body = self._request_body()
+        headers = list(options["headers"].items())
+        if body and not any(name.lower() == "content-type" for name, _ in headers):
+            headers.append(("content-type", guess_mimetype(options["data"])))
+
         config = {
             "concurrency": options["thread_count"],
             "timeout_secs": options["timeout"],
-            "headers": list(options["headers"].items()),
+            "headers": headers,
             "proxies": proxies,
             "follow_redirects": options["follow_redirects"],
             "max_redirects": MAX_REDIRECTS,
+            "method": options["http_method"],
+            "body": body,
         }
         if self._engine is None or config != self._engine_config:
             self._engine = self._native.NativeHttpEngine(**config)
             self._engine_config = config
         return self._engine
+
+    @staticmethod
+    def _request_body() -> bytes:
+        data = options["data"]
+        if data is None:
+            return b""
+        if isinstance(data, str):
+            return data.encode("utf-8")
+        return bytes(data)
 
     def cancel(self) -> None:
         with self._cancel_lock:

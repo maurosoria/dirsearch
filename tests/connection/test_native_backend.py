@@ -120,6 +120,8 @@ class TestNativeHTTPBackend(TestCase):
             {
                 "thread_count": 7,
                 "timeout": 3.5,
+                "http_method": "GET",
+                "data": None,
                 "headers": {"user-agent": "dirsearch-test"},
                 "proxies": ["127.0.0.1:8080"],
                 "proxy_auth": "user:password",
@@ -243,6 +245,41 @@ class TestNativeHTTPBackend(TestCase):
             filter_options["filter_header_regex"], "x-cache: fallback-[0-9]+"
         )
         self.assertEqual(filter_options["match_time"], [(">", 100.0)])
+
+    def test_engine_receives_method_body_and_inferred_content_type(self):
+        options["http_method"] = "PATCH"
+        options["data"] = '{"name":"caf\u00e9"}\r\n'
+        fake_native = FakeNativeModule()
+
+        with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
+            backend = NativeHTTPBackend()
+            list(backend.scan("https://example.com/", ["admin"]))
+
+        config = fake_native.engines[0].config
+        self.assertEqual(config["method"], "PATCH")
+        self.assertEqual(config["body"], '{"name":"caf\u00e9"}\r\n'.encode())
+        self.assertIn(("content-type", "application/json"), config["headers"])
+
+    def test_explicit_content_type_is_preserved_for_binary_body(self):
+        options["http_method"] = "POST"
+        options["data"] = bytes(range(256))
+        options["headers"]["Content-Type"] = "application/octet-stream"
+        fake_native = FakeNativeModule()
+
+        with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
+            backend = NativeHTTPBackend()
+            list(backend.scan("https://example.com/", ["upload"]))
+
+        config = fake_native.engines[0].config
+        self.assertEqual(config["body"], bytes(range(256)))
+        self.assertEqual(
+            [
+                value
+                for name, value in config["headers"]
+                if name.lower() == "content-type"
+            ],
+            ["application/octet-stream"],
+        )
 
     def test_scan_batch_only_materializes_actionable_results(self):
         fake_native = FakeNativeModule(

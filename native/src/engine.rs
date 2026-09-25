@@ -1,14 +1,16 @@
 //! PyO3 engine lifecycle, bounded request scheduling, and cancellation.
 
 use crate::filters::{NativeFilterConfig, NumericRange, TimeFilter};
-use crate::raw_client::{raw_http_get, should_use_raw_http, RawHttpRequest};
+use crate::raw_client::{raw_http_request, should_use_raw_http, RawHttpRequest};
 use crate::request_target::prepare_request_targets;
 use crate::result::{native_completion_marker, NativeHttpResult};
 use crate::transport::{build_http_client, request_with_client, HeaderPairs};
 use crate::wordlist::NativeWordlistBatch;
+use bytes::Bytes;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+use reqwest::Method;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
@@ -26,6 +28,8 @@ pub(crate) struct NativeHttpEngine {
     timeout_secs: f64,
     follow_redirects: bool,
     use_raw_http: bool,
+    method: Method,
+    body: Bytes,
     cancelled: Arc<AtomicBool>,
 }
 
@@ -37,6 +41,8 @@ struct NativeHttpEngineConfig {
     proxies: Vec<String>,
     follow_redirects: bool,
     max_redirects: usize,
+    method: String,
+    body: Vec<u8>,
 }
 
 type CachedNativeHttpEngine = Option<(NativeHttpEngineConfig, Arc<NativeHttpEngine>)>;
@@ -53,6 +59,8 @@ impl NativeHttpEngine {
         proxies=Vec::new(),
         follow_redirects=false,
         max_redirects=30,
+        method="GET".to_string(),
+        body=Vec::new(),
     ))]
     fn new(
         concurrency: usize,
@@ -61,7 +69,11 @@ impl NativeHttpEngine {
         proxies: Vec<String>,
         follow_redirects: bool,
         max_redirects: usize,
+        method: String,
+        body: Vec<u8>,
     ) -> PyResult<Self> {
+        let method = Method::from_bytes(method.as_bytes())
+            .map_err(|error| PyRuntimeError::new_err(error.to_string()))?;
         let mut header_map = HeaderMap::new();
         for (name, value) in &headers {
             let name = HeaderName::from_bytes(name.as_bytes())
@@ -112,6 +124,8 @@ impl NativeHttpEngine {
             timeout_secs,
             follow_redirects,
             use_raw_http,
+            method,
+            body: Bytes::from(body),
             cancelled: Arc::new(AtomicBool::new(false)),
         })
     }
@@ -223,6 +237,8 @@ impl NativeHttpEngine {
         let timeout_secs = self.timeout_secs;
         let follow_redirects = self.follow_redirects;
         let use_raw_http = self.use_raw_http;
+        let method = self.method.clone();
+        let body = self.body.clone();
         let runtime = &self.runtime;
 
         let result = py.detach(move || {
@@ -244,6 +260,8 @@ impl NativeHttpEngine {
                     let raw_headers = raw_headers.clone();
                     let filter_config = filter_config.clone();
                     let worker_cancelled = cancelled.clone();
+                    let method = method.clone();
+                    let body = body.clone();
                     tasks.spawn(run_scan_worker(
                         paths,
                         next_request,
@@ -258,6 +276,8 @@ impl NativeHttpEngine {
                         max_retries,
                         max_body_size,
                         compact_filtered,
+                        method,
+                        body,
                     ));
                 }
 
@@ -355,6 +375,8 @@ async fn run_scan_worker(
     max_retries: usize,
     max_body_size: usize,
     compact_filtered: bool,
+    method: Method,
+    body: Bytes,
 ) -> WorkerScanResults {
     let mut results = Vec::new();
     let mut last_processed_index = None;
@@ -375,10 +397,12 @@ async fn run_scan_worker(
 
         let mut result =
             if use_raw_http && !follow_redirects && should_use_raw_http(&base_url, path) {
-                raw_http_get(
+                raw_http_request(
                     RawHttpRequest {
                         base_url: &base_url,
                         path,
+                        method: method.as_str(),
+                        body: body.as_ref(),
                         headers: &raw_headers,
                         timeout_secs,
                         max_body_size,
@@ -393,6 +417,8 @@ async fn run_scan_worker(
                 request_with_client(
                     client,
                     &url,
+                    &method,
+                    body.clone(),
                     follow_redirects,
                     max_retries,
                     max_body_size,
@@ -460,6 +486,8 @@ async fn run_scan_worker(
     match_time=Vec::new(),
     filter_time=Vec::new(),
     max_redirects=30,
+    method="GET".to_string(),
+    body=Vec::new(),
 ))]
 pub(crate) fn scan_http(
     py: Python<'_>,
@@ -496,6 +524,8 @@ pub(crate) fn scan_http(
     match_time: Vec<TimeFilter>,
     filter_time: Vec<TimeFilter>,
     max_redirects: usize,
+    method: String,
+    body: Vec<u8>,
 ) -> PyResult<Vec<NativeHttpResult>> {
     let config = NativeHttpEngineConfig {
         concurrency,
@@ -504,6 +534,8 @@ pub(crate) fn scan_http(
         proxies: proxies.clone(),
         follow_redirects,
         max_redirects,
+        method: method.clone(),
+        body: body.clone(),
     };
     let engine = {
         let cache = DEFAULT_HTTP_ENGINE.get_or_init(|| Mutex::new(None));
@@ -523,6 +555,8 @@ pub(crate) fn scan_http(
                     proxies,
                     follow_redirects,
                     max_redirects,
+                    method,
+                    body,
                 )?),
             ));
         }

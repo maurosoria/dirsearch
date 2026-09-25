@@ -36,10 +36,6 @@ def get_native_target_error(url: str) -> str | None:
 def get_native_request_backend_error(opt: Values) -> str | None:
     if opt.async_mode:
         return "--request-backend native cannot be combined with --async"
-    if opt.http_method and opt.http_method.upper() != "GET":
-        return "--request-backend native currently supports GET requests only"
-    if opt.data or opt.data_file:
-        return "--request-backend native does not support request bodies yet"
     if opt.tor:
         return "--request-backend native does not support Tor or SOCKS proxies yet"
     for proxy in opt.proxies:

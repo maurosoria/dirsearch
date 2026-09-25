@@ -15,6 +15,8 @@ type RawHttpResponse = raw_http::Response;
 pub(crate) struct RawHttpRequest<'a> {
     pub(crate) base_url: &'a str,
     pub(crate) path: &'a str,
+    pub(crate) method: &'a str,
+    pub(crate) body: &'a [u8],
     pub(crate) headers: &'a HeaderPairs,
     pub(crate) timeout_secs: f64,
     pub(crate) max_body_size: usize,
@@ -53,7 +55,7 @@ fn has_malformed_percent_escape(path: &str) -> bool {
     false
 }
 
-pub(crate) async fn raw_http_get(
+pub(crate) async fn raw_http_request(
     request: RawHttpRequest<'_>,
     max_retries: usize,
     filter_config: &NativeFilterConfig,
@@ -61,7 +63,7 @@ pub(crate) async fn raw_http_get(
     let mut last_error = None;
     let mut attempt_start = request.start;
     for attempt in 0..=max_retries {
-        match raw_http_get_inner(&request, attempt_start).await {
+        match raw_http_request_inner(&request, attempt_start).await {
             Ok((status, headers, body, length)) => {
                 return native_http_result_with_length(
                     String::new(),
@@ -92,7 +94,7 @@ pub(crate) async fn raw_http_get(
     )
 }
 
-async fn raw_http_get_inner(
+async fn raw_http_request_inner(
     request: &RawHttpRequest<'_>,
     attempt_start: Instant,
 ) -> Result<RawHttpResponse, String> {
@@ -113,15 +115,28 @@ async fn raw_http_get_inner(
         None => host.clone(),
     };
     let target = raw_request_target(url.path(), request.path);
-    let mut wire_request =
-        format!("GET {target} HTTP/1.1\r\nHost: {host_header}\r\nConnection: close\r\n");
+    let mut wire_request = format!(
+        "{} {target} HTTP/1.1\r\nHost: {host_header}\r\nConnection: close\r\n",
+        request.method
+    )
+    .into_bytes();
     for (name, value) in request.headers {
-        wire_request.push_str(name);
-        wire_request.push_str(": ");
-        wire_request.push_str(value);
-        wire_request.push_str("\r\n");
+        wire_request.extend_from_slice(name.as_bytes());
+        wire_request.extend_from_slice(b": ");
+        wire_request.extend_from_slice(value.as_bytes());
+        wire_request.extend_from_slice(b"\r\n");
     }
-    wire_request.push_str("\r\n");
+    if !request.body.is_empty()
+        && !request
+            .headers
+            .iter()
+            .any(|(name, _)| name.eq_ignore_ascii_case("content-length"))
+    {
+        wire_request
+            .extend_from_slice(format!("Content-Length: {}\r\n", request.body.len()).as_bytes());
+    }
+    wire_request.extend_from_slice(b"\r\n");
+    wire_request.extend_from_slice(request.body);
 
     let timeout = Duration::from_secs_f64(request.timeout_secs);
     let deadline = attempt_start
@@ -143,13 +158,7 @@ async fn raw_http_get_inner(
     let cancelled = request.cancelled.clone();
     let max_body_size = request.max_body_size;
     let exchange = tokio::task::spawn_blocking(move || {
-        raw_http::exchange(
-            stream,
-            wire_request.as_bytes(),
-            deadline,
-            cancelled,
-            max_body_size,
-        )
+        raw_http::exchange(stream, &wire_request, deadline, cancelled, max_body_size)
     })
     .await
     .map_err(|error| error.to_string())?;

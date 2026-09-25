@@ -7,7 +7,7 @@ It exposes a small PyO3 API:
 
 - `generate_wordlist(...)` for deterministic ordered wordlist generation.
 - `generate_wordlist_owned(...)` for keeping native-scan corpora in Rust.
-- `NativeHttpEngine` for batch HTTP GET requests using `reqwest` and `tokio`.
+- `NativeHttpEngine` for batch HTTP requests using `reqwest` and `tokio`.
 - `NativeFilterConfig` for compiling and reusing one immutable filter policy.
 - `scan_http(...)` as the compatibility entrypoint backed by a cached engine.
 
@@ -60,8 +60,17 @@ stable ABI. `maturin` is pulled by pip/build scripts from `native/pyproject.toml
 The benchmark summary for this backend is in
 [`docs/native-backend-benchmarks.md`](../docs/native-backend-benchmarks.md).
 
-You can use the native scan path in dirsearch with supported GET scans:
+You can use the native scan path with the default GET method:
 
 ```sh
 python3 dirsearch.py -u https://target -w db/dicc.txt --request-backend native
+```
+
+Other HTTP methods and request bodies use the same CLI options as the Python
+backends. `--data-file` preserves the file bytes without decoding or newline
+conversion:
+
+```sh
+python3 dirsearch.py -u https://target -w db/dicc.txt \
+  --request-backend native --http-method POST --data-file request-body.bin
 ```
