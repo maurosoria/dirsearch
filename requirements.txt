@@ -1,5 +1,5 @@
 # Pinned versions to prevent supply chain attacks
-# Last updated: 2026-09-13
+# Last updated: 2026-09-25
 PySocks==1.7.1
 Jinja2==3.1.6
 pyopenssl==26.1.0
@@ -10,7 +10,7 @@ beautifulsoup4==4.14.3
 defusedcsv==3.0.0
 defusedxml==0.7.1
 requests-toolbelt==1.0.0
-setuptools==82.0.1
+setuptools==83.0.0
 httpx==0.28.1
 socksio==1.0.0
 httpx-ntlm==1.4.0

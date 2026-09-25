@@ -17,7 +17,7 @@
 #  Author: Mauro Soria
 
 [build-system]
-requires = ["setuptools>=66.1", "wheel"]
+requires = ["setuptools>=83.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]

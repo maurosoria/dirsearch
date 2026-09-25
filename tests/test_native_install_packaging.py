@@ -10,6 +10,42 @@ from lib.core.native_runtime import NATIVE_EXTENSION_VERSION
 
 
 class TestNativeInstallPackaging(TestCase):
+    def test_setuptools_build_floor_is_patched_and_not_runtime(self):
+        minimum_safe_version = (83, 0, 0)
+        root_requirements = Path("requirements.txt").read_text(
+            encoding="utf-8"
+        ).splitlines()
+        runtime_requirements = Path("requirements/runtime.txt").read_text(
+            encoding="utf-8"
+        ).splitlines()
+        pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+
+        pinned = next(
+            requirement
+            for requirement in root_requirements
+            if requirement.lower().startswith("setuptools==")
+        )
+        build_floor = next(
+            requirement
+            for requirement in pyproject["build-system"]["requires"]
+            if requirement.lower().startswith("setuptools>=")
+        )
+
+        self.assertGreaterEqual(
+            tuple(int(part) for part in pinned.partition("==")[2].split(".")),
+            minimum_safe_version,
+        )
+        self.assertGreaterEqual(
+            tuple(int(part) for part in build_floor.partition(">=")[2].split(".")),
+            minimum_safe_version,
+        )
+        self.assertFalse(
+            any(
+                requirement.lower().startswith("setuptools")
+                for requirement in runtime_requirements
+            )
+        )
+
     def test_native_package_versions_match_python_contract(self):
         cargo = tomllib.loads(Path("native/Cargo.toml").read_text(encoding="utf-8"))
         pyproject = tomllib.loads(
