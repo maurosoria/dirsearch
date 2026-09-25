@@ -82,11 +82,19 @@ class TestRequestBackend(TestCase):
             "--request-backend native cannot be combined with --async",
         )
 
-    def test_native_rejects_non_get_methods(self):
-        self.assertEqual(
-            get_native_request_backend_error(native_options(http_method="POST")),
-            "--request-backend native currently supports GET requests only",
+    def test_native_accepts_http_methods_and_request_bodies(self):
+        cases = (
+            {"http_method": "POST", "data": "name=value"},
+            {"http_method": "PATCH", "data": b"value=\xff\r\n"},
+            {"http_method": "DELETE"},
+            {"http_method": "PUT", "data_file": "request-body.bin"},
         )
+
+        for overrides in cases:
+            with self.subTest(overrides=overrides):
+                self.assertIsNone(
+                    get_native_request_backend_error(native_options(**overrides))
+                )
 
     def test_native_accepts_http_proxies(self):
         self.assertIsNone(

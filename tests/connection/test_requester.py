@@ -126,13 +126,26 @@ class RequestTargetTCPServer(socketserver.TCPServer):
 
 
 class RequestTargetHandler(http.server.BaseHTTPRequestHandler):
-    def do_POST(self):
+    def _handle_with_body(self):
         content_length = int(self.headers.get("content-length", "0"))
         self.server.request_bodies.append(self.rfile.read(content_length))
         self.do_GET()
 
+    def do_POST(self):
+        self._handle_with_body()
+
+    def do_PUT(self):
+        self._handle_with_body()
+
+    def do_PATCH(self):
+        self._handle_with_body()
+
+    def do_DELETE(self):
+        self._handle_with_body()
+
     def do_GET(self):
         target = self.raw_requestline.split(b" ")[1]
+        self.server.request_methods.append(self.command)
         self.server.targets.append(target)
         self.server.authorizations.append(self.headers.get("Authorization"))
         self.server.cookies.append(self.headers.get("Cookie"))
@@ -255,6 +268,7 @@ class RequestTargetServer:
         self.server.cookies = []
         self.server.proxy_authorizations = []
         self.server.request_bodies = []
+        self.server.request_methods = []
         self.server.target_counts = {}
         self.thread = threading.Thread(
             target=lambda: self.server.serve_forever(poll_interval=0.05),
@@ -292,6 +306,10 @@ class RequestTargetServer:
     @property
     def request_bodies(self):
         return self.server.request_bodies
+
+    @property
+    def request_methods(self):
+        return self.server.request_methods
 
     @property
     def target_counts(self):
@@ -1741,6 +1759,31 @@ class TestAsyncRequesterPathPreservation(BaseRequesterTestCase, IsolatedAsyncioT
 
 
 class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
+    def test_native_requester_preserves_methods_and_request_body_bytes(self):
+        try:
+            backend = NativeHTTPBackend()
+        except RequestException as error:
+            self.skipTest(str(error))
+
+        cases = (
+            ("POST", "ascii", b"name=plain&line=two\r\n"),
+            ("PATCH", "raw%1", b"value=\xff\r\nnext=line\n"),
+            ("PUT", "unicode", "value=\u00e9"),
+        )
+        with RequestTargetServer() as server:
+            for method, path, body in cases:
+                with self.subTest(method=method, path=path):
+                    options["http_method"] = method
+                    options["data"] = body
+                    result = list(backend.scan(server.url, [path]))[0]
+                    self.assertIsNone(result[2])
+
+        self.assertEqual(server.request_methods, [method for method, _, _ in cases])
+        self.assertEqual(
+            server.request_bodies,
+            [body.encode() if isinstance(body, str) else body for _, _, body in cases],
+        )
+
     def test_native_requester_preserves_encoded_edge_case_targets(self):
         try:
             backend = NativeHTTPBackend()

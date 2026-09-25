@@ -162,7 +162,7 @@ class TestNativeInstallPackaging(TestCase):
 
     def test_native_builder_force_reinstalls_and_verifies_exact_wheel(self):
         python = Path("/usr/bin/python3.14")
-        wheel = Path("/tmp/dirsearch_native-0.2.8.whl")
+        wheel = Path("/tmp/dirsearch_native-0.2.9.whl")
 
         with patch("scripts.build_native.run") as run:
             install_native_wheel(python, wheel, NATIVE_EXTENSION_VERSION)

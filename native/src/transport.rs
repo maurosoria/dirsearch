@@ -6,8 +6,10 @@ use crate::result::{
     native_error_result, native_filtered_marker, native_http_result_with_length, NativeHttpResult,
 };
 use async_compression::tokio::bufread::{BrotliDecoder, GzipDecoder, ZlibDecoder};
+use bytes::Bytes;
 use futures_util::TryStreamExt;
 use reqwest::header::{HeaderMap, CONTENT_ENCODING};
+use reqwest::Method;
 use std::cell::RefCell;
 use std::io;
 use std::pin::Pin;
@@ -64,6 +66,8 @@ pub(crate) fn build_http_client(
 pub(crate) async fn request_with_client(
     client: &reqwest::Client,
     url: &str,
+    method: &Method,
+    body: Bytes,
     capture_redirect_history: bool,
     max_retries: usize,
     max_body_size: usize,
@@ -77,6 +81,8 @@ pub(crate) async fn request_with_client(
         match request_once(
             client,
             url,
+            method,
+            &body,
             capture_redirect_history,
             max_body_size,
             attempt_start,
@@ -110,22 +116,32 @@ pub(crate) async fn request_with_client(
 async fn request_once(
     client: &reqwest::Client,
     url: &str,
+    method: &Method,
+    body: &Bytes,
     capture_redirect_history: bool,
     max_body_size: usize,
     start: Instant,
     filter_config: &NativeFilterConfig,
     compact_filtered: bool,
 ) -> Result<NativeHttpResult, String> {
+    let build_request = || {
+        let request = client.request(method.clone(), url);
+        if body.is_empty() {
+            request
+        } else {
+            request.body(body.clone())
+        }
+    };
     let (response, redirect_history) = if capture_redirect_history {
         REDIRECT_HISTORY
             .scope(RefCell::new(Vec::new()), async {
-                let result = client.get(url).send().await;
+                let result = build_request().send().await;
                 let history = REDIRECT_HISTORY.with(|history| history.borrow().clone());
                 (result, history)
             })
             .await
     } else {
-        (client.get(url).send().await, Vec::new())
+        (build_request().send().await, Vec::new())
     };
     let response = response.map_err(|error| format_error_chain(&error))?;
     let status = response.status().as_u16();
