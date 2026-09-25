@@ -62,6 +62,26 @@ class TestHTMLReportOffline(TestCase):
         self.assertIn("text/plain", table_body)
         self.assertIn("/login", table_body)
 
+    def test_generated_report_does_not_link_unvalidated_url_schemes(self):
+        source = HTMLReport().generate(
+            [
+                {
+                    "url": "javascript:alert(document.domain)",
+                    "status": 200,
+                    "contentLength": 1,
+                    "contentType": "text/plain",
+                    "redirect": "data:text/html,unsafe",
+                }
+            ]
+        )
+
+        table_body = source.split('<tbody id="results-body">', 1)[1].split(
+            "</tbody>", 1
+        )[0]
+        self.assertIn("javascript:alert(document.domain)", table_body)
+        self.assertIn("data:text/html,unsafe", table_body)
+        self.assertNotIn("href=", table_body)
+
 
 @skipUnless(shutil.which("node"), "Node.js is required for JavaScript tests")
 class TestHTMLReportFilters(TestCase):

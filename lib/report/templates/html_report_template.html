@@ -366,7 +366,7 @@ window.addEventListener("DOMContentLoaded", function() {
 {% for result in results %}
 {% set status_class = "status-success" if result.status <= 299 else "status-info" if result.status <= 399 else "status-warning" if result.status <= 499 else "status-danger" if result.status <= 599 else "" %}
           <tr data-report-result>
-            <td><a class="result-url {{ status_class }}" href="{{ result.url | e }}" target="_blank" rel="noopener noreferrer">{{ result.url | e }}</a></td>
+            <td><span class="{{ status_class }}">{{ result.url | e }}</span></td>
             <td><span class="{{ status_class }}">{{ result.status }}</span></td>
             <td><span title="{{ result.contentLength }}">{{ result.contentLength }} B</span></td>
             <td><span>{{ result.contentType | e }}</span></td>
