@@ -26,6 +26,10 @@ use std::time::{Duration, Instant};
 const INCOMPLETE_BODY_RESPONSE: &[u8] =
     b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\nConnection: close\r\n\r\nno";
 const OK_RESPONSE: &[u8] = b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok";
+const ZSTD_HELLO_WORLD: &[u8] = &[
+    0x28, 0xb5, 0x2f, 0xfd, 0x04, 0x58, 0x59, 0x00, 0x00, 0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x20, 0x77,
+    0x6f, 0x72, 0x6c, 0x64, 0x68, 0x69, 0x1e, 0xb2,
+];
 const DIGEST_CHALLENGE_RESPONSE: &[u8] = b"HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Digest realm=\"dirsearch-test\", nonce=\"abcdef0123456789\", algorithm=SHA-256, qop=\"auth\"\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
 const DIGEST_COOKIE_CHALLENGE_RESPONSE: &[u8] = b"HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Digest realm=\"dirsearch-test\", nonce=\"abcdef0123456789\", algorithm=SHA-256, qop=\"auth\"\r\nSet-Cookie: challenge=session; Path=/\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
 const MALFORMED_DIGEST_CHALLENGE_RESPONSE: &[u8] = b"HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Digest realm=\"missing-nonce\"\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
@@ -880,22 +884,29 @@ fn raw_response(headers: &str, body: &[u8]) -> Vec<u8> {
 }
 
 fn compressed_body(encoding: &str, body: &[u8]) -> Vec<u8> {
-    if encoding == "gzip" {
-        let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
-        encoder.write_all(body).unwrap();
-        encoder.finish().unwrap()
-    } else if encoding == "deflate" {
-        let mut encoder =
-            flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
-        encoder.write_all(body).unwrap();
-        encoder.finish().unwrap()
-    } else {
-        let mut compressed = Vec::new();
-        {
-            let mut encoder = brotli::CompressorWriter::new(&mut compressed, 4096, 5, 22);
+    match encoding {
+        "gzip" => {
+            let mut encoder =
+                flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
             encoder.write_all(body).unwrap();
+            encoder.finish().unwrap()
         }
-        compressed
+        "deflate" => {
+            let mut encoder =
+                flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
+            encoder.write_all(body).unwrap();
+            encoder.finish().unwrap()
+        }
+        "br" => {
+            let mut compressed = Vec::new();
+            {
+                let mut encoder = brotli::CompressorWriter::new(&mut compressed, 4096, 5, 22);
+                encoder.write_all(body).unwrap();
+            }
+            compressed
+        }
+        "zstd" => zstd::stream::encode_all(body, 0).unwrap(),
+        _ => panic!("unsupported test encoding: {encoding}"),
     }
 }
 
@@ -921,12 +932,17 @@ fn reqwest_response_decoder_streams_supported_content_encodings() {
         .unwrap();
     let plain = b"hello world";
     let gzip = compressed_body("gzip", plain);
+    let zstd = compressed_body("zstd", plain);
     let cases = [
         ("identity", plain.to_vec()),
         ("gzip", gzip.clone()),
         ("deflate", compressed_body("deflate", plain)),
         ("br", compressed_body("br", plain)),
+        ("zstd", ZSTD_HELLO_WORLD.to_vec()),
+        ("ZsTd", zstd.clone()),
         ("gzip, br", compressed_body("br", &gzip)),
+        ("gzip, zstd", compressed_body("zstd", &gzip)),
+        ("zstd, gzip", compressed_body("gzip", &zstd)),
     ];
 
     for (encoding, compressed) in cases {
@@ -954,12 +970,29 @@ fn reqwest_response_decoder_rejects_unknown_or_invalid_encodings() {
     let invalid_error = runtime
         .block_on(read_response_body(invalid, &invalid_headers, 80))
         .unwrap_err();
+    let (invalid_zstd, invalid_zstd_headers) = reqwest_response(b"not zstd".to_vec(), "zstd");
+    let invalid_zstd_error = runtime
+        .block_on(read_response_body(invalid_zstd, &invalid_zstd_headers, 80))
+        .unwrap_err();
+    let (truncated_zstd, truncated_zstd_headers) = reqwest_response(
+        ZSTD_HELLO_WORLD[..ZSTD_HELLO_WORLD.len() - 1].to_vec(),
+        "zstd",
+    );
+    let truncated_zstd_error = runtime
+        .block_on(read_response_body(
+            truncated_zstd,
+            &truncated_zstd_headers,
+            80,
+        ))
+        .unwrap_err();
 
     assert_eq!(
         unknown_error,
         "Unsupported HTTP Content-Encoding: compress-test"
     );
     assert!(invalid_error.starts_with("Failed to decode gzip response body:"));
+    assert!(invalid_zstd_error.starts_with("Failed to decode zstd response body:"));
+    assert!(truncated_zstd_error.starts_with("Failed to decode zstd response body:"));
 }
 
 #[test]
@@ -1052,6 +1085,53 @@ fn raw_http_parser_decodes_stacked_content_encodings() {
 
     assert_eq!(body, b"hello world");
     assert_eq!(length, 11);
+}
+
+#[test]
+fn raw_http_parser_decodes_zstd_before_body_filters() {
+    let response = raw_response(
+        &format!(
+            "Content-Encoding: zstd\r\nContent-Length: {}",
+            ZSTD_HELLO_WORLD.len()
+        ),
+        ZSTD_HELLO_WORLD,
+    );
+
+    let (_, _, body, length) = parse_raw_http_response(response, 5).unwrap();
+
+    assert_eq!(body, b"hello");
+    assert_eq!(length, 11);
+}
+
+#[test]
+fn raw_http_parser_decodes_zstd_in_stacked_encoding_positions() {
+    let gzip = compressed_body("gzip", b"hello world");
+    let zstd = compressed_body("zstd", b"hello world");
+    let cases = [
+        ("gzip, zstd", compressed_body("zstd", &gzip)),
+        ("zstd, gzip", compressed_body("gzip", &zstd)),
+    ];
+
+    for (encoding, compressed) in cases {
+        let response = raw_response(&format!("Content-Encoding: {encoding}"), &compressed);
+        let (_, _, body, length) = parse_raw_http_response(response, 80).unwrap();
+
+        assert_eq!(body, b"hello world", "{encoding}");
+        assert_eq!(length, 11, "{encoding}");
+    }
+}
+
+#[test]
+fn raw_http_parser_rejects_invalid_zstd() {
+    for compressed in [
+        b"not zstd".as_slice(),
+        &ZSTD_HELLO_WORLD[..ZSTD_HELLO_WORLD.len() - 1],
+    ] {
+        let response = raw_response("Content-Encoding: zstd", compressed);
+        let error = parse_raw_http_response(response, 80).unwrap_err();
+
+        assert!(error.starts_with("Failed to decode zstd response body:"));
+    }
 }
 
 #[test]

@@ -1,6 +1,6 @@
 [package]
 name = "dirsearch_native"
-version = "0.2.14"
+version = "0.2.15"
 edition = "2021"
 rust-version = "1.86"
 license = "GPL-2.0-only"
@@ -10,7 +10,7 @@ name = "dirsearch_native"
 crate-type = ["cdylib"]
 
 [dependencies]
-async-compression = { version = "0.4", features = ["brotli", "gzip", "tokio", "zlib"] }
+async-compression = { version = "0.4", features = ["brotli", "gzip", "tokio", "zlib", "zstd"] }
 base64 = "0.22"
 brotli = "8.0"
 bytes = "1.10"
@@ -26,6 +26,7 @@ rayon = "1.10"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "http2", "socks", "stream", "cookies"] }
 tokio = { version = "1.43", features = ["rt-multi-thread", "macros", "net", "time", "io-util"] }
 tokio-util = { version = "0.7", features = ["io"] }
+zstd = "0.14"
 
 [dev-dependencies]
 http = "1.3"

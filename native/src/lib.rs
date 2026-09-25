@@ -1,5 +1,6 @@
 //! PyO3 module registration for the native dirsearch backend.
 
+mod compression;
 mod engine;
 mod filters;
 mod raw_client;
