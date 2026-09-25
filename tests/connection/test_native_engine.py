@@ -183,12 +183,46 @@ class ProxyAuthenticationRequiredHandler(BaseHTTPRequestHandler):
         return None
 
 
+class CookieSessionHandler(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+
+    def do_GET(self):
+        cookie = self.headers.get("Cookie")
+        self.server.cookies.append(cookie)
+        if self.path == "/set":
+            status = 200
+            headers = {"Set-Cookie": "session=native; Path=/"}
+        elif self.path == "/redirect":
+            status = 302
+            headers = {
+                "Location": "/redirected",
+                "Set-Cookie": "redirect=native; Path=/",
+            }
+        elif self.path == "/redirected":
+            status = 200 if cookie and "redirect=native" in cookie else 401
+            headers = {}
+        else:
+            status = 200 if cookie and "session=native" in cookie else 401
+            headers = {}
+        body = b"ok"
+        self.send_response(status)
+        for name, value in headers.items():
+            self.send_header(name, value)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, _format, *args):
+        return None
+
+
 class CountingHTTPServer(ThreadingHTTPServer):
     daemon_threads = True
 
     def __init__(self, handler=KeepAliveHandler):
         super().__init__(("127.0.0.1", 0), handler)
         self.connection_count = 0
+        self.cookies = []
         self.thread = threading.Thread(target=self.serve_forever, daemon=True)
         self.thread.start()
 
@@ -235,6 +269,10 @@ class TestNativeHttpEngine(TestCase):
                     client_key=key,
                 )
 
+    def test_invalid_native_session_is_rejected_at_the_python_boundary(self):
+        with self.assertRaises(TypeError):
+            dirsearch_native.NativeHttpEngine(session=object())
+
     def test_native_engine_prepares_raw_paths_and_query(self):
         server = RawResponseServer(
             b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"
@@ -272,6 +310,87 @@ class TestNativeHttpEngine(TestCase):
             result.history,
             [f"{base_url}start", f"{base_url}middle"],
         )
+
+    def test_session_cookie_is_reused_by_later_scan(self):
+        server = CountingHTTPServer(CookieSessionHandler)
+        engine = dirsearch_native.NativeHttpEngine(concurrency=1)
+
+        try:
+            first = engine.scan(server.url, ["set"])[0]
+            second = engine.scan(server.url, ["required"])[0]
+        finally:
+            server.close()
+
+        self.assertEqual(first.status, 200)
+        self.assertEqual(second.status, 200)
+        self.assertEqual(server.cookies, [None, "session=native"])
+
+    def test_explicit_session_is_shared_across_engine_rebuilds(self):
+        server = CountingHTTPServer(CookieSessionHandler)
+        session = dirsearch_native.NativeHttpSession()
+        first_engine = dirsearch_native.NativeHttpEngine(
+            concurrency=1,
+            session=session,
+        )
+        rebuilt_engine = dirsearch_native.NativeHttpEngine(
+            concurrency=1,
+            follow_redirects=True,
+            session=session,
+        )
+
+        try:
+            stored = first_engine.scan(server.url, ["set"])[0]
+            reused = rebuilt_engine.scan(server.url, ["required"])[0]
+        finally:
+            server.close()
+
+        self.assertEqual(stored.status, 200)
+        self.assertEqual(reused.status, 200)
+        self.assertEqual(server.cookies, [None, "session=native"])
+
+    def test_default_sessions_are_isolated_between_engines(self):
+        server = CountingHTTPServer(CookieSessionHandler)
+        first_engine = dirsearch_native.NativeHttpEngine(concurrency=1)
+        separate_engine = dirsearch_native.NativeHttpEngine(concurrency=1)
+
+        try:
+            stored = first_engine.scan(server.url, ["set"])[0]
+            isolated = separate_engine.scan(server.url, ["required"])[0]
+        finally:
+            server.close()
+
+        self.assertEqual(stored.status, 200)
+        self.assertEqual(isolated.status, 401)
+        self.assertEqual(server.cookies, [None, None])
+
+    def test_session_cookie_is_reused_by_raw_fallback(self):
+        server = CountingHTTPServer(CookieSessionHandler)
+        engine = dirsearch_native.NativeHttpEngine(concurrency=1)
+
+        try:
+            first = engine.scan(server.url, ["set"])[0]
+            second = engine.scan(server.url, ["required%1"])[0]
+        finally:
+            server.close()
+
+        self.assertEqual(first.status, 200)
+        self.assertEqual(second.status, 200)
+        self.assertEqual(server.cookies, [None, "session=native"])
+
+    def test_redirect_response_cookie_is_applied_to_next_hop(self):
+        server = CountingHTTPServer(CookieSessionHandler)
+        engine = dirsearch_native.NativeHttpEngine(
+            concurrency=1,
+            follow_redirects=True,
+        )
+
+        try:
+            result = engine.scan(server.url, ["redirect"])[0]
+        finally:
+            server.close()
+
+        self.assertEqual(result.status, 200)
+        self.assertEqual(server.cookies, [None, "redirect=native"])
 
     def test_compact_scan_returns_tail_completion_marker(self):
         server = CountingHTTPServer()

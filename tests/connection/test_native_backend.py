@@ -67,7 +67,13 @@ class FakeNativeModule:
     def __init__(self, results=None):
         self.engines = []
         self.filter_configs = []
+        self.sessions = []
         self.results = results
+
+    def NativeHttpSession(self):
+        session = object()
+        self.sessions.append(session)
+        return session
 
     def NativeHttpEngine(self, **config):
         engine = FakeNativeEngine(self.results, **config)
@@ -170,6 +176,51 @@ class TestNativeHTTPBackend(TestCase):
             ),
         ):
             NativeHTTPBackend()
+
+    def test_engine_rebuild_reuses_explicit_native_session(self):
+        fake_native = FakeNativeModule()
+
+        with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
+            backend = NativeHTTPBackend()
+            first_engine = backend._get_engine()
+            options["follow_redirects"] = True
+            backend._get_engine()
+
+        self.assertIs(first_engine.config["session"], fake_native.sessions[0])
+        self.assertIs(
+            fake_native.engines[1].config["session"],
+            fake_native.sessions[0],
+        )
+        self.assertEqual(len(fake_native.sessions), 1)
+
+    def test_native_replay_backend_shares_explicit_native_session(self):
+        options["proxies"] = []
+        fake_native = FakeNativeModule()
+
+        with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
+            requester = NativeRequester()
+            requester.set_url("https://example.com/")
+            requester.set_query("scope=one")
+            requester.request("first")
+            requester.request("second", proxy="http://replay.test:8080")
+
+        self.assertIs(
+            fake_native.engines[1].config["session"],
+            fake_native.engines[0].config["session"],
+        )
+        self.assertEqual(len(fake_native.sessions), 1)
+
+    def test_first_replay_request_does_not_build_an_origin_engine_for_state(self):
+        options["proxies"] = []
+        fake_native = FakeNativeModule()
+
+        with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
+            requester = NativeRequester()
+            requester.set_url("https://example.com/")
+            requester.request("first", proxy="http://replay.test:8080")
+
+        self.assertEqual(len(fake_native.engines), 1)
+        self.assertIs(fake_native.engines[0].config["session"], fake_native.sessions[0])
 
     def test_disabled_redirects_do_not_materialize_native_history(self):
         result = HistoryTrackingNativeResult(

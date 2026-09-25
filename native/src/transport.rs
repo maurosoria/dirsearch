@@ -7,12 +7,16 @@ use crate::result::{
 };
 use async_compression::tokio::bufread::{BrotliDecoder, GzipDecoder, ZlibDecoder};
 use bytes::Bytes;
+use cookie::Cookie as ParsedCookie;
 use futures_util::TryStreamExt;
-use reqwest::header::{HeaderMap, CONTENT_ENCODING};
+use reqwest::cookie::CookieStore;
+use reqwest::header::{HeaderMap, HeaderValue, CONTENT_ENCODING};
 use reqwest::Method;
 use std::cell::RefCell;
+use std::cmp::Reverse;
 use std::io;
 use std::pin::Pin;
+use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 use tokio::io::{AsyncRead, AsyncReadExt, BufReader};
 use tokio_util::io::StreamReader;
@@ -22,8 +26,82 @@ type AsyncBodyReader = Pin<Box<dyn AsyncRead + Send>>;
 
 tokio::task_local! {
     static REDIRECT_HISTORY: RefCell<Vec<String>>;
+    static TOP_LEVEL_COOKIE: RefCell<Option<HeaderValue>>;
 }
 
+#[derive(Debug, Default)]
+pub(crate) struct NativeCookieStore {
+    store: RwLock<cookie_store::CookieStore>,
+}
+
+impl NativeCookieStore {
+    pub(crate) fn add_cookie_str(&self, cookie: &str, url: &reqwest::Url) {
+        if let Ok(cookie) = ParsedCookie::parse(cookie).map(ParsedCookie::into_owned) {
+            if accepts_cookie_domain(&cookie) {
+                self.store
+                    .write()
+                    .unwrap()
+                    .store_response_cookies(std::iter::once(cookie), url);
+            }
+        }
+    }
+}
+
+impl CookieStore for NativeCookieStore {
+    fn set_cookies(
+        &self,
+        cookie_headers: &mut dyn Iterator<Item = &HeaderValue>,
+        url: &reqwest::Url,
+    ) {
+        let cookies = cookie_headers.filter_map(|value| {
+            value
+                .to_str()
+                .ok()
+                .and_then(|cookie| ParsedCookie::parse(cookie).ok())
+                .map(ParsedCookie::into_owned)
+                .filter(accepts_cookie_domain)
+        });
+        self.store
+            .write()
+            .unwrap()
+            .store_response_cookies(cookies, url);
+    }
+
+    fn cookies(&self, url: &reqwest::Url) -> Option<HeaderValue> {
+        if let Ok(Some(cookie)) = TOP_LEVEL_COOKIE.try_with(|cookie| cookie.borrow_mut().take()) {
+            return Some(cookie);
+        }
+        let store = self.store.read().unwrap();
+        let mut cookies = store
+            .matches(url)
+            .into_iter()
+            .filter(|cookie| url.scheme() == "https" || !cookie.secure().unwrap_or(false))
+            .collect::<Vec<_>>();
+        cookies.sort_by_key(|cookie| Reverse(cookie.path.len()));
+        let values = cookies
+            .into_iter()
+            .map(|cookie| {
+                let (name, value) = cookie.name_value();
+                format!("{name}={value}")
+            })
+            .collect::<Vec<_>>()
+            .join("; ");
+        if values.is_empty() {
+            None
+        } else {
+            HeaderValue::from_str(&values).ok()
+        }
+    }
+}
+
+fn accepts_cookie_domain(cookie: &ParsedCookie<'_>) -> bool {
+    cookie.domain().is_none_or(|domain| {
+        let domain = domain.trim_start_matches('.');
+        domain.contains('.') || domain.eq_ignore_ascii_case("local")
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn build_http_client(
     headers: &HeaderMap,
     concurrency: usize,
@@ -32,6 +110,7 @@ pub(crate) fn build_http_client(
     max_redirects: usize,
     proxy_url: Option<&str>,
     client_identity: Option<(&[u8], &[u8])>,
+    cookie_store: Arc<NativeCookieStore>,
 ) -> Result<reqwest::Client, String> {
     let has_client_identity = client_identity.is_some();
     let mut builder = reqwest::Client::builder()
@@ -55,7 +134,8 @@ pub(crate) fn build_http_client(
             reqwest::redirect::Policy::none()
         })
         .timeout(Duration::from_secs_f64(timeout_secs))
-        .pool_max_idle_per_host(concurrency);
+        .pool_max_idle_per_host(concurrency)
+        .cookie_provider(cookie_store);
 
     if let Some((client_certificate, client_key)) = client_identity {
         let mut identity_pem = Vec::with_capacity(client_certificate.len() + client_key.len() + 1);
@@ -91,6 +171,7 @@ pub(crate) async fn request_with_client(
     url: &str,
     method: &Method,
     body: Bytes,
+    top_level_cookie: Option<HeaderValue>,
     capture_redirect_history: bool,
     max_retries: usize,
     max_body_size: usize,
@@ -106,6 +187,7 @@ pub(crate) async fn request_with_client(
             url,
             method,
             &body,
+            top_level_cookie.clone(),
             capture_redirect_history,
             max_body_size,
             attempt_start,
@@ -153,6 +235,7 @@ async fn request_once(
     url: &str,
     method: &Method,
     body: &Bytes,
+    top_level_cookie: Option<HeaderValue>,
     capture_redirect_history: bool,
     max_body_size: usize,
     start: Instant,
@@ -167,17 +250,21 @@ async fn request_once(
             request.body(body.clone())
         }
     };
-    let (response, redirect_history) = if capture_redirect_history {
-        REDIRECT_HISTORY
-            .scope(RefCell::new(Vec::new()), async {
-                let result = build_request().send().await;
-                let history = REDIRECT_HISTORY.with(|history| history.borrow().clone());
-                (result, history)
-            })
-            .await
-    } else {
-        (build_request().send().await, Vec::new())
-    };
+    let (response, redirect_history) = TOP_LEVEL_COOKIE
+        .scope(RefCell::new(top_level_cookie), async {
+            if capture_redirect_history {
+                REDIRECT_HISTORY
+                    .scope(RefCell::new(Vec::new()), async {
+                        let result = build_request().send().await;
+                        let history = REDIRECT_HISTORY.with(|history| history.borrow().clone());
+                        (result, history)
+                    })
+                    .await
+            } else {
+                (build_request().send().await, Vec::new())
+            }
+        })
+        .await;
     let response = response.map_err(|error| format_error_chain(&error))?;
     let status = response.status().as_u16();
     let final_url = response.url().to_string();

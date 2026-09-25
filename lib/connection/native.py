@@ -52,7 +52,11 @@ class NativeScanBatch:
 
 
 class NativeHTTPBackend:
-    def __init__(self, proxy_override: str | None = None) -> None:
+    def __init__(
+        self,
+        proxy_override: str | None = None,
+        session: Any | None = None,
+    ) -> None:
         try:
             import dirsearch_native
         except ImportError as e:
@@ -67,6 +71,9 @@ class NativeHTTPBackend:
         self._filter_config = None
         self._empty_filter_config = None
         self._proxy_override = proxy_override
+        self._session = (
+            session if session is not None else self._native.NativeHttpSession()
+        )
         self._client_certificate, self._client_key = self._load_client_identity()
         self._cancel_lock = threading.Lock()
         # Preserve cancellation requested before lazy engine creation.
@@ -98,11 +105,20 @@ class NativeHTTPBackend:
         }
         if self._engine is None or config != self._engine_config:
             try:
-                self._engine = self._native.NativeHttpEngine(**config)
+                self._engine = self._native.NativeHttpEngine(
+                    **config,
+                    session=self._session,
+                )
             except RuntimeError as error:
                 raise RequestException(str(error)) from error
             self._engine_config = config
         return self._engine
+
+    @property
+    def session(self) -> Any:
+        """Opaque Rust state shared with engines created for replay requests."""
+
+        return self._session
 
     @staticmethod
     def _request_body() -> bytes:
@@ -414,11 +430,14 @@ class NativeRequester:
         )
 
     def request(self, path: str, proxy: str | None = None) -> NativeResponse:
-        backend = (
-            NativeHTTPBackend(proxy_override=proxy)
-            if proxy
-            else self.get_backend()
-        )
+        if proxy:
+            origin_backend = self.get_backend()
+            backend = NativeHTTPBackend(
+                proxy_override=proxy,
+                session=origin_backend.session,
+            )
+        else:
+            backend = self.get_backend()
         response, error = backend.scan_unfiltered(self._url, path, self._query)
         if error is not None:
             raise error
