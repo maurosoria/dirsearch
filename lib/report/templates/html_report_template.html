@@ -6,208 +6,376 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>dirsearch report</title>
 <style>
+:root {
+  color-scheme: dark;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
 * {
+  box-sizing: border-box;
+}
+body {
+  background: #3f3f3f;
+  color: #eef1f3;
+  margin: 0;
+}
+a {
+  color: inherit;
+}
+.navbar {
+  background: #f8f9fa;
+  color: #212529;
+  padding: 1rem 1.5rem;
+}
+.navbar a {
+  color: #c84949;
+  text-decoration: none;
+}
+.report {
+  margin: 0 auto;
+  max-width: 1200px;
+  padding: 1.5rem;
+}
+.metadata {
+  line-height: 1.7;
+}
+.metadata code {
+  background: #5c6060;
+  border-radius: 4px;
+  color: #f7f9f9;
+  padding: 0.15rem 0.3rem;
+}
+.filters {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+  margin: 1.25rem 0;
+}
+.filters .search-all {
+  grid-column: 1 / -1;
+}
+input,
+button {
+  border: 1px solid #747a80;
+  border-radius: 4px;
+  font: inherit;
+  padding: 0.55rem 0.7rem;
+  width: 100%;
+}
+input {
+  background: #292b2d;
   color: #eef1f3;
 }
-th.active .arrow {
-  opacity: 1;
+button {
+  background: #c84949;
+  border-color: #c84949;
+  color: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.table-responsive {
+  overflow-x: auto;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+th,
+td {
+  border-bottom: 1px solid #62676b;
+  padding: 0.65rem;
+  text-align: left;
+  vertical-align: top;
+}
+th {
+  cursor: pointer;
+  white-space: nowrap;
+}
+.status-success {
+  color: #82b983;
+}
+.status-info {
+  color: #72b5cc;
+}
+.status-warning {
+  color: #e5bf65;
+}
+.status-danger {
+  color: #e37575;
 }
 .arrow {
   display: inline-block;
-  vertical-align: middle;
-  width: 0;
   height: 0;
   margin-left: 5px;
   opacity: 0.66;
+  vertical-align: middle;
+  width: 0;
 }
-.arrow.none {
-  border-left: 4px solid transparent;
-  border-right: 4px solid transparent;
-  border-bottom: 4px solid #82b983;
-}
+.arrow.none,
 .arrow.asc {
+  border-bottom: 4px solid #82b983;
   border-left: 4px solid transparent;
   border-right: 4px solid transparent;
-  border-bottom: 4px solid #42b983;
 }
 .arrow.dsc {
   border-left: 4px solid transparent;
   border-right: 4px solid transparent;
-  border-top: 4px solid #42b983;
+  border-top: 4px solid #82b983;
+}
+th.active .arrow {
+  opacity: 1;
+}
+@media (max-width: 760px) {
+  .filters {
+    grid-template-columns: 1fr;
+  }
+  .filters .search-all {
+    grid-column: auto;
+  }
 }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/vue@2.6.12/dist/vue.js" integrity="sha384-ma9ivURrHX5VOB4tNq+UiGNkJoANH4EAJmhxd1mmDq0gKOv88wkKZOfRDOpXynwh" crossorigin="anonymous"></script>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-wEmeIV1mKuiNpC+IOBjI7aAzPcEZeedi5yW5f2yOq55WWLwNGmvvx4Um1vskeMj0" crossorigin="anonymous">
 <script>
+function queryTokens(value) {
+  return String(value || "").toLowerCase().trim().split(/\s+/).filter(Boolean);
+}
 
-function openURLs(){
-    var table = document.getElementsByClassName("table")[0];
-    for (let row of table.rows) {
-      let val = row.cells[0].innerText;
-      if (val == "URL" || val == null)
-        continue;
-      window.open(val, '_blank');
-    }
+function search(app, result) {
+  return queryTokens(app.searchQuery).every(
+    (value) =>
+      result.url.toLowerCase().includes(value) ||
+      (result.contentType && result.contentType.toLowerCase().includes(value)) ||
+      String(result.contentLength).includes(value) ||
+      String(result.status).includes(value) ||
+      (result.redirect && result.redirect.toLowerCase().includes(value))
+  );
 }
-function search(app, result){
-    return app.searchQuery.toLowerCase().split(" ").every(
-      (v) => result.url.toLowerCase().includes(v) ||
-      (result.contentType && result.contentType.toLowerCase().includes(v)) ||
-      String(result.contentLength).includes(v) ||
-      result.status.toString().includes(v) ||
-      (result.redirect && result.redirect.toLowerCase().includes(v))
-    );
-}
-function statusExcludeSearch(app, result){
-    return app.statusExcludeSearchQuery.toLowerCase().split(" ").every(
-      (v) => !result.status.toString().includes(v)
-    );
-}
-function lengthExcludeSearch(app, result){
-    return app.lengthExcludeSearchQuery.toLowerCase().split(" ").every(
-      (v) => String(result.contentLength) !== v
-    );
-}
-function sort(app, results){
-    if(app.sortColumn == null){
-      return results
-    }
 
-    return results.sort(function(a, b){
-      if(a[app.sortColumn.name] < b[app.sortColumn.name]){
-        return -1 * app.sortColumn.order;
-      }
-      if(a[app.sortColumn.name] > b[app.sortColumn.name]){
-        return 1 * app.sortColumn.order;
-      }
-      return 0
+function statusExcludeSearch(app, result) {
+  return queryTokens(app.statusExcludeSearchQuery).every(
+    (value) => !String(result.status).includes(value)
+  );
+}
+
+function lengthExcludeSearch(app, result) {
+  return queryTokens(app.lengthExcludeSearchQuery).every(
+    (value) => String(result.contentLength) !== value
+  );
+}
+
+function sort(app, results) {
+  if (app.sortColumn == null) {
+    return results;
+  }
+
+  return [...results].sort(function(left, right) {
+    if (left[app.sortColumn.name] < right[app.sortColumn.name]) {
+      return -1 * app.sortColumn.order;
+    }
+    if (left[app.sortColumn.name] > right[app.sortColumn.name]) {
+      return app.sortColumn.order;
+    }
+    return 0;
+  });
+}
+
+function getReadableSize(bytes) {
+  const value = Number(bytes);
+  if (!value) {
+    return "0 B";
+  }
+
+  const base = 1024;
+  const units = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
+  const index = Math.min(
+    Math.floor(Math.log(value) / Math.log(base)),
+    units.length - 1
+  );
+  return `${Math.round(value / Math.pow(base, index))} ${units[index]}`;
+}
+
+function getStatusColorClass(statusCode) {
+  if (statusCode <= 199) return "";
+  if (statusCode <= 299) return "status-success";
+  if (statusCode <= 399) return "status-info";
+  if (statusCode <= 499) return "status-warning";
+  if (statusCode <= 599) return "status-danger";
+  return "";
+}
+
+function safeHttpUrl(value, base) {
+  if (!value) {
+    return null;
+  }
+  try {
+    const parsed = new URL(value, base);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      return parsed.href;
+    }
+  } catch (error) {
+    return null;
+  }
+  return null;
+}
+
+function appendCell(row, value, options = {}) {
+  const cell = document.createElement("td");
+  const safeUrl = options.url ? safeHttpUrl(options.url, options.base) : null;
+  const content = safeUrl ? document.createElement("a") : document.createElement("span");
+  content.textContent = value == null ? "" : String(value);
+  if (safeUrl) {
+    content.href = safeUrl;
+    content.target = "_blank";
+    content.rel = "noopener noreferrer";
+    if (options.urlClass) {
+      content.classList.add(options.urlClass);
+    }
+  }
+  if (options.className) {
+    content.classList.add(options.className);
+  }
+  if (options.title != null) {
+    content.title = String(options.title);
+  }
+  cell.appendChild(content);
+  row.appendChild(cell);
+}
+
+function visibleResults(app) {
+  let results = app.resources;
+  if (app.searchQuery) {
+    results = results.filter((result) => search(app, result));
+  }
+  if (app.statusExcludeSearchQuery) {
+    results = results.filter((result) => statusExcludeSearch(app, result));
+  }
+  if (app.lengthExcludeSearchQuery) {
+    results = results.filter((result) => lengthExcludeSearch(app, result));
+  }
+  return sort(app, results);
+}
+
+function renderRows(app) {
+  const body = document.getElementById("results-body");
+  const fragment = document.createDocumentFragment();
+
+  for (const result of visibleResults(app)) {
+    const row = document.createElement("tr");
+    row.dataset.reportResult = "";
+    const statusClass = getStatusColorClass(result.status);
+    appendCell(row, result.url, {
+      url: result.url,
+      urlClass: "result-url",
+      className: statusClass,
     });
+    appendCell(row, result.status, {className: statusClass});
+    appendCell(row, getReadableSize(result.contentLength), {
+      title: result.contentLength,
+    });
+    appendCell(row, result.contentType);
+    appendCell(row, result.redirect, {
+      url: result.redirect,
+      base: result.url,
+    });
+    fragment.appendChild(row);
+  }
+
+  body.replaceChildren(fragment);
 }
 
-window.onload = function () {
-    var app = new Vue({
-      el: '#app',
-      delimiters: ['[[', ']]'],
-      data: {
-        lengthExcludeSearchQuery: null,
-        statusExcludeSearchQuery: null,
-        searchQuery: null,
+function openURLs() {
+  for (const link of document.querySelectorAll("#results-body a.result-url")) {
+    window.open(link.href, "_blank", "noopener,noreferrer");
+  }
+}
+
+const app = {
+  lengthExcludeSearchQuery: "",
+  statusExcludeSearchQuery: "",
+  searchQuery: "",
         resources: {{ results | tojson }},
-        sortColumn: null,
-        columns: [
-          {name: 'url', text: 'URL', order: -1},
-          {name: 'status', text: 'Status', order: -1},
-          {name: 'contentLength', text: 'Content Length', order: -1},
-          {name: 'contentType', text: 'Content Type', order: -1},
-          {name: 'redirect', text: 'Redirect', order: -1},
-        ]
-      },
-      methods: {
-        joinUrl: function(url, redirect){
-          return new URL(redirect, url).href;
-        },
-        getReadableSize: function(bytes){
-          if (!bytes) return '0 B'
+  sortColumn: null,
+};
 
-          const base = 1024
-          const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
-          const i = Math.floor(Math.log(bytes) / Math.log(base))
-
-          return `${Math.round(bytes / Math.pow(base, i))} ${units[i]}`
-        },
-        getStatusColorClass: function(statusCode){
-          if (statusCode <= 199) return "";
-          if (statusCode <= 299) return "text-success";
-          if (statusCode <= 399) return "text-info";
-          if (statusCode <= 499) return "text-warning";
-          if (statusCode <= 599) return "text-danger";
-        }
-
-      },
-      computed: {
-        results: function(){
-          arr = this.resources
-          if(this.searchQuery){
-            arr = arr.filter((result)=>{
-              return search(this, result)
-            });            
-          }
-          if(this.statusExcludeSearchQuery){
-            arr = arr.filter((result)=>{
-              return statusExcludeSearch(this, result)
-            });
-          }
-          if(this.lengthExcludeSearchQuery){
-            arr = arr.filter((result)=>{
-              return lengthExcludeSearch(this, result)
-            });
-          }
-
-          return sort(this, arr);
-        }
-      }
+window.addEventListener("DOMContentLoaded", function() {
+  const filters = [
+    ["status-exclude", "statusExcludeSearchQuery"],
+    ["length-exclude", "lengthExcludeSearchQuery"],
+    ["search", "searchQuery"],
+  ];
+  for (const [elementId, property] of filters) {
+    document.getElementById(elementId).addEventListener("input", function(event) {
+      app[property] = event.target.value;
+      renderRows(app);
     });
-}
+  }
+
+  for (const header of document.querySelectorAll("th[data-column]")) {
+    header.addEventListener("click", function() {
+      const name = header.dataset.column;
+      if (app.sortColumn && app.sortColumn.name === name) {
+        app.sortColumn.order *= -1;
+      } else {
+        app.sortColumn = {name: name, order: 1};
+      }
+      for (const candidate of document.querySelectorAll("th[data-column]")) {
+        candidate.classList.toggle("active", candidate === header);
+        const arrow = candidate.querySelector(".arrow");
+        arrow.className = "arrow none";
+      }
+      header.querySelector(".arrow").className =
+        app.sortColumn.order > 0 ? "arrow asc" : "arrow dsc";
+      renderRows(app);
+    });
+  }
+
+  document.getElementById("open-urls").addEventListener("click", openURLs);
+  renderRows(app);
+});
 </script>
 </head>
-<body style="background-color: #3f3f3f;">
-    <div id="app">
-        <div class="panel panel-default">
-            <div class="navbar navbar-expand-lg navbar-light bg-light">
-                <div class="p-3">
-                    <h1><a href="https://github.com/maurosoria/dirsearch" style="text-decoration:none;color:#c84949;">dirsearch</a></h1>
-                </div>
-            </div>
-            <br>
-            <div class="w-75 p-3 mx-auto">
-                <span style="color: #eef1f3;">
-                    <strong>Command: </strong>
-                        <!-- Prevent Vue.js client-side template injection. Reference: https://portswigger.net/web-security/cross-site-scripting/cheat-sheet#vuejs-reflected -->
-                        <code style="display:inline;background-color:#5C6060;color:#F7F9F9;border-radius:4px;">{{ metadata['command'] | e | replace('[', '<code>[</code>') }}</code>
-                    <br>
-                    <strong>Time:</strong> <p style="display:inline;">{{ metadata['date'] | e }}</p>
-                    <br>
-                </span>
-                <br>
-                <div class="row">
-                    <div class="search-wrapper panel-heading col-sm-4">
-                        <input class="form-control" type="text" v-model="statusExcludeSearchQuery" placeholder="Exclude status codes, separated by space" />
-                    </div>
-                    <div class="search-wrapper panel-heading col-sm-4">
-                        <input class="form-control" type="text" v-model="lengthExcludeSearchQuery" placeholder="Exclude content lengths, separated by space" />
-                    </div>
-                    <div class="col-sm-4">
-                      <button onclick="openURLs()" type="button" class="btn btn-danger">Open all URLs</button>
-                    </div>
-                    <br>
-                    <br>
-                    <div class="search-wrapper panel-heading col-sm-12">
-                        <input class="form-control" type="text" v-model="searchQuery" placeholder="Search" />
-                    </div>
-                </div>
-                <br>
-                <div class="table-responsive">
-                    <table v-if="resources.length" class="table">
-                        <tbody>
-                            <tr>
-                                <th v-for="column in columns" @click="sortColumn = column; column.order = column.order * -1" :class="{active: column == sortColumn}" style="cursor:context-menu">
-                                    [[column.text]]
-                                    <span v-bind:class="['arrow', sortColumn != column ? 'none' : column.order > 0 ? 'asc' : 'dsc']"></span>
-                                </th>
-                            </tr>
-                            <tr v-for="result in results">
-                                <td><a v-bind:class="getStatusColorClass(result.status)" v-bind:href="result.url" class="text-decoration-none" target="_blank">[[result.url]]</a></td>
-                                <td><a v-bind:class="getStatusColorClass(result.status)" class="text-decoration-none" target="_blank">[[result.status]]</a></td>
-                                <td><a :title="result.contentLength" target="_blank">[[getReadableSize(result.contentLength)]]</a></td>
-                                <td><a target="_blank">[[result.contentType]]</a></td>
-                                <!-- If you remove the "style" attribute, the redirect URL will be colored, it's a weird bug that I haven't figured out yet -->
-                                <td><a :href="joinUrl(result.url, result.redirect)" target="_blank" style="color: #eef1f3;">[[result.redirect]]</a></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+<body>
+  <header class="navbar">
+    <h1><a href="https://github.com/maurosoria/dirsearch">dirsearch</a></h1>
+  </header>
+  <main class="report">
+    <section class="metadata">
+      <strong>Command:</strong>
+      <code>{{ metadata['command'] | e | replace('[', '<code>[</code>') }}</code>
+      <br>
+      <strong>Time:</strong> <span>{{ metadata['date'] | e }}</span>
+    </section>
+
+    <section class="filters">
+      <input id="status-exclude" type="text" placeholder="Exclude status codes, separated by space">
+      <input id="length-exclude" type="text" placeholder="Exclude content lengths, separated by space">
+      <button id="open-urls" type="button">Open all URLs</button>
+      <input id="search" class="search-all" type="text" placeholder="Search">
+    </section>
+
+    <div class="table-responsive">
+      <table>
+        <thead>
+          <tr>
+            <th data-column="url">URL <span class="arrow none"></span></th>
+            <th data-column="status">Status <span class="arrow none"></span></th>
+            <th data-column="contentLength">Content Length <span class="arrow none"></span></th>
+            <th data-column="contentType">Content Type <span class="arrow none"></span></th>
+            <th data-column="redirect">Redirect <span class="arrow none"></span></th>
+          </tr>
+        </thead>
+        <tbody id="results-body">
+{% for result in results %}
+{% set status_class = "status-success" if result.status <= 299 else "status-info" if result.status <= 399 else "status-warning" if result.status <= 499 else "status-danger" if result.status <= 599 else "" %}
+          <tr data-report-result>
+            <td><span class="{{ status_class }}">{{ result.url | e }}</span></td>
+            <td><span class="{{ status_class }}">{{ result.status }}</span></td>
+            <td><span title="{{ result.contentLength }}">{{ result.contentLength }} B</span></td>
+            <td><span>{{ result.contentType | e }}</span></td>
+            <td><span>{{ result.redirect | e }}</span></td>
+          </tr>
+{% endfor %}
+        </tbody>
+      </table>
     </div>
+  </main>
 </body>
 </html>
