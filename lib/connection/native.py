@@ -26,6 +26,7 @@ from lib.core.request_backend import (
     CLIENT_CERTIFICATE_PAIR_ERROR,
     NATIVE_PROXY_SCHEME_ERROR,
     NATIVE_SOCKS4_AUTH_ERROR,
+    get_native_authentication_error,
 )
 from lib.core.settings import MAX_REDIRECTS, MAX_RESPONSE_SIZE, PROXY_SCHEMES
 from lib.core.wordlist_backend import NativeWordlistBatch
@@ -56,6 +57,7 @@ class NativeHTTPBackend:
         self,
         proxy_override: str | None = None,
         session: Any | None = None,
+        auth_override: tuple[str, str] | None = None,
     ) -> None:
         try:
             import dirsearch_native
@@ -74,6 +76,11 @@ class NativeHTTPBackend:
         self._session = (
             session if session is not None else self._native.NativeHttpSession()
         )
+        self._auth_type, self._auth_credential = auth_override or (
+            (options["auth_type"], options["auth"])
+            if options["auth"]
+            else ("", "")
+        )
         self._client_certificate, self._client_key = self._load_client_identity()
         self._cancel_lock = threading.Lock()
         # Preserve cancellation requested before lazy engine creation.
@@ -87,7 +94,11 @@ class NativeHTTPBackend:
             else self._proxy_urls()
         )
         body = self._request_body()
-        headers = list(options["headers"].items())
+        headers = [
+            (name, value)
+            for name, value in options["headers"].items()
+            if not self._auth_type or name.lower() != "authorization"
+        ]
         if body and not any(name.lower() == "content-type" for name, _ in headers):
             headers.append(("content-type", guess_mimetype(options["data"])))
 
@@ -102,6 +113,8 @@ class NativeHTTPBackend:
             "body": body,
             "client_certificate": self._client_certificate,
             "client_key": self._client_key,
+            "auth_type": self._auth_type,
+            "auth_credential": self._auth_credential,
         }
         if self._engine is None or config != self._engine_config:
             try:
@@ -119,6 +132,12 @@ class NativeHTTPBackend:
         """Opaque Rust state shared with engines created for replay requests."""
 
         return self._session
+
+    def set_origin_authentication(
+        self, auth_type: str, credential: str
+    ) -> None:
+        self._auth_type = auth_type
+        self._auth_credential = credential
 
     @staticmethod
     def _request_body() -> bytes:
@@ -398,6 +417,12 @@ class NativeRequester:
     def __init__(self) -> None:
         self._url = ""
         self._query = ""
+        self._configured_auth = (
+            (options["auth_type"], options["auth"])
+            if options["auth"]
+            else ("", "")
+        )
+        self._origin_auth = self._configured_auth
         # Controller creates the requester before entering its per-target error
         # handler. Delay the optional extension import until a scan actually
         # starts so a missing build is reported as a normal request error.
@@ -405,7 +430,7 @@ class NativeRequester:
 
     def get_backend(self) -> NativeHTTPBackend:
         if self.backend is None:
-            self.backend = NativeHTTPBackend()
+            self.backend = NativeHTTPBackend(auth_override=self._origin_auth)
         return self.backend
 
     @property
@@ -422,12 +447,19 @@ class NativeRequester:
         raise RequestException("--request-backend native does not support --ip yet")
 
     def reset_auth(self) -> None:
-        return None
+        self._set_origin_authentication(*self._configured_auth)
 
-    def set_auth(self, *_args) -> None:
-        raise RequestException(
-            "--request-backend native does not support authentication yet"
-        )
+    def set_auth(self, auth_type: str, credential: str) -> None:
+        if error := get_native_authentication_error(auth_type):
+            raise RequestException(error)
+        self._set_origin_authentication(auth_type, credential)
+
+    def _set_origin_authentication(
+        self, auth_type: str, credential: str
+    ) -> None:
+        self._origin_auth = (auth_type, credential)
+        if self.backend is not None:
+            self.backend.set_origin_authentication(auth_type, credential)
 
     def request(self, path: str, proxy: str | None = None) -> NativeResponse:
         if proxy:
@@ -435,6 +467,7 @@ class NativeRequester:
             backend = NativeHTTPBackend(
                 proxy_override=proxy,
                 session=origin_backend.session,
+                auth_override=self._origin_auth,
             )
         else:
             backend = self.get_backend()

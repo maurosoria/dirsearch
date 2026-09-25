@@ -52,10 +52,7 @@ from lib.core.options import (
     validate_random_agent_headers,
     validate_regex_options,
 )
-from lib.core.request_backend import (
-    get_native_request_backend_error,
-    get_native_target_error,
-)
+from lib.core.request_backend import get_native_request_backend_error
 from lib.core.settings import (
     BANNER,
     DEFAULT_HEADERS,
@@ -695,10 +692,6 @@ class Controller:
             break
 
     def set_target(self, url: str) -> None:
-        if options["request_backend"] == "native":
-            if error := get_native_target_error(url):
-                raise InvalidURLException(error)
-
         # If no scheme specified, unset it first
         if "://" not in url:
             url = f'{options["scheme"] or UNKNOWN}://{url}'

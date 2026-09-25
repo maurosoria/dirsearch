@@ -29,6 +29,14 @@ retaining headers or body data. Python still owns callbacks, session recovery,
 and dynamically discovered paths. Native regex matching uses the hybrid
 `fancy-regex` engine: ordinary expressions retain the finite-automata fast path,
 while lookarounds and backreferences run in its bounded backtracking engine.
+Basic, Bearer/JWT, Digest, and target-embedded Basic origin authentication are
+performed inside the native engine. Digest challenge responses stay scoped to
+the original origin, including when redirects are enabled, and are cached per
+origin for later requests. Digest cannot be combined with byte-preserving raw
+HTTP targets, so that combination fails explicitly instead of silently sending
+an unauthenticated request. NTLM remains an explicit parse-time error because
+the native transport cannot yet guarantee both HTTPS channel binding and
+connection affinity under concurrent scans.
 
 ## Request state and ownership
 
