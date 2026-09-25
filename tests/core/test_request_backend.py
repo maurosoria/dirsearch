@@ -140,23 +140,36 @@ class TestRequestBackend(TestCase):
             )
         )
 
-    def test_native_rejects_embedded_target_credentials(self):
-        self.assertEqual(
-            get_native_request_backend_error(
-                native_options(urls=["https://user:pass@example.com"])
-            ),
-            "--request-backend native does not support credentials embedded "
-            "in target URLs yet",
-        )
+    def test_native_accepts_preemptive_authentication(self):
+        for auth_type in ("basic", "bearer", "jwt"):
+            with self.subTest(auth_type=auth_type):
+                self.assertIsNone(
+                    get_native_request_backend_error(
+                        native_options(auth="credential", auth_type=auth_type)
+                    )
+                )
 
-    def test_native_rejects_embedded_target_credentials_without_scheme(self):
-        self.assertEqual(
-            get_native_request_backend_error(
-                native_options(urls=["user:pass@example.com"])
-            ),
-            "--request-backend native does not support credentials embedded "
-            "in target URLs yet",
-        )
+    def test_native_rejects_challenge_authentication(self):
+        for auth_type in ("digest", "ntlm"):
+            with self.subTest(auth_type=auth_type):
+                self.assertEqual(
+                    get_native_request_backend_error(
+                        native_options(auth="user:password", auth_type=auth_type)
+                    ),
+                    "--request-backend native supports Basic and Bearer/JWT "
+                    "authentication only; use the threaded or async engine "
+                    "for Digest/NTLM",
+                )
+
+    def test_native_accepts_embedded_target_credentials(self):
+        for url in (
+            "https://user:pass@example.com",
+            "user:pass@example.com",
+        ):
+            with self.subTest(url=url):
+                self.assertIsNone(
+                    get_native_request_backend_error(native_options(urls=[url]))
+                )
 
     def test_native_accepts_follow_redirects(self):
         self.assertIsNone(

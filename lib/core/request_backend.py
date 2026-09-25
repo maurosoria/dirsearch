@@ -5,6 +5,11 @@ from urllib.parse import urlparse
 
 
 REQUEST_BACKENDS = ("python", "native")
+NATIVE_PREEMPTIVE_AUTH_TYPES = ("basic", "bearer", "jwt")
+NATIVE_CHALLENGE_AUTH_ERROR = (
+    "--request-backend native supports Basic and Bearer/JWT authentication "
+    "only; use the threaded or async engine for Digest/NTLM"
+)
 
 
 def get_async_request_backend_error(opt: Values) -> str | None:
@@ -22,15 +27,10 @@ def get_async_request_backend_error(opt: Values) -> str | None:
     return None
 
 
-def get_native_target_error(url: str) -> str | None:
-    parsed = urlparse(url if "://" in url else f"//{url}")
-    if parsed.username is not None:
-        return (
-            "--request-backend native does not support credentials embedded "
-            "in target URLs yet"
-        )
-
-    return None
+def get_native_authentication_error(auth_type: str | None) -> str | None:
+    if auth_type in NATIVE_PREEMPTIVE_AUTH_TYPES:
+        return None
+    return NATIVE_CHALLENGE_AUTH_ERROR
 
 
 def get_native_request_backend_error(opt: Values) -> str | None:
@@ -42,8 +42,10 @@ def get_native_request_backend_error(opt: Values) -> str | None:
         parsed = urlparse(proxy if "://" in proxy else f"http://{proxy}")
         if parsed.scheme not in ("http", "https"):
             return "--request-backend native supports HTTP and HTTPS proxies only"
-    if opt.auth or opt.auth_type:
-        return "--request-backend native does not support authentication yet"
+    if (opt.auth or opt.auth_type) and (
+        error := get_native_authentication_error(opt.auth_type)
+    ):
+        return error
     if opt.cert_file or opt.key_file:
         return "--request-backend native does not support client certificates yet"
     if opt.random_agents:
@@ -56,8 +58,4 @@ def get_native_request_backend_error(opt: Values) -> str | None:
         return "--request-backend native does not support --max-rate yet"
     if opt.delay:
         return "--request-backend native does not support --delay yet"
-    for url in opt.urls:
-        if error := get_native_target_error(url):
-            return error
-
     return None

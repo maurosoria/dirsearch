@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import threading
 
 from collections.abc import Iterable, Iterator
@@ -20,6 +21,7 @@ from lib.core.native_runtime import (
     get_native_backend_install_error,
     get_native_extension_version_error,
 )
+from lib.core.request_backend import get_native_authentication_error
 from lib.core.settings import MAX_REDIRECTS, MAX_RESPONSE_SIZE
 from lib.core.wordlist_backend import NativeWordlistBatch
 from lib.utils.mimetype import guess_mimetype
@@ -44,7 +46,11 @@ class NativeScanBatch:
 
 
 class NativeHTTPBackend:
-    def __init__(self, proxy_override: str | None = None) -> None:
+    def __init__(
+        self,
+        proxy_override: str | None = None,
+        origin_authorization: str | None = None,
+    ) -> None:
         try:
             import dirsearch_native
         except ImportError as e:
@@ -59,6 +65,7 @@ class NativeHTTPBackend:
         self._filter_config = None
         self._empty_filter_config = None
         self._proxy_override = proxy_override
+        self._origin_authorization = origin_authorization
         self._cancel_lock = threading.Lock()
         # Preserve cancellation requested before lazy engine creation.
         self._cancel_generation = 0
@@ -71,7 +78,7 @@ class NativeHTTPBackend:
             else self._proxy_urls()
         )
         body = self._request_body()
-        headers = list(options["headers"].items())
+        headers = self._request_headers()
         if body and not any(name.lower() == "content-type" for name, _ in headers):
             headers.append(("content-type", guess_mimetype(options["data"])))
 
@@ -89,6 +96,20 @@ class NativeHTTPBackend:
             self._engine = self._native.NativeHttpEngine(**config)
             self._engine_config = config
         return self._engine
+
+    def _request_headers(self) -> list[tuple[str, str]]:
+        headers = [
+            (name, value)
+            for name, value in options["headers"].items()
+            if self._origin_authorization is None
+            or name.lower() != "authorization"
+        ]
+        if self._origin_authorization is not None:
+            headers.append(("authorization", self._origin_authorization))
+        return headers
+
+    def set_origin_authorization(self, authorization: str | None) -> None:
+        self._origin_authorization = authorization
 
     @staticmethod
     def _request_body() -> bytes:
@@ -344,6 +365,12 @@ class NativeRequester:
     def __init__(self) -> None:
         self._url = ""
         self._query = ""
+        self._configured_authorization = (
+            self._authorization_header(options["auth_type"], options["auth"])
+            if options["auth"]
+            else None
+        )
+        self._origin_authorization = self._configured_authorization
         # Controller creates the requester before entering its per-target error
         # handler. Delay the optional extension import until a scan actually
         # starts so a missing build is reported as a normal request error.
@@ -351,7 +378,9 @@ class NativeRequester:
 
     def get_backend(self) -> NativeHTTPBackend:
         if self.backend is None:
-            self.backend = NativeHTTPBackend()
+            self.backend = NativeHTTPBackend(
+                origin_authorization=self._origin_authorization
+            )
         return self.backend
 
     @property
@@ -368,16 +397,40 @@ class NativeRequester:
         raise RequestException("--request-backend native does not support --ip yet")
 
     def reset_auth(self) -> None:
-        return None
+        self._set_origin_authorization(self._configured_authorization)
 
-    def set_auth(self, *_args) -> None:
-        raise RequestException(
-            "--request-backend native does not support authentication yet"
+    def set_auth(self, auth_type: str, credential: str) -> None:
+        self._set_origin_authorization(
+            self._authorization_header(auth_type, credential)
         )
+
+    def _set_origin_authorization(self, authorization: str | None) -> None:
+        self._origin_authorization = authorization
+        if self.backend is not None:
+            self.backend.set_origin_authorization(authorization)
+
+    @staticmethod
+    def _authorization_header(auth_type: str | None, credential: str) -> str:
+        if error := get_native_authentication_error(auth_type):
+            raise RequestException(error)
+        if auth_type in ("bearer", "jwt"):
+            return f"Bearer {credential}"
+
+        try:
+            user, password = credential.split(":", 1)
+        except ValueError:
+            user, password = credential, ""
+        token = base64.b64encode(f"{user}:{password}".encode("utf-8")).decode(
+            "ascii"
+        )
+        return f"Basic {token}"
 
     def request(self, path: str, proxy: str | None = None) -> NativeResponse:
         backend = (
-            NativeHTTPBackend(proxy_override=proxy)
+            NativeHTTPBackend(
+                proxy_override=proxy,
+                origin_authorization=self._origin_authorization,
+            )
             if proxy
             else self.get_backend()
         )

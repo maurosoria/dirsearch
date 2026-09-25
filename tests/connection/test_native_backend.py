@@ -123,6 +123,8 @@ class TestNativeHTTPBackend(TestCase):
                 "http_method": "GET",
                 "data": None,
                 "headers": {"user-agent": "dirsearch-test"},
+                "auth": None,
+                "auth_type": None,
                 "proxies": ["127.0.0.1:8080"],
                 "proxy_auth": "user:password",
                 "max_retries": 2,
@@ -355,6 +357,125 @@ class TestNativeHTTPBackend(TestCase):
         self.assertEqual(kwargs["query"], "scope=one")
         self.assertFalse(kwargs["compact_filtered"])
         self.assertIs(kwargs["filter_config"], fake_native.filter_configs[0])
+
+    def test_native_requester_sends_configured_preemptive_authentication(self):
+        cases = (
+            (
+                "basic",
+                "usér:päss:tail",
+                "Basic dXPDqXI6cMOkc3M6dGFpbA==",
+            ),
+            ("basic", "user", "Basic dXNlcjo="),
+            ("bearer", "opaque-token", "Bearer opaque-token"),
+            ("jwt", "header.payload.signature", "Bearer header.payload.signature"),
+        )
+
+        for auth_type, credential, expected in cases:
+            with self.subTest(auth_type=auth_type, credential=credential):
+                options["auth"] = credential
+                options["auth_type"] = auth_type
+                options["headers"] = {
+                    "user-agent": "dirsearch-test",
+                    "Authorization": "Bearer overridden-header",
+                }
+                fake_native = FakeNativeModule()
+
+                with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
+                    requester = NativeRequester()
+                    requester.set_url("https://example.com/")
+                    requester.request("admin")
+
+                authorization = [
+                    value
+                    for name, value in fake_native.engines[0].config["headers"]
+                    if name.lower() == "authorization"
+                ]
+                self.assertEqual(authorization, [expected])
+
+    def test_target_authentication_is_restored_without_cross_target_leakage(self):
+        options["auth"] = "configured-token"
+        options["auth_type"] = "bearer"
+        fake_native = FakeNativeModule()
+
+        with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
+            requester = NativeRequester()
+            requester.set_url("https://example.com/")
+            requester.set_auth("basic", "target-user:target-password")
+            requester.request("first")
+            requester.reset_auth()
+            requester.request("second")
+
+        authorization = [
+            [
+                value
+                for name, value in engine.config["headers"]
+                if name.lower() == "authorization"
+            ]
+            for engine in fake_native.engines
+        ]
+        self.assertEqual(
+            authorization,
+            [
+                ["Basic dGFyZ2V0LXVzZXI6dGFyZ2V0LXBhc3N3b3Jk"],
+                ["Bearer configured-token"],
+            ],
+        )
+
+    def test_reset_auth_restores_explicit_authorization_header(self):
+        options["headers"]["Authorization"] = "Bearer explicit-header"
+        fake_native = FakeNativeModule()
+
+        with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
+            requester = NativeRequester()
+            requester.set_url("https://example.com/")
+            requester.set_auth("basic", "target-user:target-password")
+            requester.request("first")
+            requester.reset_auth()
+            requester.request("second")
+
+        authorization = [
+            [
+                value
+                for name, value in engine.config["headers"]
+                if name.lower() == "authorization"
+            ]
+            for engine in fake_native.engines
+        ]
+        self.assertEqual(
+            authorization,
+            [
+                ["Basic dGFyZ2V0LXVzZXI6dGFyZ2V0LXBhc3N3b3Jk"],
+                ["Bearer explicit-header"],
+            ],
+        )
+
+    def test_replay_proxy_uses_current_origin_authentication(self):
+        options["auth"] = "replay-token"
+        options["auth_type"] = "jwt"
+        options["proxy_auth"] = None
+        fake_native = FakeNativeModule()
+
+        with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
+            requester = NativeRequester()
+            requester.set_url("https://example.com/")
+            requester.request("admin", proxy="http://replay.invalid:8080")
+
+        config = fake_native.engines[0].config
+        self.assertEqual(config["proxies"], ["http://replay.invalid:8080"])
+        self.assertIn(("authorization", "Bearer replay-token"), config["headers"])
+
+    def test_native_requester_rejects_challenge_authentication(self):
+        requester = NativeRequester()
+
+        for auth_type in ("digest", "ntlm"):
+            with (
+                self.subTest(auth_type=auth_type),
+                self.assertRaisesRegex(
+                    RequestException,
+                    "supports Basic and Bearer/JWT authentication only",
+                ),
+            ):
+                requester.set_auth(auth_type, "user:password")
 
     def test_response_url_uses_the_target_prepared_by_native(self):
         result = FakeNativeResult()

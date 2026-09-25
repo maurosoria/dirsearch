@@ -38,7 +38,7 @@ from requests.packages import urllib3
 
 from lib.connection import requester as requester_module
 from lib.connection import response as response_module
-from lib.connection.native import NativeHTTPBackend
+from lib.connection.native import NativeHTTPBackend, NativeRequester
 from lib.connection.rate_limiter import RequestRateLimiter
 from lib.connection.requester import (
     AsyncRequester,
@@ -55,6 +55,7 @@ from lib.connection.requester import (
 from lib.core.data import options
 from lib.core.exceptions import RequestException
 from lib.core.settings import MAX_REDIRECTS
+from lib.controller.controller import Controller
 from lib.report.jsonl_response_store import JsonlResponseStore
 from lib.report.response_store import ResponseArtifact
 
@@ -119,6 +120,11 @@ REQUEST_BODY_CASES = (
     ("utf-8", "value=\u00e9&city=\u6771\u4eac\r\n".encode("utf-8")),
     ("windows-1252", "value=\u00e9&currency=\u20ac\r\n".encode("cp1252")),
 )
+AUTHENTICATION_CASES = (
+    ("basic", "user:password", "Basic dXNlcjpwYXNzd29yZA=="),
+    ("bearer", "opaque-token", "Bearer opaque-token"),
+    ("jwt", "header.payload.signature", "Bearer header.payload.signature"),
+)
 
 
 class RequestTargetTCPServer(socketserver.TCPServer):
@@ -175,6 +181,12 @@ class RequestTargetHandler(http.server.BaseHTTPRequestHandler):
         if route_target == b"/redirect":
             self.send_response(302)
             self.send_header("location", "/final")
+            self.end_headers()
+            return
+
+        if route_target == b"/external-redirect":
+            self.send_response(302)
+            self.send_header("location", self.server.external_redirect_url)
             self.end_headers()
             return
 
@@ -270,6 +282,7 @@ class RequestTargetServer:
         self.server.request_bodies = []
         self.server.request_methods = []
         self.server.target_counts = {}
+        self.server.external_redirect_url = None
         self.thread = threading.Thread(
             target=lambda: self.server.serve_forever(poll_interval=0.05),
             daemon=True,
@@ -969,6 +982,40 @@ class TestRequesterBodyPreservation(BaseRequesterTestCase):
             server.request_bodies,
             [body for _, body in REQUEST_BODY_CASES],
         )
+
+
+class TestRequesterAuthenticationParity(BaseRequesterTestCase):
+    def test_sync_requester_sends_supported_preemptive_authentication(self):
+        with RequestTargetServer() as server:
+            for auth_type, credential, expected in AUTHENTICATION_CASES:
+                with self.subTest(auth_type=auth_type):
+                    options["auth"] = credential
+                    options["auth_type"] = auth_type
+                    requester = Requester()
+                    requester.set_url(server.url)
+                    try:
+                        requester.request(auth_type)
+                    finally:
+                        requester.close()
+                    self.assertEqual(server.authorizations[-1], expected)
+
+
+class TestAsyncRequesterAuthenticationParity(
+    BaseRequesterTestCase, IsolatedAsyncioTestCase
+):
+    async def test_async_requester_sends_supported_preemptive_authentication(self):
+        with RequestTargetServer() as server:
+            for auth_type, credential, expected in AUTHENTICATION_CASES:
+                with self.subTest(auth_type=auth_type):
+                    options["auth"] = credential
+                    options["auth_type"] = auth_type
+                    requester = AsyncRequester()
+                    requester.set_url(server.url)
+                    try:
+                        await requester.request(auth_type)
+                    finally:
+                        await requester.close()
+                    self.assertEqual(server.authorizations[-1], expected)
 
 
 class TestRequesterProxyRouting(BaseRequesterTestCase):
@@ -1759,6 +1806,71 @@ class TestAsyncRequesterPathPreservation(BaseRequesterTestCase, IsolatedAsyncioT
 
 
 class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
+    def native_requester_or_skip(self):
+        requester = NativeRequester()
+        try:
+            requester.get_backend()
+        except RequestException as error:
+            self.skipTest(str(error))
+        return requester
+
+    def test_native_requester_sends_basic_bearer_and_jwt_authentication(self):
+        cases = AUTHENTICATION_CASES + (
+            ("basic", "usér:päss:tail", "Basic dXPDqXI6cMOkc3M6dGFpbA=="),
+        )
+
+        with RequestTargetServer() as server:
+            for auth_type, credential, expected in cases:
+                with self.subTest(auth_type=auth_type, credential=credential):
+                    options["auth"] = credential
+                    options["auth_type"] = auth_type
+                    requester = self.native_requester_or_skip()
+                    requester.set_url(server.url)
+                    path = "raw%1" if credential.startswith("usér:") else auth_type
+                    requester.request(path)
+                    self.assertEqual(server.authorizations[-1], expected)
+
+    def test_native_target_authentication_is_restored_for_the_next_target(self):
+        options["auth"] = "configured-token"
+        options["auth_type"] = "bearer"
+
+        with RequestTargetServer() as server:
+            requester = self.native_requester_or_skip()
+            controller = object.__new__(Controller)
+            controller.requester = requester
+            target_with_credentials = server.url.replace(
+                "http://",
+                "http://target-user:p%40ss%3Atail@",
+            )
+
+            controller.set_target(target_with_credentials)
+            requester.request("first")
+            controller.set_target(server.url)
+            requester.request("second")
+
+        self.assertEqual(
+            server.authorizations,
+            [
+                "Basic dGFyZ2V0LXVzZXI6cEBzczp0YWls",
+                "Bearer configured-token",
+            ],
+        )
+
+    def test_native_cross_origin_redirect_strips_authentication(self):
+        options["auth"] = "redirect-token"
+        options["auth_type"] = "bearer"
+        options["follow_redirects"] = True
+
+        with RequestTargetServer() as origin, RequestTargetServer() as destination:
+            origin.server.external_redirect_url = destination.url + "final"
+            requester = self.native_requester_or_skip()
+            requester.set_url(origin.url)
+            response = requester.request("external-redirect")
+
+        self.assertEqual(response.status, 200)
+        self.assertEqual(origin.authorizations, ["Bearer redirect-token"])
+        self.assertEqual(destination.authorizations, [None])
+
     def test_native_requester_preserves_methods_and_request_body_bytes(self):
         try:
             backend = NativeHTTPBackend()
