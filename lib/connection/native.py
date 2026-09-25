@@ -27,7 +27,12 @@ from lib.core.request_backend import (
     NATIVE_PROXY_SCHEME_ERROR,
     NATIVE_SOCKS4_AUTH_ERROR,
 )
-from lib.core.settings import MAX_REDIRECTS, MAX_RESPONSE_SIZE, PROXY_SCHEMES
+from lib.core.settings import (
+    MAX_REDIRECTS,
+    MAX_RESPONSE_SIZE,
+    PROXY_SCHEMES,
+    SCRIPT_PATH,
+)
 from lib.core.wordlist_backend import NativeWordlistBatch
 from lib.utils.file import FileUtils
 from lib.utils.mimetype import guess_mimetype
@@ -68,6 +73,7 @@ class NativeHTTPBackend:
         self._empty_filter_config = None
         self._proxy_override = proxy_override
         self._client_certificate, self._client_key = self._load_client_identity()
+        self._random_user_agents = self._load_random_user_agents()
         self._cancel_lock = threading.Lock()
         # Preserve cancellation requested before lazy engine creation.
         self._cancel_generation = 0
@@ -80,7 +86,13 @@ class NativeHTTPBackend:
             else self._proxy_urls()
         )
         body = self._request_body()
-        headers = list(options["headers"].items())
+        headers = [
+            (name, value)
+            for name, value in options["headers"].items()
+            if not (
+                self._random_user_agents and name.lower() == "user-agent"
+            )
+        ]
         if body and not any(name.lower() == "content-type" for name, _ in headers):
             headers.append(("content-type", guess_mimetype(options["data"])))
 
@@ -95,6 +107,7 @@ class NativeHTTPBackend:
             "body": body,
             "client_certificate": self._client_certificate,
             "client_key": self._client_key,
+            "random_user_agents": self._random_user_agents,
         }
         if self._engine is None or config != self._engine_config:
             try:
@@ -131,6 +144,19 @@ class NativeHTTPBackend:
                 "Client certificate and private key files must not be empty"
             )
         return certificate, key
+
+    @staticmethod
+    def _load_random_user_agents() -> list[str]:
+        if not options["random_agents"]:
+            return []
+        try:
+            return FileUtils.get_lines(
+                FileUtils.build_path(SCRIPT_PATH, "db", "user-agents.txt")
+            )
+        except OSError as error:
+            raise RequestException(
+                f"Could not read random User-Agent list: {error}"
+            ) from error
 
     def cancel(self) -> None:
         with self._cancel_lock:

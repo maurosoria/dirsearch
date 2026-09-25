@@ -15,7 +15,7 @@ use rustls::{RootCertStore, ServerConfig};
 use std::io::{ErrorKind, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::atomic::AtomicBool;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Barrier, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -129,6 +129,16 @@ fn run_reqwest_request(
     responses: Vec<&'static [u8]>,
     max_retries: usize,
 ) -> (NativeHttpResult, Vec<Vec<u8>>) {
+    run_reqwest_request_with_user_agents(method, body, responses, max_retries, None)
+}
+
+fn run_reqwest_request_with_user_agents(
+    method: Method,
+    body: Bytes,
+    responses: Vec<&'static [u8]>,
+    max_retries: usize,
+    random_user_agents: Option<&RandomUserAgentPool>,
+) -> (NativeHttpResult, Vec<Vec<u8>>) {
     let (base_url, server, requests) = spawn_retry_body_server(responses);
     let client = build_http_client(&HeaderMap::new(), 1, 2.0, false, 30, None, None).unwrap();
     let runtime = tokio::runtime::Builder::new_current_thread()
@@ -146,6 +156,7 @@ fn run_reqwest_request(
         Instant::now() - Duration::from_secs(5),
         &default_filter_config(),
         false,
+        random_user_agents,
     ));
     server.join().unwrap();
     let requests = Arc::try_unwrap(requests).unwrap().into_inner().unwrap();
@@ -162,6 +173,16 @@ fn run_raw_request(
     responses: Vec<&'static [u8]>,
     max_retries: usize,
 ) -> (NativeHttpResult, Vec<Vec<u8>>) {
+    run_raw_request_with_user_agents(method, body, responses, max_retries, None)
+}
+
+fn run_raw_request_with_user_agents(
+    method: &str,
+    body: &[u8],
+    responses: Vec<&'static [u8]>,
+    max_retries: usize,
+    random_user_agents: Option<&RandomUserAgentPool>,
+) -> (NativeHttpResult, Vec<Vec<u8>>) {
     let (base_url, server, requests) = spawn_retry_body_server(responses);
     let headers = Vec::new();
     let runtime = tokio::runtime::Builder::new_current_thread()
@@ -175,6 +196,7 @@ fn run_raw_request(
             method,
             body,
             headers: &headers,
+            random_user_agents,
             timeout_secs: 30.0,
             max_body_size: 80,
             start: Instant::now() - Duration::from_secs(5),
@@ -186,6 +208,14 @@ fn run_raw_request(
     server.join().unwrap();
     let requests = Arc::try_unwrap(requests).unwrap().into_inner().unwrap();
     (result, requests)
+}
+
+fn request_header(request: &[u8], expected_name: &str) -> Option<String> {
+    String::from_utf8_lossy(request).lines().find_map(|line| {
+        let (name, value) = line.split_once(':')?;
+        name.eq_ignore_ascii_case(expected_name)
+            .then(|| value.trim().to_string())
+    })
 }
 
 fn assert_final_attempt_elapsed(result: &NativeHttpResult) {
@@ -257,6 +287,7 @@ fn reqwest_redirects_preserve_every_requested_url_in_history() {
         std::time::Instant::now(),
         &default_filter_config(),
         false,
+        None,
     ));
     server.join().unwrap();
 
@@ -300,6 +331,121 @@ fn raw_exhausted_retry_elapsed_reports_only_the_final_attempt() {
 
     assert!(result.error.is_some());
     assert_final_attempt_elapsed(&result);
+}
+
+#[test]
+fn reqwest_retries_select_a_request_local_user_agent_for_every_attempt() {
+    let values = vec![
+        "retry-agent-one".to_string(),
+        "retry-agent-two".to_string(),
+        "retry-agent-three".to_string(),
+    ];
+    let expected_pool = RandomUserAgentPool::seeded(values.clone(), 7)
+        .unwrap()
+        .unwrap();
+    let expected = [
+        expected_pool.select_text().to_string(),
+        expected_pool.select_text().to_string(),
+    ];
+    let pool = RandomUserAgentPool::seeded(values, 7).unwrap().unwrap();
+
+    let (result, requests) = run_reqwest_request_with_user_agents(
+        Method::GET,
+        Bytes::new(),
+        vec![INCOMPLETE_BODY_RESPONSE, OK_RESPONSE],
+        1,
+        Some(&pool),
+    );
+    let observed = requests
+        .iter()
+        .map(|request| request_header(request, "user-agent").unwrap())
+        .collect::<Vec<_>>();
+
+    assert_eq!(result.status, 200);
+    assert_eq!(observed, expected);
+}
+
+#[test]
+fn raw_retries_select_a_request_local_user_agent_for_every_attempt() {
+    let values = vec![
+        "raw-agent-one".to_string(),
+        "raw-agent-two".to_string(),
+        "raw-agent-three".to_string(),
+    ];
+    let expected_pool = RandomUserAgentPool::seeded(values.clone(), 11)
+        .unwrap()
+        .unwrap();
+    let expected = [
+        expected_pool.select_text().to_string(),
+        expected_pool.select_text().to_string(),
+    ];
+    let pool = RandomUserAgentPool::seeded(values, 11).unwrap().unwrap();
+
+    let (result, requests) = run_raw_request_with_user_agents(
+        "GET",
+        b"",
+        vec![INCOMPLETE_BODY_RESPONSE, OK_RESPONSE],
+        1,
+        Some(&pool),
+    );
+    let observed = requests
+        .iter()
+        .map(|request| request_header(request, "user-agent").unwrap())
+        .collect::<Vec<_>>();
+
+    assert_eq!(result.status, 200);
+    assert_eq!(observed, expected);
+}
+
+#[test]
+fn random_user_agent_selection_is_atomic_under_concurrency() {
+    let values = (0..7)
+        .map(|index| format!("concurrent-agent-{index}"))
+        .collect::<Vec<_>>();
+    let expected_pool = RandomUserAgentPool::seeded(values.clone(), 19)
+        .unwrap()
+        .unwrap();
+    let mut expected = (0..64)
+        .map(|_| expected_pool.select_text().to_string())
+        .collect::<Vec<_>>();
+    let pool = Arc::new(RandomUserAgentPool::seeded(values, 19).unwrap().unwrap());
+    let barrier = Arc::new(Barrier::new(9));
+    let observed = Arc::new(Mutex::new(Vec::new()));
+    let mut workers = Vec::new();
+    for _ in 0..8 {
+        let pool = pool.clone();
+        let barrier = barrier.clone();
+        let observed = observed.clone();
+        workers.push(thread::spawn(move || {
+            barrier.wait();
+            let selected = (0..8)
+                .map(|_| pool.select_text().to_string())
+                .collect::<Vec<_>>();
+            observed.lock().unwrap().extend(selected);
+        }));
+    }
+    barrier.wait();
+    for worker in workers {
+        worker.join().unwrap();
+    }
+    let mut observed = Arc::try_unwrap(observed).unwrap().into_inner().unwrap();
+    expected.sort();
+    observed.sort();
+
+    assert_eq!(observed, expected);
+}
+
+#[test]
+fn invalid_random_user_agent_values_fail_before_requests_start() {
+    let error = RandomUserAgentPool::from_values(vec![
+        "valid-agent".to_string(),
+        "invalid\r\ninjected: header".to_string(),
+    ])
+    .err()
+    .unwrap();
+
+    assert!(error.starts_with("Invalid random User-Agent value:"));
+    assert!(!error.contains("injected: header"));
 }
 
 #[test]
@@ -995,6 +1141,42 @@ fn every_supported_proxy_client_configuration_builds() {
     }
 }
 
+#[test]
+fn proxied_requests_receive_request_local_random_user_agents() {
+    let (proxy_url, server, requests) = spawn_retry_body_server(vec![OK_RESPONSE]);
+    let client =
+        build_http_client(&HeaderMap::new(), 1, 2.0, false, 30, Some(&proxy_url), None).unwrap();
+    let values = vec!["proxy-agent".to_string()];
+    let pool = RandomUserAgentPool::seeded(values, 23).unwrap().unwrap();
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+
+    let result = runtime.block_on(request_with_client(
+        &client,
+        "http://example.test/proxy-path",
+        &Method::GET,
+        Bytes::new(),
+        false,
+        0,
+        80,
+        Instant::now(),
+        &default_filter_config(),
+        false,
+        Some(&pool),
+    ));
+    server.join().unwrap();
+    let requests = Arc::try_unwrap(requests).unwrap().into_inner().unwrap();
+
+    assert_eq!(result.status, 200);
+    assert_eq!(requests.len(), 1);
+    assert_eq!(
+        request_header(&requests[0], "user-agent").as_deref(),
+        Some("proxy-agent")
+    );
+}
+
 struct PemIdentity {
     certificate: Vec<u8>,
     key: Vec<u8>,
@@ -1173,6 +1355,7 @@ async fn run_mutual_tls_request(
         Instant::now(),
         &default_filter_config(),
         false,
+        None,
     )
     .await;
     (result, server.await.unwrap())

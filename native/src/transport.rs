@@ -8,17 +8,89 @@ use crate::result::{
 use async_compression::tokio::bufread::{BrotliDecoder, GzipDecoder, ZlibDecoder};
 use bytes::Bytes;
 use futures_util::TryStreamExt;
-use reqwest::header::{HeaderMap, CONTENT_ENCODING};
+use reqwest::header::{HeaderMap, HeaderValue, CONTENT_ENCODING, USER_AGENT};
 use reqwest::Method;
 use std::cell::RefCell;
+use std::collections::hash_map::RandomState;
+use std::hash::{BuildHasher, Hasher};
 use std::io;
 use std::pin::Pin;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::io::{AsyncRead, AsyncReadExt, BufReader};
 use tokio_util::io::StreamReader;
 
 pub(crate) type HeaderPairs = Vec<(String, String)>;
 type AsyncBodyReader = Pin<Box<dyn AsyncRead + Send>>;
+
+#[derive(Clone)]
+pub(crate) struct RandomUserAgentPool {
+    values: Arc<[RandomUserAgent]>,
+    seed: u64,
+    sequence: Arc<AtomicU64>,
+}
+
+struct RandomUserAgent {
+    raw: String,
+    header: HeaderValue,
+}
+
+impl RandomUserAgentPool {
+    pub(crate) fn from_values(values: Vec<String>) -> Result<Option<Self>, String> {
+        let mut hasher = RandomState::new().build_hasher();
+        hasher.write_usize(values.len());
+        Self::from_values_with_seed(values, hasher.finish())
+    }
+
+    fn from_values_with_seed(values: Vec<String>, seed: u64) -> Result<Option<Self>, String> {
+        if values.is_empty() {
+            return Ok(None);
+        }
+        let values = values
+            .into_iter()
+            .map(|raw| {
+                let header = HeaderValue::try_from(raw.as_str())
+                    .map_err(|error| format!("Invalid random User-Agent value: {error}"))?;
+                Ok(RandomUserAgent { raw, header })
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+        Ok(Some(Self {
+            values: values.into(),
+            seed,
+            sequence: Arc::new(AtomicU64::new(0)),
+        }))
+    }
+
+    fn select(&self) -> &RandomUserAgent {
+        // The counter only gives each attempt a distinct PRNG input; it does
+        // not guard data, so request workers do not need ordering fences.
+        let sequence = self.sequence.fetch_add(1, Ordering::Relaxed);
+        let random = splitmix64(self.seed.wrapping_add(sequence));
+        &self.values[(random as usize) % self.values.len()]
+    }
+
+    pub(crate) fn select_raw(&self) -> &str {
+        &self.select().raw
+    }
+
+    #[cfg(test)]
+    pub(crate) fn seeded(values: Vec<String>, seed: u64) -> Result<Option<Self>, String> {
+        Self::from_values_with_seed(values, seed)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn select_text(&self) -> &str {
+        self.select_raw()
+    }
+}
+
+fn splitmix64(mut value: u64) -> u64 {
+    value = value.wrapping_add(0x9e3779b97f4a7c15);
+    value = (value ^ (value >> 30)).wrapping_mul(0xbf58476d1ce4e5b9);
+    value = (value ^ (value >> 27)).wrapping_mul(0x94d049bb133111eb);
+    value ^ (value >> 31)
+}
 
 tokio::task_local! {
     static REDIRECT_HISTORY: RefCell<Vec<String>>;
@@ -97,6 +169,7 @@ pub(crate) async fn request_with_client(
     start: Instant,
     filter_config: &NativeFilterConfig,
     compact_filtered: bool,
+    random_user_agents: Option<&RandomUserAgentPool>,
 ) -> NativeHttpResult {
     let mut last_error = None;
     let mut attempt_start = start;
@@ -111,6 +184,7 @@ pub(crate) async fn request_with_client(
             attempt_start,
             filter_config,
             compact_filtered,
+            random_user_agents,
         )
         .await
         {
@@ -158,9 +232,14 @@ async fn request_once(
     start: Instant,
     filter_config: &NativeFilterConfig,
     compact_filtered: bool,
+    random_user_agents: Option<&RandomUserAgentPool>,
 ) -> Result<NativeHttpResult, String> {
+    let random_user_agent = random_user_agents.map(RandomUserAgentPool::select);
     let build_request = || {
-        let request = client.request(method.clone(), url);
+        let mut request = client.request(method.clone(), url);
+        if let Some(user_agent) = random_user_agent {
+            request = request.header(USER_AGENT, user_agent.header.clone());
+        }
         if body.is_empty() {
             request
         } else {

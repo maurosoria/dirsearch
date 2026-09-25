@@ -78,3 +78,6 @@ python3 dirsearch.py -u https://target -w db/dicc.txt \
 Client certificate authentication is also applied inside the Rust HTTP client.
 Pass separate PEM certificate and unencrypted private-key files with
 `--cert-file` and `--key-file`; the two options must be used together.
+
+`--random-agent` selects a request-local User-Agent for every attempt,
+including retries, without mutating headers shared by concurrent workers.
