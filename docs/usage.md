@@ -215,6 +215,11 @@ python3 dirsearch.py -e php,html,js -u https://target --proxies-file proxyserver
 
 Supported report formats: `simple`, `plain`, `json`, `xml`, `md`, `csv`, `html`, `sqlite`, `mysql`, and `postgresql`.
 
+JSON, XML, and HTML reports use a private recovery journal beside the output
+while a scan is active, then publish one atomic snapshot at checkpoints and
+completion. If a write or process interruption leaves that hidden journal in
+place, reuse the same output path to recover its pending results.
+
 ```sh
 python3 dirsearch.py -e php -l URLs.txt --output-formats plain --output-file report.txt
 ```

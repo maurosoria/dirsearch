@@ -9,6 +9,7 @@ from unittest import TestCase
 from unittest.mock import patch
 
 from lib.report.csv_report import CSVReport
+from lib.report.factory import StructuredFileReportMixin
 from lib.report.html_report import HTMLReport
 from lib.report.json_report import JSONReport
 from lib.report.markdown_report import MarkdownReport
@@ -76,6 +77,7 @@ class TestAtomicFileReports(TestCase):
                     second_url = "https://example.test/second"
                     report.initiate(destination)
                     report.save(destination, make_result(first_url))
+                    report.flush()
                     original = Path(destination).read_bytes()
 
                     def faulting_open(file, mode="r", *args, **kwargs):
@@ -86,9 +88,15 @@ class TestAtomicFileReports(TestCase):
 
                     def faulting_fdopen(descriptor, mode="r", *args, **kwargs):
                         file_handle = real_fdopen(descriptor, mode, *args, **kwargs)
-                        if "w" in mode or "a" in mode:
+                        if "w" in mode or (
+                            "a" in mode
+                            and not isinstance(report, StructuredFileReportMixin)
+                        ):
                             return PartialWriteFailure(file_handle)
                         return file_handle
+
+                    if isinstance(report, StructuredFileReportMixin):
+                        report.save(destination, make_result(second_url))
 
                     with patch("builtins.open", new=faulting_open), patch(
                         "lib.utils.file.os.fdopen",
@@ -98,7 +106,10 @@ class TestAtomicFileReports(TestCase):
                             OSError,
                             "injected report write failure",
                         ):
-                            report.save(destination, make_result(second_url))
+                            if isinstance(report, StructuredFileReportMixin):
+                                report.flush()
+                            else:
+                                report.save(destination, make_result(second_url))
 
                     self.assertEqual(Path(destination).read_bytes(), original)
                     self.assertIn(first_url, original.decode())
@@ -109,7 +120,10 @@ class TestAtomicFileReports(TestCase):
                     )
                     report.validate(destination)
 
-                    report.save(destination, make_result(second_url))
+                    if isinstance(report, StructuredFileReportMixin):
+                        report.flush()
+                    else:
+                        report.save(destination, make_result(second_url))
                     recovered = Path(destination).read_text()
                     self.assertIn(first_url, recovered)
                     self.assertIn(second_url, recovered)

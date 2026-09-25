@@ -24,10 +24,10 @@ from lib.core.settings import (
     DEFAULT_ENCODING,
     START_TIME,
 )
-from lib.report.factory import BaseReport, FileReportMixin
+from lib.report.factory import BaseReport, StructuredFileReportMixin
 
 
-class XMLReport(FileReportMixin, BaseReport):
+class XMLReport(StructuredFileReportMixin, BaseReport):
     __format__ = "xml"
     __extension__ = "xml"
 
@@ -37,17 +37,42 @@ class XMLReport(FileReportMixin, BaseReport):
     def parse(self, file):
         return ET.parse(file).getroot()
 
+    def _state_for_journal(self, root):
+        def serialize_element(element):
+            text = element.text
+            if text is not None and not text.strip():
+                text = None
+            return {
+                "attributes": dict(element.attrib),
+                "children": [serialize_element(child) for child in element],
+                "tag": element.tag,
+                "text": text,
+            }
+
+        return serialize_element(root)
+
+    @staticmethod
+    def _apply_entry(root, entry):
+        target = ET.SubElement(root, "result", url=entry["url"])
+        ET.SubElement(target, "status").text = str(entry["status"])
+        ET.SubElement(target, "contentLength").text = str(entry["contentLength"])
+        ET.SubElement(target, "contentType").text = entry["contentType"]
+        ET.SubElement(target, "redirect").text = entry["redirect"]
+        if "elapsed" in entry:
+            ET.SubElement(target, "elapsed").text = str(entry["elapsed"])
+
     @locked
     def save(self, file, result):
-        root = self.parse(file)
-        target = ET.SubElement(root, "result", url=result.url)
-        ET.SubElement(target, "status").text = str(result.status)
-        ET.SubElement(target, "contentLength").text = str(result.length)
-        ET.SubElement(target, "contentType").text = result.type
-        ET.SubElement(target, "redirect").text = result.redirect
+        entry = {
+            "url": result.url,
+            "status": result.status,
+            "contentLength": result.length,
+            "contentType": result.type,
+            "redirect": result.redirect,
+        }
         if result.elapsed:
-            ET.SubElement(target, "elapsed").text = str(round(result.elapsed, 3))
-        self.write(file, root)
+            entry["elapsed"] = round(result.elapsed, 3)
+        self.save_entry(file, entry)
 
     def write(self, file, root):
         ET.indent(root)
