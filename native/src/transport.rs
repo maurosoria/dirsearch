@@ -5,7 +5,7 @@ use crate::raw_http;
 use crate::result::{
     native_error_result, native_filtered_marker, native_http_result_with_length, NativeHttpResult,
 };
-use async_compression::tokio::bufread::{BrotliDecoder, GzipDecoder, ZlibDecoder};
+use async_compression::tokio::bufread::{BrotliDecoder, GzipDecoder, ZlibDecoder, ZstdDecoder};
 use bytes::Bytes;
 use futures_util::TryStreamExt;
 use reqwest::header::{HeaderMap, CONTENT_ENCODING};
@@ -275,6 +275,8 @@ async fn read_decoded_body(
             Box::pin(ZlibDecoder::new(buffered))
         } else if encoding.eq_ignore_ascii_case("br") {
             Box::pin(BrotliDecoder::new(buffered))
+        } else if encoding.eq_ignore_ascii_case("zstd") {
+            Box::pin(ZstdDecoder::new(buffered))
         } else {
             return Err(format!("Unsupported HTTP Content-Encoding: {encoding}"));
         };
