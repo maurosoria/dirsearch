@@ -31,7 +31,9 @@ pub(crate) fn build_http_client(
     follow_redirects: bool,
     max_redirects: usize,
     proxy_url: Option<&str>,
-) -> Result<reqwest::Client, reqwest::Error> {
+    client_identity: Option<(&[u8], &[u8])>,
+) -> Result<reqwest::Client, String> {
+    let has_client_identity = client_identity.is_some();
     let mut builder = reqwest::Client::builder()
         .danger_accept_invalid_certs(true)
         .default_headers(headers.clone())
@@ -55,11 +57,32 @@ pub(crate) fn build_http_client(
         .timeout(Duration::from_secs_f64(timeout_secs))
         .pool_max_idle_per_host(concurrency);
 
-    if let Some(proxy_url) = proxy_url {
-        builder = builder.proxy(reqwest::Proxy::all(proxy_url)?);
+    if let Some((client_certificate, client_key)) = client_identity {
+        let mut identity_pem = Vec::with_capacity(client_certificate.len() + client_key.len() + 1);
+        identity_pem.extend_from_slice(client_certificate);
+        if !client_certificate.ends_with(b"\n") {
+            identity_pem.push(b'\n');
+        }
+        identity_pem.extend_from_slice(client_key);
+        let identity = reqwest::Identity::from_pem(&identity_pem)
+            .map_err(|error| format!("Invalid client certificate or private key: {error}"))?;
+        builder = builder.identity(identity);
     }
 
-    builder.build()
+    if let Some(proxy_url) = proxy_url {
+        builder = builder.proxy(reqwest::Proxy::all(proxy_url).map_err(|error| error.to_string())?);
+    }
+
+    builder.build().map_err(|error| {
+        if has_client_identity {
+            format!(
+                "Invalid client certificate or private key: {}",
+                format_error_chain(&error)
+            )
+        } else {
+            error.to_string()
+        }
+    })
 }
 
 #[allow(clippy::too_many_arguments)]

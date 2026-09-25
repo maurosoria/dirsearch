@@ -21,6 +21,7 @@ NATIVE_SOCKS4_AUTH_ERROR = (
     "--request-backend native does not support SOCKS4 user IDs; "
     "use SOCKS5 or the threaded engine when proxy credentials are required"
 )
+CLIENT_CERTIFICATE_PAIR_ERROR = "--cert-file and --key-file must be used together"
 
 
 def get_async_request_backend_error(opt: Values) -> str | None:
@@ -62,8 +63,8 @@ def get_native_request_backend_error(opt: Values) -> str | None:
             return NATIVE_SOCKS4_AUTH_ERROR
     if opt.auth or opt.auth_type:
         return "--request-backend native does not support authentication yet"
-    if opt.cert_file or opt.key_file:
-        return "--request-backend native does not support client certificates yet"
+    if bool(opt.cert_file) != bool(opt.key_file):
+        return CLIENT_CERTIFICATE_PAIR_ERROR
     if opt.random_agents:
         return "--request-backend native does not support --random-agent yet"
     if opt.network_interface:

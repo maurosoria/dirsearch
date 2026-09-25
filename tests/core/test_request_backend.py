@@ -159,6 +159,29 @@ class TestRequestBackend(TestCase):
                     "are required",
                 )
 
+    def test_native_accepts_client_certificate_pair(self):
+        self.assertIsNone(
+            get_native_request_backend_error(
+                native_options(
+                    cert_file="client-cert.pem",
+                    key_file="client-key.pem",
+                )
+            )
+        )
+
+    def test_native_rejects_incomplete_client_certificate_pair(self):
+        for overrides in (
+            {"cert_file": "client-cert.pem"},
+            {"key_file": "client-key.pem"},
+        ):
+            with self.subTest(overrides=overrides):
+                self.assertEqual(
+                    get_native_request_backend_error(
+                        native_options(**overrides)
+                    ),
+                    "--cert-file and --key-file must be used together",
+                )
+
     def test_native_rejects_ip_override(self):
         self.assertEqual(
             get_native_request_backend_error(native_options(ip="127.0.0.1")),
