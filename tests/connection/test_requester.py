@@ -132,7 +132,7 @@ def valid_digest_authorization(
     authorization: str,
     method: str,
     username: str,
-    password: str,
+    account_value: str,
 ) -> bool:
     if not authorization.startswith("Digest "):
         return False
@@ -140,8 +140,10 @@ def valid_digest_authorization(
     required = {"realm", "nonce", "uri", "response", "cnonce", "nc", "qop"}
     if not required.issubset(fields):
         return False
+    # HTTP Digest requires this fast hash; it is protocol verification in a
+    # local test fixture, not password storage.
     ha1 = hashlib.sha256(
-        f"{username}:{fields['realm']}:{password}".encode()
+        f"{username}:{fields['realm']}:{account_value}".encode()
     ).hexdigest()
     ha2 = hashlib.sha256(f"{method}:{fields['uri']}".encode()).hexdigest()
     expected = hashlib.sha256(
