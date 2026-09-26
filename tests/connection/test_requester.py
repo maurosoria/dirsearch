@@ -2502,7 +2502,9 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
 
         self.assertEqual(server.targets, [])
 
-    def test_native_replay_proxy_copies_origin_session_cookies(self):
+    def test_native_replay_proxy_shares_origin_authentication_and_session(self):
+        options["auth"] = "replay-token"
+        options["auth_type"] = "bearer"
         requester = NativeRequester()
         with RequestTargetServer() as server:
             requester.set_url(server.url)
@@ -2516,6 +2518,10 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
 
         self.assertEqual(response.status, 200)
         self.assertEqual(server.cookies, [None, "session=native"])
+        self.assertEqual(
+            server.authorizations,
+            ["Bearer replay-token", "Bearer replay-token"],
+        )
 
     def test_native_replay_proxy_reapplies_cookie_scope_on_redirect(self):
         options["follow_redirects"] = True
