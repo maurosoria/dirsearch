@@ -129,6 +129,8 @@ class TestNativeHTTPBackend(TestCase):
                 "http_method": "GET",
                 "data": None,
                 "headers": {"user-agent": "dirsearch-test"},
+                "auth": None,
+                "auth_type": None,
                 "proxies": ["127.0.0.1:8080"],
                 "proxy_auth": "user:password",
                 "cert_file": None,
@@ -270,6 +272,8 @@ class TestNativeHTTPBackend(TestCase):
         self.assertEqual(engine.config["concurrency"], 7)
         self.assertEqual(engine.config["timeout_secs"], 3.5)
         self.assertEqual(engine.config["max_redirects"], 30)
+        self.assertEqual(engine.config["auth_type"], "")
+        self.assertEqual(engine.config["auth_credential"], "")
         self.assertEqual(
             engine.config["proxies"],
             ["http://user:password@127.0.0.1:8080"],
@@ -312,6 +316,107 @@ class TestNativeHTTPBackend(TestCase):
         self.assertEqual(config["method"], "PATCH")
         self.assertEqual(config["body"], '{"value":"\u00e9"}\r\n'.encode())
         self.assertIn(("content-type", "application/json"), config["headers"])
+
+    def test_engine_receives_authentication_as_native_configuration(self):
+        for auth_type, credential in (
+            ("basic", "user:password:tail"),
+            ("bearer", "opaque-token"),
+            ("jwt", "header.payload.signature"),
+            ("digest", "user:password"),
+        ):
+            with self.subTest(auth_type=auth_type):
+                options["auth"] = credential
+                options["auth_type"] = auth_type
+                options["headers"]["Authorization"] = "Bearer explicit-header"
+                fake_native = FakeNativeModule()
+
+                with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
+                    list(NativeHTTPBackend().scan("https://example.com/", ["admin"]))
+
+                config = fake_native.engines[0].config
+                self.assertEqual(config["auth_type"], auth_type)
+                self.assertEqual(config["auth_credential"], credential)
+                self.assertFalse(
+                    any(
+                        name.lower() == "authorization"
+                        for name, _value in config["headers"]
+                    )
+                )
+
+    def test_target_authentication_is_restored_without_cross_target_leakage(self):
+        options["auth"] = "configured-token"
+        options["auth_type"] = "bearer"
+        fake_native = FakeNativeModule()
+
+        with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
+            requester = NativeRequester()
+            requester.set_url("https://example.com/")
+            requester.set_auth("basic", "target-user:target-password")
+            requester.request("first")
+            requester.reset_auth()
+            requester.request("second")
+
+        self.assertEqual(
+            [
+                (engine.config["auth_type"], engine.config["auth_credential"])
+                for engine in fake_native.engines
+            ],
+            [
+                ("basic", "target-user:target-password"),
+                ("bearer", "configured-token"),
+            ],
+        )
+
+    def test_reset_auth_restores_explicit_authorization_header(self):
+        options["headers"]["Authorization"] = "Bearer explicit-header"
+        fake_native = FakeNativeModule()
+
+        with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
+            requester = NativeRequester()
+            requester.set_url("https://example.com/")
+            requester.set_auth("basic", "target-user:target-password")
+            requester.request("first")
+            requester.reset_auth()
+            requester.request("second")
+
+        self.assertNotIn(
+            ("Authorization", "Bearer explicit-header"),
+            fake_native.engines[0].config["headers"],
+        )
+        self.assertIn(
+            ("Authorization", "Bearer explicit-header"),
+            fake_native.engines[1].config["headers"],
+        )
+
+    def test_replay_proxy_uses_current_origin_authentication(self):
+        options["auth"] = "replay-token"
+        options["auth_type"] = "jwt"
+        options["proxy_auth"] = None
+        fake_native = FakeNativeModule()
+
+        with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
+            requester = NativeRequester()
+            requester.set_url("https://example.com/")
+            requester.request("admin", proxy="http://replay.invalid:8080")
+
+        config = fake_native.engines[0].config
+        self.assertEqual(config["proxies"], ["http://replay.invalid:8080"])
+        self.assertEqual(config["auth_type"], "jwt")
+        self.assertEqual(config["auth_credential"], "replay-token")
+
+    def test_native_requester_rejects_ntlm_before_engine_creation(self):
+        fake_native = FakeNativeModule()
+
+        with (
+            patch.dict("sys.modules", {"dirsearch_native": fake_native}),
+            self.assertRaisesRegex(
+                RequestException,
+                "native does not support NTLM authentication yet",
+            ),
+        ):
+            NativeRequester().set_auth("ntlm", "domain\\user:password")
+
+        self.assertEqual(fake_native.engines, [])
 
     def test_engine_receives_client_identity_bytes(self):
         options["cert_file"] = "client-cert.pem"

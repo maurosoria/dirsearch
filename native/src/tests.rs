@@ -5,6 +5,7 @@ use crate::raw_client::{raw_http_request, RawHttpRequest};
 use crate::session::NativeCookieStore;
 use crate::transport::{request_with_client, ClientRequest};
 use bytes::Bytes;
+use digest_auth::AuthContext;
 use rcgen::{
     date_time_ymd, BasicConstraints, CertificateParams, ExtendedKeyUsagePurpose, IsCa, Issuer,
     KeyPair, KeyUsagePurpose,
@@ -16,6 +17,7 @@ use rustls::server::WebPkiClientVerifier;
 use rustls::{RootCertStore, ServerConfig};
 use std::io::{ErrorKind, Read, Write};
 use std::net::{TcpListener, TcpStream};
+use std::str::FromStr;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -24,6 +26,9 @@ use std::time::{Duration, Instant};
 const INCOMPLETE_BODY_RESPONSE: &[u8] =
     b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\nConnection: close\r\n\r\nno";
 const OK_RESPONSE: &[u8] = b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok";
+const DIGEST_CHALLENGE_RESPONSE: &[u8] = b"HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Digest realm=\"dirsearch-test\", nonce=\"abcdef0123456789\", algorithm=SHA-256, qop=\"auth\"\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+const DIGEST_COOKIE_CHALLENGE_RESPONSE: &[u8] = b"HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Digest realm=\"dirsearch-test\", nonce=\"abcdef0123456789\", algorithm=SHA-256, qop=\"auth\"\r\nSet-Cookie: challenge=session; Path=/\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+const MALFORMED_DIGEST_CHALLENGE_RESPONSE: &[u8] = b"HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Digest realm=\"missing-nonce\"\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
 type CapturedRequests = Arc<Mutex<Vec<Vec<u8>>>>;
 type RetryServer = (String, thread::JoinHandle<()>, CapturedRequests);
 
@@ -57,6 +62,15 @@ fn default_filter_config() -> NativeFilterConfig {
 
 fn content_length(value: usize) -> Vec<(String, String)> {
     vec![("Content-Length".to_string(), value.to_string())]
+}
+
+fn request_header(request: &[u8], expected_name: &str) -> Option<String> {
+    let headers = String::from_utf8_lossy(request);
+    headers.lines().find_map(|line| {
+        let (name, value) = line.split_once(':')?;
+        name.eq_ignore_ascii_case(expected_name)
+            .then(|| value.trim().to_string())
+    })
 }
 
 fn read_http_request(stream: &mut TcpStream) -> Vec<u8> {
@@ -161,10 +175,81 @@ fn run_reqwest_request(
         start: Instant::now() - Duration::from_secs(5),
         filter_config: &filter_config,
         compact_filtered: false,
+        origin_auth: &OriginAuth::None,
     }));
     server.join().unwrap();
     let requests = Arc::try_unwrap(requests).unwrap().into_inner().unwrap();
     (result, requests)
+}
+
+fn run_authenticated_request(
+    auth: OriginAuth,
+    responses: Vec<&'static [u8]>,
+) -> (NativeHttpResult, Vec<Vec<u8>>) {
+    let (mut results, requests) = run_authenticated_requests(auth, responses, 1);
+    (results.remove(0), requests)
+}
+
+fn run_authenticated_requests(
+    auth: OriginAuth,
+    responses: Vec<&'static [u8]>,
+    request_count: usize,
+) -> (Vec<NativeHttpResult>, Vec<Vec<u8>>) {
+    run_authenticated_requests_with_cookie(auth, responses, request_count, None)
+}
+
+fn run_authenticated_requests_with_cookie(
+    auth: OriginAuth,
+    responses: Vec<&'static [u8]>,
+    request_count: usize,
+    initial_cookie_override: Option<reqwest::header::HeaderValue>,
+) -> (Vec<NativeHttpResult>, Vec<Vec<u8>>) {
+    let (base_url, server, requests) = spawn_retry_body_server(responses);
+    let client = build_http_client(
+        &HeaderMap::new(),
+        1,
+        2.0,
+        false,
+        30,
+        None,
+        None,
+        Arc::new(NativeCookieStore::default()),
+    )
+    .unwrap();
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    let results = runtime.block_on(async {
+        let mut results = Vec::with_capacity(request_count);
+        let method = Method::GET;
+        let body = Bytes::new();
+        let filter_config = default_filter_config();
+        for _ in 0..request_count {
+            let url = format!("{base_url}/protected?scope=one");
+            results.push(
+                request_with_client(ClientRequest {
+                    client: &client,
+                    url: &url,
+                    method: &method,
+                    body: &body,
+                    initial_cookie_override: initial_cookie_override.clone(),
+                    capture_redirect_history: false,
+                    max_retries: 0,
+                    max_body_size: 80,
+                    start: Instant::now(),
+                    filter_config: &filter_config,
+                    compact_filtered: false,
+                    origin_auth: &auth,
+                })
+                .await,
+            );
+        }
+        results
+    });
+    server.join().unwrap();
+    let requests = Arc::try_unwrap(requests).unwrap().into_inner().unwrap();
+    (results, requests)
 }
 
 fn run_raw_retry(responses: Vec<&'static [u8]>) -> NativeHttpResult {
@@ -283,6 +368,136 @@ fn dotted_parent_domain_cookie_is_shared_with_subdomains() {
 }
 
 #[test]
+fn native_auth_configuration_builds_preemptive_headers_without_losing_password_colons() {
+    let cases = [
+        ("basic", "usér:päss:tail", "Basic dXPDqXI6cMOkc3M6dGFpbA=="),
+        ("basic", "user", "Basic dXNlcjo="),
+        ("bearer", "opaque-token", "Bearer opaque-token"),
+        (
+            "jwt",
+            "header.payload.signature",
+            "Bearer header.payload.signature",
+        ),
+    ];
+
+    for (auth_type, credential, expected) in cases {
+        let auth = OriginAuth::from_config(auth_type, credential).unwrap();
+        assert_eq!(auth.preemptive_authorization().as_deref(), Some(expected));
+    }
+}
+
+#[test]
+fn native_auth_configuration_rejects_incomplete_and_unsupported_values() {
+    for (auth_type, credential) in [("", "secret"), ("basic", ""), ("ntlm", "u:p")] {
+        let error = OriginAuth::from_config(auth_type, credential)
+            .err()
+            .expect("invalid authentication configuration was accepted");
+        if !credential.is_empty() {
+            assert!(
+                !error.contains(credential),
+                "secret leaked in error: {error}"
+            );
+        }
+    }
+}
+
+#[test]
+fn preemptive_authentication_is_sent_by_the_native_transport() {
+    for auth in [
+        OriginAuth::from_config("basic", "user:password").unwrap(),
+        OriginAuth::from_config("bearer", "opaque-token").unwrap(),
+    ] {
+        let expected = auth.preemptive_authorization().unwrap();
+        let (result, requests) = run_authenticated_request(auth, vec![OK_RESPONSE]);
+        assert_eq!(result.status, 200);
+        assert_eq!(
+            request_header(&requests[0], "authorization"),
+            Some(expected)
+        );
+    }
+}
+
+#[test]
+fn digest_authentication_answers_a_valid_challenge_with_the_configured_secret() {
+    let auth = OriginAuth::from_config("digest", "digest-user:digest-password").unwrap();
+    let (result, requests) =
+        run_authenticated_request(auth, vec![DIGEST_CHALLENGE_RESPONSE, OK_RESPONSE]);
+
+    assert_eq!(result.status, 200);
+    assert_eq!(requests.len(), 2);
+    assert_eq!(request_header(&requests[0], "authorization"), None);
+    let authorization = request_header(&requests[1], "authorization").unwrap();
+    let mut parsed = digest_auth::AuthorizationHeader::from_str(&authorization).unwrap();
+    let received_response = parsed.response.clone();
+    parsed.digest(&AuthContext::new(
+        "digest-user",
+        "digest-password",
+        "/protected?scope=one",
+    ));
+    assert_eq!(parsed.response, received_response);
+}
+
+#[test]
+fn digest_resend_reapplies_the_configured_cookie_override() {
+    let auth = OriginAuth::from_config("digest", "digest-user:digest-password").unwrap();
+    let (results, requests) = run_authenticated_requests_with_cookie(
+        auth,
+        vec![DIGEST_COOKIE_CHALLENGE_RESPONSE, OK_RESPONSE],
+        1,
+        Some(reqwest::header::HeaderValue::from_static("fixed=native")),
+    );
+
+    assert_eq!(results[0].status, 200);
+    assert_eq!(requests.len(), 2);
+    assert_eq!(
+        request_header(&requests[0], "cookie").as_deref(),
+        Some("fixed=native")
+    );
+    assert_eq!(
+        request_header(&requests[1], "cookie").as_deref(),
+        Some("fixed=native")
+    );
+}
+
+#[test]
+fn digest_authentication_reuses_a_challenge_for_later_requests() {
+    let auth = OriginAuth::from_config("digest", "digest-user:digest-password").unwrap();
+    let (results, requests) = run_authenticated_requests(
+        auth,
+        vec![DIGEST_CHALLENGE_RESPONSE, OK_RESPONSE, OK_RESPONSE],
+        2,
+    );
+
+    assert!(results.iter().all(|result| result.status == 200));
+    assert_eq!(requests.len(), 3);
+    assert_eq!(request_header(&requests[0], "authorization"), None);
+    let first = digest_auth::AuthorizationHeader::from_str(
+        &request_header(&requests[1], "authorization").unwrap(),
+    )
+    .unwrap();
+    let second = digest_auth::AuthorizationHeader::from_str(
+        &request_header(&requests[2], "authorization").unwrap(),
+    )
+    .unwrap();
+    assert_eq!(first.nc, 1);
+    assert_eq!(second.nc, 2);
+}
+
+#[test]
+fn malformed_digest_challenges_fail_without_leaking_credentials() {
+    let secret = "digest-user:do-not-leak-this-password";
+    let auth = OriginAuth::from_config("digest", secret).unwrap();
+    let (result, requests) =
+        run_authenticated_request(auth, vec![MALFORMED_DIGEST_CHALLENGE_RESPONSE]);
+
+    assert_eq!(requests.len(), 1);
+    let error = result.error.unwrap();
+    assert!(error.contains("Invalid Digest authentication challenge"));
+    assert!(!error.contains(secret));
+    assert!(!error.contains("do-not-leak-this-password"));
+}
+
+#[test]
 fn reqwest_redirects_preserve_every_requested_url_in_history() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let address = listener.local_addr().unwrap();
@@ -344,6 +559,7 @@ fn reqwest_redirects_preserve_every_requested_url_in_history() {
         start: std::time::Instant::now(),
         filter_config: &filter_config,
         compact_filtered: false,
+        origin_auth: &OriginAuth::None,
     }));
     server.join().unwrap();
 
@@ -1275,6 +1491,7 @@ async fn run_mutual_tls_request(
         start: Instant::now(),
         filter_config: &filter_config,
         compact_filtered: false,
+        origin_auth: &OriginAuth::None,
     })
     .await;
     (result, server.await.unwrap())

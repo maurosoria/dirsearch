@@ -5,6 +5,21 @@ from urllib.parse import urlparse
 
 
 REQUEST_BACKENDS = ("python", "native")
+NATIVE_AUTHENTICATION_TYPES = ("basic", "bearer", "digest", "jwt")
+NATIVE_NTLM_AUTH_ERROR = (
+    "--request-backend native does not support NTLM authentication yet; "
+    "use the threaded or async engine"
+)
+
+
+def get_native_authentication_error(auth_type: str | None) -> str | None:
+    if auth_type in NATIVE_AUTHENTICATION_TYPES:
+        return None
+    if auth_type == "ntlm":
+        return NATIVE_NTLM_AUTH_ERROR
+    return f"--request-backend native does not support {auth_type} authentication"
+
+
 NATIVE_PROXY_SCHEMES = (
     "http",
     "https",
@@ -39,17 +54,6 @@ def get_async_request_backend_error(opt: Values) -> str | None:
     return None
 
 
-def get_native_target_error(url: str) -> str | None:
-    parsed = urlparse(url if "://" in url else f"//{url}")
-    if parsed.username is not None:
-        return (
-            "--request-backend native does not support credentials embedded "
-            "in target URLs yet"
-        )
-
-    return None
-
-
 def get_native_request_backend_error(opt: Values) -> str | None:
     if opt.async_mode:
         return "--request-backend native cannot be combined with --async"
@@ -61,8 +65,10 @@ def get_native_request_backend_error(opt: Values) -> str | None:
             opt.proxy_auth or parsed.username is not None
         ):
             return NATIVE_SOCKS4_AUTH_ERROR
-    if opt.auth or opt.auth_type:
-        return "--request-backend native does not support authentication yet"
+    if (opt.auth or opt.auth_type) and (
+        error := get_native_authentication_error(opt.auth_type)
+    ):
+        return error
     if bool(opt.cert_file) != bool(opt.key_file):
         return CLIENT_CERTIFICATE_PAIR_ERROR
     if opt.random_agents:
@@ -75,8 +81,4 @@ def get_native_request_backend_error(opt: Values) -> str | None:
         return "--request-backend native does not support --max-rate yet"
     if opt.delay:
         return "--request-backend native does not support --delay yet"
-    for url in opt.urls:
-        if error := get_native_target_error(url):
-            return error
-
     return None

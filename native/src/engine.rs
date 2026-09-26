@@ -3,9 +3,11 @@
 use crate::filters::{NativeFilterConfig, NumericRange, TimeFilter};
 use crate::raw_client::{raw_http_request, should_use_raw_http, RawHttpRequest};
 use crate::request_target::prepare_request_targets;
-use crate::result::{native_completion_marker, NativeHttpResult};
+use crate::result::{native_completion_marker, native_error_result, NativeHttpResult};
 use crate::session::NativeHttpSession;
-use crate::transport::{build_http_client, request_with_client, ClientRequest, HeaderPairs};
+use crate::transport::{
+    build_http_client, request_with_client, ClientRequest, HeaderPairs, OriginAuth,
+};
 use crate::wordlist::NativeWordlistBatch;
 use bytes::Bytes;
 use pyo3::exceptions::PyRuntimeError;
@@ -47,6 +49,7 @@ struct NativeRequestContext {
     body: Bytes,
     initial_cookie_override: Option<HeaderValue>,
     session: NativeHttpSession,
+    origin_auth: OriginAuth,
 }
 
 #[derive(Clone, PartialEq)]
@@ -61,6 +64,8 @@ struct NativeHttpEngineConfig {
     body: Vec<u8>,
     client_certificate: Vec<u8>,
     client_key: Vec<u8>,
+    auth_type: String,
+    auth_credential: String,
 }
 
 struct CachedNativeHttpEngine {
@@ -86,6 +91,8 @@ impl NativeHttpEngine {
         body=Vec::new(),
         client_certificate=Vec::new(),
         client_key=Vec::new(),
+        auth_type="".to_string(),
+        auth_credential="".to_string(),
         session=None,
     ))]
     fn new(
@@ -99,6 +106,8 @@ impl NativeHttpEngine {
         body: Vec<u8>,
         client_certificate: Vec<u8>,
         client_key: Vec<u8>,
+        auth_type: String,
+        auth_credential: String,
         session: Option<PyRef<'_, NativeHttpSession>>,
     ) -> PyResult<Self> {
         Self::from_config(
@@ -113,6 +122,8 @@ impl NativeHttpEngine {
                 body,
                 client_certificate,
                 client_key,
+                auth_type,
+                auth_credential,
             },
             session.as_deref().cloned().unwrap_or_default(),
         )
@@ -202,9 +213,23 @@ impl NativeHttpEngine {
 }
 
 impl NativeHttpEngine {
-    fn from_config(config: NativeHttpEngineConfig, session: NativeHttpSession) -> PyResult<Self> {
+    fn from_config(
+        mut config: NativeHttpEngineConfig,
+        session: NativeHttpSession,
+    ) -> PyResult<Self> {
         let method = Method::from_bytes(config.method.as_bytes())
             .map_err(|error| PyRuntimeError::new_err(error.to_string()))?;
+        let origin_auth = OriginAuth::from_config(&config.auth_type, &config.auth_credential)
+            .map_err(PyRuntimeError::new_err)?;
+        if !matches!(&origin_auth, OriginAuth::None) {
+            config
+                .headers
+                .retain(|(name, _)| !name.eq_ignore_ascii_case("authorization"));
+        }
+        let mut raw_headers = config.headers.clone();
+        if let Some(authorization) = origin_auth.preemptive_authorization() {
+            raw_headers.push(("authorization".to_string(), authorization));
+        }
         let mut header_map = HeaderMap::new();
         let mut initial_cookie_override = None;
         for (name, value) in &config.headers {
@@ -267,7 +292,7 @@ impl NativeHttpEngine {
             concurrency: config.concurrency.max(1),
             request_context: Arc::new(NativeRequestContext {
                 clients: Arc::new(clients),
-                raw_headers: Arc::new(config.headers),
+                raw_headers: Arc::new(raw_headers),
                 timeout_secs: config.timeout_secs,
                 follow_redirects: config.follow_redirects,
                 use_raw_http,
@@ -275,6 +300,7 @@ impl NativeHttpEngine {
                 body: Bytes::from(config.body),
                 initial_cookie_override,
                 session,
+                origin_auth,
             }),
             cancelled: Arc::new(AtomicBool::new(false)),
         })
@@ -444,10 +470,17 @@ async fn run_scan_worker(task: Arc<ScanTask>) -> WorkerScanResults {
         let url = format!("{}{path}", task.base_url);
         let start = Instant::now();
 
-        let mut result = if request_context.use_raw_http
+        let use_raw_path = request_context.use_raw_http
             && !request_context.follow_redirects
-            && should_use_raw_http(&task.base_url, path)
-        {
+            && should_use_raw_http(&task.base_url, path);
+        let mut result = if use_raw_path && request_context.origin_auth.requires_challenge() {
+            native_error_result(
+                String::new(),
+                start.elapsed().as_secs_f64() * 1000.0,
+                "Native Digest authentication cannot be used with a byte-preserving raw HTTP target"
+                    .to_string(),
+            )
+        } else if use_raw_path {
             raw_http_request(
                 RawHttpRequest {
                     base_url: &task.base_url,
@@ -478,6 +511,7 @@ async fn run_scan_worker(task: Arc<ScanTask>) -> WorkerScanResults {
                 start,
                 filter_config: task.filter_config.as_ref(),
                 compact_filtered: task.compact_filtered,
+                origin_auth: &request_context.origin_auth,
             })
             .await
         };
@@ -543,6 +577,8 @@ async fn run_scan_worker(task: Arc<ScanTask>) -> WorkerScanResults {
     body=Vec::new(),
     client_certificate=Vec::new(),
     client_key=Vec::new(),
+    auth_type="".to_string(),
+    auth_credential="".to_string(),
 ))]
 pub(crate) fn scan_http(
     py: Python<'_>,
@@ -583,6 +619,8 @@ pub(crate) fn scan_http(
     body: Vec<u8>,
     client_certificate: Vec<u8>,
     client_key: Vec<u8>,
+    auth_type: String,
+    auth_credential: String,
 ) -> PyResult<Vec<NativeHttpResult>> {
     let config = NativeHttpEngineConfig {
         concurrency,
@@ -595,6 +633,8 @@ pub(crate) fn scan_http(
         body,
         client_certificate,
         client_key,
+        auth_type,
+        auth_credential,
     };
     let engine = {
         let cache = DEFAULT_HTTP_ENGINE.get_or_init(|| Mutex::new(None));

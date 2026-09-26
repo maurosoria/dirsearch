@@ -1,6 +1,6 @@
 [package]
 name = "dirsearch_native"
-version = "0.2.12"
+version = "0.2.13"
 edition = "2021"
 rust-version = "1.86"
 license = "GPL-2.0-only"
@@ -11,10 +11,12 @@ crate-type = ["cdylib"]
 
 [dependencies]
 async-compression = { version = "0.4", features = ["brotli", "gzip", "tokio", "zlib"] }
+base64 = "0.22"
 brotli = "8.0"
 bytes = "1.10"
 cookie = "0.18"
 cookie_store = { version = "=0.22.0", features = ["preserve_order"] }
+digest_auth = "0.3.1"
 fancy-regex = "0.19.2"
 flate2 = "1.1"
 futures-util = "0.3"

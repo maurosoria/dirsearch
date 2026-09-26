@@ -7,20 +7,90 @@ use crate::result::{
 };
 use crate::session::{with_initial_cookie_override, NativeCookieStore};
 use async_compression::tokio::bufread::{BrotliDecoder, GzipDecoder, ZlibDecoder};
+use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
+use base64::Engine;
 use bytes::Bytes;
+use digest_auth::{AuthContext, HttpMethod};
 use futures_util::TryStreamExt;
-use reqwest::header::{HeaderMap, HeaderValue, CONTENT_ENCODING};
+use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_ENCODING, WWW_AUTHENTICATE};
 use reqwest::Method;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::io;
 use std::pin::Pin;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tokio::io::{AsyncRead, AsyncReadExt, BufReader};
 use tokio_util::io::StreamReader;
 
 pub(crate) type HeaderPairs = Vec<(String, String)>;
 type AsyncBodyReader = Pin<Box<dyn AsyncRead + Send>>;
+
+#[derive(Clone)]
+pub(crate) enum OriginAuth {
+    None,
+    Basic {
+        username: String,
+        password: String,
+    },
+    Bearer(String),
+    Digest {
+        username: String,
+        password: String,
+        challenges: Arc<Mutex<HashMap<String, digest_auth::WwwAuthenticateHeader>>>,
+    },
+}
+
+impl OriginAuth {
+    pub(crate) fn from_config(auth_type: &str, credential: &str) -> Result<Self, String> {
+        if auth_type.is_empty() && credential.is_empty() {
+            return Ok(Self::None);
+        }
+        if auth_type.is_empty() || credential.is_empty() {
+            return Err("Authentication type and credential must be provided together".to_string());
+        }
+
+        let split_credential = || credential.split_once(':').unwrap_or((credential, ""));
+        match auth_type.to_ascii_lowercase().as_str() {
+            "basic" => {
+                let (username, password) = split_credential();
+                Ok(Self::Basic {
+                    username: username.to_string(),
+                    password: password.to_string(),
+                })
+            }
+            "bearer" | "jwt" => Ok(Self::Bearer(credential.to_string())),
+            "digest" => {
+                let (username, password) = split_credential();
+                Ok(Self::Digest {
+                    username: username.to_string(),
+                    password: password.to_string(),
+                    challenges: Arc::new(Mutex::new(HashMap::new())),
+                })
+            }
+            "ntlm" => Err(
+                "Native NTLM authentication is not supported yet; use the threaded or async engine"
+                    .to_string(),
+            ),
+            other => Err(format!("Unsupported native authentication type: {other}")),
+        }
+    }
+
+    pub(crate) fn preemptive_authorization(&self) -> Option<String> {
+        match self {
+            Self::Basic { username, password } => Some(format!(
+                "Basic {}",
+                BASE64_STANDARD.encode(format!("{username}:{password}"))
+            )),
+            Self::Bearer(token) => Some(format!("Bearer {token}")),
+            Self::None | Self::Digest { .. } => None,
+        }
+    }
+
+    pub(crate) fn requires_challenge(&self) -> bool {
+        matches!(self, Self::Digest { .. })
+    }
+}
 
 tokio::task_local! {
     static REDIRECT_HISTORY: RefCell<Vec<String>>;
@@ -110,6 +180,7 @@ pub(crate) struct ClientRequest<'a> {
     pub(crate) start: Instant,
     pub(crate) filter_config: &'a NativeFilterConfig,
     pub(crate) compact_filtered: bool,
+    pub(crate) origin_auth: &'a OriginAuth,
 }
 
 pub(crate) async fn request_with_client(request: ClientRequest<'_>) -> NativeHttpResult {
@@ -154,30 +225,19 @@ async fn request_once(
     request: &ClientRequest<'_>,
     start: Instant,
 ) -> Result<NativeHttpResult, String> {
-    let build_request = || {
-        let builder = request.client.request(request.method.clone(), request.url);
-        if request.body.is_empty() {
-            builder
-        } else {
-            builder.body((*request.body).clone())
-        }
+    let send_request = || send_authenticated_request(request);
+    let (response, redirect_history) = if request.capture_redirect_history {
+        REDIRECT_HISTORY
+            .scope(RefCell::new(Vec::new()), async {
+                let result = send_request().await;
+                let history = REDIRECT_HISTORY.with(|history| history.borrow().clone());
+                (result, history)
+            })
+            .await
+    } else {
+        (send_request().await, Vec::new())
     };
-    let (response, redirect_history) =
-        with_initial_cookie_override(request.initial_cookie_override.clone(), async {
-            if request.capture_redirect_history {
-                REDIRECT_HISTORY
-                    .scope(RefCell::new(Vec::new()), async {
-                        let result = build_request().send().await;
-                        let history = REDIRECT_HISTORY.with(|history| history.borrow().clone());
-                        (result, history)
-                    })
-                    .await
-            } else {
-                (build_request().send().await, Vec::new())
-            }
-        })
-        .await;
-    let response = response.map_err(|error| format_error_chain(&error))?;
+    let response = response?;
     let status = response.status().as_u16();
     let final_url = response.url().to_string();
     if request.compact_filtered
@@ -214,6 +274,162 @@ async fn request_once(
     result.history = redirect_history;
     result.final_url = final_url;
     Ok(result)
+}
+
+async fn send_authenticated_request(
+    request: &ClientRequest<'_>,
+) -> Result<reqwest::Response, String> {
+    let build_request = |target: &str| {
+        let builder = request.client.request(request.method.clone(), target);
+        if request.body.is_empty() {
+            builder
+        } else {
+            builder.body((*request.body).clone())
+        }
+    };
+
+    match request.origin_auth {
+        OriginAuth::None => send_with_cookie_override(request, build_request(request.url)).await,
+        OriginAuth::Basic { .. } | OriginAuth::Bearer(_) => {
+            let builder = build_request(request.url).header(
+                AUTHORIZATION,
+                request.origin_auth.preemptive_authorization().unwrap(),
+            );
+            send_with_cookie_override(request, builder).await
+        }
+        OriginAuth::Digest {
+            username,
+            password,
+            challenges,
+        } => {
+            let original_url = reqwest::Url::parse(request.url)
+                .map_err(|error| format!("Invalid authentication target URL: {error}"))?;
+            let preemptive = digest_authorization(
+                &original_url,
+                request.method,
+                request.body,
+                username,
+                password,
+                challenges,
+                None,
+            )?;
+            let mut builder = build_request(request.url);
+            if let Some(authorization) = preemptive {
+                builder = builder.header(AUTHORIZATION, authorization);
+            }
+            let response = send_with_cookie_override(request, builder).await?;
+            if response.status() != reqwest::StatusCode::UNAUTHORIZED {
+                return Ok(response);
+            }
+
+            let Some(challenge) = digest_challenge(response.headers())? else {
+                return Ok(response);
+            };
+            if !same_origin(&original_url, response.url()) {
+                // A redirect must never widen the credential scope.
+                return Ok(response);
+            }
+
+            let challenge_url = response.url().clone();
+            let answer = digest_authorization(
+                &challenge_url,
+                request.method,
+                request.body,
+                username,
+                password,
+                challenges,
+                Some(&challenge),
+            )?
+            .expect("a parsed Digest challenge must produce an authorization value");
+            drop(response);
+
+            let builder = build_request(challenge_url.as_str()).header(AUTHORIZATION, answer);
+            send_with_cookie_override(request, builder).await
+        }
+    }
+}
+
+async fn send_with_cookie_override(
+    request: &ClientRequest<'_>,
+    builder: reqwest::RequestBuilder,
+) -> Result<reqwest::Response, String> {
+    // A Digest challenge response starts a new top-level send. Re-arm the
+    // configured Cookie value for that send while letting redirect hops use
+    // the shared session jar after the first cookie-provider lookup.
+    with_initial_cookie_override(request.initial_cookie_override.clone(), async {
+        builder
+            .send()
+            .await
+            .map_err(|error| format_error_chain(&error))
+    })
+    .await
+}
+
+#[allow(clippy::too_many_arguments)]
+fn digest_authorization(
+    url: &reqwest::Url,
+    method: &Method,
+    body: &Bytes,
+    username: &str,
+    password: &str,
+    challenges: &Mutex<HashMap<String, digest_auth::WwwAuthenticateHeader>>,
+    new_challenge: Option<&str>,
+) -> Result<Option<String>, String> {
+    let origin = url.origin().ascii_serialization();
+    let mut challenges = challenges
+        .lock()
+        .map_err(|_| "Digest authentication challenge cache is unavailable".to_string())?;
+    if let Some(challenge) = new_challenge {
+        let prompt = digest_auth::parse(challenge)
+            .map_err(|error| format!("Invalid Digest authentication challenge: {error}"))?;
+        challenges.insert(origin.clone(), prompt);
+    }
+    let Some(prompt) = challenges.get_mut(&origin) else {
+        return Ok(None);
+    };
+
+    let mut digest_uri = url.path().to_string();
+    if let Some(query) = url.query() {
+        digest_uri.push('?');
+        digest_uri.push_str(query);
+    }
+    let body = (!body.is_empty()).then_some(body.as_ref());
+    let context = AuthContext::new_with_method(
+        username,
+        password,
+        &digest_uri,
+        body,
+        HttpMethod::from(method.as_str()),
+    );
+    // The shared prompt also serializes nonce-count increments. The lock is
+    // released before any network I/O, so concurrent requests only contend for
+    // the small hash computation rather than for the request itself.
+    prompt
+        .respond(&context)
+        .map(|answer| Some(answer.to_string()))
+        .map_err(|error| format!("Could not answer Digest authentication challenge: {error}"))
+}
+
+fn digest_challenge(headers: &HeaderMap) -> Result<Option<String>, String> {
+    for value in headers.get_all(WWW_AUTHENTICATE) {
+        let value = value
+            .to_str()
+            .map_err(|_| "Digest authentication challenge is not valid text".to_string())?;
+        let lowercase = value.to_ascii_lowercase();
+        if lowercase.starts_with("digest ") {
+            return Ok(Some(value.to_string()));
+        }
+        if let Some(index) = lowercase.find(", digest ") {
+            return Ok(Some(value[index + 2..].to_string()));
+        }
+    }
+    Ok(None)
+}
+
+fn same_origin(left: &reqwest::Url, right: &reqwest::Url) -> bool {
+    left.scheme() == right.scheme()
+        && left.host_str() == right.host_str()
+        && left.port_or_known_default() == right.port_or_known_default()
 }
 
 fn format_error_chain(error: &dyn std::error::Error) -> String {

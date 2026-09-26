@@ -18,6 +18,7 @@
 
 import base64
 import gzip
+import hashlib
 import http.server
 import json
 import os
@@ -55,6 +56,7 @@ from lib.connection.requester import (
 from lib.core.data import options
 from lib.core.exceptions import RequestException
 from lib.core.settings import MAX_REDIRECTS
+from lib.controller.controller import Controller
 from lib.report.jsonl_response_store import JsonlResponseStore
 from lib.report.response_store import ResponseArtifact
 
@@ -119,6 +121,38 @@ REQUEST_BODY_CASES = (
     ("utf-8", "value=\u00e9&city=\u6771\u4eac\r\n".encode("utf-8")),
     ("windows-1252", "value=\u00e9&currency=\u20ac\r\n".encode("cp1252")),
 )
+AUTHENTICATION_CASES = (
+    ("basic", "user:password", "Basic dXNlcjpwYXNzd29yZA=="),
+    ("bearer", "opaque-token", "Bearer opaque-token"),
+    ("jwt", "header.payload.signature", "Bearer header.payload.signature"),
+)
+
+
+def valid_digest_authorization(
+    authorization: str,
+    method: str,
+    username: str,
+    account_value: str,
+) -> bool:
+    if not authorization.startswith("Digest "):
+        return False
+    fields = requests.utils.parse_dict_header(authorization[7:])
+    required = {"realm", "nonce", "uri", "response", "cnonce", "nc", "qop"}
+    if not required.issubset(fields):
+        return False
+    # HTTP Digest requires this fast hash; it is protocol verification in a
+    # local test fixture, not password storage.
+    ha1 = hashlib.sha256(
+        f"{username}:{fields['realm']}:{account_value}".encode()
+    ).hexdigest()
+    ha2 = hashlib.sha256(f"{method}:{fields['uri']}".encode()).hexdigest()
+    expected = hashlib.sha256(
+        (
+            f"{ha1}:{fields['nonce']}:{fields['nc']}:"
+            f"{fields['cnonce']}:{fields['qop']}:{ha2}"
+        ).encode()
+    ).hexdigest()
+    return fields["username"] == username and fields["response"] == expected
 
 
 class RequestTargetTCPServer(socketserver.TCPServer):
@@ -298,6 +332,37 @@ class RequestTargetHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             return
 
+        if route_target == b"/external-redirect":
+            self.send_response(302)
+            self.send_header("location", self.server.external_redirect_url)
+            self.end_headers()
+            return
+
+        if route_target == b"/digest-auth":
+            authorization = self.headers.get("Authorization", "")
+            if not valid_digest_authorization(
+                authorization,
+                self.command,
+                "digest-user",
+                "digest-password",
+            ):
+                self.send_response(401)
+                self.send_header(
+                    "www-authenticate",
+                    'Digest realm="dirsearch-test", nonce="abcdef0123456789", '
+                    'algorithm=SHA-256, qop="auth"',
+                )
+                self.send_header("content-length", "0")
+                self.end_headers()
+                return
+
+        if route_target == b"/malformed-digest-auth":
+            self.send_response(401)
+            self.send_header("www-authenticate", 'Digest realm="missing-nonce"')
+            self.send_header("content-length", "0")
+            self.end_headers()
+            return
+
         if route_target.startswith(b"/redirect-count/"):
             redirects_left = int(route_target.rsplit(b"/", 1)[1])
             if redirects_left:
@@ -325,7 +390,7 @@ class RequestTargetHandler(http.server.BaseHTTPRequestHandler):
                 self.send_header(
                     "www-authenticate",
                     'Digest realm="dirsearch-test", nonce="abcdef0123456789", '
-                    'algorithm=MD5, qop="auth"',
+                    'algorithm=SHA-256, qop="auth"',
                 )
             else:
                 self.send_response(302)
@@ -390,6 +455,7 @@ class RequestTargetServer:
         self.server.request_bodies = []
         self.server.request_methods = []
         self.server.target_counts = {}
+        self.server.external_redirect_url = None
         self.thread = threading.Thread(
             target=lambda: self.server.serve_forever(poll_interval=0.05),
             daemon=True,
@@ -1094,6 +1160,122 @@ class TestRequesterBodyPreservation(BaseRequesterTestCase):
             server.request_bodies,
             [body for _, body in REQUEST_BODY_CASES],
         )
+
+
+class TestRequesterAuthenticationParity(BaseRequesterTestCase):
+    def test_sync_requester_sends_supported_preemptive_authentication(self):
+        with RequestTargetServer() as server:
+            for auth_type, credential, expected in AUTHENTICATION_CASES:
+                with self.subTest(auth_type=auth_type):
+                    options["auth"] = credential
+                    options["auth_type"] = auth_type
+                    requester = Requester()
+                    requester.set_url(server.url)
+                    try:
+                        requester.request(auth_type)
+                    finally:
+                        requester.close()
+                    self.assertEqual(server.authorizations[-1], expected)
+
+    def test_sync_requester_answers_digest_challenge(self):
+        options["auth"] = "digest-user:digest-password"
+        options["auth_type"] = "digest"
+
+        with RequestTargetServer() as server:
+            requester = Requester()
+            requester.set_url(server.url)
+            try:
+                response = requester.request("digest-auth")
+            finally:
+                requester.close()
+
+        self.assertEqual(response.status, 200)
+        self.assertEqual(server.authorizations[0], None)
+        self.assertTrue(
+            valid_digest_authorization(
+                server.authorizations[1],
+                "GET",
+                "digest-user",
+                "digest-password",
+            )
+        )
+
+    def test_sync_requester_strips_authentication_on_cross_origin_redirect(self):
+        options["auth"] = "redirect-token"
+        options["auth_type"] = "bearer"
+        options["follow_redirects"] = True
+
+        with RequestTargetServer() as origin, RequestTargetServer() as destination:
+            origin.server.external_redirect_url = destination.url + "final"
+            requester = Requester()
+            requester.set_url(origin.url)
+            try:
+                response = requester.request("external-redirect")
+            finally:
+                requester.close()
+
+        self.assertEqual(response.status, 200)
+        self.assertEqual(origin.authorizations, ["Bearer redirect-token"])
+        self.assertEqual(destination.authorizations, [None])
+
+
+class TestAsyncRequesterAuthenticationParity(
+    BaseRequesterTestCase, IsolatedAsyncioTestCase
+):
+    async def test_async_requester_sends_supported_preemptive_authentication(self):
+        with RequestTargetServer() as server:
+            for auth_type, credential, expected in AUTHENTICATION_CASES:
+                with self.subTest(auth_type=auth_type):
+                    options["auth"] = credential
+                    options["auth_type"] = auth_type
+                    requester = AsyncRequester()
+                    requester.set_url(server.url)
+                    try:
+                        await requester.request(auth_type)
+                    finally:
+                        await requester.close()
+                    self.assertEqual(server.authorizations[-1], expected)
+
+    async def test_async_requester_answers_digest_challenge(self):
+        options["auth"] = "digest-user:digest-password"
+        options["auth_type"] = "digest"
+
+        with RequestTargetServer() as server:
+            requester = AsyncRequester()
+            requester.set_url(server.url)
+            try:
+                response = await requester.request("digest-auth")
+            finally:
+                await requester.close()
+
+        self.assertEqual(response.status, 200)
+        self.assertEqual(server.authorizations[0], None)
+        self.assertTrue(
+            valid_digest_authorization(
+                server.authorizations[1],
+                "GET",
+                "digest-user",
+                "digest-password",
+            )
+        )
+
+    async def test_async_requester_strips_authentication_on_cross_origin_redirect(self):
+        options["auth"] = "redirect-token"
+        options["auth_type"] = "bearer"
+        options["follow_redirects"] = True
+
+        with RequestTargetServer() as origin, RequestTargetServer() as destination:
+            origin.server.external_redirect_url = destination.url + "final"
+            requester = AsyncRequester()
+            requester.set_url(origin.url)
+            try:
+                response = await requester.request("external-redirect")
+            finally:
+                await requester.close()
+
+        self.assertEqual(response.status, 200)
+        self.assertEqual(origin.authorizations, ["Bearer redirect-token"])
+        self.assertEqual(destination.authorizations, [None])
 
 
 class TestRequesterProxyRouting(BaseRequesterTestCase):
@@ -2086,7 +2268,243 @@ class TestCookieSessionParity(BaseRequesterTestCase, IsolatedAsyncioTestCase):
 
 
 class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
-    def test_native_replay_proxy_copies_origin_session_cookies(self):
+    def native_requester_or_skip(self):
+        requester = NativeRequester()
+        try:
+            requester.get_backend()
+        except RequestException as error:
+            self.skipTest(str(error))
+        return requester
+
+    def test_native_requester_sends_preemptive_authentication_from_rust(self):
+        cases = AUTHENTICATION_CASES + (
+            ("basic", "usér:päss:tail", "Basic dXPDqXI6cMOkc3M6dGFpbA=="),
+            ("basic", "user", "Basic dXNlcjo="),
+        )
+
+        with RequestTargetServer() as server:
+            for auth_type, credential, expected in cases:
+                with self.subTest(auth_type=auth_type, credential=credential):
+                    options["auth"] = credential
+                    options["auth_type"] = auth_type
+                    requester = self.native_requester_or_skip()
+                    requester.set_url(server.url)
+                    path = "raw%1" if credential == "user" else auth_type
+                    requester.request(path)
+                    self.assertEqual(server.authorizations[-1], expected)
+
+    def test_native_digest_authentication_validates_the_challenge(self):
+        options["auth"] = "digest-user:digest-password"
+        options["auth_type"] = "digest"
+
+        with RequestTargetServer() as server:
+            requester = self.native_requester_or_skip()
+            requester.set_url(server.url)
+            response = requester.request("digest-auth")
+
+        self.assertEqual(response.status, 200)
+        self.assertEqual(server.authorizations[0], None)
+        self.assertTrue(server.authorizations[1].startswith("Digest "))
+        self.assertTrue(
+            valid_digest_authorization(
+                server.authorizations[1],
+                "GET",
+                "digest-user",
+                "digest-password",
+            )
+        )
+
+    def test_native_digest_wrong_credentials_remain_unauthorized(self):
+        options["auth"] = "digest-user:wrong-password"
+        options["auth_type"] = "digest"
+
+        with RequestTargetServer() as server:
+            requester = self.native_requester_or_skip()
+            requester.set_url(server.url)
+            response = requester.request("digest-auth")
+
+        self.assertEqual(response.status, 401)
+        self.assertEqual(len(server.authorizations), 2)
+        self.assertTrue(server.authorizations[1].startswith("Digest "))
+
+    def test_native_digest_resends_non_get_request_bodies(self):
+        body = b"name=value&line=two\r\n"
+        options["auth"] = "digest-user:digest-password"
+        options["auth_type"] = "digest"
+        options["http_method"] = "POST"
+        options["data"] = body
+
+        with RequestTargetServer() as server:
+            requester = self.native_requester_or_skip()
+            requester.set_url(server.url)
+            response = requester.request("digest-auth")
+
+        self.assertEqual(response.status, 200)
+        self.assertEqual(server.request_methods, ["POST", "POST"])
+        self.assertEqual(server.request_bodies, [body, body])
+        self.assertTrue(
+            valid_digest_authorization(
+                server.authorizations[1],
+                "POST",
+                "digest-user",
+                "digest-password",
+            )
+        )
+
+    def test_native_malformed_digest_challenge_fails_without_secret_leakage(self):
+        credential = "digest-user:do-not-leak-this-password"
+        options["auth"] = credential
+        options["auth_type"] = "digest"
+
+        with RequestTargetServer() as server:
+            requester = self.native_requester_or_skip()
+            requester.set_url(server.url)
+            with self.assertRaisesRegex(
+                RequestException,
+                "Invalid Digest authentication challenge",
+            ) as raised:
+                requester.request("malformed-digest-auth")
+
+        self.assertNotIn(credential, str(raised.exception))
+        self.assertNotIn("do-not-leak-this-password", str(raised.exception))
+
+    def test_native_origin_authentication_survives_an_http_proxy(self):
+        options["auth"] = "origin-user:origin-password"
+        options["auth_type"] = "basic"
+        options["proxy_auth"] = "proxy-user:proxy-password"
+
+        try:
+            backend = NativeHTTPBackend()
+        except RequestException as error:
+            self.skipTest(str(error))
+
+        with RequestTargetServer() as proxy:
+            options["proxies"] = [proxy.url]
+            result = list(backend.scan("http://origin.invalid/", ["admin"]))[0]
+
+        self.assertIsNone(result[2])
+        self.assertEqual(
+            proxy.authorizations,
+            ["Basic b3JpZ2luLXVzZXI6b3JpZ2luLXBhc3N3b3Jk"],
+        )
+        self.assertEqual(
+            proxy.proxy_authorizations,
+            ["Basic cHJveHktdXNlcjpwcm94eS1wYXNzd29yZA=="],
+        )
+
+    def test_native_cross_origin_redirect_strips_authentication(self):
+        options["auth"] = "redirect-token"
+        options["auth_type"] = "bearer"
+        options["follow_redirects"] = True
+
+        with RequestTargetServer() as origin, RequestTargetServer() as destination:
+            origin.server.external_redirect_url = destination.url + "final"
+            requester = self.native_requester_or_skip()
+            requester.set_url(origin.url)
+            response = requester.request("external-redirect")
+
+        self.assertEqual(response.status, 200)
+        self.assertEqual(origin.authorizations, ["Bearer redirect-token"])
+        self.assertEqual(destination.authorizations, [None])
+
+    def test_native_same_origin_redirect_keeps_preemptive_authentication(self):
+        options["auth"] = "redirect-token"
+        options["auth_type"] = "bearer"
+        options["follow_redirects"] = True
+
+        with RequestTargetServer() as server:
+            requester = self.native_requester_or_skip()
+            requester.set_url(server.url)
+            response = requester.request("redirect")
+
+        self.assertEqual(response.status, 200)
+        self.assertEqual(
+            server.authorizations,
+            ["Bearer redirect-token", "Bearer redirect-token"],
+        )
+
+    def test_native_digest_answers_a_same_origin_redirect_challenge(self):
+        options["auth"] = "digest-user:digest-password"
+        options["auth_type"] = "digest"
+        options["follow_redirects"] = True
+
+        with RequestTargetServer() as server:
+            server.server.external_redirect_url = server.url + "digest-auth"
+            requester = self.native_requester_or_skip()
+            requester.set_url(server.url)
+            response = requester.request("external-redirect")
+
+        self.assertEqual(response.status, 200)
+        self.assertEqual(server.authorizations[:2], [None, None])
+        self.assertTrue(server.authorizations[2].startswith("Digest "))
+        self.assertTrue(
+            valid_digest_authorization(
+                server.authorizations[2],
+                "GET",
+                "digest-user",
+                "digest-password",
+            )
+        )
+
+    def test_native_digest_does_not_answer_a_cross_origin_challenge(self):
+        options["auth"] = "digest-user:digest-password"
+        options["auth_type"] = "digest"
+        options["follow_redirects"] = True
+
+        with RequestTargetServer() as origin, RequestTargetServer() as destination:
+            origin.server.external_redirect_url = destination.url + "digest-auth"
+            requester = self.native_requester_or_skip()
+            requester.set_url(origin.url)
+            response = requester.request("external-redirect")
+
+        self.assertEqual(response.status, 401)
+        self.assertEqual(origin.authorizations, [None])
+        self.assertEqual(destination.authorizations, [None])
+
+    def test_native_target_authentication_is_restored_for_the_next_target(self):
+        options["auth"] = "configured-token"
+        options["auth_type"] = "bearer"
+
+        with RequestTargetServer() as server:
+            requester = self.native_requester_or_skip()
+            controller = object.__new__(Controller)
+            controller.requester = requester
+            target_with_credentials = server.url.replace(
+                "http://",
+                "http://target-user:p%40ss%3Atail@",
+            )
+
+            controller.set_target(target_with_credentials)
+            requester.request("first")
+            controller.set_target(server.url)
+            requester.request("second")
+
+        self.assertEqual(
+            server.authorizations,
+            [
+                "Basic dGFyZ2V0LXVzZXI6cEBzczp0YWls",
+                "Bearer configured-token",
+            ],
+        )
+
+    def test_native_digest_rejects_raw_targets_instead_of_skipping_auth(self):
+        options["auth"] = "digest-user:digest-password"
+        options["auth_type"] = "digest"
+
+        with RequestTargetServer() as server:
+            requester = self.native_requester_or_skip()
+            requester.set_url(server.url)
+            with self.assertRaisesRegex(
+                RequestException,
+                "Digest authentication cannot be used with a byte-preserving",
+            ):
+                requester.request("raw%1")
+
+        self.assertEqual(server.targets, [])
+
+    def test_native_replay_proxy_shares_origin_authentication_and_session(self):
+        options["auth"] = "replay-token"
+        options["auth_type"] = "bearer"
         requester = NativeRequester()
         with RequestTargetServer() as server:
             requester.set_url(server.url)
@@ -2100,6 +2518,10 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
 
         self.assertEqual(response.status, 200)
         self.assertEqual(server.cookies, [None, "session=native"])
+        self.assertEqual(
+            server.authorizations,
+            ["Bearer replay-token", "Bearer replay-token"],
+        )
 
     def test_native_replay_proxy_reapplies_cookie_scope_on_redirect(self):
         options["follow_redirects"] = True
