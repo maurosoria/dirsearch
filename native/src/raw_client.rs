@@ -3,7 +3,8 @@
 use crate::filters::NativeFilterConfig;
 use crate::raw_http;
 use crate::result::{native_error_result, native_http_result_with_length, NativeHttpResult};
-use crate::transport::{HeaderPairs, NativeCookieStore};
+use crate::session::NativeCookieStore;
+use crate::transport::HeaderPairs;
 use reqwest::cookie::CookieStore;
 #[cfg(test)]
 use std::io::Cursor;

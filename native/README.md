@@ -18,7 +18,9 @@ backends require an exact version match so a stale compiled extension fails
 with a rebuild instruction instead of silently using an older native contract.
 
 `NativeHttpEngine` keeps its Tokio runtime and HTTP clients alive across
-multiple batches and supports cooperative cancellation. Python constructs one
+multiple batches and supports cooperative cancellation. Each batch is represented
+by one shared Rust scan task rather than a separate parameter bundle per worker.
+Python constructs one
 immutable filter configuration and reuses it across those batches. The
 `scan(...)` and `scan_owned_batch(...)` methods evaluate the cheap legacy
 status/size filters and advanced match/filter options in native code. Compact
@@ -28,13 +30,43 @@ and dynamically discovered paths. Native regex matching uses the hybrid
 `fancy-regex` engine: ordinary expressions retain the finite-automata fast path,
 while lookarounds and backreferences run in its bounded backtracking engine.
 
+## Request state and ownership
+
+The native request path separates state by lifetime. This keeps the Python/Rust
+boundary small and makes it clear which changes require rebuilding an engine:
+
+| Owner | Lifetime | Responsibility |
+| --- | --- | --- |
+| `NativeHttpEngine` | Python backend instance | Owns the Tokio runtime, concurrency limit, cancellation handle, and one request context. |
+| `NativeRequestContext` | Engine lifetime | Reuses built clients, raw headers, method/body, transport flags, and the session handle across batches. Its configuration is immutable; the shared session cookie jar uses internal locking. |
+| `ScanTask` | One `scan` or `scan_owned_batch` call | Holds paths, base URL, filter and retry policy, body limit, cancellation handle, and the atomic counter used by workers to claim paths. |
+| `ClientRequest` / `RawHttpRequest` | One target, including retries | Borrows the request inputs needed by the selected transport and returns one native result. |
+
+The ownership flow is:
+
+```text
+Python NativeHTTPBackend
+  -> NativeHttpEngine
+       -> Arc<NativeRequestContext>       (reused across batches)
+       -> Arc<ScanTask>                   (shared by bounded workers)
+            -> ClientRequest/RawHttpRequest (one claimed target)
+```
+
+Put a value in `NativeRequestContext` when it is fixed by engine construction
+and reused by every batch. Put it in `ScanTask` when Python supplies it for one
+batch. Put it in a transport request when it applies to one claimed target.
+Cookie contents are the deliberate exception to immutability: the context holds
+a stable `NativeHttpSession` handle so all clients and replay engines can update
+the same policy-controlled jar.
+
 ## Source layout
 
 `src/lib.rs` only registers the Python module. The implementation is split by
 responsibility:
 
-- `engine.rs` owns the persistent engine, bounded scheduler, and cancellation.
-- `session.rs` owns explicit cross-engine session state.
+- `engine.rs` owns the persistent engine, immutable request context, per-batch
+  scan task, bounded scheduler, and cancellation.
+- `session.rs` owns explicit cross-engine session state and cookie policy.
 - `request_target.rs` owns query insertion and URL quoting before scheduling.
 - `transport.rs` owns reqwest requests and streamed response decoding.
 - `raw_client.rs` selects and drives the byte-preserving HTTP adapter, while

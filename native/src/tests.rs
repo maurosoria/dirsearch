@@ -2,7 +2,8 @@
 
 use super::*;
 use crate::raw_client::{raw_http_request, RawHttpRequest};
-use crate::transport::{request_with_client, NativeCookieStore};
+use crate::session::NativeCookieStore;
+use crate::transport::{request_with_client, ClientRequest};
 use bytes::Bytes;
 use rcgen::{
     date_time_ymd, BasicConstraints, CertificateParams, ExtendedKeyUsagePurpose, IsCa, Issuer,
@@ -146,19 +147,21 @@ fn run_reqwest_request(
         .enable_all()
         .build()
         .unwrap();
-    let result = runtime.block_on(request_with_client(
-        &client,
-        &format!("{base_url}/retry"),
-        &method,
-        body,
-        None,
-        false,
+    let url = format!("{base_url}/retry");
+    let filter_config = default_filter_config();
+    let result = runtime.block_on(request_with_client(ClientRequest {
+        client: &client,
+        url: &url,
+        method: &method,
+        body: &body,
+        initial_cookie_override: None,
+        capture_redirect_history: false,
         max_retries,
-        80,
-        Instant::now() - Duration::from_secs(5),
-        &default_filter_config(),
-        false,
-    ));
+        max_body_size: 80,
+        start: Instant::now() - Duration::from_secs(5),
+        filter_config: &filter_config,
+        compact_filtered: false,
+    }));
     server.join().unwrap();
     let requests = Arc::try_unwrap(requests).unwrap().into_inner().unwrap();
     (result, requests)
@@ -326,19 +329,22 @@ fn reqwest_redirects_preserve_every_requested_url_in_history() {
         .build()
         .unwrap();
 
-    let result = runtime.block_on(request_with_client(
-        &client,
-        &start_url,
-        &Method::GET,
-        Bytes::new(),
-        None,
-        true,
-        0,
-        80,
-        std::time::Instant::now(),
-        &default_filter_config(),
-        false,
-    ));
+    let method = Method::GET;
+    let body = Bytes::new();
+    let filter_config = default_filter_config();
+    let result = runtime.block_on(request_with_client(ClientRequest {
+        client: &client,
+        url: &start_url,
+        method: &method,
+        body: &body,
+        initial_cookie_override: None,
+        capture_redirect_history: true,
+        max_retries: 0,
+        max_body_size: 80,
+        start: std::time::Instant::now(),
+        filter_config: &filter_config,
+        compact_filtered: false,
+    }));
     server.join().unwrap();
 
     assert_eq!(result.status, 200);
@@ -1253,19 +1259,23 @@ async fn run_mutual_tls_request(
         Arc::new(NativeCookieStore::default()),
     )
     .unwrap();
-    let result = request_with_client(
-        &client,
-        &format!("https://{address}/mtls"),
-        &Method::GET,
-        Bytes::new(),
-        None,
-        false,
-        0,
-        80,
-        Instant::now(),
-        &default_filter_config(),
-        false,
-    )
+    let url = format!("https://{address}/mtls");
+    let method = Method::GET;
+    let body = Bytes::new();
+    let filter_config = default_filter_config();
+    let result = request_with_client(ClientRequest {
+        client: &client,
+        url: &url,
+        method: &method,
+        body: &body,
+        initial_cookie_override: None,
+        capture_redirect_history: false,
+        max_retries: 0,
+        max_body_size: 80,
+        start: Instant::now(),
+        filter_config: &filter_config,
+        compact_filtered: false,
+    })
     .await;
     (result, server.await.unwrap())
 }
