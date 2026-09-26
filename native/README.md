@@ -18,7 +18,9 @@ backends require an exact version match so a stale compiled extension fails
 with a rebuild instruction instead of silently using an older native contract.
 
 `NativeHttpEngine` keeps its Tokio runtime and HTTP clients alive across
-multiple batches and supports cooperative cancellation. Python constructs one
+multiple batches and supports cooperative cancellation. Each batch is represented
+by one shared Rust scan task rather than a separate parameter bundle per worker.
+Python constructs one
 immutable filter configuration and reuses it across those batches. The
 `scan(...)` and `scan_owned_batch(...)` methods evaluate the cheap legacy
 status/size filters and advanced match/filter options in native code. Compact
@@ -33,8 +35,9 @@ while lookarounds and backreferences run in its bounded backtracking engine.
 `src/lib.rs` only registers the Python module. The implementation is split by
 responsibility:
 
-- `engine.rs` owns the persistent engine, bounded scheduler, and cancellation.
-- `session.rs` owns explicit cross-engine session state.
+- `engine.rs` owns the persistent engine, immutable request context, per-batch
+  scan task, bounded scheduler, and cancellation.
+- `session.rs` owns explicit cross-engine session state and cookie policy.
 - `request_target.rs` owns query insertion and URL quoting before scheduling.
 - `transport.rs` owns reqwest requests and streamed response decoding.
 - `raw_client.rs` selects and drives the byte-preserving HTTP adapter, while

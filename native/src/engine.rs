@@ -5,7 +5,7 @@ use crate::raw_client::{raw_http_request, should_use_raw_http, RawHttpRequest};
 use crate::request_target::prepare_request_targets;
 use crate::result::{native_completion_marker, NativeHttpResult};
 use crate::session::NativeHttpSession;
-use crate::transport::{build_http_client, request_with_client, HeaderPairs, NativeCookieStore};
+use crate::transport::{build_http_client, request_with_client, ClientRequest, HeaderPairs};
 use crate::wordlist::NativeWordlistBatch;
 use bytes::Bytes;
 use pyo3::exceptions::PyRuntimeError;
@@ -23,23 +23,27 @@ const PROXY_AUTHENTICATION_REQUIRED: u16 = 407;
 #[pyclass]
 pub(crate) struct NativeHttpEngine {
     runtime: tokio::runtime::Runtime,
-    clients: Vec<reqwest::Client>,
-    raw_headers: HeaderPairs,
     concurrency: usize,
+    request_context: Arc<NativeRequestContext>,
+    cancelled: Arc<AtomicBool>,
+}
+
+struct NativeRequestContext {
+    clients: Arc<Vec<reqwest::Client>>,
+    raw_headers: Arc<HeaderPairs>,
     timeout_secs: f64,
     follow_redirects: bool,
     use_raw_http: bool,
     method: Method,
     body: Bytes,
-    top_level_cookie: Option<HeaderValue>,
+    initial_cookie_override: Option<HeaderValue>,
     session: NativeHttpSession,
-    cancelled: Arc<AtomicBool>,
 }
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, PartialEq)]
 struct NativeHttpEngineConfig {
     concurrency: usize,
-    timeout_bits: u64,
+    timeout_secs: f64,
     headers: HeaderPairs,
     proxies: Vec<String>,
     follow_redirects: bool,
@@ -50,8 +54,13 @@ struct NativeHttpEngineConfig {
     client_key: Vec<u8>,
 }
 
-type CachedNativeHttpEngine = Option<(NativeHttpEngineConfig, Arc<NativeHttpEngine>)>;
-static DEFAULT_HTTP_ENGINE: OnceLock<Mutex<CachedNativeHttpEngine>> = OnceLock::new();
+struct CachedNativeHttpEngine {
+    config: NativeHttpEngineConfig,
+    engine: Arc<NativeHttpEngine>,
+}
+
+type NativeHttpEngineCache = Option<CachedNativeHttpEngine>;
+static DEFAULT_HTTP_ENGINE: OnceLock<Mutex<NativeHttpEngineCache>> = OnceLock::new();
 
 #[pymethods]
 impl NativeHttpEngine {
@@ -83,19 +92,20 @@ impl NativeHttpEngine {
         client_key: Vec<u8>,
         session: Option<PyRef<'_, NativeHttpSession>>,
     ) -> PyResult<Self> {
-        let session = session.as_deref().cloned().unwrap_or_default();
-        Self::new_with_session(
-            concurrency,
-            timeout_secs,
-            headers,
-            proxies,
-            follow_redirects,
-            max_redirects,
-            method,
-            body,
-            client_certificate,
-            client_key,
-            session,
+        Self::from_config(
+            NativeHttpEngineConfig {
+                concurrency,
+                timeout_secs,
+                headers,
+                proxies,
+                follow_redirects,
+                max_redirects,
+                method,
+                body,
+                client_certificate,
+                client_key,
+            },
+            session.as_deref().cloned().unwrap_or_default(),
         )
     }
 
@@ -183,61 +193,52 @@ impl NativeHttpEngine {
 }
 
 impl NativeHttpEngine {
-    #[allow(clippy::too_many_arguments)]
-    fn new_with_session(
-        concurrency: usize,
-        timeout_secs: f64,
-        headers: HeaderPairs,
-        proxies: Vec<String>,
-        follow_redirects: bool,
-        max_redirects: usize,
-        method: String,
-        body: Vec<u8>,
-        client_certificate: Vec<u8>,
-        client_key: Vec<u8>,
-        session: NativeHttpSession,
-    ) -> PyResult<Self> {
-        let method = Method::from_bytes(method.as_bytes())
+    fn from_config(config: NativeHttpEngineConfig, session: NativeHttpSession) -> PyResult<Self> {
+        let method = Method::from_bytes(config.method.as_bytes())
             .map_err(|error| PyRuntimeError::new_err(error.to_string()))?;
         let mut header_map = HeaderMap::new();
-        let mut top_level_cookie = None;
-        for (name, value) in &headers {
+        let mut initial_cookie_override = None;
+        for (name, value) in &config.headers {
             let name = HeaderName::from_bytes(name.as_bytes())
                 .map_err(|error| PyRuntimeError::new_err(error.to_string()))?;
             let value = HeaderValue::from_str(value)
                 .map_err(|error| PyRuntimeError::new_err(error.to_string()))?;
             if name == COOKIE {
-                top_level_cookie = Some(value);
+                initial_cookie_override = Some(value);
             } else {
                 header_map.insert(name, value);
             }
         }
 
-        let use_raw_http = proxies.is_empty();
-        let client_identity = (!client_certificate.is_empty() || !client_key.is_empty())
-            .then_some((client_certificate.as_slice(), client_key.as_slice()));
-        let clients = if proxies.is_empty() {
+        let use_raw_http = config.proxies.is_empty();
+        let client_identity =
+            (!config.client_certificate.is_empty() || !config.client_key.is_empty()).then_some((
+                config.client_certificate.as_slice(),
+                config.client_key.as_slice(),
+            ));
+        let clients = if config.proxies.is_empty() {
             vec![build_http_client(
                 &header_map,
-                concurrency,
-                timeout_secs,
-                follow_redirects,
-                max_redirects,
+                config.concurrency,
+                config.timeout_secs,
+                config.follow_redirects,
+                config.max_redirects,
                 None,
                 client_identity,
                 session.cookie_store.clone(),
             )
             .map_err(|error| PyRuntimeError::new_err(error.to_string()))?]
         } else {
-            proxies
+            config
+                .proxies
                 .iter()
                 .map(|proxy_url| {
                     build_http_client(
                         &header_map,
-                        concurrency,
-                        timeout_secs,
-                        follow_redirects,
-                        max_redirects,
+                        config.concurrency,
+                        config.timeout_secs,
+                        config.follow_redirects,
+                        config.max_redirects,
                         Some(proxy_url),
                         client_identity,
                         session.cookie_store.clone(),
@@ -254,16 +255,18 @@ impl NativeHttpEngine {
 
         Ok(Self {
             runtime,
-            clients,
-            raw_headers: headers,
-            concurrency: concurrency.max(1),
-            timeout_secs,
-            follow_redirects,
-            use_raw_http,
-            method,
-            body: Bytes::from(body),
-            top_level_cookie,
-            session,
+            concurrency: config.concurrency.max(1),
+            request_context: Arc::new(NativeRequestContext {
+                clients: Arc::new(clients),
+                raw_headers: Arc::new(config.headers),
+                timeout_secs: config.timeout_secs,
+                follow_redirects: config.follow_redirects,
+                use_raw_http,
+                method,
+                body: Bytes::from(config.body),
+                initial_cookie_override,
+                session,
+            }),
             cancelled: Arc::new(AtomicBool::new(false)),
         })
     }
@@ -285,16 +288,8 @@ impl NativeHttpEngine {
             return Ok(Vec::new());
         }
         let cancelled = self.cancelled.clone();
-        let clients = self.clients.clone();
-        let raw_headers = self.raw_headers.clone();
         let concurrency = self.concurrency;
-        let timeout_secs = self.timeout_secs;
-        let follow_redirects = self.follow_redirects;
-        let use_raw_http = self.use_raw_http;
-        let method = self.method.clone();
-        let body = self.body.clone();
-        let top_level_cookie = self.top_level_cookie.clone();
-        let cookie_store = self.session.cookie_store.clone();
+        let request_context = self.request_context.clone();
         let runtime = &self.runtime;
 
         let result = py.detach(move || {
@@ -302,43 +297,24 @@ impl NativeHttpEngine {
                 prepare_request_targets(&mut paths, &query);
                 let result_count = paths.len();
                 let paths = Arc::new(paths);
-                let next_request = Arc::new(AtomicUsize::new(0));
+                let scan_task = Arc::new(ScanTask {
+                    paths: paths.clone(),
+                    next_request: AtomicUsize::new(0),
+                    base_url,
+                    request_context,
+                    filter_config,
+                    cancelled: cancelled.clone(),
+                    max_retries,
+                    max_body_size,
+                    compact_filtered,
+                });
                 // Reuse a bounded set of worker tasks for the whole batch.
                 // This keeps HTTP concurrency unchanged while avoiding one
                 // Tokio task allocation and context clone per URL.
                 let mut tasks: JoinSet<WorkerScanResults> = JoinSet::new();
                 let worker_count = concurrency.min(result_count);
                 for _ in 0..worker_count {
-                    let paths = paths.clone();
-                    let next_request = next_request.clone();
-                    let clients = clients.clone();
-                    let base_url = base_url.clone();
-                    let raw_headers = raw_headers.clone();
-                    let filter_config = filter_config.clone();
-                    let worker_cancelled = cancelled.clone();
-                    let method = method.clone();
-                    let body = body.clone();
-                    let top_level_cookie = top_level_cookie.clone();
-                    let cookie_store = cookie_store.clone();
-                    tasks.spawn(run_scan_worker(
-                        paths,
-                        next_request,
-                        clients,
-                        base_url,
-                        raw_headers,
-                        filter_config,
-                        worker_cancelled,
-                        use_raw_http,
-                        follow_redirects,
-                        timeout_secs,
-                        max_retries,
-                        max_body_size,
-                        compact_filtered,
-                        method,
-                        body,
-                        top_level_cookie,
-                        cookie_store,
-                    ));
+                    tasks.spawn(run_scan_worker(scan_task.clone()));
                 }
 
                 let mut results = Vec::with_capacity(if compact_filtered {
@@ -420,85 +396,81 @@ struct WorkerScanResults {
     last_processed_index: Option<usize>,
 }
 
-#[allow(clippy::too_many_arguments)]
-async fn run_scan_worker(
+struct ScanTask {
     paths: Arc<Vec<String>>,
-    next_request: Arc<AtomicUsize>,
-    clients: Vec<reqwest::Client>,
+    next_request: AtomicUsize,
     base_url: String,
-    raw_headers: HeaderPairs,
+    request_context: Arc<NativeRequestContext>,
     filter_config: Arc<NativeFilterConfig>,
     cancelled: Arc<AtomicBool>,
-    use_raw_http: bool,
-    follow_redirects: bool,
-    timeout_secs: f64,
     max_retries: usize,
     max_body_size: usize,
     compact_filtered: bool,
-    method: Method,
-    body: Bytes,
-    top_level_cookie: Option<HeaderValue>,
-    cookie_store: Arc<NativeCookieStore>,
-) -> WorkerScanResults {
+}
+
+async fn run_scan_worker(task: Arc<ScanTask>) -> WorkerScanResults {
     let mut results = Vec::new();
     let mut last_processed_index = None;
     loop {
-        if cancelled.load(Ordering::Acquire) {
+        if task.cancelled.load(Ordering::Acquire) {
             break;
         }
         // Workers only need a unique index here; results are ordered after
         // every worker finishes, so this counter does not synchronize data.
-        let request_index = next_request.fetch_add(1, Ordering::Relaxed);
-        let Some(path) = paths.get(request_index) else {
+        let request_index = task.next_request.fetch_add(1, Ordering::Relaxed);
+        let Some(path) = task.paths.get(request_index) else {
             break;
         };
         last_processed_index = Some(request_index);
-        let client = &clients[request_index % clients.len()];
-        let url = format!("{base_url}{path}");
+        let request_context = task.request_context.as_ref();
+        let client = &request_context.clients[request_index % request_context.clients.len()];
+        let url = format!("{}{path}", task.base_url);
         let start = Instant::now();
 
-        let mut result =
-            if use_raw_http && !follow_redirects && should_use_raw_http(&base_url, path) {
-                raw_http_request(
-                    RawHttpRequest {
-                        base_url: &base_url,
-                        path,
-                        method: method.as_str(),
-                        body: body.as_ref(),
-                        headers: &raw_headers,
-                        timeout_secs,
-                        max_body_size,
-                        start,
-                        cancelled: cancelled.clone(),
-                        cookie_store: cookie_store.clone(),
-                    },
-                    max_retries,
-                    filter_config.as_ref(),
-                )
-                .await
-            } else {
-                request_with_client(
-                    client,
-                    &url,
-                    &method,
-                    body.clone(),
-                    top_level_cookie.clone(),
-                    follow_redirects,
-                    max_retries,
-                    max_body_size,
+        let mut result = if request_context.use_raw_http
+            && !request_context.follow_redirects
+            && should_use_raw_http(&task.base_url, path)
+        {
+            raw_http_request(
+                RawHttpRequest {
+                    base_url: &task.base_url,
+                    path,
+                    method: request_context.method.as_str(),
+                    body: request_context.body.as_ref(),
+                    headers: &request_context.raw_headers,
+                    timeout_secs: request_context.timeout_secs,
+                    max_body_size: task.max_body_size,
                     start,
-                    filter_config.as_ref(),
-                    compact_filtered,
-                )
-                .await
-            };
+                    cancelled: task.cancelled.clone(),
+                    cookie_store: request_context.session.cookie_store.clone(),
+                },
+                task.max_retries,
+                task.filter_config.as_ref(),
+            )
+            .await
+        } else {
+            request_with_client(ClientRequest {
+                client,
+                url: &url,
+                method: &request_context.method,
+                body: &request_context.body,
+                initial_cookie_override: request_context.initial_cookie_override.clone(),
+                capture_redirect_history: request_context.follow_redirects,
+                max_retries: task.max_retries,
+                max_body_size: task.max_body_size,
+                start,
+                filter_config: task.filter_config.as_ref(),
+                compact_filtered: task.compact_filtered,
+            })
+            .await
+        };
         if result.final_url.is_empty() {
             result.final_url = url;
         }
         result.request_index = request_index;
         // Filtered results only carry progress in compact mode. The coordinator
         // synthesizes one completion marker after every worker has joined.
-        if compact_filtered
+        if task.compact_filtered
             && result.filtered
             && result.error.is_none()
             && result.status != PROXY_AUTHENTICATION_REQUIRED
@@ -597,48 +569,31 @@ pub(crate) fn scan_http(
 ) -> PyResult<Vec<NativeHttpResult>> {
     let config = NativeHttpEngineConfig {
         concurrency,
-        timeout_bits: timeout_secs.to_bits(),
-        headers: headers.clone(),
-        proxies: proxies.clone(),
+        timeout_secs,
+        headers,
+        proxies,
         follow_redirects,
         max_redirects,
-        method: method.clone(),
-        body: body.clone(),
-        client_certificate: client_certificate.clone(),
-        client_key: client_key.clone(),
+        method,
+        body,
+        client_certificate,
+        client_key,
     };
     let engine = {
         let cache = DEFAULT_HTTP_ENGINE.get_or_init(|| Mutex::new(None));
         let mut cached = cache
             .lock()
             .map_err(|error| PyRuntimeError::new_err(error.to_string()))?;
-        if cached
-            .as_ref()
-            .is_none_or(|(cached_config, _)| *cached_config != config)
-        {
+        if cached.as_ref().is_none_or(|cached| cached.config != config) {
             let session = cached
                 .as_ref()
-                .map_or_else(NativeHttpSession::default, |(_, engine)| {
-                    engine.session.clone()
+                .map_or_else(NativeHttpSession::default, |cached| {
+                    cached.engine.request_context.session.clone()
                 });
-            *cached = Some((
-                config,
-                Arc::new(NativeHttpEngine::new_with_session(
-                    concurrency,
-                    timeout_secs,
-                    headers,
-                    proxies,
-                    follow_redirects,
-                    max_redirects,
-                    method,
-                    body,
-                    client_certificate,
-                    client_key,
-                    session,
-                )?),
-            ));
+            let engine = Arc::new(NativeHttpEngine::from_config(config.clone(), session)?);
+            *cached = Some(CachedNativeHttpEngine { config, engine });
         }
-        cached.as_ref().unwrap().1.clone()
+        cached.as_ref().unwrap().engine.clone()
     };
 
     let filter_config = NativeFilterConfig::from_options(

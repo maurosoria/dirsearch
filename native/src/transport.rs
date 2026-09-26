@@ -5,18 +5,16 @@ use crate::raw_http;
 use crate::result::{
     native_error_result, native_filtered_marker, native_http_result_with_length, NativeHttpResult,
 };
+use crate::session::{with_initial_cookie_override, NativeCookieStore};
 use async_compression::tokio::bufread::{BrotliDecoder, GzipDecoder, ZlibDecoder};
 use bytes::Bytes;
-use cookie::Cookie as ParsedCookie;
 use futures_util::TryStreamExt;
-use reqwest::cookie::CookieStore;
 use reqwest::header::{HeaderMap, HeaderValue, CONTENT_ENCODING};
 use reqwest::Method;
 use std::cell::RefCell;
-use std::cmp::Reverse;
 use std::io;
 use std::pin::Pin;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::io::{AsyncRead, AsyncReadExt, BufReader};
 use tokio_util::io::StreamReader;
@@ -26,79 +24,6 @@ type AsyncBodyReader = Pin<Box<dyn AsyncRead + Send>>;
 
 tokio::task_local! {
     static REDIRECT_HISTORY: RefCell<Vec<String>>;
-    static TOP_LEVEL_COOKIE: RefCell<Option<HeaderValue>>;
-}
-
-#[derive(Debug, Default)]
-pub(crate) struct NativeCookieStore {
-    store: RwLock<cookie_store::CookieStore>,
-}
-
-impl NativeCookieStore {
-    pub(crate) fn add_cookie_str(&self, cookie: &str, url: &reqwest::Url) {
-        if let Ok(cookie) = ParsedCookie::parse(cookie).map(ParsedCookie::into_owned) {
-            if accepts_cookie_domain(&cookie) {
-                self.store
-                    .write()
-                    .unwrap()
-                    .store_response_cookies(std::iter::once(cookie), url);
-            }
-        }
-    }
-}
-
-impl CookieStore for NativeCookieStore {
-    fn set_cookies(
-        &self,
-        cookie_headers: &mut dyn Iterator<Item = &HeaderValue>,
-        url: &reqwest::Url,
-    ) {
-        let cookies = cookie_headers.filter_map(|value| {
-            value
-                .to_str()
-                .ok()
-                .and_then(|cookie| ParsedCookie::parse(cookie).ok())
-                .map(ParsedCookie::into_owned)
-                .filter(accepts_cookie_domain)
-        });
-        self.store
-            .write()
-            .unwrap()
-            .store_response_cookies(cookies, url);
-    }
-
-    fn cookies(&self, url: &reqwest::Url) -> Option<HeaderValue> {
-        if let Ok(Some(cookie)) = TOP_LEVEL_COOKIE.try_with(|cookie| cookie.borrow_mut().take()) {
-            return Some(cookie);
-        }
-        let store = self.store.read().unwrap();
-        let mut cookies = store
-            .matches(url)
-            .into_iter()
-            .filter(|cookie| url.scheme() == "https" || !cookie.secure().unwrap_or(false))
-            .collect::<Vec<_>>();
-        cookies.sort_by_key(|cookie| Reverse(cookie.path.len()));
-        let values = cookies
-            .into_iter()
-            .map(|cookie| {
-                let (name, value) = cookie.name_value();
-                format!("{name}={value}")
-            })
-            .collect::<Vec<_>>()
-            .join("; ");
-        if values.is_empty() {
-            None
-        } else {
-            HeaderValue::from_str(&values).ok()
-        }
-    }
-}
-
-fn accepts_cookie_domain(cookie: &ParsedCookie<'_>) -> bool {
-    cookie.domain().is_none_or(|domain| {
-        let domain = domain.trim_start_matches('.');
-        domain.contains('.') || domain.eq_ignore_ascii_case("local")
-    })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -165,42 +90,30 @@ pub(crate) fn build_http_client(
     })
 }
 
-#[allow(clippy::too_many_arguments)]
-pub(crate) async fn request_with_client(
-    client: &reqwest::Client,
-    url: &str,
-    method: &Method,
-    body: Bytes,
-    top_level_cookie: Option<HeaderValue>,
-    capture_redirect_history: bool,
-    max_retries: usize,
-    max_body_size: usize,
-    start: Instant,
-    filter_config: &NativeFilterConfig,
-    compact_filtered: bool,
-) -> NativeHttpResult {
+pub(crate) struct ClientRequest<'a> {
+    pub(crate) client: &'a reqwest::Client,
+    pub(crate) url: &'a str,
+    pub(crate) method: &'a Method,
+    pub(crate) body: &'a Bytes,
+    pub(crate) initial_cookie_override: Option<HeaderValue>,
+    pub(crate) capture_redirect_history: bool,
+    pub(crate) max_retries: usize,
+    pub(crate) max_body_size: usize,
+    pub(crate) start: Instant,
+    pub(crate) filter_config: &'a NativeFilterConfig,
+    pub(crate) compact_filtered: bool,
+}
+
+pub(crate) async fn request_with_client(request: ClientRequest<'_>) -> NativeHttpResult {
     let mut last_error = None;
-    let mut attempt_start = start;
-    for attempt in 0..=max_retries {
-        match request_once(
-            client,
-            url,
-            method,
-            &body,
-            top_level_cookie.clone(),
-            capture_redirect_history,
-            max_body_size,
-            attempt_start,
-            filter_config,
-            compact_filtered,
-        )
-        .await
-        {
+    let mut attempt_start = request.start;
+    for attempt in 0..=request.max_retries {
+        match request_once(&request, attempt_start).await {
             Ok(result) => return result,
             Err(error) => {
                 let retryable = !is_non_retryable_proxy_error(&error);
                 last_error = Some(error);
-                if !retryable || attempt == max_retries {
+                if !retryable || attempt == request.max_retries {
                     break;
                 }
                 // Python requesters report elapsed time for the final attempt,
@@ -229,30 +142,21 @@ pub(crate) fn is_non_retryable_proxy_error(error: &str) -> bool {
     .any(|marker| error.contains(marker))
 }
 
-#[allow(clippy::too_many_arguments)]
 async fn request_once(
-    client: &reqwest::Client,
-    url: &str,
-    method: &Method,
-    body: &Bytes,
-    top_level_cookie: Option<HeaderValue>,
-    capture_redirect_history: bool,
-    max_body_size: usize,
+    request: &ClientRequest<'_>,
     start: Instant,
-    filter_config: &NativeFilterConfig,
-    compact_filtered: bool,
 ) -> Result<NativeHttpResult, String> {
     let build_request = || {
-        let request = client.request(method.clone(), url);
-        if body.is_empty() {
-            request
+        let builder = request.client.request(request.method.clone(), request.url);
+        if request.body.is_empty() {
+            builder
         } else {
-            request.body(body.clone())
+            builder.body((*request.body).clone())
         }
     };
-    let (response, redirect_history) = TOP_LEVEL_COOKIE
-        .scope(RefCell::new(top_level_cookie), async {
-            if capture_redirect_history {
+    let (response, redirect_history) =
+        with_initial_cookie_override(request.initial_cookie_override.clone(), async {
+            if request.capture_redirect_history {
                 REDIRECT_HISTORY
                     .scope(RefCell::new(Vec::new()), async {
                         let result = build_request().send().await;
@@ -268,7 +172,10 @@ async fn request_once(
     let response = response.map_err(|error| format_error_chain(&error))?;
     let status = response.status().as_u16();
     let final_url = response.url().to_string();
-    if compact_filtered && status != 407 && filter_config.status_filter_reason(status).is_some() {
+    if request.compact_filtered
+        && status != 407
+        && request.filter_config.status_filter_reason(status).is_some()
+    {
         let encodings = response_encodings(response.headers());
         read_decoded_body(response, encodings, 0, false).await?;
         let mut result = native_filtered_marker(status, start.elapsed().as_secs_f64() * 1000.0);
@@ -286,7 +193,7 @@ async fn request_once(
             )
         })
         .collect::<Vec<_>>();
-    let (body, body_length) = read_response_body(response, &headers, max_body_size).await?;
+    let (body, body_length) = read_response_body(response, &headers, request.max_body_size).await?;
     let mut result = native_http_result_with_length(
         String::new(),
         status,
@@ -294,7 +201,7 @@ async fn request_once(
         body,
         body_length,
         start.elapsed().as_secs_f64() * 1000.0,
-        filter_config,
+        request.filter_config,
     );
     result.history = redirect_history;
     result.final_url = final_url;
