@@ -39,13 +39,17 @@ impl Drop for ShutdownOnDrop {
     }
 }
 
-pub(crate) fn exchange(
+pub(crate) fn exchange<F>(
     mut stream: TcpStream,
     request: &[u8],
     deadline: Instant,
     cancelled: Arc<AtomicBool>,
     max_body_size: usize,
-) -> Result<Response, String> {
+    on_headers: F,
+) -> Result<Response, String>
+where
+    F: FnOnce(&HeaderPairs),
+{
     write_all(&mut stream, request, deadline, cancelled.as_ref())
         .map_err(|error| format!("Raw HTTP request write failed: {error}"))?;
     let reader = DeadlineReader {
@@ -53,13 +57,26 @@ pub(crate) fn exchange(
         deadline,
         cancelled,
     };
-    parse_response(reader, max_body_size)
+    parse_response_with_headers(reader, max_body_size, on_headers)
 }
 
+#[cfg(test)]
 pub(crate) fn parse_response<R: Read + 'static>(
     reader: R,
     max_body_size: usize,
 ) -> Result<Response, String> {
+    parse_response_with_headers(reader, max_body_size, |_| {})
+}
+
+fn parse_response_with_headers<R, F>(
+    reader: R,
+    max_body_size: usize,
+    on_headers: F,
+) -> Result<Response, String>
+where
+    R: Read + 'static,
+    F: FnOnce(&HeaderPairs),
+{
     let mut reader = BufReader::new(reader);
     let mut informational_responses = 0usize;
     let (status, headers) = loop {
@@ -75,6 +92,7 @@ pub(crate) fn parse_response<R: Read + 'static>(
     };
 
     if status == 101 || status == 204 || status == 304 {
+        on_headers(&headers);
         return Ok((status, headers, Vec::new(), 0));
     }
 
@@ -99,6 +117,10 @@ pub(crate) fn parse_response<R: Read + 'static>(
         }
         BodyReader::chunked(reader)
     };
+
+    // Session state belongs to the valid response head. Preserve Set-Cookie
+    // even if reading or decoding the body later fails and a retry follows.
+    on_headers(&headers);
 
     let encodings = comma_separated_header_values(&headers, "content-encoding");
     let mut decoded: Box<dyn Read> = Box::new(framing);

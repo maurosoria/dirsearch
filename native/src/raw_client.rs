@@ -3,7 +3,8 @@
 use crate::filters::NativeFilterConfig;
 use crate::raw_http;
 use crate::result::{native_error_result, native_http_result_with_length, NativeHttpResult};
-use crate::transport::HeaderPairs;
+use crate::transport::{HeaderPairs, NativeCookieStore};
+use reqwest::cookie::CookieStore;
 #[cfg(test)]
 use std::io::Cursor;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -22,6 +23,7 @@ pub(crate) struct RawHttpRequest<'a> {
     pub(crate) max_body_size: usize,
     pub(crate) start: Instant,
     pub(crate) cancelled: Arc<AtomicBool>,
+    pub(crate) cookie_store: Arc<NativeCookieStore>,
 }
 
 pub(crate) fn should_use_raw_http(base_url: &str, path: &str) -> bool {
@@ -115,6 +117,8 @@ async fn raw_http_request_inner(
         None => host.clone(),
     };
     let target = raw_request_target(url.path(), request.path);
+    let mut cookie_url = url.clone();
+    cookie_url.set_path(target.split(['?', '#']).next().unwrap_or("/"));
     let mut wire_request = format!(
         "{} {target} HTTP/1.1\r\nHost: {host_header}\r\nConnection: close\r\n",
         request.method
@@ -125,6 +129,17 @@ async fn raw_http_request_inner(
         wire_request.extend_from_slice(b": ");
         wire_request.extend_from_slice(value.as_bytes());
         wire_request.extend_from_slice(b"\r\n");
+    }
+    if !request
+        .headers
+        .iter()
+        .any(|(name, _)| name.eq_ignore_ascii_case("cookie"))
+    {
+        if let Some(cookie) = request.cookie_store.cookies(&cookie_url) {
+            wire_request.extend_from_slice(b"Cookie: ");
+            wire_request.extend_from_slice(cookie.as_bytes());
+            wire_request.extend_from_slice(b"\r\n");
+        }
     }
     if !request.body.is_empty()
         && !request
@@ -157,8 +172,24 @@ async fn raw_http_request_inner(
     let mut shutdown_guard = raw_http::ShutdownOnDrop::new(shutdown_stream);
     let cancelled = request.cancelled.clone();
     let max_body_size = request.max_body_size;
+    let response_cookie_store = request.cookie_store.clone();
+    let response_cookie_url = cookie_url.clone();
     let exchange = tokio::task::spawn_blocking(move || {
-        raw_http::exchange(stream, &wire_request, deadline, cancelled, max_body_size)
+        raw_http::exchange(
+            stream,
+            &wire_request,
+            deadline,
+            cancelled,
+            max_body_size,
+            move |headers| {
+                for (_, value) in headers
+                    .iter()
+                    .filter(|(name, _)| name.eq_ignore_ascii_case("set-cookie"))
+                {
+                    response_cookie_store.add_cookie_str(value, &response_cookie_url);
+                }
+            },
+        )
     })
     .await
     .map_err(|error| error.to_string())?;

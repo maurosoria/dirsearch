@@ -8,6 +8,8 @@ It exposes a small PyO3 API:
 - `generate_wordlist(...)` for deterministic ordered wordlist generation.
 - `generate_wordlist_owned(...)` for keeping native-scan corpora in Rust.
 - `NativeHttpEngine` for batch HTTP requests using `reqwest` and `tokio`.
+- `NativeHttpSession` for explicitly sharing cookie state across engine rebuilds
+  and replay transports.
 - `NativeFilterConfig` for compiling and reusing one immutable filter policy.
 - `scan_http(...)` as the compatibility entrypoint backed by a cached engine.
 
@@ -32,6 +34,7 @@ while lookarounds and backreferences run in its bounded backtracking engine.
 responsibility:
 
 - `engine.rs` owns the persistent engine, bounded scheduler, and cancellation.
+- `session.rs` owns explicit cross-engine session state.
 - `request_target.rs` owns query insertion and URL quoting before scheduling.
 - `transport.rs` owns reqwest requests and streamed response decoding.
 - `raw_client.rs` selects and drives the byte-preserving HTTP adapter, while

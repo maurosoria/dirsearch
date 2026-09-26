@@ -4,12 +4,13 @@ use crate::filters::{NativeFilterConfig, NumericRange, TimeFilter};
 use crate::raw_client::{raw_http_request, should_use_raw_http, RawHttpRequest};
 use crate::request_target::prepare_request_targets;
 use crate::result::{native_completion_marker, NativeHttpResult};
-use crate::transport::{build_http_client, request_with_client, HeaderPairs};
+use crate::session::NativeHttpSession;
+use crate::transport::{build_http_client, request_with_client, HeaderPairs, NativeCookieStore};
 use crate::wordlist::NativeWordlistBatch;
 use bytes::Bytes;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
-use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+use reqwest::header::{HeaderMap, HeaderName, HeaderValue, COOKIE};
 use reqwest::Method;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
@@ -30,6 +31,8 @@ pub(crate) struct NativeHttpEngine {
     use_raw_http: bool,
     method: Method,
     body: Bytes,
+    top_level_cookie: Option<HeaderValue>,
+    session: NativeHttpSession,
     cancelled: Arc<AtomicBool>,
 }
 
@@ -65,6 +68,7 @@ impl NativeHttpEngine {
         body=Vec::new(),
         client_certificate=Vec::new(),
         client_key=Vec::new(),
+        session=None,
     ))]
     fn new(
         concurrency: usize,
@@ -77,67 +81,22 @@ impl NativeHttpEngine {
         body: Vec<u8>,
         client_certificate: Vec<u8>,
         client_key: Vec<u8>,
+        session: Option<PyRef<'_, NativeHttpSession>>,
     ) -> PyResult<Self> {
-        let method = Method::from_bytes(method.as_bytes())
-            .map_err(|error| PyRuntimeError::new_err(error.to_string()))?;
-        let mut header_map = HeaderMap::new();
-        for (name, value) in &headers {
-            let name = HeaderName::from_bytes(name.as_bytes())
-                .map_err(|error| PyRuntimeError::new_err(error.to_string()))?;
-            let value = HeaderValue::from_str(value)
-                .map_err(|error| PyRuntimeError::new_err(error.to_string()))?;
-            header_map.insert(name, value);
-        }
-
-        let use_raw_http = proxies.is_empty();
-        let client_identity = (!client_certificate.is_empty() || !client_key.is_empty())
-            .then_some((client_certificate.as_slice(), client_key.as_slice()));
-        let clients = if proxies.is_empty() {
-            vec![build_http_client(
-                &header_map,
-                concurrency,
-                timeout_secs,
-                follow_redirects,
-                max_redirects,
-                None,
-                client_identity,
-            )
-            .map_err(|error| PyRuntimeError::new_err(error.to_string()))?]
-        } else {
-            proxies
-                .iter()
-                .map(|proxy_url| {
-                    build_http_client(
-                        &header_map,
-                        concurrency,
-                        timeout_secs,
-                        follow_redirects,
-                        max_redirects,
-                        Some(proxy_url),
-                        client_identity,
-                    )
-                })
-                .collect::<Result<Vec<_>, _>>()
-                .map_err(|error| PyRuntimeError::new_err(error.to_string()))?
-        };
-        let runtime = tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .worker_threads(runtime_worker_count())
-            .build()
-            .map_err(|error| PyRuntimeError::new_err(error.to_string()))?;
-
-        Ok(Self {
-            runtime,
-            clients,
-            raw_headers: headers,
-            concurrency: concurrency.max(1),
+        let session = session.as_deref().cloned().unwrap_or_default();
+        Self::new_with_session(
+            concurrency,
             timeout_secs,
+            headers,
+            proxies,
             follow_redirects,
-            use_raw_http,
+            max_redirects,
             method,
-            body: Bytes::from(body),
-            cancelled: Arc::new(AtomicBool::new(false)),
-        })
+            body,
+            client_certificate,
+            client_key,
+            session,
+        )
     }
 
     fn cancel(&self) {
@@ -225,6 +184,91 @@ impl NativeHttpEngine {
 
 impl NativeHttpEngine {
     #[allow(clippy::too_many_arguments)]
+    fn new_with_session(
+        concurrency: usize,
+        timeout_secs: f64,
+        headers: HeaderPairs,
+        proxies: Vec<String>,
+        follow_redirects: bool,
+        max_redirects: usize,
+        method: String,
+        body: Vec<u8>,
+        client_certificate: Vec<u8>,
+        client_key: Vec<u8>,
+        session: NativeHttpSession,
+    ) -> PyResult<Self> {
+        let method = Method::from_bytes(method.as_bytes())
+            .map_err(|error| PyRuntimeError::new_err(error.to_string()))?;
+        let mut header_map = HeaderMap::new();
+        let mut top_level_cookie = None;
+        for (name, value) in &headers {
+            let name = HeaderName::from_bytes(name.as_bytes())
+                .map_err(|error| PyRuntimeError::new_err(error.to_string()))?;
+            let value = HeaderValue::from_str(value)
+                .map_err(|error| PyRuntimeError::new_err(error.to_string()))?;
+            if name == COOKIE {
+                top_level_cookie = Some(value);
+            } else {
+                header_map.insert(name, value);
+            }
+        }
+
+        let use_raw_http = proxies.is_empty();
+        let client_identity = (!client_certificate.is_empty() || !client_key.is_empty())
+            .then_some((client_certificate.as_slice(), client_key.as_slice()));
+        let clients = if proxies.is_empty() {
+            vec![build_http_client(
+                &header_map,
+                concurrency,
+                timeout_secs,
+                follow_redirects,
+                max_redirects,
+                None,
+                client_identity,
+                session.cookie_store.clone(),
+            )
+            .map_err(|error| PyRuntimeError::new_err(error.to_string()))?]
+        } else {
+            proxies
+                .iter()
+                .map(|proxy_url| {
+                    build_http_client(
+                        &header_map,
+                        concurrency,
+                        timeout_secs,
+                        follow_redirects,
+                        max_redirects,
+                        Some(proxy_url),
+                        client_identity,
+                        session.cookie_store.clone(),
+                    )
+                })
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|error| PyRuntimeError::new_err(error.to_string()))?
+        };
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .worker_threads(runtime_worker_count())
+            .build()
+            .map_err(|error| PyRuntimeError::new_err(error.to_string()))?;
+
+        Ok(Self {
+            runtime,
+            clients,
+            raw_headers: headers,
+            concurrency: concurrency.max(1),
+            timeout_secs,
+            follow_redirects,
+            use_raw_http,
+            method,
+            body: Bytes::from(body),
+            top_level_cookie,
+            session,
+            cancelled: Arc::new(AtomicBool::new(false)),
+        })
+    }
+
+    #[allow(clippy::too_many_arguments)]
     fn scan_paths(
         &self,
         py: Python<'_>,
@@ -249,6 +293,8 @@ impl NativeHttpEngine {
         let use_raw_http = self.use_raw_http;
         let method = self.method.clone();
         let body = self.body.clone();
+        let top_level_cookie = self.top_level_cookie.clone();
+        let cookie_store = self.session.cookie_store.clone();
         let runtime = &self.runtime;
 
         let result = py.detach(move || {
@@ -272,6 +318,8 @@ impl NativeHttpEngine {
                     let worker_cancelled = cancelled.clone();
                     let method = method.clone();
                     let body = body.clone();
+                    let top_level_cookie = top_level_cookie.clone();
+                    let cookie_store = cookie_store.clone();
                     tasks.spawn(run_scan_worker(
                         paths,
                         next_request,
@@ -288,6 +336,8 @@ impl NativeHttpEngine {
                         compact_filtered,
                         method,
                         body,
+                        top_level_cookie,
+                        cookie_store,
                     ));
                 }
 
@@ -387,6 +437,8 @@ async fn run_scan_worker(
     compact_filtered: bool,
     method: Method,
     body: Bytes,
+    top_level_cookie: Option<HeaderValue>,
+    cookie_store: Arc<NativeCookieStore>,
 ) -> WorkerScanResults {
     let mut results = Vec::new();
     let mut last_processed_index = None;
@@ -418,6 +470,7 @@ async fn run_scan_worker(
                         max_body_size,
                         start,
                         cancelled: cancelled.clone(),
+                        cookie_store: cookie_store.clone(),
                     },
                     max_retries,
                     filter_config.as_ref(),
@@ -429,6 +482,7 @@ async fn run_scan_worker(
                     &url,
                     &method,
                     body.clone(),
+                    top_level_cookie.clone(),
                     follow_redirects,
                     max_retries,
                     max_body_size,
@@ -562,9 +616,14 @@ pub(crate) fn scan_http(
             .as_ref()
             .is_none_or(|(cached_config, _)| *cached_config != config)
         {
+            let session = cached
+                .as_ref()
+                .map_or_else(NativeHttpSession::default, |(_, engine)| {
+                    engine.session.clone()
+                });
             *cached = Some((
                 config,
-                Arc::new(NativeHttpEngine::new(
+                Arc::new(NativeHttpEngine::new_with_session(
                     concurrency,
                     timeout_secs,
                     headers,
@@ -575,6 +634,7 @@ pub(crate) fn scan_http(
                     body,
                     client_certificate,
                     client_key,
+                    session,
                 )?),
             ));
         }

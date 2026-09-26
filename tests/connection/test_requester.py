@@ -38,7 +38,7 @@ from requests.packages import urllib3
 
 from lib.connection import requester as requester_module
 from lib.connection import response as response_module
-from lib.connection.native import NativeHTTPBackend
+from lib.connection.native import NativeHTTPBackend, NativeRequester
 from lib.connection.rate_limiter import RequestRateLimiter
 from lib.connection.requester import (
     AsyncRequester,
@@ -161,6 +161,28 @@ class RequestTargetHandler(http.server.BaseHTTPRequestHandler):
 
         attempt = self.server.target_counts.get(route_target, 0) + 1
         self.server.target_counts[route_target] = attempt
+        if route_target in (
+            b"/cookie/retry-body",
+            b"/cookie/retry-body%1",
+        ):
+            if attempt == 1:
+                self.send_response(200)
+                self.send_header("set-cookie", "retry=native; Path=/")
+                self.send_header("content-length", "4")
+                self.end_headers()
+                self.wfile.write(b"no")
+                self.wfile.flush()
+                self.close_connection = True
+                self.connection.shutdown(socket.SHUT_WR)
+                return
+            body = b"cookie accepted"
+            self.send_response(
+                200 if "retry=native" in (self.headers.get("cookie") or "") else 401
+            )
+            self.send_header("content-length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if route_target in (b"/retry-body", b"/retry-body%1") and attempt == 1:
             self.send_response(200)
             self.send_header("content-type", "text/plain")
@@ -170,6 +192,104 @@ class RequestTargetHandler(http.server.BaseHTTPRequestHandler):
             self.wfile.flush()
             self.close_connection = True
             self.connection.shutdown(socket.SHUT_WR)
+            return
+
+        if route_target == b"/cookie/set":
+            body = b"cookie stored"
+            self.send_response(200)
+            self.send_header("set-cookie", "session=native; Path=/")
+            self.send_header("content-length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
+        if route_target == b"/cookie/scoped/set":
+            body = b"scoped cookie stored"
+            self.send_response(200)
+            self.send_header("set-cookie", "scoped=native; Path=/cookie/scoped/")
+            self.send_header("content-length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
+        if route_target in (b"/cookie/secure-set", b"/cookie/secure-set%1"):
+            body = b"secure cookie offered"
+            self.send_response(200)
+            self.send_header("set-cookie", "secure=native; Secure; Path=/")
+            self.send_header("content-length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
+        if route_target == b"/cookie/fixed-seed":
+            body = b"jar cookie stored"
+            self.send_response(200)
+            self.send_header("set-cookie", "jar=native; Path=/")
+            self.send_header("content-length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
+        cookie_to_set = None
+        if route_target == b"/cookie/path-root-set":
+            cookie_to_set = "id=root; Path=/"
+        elif route_target == b"/cookie/scoped/path-set":
+            cookie_to_set = "id=scoped; Path=/cookie/scoped/"
+        elif route_target == b"/cookie/domain-super-set":
+            cookie_to_set = "super=native; Domain=com; Path=/"
+        elif route_target == b"/cookie/domain-parent-set":
+            cookie_to_set = "parent=native; Domain=example.com; Path=/"
+        if cookie_to_set is not None:
+            body = b"cookie offered"
+            self.send_response(200)
+            self.send_header("set-cookie", cookie_to_set)
+            self.send_header("content-length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
+        if route_target == b"/cookie/redirect":
+            self.send_response(302)
+            self.send_header("location", "/cookie/redirected")
+            self.send_header("set-cookie", "redirect=native; Path=/")
+            self.send_header("content-length", "0")
+            self.end_headers()
+            return
+
+        if route_target == b"/cookie/scoped/redirect-outside":
+            self.send_response(302)
+            self.send_header("location", "/cookie/outside")
+            self.send_header("content-length", "0")
+            self.end_headers()
+            return
+
+        if route_target == b"/cookie/fixed-redirect":
+            self.send_response(302)
+            self.send_header("location", "/cookie/fixed-final")
+            self.send_header("content-length", "0")
+            self.end_headers()
+            return
+
+        required_cookie = None
+        if route_target in (b"/cookie/required", b"/cookie/required%1"):
+            required_cookie = "session=native"
+        elif route_target in (
+            b"/cookie/scoped/required",
+            b"/cookie/scoped/required%1",
+        ):
+            required_cookie = "scoped=native"
+        elif route_target == b"/cookie/redirected":
+            required_cookie = "redirect=native"
+        elif route_target == b"/cookie/fixed-final":
+            required_cookie = "jar=native"
+        if required_cookie is not None:
+            body = b"cookie accepted"
+            self.send_response(
+                200 if required_cookie in (self.headers.get("cookie") or "") else 401
+            )
+            self.send_header("content-length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
             return
 
         if route_target == b"/redirect":
@@ -286,6 +406,11 @@ class RequestTargetServer:
     def url(self):
         host, port = self.server.server_address
         return f"http://{host}:{port}/"
+
+    @property
+    def localhost_url(self):
+        _, port = self.server.server_address
+        return f"http://localhost:{port}/"
 
     @property
     def targets(self):
@@ -1758,7 +1883,537 @@ class TestAsyncRequesterPathPreservation(BaseRequesterTestCase, IsolatedAsyncioT
         self.assertEqual(server.request_bodies, [options["data"].encode("utf-8")])
 
 
+class TestCookieSessionParity(BaseRequesterTestCase, IsolatedAsyncioTestCase):
+    def test_sync_requester_reuses_response_cookies(self):
+        with RequestTargetServer() as server:
+            requester = Requester()
+            requester.set_url(server.url)
+            try:
+                requester.request("cookie/set")
+                response = requester.request("cookie/required")
+            finally:
+                requester.close()
+
+        self.assertEqual(response.status, 200)
+        self.assertEqual(server.cookies, [None, "session=native"])
+
+    async def test_async_requester_reuses_response_cookies(self):
+        with RequestTargetServer() as server:
+            requester = AsyncRequester()
+            requester.set_url(server.url)
+            try:
+                await requester.request("cookie/set")
+                response = await requester.request("cookie/required")
+            finally:
+                await requester.close()
+
+        self.assertEqual(response.status, 200)
+        self.assertEqual(server.cookies, [None, "session=native"])
+
+    def test_sync_retry_reuses_cookie_from_truncated_response(self):
+        options["max_retries"] = 1
+        with RequestTargetServer() as server:
+            requester = Requester()
+            requester.set_url(server.url)
+            try:
+                response = requester.request("cookie/retry-body")
+            finally:
+                requester.close()
+
+        self.assertEqual(response.status, 200)
+        self.assertEqual(server.cookies, [None, "retry=native"])
+
+    async def test_async_retry_reuses_cookie_from_truncated_response(self):
+        options["max_retries"] = 1
+        with RequestTargetServer() as server:
+            requester = AsyncRequester()
+            requester.set_url(server.url)
+            try:
+                response = await requester.request("cookie/retry-body")
+            finally:
+                await requester.close()
+
+        self.assertEqual(response.status, 200)
+        self.assertEqual(server.cookies, [None, "retry=native"])
+
+    def test_sync_fixed_cookie_yields_to_jar_on_redirect(self):
+        options["headers"] = {"Cookie": "fixed=manual"}
+        options["follow_redirects"] = True
+        with RequestTargetServer() as server:
+            requester = Requester()
+            requester.set_url(server.url)
+            try:
+                requester.request("cookie/fixed-seed")
+                response = requester.request("cookie/fixed-redirect")
+            finally:
+                requester.close()
+
+        self.assertEqual(response.status, 200)
+        self.assertEqual(
+            server.cookies,
+            ["fixed=manual", "fixed=manual", "jar=native"],
+        )
+
+    async def test_async_fixed_cookie_yields_to_jar_on_redirect(self):
+        options["headers"] = {"Cookie": "fixed=manual"}
+        options["follow_redirects"] = True
+        with RequestTargetServer() as server:
+            requester = AsyncRequester()
+            requester.set_url(server.url)
+            try:
+                await requester.request("cookie/fixed-seed")
+                response = await requester.request("cookie/fixed-redirect")
+            finally:
+                await requester.close()
+
+        self.assertEqual(response.status, 200)
+        self.assertEqual(
+            server.cookies,
+            ["fixed=manual", "fixed=manual", "jar=native"],
+        )
+
+    def test_sync_does_not_send_secure_cookie_over_loopback_http(self):
+        for host in ("address", "localhost"):
+            with self.subTest(host=host), RequestTargetServer() as server:
+                requester = Requester()
+                requester.set_url(
+                    server.url if host == "address" else server.localhost_url
+                )
+                try:
+                    requester.request("cookie/secure-set")
+                    requester.request("cookie/secure-check")
+                finally:
+                    requester.close()
+
+                self.assertEqual(server.cookies, [None, None])
+
+    async def test_async_does_not_send_secure_cookie_over_loopback_http(self):
+        for host in ("address", "localhost"):
+            with self.subTest(host=host), RequestTargetServer() as server:
+                requester = AsyncRequester()
+                requester.set_url(
+                    server.url if host == "address" else server.localhost_url
+                )
+                try:
+                    await requester.request("cookie/secure-set")
+                    await requester.request("cookie/secure-check")
+                finally:
+                    await requester.close()
+
+                self.assertEqual(server.cookies, [None, None])
+
+    def test_sync_cookie_header_uses_longest_path_first(self):
+        with RequestTargetServer() as server:
+            requester = Requester()
+            requester.set_url(server.url)
+            try:
+                requester.request("cookie/path-root-set")
+                requester.request("cookie/scoped/path-set")
+                requester.request("cookie/scoped/path-check")
+            finally:
+                requester.close()
+
+        self.assertEqual(
+            server.cookies,
+            [None, "id=root", "id=scoped; id=root"],
+        )
+
+    async def test_async_cookie_header_uses_longest_path_first(self):
+        with RequestTargetServer() as server:
+            requester = AsyncRequester()
+            requester.set_url(server.url)
+            try:
+                await requester.request("cookie/path-root-set")
+                await requester.request("cookie/scoped/path-set")
+                await requester.request("cookie/scoped/path-check")
+            finally:
+                await requester.close()
+
+        self.assertEqual(
+            server.cookies,
+            [None, "id=root", "id=scoped; id=root"],
+        )
+
+    def test_sync_cookie_domain_rules_match_existing_session_behavior(self):
+        with RequestTargetServer() as proxy:
+            options["proxies"] = [proxy.url]
+            requester = Requester()
+            try:
+                requester.set_url("http://foo.com/")
+                requester.request("cookie/domain-super-set")
+                requester.set_url("http://bar.com/")
+                requester.request("cookie/domain-check")
+            finally:
+                requester.close()
+        self.assertEqual(proxy.cookies, [None, None])
+
+        with RequestTargetServer() as proxy:
+            options["proxies"] = [proxy.url]
+            requester = Requester()
+            try:
+                requester.set_url("http://api.example.com/")
+                requester.request("cookie/domain-parent-set")
+                requester.set_url("http://www.example.com/")
+                requester.request("cookie/domain-check")
+            finally:
+                requester.close()
+        self.assertEqual(proxy.cookies, [None, "parent=native"])
+
+    async def test_async_cookie_domain_rules_match_existing_session_behavior(self):
+        with RequestTargetServer() as proxy:
+            options["proxies"] = [proxy.url]
+            requester = AsyncRequester()
+            try:
+                requester.set_url("http://foo.com/")
+                await requester.request("cookie/domain-super-set")
+                requester.set_url("http://bar.com/")
+                await requester.request("cookie/domain-check")
+            finally:
+                await requester.close()
+        self.assertEqual(proxy.cookies, [None, None])
+
+        with RequestTargetServer() as proxy:
+            options["proxies"] = [proxy.url]
+            requester = AsyncRequester()
+            try:
+                requester.set_url("http://api.example.com/")
+                await requester.request("cookie/domain-parent-set")
+                requester.set_url("http://www.example.com/")
+                await requester.request("cookie/domain-check")
+            finally:
+                await requester.close()
+        self.assertEqual(proxy.cookies, [None, "parent=native"])
+
+
 class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
+    def test_native_replay_proxy_copies_origin_session_cookies(self):
+        requester = NativeRequester()
+        with RequestTargetServer() as server:
+            requester.set_url(server.url)
+            try:
+                requester.request("cookie/set")
+                response = requester.request("cookie/required", proxy=server.url)
+            except RequestException as error:
+                self.skipTest(str(error))
+            finally:
+                requester.close()
+
+        self.assertEqual(response.status, 200)
+        self.assertEqual(server.cookies, [None, "session=native"])
+
+    def test_native_replay_proxy_reapplies_cookie_scope_on_redirect(self):
+        options["follow_redirects"] = True
+        requester = NativeRequester()
+        with RequestTargetServer() as server:
+            requester.set_url(server.url)
+            try:
+                requester.request("cookie/scoped/set")
+                response = requester.request(
+                    "cookie/scoped/redirect-outside",
+                    proxy=server.url,
+                )
+            except RequestException as error:
+                self.skipTest(str(error))
+            finally:
+                requester.close()
+
+        self.assertEqual(response.status, 200)
+        self.assertEqual(server.cookies, [None, "scoped=native", None])
+
+    def test_native_requester_reuses_response_cookies(self):
+        try:
+            backend = NativeHTTPBackend()
+        except RequestException as error:
+            self.skipTest(str(error))
+
+        with RequestTargetServer() as server:
+            first = list(backend.scan(server.url, ["cookie/set"]))[0]
+            second = list(backend.scan(server.url, ["cookie/required"]))[0]
+
+        self.assertIsNone(first[2])
+        self.assertIsNone(second[2])
+        self.assertEqual(second[1].status, 200)
+        self.assertEqual(server.cookies, [None, "session=native"])
+
+    def test_native_retries_reuse_cookie_from_truncated_response(self):
+        options["max_retries"] = 1
+        for path in ("cookie/retry-body", "cookie/retry-body%1"):
+            with self.subTest(path=path), RequestTargetServer() as server:
+                try:
+                    backend = NativeHTTPBackend()
+                except RequestException as error:
+                    self.skipTest(str(error))
+                result = list(backend.scan(server.url, [path]))[0]
+
+                self.assertIsNone(result[2])
+                self.assertEqual(result[1].status, 200)
+                self.assertEqual(server.cookies, [None, "retry=native"])
+
+    def test_native_raw_fallback_reuses_response_cookies(self):
+        try:
+            backend = NativeHTTPBackend()
+        except RequestException as error:
+            self.skipTest(str(error))
+
+        with RequestTargetServer() as server:
+            first = list(backend.scan(server.url, ["cookie/set"]))[0]
+            second = list(backend.scan(server.url, ["cookie/required%1"]))[0]
+
+        self.assertIsNone(first[2])
+        self.assertIsNone(second[2])
+        self.assertEqual(second[1].status, 200)
+        self.assertEqual(server.cookies, [None, "session=native"])
+
+    def test_native_redirect_applies_response_cookie_to_next_hop(self):
+        try:
+            backend = NativeHTTPBackend()
+        except RequestException as error:
+            self.skipTest(str(error))
+
+        options["follow_redirects"] = True
+        with RequestTargetServer() as server:
+            result = list(backend.scan(server.url, ["cookie/redirect"]))[0]
+
+        self.assertIsNone(result[2])
+        self.assertEqual(result[1].status, 200)
+        self.assertEqual(server.cookies, [None, "redirect=native"])
+
+    def test_native_cookie_jar_is_shared_across_rotating_proxy_clients(self):
+        options["thread_count"] = 1
+        with RequestTargetServer() as first_proxy, RequestTargetServer() as second_proxy:
+            options["proxies"] = [first_proxy.url, second_proxy.url]
+            try:
+                backend = NativeHTTPBackend()
+            except RequestException as error:
+                self.skipTest(str(error))
+            results = list(
+                backend.scan(
+                    "http://origin.invalid/",
+                    ["cookie/set", "cookie/required"],
+                )
+            )
+
+        self.assertEqual([error for _, _, error in results], [None, None])
+        self.assertEqual([response.status for _, response, _ in results], [200, 200])
+        self.assertEqual(first_proxy.cookies, [None])
+        self.assertEqual(second_proxy.cookies, ["session=native"])
+
+    def test_native_cookie_jar_does_not_cross_target_hosts(self):
+        options["thread_count"] = 1
+        with RequestTargetServer() as proxy:
+            options["proxies"] = [proxy.url]
+            try:
+                backend = NativeHTTPBackend()
+            except RequestException as error:
+                self.skipTest(str(error))
+            stored = list(
+                backend.scan("http://first-origin.invalid/", ["cookie/set"])
+            )[0]
+            isolated = list(
+                backend.scan("http://second-origin.invalid/", ["cookie/required"])
+            )[0]
+
+        self.assertIsNone(stored[2])
+        self.assertIsNone(isolated[2])
+        self.assertEqual(isolated[1].status, 401)
+        self.assertEqual(proxy.cookies, [None, None])
+
+    def test_native_cookie_jar_survives_internal_engine_rebuild(self):
+        try:
+            backend = NativeHTTPBackend()
+        except RequestException as error:
+            self.skipTest(str(error))
+
+        with RequestTargetServer() as server:
+            stored = list(backend.scan(server.url, ["cookie/set"]))[0]
+            options["follow_redirects"] = True
+            reused = list(backend.scan(server.url, ["cookie/required"]))[0]
+
+        self.assertIsNone(stored[2])
+        self.assertIsNone(reused[2])
+        self.assertEqual(reused[1].status, 200)
+        self.assertEqual(server.cookies, [None, "session=native"])
+
+    def test_native_raw_fallback_honors_cookie_path_scope(self):
+        try:
+            backend = NativeHTTPBackend()
+        except RequestException as error:
+            self.skipTest(str(error))
+
+        with RequestTargetServer() as server:
+            stored = list(backend.scan(server.url, ["cookie/scoped/set"]))[0]
+            allowed = list(
+                backend.scan(server.url, ["cookie/scoped/required%1"])
+            )[0]
+            outside = list(backend.scan(server.url, ["cookie/outside%1"]))[0]
+
+        self.assertIsNone(stored[2])
+        self.assertIsNone(allowed[2])
+        self.assertIsNone(outside[2])
+        self.assertEqual(allowed[1].status, 200)
+        self.assertEqual(
+            server.cookies,
+            [None, "scoped=native", None],
+        )
+
+    def test_native_explicit_cookie_header_takes_precedence_over_session(self):
+        options["headers"] = {"Cookie": "fixed=manual"}
+        try:
+            backend = NativeHTTPBackend()
+        except RequestException as error:
+            self.skipTest(str(error))
+
+        with RequestTargetServer() as server:
+            stored = list(backend.scan(server.url, ["cookie/set"]))[0]
+            normal = list(backend.scan(server.url, ["cookie/required"]))[0]
+            raw = list(backend.scan(server.url, ["cookie/required%1"]))[0]
+
+        self.assertIsNone(stored[2])
+        self.assertIsNone(normal[2])
+        self.assertIsNone(raw[2])
+        self.assertEqual(normal[1].status, 401)
+        self.assertEqual(raw[1].status, 401)
+        self.assertEqual(server.cookies, ["fixed=manual"] * 3)
+
+    def test_native_fixed_cookie_yields_to_jar_on_redirect(self):
+        options["headers"] = {"Cookie": "fixed=manual"}
+        options["follow_redirects"] = True
+        try:
+            backend = NativeHTTPBackend()
+        except RequestException as error:
+            self.skipTest(str(error))
+
+        with RequestTargetServer() as server:
+            stored = list(backend.scan(server.url, ["cookie/fixed-seed"]))[0]
+            redirected = list(
+                backend.scan(server.url, ["cookie/fixed-redirect"])
+            )[0]
+
+        self.assertIsNone(stored[2])
+        self.assertIsNone(redirected[2])
+        self.assertEqual(redirected[1].status, 200)
+        self.assertEqual(
+            server.cookies,
+            ["fixed=manual", "fixed=manual", "jar=native"],
+        )
+
+    def test_native_fixed_cookie_is_request_local_under_concurrency(self):
+        options["headers"] = {"Cookie": "fixed=manual"}
+        options["thread_count"] = 8
+        options["timeout"] = 5
+        try:
+            backend = NativeHTTPBackend()
+        except RequestException as error:
+            self.skipTest(str(error))
+
+        paths = [f"cookie/concurrent/{index}" for index in range(16)]
+        with RequestTargetServer() as server:
+            results = list(backend.scan(server.url, paths))
+
+        self.assertTrue(all(error is None for _, _, error in results))
+        self.assertEqual(server.cookies, ["fixed=manual"] * len(paths))
+
+    def test_native_does_not_send_secure_cookie_over_loopback_http(self):
+        for host in ("address", "localhost"):
+            with self.subTest(host=host), RequestTargetServer() as server:
+                try:
+                    backend = NativeHTTPBackend()
+                except RequestException as error:
+                    self.skipTest(str(error))
+                base_url = server.url if host == "address" else server.localhost_url
+                stored = list(backend.scan(base_url, ["cookie/secure-set"]))[0]
+                normal = list(backend.scan(base_url, ["cookie/secure-check"]))[0]
+                raw = list(backend.scan(base_url, ["cookie/secure-check%1"]))[0]
+
+                self.assertIsNone(stored[2])
+                self.assertIsNone(normal[2])
+                self.assertIsNone(raw[2])
+                self.assertEqual(server.cookies, [None, None, None])
+
+    def test_native_does_not_send_secure_cookie_over_proxied_http_origin(self):
+        options["thread_count"] = 1
+        with RequestTargetServer() as proxy:
+            options["proxies"] = [proxy.url]
+            try:
+                backend = NativeHTTPBackend()
+            except RequestException as error:
+                self.skipTest(str(error))
+            stored = list(
+                backend.scan("http://origin.invalid/", ["cookie/secure-set"])
+            )[0]
+            checked = list(
+                backend.scan("http://origin.invalid/", ["cookie/secure-check"])
+            )[0]
+
+        self.assertIsNone(stored[2])
+        self.assertIsNone(checked[2])
+        self.assertEqual(proxy.cookies, [None, None])
+
+    def test_native_cookie_header_uses_longest_path_first(self):
+        try:
+            backend = NativeHTTPBackend()
+        except RequestException as error:
+            self.skipTest(str(error))
+
+        with RequestTargetServer() as server:
+            root = list(backend.scan(server.url, ["cookie/path-root-set"]))[0]
+            scoped = list(
+                backend.scan(server.url, ["cookie/scoped/path-set"])
+            )[0]
+            normal = list(
+                backend.scan(server.url, ["cookie/scoped/path-check"])
+            )[0]
+            raw = list(
+                backend.scan(server.url, ["cookie/scoped/path-check%1"])
+            )[0]
+
+        self.assertTrue(all(row[2] is None for row in (root, scoped, normal, raw)))
+        self.assertEqual(
+            server.cookies,
+            [
+                None,
+                "id=root",
+                "id=scoped; id=root",
+                "id=scoped; id=root",
+            ],
+        )
+
+    def test_native_cookie_domain_rules_match_other_sessions(self):
+        options["thread_count"] = 1
+        with RequestTargetServer() as proxy:
+            options["proxies"] = [proxy.url]
+            try:
+                backend = NativeHTTPBackend()
+            except RequestException as error:
+                self.skipTest(str(error))
+            supercookie = list(
+                backend.scan("http://foo.com/", ["cookie/domain-super-set"])
+            )[0]
+            isolated = list(
+                backend.scan("http://bar.com/", ["cookie/domain-check"])
+            )[0]
+
+        self.assertIsNone(supercookie[2])
+        self.assertIsNone(isolated[2])
+        self.assertEqual(proxy.cookies, [None, None])
+
+        with RequestTargetServer() as proxy:
+            options["proxies"] = [proxy.url]
+            backend = NativeHTTPBackend()
+            parent = list(
+                backend.scan(
+                    "http://api.example.com/",
+                    ["cookie/domain-parent-set"],
+                )
+            )[0]
+            shared = list(
+                backend.scan("http://www.example.com/", ["cookie/domain-check"])
+            )[0]
+
+        self.assertIsNone(parent[2])
+        self.assertIsNone(shared[2])
+        self.assertEqual(proxy.cookies, [None, "parent=native"])
+
     def test_native_requester_preserves_methods_and_request_body_bytes(self):
         try:
             backend = NativeHTTPBackend()

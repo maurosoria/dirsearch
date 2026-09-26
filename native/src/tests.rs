@@ -2,12 +2,13 @@
 
 use super::*;
 use crate::raw_client::{raw_http_request, RawHttpRequest};
-use crate::transport::request_with_client;
+use crate::transport::{request_with_client, NativeCookieStore};
 use bytes::Bytes;
 use rcgen::{
     date_time_ymd, BasicConstraints, CertificateParams, ExtendedKeyUsagePurpose, IsCa, Issuer,
     KeyPair, KeyUsagePurpose,
 };
+use reqwest::cookie::CookieStore;
 use reqwest::Method;
 use rustls::pki_types::{PrivateKeyDer, PrivatePkcs8KeyDer};
 use rustls::server::WebPkiClientVerifier;
@@ -130,7 +131,17 @@ fn run_reqwest_request(
     max_retries: usize,
 ) -> (NativeHttpResult, Vec<Vec<u8>>) {
     let (base_url, server, requests) = spawn_retry_body_server(responses);
-    let client = build_http_client(&HeaderMap::new(), 1, 2.0, false, 30, None, None).unwrap();
+    let client = build_http_client(
+        &HeaderMap::new(),
+        1,
+        2.0,
+        false,
+        30,
+        None,
+        None,
+        Arc::new(NativeCookieStore::default()),
+    )
+    .unwrap();
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -140,6 +151,7 @@ fn run_reqwest_request(
         &format!("{base_url}/retry"),
         &method,
         body,
+        None,
         false,
         max_retries,
         80,
@@ -179,6 +191,7 @@ fn run_raw_request(
             max_body_size: 80,
             start: Instant::now() - Duration::from_secs(5),
             cancelled: Arc::new(AtomicBool::new(false)),
+            cookie_store: Arc::new(NativeCookieStore::default()),
         },
         max_retries,
         &default_filter_config(),
@@ -207,6 +220,63 @@ fn proxy_authentication_failures_are_not_retryable() {
     }
 
     assert!(!is_non_retryable_proxy_error("connection reset by peer"));
+}
+
+#[test]
+fn secure_cookie_from_loopback_http_is_retained_for_https_only() {
+    let store = NativeCookieStore::default();
+    let http_url = reqwest::Url::parse("http://127.0.0.1/example").unwrap();
+    let https_url = reqwest::Url::parse("https://127.0.0.1/example").unwrap();
+
+    store.add_cookie_str("secure=native; Secure; Path=/", &http_url);
+
+    assert!(store.cookies(&http_url).is_none());
+    assert_eq!(
+        store.cookies(&https_url).unwrap().to_str().unwrap(),
+        "secure=native"
+    );
+}
+
+#[test]
+fn cookies_use_longest_path_then_creation_order() {
+    let store = NativeCookieStore::default();
+    let root_url = reqwest::Url::parse("http://example.com/").unwrap();
+    let scoped_url = reqwest::Url::parse("http://example.com/scoped/check").unwrap();
+
+    store.add_cookie_str("id=root; Path=/", &root_url);
+    store.add_cookie_str("first=one; Path=/scoped/", &scoped_url);
+    store.add_cookie_str("id=scoped; Path=/scoped/", &scoped_url);
+
+    assert_eq!(
+        store.cookies(&scoped_url).unwrap().to_str().unwrap(),
+        "first=one; id=scoped; id=root"
+    );
+}
+
+#[test]
+fn single_label_domain_supercookies_are_rejected() {
+    let store = NativeCookieStore::default();
+    let source = reqwest::Url::parse("http://foo.com/set").unwrap();
+    let sibling = reqwest::Url::parse("http://bar.com/check").unwrap();
+
+    store.add_cookie_str("super=native; Domain=com; Path=/", &source);
+
+    assert!(store.cookies(&source).is_none());
+    assert!(store.cookies(&sibling).is_none());
+}
+
+#[test]
+fn dotted_parent_domain_cookie_is_shared_with_subdomains() {
+    let store = NativeCookieStore::default();
+    let source = reqwest::Url::parse("http://api.example.com/set").unwrap();
+    let sibling = reqwest::Url::parse("http://www.example.com/check").unwrap();
+
+    store.add_cookie_str("parent=native; Domain=example.com; Path=/", &source);
+
+    assert_eq!(
+        store.cookies(&sibling).unwrap().to_str().unwrap(),
+        "parent=native"
+    );
 }
 
 #[test]
@@ -240,7 +310,17 @@ fn reqwest_redirects_preserve_every_requested_url_in_history() {
     });
     let base_url = format!("http://{address}");
     let start_url = format!("{base_url}/start");
-    let client = build_http_client(&HeaderMap::new(), 1, 2.0, true, 30, None, None).unwrap();
+    let client = build_http_client(
+        &HeaderMap::new(),
+        1,
+        2.0,
+        true,
+        30,
+        None,
+        None,
+        Arc::new(NativeCookieStore::default()),
+    )
+    .unwrap();
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -251,6 +331,7 @@ fn reqwest_redirects_preserve_every_requested_url_in_history() {
         &start_url,
         &Method::GET,
         Bytes::new(),
+        None,
         true,
         0,
         80,
@@ -989,7 +1070,16 @@ fn every_supported_proxy_client_configuration_builds() {
         "socks5://user:password@127.0.0.1:1080",
         "socks5h://user:password@127.0.0.1:1080",
     ] {
-        let client = build_http_client(&HeaderMap::new(), 25, 1.0, false, 30, Some(proxy), None);
+        let client = build_http_client(
+            &HeaderMap::new(),
+            25,
+            1.0,
+            false,
+            30,
+            Some(proxy),
+            None,
+            Arc::new(NativeCookieStore::default()),
+        );
 
         assert!(client.is_ok(), "{proxy}");
     }
@@ -1160,6 +1250,7 @@ async fn run_mutual_tls_request(
         None,
         (!client_certificate.is_empty() || !client_key.is_empty())
             .then_some((client_certificate, client_key)),
+        Arc::new(NativeCookieStore::default()),
     )
     .unwrap();
     let result = request_with_client(
@@ -1167,6 +1258,7 @@ async fn run_mutual_tls_request(
         &format!("https://{address}/mtls"),
         &Method::GET,
         Bytes::new(),
+        None,
         false,
         0,
         80,
@@ -1249,6 +1341,7 @@ fn malformed_or_incomplete_client_identity_fails_during_client_construction() {
             30,
             None,
             Some((certificate, key)),
+            Arc::new(NativeCookieStore::default()),
         )
         .expect_err(case);
 
@@ -1272,6 +1365,7 @@ fn client_certificate_and_unrelated_valid_key_are_rejected() {
         30,
         None,
         Some((&fixture.trusted_client.certificate, &fixture.unrelated_key)),
+        Arc::new(NativeCookieStore::default()),
     )
     .expect_err("a certificate paired with another valid key was accepted");
 

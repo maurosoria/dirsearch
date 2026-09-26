@@ -6,6 +6,7 @@ mod raw_client;
 mod raw_http;
 mod request_target;
 mod result;
+mod session;
 mod transport;
 mod wordlist;
 
@@ -13,6 +14,7 @@ use engine::{scan_http, NativeHttpEngine};
 use filters::NativeFilterConfig;
 use pyo3::prelude::*;
 use result::NativeHttpResult;
+use session::NativeHttpSession;
 use wordlist::{generate_wordlist, generate_wordlist_owned, NativeWordlist, NativeWordlistBatch};
 
 #[cfg(test)]
@@ -47,6 +49,7 @@ fn dirsearch_native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(scan_http, module)?)?;
     module.add_class::<NativeFilterConfig>()?;
     module.add_class::<NativeHttpEngine>()?;
+    module.add_class::<NativeHttpSession>()?;
     module.add_class::<NativeHttpResult>()?;
     module.add_class::<NativeWordlist>()?;
     module.add_class::<NativeWordlistBatch>()?;
