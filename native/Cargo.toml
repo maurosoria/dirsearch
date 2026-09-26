@@ -1,6 +1,6 @@
 [package]
 name = "dirsearch_native"
-version = "0.2.12"
+version = "0.2.13"
 edition = "2021"
 rust-version = "1.86"
 license = "GPL-2.0-only"

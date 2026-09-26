@@ -302,7 +302,7 @@ dependencies = [
 
 [[package]]
 name = "dirsearch_native"
-version = "0.2.12"
+version = "0.2.13"
 dependencies = [
  "async-compression",
  "base64 0.22.1",
