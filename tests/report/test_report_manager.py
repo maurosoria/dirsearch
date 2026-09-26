@@ -11,7 +11,9 @@ from unittest.mock import Mock, patch
 
 from lib.controller.session import SessionStore
 from lib.core.data import options
+from lib.report.html_report import HTMLReport
 from lib.report.manager import ReportManager
+from lib.report.xml_report import XMLReport
 
 
 class DummyReport:
@@ -212,7 +214,7 @@ class TestAsyncReportManager(IsolatedAsyncioTestCase):
                     "output_table": "results",
                 }
             )
-            manager = ReportManager(["json", "sqlite"])
+            manager = ReportManager(["json", "xml", "html", "sqlite"])
             manager.prepare("https://example.test/")
             urls = {
                 f"https://example.test/result-{index}"
@@ -225,6 +227,8 @@ class TestAsyncReportManager(IsolatedAsyncioTestCase):
             manager.finish()
 
             json_path = Path(directory, "report-json.json")
+            xml_path = Path(directory, "report-xml.xml")
+            html_path = Path(directory, "report-html.html")
             sqlite_path = Path(directory, "report-sql.sqlite")
             json_urls = {
                 result["url"]
@@ -239,8 +243,17 @@ class TestAsyncReportManager(IsolatedAsyncioTestCase):
                         'SELECT url FROM "results"'
                     ).fetchall()
                 }
+            xml_urls = {
+                result.attrib["url"]
+                for result in XMLReport().parse(str(xml_path)).findall("result")
+            }
+            html_urls = {
+                result["url"] for result in HTMLReport().parse(str(html_path))
+            }
 
         self.assertEqual(json_urls, urls)
+        self.assertEqual(xml_urls, urls)
+        self.assertEqual(html_urls, urls)
         self.assertEqual(sqlite_urls, urls)
 
     async def test_async_save_keeps_event_loop_responsive(self):

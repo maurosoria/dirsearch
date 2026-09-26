@@ -23,15 +23,18 @@ from jinja2 import Environment, FileSystemLoader
 
 from lib.core.decorators import locked
 from lib.core.settings import COMMAND, DEFAULT_ENCODING, START_TIME
-from lib.report.factory import BaseReport, FileReportMixin
+from lib.report.factory import BaseReport, StructuredFileReportMixin
 
 
-class HTMLReport(FileReportMixin, BaseReport):
+class HTMLReport(StructuredFileReportMixin, BaseReport):
     __format__ = "html"
     __extension__ = "html"
 
     def new(self):
         return self.generate([])
+
+    def _new_state(self):
+        return []
 
     def parse(self, file):
         with open(file, encoding=DEFAULT_ENCODING) as fh:
@@ -42,9 +45,12 @@ class HTMLReport(FileReportMixin, BaseReport):
                 if line.startswith("        resources: "):
                     return json.loads(line[19:-2])
 
+    @staticmethod
+    def _apply_entry(results, entry):
+        results.append(entry)
+
     @locked
     def save(self, file, result):
-        results = self.parse(file)
         entry = {
             "url": result.url,
             "status": result.status,
@@ -54,8 +60,10 @@ class HTMLReport(FileReportMixin, BaseReport):
         }
         if result.elapsed:
             entry["elapsed"] = round(result.elapsed, 3)
-        results.append(entry)
-        self.write(file, self.generate(results))
+        self.save_entry(file, entry)
+
+    def write(self, file, results):
+        super().write(file, self.generate(results))
 
     def generate(self, results):
         file_loader = FileSystemLoader(

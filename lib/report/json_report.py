@@ -20,10 +20,10 @@ import json
 
 from lib.core.decorators import locked
 from lib.core.settings import COMMAND, DEFAULT_ENCODING, START_TIME
-from lib.report.factory import BaseReport, FileReportMixin
+from lib.report.factory import BaseReport, StructuredFileReportMixin
 
 
-class JSONReport(FileReportMixin, BaseReport):
+class JSONReport(StructuredFileReportMixin, BaseReport):
     __format__ = "json"
     __extension__ = "json"
 
@@ -37,9 +37,12 @@ class JSONReport(FileReportMixin, BaseReport):
         with open(file, encoding=DEFAULT_ENCODING) as fh:
             return json.load(fh)
 
+    @staticmethod
+    def _apply_entry(data, entry):
+        data["results"].append(entry)
+
     @locked
     def save(self, file, result):
-        data = self.parse(file)
         entry = {
             "url": result.url,
             "status": result.status,
@@ -49,8 +52,7 @@ class JSONReport(FileReportMixin, BaseReport):
         }
         if result.elapsed:
             entry["elapsed"] = round(result.elapsed, 3)
-        data["results"].append(entry)
-        self.write(file, data)
+        self.save_entry(file, entry)
 
     def write(self, file, data):
         with self._atomic_writer(file) as fh:

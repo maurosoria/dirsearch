@@ -1,3 +1,4 @@
+import json
 import os
 import sqlite3
 import tempfile
@@ -9,6 +10,7 @@ from unittest.mock import Mock, patch
 from lib.controller.controller import Controller
 from lib.controller.session import SessionStore
 from lib.core.data import options
+from lib.report.json_report import JSONReport
 from lib.report.sqlite_report import SQLiteReport
 
 
@@ -162,3 +164,40 @@ class TestSessionCleanup(TestCase):
                 self.assertEqual(rows, [("https://example.test/admin",)])
             finally:
                 report.finish()
+
+    def test_run_failure_finishes_pending_structured_report(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            destination = os.path.join(tmpdir, "report.json")
+            report = JSONReport()
+
+            def setup(controller):
+                controller.reporter = report
+                report.initiate(destination)
+                report.save(
+                    destination,
+                    SimpleNamespace(
+                        datetime="2026-09-25 10:00:00",
+                        url="https://example.test/admin",
+                        status=200,
+                        length=42,
+                        type="text/plain",
+                        redirect="",
+                        elapsed=0.25,
+                    ),
+                )
+
+            def fail_run(controller):
+                raise RuntimeError("scan failed")
+
+            with (
+                patch.dict(options, {"session_file": None}),
+                patch.object(Controller, "setup", new=setup),
+                patch.object(Controller, "run", new=fail_run),
+                self.assertRaisesRegex(RuntimeError, "scan failed"),
+            ):
+                Controller()
+
+            with open(destination, encoding="utf-8") as file_handle:
+                urls = [entry["url"] for entry in json.load(file_handle)["results"]]
+
+            self.assertEqual(urls, ["https://example.test/admin"])
