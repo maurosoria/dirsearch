@@ -90,12 +90,20 @@ pub(crate) fn build_http_client(
     })
 }
 
+/// Borrowed inputs and output policy for one logical reqwest request.
+///
+/// This value exists only while one target (including its retries) is being
+/// processed. Engine-lifetime resources stay in `NativeRequestContext`, and
+/// batch scheduling stays in `ScanTask`; keeping this request borrowed avoids
+/// cloning those owners for each URL.
 pub(crate) struct ClientRequest<'a> {
     pub(crate) client: &'a reqwest::Client,
     pub(crate) url: &'a str,
     pub(crate) method: &'a Method,
     pub(crate) body: &'a Bytes,
+    /// Overrides the shared jar only for the first hop of each retry attempt.
     pub(crate) initial_cookie_override: Option<HeaderValue>,
+    /// Enables task-local redirect collection for this request only.
     pub(crate) capture_redirect_history: bool,
     pub(crate) max_retries: usize,
     pub(crate) max_body_size: usize,

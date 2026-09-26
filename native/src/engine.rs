@@ -28,7 +28,16 @@ pub(crate) struct NativeHttpEngine {
     cancelled: Arc<AtomicBool>,
 }
 
+/// Engine-lifetime state reused by every scan batch.
+///
+/// Values in this context determine how a request is built or transported, so
+/// changing one requires rebuilding the engine and its clients. The context is
+/// otherwise immutable and cheap to share between workers. `session` is a
+/// stable handle whose cookie jar intentionally uses interior mutability so
+/// cookies can survive engine rebuilds and be shared with replay transports.
 struct NativeRequestContext {
+    // Prepared transport resources. There is one client per proxy (or one
+    // direct client), while raw_headers serves the byte-preserving HTTP path.
     clients: Arc<Vec<reqwest::Client>>,
     raw_headers: Arc<HeaderPairs>,
     timeout_secs: f64,
@@ -396,12 +405,20 @@ struct WorkerScanResults {
     last_processed_index: Option<usize>,
 }
 
+/// Per-batch state shared by the bounded worker set.
+///
+/// Unlike `NativeRequestContext`, these values belong to one `scan` call and
+/// must not leak into later batches. Workers only mutate `next_request` to
+/// claim unique paths; results remain worker-local and are ordered by the
+/// coordinator after all workers join.
 struct ScanTask {
     paths: Arc<Vec<String>>,
+    /// Atomic work distributor; it does not define result ordering.
     next_request: AtomicUsize,
     base_url: String,
     request_context: Arc<NativeRequestContext>,
     filter_config: Arc<NativeFilterConfig>,
+    /// Shared with the engine so Python can cooperatively stop this batch.
     cancelled: Arc<AtomicBool>,
     max_retries: usize,
     max_body_size: usize,

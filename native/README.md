@@ -30,6 +30,35 @@ and dynamically discovered paths. Native regex matching uses the hybrid
 `fancy-regex` engine: ordinary expressions retain the finite-automata fast path,
 while lookarounds and backreferences run in its bounded backtracking engine.
 
+## Request state and ownership
+
+The native request path separates state by lifetime. This keeps the Python/Rust
+boundary small and makes it clear which changes require rebuilding an engine:
+
+| Owner | Lifetime | Responsibility |
+| --- | --- | --- |
+| `NativeHttpEngine` | Python backend instance | Owns the Tokio runtime, concurrency limit, cancellation handle, and one request context. |
+| `NativeRequestContext` | Engine lifetime | Reuses built clients, raw headers, method/body, transport flags, and the session handle across batches. Its configuration is immutable; the shared session cookie jar uses internal locking. |
+| `ScanTask` | One `scan` or `scan_owned_batch` call | Holds paths, base URL, filter and retry policy, body limit, cancellation handle, and the atomic counter used by workers to claim paths. |
+| `ClientRequest` / `RawHttpRequest` | One target, including retries | Borrows the request inputs needed by the selected transport and returns one native result. |
+
+The ownership flow is:
+
+```text
+Python NativeHTTPBackend
+  -> NativeHttpEngine
+       -> Arc<NativeRequestContext>       (reused across batches)
+       -> Arc<ScanTask>                   (shared by bounded workers)
+            -> ClientRequest/RawHttpRequest (one claimed target)
+```
+
+Put a value in `NativeRequestContext` when it is fixed by engine construction
+and reused by every batch. Put it in `ScanTask` when Python supplies it for one
+batch. Put it in a transport request when it applies to one claimed target.
+Cookie contents are the deliberate exception to immutability: the context holds
+a stable `NativeHttpSession` handle so all clients and replay engines can update
+the same policy-controlled jar.
+
 ## Source layout
 
 `src/lib.rs` only registers the Python module. The implementation is split by
