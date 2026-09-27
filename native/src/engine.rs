@@ -1,6 +1,7 @@
 //! PyO3 engine lifecycle, bounded request scheduling, and cancellation.
 
 use crate::filters::{NativeFilterConfig, NumericRange, TimeFilter};
+use crate::pacing::NativeDelayPacer;
 use crate::raw_client::{raw_http_request, should_use_raw_http, RawHttpRequest};
 use crate::request_target::prepare_request_targets;
 use crate::result::{native_completion_marker, native_error_result, NativeHttpResult};
@@ -39,14 +40,15 @@ pub(crate) struct NativeHttpEngine {
 /// Values in this context determine how a request is built or transported, so
 /// changing one requires rebuilding the engine and its clients. The context is
 /// otherwise immutable and cheap to share between workers. `session` is a
-/// stable handle whose cookie jar intentionally uses interior mutability so
-/// cookies can survive engine rebuilds and be shared with replay transports.
+/// stable handle whose cookies and request-rate window use interior mutability
+/// so both survive engine rebuilds and are shared with replay transports.
 struct NativeRequestContext {
     // Prepared transport resources. There is one client per proxy (or one
     // direct client), while raw_headers serves the byte-preserving HTTP path.
     clients: Arc<Vec<reqwest::Client>>,
     raw_headers: Arc<HeaderPairs>,
     timeout_secs: f64,
+    max_rate: usize,
     follow_redirects: bool,
     use_raw_http: bool,
     method: Method,
@@ -57,12 +59,15 @@ struct NativeRequestContext {
     random_user_agents: Option<RandomUserAgentPool>,
     connection_routes: Arc<ConnectionRoutes>,
     network_interface: String,
+    delay_pacer: NativeDelayPacer,
 }
 
 #[derive(Clone, PartialEq)]
 struct NativeHttpEngineConfig {
     concurrency: usize,
     timeout_secs: f64,
+    max_rate: usize,
+    delay_secs: f64,
     headers: HeaderPairs,
     proxies: Vec<String>,
     follow_redirects: bool,
@@ -93,6 +98,8 @@ impl NativeHttpEngine {
     #[pyo3(signature = (
         concurrency=25,
         timeout_secs=7.5,
+        max_rate=0,
+        delay_secs=0.0,
         headers=Vec::new(),
         proxies=Vec::new(),
         follow_redirects=false,
@@ -111,6 +118,8 @@ impl NativeHttpEngine {
     fn new(
         concurrency: usize,
         timeout_secs: f64,
+        max_rate: usize,
+        delay_secs: f64,
         headers: HeaderPairs,
         proxies: Vec<String>,
         follow_redirects: bool,
@@ -130,6 +139,8 @@ impl NativeHttpEngine {
             NativeHttpEngineConfig {
                 concurrency,
                 timeout_secs,
+                max_rate,
+                delay_secs,
                 headers,
                 proxies,
                 follow_redirects,
@@ -154,6 +165,10 @@ impl NativeHttpEngine {
 
     fn reset_cancel(&self) {
         self.cancelled.store(false, Ordering::Release);
+    }
+
+    fn rate(&self) -> usize {
+        self.request_context.session.rate_limiter.rate()
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -236,6 +251,11 @@ impl NativeHttpEngine {
         mut config: NativeHttpEngineConfig,
         session: NativeHttpSession,
     ) -> PyResult<Self> {
+        if !config.delay_secs.is_finite() || config.delay_secs < 0.0 {
+            return Err(PyRuntimeError::new_err(
+                "Native request delay must be a finite, non-negative number",
+            ));
+        }
         if !config.proxies.is_empty() && !config.connection_overrides.is_empty() {
             return Err(PyRuntimeError::new_err(
                 "Native --ip overrides cannot be combined with a proxy because the proxy controls origin resolution",
@@ -337,6 +357,7 @@ impl NativeHttpEngine {
                 clients: Arc::new(clients),
                 raw_headers: Arc::new(raw_headers),
                 timeout_secs: config.timeout_secs,
+                max_rate: config.max_rate,
                 follow_redirects: config.follow_redirects,
                 use_raw_http,
                 method,
@@ -347,6 +368,7 @@ impl NativeHttpEngine {
                 random_user_agents,
                 connection_routes,
                 network_interface: config.network_interface,
+                delay_pacer: NativeDelayPacer::new(config.concurrency, config.delay_secs),
             }),
             cancelled: Arc::new(AtomicBool::new(false)),
         })
@@ -394,8 +416,8 @@ impl NativeHttpEngine {
                 // Tokio task allocation and context clone per URL.
                 let mut tasks: JoinSet<WorkerScanResults> = JoinSet::new();
                 let worker_count = concurrency.min(result_count);
-                for _ in 0..worker_count {
-                    tasks.spawn(run_scan_worker(scan_task.clone()));
+                for worker_index in 0..worker_count {
+                    tasks.spawn(run_scan_worker(scan_task.clone(), worker_index));
                 }
 
                 let mut results = Vec::with_capacity(if compact_filtered {
@@ -497,7 +519,7 @@ struct ScanTask {
     compact_filtered: bool,
 }
 
-async fn run_scan_worker(task: Arc<ScanTask>) -> WorkerScanResults {
+async fn run_scan_worker(task: Arc<ScanTask>, worker_index: usize) -> WorkerScanResults {
     let mut results = Vec::new();
     let mut last_processed_index = None;
     loop {
@@ -512,6 +534,15 @@ async fn run_scan_worker(task: Arc<ScanTask>) -> WorkerScanResults {
         };
         last_processed_index = Some(request_index);
         let request_context = task.request_context.as_ref();
+        request_context.delay_pacer.wait(worker_index).await;
+        request_context
+            .session
+            .rate_limiter
+            .wait(request_context.max_rate)
+            .await;
+        if task.cancelled.load(Ordering::Acquire) {
+            break;
+        }
         let client = &request_context.clients[request_index % request_context.clients.len()];
         let url = format!("{}{path}", task.base_url);
         let start = Instant::now();
@@ -565,6 +596,7 @@ async fn run_scan_worker(task: Arc<ScanTask>) -> WorkerScanResults {
             })
             .await
         };
+        request_context.delay_pacer.mark_completed(worker_index);
         if result.final_url.is_empty() {
             result.final_url = url;
         }
@@ -595,6 +627,8 @@ async fn run_scan_worker(task: Arc<ScanTask>) -> WorkerScanResults {
     query="".to_string(),
     concurrency=25,
     timeout_secs=7.5,
+    max_rate=0,
+    delay_secs=0.0,
     headers=Vec::new(),
     proxies=Vec::new(),
     max_retries=0,
@@ -640,6 +674,8 @@ pub(crate) fn scan_http(
     query: String,
     concurrency: usize,
     timeout_secs: f64,
+    max_rate: usize,
+    delay_secs: f64,
     headers: HeaderPairs,
     proxies: Vec<String>,
     max_retries: usize,
@@ -681,6 +717,8 @@ pub(crate) fn scan_http(
     let config = NativeHttpEngineConfig {
         concurrency,
         timeout_secs,
+        max_rate,
+        delay_secs,
         headers,
         proxies,
         follow_redirects,

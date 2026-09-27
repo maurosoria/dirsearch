@@ -1,6 +1,6 @@
 [package]
 name = "dirsearch_native"
-version = "0.2.16"
+version = "0.2.17"
 edition = "2021"
 rust-version = "1.88"
 license = "GPL-2.0-only"
@@ -34,4 +34,5 @@ rcgen = "=0.14.5"
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 # Pin the first patched release compatible with the crate's Rust 1.88 MSRV.
 time = "=0.3.47"
+tokio = { version = "1.43", features = ["test-util"] }
 tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"] }
