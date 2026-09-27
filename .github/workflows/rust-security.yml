@@ -1,0 +1,34 @@
+name: Rust dependency audit
+
+on:
+  push:
+    paths:
+      - native/Cargo.toml
+      - native/Cargo.lock
+      - .github/workflows/rust-security.yml
+  pull_request:
+    paths:
+      - native/Cargo.toml
+      - native/Cargo.lock
+      - .github/workflows/rust-security.yml
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Cargo audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Rust 1.88.0
+      uses: dtolnay/rust-toolchain@1.88.0
+    - name: Install cargo-audit
+      run: cargo install cargo-audit --version 0.22.2 --locked
+    - name: Audit Rust dependencies
+      run: cargo audit --file native/Cargo.lock
