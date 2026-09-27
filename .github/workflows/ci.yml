@@ -50,6 +50,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: Set up Rust 1.88.0
+      uses: dtolnay/rust-toolchain@1.88.0
+      with:
+        components: rustfmt, clippy
     - name: Set up Python 3.14
       uses: actions/setup-python@v5
       with:
@@ -60,6 +64,8 @@ jobs:
         python -m pip install maturin -r requirements.txt
     - name: Check Rust formatting
       run: cargo fmt --manifest-path native/Cargo.toml --all -- --check
+    - name: Lint Rust crate
+      run: cargo clippy --locked --manifest-path native/Cargo.toml --all-targets -- -D warnings
     - name: Test Rust crate
       run: cargo test --locked --manifest-path native/Cargo.toml
     - name: Build and install native extension

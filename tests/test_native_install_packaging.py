@@ -77,6 +77,31 @@ class TestNativeInstallPackaging(TestCase):
             with self.subTest(path=str(path)):
                 self.assertIn(expected_guidance, path.read_text(encoding="utf-8"))
 
+    def test_native_ci_enforces_msrv_and_clippy(self):
+        workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
+
+        self.assertIn("uses: dtolnay/rust-toolchain@1.88.0", workflow)
+        self.assertIn("components: rustfmt, clippy", workflow)
+        self.assertIn(
+            "cargo clippy --locked --manifest-path native/Cargo.toml "
+            "--all-targets -- -D warnings",
+            workflow,
+        )
+
+    def test_native_dependency_audit_is_automatic_and_read_only(self):
+        workflow = Path(".github/workflows/rust-security.yml").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("schedule:", workflow)
+        self.assertIn("permissions:\n  contents: read", workflow)
+        self.assertIn("uses: dtolnay/rust-toolchain@1.88.0", workflow)
+        self.assertIn(
+            "cargo install cargo-audit --version 0.22.2 --locked",
+            workflow,
+        )
+        self.assertIn("cargo audit --file native/Cargo.lock", workflow)
+
     def test_async_socks_dependency_is_packaged(self):
         for path in (
             Path("requirements.txt"),
