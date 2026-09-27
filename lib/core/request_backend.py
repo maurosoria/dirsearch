@@ -36,6 +36,10 @@ NATIVE_SOCKS4_AUTH_ERROR = (
     "--request-backend native does not support SOCKS4 user IDs; "
     "use SOCKS5 or the threaded engine when proxy credentials are required"
 )
+NATIVE_IP_PROXY_ERROR = (
+    "--request-backend native cannot combine --ip with a scan proxy because "
+    "the proxy controls origin resolution"
+)
 CLIENT_CERTIFICATE_PAIR_ERROR = "--cert-file and --key-file must be used together"
 
 
@@ -71,10 +75,8 @@ def get_native_request_backend_error(opt: Values) -> str | None:
         return error
     if bool(opt.cert_file) != bool(opt.key_file):
         return CLIENT_CERTIFICATE_PAIR_ERROR
-    if opt.network_interface:
-        return "--request-backend native does not support --interface yet"
-    if opt.ip:
-        return "--request-backend native does not support --ip yet"
+    if opt.ip and opt.proxies:
+        return NATIVE_IP_PROXY_ERROR
     if opt.max_rate:
         return "--request-backend native does not support --max-rate yet"
     if opt.delay:

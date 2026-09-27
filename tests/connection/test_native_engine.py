@@ -314,6 +314,36 @@ class TestNativeHttpEngine(TestCase):
         with self.assertRaises(TypeError):
             dirsearch_native.NativeHttpEngine(session=object())
 
+    def test_invalid_connection_overrides_are_rejected_at_the_python_boundary(self):
+        for override, message in (
+            (
+                [("example.test", 443, "not-an-ip")],
+                "Invalid --ip value",
+            ),
+            (
+                [("127.0.0.2", 443, "127.0.0.1")],
+                "cannot reroute an IP-literal target",
+            ),
+        ):
+            with (
+                self.subTest(override=override),
+                self.assertRaisesRegex(RuntimeError, message),
+            ):
+                dirsearch_native.NativeHttpEngine(
+                    connection_overrides=override
+                )
+
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "cannot be combined with a proxy",
+        ):
+            dirsearch_native.NativeHttpEngine(
+                proxies=["http://127.0.0.1:8080"],
+                connection_overrides=[
+                    ("example.test", 443, "127.0.0.1")
+                ],
+            )
+
     def test_random_agents_reject_a_fixed_user_agent_header(self):
         with self.assertRaisesRegex(
             RuntimeError,

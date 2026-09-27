@@ -4,6 +4,7 @@ use crate::filters::{NativeFilterConfig, NumericRange, TimeFilter};
 use crate::raw_client::{raw_http_request, should_use_raw_http, RawHttpRequest};
 use crate::request_target::prepare_request_targets;
 use crate::result::{native_completion_marker, native_error_result, NativeHttpResult};
+use crate::routing::{ConnectionOverrideConfig, ConnectionRoutes};
 use crate::session::NativeHttpSession;
 use crate::transport::{
     build_http_client, request_with_client, ClientRequest, HeaderPairs, OriginAuth,
@@ -54,6 +55,8 @@ struct NativeRequestContext {
     session: NativeHttpSession,
     origin_auth: OriginAuth,
     random_user_agents: Option<RandomUserAgentPool>,
+    connection_routes: Arc<ConnectionRoutes>,
+    network_interface: String,
 }
 
 #[derive(Clone, PartialEq)]
@@ -71,6 +74,8 @@ struct NativeHttpEngineConfig {
     auth_type: String,
     auth_credential: String,
     random_user_agents: Vec<String>,
+    connection_overrides: ConnectionOverrideConfig,
+    network_interface: String,
 }
 
 struct CachedNativeHttpEngine {
@@ -99,6 +104,8 @@ impl NativeHttpEngine {
         auth_type="".to_string(),
         auth_credential="".to_string(),
         random_user_agents=Vec::new(),
+        connection_overrides=Vec::new(),
+        network_interface="".to_string(),
         session=None,
     ))]
     fn new(
@@ -115,6 +122,8 @@ impl NativeHttpEngine {
         auth_type: String,
         auth_credential: String,
         random_user_agents: Vec<String>,
+        connection_overrides: ConnectionOverrideConfig,
+        network_interface: String,
         session: Option<PyRef<'_, NativeHttpSession>>,
     ) -> PyResult<Self> {
         Self::from_config(
@@ -132,6 +141,8 @@ impl NativeHttpEngine {
                 auth_type,
                 auth_credential,
                 random_user_agents,
+                connection_overrides,
+                network_interface,
             },
             session.as_deref().cloned().unwrap_or_default(),
         )
@@ -225,6 +236,11 @@ impl NativeHttpEngine {
         mut config: NativeHttpEngineConfig,
         session: NativeHttpSession,
     ) -> PyResult<Self> {
+        if !config.proxies.is_empty() && !config.connection_overrides.is_empty() {
+            return Err(PyRuntimeError::new_err(
+                "Native --ip overrides cannot be combined with a proxy because the proxy controls origin resolution",
+            ));
+        }
         let method = Method::from_bytes(config.method.as_bytes())
             .map_err(|error| PyRuntimeError::new_err(error.to_string()))?;
         if !config.random_user_agents.is_empty()
@@ -264,6 +280,10 @@ impl NativeHttpEngine {
         }
 
         let use_raw_http = config.proxies.is_empty();
+        let connection_routes = Arc::new(
+            ConnectionRoutes::from_config(&config.connection_overrides)
+                .map_err(PyRuntimeError::new_err)?,
+        );
         let client_identity =
             (!config.client_certificate.is_empty() || !config.client_key.is_empty()).then_some((
                 config.client_certificate.as_slice(),
@@ -279,6 +299,8 @@ impl NativeHttpEngine {
                 None,
                 client_identity,
                 session.cookie_store.clone(),
+                connection_routes.as_ref(),
+                &config.network_interface,
             )
             .map_err(|error| PyRuntimeError::new_err(error.to_string()))?]
         } else {
@@ -295,6 +317,8 @@ impl NativeHttpEngine {
                         Some(proxy_url),
                         client_identity,
                         session.cookie_store.clone(),
+                        connection_routes.as_ref(),
+                        &config.network_interface,
                     )
                 })
                 .collect::<Result<Vec<_>, _>>()
@@ -321,6 +345,8 @@ impl NativeHttpEngine {
                 session,
                 origin_auth,
                 random_user_agents,
+                connection_routes,
+                network_interface: config.network_interface,
             }),
             cancelled: Arc::new(AtomicBool::new(false)),
         })
@@ -514,6 +540,8 @@ async fn run_scan_worker(task: Arc<ScanTask>) -> WorkerScanResults {
                     start,
                     cancelled: task.cancelled.clone(),
                     cookie_store: request_context.session.cookie_store.clone(),
+                    connection_routes: request_context.connection_routes.as_ref(),
+                    network_interface: &request_context.network_interface,
                 },
                 task.max_retries,
                 task.filter_config.as_ref(),
@@ -602,6 +630,8 @@ async fn run_scan_worker(task: Arc<ScanTask>) -> WorkerScanResults {
     auth_type="".to_string(),
     auth_credential="".to_string(),
     random_user_agents=Vec::new(),
+    connection_overrides=Vec::new(),
+    network_interface="".to_string(),
 ))]
 pub(crate) fn scan_http(
     py: Python<'_>,
@@ -645,6 +675,8 @@ pub(crate) fn scan_http(
     auth_type: String,
     auth_credential: String,
     random_user_agents: Vec<String>,
+    connection_overrides: ConnectionOverrideConfig,
+    network_interface: String,
 ) -> PyResult<Vec<NativeHttpResult>> {
     let config = NativeHttpEngineConfig {
         concurrency,
@@ -660,6 +692,8 @@ pub(crate) fn scan_http(
         auth_type,
         auth_credential,
         random_user_agents,
+        connection_overrides,
+        network_interface,
     };
     let engine = {
         let cache = DEFAULT_HTTP_ENGINE.get_or_init(|| Mutex::new(None));
