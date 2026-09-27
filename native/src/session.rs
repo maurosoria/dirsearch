@@ -1,5 +1,6 @@
 //! Native HTTP session state shared by engines with different transports.
 
+use crate::pacing::NativeRequestRateLimiter;
 use cookie::Cookie as ParsedCookie;
 use pyo3::prelude::*;
 use reqwest::cookie::CookieStore;
@@ -13,11 +14,13 @@ tokio::task_local! {
     static INITIAL_COOKIE_OVERRIDE: RefCell<Option<HeaderValue>>;
 }
 
-/// Opaque state that can outlive an engine rebuild or be shared by a replay engine.
+/// Opaque cookies and pacing state that outlive engine rebuilds and are shared
+/// with replay engines.
 #[pyclass(skip_from_py_object)]
 #[derive(Clone, Debug, Default)]
 pub(crate) struct NativeHttpSession {
     pub(crate) cookie_store: Arc<NativeCookieStore>,
+    pub(crate) rate_limiter: Arc<NativeRequestRateLimiter>,
 }
 
 #[pymethods]
@@ -25,6 +28,10 @@ impl NativeHttpSession {
     #[new]
     fn new() -> Self {
         Self::default()
+    }
+
+    fn rate(&self) -> usize {
+        self.rate_limiter.rate()
     }
 }
 

@@ -169,6 +169,13 @@ class UserAgentCaptureHandler(KeepAliveHandler):
         super().do_GET()
 
 
+class RequestTimeCaptureHandler(KeepAliveHandler):
+    def do_GET(self):
+        with self.server.request_times_lock:
+            self.server.request_times.append(time.monotonic())
+        super().do_GET()
+
+
 class MixedStatusHandler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
@@ -264,6 +271,8 @@ class CountingHTTPServer(ThreadingHTTPServer):
         self.cookies = []
         self.user_agents = []
         self.user_agents_lock = threading.Lock()
+        self.request_times = []
+        self.request_times_lock = threading.Lock()
         self.thread = threading.Thread(target=self.serve_forever, daemon=True)
         self.thread.start()
 
@@ -291,6 +300,17 @@ class CountingHTTPServer(ThreadingHTTPServer):
 class TestNativeHttpEngine(TestCase):
     def test_extension_version_matches_python_contract(self):
         self.assertEqual(dirsearch_native.__version__, NATIVE_EXTENSION_VERSION)
+
+    def test_invalid_request_delay_is_rejected_at_the_python_boundary(self):
+        for delay in (-0.1, float("nan"), float("inf")):
+            with (
+                self.subTest(delay=delay),
+                self.assertRaisesRegex(
+                    RuntimeError,
+                    "request delay must be a finite, non-negative number",
+                ),
+            ):
+                dirsearch_native.NativeHttpEngine(delay_secs=delay)
 
     def test_invalid_client_identity_is_rejected_at_the_python_boundary(self):
         for certificate, key in (
@@ -640,6 +660,130 @@ class TestNativeHttpEngine(TestCase):
 
         self.assertEqual([first[0].status, second[0].status], [200, 200])
         self.assertEqual(server.connection_count, 1)
+
+    def test_delay_spaces_a_worker_across_scan_batches(self):
+        server = CountingHTTPServer(RequestTimeCaptureHandler)
+        engine = dirsearch_native.NativeHttpEngine(
+            concurrency=1,
+            delay_secs=0.15,
+        )
+
+        try:
+            first = engine.scan(server.url, ["first"])
+            second = engine.scan(server.url, ["second"])
+        finally:
+            server.close()
+
+        self.assertEqual([first[0].status, second[0].status], [200, 200])
+        self.assertEqual(len(server.request_times), 2)
+        self.assertGreaterEqual(
+            server.request_times[1] - server.request_times[0],
+            0.12,
+        )
+
+    def test_rate_limit_is_shared_by_engines_in_one_session(self):
+        server = CountingHTTPServer(RequestTimeCaptureHandler)
+        session = dirsearch_native.NativeHttpSession()
+        first_engine = dirsearch_native.NativeHttpEngine(
+            concurrency=1,
+            max_rate=1,
+            session=session,
+        )
+        rebuilt_engine = dirsearch_native.NativeHttpEngine(
+            concurrency=1,
+            max_rate=1,
+            follow_redirects=True,
+            session=session,
+        )
+
+        try:
+            first = first_engine.scan(server.url, ["first"])
+            second = rebuilt_engine.scan(server.url, ["second"])
+        finally:
+            server.close()
+
+        self.assertEqual([first[0].status, second[0].status], [200, 200])
+        self.assertEqual(len(server.request_times), 2)
+        self.assertGreaterEqual(
+            server.request_times[1] - server.request_times[0],
+            0.9,
+        )
+        self.assertEqual(rebuilt_engine.rate(), 1)
+
+    def test_rate_limit_is_shared_by_concurrent_workers(self):
+        server = CountingHTTPServer(RequestTimeCaptureHandler)
+        engine = dirsearch_native.NativeHttpEngine(
+            concurrency=4,
+            max_rate=2,
+        )
+
+        try:
+            results = engine.scan(server.url, ["one", "two", "three"])
+        finally:
+            server.close()
+
+        self.assertEqual(len(results), 3)
+        self.assertEqual(len(server.request_times), 3)
+        self.assertGreaterEqual(
+            max(server.request_times) - min(server.request_times),
+            0.9,
+        )
+
+    def test_unlimited_requests_are_reported_by_the_rate_meter(self):
+        server = CountingHTTPServer()
+        engine = dirsearch_native.NativeHttpEngine(concurrency=2)
+
+        try:
+            results = engine.scan(server.url, ["first", "second"])
+        finally:
+            server.close()
+
+        self.assertEqual(len(results), 2)
+        self.assertEqual(engine.rate(), 2)
+
+    def test_cancellation_interrupts_a_pending_worker_delay(self):
+        server = CountingHTTPServer(RequestTimeCaptureHandler)
+        engine = dirsearch_native.NativeHttpEngine(
+            concurrency=1,
+            delay_secs=1.0,
+        )
+        engine.scan(server.url, ["first"])
+        cancel_timer = threading.Timer(0.1, engine.cancel)
+
+        try:
+            cancel_timer.start()
+            started = time.monotonic()
+            results = engine.scan(server.url, ["cancelled"])
+            elapsed = time.monotonic() - started
+        finally:
+            cancel_timer.join(timeout=1)
+            server.close()
+
+        self.assertEqual(results, [])
+        self.assertEqual(len(server.request_times), 1)
+        self.assertLess(elapsed, 0.5)
+
+    def test_cancellation_interrupts_a_pending_rate_slot(self):
+        server = CountingHTTPServer(RequestTimeCaptureHandler)
+        engine = dirsearch_native.NativeHttpEngine(
+            concurrency=1,
+            max_rate=1,
+        )
+        engine.scan(server.url, ["first"])
+        cancel_timer = threading.Timer(0.1, engine.cancel)
+
+        try:
+            cancel_timer.start()
+            started = time.monotonic()
+            results = engine.scan(server.url, ["cancelled"])
+            elapsed = time.monotonic() - started
+        finally:
+            cancel_timer.join(timeout=1)
+            server.close()
+
+        self.assertEqual(results, [])
+        self.assertEqual(len(server.request_times), 1)
+        self.assertLess(elapsed, 0.5)
 
     def test_concurrent_requests_keep_random_agents_request_local(self):
         server = CountingHTTPServer(UserAgentCaptureHandler)

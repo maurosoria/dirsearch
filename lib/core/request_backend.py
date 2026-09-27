@@ -77,8 +77,4 @@ def get_native_request_backend_error(opt: Values) -> str | None:
         return CLIENT_CERTIFICATE_PAIR_ERROR
     if opt.ip and opt.proxies:
         return NATIVE_IP_PROXY_ERROR
-    if opt.max_rate:
-        return "--request-backend native does not support --max-rate yet"
-    if opt.delay:
-        return "--request-backend native does not support --delay yet"
     return None

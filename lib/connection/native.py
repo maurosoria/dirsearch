@@ -119,6 +119,8 @@ class NativeHTTPBackend:
         config = {
             "concurrency": options["thread_count"],
             "timeout_secs": options["timeout"],
+            "max_rate": options["max_rate"],
+            "delay_secs": options["delay"],
             "headers": headers,
             "proxies": proxies,
             "follow_redirects": options["follow_redirects"],
@@ -149,6 +151,10 @@ class NativeHTTPBackend:
         """Opaque Rust state shared with engines created for replay requests."""
 
         return self._session
+
+    @property
+    def rate(self) -> int:
+        return self._session.rate()
 
     def set_origin_authentication(
         self, auth_type: str, credential: str
@@ -469,7 +475,7 @@ class NativeRequester:
 
     @property
     def rate(self) -> int:
-        return 0
+        return 0 if self.backend is None else self.backend.rate
 
     def set_url(self, url: str) -> None:
         self._url = url

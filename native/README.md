@@ -8,8 +8,8 @@ It exposes a small PyO3 API:
 - `generate_wordlist(...)` for deterministic ordered wordlist generation.
 - `generate_wordlist_owned(...)` for keeping native-scan corpora in Rust.
 - `NativeHttpEngine` for batch HTTP requests using `reqwest` and `tokio`.
-- `NativeHttpSession` for explicitly sharing cookie state across engine rebuilds
-  and replay transports.
+- `NativeHttpSession` for explicitly sharing cookies and request-rate state
+  across engine rebuilds and replay transports.
 - `NativeFilterConfig` for compiling and reusing one immutable filter policy.
 - `scan_http(...)` as the compatibility entrypoint backed by a cached engine.
 
@@ -38,6 +38,13 @@ an unauthenticated request. NTLM remains an explicit parse-time error because
 the native transport cannot yet guarantee both HTTPS channel binding and
 connection affinity under concurrent scans.
 
+`--max-rate` uses one session-wide sliding window, so concurrent workers,
+engine rebuilds, and replay requests all consume the same budget. Retries stay
+inside their original logical request and do not consume another rate slot.
+`--delay` keeps an independent deadline for each worker and carries that
+deadline across batch boundaries. Both waits are asynchronous and remain
+interruptible by pause, quit, and scan cancellation.
+
 ## Request state and ownership
 
 The native request path separates state by lifetime. This keeps the Python/Rust
@@ -46,7 +53,8 @@ boundary small and makes it clear which changes require rebuilding an engine:
 | Owner | Lifetime | Responsibility |
 | --- | --- | --- |
 | `NativeHttpEngine` | Python backend instance | Owns the Tokio runtime, concurrency limit, cancellation handle, and one request context. |
-| `NativeRequestContext` | Engine lifetime | Reuses built clients, raw headers, method/body, transport flags, and the session handle across batches. Its configuration is immutable; the shared session cookie jar uses internal locking. |
+| `NativeHttpSession` | Requester lifetime | Shares the cookie jar and request-rate window with rebuilt origin engines and replay transports. |
+| `NativeRequestContext` | Engine lifetime | Reuses built clients, raw headers, method/body, transport flags, per-worker delay deadlines, and the session handle across batches. |
 | `ScanTask` | One `scan` or `scan_owned_batch` call | Holds paths, base URL, filter and retry policy, body limit, cancellation handle, and the atomic counter used by workers to claim paths. |
 | `ClientRequest` / `RawHttpRequest` | One target, including retries | Borrows the request inputs needed by the selected transport and returns one native result. |
 
@@ -63,9 +71,9 @@ Python NativeHTTPBackend
 Put a value in `NativeRequestContext` when it is fixed by engine construction
 and reused by every batch. Put it in `ScanTask` when Python supplies it for one
 batch. Put it in a transport request when it applies to one claimed target.
-Cookie contents are the deliberate exception to immutability: the context holds
-a stable `NativeHttpSession` handle so all clients and replay engines can update
-the same policy-controlled jar.
+Session state is the deliberate exception to immutability: the context holds a
+stable `NativeHttpSession` handle so all clients and replay engines can update
+the same policy-controlled cookie jar and request-rate window.
 
 ## Source layout
 
@@ -75,6 +83,7 @@ responsibility:
 - `engine.rs` owns the persistent engine, immutable request context, per-batch
   scan task, bounded scheduler, and cancellation.
 - `session.rs` owns explicit cross-engine session state and cookie policy.
+- `pacing.rs` owns the shared request-rate limiter and per-worker delay lanes.
 - `request_target.rs` owns query insertion and URL quoting before scheduling.
 - `transport.rs` owns reqwest requests and streamed response decoding.
 - `raw_client.rs` selects and drives the byte-preserving HTTP adapter, while
@@ -107,6 +116,13 @@ You can use the native scan path with the default GET method:
 
 ```sh
 python3 dirsearch.py -u https://target -w db/dicc.txt --request-backend native
+```
+
+Native request pacing uses the same CLI options as the Python engines:
+
+```sh
+python3 dirsearch.py -u https://target -w db/dicc.txt \
+  --request-backend native --max-rate 50 --delay 0.05
 ```
 
 Other HTTP methods and request bodies use the same CLI options as the Python

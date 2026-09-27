@@ -3,6 +3,7 @@
 mod compression;
 mod engine;
 mod filters;
+mod pacing;
 mod raw_client;
 mod raw_http;
 mod request_target;

@@ -61,6 +61,14 @@ class FakeNativeEngine:
         self.cancelled = False
 
 
+class FakeNativeSession:
+    def __init__(self):
+        self.rate_value = 0
+
+    def rate(self):
+        return self.rate_value
+
+
 class FakeNativeModule:
     __version__ = NATIVE_EXTENSION_VERSION
 
@@ -71,7 +79,7 @@ class FakeNativeModule:
         self.results = results
 
     def NativeHttpSession(self):
-        session = object()
+        session = FakeNativeSession()
         self.sessions.append(session)
         return session
 
@@ -126,6 +134,8 @@ class TestNativeHTTPBackend(TestCase):
             {
                 "thread_count": 7,
                 "timeout": 3.5,
+                "max_rate": 23,
+                "delay": 0.125,
                 "http_method": "GET",
                 "data": None,
                 "headers": {"user-agent": "dirsearch-test"},
@@ -328,6 +338,8 @@ class TestNativeHTTPBackend(TestCase):
         engine = fake_native.engines[0]
         self.assertEqual(engine.config["concurrency"], 7)
         self.assertEqual(engine.config["timeout_secs"], 3.5)
+        self.assertEqual(engine.config["max_rate"], 23)
+        self.assertEqual(engine.config["delay_secs"], 0.125)
         self.assertEqual(engine.config["max_redirects"], 30)
         self.assertEqual(engine.config["auth_type"], "")
         self.assertEqual(engine.config["auth_credential"], "")
@@ -359,6 +371,31 @@ class TestNativeHTTPBackend(TestCase):
             filter_options["filter_header_regex"], "x-cache: fallback-[0-9]+"
         )
         self.assertEqual(filter_options["match_time"], [(">", 100.0)])
+
+    def test_requester_reports_the_shared_native_request_rate(self):
+        options["proxies"] = []
+        fake_native = FakeNativeModule()
+
+        with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
+            requester = NativeRequester()
+            self.assertEqual(requester.rate, 0)
+            requester.set_url("https://example.com/")
+            requester.request("admin")
+            fake_native.sessions[0].rate_value = 19
+
+        self.assertEqual(requester.rate, 19)
+
+    def test_first_replay_request_is_included_in_the_shared_rate(self):
+        options["proxies"] = []
+        fake_native = FakeNativeModule()
+
+        with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
+            requester = NativeRequester()
+            requester.set_url("https://example.com/")
+            requester.request("admin", proxy="http://replay.test:8080")
+            fake_native.sessions[0].rate_value = 1
+
+        self.assertEqual(requester.rate, 1)
 
     def test_engine_receives_method_body_and_inferred_content_type(self):
         options["http_method"] = "PATCH"
