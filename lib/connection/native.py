@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlsplit
 
+from lib.connection.ip_overrides import IPOverrides
 from lib.connection.proxy import (
     PROXY_AUTHENTICATION_REQUIRED,
     add_proxy_authentication,
@@ -63,6 +64,7 @@ class NativeHTTPBackend:
         proxy_override: str | None = None,
         session: Any | None = None,
         auth_override: tuple[str, str] | None = None,
+        ip_overrides: IPOverrides | None = None,
     ) -> None:
         try:
             import dirsearch_native
@@ -78,6 +80,9 @@ class NativeHTTPBackend:
         self._filter_config = None
         self._empty_filter_config = None
         self._proxy_override = proxy_override
+        self._ip_overrides = (
+            ip_overrides if ip_overrides is not None else IPOverrides()
+        )
         self._session = (
             session if session is not None else self._native.NativeHttpSession()
         )
@@ -125,6 +130,8 @@ class NativeHTTPBackend:
             "auth_type": self._auth_type,
             "auth_credential": self._auth_credential,
             "random_user_agents": self._random_user_agents,
+            "network_interface": options["network_interface"] or "",
+            "connection_overrides": self._ip_overrides.connection_overrides(),
         }
         if self._engine is None or config != self._engine_config:
             try:
@@ -446,6 +453,7 @@ class NativeRequester:
             else ("", "")
         )
         self._origin_auth = self._configured_auth
+        self._ip_overrides = IPOverrides()
         # Controller creates the requester before entering its per-target error
         # handler. Delay the optional extension import until a scan actually
         # starts so a missing build is reported as a normal request error.
@@ -453,7 +461,10 @@ class NativeRequester:
 
     def get_backend(self) -> NativeHTTPBackend:
         if self.backend is None:
-            self.backend = NativeHTTPBackend(auth_override=self._origin_auth)
+            self.backend = NativeHTTPBackend(
+                auth_override=self._origin_auth,
+                ip_overrides=self._ip_overrides,
+            )
         return self.backend
 
     @property
@@ -466,8 +477,9 @@ class NativeRequester:
     def set_query(self, query: str) -> None:
         self._query = query
 
-    def set_ip(self, *_args) -> None:
-        raise RequestException("--request-backend native does not support --ip yet")
+    def set_ip(self, host: str, port: int, ip_address: str) -> None:
+        """Force a connection IP while preserving the target Host and SNI."""
+        self._ip_overrides.set_override(host, port, ip_address)
 
     def reset_auth(self) -> None:
         self._set_origin_authentication(*self._configured_auth)

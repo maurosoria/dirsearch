@@ -7,6 +7,7 @@ mod raw_client;
 mod raw_http;
 mod request_target;
 mod result;
+mod routing;
 mod session;
 mod transport;
 mod wordlist;
@@ -31,9 +32,11 @@ use reqwest::header::HeaderMap;
 #[cfg(test)]
 use result::{native_http_result, native_http_result_with_length, response_length};
 #[cfg(test)]
+use routing::ConnectionRoutes;
+#[cfg(test)]
 use transport::{
-    append_body_chunk, build_http_client, is_non_retryable_proxy_error, read_response_body,
-    HeaderPairs, OriginAuth, RandomUserAgentPool,
+    append_body_chunk, build_http_client as build_http_client_with_routing,
+    is_non_retryable_proxy_error, read_response_body, HeaderPairs, OriginAuth, RandomUserAgentPool,
 };
 
 #[cfg(test)]

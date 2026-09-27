@@ -22,19 +22,31 @@ import sys
 import threading
 import warnings
 from concurrent.futures import ThreadPoolExecutor
-from unittest import TestCase
+from unittest import TestCase, skipUnless
 from unittest.mock import patch
 from urllib.parse import urlsplit
 
 from urllib3.exceptions import InsecureRequestWarning
 
 from lib.connection.ip_overrides import IPOverrides
+from lib.connection.native import NativeRequester
 from lib.connection.requester import AsyncRequester, Requester
 from lib.core.data import options
+from lib.core.native_runtime import NATIVE_EXTENSION_VERSION
 from tests.connection.proxy_server import ProxyTestStack
 
 
 FORCED_HOST = "forced-origin.invalid"
+
+try:
+    import dirsearch_native
+except ImportError:
+    dirsearch_native = None
+
+NATIVE_ROUTING_AVAILABLE = (
+    dirsearch_native is not None
+    and getattr(dirsearch_native, "__version__", None) == NATIVE_EXTENSION_VERSION
+)
 
 
 class TestIPOverrideIsolation(TestCase):
@@ -72,6 +84,19 @@ class TestIPOverrideIsolation(TestCase):
             self.assertIsNone(overrides.get_override(FORCED_HOST, 80))
 
         getaddrinfo.assert_not_called()
+
+    def test_transport_snapshot_is_normalized_and_stable(self):
+        overrides = IPOverrides()
+        overrides.set_override("SECOND.EXAMPLE.", 443, "192.0.2.20")
+        overrides.set_override("First.Example", 80, "192.0.2.10")
+
+        self.assertEqual(
+            overrides.connection_overrides(),
+            [
+                ("first.example", 80, "192.0.2.10"),
+                ("second.example", 443, "192.0.2.20"),
+            ],
+        )
 
     def test_override_lookup_does_not_serialize_connection_workers(self):
         barrier = threading.Barrier(2)
@@ -190,3 +215,54 @@ class TestIPOverrideIntegration(TestCase):
                 )
                 if target.scheme == "https":
                     self.assertEqual(target.server_names, [FORCED_HOST])
+
+    @skipUnless(
+        NATIVE_ROUTING_AVAILABLE,
+        "matching native extension is not installed",
+    )
+    def test_native_requester_preserves_host_and_sni_with_ip_override(self):
+        for target in self.stack.targets:
+            with self.subTest(scheme=target.scheme):
+                target.clear_events()
+                requester = NativeRequester()
+                requester.set_ip(
+                    FORCED_HOST,
+                    urlsplit(target.url).port,
+                    "127.0.0.1",
+                )
+                requester.set_url(self.forced_url(target))
+                try:
+                    response = requester.request("native-ip-override")
+                finally:
+                    requester.close()
+
+                self.assertEqual(response.status, 200)
+                self.assertEqual(target.events, [("GET", "/native-ip-override")])
+                self.assertEqual(
+                    target.host_headers,
+                    [f"{FORCED_HOST}:{urlsplit(target.url).port}"],
+                )
+                if target.scheme == "https":
+                    self.assertEqual(target.server_names, [FORCED_HOST])
+
+    @skipUnless(
+        NATIVE_ROUTING_AVAILABLE,
+        "matching native extension is not installed",
+    )
+    def test_native_raw_http_path_uses_ip_override(self):
+        target = next(target for target in self.stack.targets if target.scheme == "http")
+        target.clear_events()
+        requester = NativeRequester()
+        requester.set_ip(FORCED_HOST, urlsplit(target.url).port, "127.0.0.1")
+        requester.set_url(self.forced_url(target))
+        try:
+            response = requester.request("raw-%1-target")
+        finally:
+            requester.close()
+
+        self.assertEqual(response.status, 200)
+        self.assertEqual(target.events, [("GET", "/raw-%1-target")])
+        self.assertEqual(
+            target.host_headers,
+            [f"{FORCED_HOST}:{urlsplit(target.url).port}"],
+        )

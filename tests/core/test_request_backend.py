@@ -189,10 +189,28 @@ class TestRequestBackend(TestCase):
                     "--cert-file and --key-file must be used together",
                 )
 
-    def test_native_rejects_ip_override(self):
+    def test_native_accepts_connection_routing_options(self):
+        for overrides in (
+            {"ip": "127.0.0.1"},
+            {"ip": "::1"},
+            {"network_interface": "lo"},
+            {"ip": "127.0.0.1", "network_interface": "lo"},
+        ):
+            with self.subTest(overrides=overrides):
+                self.assertIsNone(
+                    get_native_request_backend_error(native_options(**overrides))
+                )
+
+    def test_native_rejects_ip_override_with_scan_proxy(self):
         self.assertEqual(
-            get_native_request_backend_error(native_options(ip="127.0.0.1")),
-            "--request-backend native does not support --ip yet",
+            get_native_request_backend_error(
+                native_options(
+                    ip="127.0.0.1",
+                    proxies=["http://127.0.0.1:8080"],
+                )
+            ),
+            "--request-backend native cannot combine --ip with a scan proxy "
+            "because the proxy controls origin resolution",
         )
 
     def test_native_accepts_replay_proxy(self):

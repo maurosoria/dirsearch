@@ -16,7 +16,7 @@ use rustls::pki_types::{PrivateKeyDer, PrivatePkcs8KeyDer};
 use rustls::server::WebPkiClientVerifier;
 use rustls::{RootCertStore, ServerConfig};
 use std::io::{ErrorKind, Read, Write};
-use std::net::{TcpListener, TcpStream};
+use std::net::{IpAddr, TcpListener, TcpStream};
 use std::str::FromStr;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Barrier, Mutex};
@@ -35,6 +35,31 @@ const DIGEST_COOKIE_CHALLENGE_RESPONSE: &[u8] = b"HTTP/1.1 401 Unauthorized\r\nW
 const MALFORMED_DIGEST_CHALLENGE_RESPONSE: &[u8] = b"HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Digest realm=\"missing-nonce\"\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
 type CapturedRequests = Arc<Mutex<Vec<Vec<u8>>>>;
 type RetryServer = (String, thread::JoinHandle<()>, CapturedRequests);
+
+#[allow(clippy::too_many_arguments)]
+fn build_http_client(
+    headers: &HeaderMap,
+    concurrency: usize,
+    timeout_secs: f64,
+    follow_redirects: bool,
+    max_redirects: usize,
+    proxy_url: Option<&str>,
+    client_identity: Option<(&[u8], &[u8])>,
+    cookie_store: Arc<NativeCookieStore>,
+) -> Result<reqwest::Client, String> {
+    build_http_client_with_routing(
+        headers,
+        concurrency,
+        timeout_secs,
+        follow_redirects,
+        max_redirects,
+        proxy_url,
+        client_identity,
+        cookie_store,
+        &ConnectionRoutes::default(),
+        "",
+    )
+}
 
 fn default_filter_config() -> NativeFilterConfig {
     NativeFilterConfig::from_options(
@@ -75,6 +100,213 @@ fn request_header(request: &[u8], expected_name: &str) -> Option<String> {
         name.eq_ignore_ascii_case(expected_name)
             .then(|| value.trim().to_string())
     })
+}
+
+#[test]
+fn connection_routes_normalize_hosts_and_bracketed_ipv6() {
+    let routes = ConnectionRoutes::from_config(&vec![
+        ("EXAMPLE.TEST.".to_string(), 443, "[::1]".to_string()),
+        ("other.test".to_string(), 80, "192.0.2.10".to_string()),
+        ("TÉST.invalid".to_string(), 8080, "192.0.2.20".to_string()),
+    ])
+    .unwrap();
+
+    assert_eq!(
+        routes.override_for("example.test", 443),
+        Some(IpAddr::V6("::1".parse().unwrap()))
+    );
+    assert_eq!(
+        routes.override_for("OTHER.TEST.", 80),
+        Some(IpAddr::V4("192.0.2.10".parse().unwrap()))
+    );
+    assert_eq!(
+        routes.override_for("xn--tst-bma.invalid", 8080),
+        Some(IpAddr::V4("192.0.2.20".parse().unwrap()))
+    );
+}
+
+#[test]
+fn connection_routes_reject_invalid_or_conflicting_ip_overrides() {
+    let invalid = ConnectionRoutes::from_config(&vec![(
+        "example.test".to_string(),
+        443,
+        "not-an-ip".to_string(),
+    )])
+    .unwrap_err();
+    assert!(invalid.contains("Invalid --ip value"), "{invalid}");
+
+    let conflict = ConnectionRoutes::from_config(&vec![
+        ("example.test".to_string(), 80, "192.0.2.10".to_string()),
+        ("example.test".to_string(), 443, "192.0.2.20".to_string()),
+    ])
+    .unwrap_err();
+    assert!(
+        conflict.contains("same address on every port"),
+        "{conflict}"
+    );
+
+    let literal_target = ConnectionRoutes::from_config(&vec![(
+        "127.0.0.2".to_string(),
+        80,
+        "127.0.0.1".to_string(),
+    )])
+    .unwrap_err();
+    assert!(
+        literal_target.contains("cannot reroute an IP-literal target"),
+        "{literal_target}"
+    );
+}
+
+#[test]
+fn reqwest_uses_connection_override_without_changing_host_header() {
+    let (base_url, server, requests) = spawn_retry_body_server(vec![OK_RESPONSE, OK_RESPONSE]);
+    let port = reqwest::Url::parse(&base_url).unwrap().port().unwrap();
+    let routes = ConnectionRoutes::from_config(&vec![
+        (
+            "forced-origin.invalid.".to_string(),
+            port,
+            "127.0.0.1".to_string(),
+        ),
+        ("TÉST.invalid".to_string(), port, "127.0.0.1".to_string()),
+    ])
+    .unwrap();
+    let client = build_http_client_with_routing(
+        &HeaderMap::new(),
+        1,
+        2.0,
+        false,
+        30,
+        None,
+        None,
+        Arc::new(NativeCookieStore::default()),
+        &routes,
+        "",
+    )
+    .unwrap();
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+
+    for host in ["forced-origin.invalid.", "TÉST.invalid"] {
+        let response = runtime
+            .block_on(async {
+                client
+                    .get(format!("http://{host}:{port}/route"))
+                    .send()
+                    .await
+            })
+            .unwrap();
+        assert_eq!(response.status(), reqwest::StatusCode::OK);
+    }
+    server.join().unwrap();
+    let requests = Arc::try_unwrap(requests).unwrap().into_inner().unwrap();
+    assert_eq!(
+        request_header(&requests[0], "host"),
+        Some(format!("forced-origin.invalid.:{port}"))
+    );
+    assert_eq!(
+        request_header(&requests[1], "host"),
+        Some(format!("xn--tst-bma.invalid:{port}"))
+    );
+}
+
+#[test]
+fn raw_http_uses_connection_override_without_changing_host_header() {
+    let (base_url, server, requests) = spawn_retry_body_server(vec![OK_RESPONSE]);
+    let port = reqwest::Url::parse(&base_url).unwrap().port().unwrap();
+    let routes = ConnectionRoutes::from_config(&vec![(
+        "TÉST.invalid.".to_string(),
+        port,
+        "127.0.0.1".to_string(),
+    )])
+    .unwrap();
+    let base_url = format!("http://TÉST.invalid.:{port}/");
+    let headers = Vec::new();
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+
+    let result = runtime.block_on(raw_http_request(
+        RawHttpRequest {
+            base_url: &base_url,
+            path: "raw%1path",
+            method: "GET",
+            body: &[],
+            headers: &headers,
+            random_user_agents: None,
+            timeout_secs: 2.0,
+            max_body_size: 80,
+            start: Instant::now(),
+            cancelled: Arc::new(AtomicBool::new(false)),
+            cookie_store: Arc::new(NativeCookieStore::default()),
+            connection_routes: &routes,
+            network_interface: "",
+        },
+        0,
+        &default_filter_config(),
+    ));
+    assert_eq!(result.status, 200);
+    server.join().unwrap();
+    let requests = Arc::try_unwrap(requests).unwrap().into_inner().unwrap();
+    assert_eq!(
+        request_header(&requests[0], "host"),
+        Some(format!("xn--tst-bma.invalid.:{port}"))
+    );
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn reqwest_and_raw_http_can_bind_the_loopback_interface() {
+    let (base_url, reqwest_server, _) = spawn_retry_body_server(vec![OK_RESPONSE]);
+    let client = build_http_client_with_routing(
+        &HeaderMap::new(),
+        1,
+        2.0,
+        false,
+        30,
+        None,
+        None,
+        Arc::new(NativeCookieStore::default()),
+        &ConnectionRoutes::default(),
+        "lo",
+    )
+    .unwrap();
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    let response = runtime
+        .block_on(async { client.get(&base_url).send().await })
+        .unwrap();
+    assert_eq!(response.status(), reqwest::StatusCode::OK);
+    reqwest_server.join().unwrap();
+
+    let (base_url, raw_server, _) = spawn_retry_body_server(vec![OK_RESPONSE]);
+    let headers = Vec::new();
+    let routes = ConnectionRoutes::default();
+    let result = runtime.block_on(raw_http_request(
+        RawHttpRequest {
+            base_url: &base_url,
+            path: "raw%1path",
+            method: "GET",
+            body: &[],
+            headers: &headers,
+            random_user_agents: None,
+            timeout_secs: 2.0,
+            max_body_size: 80,
+            start: Instant::now(),
+            cancelled: Arc::new(AtomicBool::new(false)),
+            cookie_store: Arc::new(NativeCookieStore::default()),
+            connection_routes: &routes,
+            network_interface: "lo",
+        },
+        0,
+        &default_filter_config(),
+    ));
+    assert_eq!(result.status, 200, "{:?}", result.error);
+    raw_server.join().unwrap();
 }
 
 fn read_http_request(stream: &mut TcpStream) -> Vec<u8> {
@@ -291,6 +523,7 @@ fn run_raw_request_with_user_agents(
 ) -> (NativeHttpResult, Vec<Vec<u8>>) {
     let (base_url, server, requests) = spawn_retry_body_server(responses);
     let headers = Vec::new();
+    let connection_routes = ConnectionRoutes::default();
     let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -308,6 +541,8 @@ fn run_raw_request_with_user_agents(
             start: Instant::now() - Duration::from_secs(5),
             cancelled: Arc::new(AtomicBool::new(false)),
             cookie_store: Arc::new(NativeCookieStore::default()),
+            connection_routes: &connection_routes,
+            network_interface: "",
         },
         max_retries,
         &default_filter_config(),

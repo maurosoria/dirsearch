@@ -3,6 +3,7 @@
 use crate::filters::NativeFilterConfig;
 use crate::raw_http;
 use crate::result::{native_error_result, native_http_result_with_length, NativeHttpResult};
+use crate::routing::ConnectionRoutes;
 use crate::session::NativeCookieStore;
 use crate::transport::{HeaderPairs, RandomUserAgentPool};
 use reqwest::cookie::CookieStore;
@@ -26,6 +27,8 @@ pub(crate) struct RawHttpRequest<'a> {
     pub(crate) start: Instant,
     pub(crate) cancelled: Arc<AtomicBool>,
     pub(crate) cookie_store: Arc<NativeCookieStore>,
+    pub(crate) connection_routes: &'a ConnectionRoutes,
+    pub(crate) network_interface: &'a str,
 }
 
 pub(crate) fn should_use_raw_http(base_url: &str, path: &str) -> bool {
@@ -164,13 +167,10 @@ async fn raw_http_request_inner(
     let deadline = attempt_start
         .checked_add(timeout)
         .ok_or_else(|| "Raw HTTP timeout exceeded the supported duration".to_string())?;
-    let stream = tokio::time::timeout_at(
-        tokio::time::Instant::from_std(deadline),
-        tokio::net::TcpStream::connect((host.as_str(), port)),
-    )
-    .await
-    .map_err(|_| "Raw HTTP connection timed out".to_string())?
-    .map_err(|error| error.to_string())?;
+    let stream = request
+        .connection_routes
+        .connect_raw(&host, port, request.network_interface, deadline)
+        .await?;
     let stream = stream.into_std().map_err(|error| error.to_string())?;
     stream
         .set_nonblocking(false)

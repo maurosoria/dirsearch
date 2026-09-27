@@ -6,6 +6,7 @@ use crate::raw_http;
 use crate::result::{
     native_error_result, native_filtered_marker, native_http_result_with_length, NativeHttpResult,
 };
+use crate::routing::ConnectionRoutes;
 use crate::session::{with_initial_cookie_override, NativeCookieStore};
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
@@ -183,6 +184,8 @@ pub(crate) fn build_http_client(
     proxy_url: Option<&str>,
     client_identity: Option<(&[u8], &[u8])>,
     cookie_store: Arc<NativeCookieStore>,
+    connection_routes: &ConnectionRoutes,
+    network_interface: &str,
 ) -> Result<reqwest::Client, String> {
     let has_client_identity = client_identity.is_some();
     let mut builder = reqwest::Client::builder()
@@ -208,6 +211,8 @@ pub(crate) fn build_http_client(
         .timeout(Duration::from_secs_f64(timeout_secs))
         .pool_max_idle_per_host(concurrency)
         .cookie_provider(cookie_store);
+
+    builder = connection_routes.configure_client(builder, network_interface)?;
 
     if let Some((client_certificate, client_key)) = client_identity {
         let mut identity_pem = Vec::with_capacity(client_certificate.len() + client_key.len() + 1);

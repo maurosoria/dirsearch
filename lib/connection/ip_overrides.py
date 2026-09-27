@@ -41,3 +41,10 @@ class IPOverrides:
     def get_override(self, host: str, port: int) -> str | None:
         """Return one forced connection IP, or None for normal DNS lookup."""
         return self._overrides.get(self._key(host, port))
+
+    def connection_overrides(self) -> list[tuple[str, int, str]]:
+        """Return a stable snapshot suitable for configuring a transport."""
+        return sorted(
+            (host, port, ip_address)
+            for (host, port), ip_address in self._overrides.items()
+        )

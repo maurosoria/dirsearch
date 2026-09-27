@@ -136,6 +136,7 @@ class TestNativeHTTPBackend(TestCase):
                 "cert_file": None,
                 "key_file": None,
                 "random_agents": False,
+                "network_interface": None,
                 "max_retries": 2,
                 "follow_redirects": False,
                 "include_status_codes": {200, 204},
@@ -212,6 +213,61 @@ class TestNativeHTTPBackend(TestCase):
             fake_native.engines[0].config["session"],
         )
         self.assertEqual(len(fake_native.sessions), 1)
+
+    def test_engine_receives_interface_and_normalized_ip_overrides(self):
+        options["proxies"] = []
+        options["network_interface"] = "lo"
+        fake_native = FakeNativeModule()
+
+        with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
+            requester = NativeRequester()
+            requester.set_ip("SECOND.EXAMPLE.", 443, "::1")
+            requester.set_ip("First.Example", 80, "127.0.0.1")
+            requester.set_url("http://first.example/")
+            requester.request("admin")
+
+        config = fake_native.engines[0].config
+        self.assertEqual(config["network_interface"], "lo")
+        self.assertEqual(
+            config["connection_overrides"],
+            [
+                ("first.example", 80, "127.0.0.1"),
+                ("second.example", 443, "::1"),
+            ],
+        )
+
+    def test_ip_override_rebuilds_an_existing_engine(self):
+        options["proxies"] = []
+        fake_native = FakeNativeModule()
+
+        with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
+            requester = NativeRequester()
+            requester.set_url("http://example.com/")
+            requester.request("first")
+            requester.set_ip("example.com", 80, "127.0.0.1")
+            requester.request("second")
+
+        self.assertEqual(len(fake_native.engines), 2)
+        self.assertEqual(fake_native.engines[0].config["connection_overrides"], [])
+        self.assertEqual(
+            fake_native.engines[1].config["connection_overrides"],
+            [("example.com", 80, "127.0.0.1")],
+        )
+
+    def test_replay_proxy_keeps_interface_without_rerouting_the_proxy(self):
+        options["proxies"] = []
+        options["network_interface"] = "lo"
+        fake_native = FakeNativeModule()
+
+        with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
+            requester = NativeRequester()
+            requester.set_ip("example.com", 443, "192.0.2.10")
+            requester.set_url("https://example.com/")
+            requester.request("admin", proxy="http://replay.test:8080")
+
+        config = fake_native.engines[0].config
+        self.assertEqual(config["network_interface"], "lo")
+        self.assertEqual(config["connection_overrides"], [])
 
     def test_first_replay_request_does_not_build_an_origin_engine_for_state(self):
         options["proxies"] = []
