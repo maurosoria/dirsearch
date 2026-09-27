@@ -1,12 +1,12 @@
-//! Reqwest client construction, request execution, and body decoding.
+//! Reqwest client construction and request execution.
 
+use crate::compression::{decode_async, decode_error, AsyncBodyReader};
 use crate::filters::NativeFilterConfig;
 use crate::raw_http;
 use crate::result::{
     native_error_result, native_filtered_marker, native_http_result_with_length, NativeHttpResult,
 };
 use crate::session::{with_initial_cookie_override, NativeCookieStore};
-use async_compression::tokio::bufread::{BrotliDecoder, GzipDecoder, ZlibDecoder};
 use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use base64::Engine;
 use bytes::Bytes;
@@ -20,16 +20,13 @@ use std::cell::RefCell;
 use std::collections::{hash_map::RandomState, HashMap};
 use std::hash::{BuildHasher, Hasher};
 use std::io;
-use std::pin::Pin;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-use tokio::io::{AsyncRead, AsyncReadExt, BufReader};
+use tokio::io::AsyncReadExt;
 use tokio_util::io::StreamReader;
 
 pub(crate) type HeaderPairs = Vec<(String, String)>;
-type AsyncBodyReader = Pin<Box<dyn AsyncRead + Send>>;
-
 /// Immutable User-Agent corpus with one lock-free selection sequence.
 ///
 /// The values belong to the engine context. Only the sequence changes, so
@@ -570,38 +567,17 @@ async fn read_decoded_body(
         0
     };
     let stream = response.bytes_stream().map_err(io::Error::other);
-    let mut reader: AsyncBodyReader = Box::pin(StreamReader::new(stream));
-    for encoding in encodings.iter().rev() {
-        if encoding.eq_ignore_ascii_case("identity") {
-            continue;
-        }
-
-        let buffered = BufReader::new(reader);
-        reader = if encoding.eq_ignore_ascii_case("gzip") {
-            Box::pin(GzipDecoder::new(buffered))
-        } else if encoding.eq_ignore_ascii_case("deflate") {
-            Box::pin(ZlibDecoder::new(buffered))
-        } else if encoding.eq_ignore_ascii_case("br") {
-            Box::pin(BrotliDecoder::new(buffered))
-        } else {
-            return Err(format!("Unsupported HTTP Content-Encoding: {encoding}"));
-        };
-    }
+    let reader: AsyncBodyReader = Box::pin(StreamReader::new(stream));
+    let mut reader = decode_async(reader, &encodings)?;
     let mut body = Vec::with_capacity(capacity);
     let mut body_length = 0usize;
     let mut buffer = [0u8; 8192];
 
     loop {
-        let read = reader.read(&mut buffer).await.map_err(|error| {
-            if encodings.is_empty() {
-                error.to_string()
-            } else {
-                format!(
-                    "Failed to decode {} response body: {error}",
-                    encodings.join(", ")
-                )
-            }
-        })?;
+        let read = reader
+            .read(&mut buffer)
+            .await
+            .map_err(|error| decode_error(&encodings, error))?;
         if read == 0 {
             break;
         }

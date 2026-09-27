@@ -1,7 +1,6 @@
-//! Blocking HTTP/1.1 exchange, framing, and content decoding primitives.
+//! Blocking HTTP/1.1 exchange and framing primitives.
 
-use brotli::Decompressor;
-use flate2::read::{GzDecoder, ZlibDecoder};
+use crate::compression::{decode_error, decode_sync};
 use std::io::{self, BufReader, Read, Write};
 use std::net::{Shutdown, TcpStream};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -123,30 +122,9 @@ where
     on_headers(&headers);
 
     let encodings = comma_separated_header_values(&headers, "content-encoding");
-    let mut decoded: Box<dyn Read> = Box::new(framing);
-    for encoding in encodings.iter().rev() {
-        decoded = if encoding.eq_ignore_ascii_case("identity") {
-            decoded
-        } else if encoding.eq_ignore_ascii_case("gzip") {
-            Box::new(GzDecoder::new(decoded))
-        } else if encoding.eq_ignore_ascii_case("deflate") {
-            Box::new(ZlibDecoder::new(decoded))
-        } else if encoding.eq_ignore_ascii_case("br") {
-            Box::new(Decompressor::new(decoded, 4096))
-        } else {
-            return Err(format!("Unsupported HTTP Content-Encoding: {encoding}"));
-        };
-    }
-    let (body, decoded_length) = collect_body(decoded, max_body_size).map_err(|error| {
-        if encodings.is_empty() {
-            error
-        } else {
-            format!(
-                "Failed to decode {} response body: {error}",
-                encodings.join(", ")
-            )
-        }
-    })?;
+    let decoded = decode_sync(Box::new(framing), &encodings)?;
+    let (body, decoded_length) =
+        collect_body(decoded, max_body_size).map_err(|error| decode_error(&encodings, error))?;
 
     Ok((status, headers, body, decoded_length))
 }
