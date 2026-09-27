@@ -576,12 +576,34 @@ class NativeFuzzer(Fuzzer):
                     break
 
                 try:
-                    batch = self._native_backend.scan_batch(
-                        self._requester._url,
-                        paths,
-                        self._requester._query,
+                    scan_batch_stream = getattr(
+                        self._native_backend,
+                        "scan_batch_stream",
+                        None,
                     )
-                    self._process_native_batch(paths, batch)
+                    if scan_batch_stream is None:
+                        # Keep injected/test backends that implement the old
+                        # compact contract usable. NativeHTTPBackend always
+                        # takes the incremental path.
+                        batch = self._native_backend.scan_batch(
+                            self._requester._url,
+                            paths,
+                            self._requester._query,
+                        )
+                        self._process_native_batch(paths, batch)
+                    else:
+                        scan_batch_stream(
+                            self._requester._url,
+                            paths,
+                            lambda batch: self._process_native_batch(paths, batch),
+                            self._requester._query,
+                        )
+                except BaseException:
+                    # A callback or native failure must not strand claims. A
+                    # saved Python session will resume at the first prefix that
+                    # was not successfully processed.
+                    self._dictionary.requeue_claims()
+                    raise
                 finally:
                     if not self._play_event.is_set():
                         self._dictionary.requeue_claims()
@@ -597,7 +619,7 @@ class NativeFuzzer(Fuzzer):
     ) -> None:
         """Expand Rust's compact event stream without rebuilding miss responses."""
 
-        next_index = 0
+        next_index = batch.start_index
         for event in batch.events:
             if self._should_stop_processing():
                 return

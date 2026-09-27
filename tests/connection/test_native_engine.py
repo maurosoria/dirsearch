@@ -152,11 +152,19 @@ class KeepAliveHandler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
     def do_GET(self):
+        with self.server.request_count_lock:
+            self.server.request_count += 1
+            if self.server.request_count >= 20:
+                self.server.twenty_requests.set()
         body = b"ok"
         self.send_response(200)
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.wfile.write(body)
+        except BrokenPipeError:
+            # Cancellation may close a request while this fixture responds.
+            pass
 
     def log_message(self, _format, *args):
         return None
@@ -173,6 +181,15 @@ class RequestTimeCaptureHandler(KeepAliveHandler):
     def do_GET(self):
         with self.server.request_times_lock:
             self.server.request_times.append(time.monotonic())
+        super().do_GET()
+
+
+class ControlledStreamHandler(KeepAliveHandler):
+    def do_GET(self):
+        if self.path == "/slow":
+            self.server.slow_started.set()
+            if not self.server.release_slow.wait(timeout=2):
+                return
         super().do_GET()
 
 
@@ -273,6 +290,11 @@ class CountingHTTPServer(ThreadingHTTPServer):
         self.user_agents_lock = threading.Lock()
         self.request_times = []
         self.request_times_lock = threading.Lock()
+        self.request_count = 0
+        self.request_count_lock = threading.Lock()
+        self.twenty_requests = threading.Event()
+        self.slow_started = threading.Event()
+        self.release_slow = threading.Event()
         self.thread = threading.Thread(target=self.serve_forever, daemon=True)
         self.thread.start()
 
@@ -570,6 +592,197 @@ class TestNativeHttpEngine(TestCase):
         self.assertFalse(results[0].filtered)
         self.assertTrue(results[1].filtered)
 
+    def test_stream_delivers_an_ordered_prefix_before_scan_finishes(self):
+        server = CountingHTTPServer(ControlledStreamHandler)
+        engine = dirsearch_native.NativeHttpEngine(concurrency=2)
+        chunks = []
+        first_chunk = threading.Event()
+        scan_finished = threading.Event()
+        scan_errors = []
+
+        def callback(start_index, processed_count, results):
+            chunks.append((start_index, processed_count, results))
+            first_chunk.set()
+
+        def scan():
+            try:
+                engine.scan_stream(
+                    server.url,
+                    ["fast", "slow"],
+                    callback,
+                    chunk_size=1,
+                )
+            except BaseException as error:
+                scan_errors.append(error)
+            finally:
+                scan_finished.set()
+
+        worker = threading.Thread(target=scan)
+        worker.start()
+        try:
+            self.assertTrue(server.slow_started.wait(timeout=1))
+            self.assertTrue(first_chunk.wait(timeout=1))
+            self.assertFalse(scan_finished.is_set())
+            self.assertEqual(chunks[0][0:2], (0, 1))
+            self.assertEqual(
+                [result.request_index for result in chunks[0][2]],
+                [0],
+            )
+        finally:
+            server.release_slow.set()
+            worker.join(timeout=1)
+            server.close()
+
+        self.assertFalse(worker.is_alive())
+        self.assertEqual(scan_errors, [])
+        self.assertEqual(chunks[-1][0:2], (1, 2))
+
+    def test_stream_compacts_filtered_misses_into_progress_only(self):
+        server = CountingHTTPServer()
+        engine = dirsearch_native.NativeHttpEngine(concurrency=2)
+        chunks = []
+
+        try:
+            processed_count = engine.scan_stream(
+                server.url,
+                ["zero", "one", "two"],
+                lambda start, end, results: chunks.append(
+                    (start, end, results)
+                ),
+                filter_config=dirsearch_native.NativeFilterConfig(
+                    include_status_codes=[201]
+                ),
+            )
+        finally:
+            server.close()
+
+        self.assertEqual(processed_count, 3)
+        self.assertEqual(chunks[0][0], 0)
+        self.assertEqual(chunks[-1][1], 3)
+        self.assertEqual(
+            [start for start, _end, _results in chunks[1:]],
+            [end for _start, end, _results in chunks[:-1]],
+        )
+        self.assertTrue(all(not results for _start, _end, results in chunks))
+
+    def test_stream_waits_for_missing_prefix_before_delivering(self):
+        server = CountingHTTPServer(ControlledStreamHandler)
+        engine = dirsearch_native.NativeHttpEngine(concurrency=2)
+        chunks = []
+        chunk_received = threading.Event()
+
+        def callback(start_index, processed_count, results):
+            chunks.append((start_index, processed_count, results))
+            chunk_received.set()
+
+        worker = threading.Thread(
+            target=lambda: engine.scan_stream(
+                server.url,
+                ["slow", "fast"],
+                callback,
+                chunk_size=1,
+            )
+        )
+        worker.start()
+        try:
+            self.assertTrue(server.slow_started.wait(timeout=1))
+            self.assertFalse(chunk_received.wait(timeout=0.1))
+            server.release_slow.set()
+            self.assertTrue(chunk_received.wait(timeout=1))
+        finally:
+            server.release_slow.set()
+            worker.join(timeout=1)
+            server.close()
+
+        self.assertFalse(worker.is_alive())
+        self.assertEqual(
+            [(start, end) for start, end, _results in chunks],
+            [(0, 1), (1, 2)],
+        )
+        self.assertEqual(
+            [
+                result.request_index
+                for _start, _end, results in chunks
+                for result in results
+            ],
+            [0, 1],
+        )
+
+    def test_stream_backpressure_bounds_work_while_callback_is_blocked(self):
+        server = CountingHTTPServer()
+        engine = dirsearch_native.NativeHttpEngine(concurrency=2)
+        callback_started = threading.Event()
+        release_callback = threading.Event()
+        scan_errors = []
+
+        def callback(_start_index, _processed_count, _results):
+            callback_started.set()
+            if not release_callback.wait(timeout=2):
+                raise AssertionError("stream callback was not released")
+
+        def scan():
+            try:
+                engine.scan_stream(
+                    server.url,
+                    [f"path-{index}" for index in range(50)],
+                    callback,
+                    chunk_size=1,
+                )
+            except BaseException as error:
+                scan_errors.append(error)
+
+        worker = threading.Thread(target=scan)
+        worker.start()
+        try:
+            self.assertTrue(callback_started.wait(timeout=1))
+            self.assertFalse(server.twenty_requests.wait(timeout=0.2))
+            with server.request_count_lock:
+                self.assertLess(server.request_count, 20)
+        finally:
+            release_callback.set()
+            worker.join(timeout=5)
+            server.close()
+
+        self.assertFalse(worker.is_alive())
+        self.assertEqual(scan_errors, [])
+
+    def test_stream_propagates_callback_errors_and_stops_workers(self):
+        server = CountingHTTPServer()
+        engine = dirsearch_native.NativeHttpEngine(concurrency=2)
+
+        def fail_callback(_start_index, _processed_count, _results):
+            raise NativeScanInterrupted("stop incremental delivery")
+
+        try:
+            with self.assertRaisesRegex(
+                NativeScanInterrupted,
+                "stop incremental delivery",
+            ):
+                engine.scan_stream(
+                    server.url,
+                    [f"path-{index}" for index in range(200)],
+                    fail_callback,
+                    chunk_size=1,
+                )
+        finally:
+            server.close()
+
+        with server.request_count_lock:
+            self.assertLess(server.request_count, 200)
+
+    def test_stream_rejects_invalid_callback_and_chunk_size(self):
+        engine = dirsearch_native.NativeHttpEngine(concurrency=1)
+
+        with self.assertRaisesRegex(TypeError, "callback must be callable"):
+            engine.scan_stream("http://127.0.0.1/", [], object())
+        with self.assertRaisesRegex(ValueError, "greater than zero"):
+            engine.scan_stream(
+                "http://127.0.0.1/",
+                [],
+                lambda *_args: None,
+                chunk_size=0,
+            )
+
     def test_compact_scan_preserves_filtered_proxy_authentication_responses(self):
         proxy = CountingHTTPServer(ProxyAuthenticationRequiredHandler)
         engine = dirsearch_native.NativeHttpEngine(
@@ -647,6 +860,43 @@ class TestNativeHttpEngine(TestCase):
         )
         self.assertEqual(batch.path_at(1), "api/home.html")
         self.assertTrue(wordlist.contains("index.php"))
+
+    def test_owned_wordlist_batch_supports_incremental_delivery(self):
+        wordlist = dirsearch_native.generate_wordlist_owned(
+            ["tests/static/wordlist.txt"],
+            ["php"],
+        )
+        batch = wordlist.batch(0, 2, "api/")
+        server = CountingHTTPServer()
+        engine = dirsearch_native.NativeHttpEngine(concurrency=1)
+        chunks = []
+
+        try:
+            processed_count = engine.scan_owned_batch_stream(
+                server.url,
+                batch,
+                lambda start, end, results: chunks.append(
+                    (start, end, results)
+                ),
+                query="scope=one",
+                chunk_size=1,
+            )
+        finally:
+            server.close()
+
+        self.assertEqual(processed_count, 2)
+        self.assertEqual(
+            [(start, end) for start, end, _results in chunks],
+            [(0, 1), (1, 2)],
+        )
+        self.assertEqual(
+            [
+                result.path
+                for _start, _end, results in chunks
+                for result in results
+            ],
+            ["api/index.php?scope=one", "api/home.html?scope=one"],
+        )
 
     def test_reuses_http_connection_across_scans(self):
         server = CountingHTTPServer()

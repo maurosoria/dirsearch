@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import threading
 
-from collections.abc import Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlsplit
@@ -52,10 +52,11 @@ class NativeScanEvent:
 
 @dataclass(frozen=True, slots=True)
 class NativeScanBatch:
-    """Compact results plus the number of paths Rust finished processing."""
+    """One ordered range completed by Rust, with only actionable results."""
 
     processed_count: int
     events: tuple[NativeScanEvent, ...]
+    start_index: int = 0
 
 
 class NativeHTTPBackend:
@@ -251,6 +252,78 @@ class NativeHTTPBackend:
         # index lets Python account for trailing filtered misses without
         # receiving one PyO3 object for every miss.
         processed_count = results[-1].request_index + 1
+        return self._make_scan_batch(
+            base_url,
+            raw_paths,
+            results,
+            start_index=0,
+            processed_count=processed_count,
+        )
+
+    def scan_batch_stream(
+        self,
+        base_url: str,
+        paths: list[str] | NativeWordlistBatch,
+        callback: Callable[[NativeScanBatch], Any],
+        query: str = "",
+    ) -> int:
+        """Deliver ordered compact ranges while Rust is still scanning."""
+
+        raw_paths = paths
+        with self._cancel_lock:
+            engine = self._get_engine()
+            cancel_generation = self._cancel_generation
+            if cancel_generation != self._consumed_cancel_generation:
+                engine.cancel()
+
+        def process_chunk(
+            start_index: int,
+            processed_count: int,
+            results: list[Any],
+        ) -> None:
+            callback(
+                self._make_scan_batch(
+                    base_url,
+                    raw_paths,
+                    results,
+                    start_index=start_index,
+                    processed_count=processed_count,
+                )
+            )
+
+        scan_options = {
+            "query": query,
+            "max_retries": options["max_retries"],
+            "max_body_size": MAX_RESPONSE_SIZE,
+            "filter_config": self._get_filter_config(True),
+        }
+        try:
+            if isinstance(raw_paths, NativeWordlistBatch):
+                return engine.scan_owned_batch_stream(
+                    base_url,
+                    raw_paths.native,
+                    process_chunk,
+                    **scan_options,
+                )
+            return engine.scan_stream(
+                base_url,
+                raw_paths,
+                process_chunk,
+                **scan_options,
+            )
+        finally:
+            with self._cancel_lock:
+                self._consumed_cancel_generation = self._cancel_generation
+
+    def _make_scan_batch(
+        self,
+        base_url: str,
+        raw_paths: list[str] | NativeWordlistBatch,
+        results: Iterable[Any],
+        *,
+        start_index: int,
+        processed_count: int,
+    ) -> NativeScanBatch:
         events = []
         for result in results:
             # Interior filtered results are represented by gaps between event
@@ -275,7 +348,7 @@ class NativeHTTPBackend:
                 )
             )
 
-        return NativeScanBatch(processed_count, tuple(events))
+        return NativeScanBatch(processed_count, tuple(events), start_index)
 
     def scan_unfiltered(
         self,

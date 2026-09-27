@@ -45,6 +45,15 @@ inside their original logical request and do not consume another rate slot.
 deadline across batch boundaries. Both waits are asynchronous and remain
 interruptible by pause, quit, and scan cancellation.
 
+Native fuzzer batches are returned incrementally through ordered micro-batches.
+Rust reorders concurrent completions, omits per-response Python objects for
+filtered misses, and applies bounded-channel backpressure while Python runs the
+callbacks. A micro-batch is emitted after 64 completed paths, 16 actionable
+results, or 10 ms, whichever comes first. Python releases only the delivered
+prefix of its dictionary claim, so checkpoints remain portable between the
+threaded, async, and native engines. Cancellation or callback failure leaves the
+undelivered suffix available for a later resume.
+
 ## Request state and ownership
 
 The native request path separates state by lifetime. This keeps the Python/Rust
@@ -82,6 +91,8 @@ responsibility:
 
 - `engine.rs` owns the persistent engine, immutable request context, per-batch
   scan task, bounded scheduler, and cancellation.
+- `stream.rs` reorders concurrent completions and builds compact, ordered
+  micro-batches for Python-owned callbacks and checkpoints.
 - `session.rs` owns explicit cross-engine session state and cookie policy.
 - `pacing.rs` owns the shared request-rate limiter and per-worker delay lanes.
 - `request_target.rs` owns query insertion and URL quoting before scheduling.

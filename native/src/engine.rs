@@ -7,22 +7,27 @@ use crate::request_target::prepare_request_targets;
 use crate::result::{native_completion_marker, native_error_result, NativeHttpResult};
 use crate::routing::{ConnectionOverrideConfig, ConnectionRoutes};
 use crate::session::NativeHttpSession;
+use crate::stream::{
+    deliver_chunk, OrderedChunkBuffer, WorkerCompletion, DEFAULT_STREAM_CHUNK_SIZE,
+};
 use crate::transport::{
     build_http_client, request_with_client, ClientRequest, HeaderPairs, OriginAuth,
     RandomUserAgentPool,
 };
 use crate::wordlist::NativeWordlistBatch;
 use bytes::Bytes;
-use pyo3::exceptions::PyRuntimeError;
+use pyo3::exceptions::{PyRuntimeError, PyTypeError};
 use pyo3::prelude::*;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue, COOKIE};
 use reqwest::Method;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
+use tokio::sync::mpsc;
 use tokio::task::JoinSet;
 
 const SIGNAL_POLL_INTERVAL: Duration = Duration::from_millis(50);
+const STREAM_FLUSH_INTERVAL: Duration = Duration::from_millis(10);
 const PROXY_AUTHENTICATION_REQUIRED: u16 = 407;
 const RANDOM_USER_AGENT_CONFLICT_ERROR: &str =
     "Random User-Agent values cannot be combined with a fixed User-Agent header";
@@ -244,6 +249,98 @@ impl NativeHttpEngine {
             compact_filtered,
         )
     }
+
+    #[allow(clippy::too_many_arguments)]
+    #[pyo3(signature = (
+        base_url,
+        paths,
+        callback,
+        query="".to_string(),
+        max_retries=0,
+        max_body_size=83886080,
+        filter_config=None,
+        chunk_size=DEFAULT_STREAM_CHUNK_SIZE,
+    ))]
+    fn scan_stream(
+        &self,
+        py: Python<'_>,
+        base_url: String,
+        paths: Vec<String>,
+        callback: Py<PyAny>,
+        query: String,
+        max_retries: usize,
+        max_body_size: usize,
+        filter_config: Option<Py<NativeFilterConfig>>,
+        chunk_size: usize,
+    ) -> PyResult<usize> {
+        validate_stream_callback(py, &callback)?;
+        let filter_config = filter_config
+            .map(|config| config.borrow(py).clone())
+            .unwrap_or_default();
+        self.scan_paths_stream(
+            py,
+            base_url,
+            paths,
+            query,
+            max_retries,
+            max_body_size,
+            Arc::new(filter_config),
+            Arc::new(callback),
+            chunk_size,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    #[pyo3(signature = (
+        base_url,
+        batch,
+        callback,
+        query="".to_string(),
+        max_retries=0,
+        max_body_size=83886080,
+        filter_config=None,
+        chunk_size=DEFAULT_STREAM_CHUNK_SIZE,
+    ))]
+    fn scan_owned_batch_stream(
+        &self,
+        py: Python<'_>,
+        base_url: String,
+        batch: PyRef<'_, NativeWordlistBatch>,
+        callback: Py<PyAny>,
+        query: String,
+        max_retries: usize,
+        max_body_size: usize,
+        filter_config: Option<Py<NativeFilterConfig>>,
+        chunk_size: usize,
+    ) -> PyResult<usize> {
+        validate_stream_callback(py, &callback)?;
+        let owned_batch = (*batch).clone();
+        let paths = py.detach(move || owned_batch.to_paths());
+        let filter_config = filter_config
+            .map(|config| config.borrow(py).clone())
+            .unwrap_or_default();
+        self.scan_paths_stream(
+            py,
+            base_url,
+            paths,
+            query,
+            max_retries,
+            max_body_size,
+            Arc::new(filter_config),
+            Arc::new(callback),
+            chunk_size,
+        )
+    }
+}
+
+fn validate_stream_callback(py: Python<'_>, callback: &Py<PyAny>) -> PyResult<()> {
+    if callback.bind(py).is_callable() {
+        Ok(())
+    } else {
+        Err(PyTypeError::new_err(
+            "native stream callback must be callable",
+        ))
+    }
 }
 
 impl NativeHttpEngine {
@@ -410,6 +507,7 @@ impl NativeHttpEngine {
                     max_retries,
                     max_body_size,
                     compact_filtered,
+                    completion_sender: None,
                 });
                 // Reuse a bounded set of worker tasks for the whole batch.
                 // This keeps HTTP concurrency unchanged while avoiding one
@@ -492,6 +590,132 @@ impl NativeHttpEngine {
         self.cancelled.store(false, Ordering::Release);
         result
     }
+
+    #[allow(clippy::too_many_arguments)]
+    fn scan_paths_stream(
+        &self,
+        py: Python<'_>,
+        base_url: String,
+        mut paths: Vec<String>,
+        query: String,
+        max_retries: usize,
+        max_body_size: usize,
+        filter_config: Arc<NativeFilterConfig>,
+        callback: Arc<Py<PyAny>>,
+        chunk_size: usize,
+    ) -> PyResult<usize> {
+        if chunk_size == 0 {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "native stream chunk size must be greater than zero",
+            ));
+        }
+        // Pause may race ahead of the worker's first scan call.
+        if self.cancelled.swap(false, Ordering::AcqRel) {
+            return Ok(0);
+        }
+        let cancelled = self.cancelled.clone();
+        let concurrency = self.concurrency;
+        let request_context = self.request_context.clone();
+        let runtime = &self.runtime;
+
+        let result = py.detach(move || {
+            runtime.block_on(async move {
+                prepare_request_targets(&mut paths, &query);
+                let result_count = paths.len();
+                if result_count == 0 {
+                    return Ok(0);
+                }
+                let paths = Arc::new(paths);
+                let channel_capacity = concurrency.saturating_mul(2).max(1);
+                let (completion_sender, mut completion_receiver) = mpsc::channel(channel_capacity);
+                let scan_task = Arc::new(ScanTask {
+                    paths: paths.clone(),
+                    next_request: AtomicUsize::new(0),
+                    base_url,
+                    request_context,
+                    filter_config,
+                    cancelled: cancelled.clone(),
+                    max_retries,
+                    max_body_size,
+                    compact_filtered: true,
+                    completion_sender: Some(completion_sender),
+                });
+                let worker_count = concurrency.min(result_count);
+                let mut tasks: JoinSet<WorkerScanResults> = JoinSet::new();
+                for worker_index in 0..worker_count {
+                    tasks.spawn(run_scan_worker(scan_task.clone(), worker_index));
+                }
+                // Let the channel close after the final worker drops its task.
+                drop(scan_task);
+
+                let mut chunks = OrderedChunkBuffer::new();
+                let mut flush_tick = tokio::time::interval_at(
+                    tokio::time::Instant::now() + STREAM_FLUSH_INTERVAL,
+                    STREAM_FLUSH_INTERVAL,
+                );
+                flush_tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+                let mut signal_poll = tokio::time::interval_at(
+                    tokio::time::Instant::now() + SIGNAL_POLL_INTERVAL,
+                    SIGNAL_POLL_INTERVAL,
+                );
+                signal_poll.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+
+                loop {
+                    let mut force_flush = false;
+                    let mut check_signals = false;
+                    tokio::select! {
+                        completion = completion_receiver.recv() => {
+                            if let Some(completion) = completion {
+                                chunks.push(completion);
+                            } else if tasks.is_empty() {
+                                break;
+                            }
+                        }
+                        joined = tasks.join_next(), if !tasks.is_empty() => {
+                            if let Some(Err(error)) = joined {
+                                return Err(PyRuntimeError::new_err(error.to_string()));
+                            }
+                        }
+                        _ = flush_tick.tick() => force_flush = true,
+                        _ = signal_poll.tick() => check_signals = true,
+                    }
+
+                    if cancelled.load(Ordering::Acquire) {
+                        tasks.abort_all();
+                        return Ok(chunks.delivered_count());
+                    }
+                    if check_signals {
+                        Python::attach(|py| py.check_signals())?;
+                    }
+                    while let Some(mut chunk) = chunks.take_ready(chunk_size, force_flush) {
+                        for result in &mut chunk.results {
+                            result.path.clone_from(&paths[result.request_index]);
+                        }
+                        deliver_chunk(callback.clone(), chunk).await?;
+                    }
+                }
+
+                if cancelled.load(Ordering::Acquire) {
+                    return Ok(chunks.delivered_count());
+                }
+                while let Some(mut chunk) = chunks.take_ready(chunk_size, true) {
+                    for result in &mut chunk.results {
+                        result.path.clone_from(&paths[result.request_index]);
+                    }
+                    deliver_chunk(callback.clone(), chunk).await?;
+                }
+                let delivered_count = chunks.delivered_count();
+                if delivered_count != result_count {
+                    return Err(PyRuntimeError::new_err(format!(
+                        "native stream stopped after {delivered_count} of {result_count} paths",
+                    )));
+                }
+                Ok(delivered_count)
+            })
+        });
+        self.cancelled.store(false, Ordering::Release);
+        result
+    }
 }
 
 struct WorkerScanResults {
@@ -517,6 +741,9 @@ struct ScanTask {
     max_retries: usize,
     max_body_size: usize,
     compact_filtered: bool,
+    /// Present only for incremental scans; its bounded channel applies
+    /// backpressure while Python processes a delivered micro-batch.
+    completion_sender: Option<mpsc::Sender<WorkerCompletion>>,
 }
 
 async fn run_scan_worker(task: Arc<ScanTask>, worker_index: usize) -> WorkerScanResults {
@@ -601,16 +828,24 @@ async fn run_scan_worker(task: Arc<ScanTask>, worker_index: usize) -> WorkerScan
             result.final_url = url;
         }
         result.request_index = request_index;
-        // Filtered results only carry progress in compact mode. The coordinator
-        // synthesizes one completion marker after every worker has joined.
-        if task.compact_filtered
+        let compact_filtered = task.compact_filtered
             && result.filtered
             && result.error.is_none()
-            && result.status != PROXY_AUTHENTICATION_REQUIRED
-        {
-            continue;
-        } else {
+            && result.status != PROXY_AUTHENTICATION_REQUIRED;
+        if let Some(completion_sender) = task.completion_sender.as_ref() {
+            let completion = WorkerCompletion {
+                request_index,
+                result: (!compact_filtered).then_some(result),
+            };
+            if completion_sender.send(completion).await.is_err() {
+                break;
+            }
+        } else if !compact_filtered {
             results.push((request_index, result));
+        } else {
+            // Legacy compact batches keep their final processed index in a
+            // completion marker. The streaming path reports every completion
+            // through its bounded channel instead.
         }
     }
     WorkerScanResults {

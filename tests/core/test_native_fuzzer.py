@@ -163,6 +163,38 @@ class CancelAwareNativeBackend:
         self.cancelled.clear()
 
 
+class IncrementalNativeBackend:
+    def __init__(self, *, fail_after_first=False):
+        self.first_delivered = threading.Event()
+        self.release = threading.Event()
+        self.fail_after_first = fail_after_first
+
+    def scan_batch_stream(self, _base_url, paths, callback, query=""):
+        callback(NativeScanBatch(1, (), 0))
+        self.first_delivered.set()
+        if self.fail_after_first:
+            raise RuntimeError("stream failed")
+        if not self.release.wait(timeout=2):
+            raise AssertionError("incremental native backend was not released")
+        callback(
+            NativeScanBatch(
+                len(paths),
+                tuple(
+                    NativeScanEvent(index, path, None, RequestException(path))
+                    for index, path in enumerate(paths[1:], start=1)
+                ),
+                1,
+            )
+        )
+        return len(paths)
+
+    def cancel(self):
+        self.release.set()
+
+    def reset_cancel(self):
+        return None
+
+
 def make_dictionary(paths):
     dictionary = object.__new__(Dictionary)
     dictionary.__setstate__((list(paths), 0, [], 0))
@@ -397,6 +429,55 @@ class TestNativeFuzzer(TestCase):
         self.assertEqual([next(resumed), next(resumed)], ["admin", "login"])
         with self.assertRaises(StopIteration):
             next(resumed)
+
+    def test_incremental_batch_updates_session_state_before_scan_returns(self):
+        dictionary = make_dictionary(["zero", "one", "two"])
+        backend = IncrementalNativeBackend()
+        filtered_batches = []
+        callback_errors = []
+        fuzzer = self.make_fuzzer(
+            backend,
+            dictionary,
+            [],
+            [],
+            callback_errors,
+            filtered_batches,
+        )
+        worker_errors = []
+        worker = threading.Thread(target=run_fuzzer, args=(fuzzer, worker_errors))
+        worker.start()
+
+        try:
+            self.assertTrue(backend.first_delivered.wait(timeout=1))
+            self.assertEqual(filtered_batches, [1])
+            self.assertEqual(
+                restored_paths(dictionary.__getstate__()),
+                ["one", "two"],
+            )
+            backend.release.set()
+            worker.join(timeout=1)
+        finally:
+            backend.release.set()
+            fuzzer.quit()
+            worker.join(timeout=1)
+
+        self.assertFalse(worker.is_alive())
+        self.assertEqual(worker_errors, [])
+        self.assertEqual([str(error) for error in callback_errors], ["one", "two"])
+        self.assertEqual(restored_paths(dictionary.__getstate__()), [])
+
+    def test_stream_failure_requeues_only_the_undelivered_suffix(self):
+        dictionary = make_dictionary(["zero", "one", "two"])
+        backend = IncrementalNativeBackend(fail_after_first=True)
+        fuzzer = self.make_fuzzer(backend, dictionary, [], [], [])
+
+        with self.assertRaisesRegex(RuntimeError, "stream failed"):
+            fuzzer.start()
+
+        self.assertEqual(
+            restored_paths(dictionary.__getstate__()),
+            ["one", "two"],
+        )
 
     def test_quit_cancels_active_native_engine(self):
         backend = FakeNativeBackend([])

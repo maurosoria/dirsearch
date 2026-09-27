@@ -43,6 +43,8 @@ class FakeNativeEngine:
         self.config = config
         self.calls = []
         self.owned_calls = []
+        self.stream_calls = []
+        self.owned_stream_calls = []
         self.cancelled = False
         self.results = results
 
@@ -53,6 +55,18 @@ class FakeNativeEngine:
     def scan_owned_batch(self, *args, **kwargs):
         self.owned_calls.append((args, kwargs))
         return self.results if self.results is not None else [FakeNativeResult()]
+
+    def scan_stream(self, base_url, paths, callback, **kwargs):
+        self.stream_calls.append(((base_url, paths, callback), kwargs))
+        results = self.results if self.results is not None else [FakeNativeResult()]
+        callback(0, len(paths), results)
+        return len(paths)
+
+    def scan_owned_batch_stream(self, base_url, batch, callback, **kwargs):
+        self.owned_stream_calls.append(((base_url, batch, callback), kwargs))
+        results = self.results if self.results is not None else [FakeNativeResult()]
+        callback(0, batch.len(), results)
+        return batch.len()
 
     def cancel(self):
         self.cancelled = True
@@ -734,6 +748,60 @@ class TestNativeHTTPBackend(TestCase):
         self.assertIs(engine.owned_calls[0][0][1], native_batch)
         self.assertEqual(native_batch.path_calls, [1])
         self.assertEqual(batch.events[0].path, "one")
+
+    def test_scan_batch_stream_delivers_compact_ranges_before_returning(self):
+        fake_native = FakeNativeModule(
+            [
+                IndexedNativeResult(1, filtered=False, status=200),
+                IndexedNativeResult(2, filtered=True),
+            ]
+        )
+        received = []
+
+        with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
+            backend = NativeHTTPBackend()
+            processed_count = backend.scan_batch_stream(
+                "https://example.com/",
+                ["zero", "one", "two"],
+                received.append,
+            )
+
+        self.assertEqual(processed_count, 3)
+        self.assertEqual(len(received), 1)
+        self.assertEqual(
+            (received[0].start_index, received[0].processed_count),
+            (0, 3),
+        )
+        self.assertEqual(
+            [(event.request_index, event.path) for event in received[0].events],
+            [(1, "one")],
+        )
+        engine = fake_native.engines[0]
+        self.assertEqual(engine.calls, [])
+        self.assertEqual(len(engine.stream_calls), 1)
+
+    def test_scan_batch_stream_keeps_owned_paths_in_rust(self):
+        fake_native = FakeNativeModule(
+            [IndexedNativeResult(1, filtered=False, status=200)]
+        )
+        native_batch = FakeOwnedBatch(["zero", "one", "two"])
+        paths = NativeWordlistBatch(native_batch)
+        received = []
+
+        with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
+            backend = NativeHTTPBackend()
+            backend.scan_batch_stream(
+                "https://example.com/",
+                paths,
+                received.append,
+            )
+
+        engine = fake_native.engines[0]
+        self.assertEqual(engine.stream_calls, [])
+        self.assertEqual(len(engine.owned_stream_calls), 1)
+        self.assertIs(engine.owned_stream_calls[0][0][1], native_batch)
+        self.assertEqual(native_batch.path_calls, [1])
+        self.assertEqual(received[0].events[0].path, "one")
 
     def test_scan_batch_preserves_proxy_authentication_errors(self):
         fake_native = FakeNativeModule(

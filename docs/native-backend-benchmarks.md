@@ -61,3 +61,21 @@ and scheduler behavior. It is the better reference for expected full-scan gains.
   scans.
 - A practical native HTTP concurrency default is
   `min(max(cpu_count * 8, 12), 128)`, while preserving explicit CLI overrides.
+
+## Incremental Result Delivery Regression Check
+
+Native extension 0.2.18 was measured on loopback with the legacy whole-batch
+return and the incremental ordered micro-batch path in the same release build.
+Each sample scanned 4000 paths in 1000-path batches with a 5% match rate; the
+table reports the median of 5 alternating samples. This is a direct engine
+comparison, not a full `dirsearch` contention result.
+
+| Concurrency | Whole-batch median | Incremental median | Incremental / whole-batch | Median first delivery |
+|---:|---:|---:|---:|---:|
+| 12 | 6967.9 RPS | 6765.9 RPS | 0.97x | 11.1 ms |
+| 25 | 6701.1 RPS | 6577.6 RPS | 0.98x | 10.7 ms |
+| 50 | 5788.7 RPS | 5888.9 RPS | 1.02x | 10.6 ms |
+
+The measured median delta stayed within 3% while making completed prefixes
+available to Python roughly every 10 ms. Raw benchmark output and the temporary
+runner were not committed.
