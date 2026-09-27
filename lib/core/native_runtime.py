@@ -44,7 +44,7 @@ def get_native_backend_install_error(
         "Native Rust backend is not installed in this Python environment. "
         "Install dirsearch, then compile the native engine with: "
         "dirsearch-build-native. "
-        "The build requires Python 3.14 development headers, Rust 1.86 or newer, "
+        "The build requires Python 3.14 development headers, Rust 1.88 or newer, "
         "and a C compiler."
     )
 

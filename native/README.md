@@ -84,7 +84,7 @@ responsibility:
 - `tests.rs` contains cross-module native regression tests.
 
 Build the native engine from an installed dirsearch package with Python 3.14,
-Rust 1.86 or newer, Python development headers, and a C compiler:
+Rust 1.88 or newer, Python development headers, and a C compiler:
 
 ```sh
 dirsearch-build-native

@@ -5,8 +5,12 @@ from tempfile import TemporaryDirectory
 from unittest import TestCase
 from unittest.mock import patch
 
+from lib.core.native_builder import install_hint
+from lib.core.native_runtime import (
+    NATIVE_EXTENSION_VERSION,
+    get_native_backend_install_error,
+)
 from scripts.build_native import install_native_wheel, resolve_python
-from lib.core.native_runtime import NATIVE_EXTENSION_VERSION
 
 
 class TestNativeInstallPackaging(TestCase):
@@ -54,6 +58,24 @@ class TestNativeInstallPackaging(TestCase):
 
         self.assertEqual(cargo["package"]["version"], NATIVE_EXTENSION_VERSION)
         self.assertEqual(pyproject["project"]["version"], NATIVE_EXTENSION_VERSION)
+
+    def test_native_rust_msrv_matches_user_guidance(self):
+        cargo = tomllib.loads(Path("native/Cargo.toml").read_text(encoding="utf-8"))
+        expected_guidance = "Rust 1.88 or newer"
+
+        self.assertEqual(cargo["package"]["rust-version"], "1.88")
+        self.assertIn(expected_guidance, install_hint({}))
+        self.assertIn(
+            expected_guidance,
+            get_native_backend_install_error((3, 14, 0)),
+        )
+        for path in (
+            Path("docs/building.md"),
+            Path("docs/installation.md"),
+            Path("native/README.md"),
+        ):
+            with self.subTest(path=str(path)):
+                self.assertIn(expected_guidance, path.read_text(encoding="utf-8"))
 
     def test_async_socks_dependency_is_packaged(self):
         for path in (
