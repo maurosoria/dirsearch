@@ -64,25 +64,26 @@ and scheduler behavior. It is the better reference for expected full-scan gains.
 
 ## Incremental Result Delivery Regression Check
 
-Native extension 0.2.18 was measured on loopback with the legacy whole-batch
-return and the incremental ordered micro-batch path in the same release build.
-Each sample scanned 20000 paths at concurrency 128, using the corresponding
-12800-path `NativeFuzzer` batch size. The target ran in a separate process so
-Python callbacks could not throttle it through GIL contention. One engine and
-connection pool remained alive across 15 balanced-order samples so the
-comparison isolates result delivery rather than pool startup. This is a direct
-engine comparison, not a full `dirsearch` contention result.
+Native extension 0.2.18 was measured on a dedicated 4-vCPU Linux host with the
+legacy whole-batch return and incremental ordered micro-batches in the same
+release build. A local nginx target ran outside the Python 3.14 benchmark
+process. Each sample scanned 30000 paths at concurrency 128, using the
+corresponding 12800-path `NativeFuzzer` batch size. One engine and connection
+pool remained alive across 15 balanced-order samples so the comparison isolates
+result delivery rather than pool startup. This is a direct engine comparison,
+not a full `dirsearch` contention result.
 
 | Results | Whole-batch median | Incremental median | Incremental / whole-batch | Median callbacks | Median first delivery |
 |---|---:|---:|---:|---:|---:|
-| All filtered | 73170.4 RPS | 72820.6 RPS | 1.00x | 14 | 21.6 ms |
-| 5% actionable | 68936.4 RPS | 70045.7 RPS | 1.02x | 16 | 21.4 ms |
+| All filtered | 38023.9 RPS | 37956.1 RPS | 1.00x | 40 | 25.2 ms |
+| 5% actionable | 37490.6 RPS | 37671.8 RPS | 1.00x | 50 | 26.8 ms |
 
-A tuning sweep covered caps from 256 to 4096 paths and flush targets from 2 to
-25 ms. The 2048-path cap plus 20 ms flush target was the best balanced point:
-it roughly halved callback frequency relative to 1024 paths plus 10 ms, stayed
-throughput-neutral in the final balanced-order samples, and avoided the actionable
-result regression observed at 4096 paths plus 25 ms. Treat the small apparent
-speedup as benchmark noise rather than a production throughput claim. Filtered
-completions use a bitmap, so only actionable results enter the ordered result
-map. Raw benchmark output and the temporary runner were not committed.
+A tuning sweep covered caps from 1024 to 4096 paths and flush targets from 10
+to 40 ms. A per-completion Tokio channel initially limited every incremental
+configuration to 0.91-0.92x whole-batch throughput. Replacing it with the shared
+completion bitmap restored 0.998-1.005x median throughput. The 2048-path cap plus
+20 ms flush target was retained as the balanced point: 25 ms saved 7 callbacks
+per 30000 filtered paths and 7 per 30000 mixed paths, but added about 4-5 ms to
+first delivery without a measurable throughput gain. Treat sub-percent deltas
+as benchmark noise rather than production speedups. Raw benchmark output and
+the temporary runner were not committed.

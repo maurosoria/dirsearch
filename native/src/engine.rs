@@ -8,7 +8,8 @@ use crate::result::{native_completion_marker, native_error_result, NativeHttpRes
 use crate::routing::{ConnectionOverrideConfig, ConnectionRoutes};
 use crate::session::NativeHttpSession;
 use crate::stream::{
-    deliver_chunk, OrderedChunkBuffer, WorkerCompletion, DEFAULT_STREAM_CHUNK_SIZE,
+    deliver_chunk, CompletionWriter, OrderedChunkBuffer, WorkerCompletion,
+    DEFAULT_STREAM_CHUNK_SIZE,
 };
 use crate::transport::{
     build_http_client, request_with_client, ClientRequest, HeaderPairs, OriginAuth,
@@ -23,7 +24,6 @@ use reqwest::Method;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
-use tokio::sync::mpsc;
 use tokio::task::JoinSet;
 
 const SIGNAL_POLL_INTERVAL: Duration = Duration::from_millis(50);
@@ -507,7 +507,7 @@ impl NativeHttpEngine {
                     max_retries,
                     max_body_size,
                     compact_filtered,
-                    completion_sender: None,
+                    completion_writer: None,
                 });
                 // Reuse a bounded set of worker tasks for the whole batch.
                 // This keeps HTTP concurrency unchanged while avoiding one
@@ -626,8 +626,7 @@ impl NativeHttpEngine {
                     return Ok(0);
                 }
                 let paths = Arc::new(paths);
-                let channel_capacity = concurrency.saturating_mul(2).max(1);
-                let (completion_sender, mut completion_receiver) = mpsc::channel(channel_capacity);
+                let mut chunks = OrderedChunkBuffer::new(result_count);
                 let scan_task = Arc::new(ScanTask {
                     paths: paths.clone(),
                     next_request: AtomicUsize::new(0),
@@ -638,17 +637,15 @@ impl NativeHttpEngine {
                     max_retries,
                     max_body_size,
                     compact_filtered: true,
-                    completion_sender: Some(completion_sender),
+                    completion_writer: Some(chunks.writer()),
                 });
                 let worker_count = concurrency.min(result_count);
                 let mut tasks: JoinSet<WorkerScanResults> = JoinSet::new();
                 for worker_index in 0..worker_count {
                     tasks.spawn(run_scan_worker(scan_task.clone(), worker_index));
                 }
-                // Let the channel close after the final worker drops its task.
                 drop(scan_task);
 
-                let mut chunks = OrderedChunkBuffer::new(result_count);
                 let mut flush_tick = tokio::time::interval_at(
                     tokio::time::Instant::now() + STREAM_FLUSH_INTERVAL,
                     STREAM_FLUSH_INTERVAL,
@@ -660,18 +657,11 @@ impl NativeHttpEngine {
                 );
                 signal_poll.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
-                loop {
+                while !tasks.is_empty() {
                     let mut force_flush = false;
                     let mut check_signals = false;
                     tokio::select! {
-                        completion = completion_receiver.recv() => {
-                            if let Some(completion) = completion {
-                                chunks.push(completion);
-                            } else if tasks.is_empty() {
-                                break;
-                            }
-                        }
-                        joined = tasks.join_next(), if !tasks.is_empty() => {
+                        joined = tasks.join_next() => {
                             if let Some(Err(error)) = joined {
                                 return Err(PyRuntimeError::new_err(error.to_string()));
                             }
@@ -726,9 +716,9 @@ struct WorkerScanResults {
 /// Per-batch state shared by the bounded worker set.
 ///
 /// Unlike `NativeRequestContext`, these values belong to one `scan` call and
-/// must not leak into later batches. Workers only mutate `next_request` to
-/// claim unique paths; results remain worker-local and are ordered by the
-/// coordinator after all workers join.
+/// must not leak into later batches. Workers use `next_request` to claim unique
+/// paths. Whole-batch results remain worker-local, while incremental scans
+/// publish into a fixed-size completion bitmap owned by the coordinator.
 struct ScanTask {
     paths: Arc<Vec<String>>,
     /// Atomic work distributor; it does not define result ordering.
@@ -741,9 +731,9 @@ struct ScanTask {
     max_retries: usize,
     max_body_size: usize,
     compact_filtered: bool,
-    /// Present only for incremental scans; its bounded channel applies
-    /// backpressure while Python processes a delivered micro-batch.
-    completion_sender: Option<mpsc::Sender<WorkerCompletion>>,
+    /// Present only for incremental scans. The fixed-size completion bitmap
+    /// keeps progress bounded by the Python-owned native wordlist claim.
+    completion_writer: Option<CompletionWriter>,
 }
 
 async fn run_scan_worker(task: Arc<ScanTask>, worker_index: usize) -> WorkerScanResults {
@@ -832,20 +822,18 @@ async fn run_scan_worker(task: Arc<ScanTask>, worker_index: usize) -> WorkerScan
             && result.filtered
             && result.error.is_none()
             && result.status != PROXY_AUTHENTICATION_REQUIRED;
-        if let Some(completion_sender) = task.completion_sender.as_ref() {
+        if let Some(completion_writer) = task.completion_writer.as_ref() {
             let completion = WorkerCompletion {
                 request_index,
                 result: (!compact_filtered).then_some(result),
             };
-            if completion_sender.send(completion).await.is_err() {
-                break;
-            }
+            completion_writer.push(completion);
         } else if !compact_filtered {
             results.push((request_index, result));
         } else {
             // Legacy compact batches keep their final processed index in a
-            // completion marker. The streaming path reports every completion
-            // through its bounded channel instead.
+            // completion marker. The streaming path records every completion
+            // in its fixed-size shared bitmap instead.
         }
     }
     WorkerScanResults {
