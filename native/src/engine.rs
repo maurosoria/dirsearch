@@ -285,7 +285,7 @@ impl NativeHttpEngine {
             max_retries,
             max_body_size,
             Arc::new(filter_config),
-            Arc::new(callback),
+            callback,
             chunk_size,
         )
     }
@@ -327,7 +327,7 @@ impl NativeHttpEngine {
             max_retries,
             max_body_size,
             Arc::new(filter_config),
-            Arc::new(callback),
+            callback,
             chunk_size,
         )
     }
@@ -601,7 +601,7 @@ impl NativeHttpEngine {
         max_retries: usize,
         max_body_size: usize,
         filter_config: Arc<NativeFilterConfig>,
-        callback: Arc<Py<PyAny>>,
+        callback: Py<PyAny>,
         chunk_size: usize,
     ) -> PyResult<usize> {
         if chunk_size == 0 {
@@ -648,7 +648,7 @@ impl NativeHttpEngine {
                 // Let the channel close after the final worker drops its task.
                 drop(scan_task);
 
-                let mut chunks = OrderedChunkBuffer::new();
+                let mut chunks = OrderedChunkBuffer::new(result_count);
                 let mut flush_tick = tokio::time::interval_at(
                     tokio::time::Instant::now() + STREAM_FLUSH_INTERVAL,
                     STREAM_FLUSH_INTERVAL,
@@ -691,7 +691,7 @@ impl NativeHttpEngine {
                         for result in &mut chunk.results {
                             result.path.clone_from(&paths[result.request_index]);
                         }
-                        deliver_chunk(callback.clone(), chunk).await?;
+                        deliver_chunk(&callback, chunk)?;
                     }
                 }
 
@@ -702,7 +702,7 @@ impl NativeHttpEngine {
                     for result in &mut chunk.results {
                         result.path.clone_from(&paths[result.request_index]);
                     }
-                    deliver_chunk(callback.clone(), chunk).await?;
+                    deliver_chunk(&callback, chunk)?;
                 }
                 let delivered_count = chunks.delivered_count();
                 if delivered_count != result_count {

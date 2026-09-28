@@ -1,13 +1,10 @@
 //! Ordered micro-batch delivery across the Rust/Python boundary.
 
 use crate::result::NativeHttpResult;
-use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use std::collections::{BTreeMap, VecDeque};
-use std::sync::Arc;
 
-pub(crate) const DEFAULT_STREAM_CHUNK_SIZE: usize = 64;
-pub(crate) const STREAM_ACTIONABLE_CHUNK_SIZE: usize = 16;
+pub(crate) const DEFAULT_STREAM_CHUNK_SIZE: usize = 1024;
 
 pub(crate) struct WorkerCompletion {
     pub(crate) request_index: usize,
@@ -25,16 +22,18 @@ pub(crate) struct NativeStreamChunk {
 /// Python owns dictionary claims and can only release a native-wordlist prefix.
 /// Keeping that contract here lets checkpoints remain entirely Python-owned.
 pub(crate) struct OrderedChunkBuffer {
-    pending: BTreeMap<usize, Option<NativeHttpResult>>,
+    completed: Vec<bool>,
+    pending_results: BTreeMap<usize, NativeHttpResult>,
     chunk_start: usize,
     next_index: usize,
     ready_results: VecDeque<NativeHttpResult>,
 }
 
 impl OrderedChunkBuffer {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(result_count: usize) -> Self {
         Self {
-            pending: BTreeMap::new(),
+            completed: vec![false; result_count],
+            pending_results: BTreeMap::new(),
             chunk_start: 0,
             next_index: 0,
             ready_results: VecDeque::new(),
@@ -42,10 +41,15 @@ impl OrderedChunkBuffer {
     }
 
     pub(crate) fn push(&mut self, completion: WorkerCompletion) {
-        self.pending
-            .insert(completion.request_index, completion.result);
-        while let Some(result) = self.pending.remove(&self.next_index) {
-            if let Some(result) = result {
+        debug_assert!(completion.request_index < self.completed.len());
+        debug_assert!(!self.completed[completion.request_index]);
+        self.completed[completion.request_index] = true;
+        if let Some(result) = completion.result {
+            self.pending_results
+                .insert(completion.request_index, result);
+        }
+        while self.completed.get(self.next_index) == Some(&true) {
+            if let Some(result) = self.pending_results.remove(&self.next_index) {
                 self.ready_results.push_back(result);
             }
             self.next_index += 1;
@@ -58,11 +62,7 @@ impl OrderedChunkBuffer {
         force: bool,
     ) -> Option<NativeStreamChunk> {
         let ready_count = self.next_index - self.chunk_start;
-        if ready_count == 0
-            || (!force
-                && ready_count < chunk_size.max(1)
-                && self.ready_results.len() < STREAM_ACTIONABLE_CHUNK_SIZE)
-        {
+        if ready_count == 0 || (!force && ready_count < chunk_size.max(1)) {
             return None;
         }
 
@@ -89,20 +89,17 @@ impl OrderedChunkBuffer {
     }
 }
 
-pub(crate) async fn deliver_chunk(
-    callback: Arc<Py<PyAny>>,
-    chunk: NativeStreamChunk,
-) -> PyResult<()> {
-    tokio::task::spawn_blocking(move || {
-        Python::attach(|py| {
-            callback
-                .bind(py)
-                .call1((chunk.start_index, chunk.processed_count, chunk.results))
-                .map(|_| ())
-        })
+/// Run Python on the `Runtime::block_on` coordinator thread.
+///
+/// HTTP workers are separately spawned Tokio tasks, so calling Python here
+/// preserves channel backpressure without paying for another blocking-pool hop.
+pub(crate) fn deliver_chunk(callback: &Py<PyAny>, chunk: NativeStreamChunk) -> PyResult<()> {
+    Python::attach(|py| {
+        callback
+            .bind(py)
+            .call1((chunk.start_index, chunk.processed_count, chunk.results))
+            .map(|_| ())
     })
-    .await
-    .map_err(|error| PyRuntimeError::new_err(error.to_string()))?
 }
 
 #[cfg(test)]
@@ -128,7 +125,7 @@ mod tests {
 
     #[test]
     fn out_of_order_completions_wait_for_a_releasable_prefix() {
-        let mut buffer = OrderedChunkBuffer::new();
+        let mut buffer = OrderedChunkBuffer::new(2);
         buffer.push(actionable(1));
         assert!(buffer.take_ready(2, false).is_none());
 
@@ -143,7 +140,7 @@ mod tests {
 
     #[test]
     fn filtered_misses_advance_progress_without_result_objects() {
-        let mut buffer = OrderedChunkBuffer::new();
+        let mut buffer = OrderedChunkBuffer::new(4);
         for index in 0..4 {
             buffer.push(filtered(index));
         }
@@ -157,8 +154,22 @@ mod tests {
     }
 
     #[test]
+    fn actionable_results_wait_for_the_size_or_time_flush_boundary() {
+        let mut buffer = OrderedChunkBuffer::new(16);
+        for index in 0..16 {
+            buffer.push(actionable(index));
+        }
+
+        assert!(buffer.take_ready(64, false).is_none());
+        let chunk = buffer.take_ready(64, true).unwrap();
+
+        assert_eq!((chunk.start_index, chunk.processed_count), (0, 16));
+        assert_eq!(chunk.results.len(), 16);
+    }
+
+    #[test]
     fn progress_is_split_into_ordered_micro_batches() {
-        let mut buffer = OrderedChunkBuffer::new();
+        let mut buffer = OrderedChunkBuffer::new(6);
         for index in 0..5 {
             buffer.push(filtered(index));
         }

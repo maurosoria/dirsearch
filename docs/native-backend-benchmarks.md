@@ -66,16 +66,18 @@ and scheduler behavior. It is the better reference for expected full-scan gains.
 
 Native extension 0.2.18 was measured on loopback with the legacy whole-batch
 return and the incremental ordered micro-batch path in the same release build.
-Each sample scanned 4000 paths in 1000-path batches with a 5% match rate; the
-table reports the median of 5 alternating samples. This is a direct engine
-comparison, not a full `dirsearch` contention result.
+Each sample scanned 20000 paths at concurrency 128, using the corresponding
+12800-path `NativeFuzzer` batch size. Engines and connections remained alive
+between 9 alternating samples so the comparison isolates result delivery rather
+than pool startup. This is a direct engine comparison, not a full `dirsearch`
+contention result.
 
-| Concurrency | Whole-batch median | Incremental median | Incremental / whole-batch | Median first delivery |
-|---:|---:|---:|---:|---:|
-| 12 | 6967.9 RPS | 6765.9 RPS | 0.97x | 11.1 ms |
-| 25 | 6701.1 RPS | 6577.6 RPS | 0.98x | 10.7 ms |
-| 50 | 5788.7 RPS | 5888.9 RPS | 1.02x | 10.6 ms |
+| Results | Whole-batch median | Incremental median | Incremental / whole-batch | Median callbacks | Median first delivery |
+|---|---:|---:|---:|---:|---:|
+| All filtered | 72551.6 RPS | 69353.3 RPS | 0.96x | 29 | 11.4 ms |
+| 5% actionable | 69633.5 RPS | 67854.3 RPS | 0.97x | 30 | 11.5 ms |
 
-The measured median delta stayed within 3% while making completed prefixes
-available to Python roughly every 10 ms. Raw benchmark output and the temporary
-runner were not committed.
+The 1024-path cap plus 10 ms flush target reduced high-throughput callback
+frequency while keeping the measured median delta within 4.5%. Filtered
+completions use a bitmap, so only actionable results enter the ordered result
+map. Raw benchmark output and the temporary runner were not committed.
