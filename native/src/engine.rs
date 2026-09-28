@@ -27,7 +27,7 @@ use tokio::sync::mpsc;
 use tokio::task::JoinSet;
 
 const SIGNAL_POLL_INTERVAL: Duration = Duration::from_millis(50);
-const STREAM_FLUSH_INTERVAL: Duration = Duration::from_millis(10);
+const STREAM_FLUSH_INTERVAL: Duration = Duration::from_millis(20);
 const PROXY_AUTHENTICATION_REQUIRED: u16 = 407;
 const RANDOM_USER_AGENT_CONFLICT_ERROR: &str =
     "Random User-Agent values cannot be combined with a fixed User-Agent header";

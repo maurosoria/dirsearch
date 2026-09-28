@@ -48,8 +48,8 @@ interruptible by pause, quit, and scan cancellation.
 Native fuzzer batches are returned incrementally through ordered micro-batches.
 Rust reorders concurrent completions, omits per-response Python objects for
 filtered misses, and applies bounded-channel backpressure while Python runs the
-callbacks. A ready ordered prefix is capped at 1024 completed paths, and the
-coordinator checks for a smaller prefix every 10 ms. That interval is a flush
+callbacks. A ready ordered prefix is capped at 2048 completed paths, and the
+coordinator checks for a smaller prefix every 20 ms. That interval is a flush
 target rather than a hard latency guarantee: an earlier slow request can delay
 later completions until they form a releasable prefix. Python releases only the
 delivered prefix of its dictionary claim, so checkpoints remain portable

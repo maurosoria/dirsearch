@@ -4,7 +4,7 @@ use crate::result::NativeHttpResult;
 use pyo3::prelude::*;
 use std::collections::{BTreeMap, VecDeque};
 
-pub(crate) const DEFAULT_STREAM_CHUNK_SIZE: usize = 1024;
+pub(crate) const DEFAULT_STREAM_CHUNK_SIZE: usize = 2048;
 
 pub(crate) struct WorkerCompletion {
     pub(crate) request_index: usize,

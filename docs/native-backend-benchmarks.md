@@ -67,17 +67,22 @@ and scheduler behavior. It is the better reference for expected full-scan gains.
 Native extension 0.2.18 was measured on loopback with the legacy whole-batch
 return and the incremental ordered micro-batch path in the same release build.
 Each sample scanned 20000 paths at concurrency 128, using the corresponding
-12800-path `NativeFuzzer` batch size. Engines and connections remained alive
-between 9 alternating samples so the comparison isolates result delivery rather
-than pool startup. This is a direct engine comparison, not a full `dirsearch`
-contention result.
+12800-path `NativeFuzzer` batch size. The target ran in a separate process so
+Python callbacks could not throttle it through GIL contention. One engine and
+connection pool remained alive across 15 balanced-order samples so the
+comparison isolates result delivery rather than pool startup. This is a direct
+engine comparison, not a full `dirsearch` contention result.
 
 | Results | Whole-batch median | Incremental median | Incremental / whole-batch | Median callbacks | Median first delivery |
 |---|---:|---:|---:|---:|---:|
-| All filtered | 72551.6 RPS | 69353.3 RPS | 0.96x | 29 | 11.4 ms |
-| 5% actionable | 69633.5 RPS | 67854.3 RPS | 0.97x | 30 | 11.5 ms |
+| All filtered | 73170.4 RPS | 72820.6 RPS | 1.00x | 14 | 21.6 ms |
+| 5% actionable | 68936.4 RPS | 70045.7 RPS | 1.02x | 16 | 21.4 ms |
 
-The 1024-path cap plus 10 ms flush target reduced high-throughput callback
-frequency while keeping the measured median delta within 4.5%. Filtered
+A tuning sweep covered caps from 256 to 4096 paths and flush targets from 2 to
+25 ms. The 2048-path cap plus 20 ms flush target was the best balanced point:
+it roughly halved callback frequency relative to 1024 paths plus 10 ms, stayed
+throughput-neutral in the final balanced-order samples, and avoided the actionable
+result regression observed at 4096 paths plus 25 ms. Treat the small apparent
+speedup as benchmark noise rather than a production throughput claim. Filtered
 completions use a bitmap, so only actionable results enter the ordered result
 map. Raw benchmark output and the temporary runner were not committed.
