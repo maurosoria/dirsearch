@@ -18,14 +18,14 @@ pub(crate) struct NativeWordlist {
 
 #[pyclass(skip_from_py_object)]
 #[derive(Clone)]
-pub(crate) struct NativeWordlistBatch {
+pub(crate) struct NativeWordlistChunk {
     items: Arc<Vec<String>>,
     start: usize,
     end: usize,
     base_path: String,
 }
 
-impl NativeWordlistBatch {
+impl NativeWordlistChunk {
     pub(crate) fn to_paths(&self) -> Vec<String> {
         self.items[self.start..self.end]
             .iter()
@@ -43,7 +43,7 @@ impl NativeWordlistBatch {
         self.end - self.start
     }
 
-    /// Build one batch-relative path without cloning the rest of the claim.
+    /// Build one chunk-relative path without cloning the rest of the claim.
     pub(crate) fn path_at_owned(&self, index: usize) -> Option<String> {
         if index >= self.len_native() {
             return None;
@@ -88,21 +88,21 @@ impl NativeWordlist {
     }
 
     #[pyo3(signature = (start, count, base_path="".to_string()))]
-    fn batch(
+    fn chunk(
         &self,
         start: usize,
         count: usize,
         base_path: String,
-    ) -> PyResult<NativeWordlistBatch> {
+    ) -> PyResult<NativeWordlistChunk> {
         let end = start
             .checked_add(count)
-            .ok_or_else(|| PyValueError::new_err("native wordlist batch range overflow"))?;
+            .ok_or_else(|| PyValueError::new_err("native wordlist chunk range overflow"))?;
         if end > self.items.len() {
             return Err(PyIndexError::new_err(
-                "native wordlist batch range out of bounds",
+                "native wordlist chunk range out of bounds",
             ));
         }
-        Ok(NativeWordlistBatch {
+        Ok(NativeWordlistChunk {
             items: self.items.clone(),
             start,
             end,
@@ -118,7 +118,7 @@ fn wordlist_hash(value: &str) -> u64 {
 }
 
 #[pymethods]
-impl NativeWordlistBatch {
+impl NativeWordlistChunk {
     fn len(&self) -> usize {
         self.len_native()
     }
@@ -126,11 +126,11 @@ impl NativeWordlistBatch {
     fn path_at(&self, index: usize) -> PyResult<String> {
         if index >= self.len() {
             return Err(PyIndexError::new_err(
-                "native wordlist batch index out of range",
+                "native wordlist chunk index out of range",
             ));
         }
         self.path_at_owned(index)
-            .ok_or_else(|| PyIndexError::new_err("native wordlist batch index out of range"))
+            .ok_or_else(|| PyIndexError::new_err("native wordlist chunk index out of range"))
     }
 
     fn to_list(&self) -> Vec<String> {

@@ -547,53 +547,7 @@ class TestNativeHttpEngine(TestCase):
         self.assertEqual(result.status, 200)
         self.assertEqual(server.cookies, [None, "redirect=native"])
 
-    def test_compact_scan_returns_tail_completion_marker(self):
-        server = CountingHTTPServer()
-        engine = dirsearch_native.NativeHttpEngine(concurrency=2)
-
-        try:
-            results = engine.scan(
-                server.url,
-                ["zero", "one", "two"],
-                filter_config=dirsearch_native.NativeFilterConfig(
-                    include_status_codes=[201]
-                ),
-                compact_filtered=True,
-            )
-        finally:
-            server.close()
-
-        self.assertEqual(len(results), 1)
-        self.assertEqual(results[0].request_index, 2)
-        self.assertTrue(results[0].filtered)
-        self.assertEqual(results[0].path, "two")
-        self.assertEqual(results[0].headers, [])
-        self.assertEqual(results[0].body, b"")
-
-    def test_compact_scan_preserves_matches_and_tail_marker(self):
-        server = CountingHTTPServer(MixedStatusHandler)
-        engine = dirsearch_native.NativeHttpEngine(concurrency=2)
-
-        try:
-            results = engine.scan(
-                server.url,
-                ["missing-zero", "match", "missing-two"],
-                filter_config=dirsearch_native.NativeFilterConfig(
-                    include_status_codes=[200]
-                ),
-                compact_filtered=True,
-            )
-        finally:
-            server.close()
-
-        self.assertEqual(
-            [result.request_index for result in results],
-            [1, 2],
-        )
-        self.assertFalse(results[0].filtered)
-        self.assertTrue(results[1].filtered)
-
-    def test_stream_delivers_an_ordered_prefix_before_scan_finishes(self):
+    def test_chunks_deliver_an_ordered_prefix_before_scan_finishes(self):
         server = CountingHTTPServer(ControlledStreamHandler)
         engine = dirsearch_native.NativeHttpEngine(concurrency=2)
         chunks = []
@@ -601,13 +555,13 @@ class TestNativeHttpEngine(TestCase):
         scan_finished = threading.Event()
         scan_errors = []
 
-        def callback(start_index, processed_count, results):
-            chunks.append((start_index, processed_count, results))
+        def callback(start_index, end_index, results):
+            chunks.append((start_index, end_index, results))
             first_chunk.set()
 
         def scan():
             try:
-                engine.scan_batch(
+                engine.scan_chunks(
                     server.url,
                     ["fast", "slow"],
                     callback,
@@ -638,13 +592,13 @@ class TestNativeHttpEngine(TestCase):
         self.assertEqual(scan_errors, [])
         self.assertEqual(chunks[-1][0:2], (1, 2))
 
-    def test_stream_compacts_filtered_misses_into_progress_only(self):
+    def test_chunks_compact_filtered_misses_into_progress_only(self):
         server = CountingHTTPServer()
         engine = dirsearch_native.NativeHttpEngine(concurrency=2)
         chunks = []
 
         try:
-            processed_count = engine.scan_batch(
+            processed_count = engine.scan_chunks(
                 server.url,
                 ["zero", "one", "two"],
                 lambda start, end, results: chunks.append(
@@ -666,18 +620,18 @@ class TestNativeHttpEngine(TestCase):
         )
         self.assertTrue(all(not results for _start, _end, results in chunks))
 
-    def test_stream_waits_for_missing_prefix_before_delivering(self):
+    def test_chunks_wait_for_missing_prefix_before_delivering(self):
         server = CountingHTTPServer(ControlledStreamHandler)
         engine = dirsearch_native.NativeHttpEngine(concurrency=2)
         chunks = []
         chunk_received = threading.Event()
 
-        def callback(start_index, processed_count, results):
-            chunks.append((start_index, processed_count, results))
+        def callback(start_index, end_index, results):
+            chunks.append((start_index, end_index, results))
             chunk_received.set()
 
         worker = threading.Thread(
-            target=lambda: engine.scan_batch(
+            target=lambda: engine.scan_chunks(
                 server.url,
                 ["slow", "fast"],
                 callback,
@@ -709,7 +663,7 @@ class TestNativeHttpEngine(TestCase):
             [0, 1],
         )
 
-    def test_stream_backpressure_bounds_work_while_callback_is_blocked(self):
+    def test_chunk_backpressure_bounds_work_while_callback_is_blocked(self):
         server = CountingHTTPServer()
         engine = dirsearch_native.NativeHttpEngine(concurrency=2)
         callback_started = threading.Event()
@@ -719,11 +673,11 @@ class TestNativeHttpEngine(TestCase):
         def callback(_start_index, _processed_count, _results):
             callback_started.set()
             if not release_callback.wait(timeout=2):
-                raise AssertionError("batch callback was not released")
+                raise AssertionError("chunk callback was not released")
 
         def scan():
             try:
-                engine.scan_batch(
+                engine.scan_chunks(
                     server.url,
                     [f"path-{index}" for index in range(50)],
                     callback,
@@ -747,7 +701,7 @@ class TestNativeHttpEngine(TestCase):
         self.assertFalse(worker.is_alive())
         self.assertEqual(scan_errors, [])
 
-    def test_stream_propagates_callback_errors_and_stops_workers(self):
+    def test_chunks_propagate_callback_errors_and_stop_workers(self):
         server = CountingHTTPServer()
         engine = dirsearch_native.NativeHttpEngine(concurrency=2)
 
@@ -759,7 +713,7 @@ class TestNativeHttpEngine(TestCase):
                 NativeScanInterrupted,
                 "stop incremental delivery",
             ):
-                engine.scan_batch(
+                engine.scan_chunks(
                     server.url,
                     [f"path-{index}" for index in range(200)],
                     fail_callback,
@@ -771,46 +725,66 @@ class TestNativeHttpEngine(TestCase):
         with server.request_count_lock:
             self.assertLess(server.request_count, 200)
 
-    def test_stream_rejects_invalid_callback_and_chunk_size(self):
+    def test_chunks_reject_invalid_callback_and_chunk_size(self):
         engine = dirsearch_native.NativeHttpEngine(concurrency=1)
 
         with self.assertRaisesRegex(TypeError, "callback must be callable"):
-            engine.scan_batch("http://127.0.0.1/", [], object())
+            engine.scan_chunks("http://127.0.0.1/", [], object())
         with self.assertRaisesRegex(ValueError, "greater than zero"):
-            engine.scan_batch(
+            engine.scan_chunks(
                 "http://127.0.0.1/",
                 [],
                 lambda *_args: None,
                 chunk_size=0,
             )
 
-    def test_compact_scan_preserves_filtered_proxy_authentication_responses(self):
+    def test_removed_legacy_scan_entrypoints_are_not_exported(self):
+        engine = dirsearch_native.NativeHttpEngine(concurrency=1)
+        wordlist = dirsearch_native.generate_wordlist_owned(
+            ["tests/static/wordlist.txt"],
+            ["php"],
+        )
+
+        self.assertFalse(hasattr(dirsearch_native, "scan_http"))
+        self.assertFalse(hasattr(dirsearch_native, "NativeWordlistBatch"))
+        self.assertFalse(hasattr(engine, "scan_owned"))
+        self.assertFalse(hasattr(engine, "scan_batch"))
+        self.assertFalse(hasattr(engine, "scan_owned_batch"))
+        self.assertFalse(hasattr(wordlist, "batch"))
+
+    def test_chunks_preserve_filtered_proxy_authentication_responses(self):
         proxy = CountingHTTPServer(ProxyAuthenticationRequiredHandler)
         engine = dirsearch_native.NativeHttpEngine(
             concurrency=1,
             proxies=[proxy.url],
         )
+        chunks = []
 
         try:
-            results = engine.scan(
+            processed_count = engine.scan_chunks(
                 "http://example.test/",
                 ["zero", "one", "two"],
+                lambda start, end, results: chunks.append(
+                    (start, end, results)
+                ),
                 filter_config=dirsearch_native.NativeFilterConfig(
                     include_status_codes=[200]
                 ),
-                compact_filtered=True,
             )
         finally:
             proxy.close()
 
-        self.assertEqual(
-            [result.request_index for result in results],
-            [0, 1, 2],
-        )
+        results = [
+            result
+            for _start, _end, chunk_results in chunks
+            for result in chunk_results
+        ]
+        self.assertEqual(processed_count, 3)
+        self.assertEqual([result.request_index for result in results], [0, 1, 2])
         self.assertTrue(all(result.status == 407 for result in results))
         self.assertTrue(all(result.filtered for result in results))
 
-    def test_compact_status_filter_preserves_body_decode_errors(self):
+    def test_chunks_preserve_status_filtered_body_decode_errors(self):
         server = RawResponseServer(
             b"HTTP/1.1 404 Not Found\r\n"
             b"Content-Encoding: gzip\r\n"
@@ -819,63 +793,41 @@ class TestNativeHttpEngine(TestCase):
             b"nope"
         )
         engine = dirsearch_native.NativeHttpEngine(concurrency=1)
+        chunks = []
 
         try:
-            results = engine.scan(
+            engine.scan_chunks(
                 server.url,
                 ["broken"],
+                lambda start, end, results: chunks.append(
+                    (start, end, results)
+                ),
                 filter_config=dirsearch_native.NativeFilterConfig(
                     include_status_codes=[200]
                 ),
-                compact_filtered=True,
             )
         finally:
             server.close()
 
-        self.assertEqual(len(results), 1)
-        self.assertEqual(results[0].path, "broken")
-        self.assertIsNotNone(results[0].error)
-        self.assertIn("decode", results[0].error.lower())
+        result = chunks[0][2][0]
+        self.assertEqual(result.path, "broken")
+        self.assertIsNotNone(result.error)
+        self.assertIn("decode", result.error.lower())
 
-    def test_owned_wordlist_batch_stays_native_until_scan(self):
+    def test_owned_wordlist_batch_supports_chunk_delivery(self):
         wordlist = dirsearch_native.generate_wordlist_owned(
             ["tests/static/wordlist.txt"],
             ["php"],
         )
-        batch = wordlist.batch(0, 2, "api/")
-        server = CountingHTTPServer()
-        engine = dirsearch_native.NativeHttpEngine(concurrency=1)
-
-        try:
-            results = engine.scan_owned(
-                server.url,
-                batch,
-                query="scope=one",
-            )
-        finally:
-            server.close()
-
-        self.assertEqual(
-            [result.path for result in results],
-            ["api/index.php?scope=one", "api/home.html?scope=one"],
-        )
-        self.assertEqual(batch.path_at(1), "api/home.html")
-        self.assertTrue(wordlist.contains("index.php"))
-
-    def test_owned_wordlist_batch_supports_incremental_delivery(self):
-        wordlist = dirsearch_native.generate_wordlist_owned(
-            ["tests/static/wordlist.txt"],
-            ["php"],
-        )
-        batch = wordlist.batch(0, 2, "api/")
+        chunk = wordlist.chunk(0, 2, "api/")
         server = CountingHTTPServer()
         engine = dirsearch_native.NativeHttpEngine(concurrency=1)
         chunks = []
 
         try:
-            processed_count = engine.scan_owned_batch(
+            processed_count = engine.scan_owned_chunks(
                 server.url,
-                batch,
+                chunk,
                 lambda start, end, results: chunks.append(
                     (start, end, results)
                 ),
@@ -899,7 +851,7 @@ class TestNativeHttpEngine(TestCase):
             ["api/index.php?scope=one", "api/home.html?scope=one"],
         )
 
-    def test_owned_wordlist_stream_prepares_path_and_query_on_demand(self):
+    def test_owned_wordlist_chunks_prepare_path_and_query_on_demand(self):
         with tempfile.NamedTemporaryFile(
             mode="w",
             encoding="utf-8",
@@ -910,7 +862,7 @@ class TestNativeHttpEngine(TestCase):
                 [wordlist_file.name],
                 [],
             )
-            batch = wordlist.batch(0, 1, "api/")
+            chunk = wordlist.chunk(0, 1, "api/")
 
             server = RawResponseServer(
                 b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n"
@@ -920,9 +872,9 @@ class TestNativeHttpEngine(TestCase):
             chunks = []
 
             try:
-                processed_count = engine.scan_owned_batch(
+                processed_count = engine.scan_owned_chunks(
                     server.url,
-                    batch,
+                    chunk,
                     lambda start, end, results: chunks.append(
                         (start, end, results)
                     ),
@@ -943,22 +895,22 @@ class TestNativeHttpEngine(TestCase):
             "?scope=hello%20world",
         )
         self.assertEqual(chunks[0][2][0].path, expected)
-        self.assertEqual(batch.path_at(0), "api/missing page/测试#part")
+        self.assertEqual(chunk.path_at(0), "api/missing page/测试#part")
 
-    def test_owned_wordlist_stream_compacts_filtered_paths(self):
+    def test_owned_wordlist_chunks_compact_filtered_paths(self):
         wordlist = dirsearch_native.generate_wordlist_owned(
             ["tests/static/wordlist.txt"],
             ["php"],
         )
-        batch = wordlist.batch(0, 2, "api/")
+        chunk = wordlist.chunk(0, 2, "api/")
         server = CountingHTTPServer()
         engine = dirsearch_native.NativeHttpEngine(concurrency=2)
         chunks = []
 
         try:
-            processed_count = engine.scan_owned_batch(
+            processed_count = engine.scan_owned_chunks(
                 server.url,
-                batch,
+                chunk,
                 lambda start, end, results: chunks.append(
                     (start, end, results)
                 ),
@@ -977,12 +929,12 @@ class TestNativeHttpEngine(TestCase):
         )
         self.assertTrue(all(not results for _start, _end, results in chunks))
 
-    def test_owned_wordlist_stream_preserves_error_path(self):
+    def test_owned_wordlist_chunks_preserve_error_path(self):
         wordlist = dirsearch_native.generate_wordlist_owned(
             ["tests/static/wordlist.txt"],
             ["php"],
         )
-        batch = wordlist.batch(0, 1, "api/")
+        chunk = wordlist.chunk(0, 1, "api/")
         server = RawResponseServer(
             b"HTTP/1.1 404 Not Found\r\n"
             b"Content-Encoding: gzip\r\n"
@@ -994,9 +946,9 @@ class TestNativeHttpEngine(TestCase):
         chunks = []
 
         try:
-            processed_count = engine.scan_owned_batch(
+            processed_count = engine.scan_owned_chunks(
                 server.url,
-                batch,
+                chunk,
                 lambda start, end, results: chunks.append(
                     (start, end, results)
                 ),
@@ -1013,12 +965,12 @@ class TestNativeHttpEngine(TestCase):
         self.assertIsNotNone(chunks[0][2][0].error)
         self.assertIn("decode", chunks[0][2][0].error.lower())
 
-    def test_owned_wordlist_stream_cancellation_stops_pending_request(self):
+    def test_owned_wordlist_chunk_cancellation_stops_pending_request(self):
         wordlist = dirsearch_native.generate_wordlist_owned(
             ["tests/static/wordlist.txt"],
             ["php"],
         )
-        batch = wordlist.batch(0, 1)
+        chunk = wordlist.chunk(0, 1)
         server = StalledHTTPServer()
         engine = dirsearch_native.NativeHttpEngine(
             concurrency=1,
@@ -1029,13 +981,14 @@ class TestNativeHttpEngine(TestCase):
         try:
             cancel_timer.start()
             started = time.monotonic()
-            processed_count = engine.scan_owned_batch(
+            processed_count = engine.scan_owned_chunks(
                 server.url,
-                batch,
+                chunk,
                 lambda *_args: None,
                 chunk_size=1,
             )
             elapsed = time.monotonic() - started
+            self.assertTrue(server.peer_closed.wait(timeout=1))
         finally:
             cancel_timer.join(timeout=1)
             server.close()
@@ -1056,7 +1009,7 @@ class TestNativeHttpEngine(TestCase):
         self.assertEqual([first[0].status, second[0].status], [200, 200])
         self.assertEqual(server.connection_count, 1)
 
-    def test_delay_spaces_a_worker_across_scan_batches(self):
+    def test_delay_spaces_a_worker_across_scans(self):
         server = CountingHTTPServer(RequestTimeCaptureHandler)
         engine = dirsearch_native.NativeHttpEngine(
             concurrency=1,
@@ -1224,41 +1177,6 @@ class TestNativeHttpEngine(TestCase):
         self.assertEqual(first_proxy.user_agents, ["proxy-agent"] * 2)
         self.assertEqual(second_proxy.user_agents, ["proxy-agent"] * 2)
 
-    def test_compatibility_function_reuses_http_connection(self):
-        server = CountingHTTPServer()
-
-        try:
-            first = dirsearch_native.scan_http(server.url, ["first"])
-            second = dirsearch_native.scan_http(server.url, ["second"])
-        finally:
-            server.close()
-
-        self.assertEqual([first[0].status, second[0].status], [200, 200])
-        self.assertEqual(server.connection_count, 1)
-
-    def test_compatibility_function_rebuilds_for_random_agent_configuration(self):
-        server = CountingHTTPServer(UserAgentCaptureHandler)
-
-        try:
-            first = dirsearch_native.scan_http(
-                server.url,
-                ["first"],
-                random_user_agents=["legacy-agent-one"],
-            )
-            second = dirsearch_native.scan_http(
-                server.url,
-                ["second"],
-                random_user_agents=["legacy-agent-two"],
-            )
-        finally:
-            server.close()
-
-        self.assertEqual([first[0].status, second[0].status], [200, 200])
-        self.assertEqual(
-            server.user_agents,
-            ["legacy-agent-one", "legacy-agent-two"],
-        )
-
     def test_explicit_cancellation_interrupts_active_scan(self):
         server = StalledHTTPServer()
         engine = dirsearch_native.NativeHttpEngine(timeout_secs=5)
@@ -1269,6 +1187,7 @@ class TestNativeHttpEngine(TestCase):
             started = time.monotonic()
             results = engine.scan(server.url, ["slow"])
             elapsed = time.monotonic() - started
+            self.assertTrue(server.peer_closed.wait(timeout=1))
         finally:
             cancel_timer.join(timeout=1)
             server.close()
@@ -1539,6 +1458,7 @@ class TestNativeHttpEngine(TestCase):
             with self.assertRaisesRegex(NativeScanInterrupted, "stop native scan"):
                 engine.scan(server.url, ["slow"])
             elapsed = time.monotonic() - started
+            self.assertTrue(server.peer_closed.wait(timeout=1))
         finally:
             signal_timer.join(timeout=1)
             signal.signal(signal.SIGINT, previous_handler)

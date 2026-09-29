@@ -29,11 +29,11 @@ from lib.utils.file import FileUtils
 WORDLIST_BACKENDS = ("auto", "python", "native")
 
 
-class NativeWordlistBatch:
+class NativeWordlistChunk:
     """Python ownership token for a range that remains stored in Rust."""
 
-    def __init__(self, native_batch: Any) -> None:
-        self.native = native_batch
+    def __init__(self, native_chunk: Any) -> None:
+        self.native = native_chunk
 
     def __len__(self) -> int:
         return self.native.len()
@@ -76,8 +76,8 @@ class NativeWordlistCorpus:
     def to_list(self) -> list[str]:
         return self.native.to_list()
 
-    def batch(self, start: int, count: int, base_path: str) -> NativeWordlistBatch:
-        return NativeWordlistBatch(self.native.batch(start, count, base_path))
+    def chunk(self, start: int, count: int, base_path: str) -> NativeWordlistChunk:
+        return NativeWordlistChunk(self.native.chunk(start, count, base_path))
 
 
 class WordlistBackend(Protocol):

@@ -2,7 +2,7 @@ import threading
 import time
 from unittest import TestCase
 from unittest.mock import patch
-from lib.connection.native import NativeScanBatch, NativeScanEvent
+from lib.connection.native import NativeScanChunk, NativeScanEvent
 from lib.connection.response import NativeResponse
 from lib.core.data import blacklists, options
 from lib.core.dictionary import Dictionary
@@ -65,15 +65,15 @@ class FakeNativeBackend:
         self.calls = []
         self.cancelled = False
 
-    def scan_batch(self, base_url, paths, callback, query=""):
+    def scan_chunks(self, base_url, paths, callback, query=""):
         self.calls.append((base_url, paths, query))
         events = tuple(
             NativeScanEvent(index, path, response, error)
             for index, (path, response, error) in enumerate(self.items)
         )
-        batch = NativeScanBatch(len(self.items), events)
-        callback(batch)
-        return batch.processed_count
+        chunk = NativeScanChunk(0, len(self.items), events)
+        callback(chunk)
+        return chunk.end_index
 
     def cancel(self):
         self.cancelled = True
@@ -82,15 +82,15 @@ class FakeNativeBackend:
         self.cancelled = False
 
 
-class FakeBatchNativeBackend:
-    def __init__(self, batch):
-        self.batch = batch
+class FakeChunkNativeBackend:
+    def __init__(self, chunk):
+        self.chunk = chunk
         self.calls = []
 
-    def scan_batch(self, base_url, paths, callback, query=""):
+    def scan_chunks(self, base_url, paths, callback, query=""):
         self.calls.append((base_url, paths, query))
-        callback(self.batch)
-        return self.batch.processed_count
+        callback(self.chunk)
+        return self.chunk.end_index
 
     def cancel(self):
         return None
@@ -105,27 +105,29 @@ class CoordinatedNativeBackend:
         self.cancelled = threading.Event()
         self.waiting_for_cancel = threading.Event()
 
-    def scan_batch(self, _base_url, paths, callback, query=""):
+    def scan_chunks(self, _base_url, paths, callback, query=""):
         self.calls.append(paths)
 
         if len(self.calls) == 1:
             self.waiting_for_cancel.set()
             if not self.cancelled.wait(timeout=2):
                 raise AssertionError("native scan was not cancelled while pausing")
-            batch = NativeScanBatch(
+            chunk = NativeScanChunk(
+                0,
                 1,
                 (NativeScanEvent(0, paths[0], None, RequestException(paths[0])),),
             )
         else:
-            batch = NativeScanBatch(
+            chunk = NativeScanChunk(
+                0,
                 len(paths),
                 tuple(
                     NativeScanEvent(index, path, None, RequestException(path))
                     for index, path in enumerate(paths)
                 ),
             )
-        callback(batch)
-        return batch.processed_count
+        callback(chunk)
+        return chunk.end_index
 
     def cancel(self):
         self.cancelled.set()
@@ -140,7 +142,7 @@ class UncooperativeNativeBackend:
         self.cancelled = threading.Event()
         self.release = threading.Event()
 
-    def scan_batch(self, _base_url, _paths, _callback, query=""):
+    def scan_chunks(self, _base_url, _paths, _callback, query=""):
         self.started.set()
         self.release.wait(timeout=2)
         return 0
@@ -156,7 +158,7 @@ class CancelAwareNativeBackend:
     def __init__(self):
         self.cancelled = threading.Event()
 
-    def scan_batch(self, _base_url, _paths, _callback, query=""):
+    def scan_chunks(self, _base_url, _paths, _callback, query=""):
         if not self.cancelled.wait(timeout=1):
             raise AssertionError("native scan was not cancelled")
         return 0
@@ -174,21 +176,21 @@ class IncrementalNativeBackend:
         self.release = threading.Event()
         self.fail_after_first = fail_after_first
 
-    def scan_batch(self, _base_url, paths, callback, query=""):
-        callback(NativeScanBatch(1, (), 0))
+    def scan_chunks(self, _base_url, paths, callback, query=""):
+        callback(NativeScanChunk(0, 1, ()))
         self.first_delivered.set()
         if self.fail_after_first:
-            raise RuntimeError("batch failed")
+            raise RuntimeError("chunk failed")
         if not self.release.wait(timeout=2):
             raise AssertionError("incremental native backend was not released")
         callback(
-            NativeScanBatch(
+            NativeScanChunk(
+                1,
                 len(paths),
                 tuple(
                     NativeScanEvent(index, path, None, RequestException(path))
                     for index, path in enumerate(paths[1:], start=1)
                 ),
-                1,
             )
         )
         return len(paths)
@@ -283,7 +285,7 @@ class TestNativeFuzzer(TestCase):
         matches,
         misses,
         errors,
-        filtered_batches=None,
+        filtered_chunks=None,
     ):
         fuzzer = NativeFuzzer(
             DummyRequester(backend),
@@ -291,8 +293,8 @@ class TestNativeFuzzer(TestCase):
             match_callbacks=(matches.append,),
             not_found_callbacks=(misses.append,),
             error_callbacks=(errors.append,),
-            filtered_batch_callbacks=(filtered_batches.append,)
-            if filtered_batches is not None
+            filtered_chunk_callbacks=(filtered_chunks.append,)
+            if filtered_chunks is not None
             else (),
         )
         fuzzer.setup_scanners = lambda: None
@@ -360,10 +362,10 @@ class TestNativeFuzzer(TestCase):
         self.assertEqual(errors, [])
         self.assertEqual(response.length, 64)
 
-    def test_native_fuzzer_processes_filtered_results_as_one_batch(self):
+    def test_native_fuzzer_processes_filtered_results_as_one_chunk(self):
         dictionary = make_dictionary(["zero", "one", "two"])
-        backend = FakeBatchNativeBackend(NativeScanBatch(3, ()))
-        filtered_batches = []
+        backend = FakeChunkNativeBackend(NativeScanChunk(0, 3, ()))
+        filtered_chunks = []
 
         fuzzer = self.make_fuzzer(
             backend,
@@ -371,16 +373,16 @@ class TestNativeFuzzer(TestCase):
             [],
             [],
             [],
-            filtered_batches,
+            filtered_chunks,
         )
         fuzzer.start()
 
-        self.assertEqual(filtered_batches, [3])
+        self.assertEqual(filtered_chunks, [3])
         self.assertEqual(restored_paths(dictionary.__getstate__()), [])
 
-    def test_native_fuzzer_passes_its_owned_list_to_scan_batch(self):
+    def test_native_fuzzer_passes_its_owned_list_to_scan_chunks(self):
         dictionary = make_dictionary(["zero", "one"])
-        backend = FakeBatchNativeBackend(NativeScanBatch(2, ()))
+        backend = FakeChunkNativeBackend(NativeScanChunk(0, 2, ()))
         fuzzer = self.make_fuzzer(backend, dictionary, [], [], [])
 
         fuzzer.start()
@@ -397,7 +399,8 @@ class TestNativeFuzzer(TestCase):
             b"ok",
         )
         error = RequestException("boom")
-        batch = NativeScanBatch(
+        chunk = NativeScanChunk(
+            0,
             4,
             (
                 NativeScanEvent(1, "one", None, error),
@@ -407,19 +410,19 @@ class TestNativeFuzzer(TestCase):
         dictionary = make_dictionary(["zero", "one", "two", "three"])
         matches = []
         errors = []
-        filtered_batches = []
+        filtered_chunks = []
         fuzzer = self.make_fuzzer(
-            FakeBatchNativeBackend(batch),
+            FakeChunkNativeBackend(chunk),
             dictionary,
             matches,
             [],
             errors,
-            filtered_batches,
+            filtered_chunks,
         )
 
         fuzzer.start()
 
-        self.assertEqual(filtered_batches, [1, 1])
+        self.assertEqual(filtered_chunks, [1, 1])
         self.assertEqual(errors, [error])
         self.assertEqual(matches, [match])
         self.assertEqual(restored_paths(dictionary.__getstate__()), [])
@@ -453,7 +456,7 @@ class TestNativeFuzzer(TestCase):
             [],
         )
 
-        with self.assertRaisesRegex(AttributeError, "scan_batch"):
+        with self.assertRaisesRegex(AttributeError, "scan_chunks"):
             fuzzer.start()
 
         self.assertEqual(restored_paths(dictionary.__getstate__()), ["admin"])
@@ -461,7 +464,7 @@ class TestNativeFuzzer(TestCase):
     def test_incremental_batch_updates_session_state_before_scan_returns(self):
         dictionary = make_dictionary(["zero", "one", "two"])
         backend = IncrementalNativeBackend()
-        filtered_batches = []
+        filtered_chunks = []
         callback_errors = []
         fuzzer = self.make_fuzzer(
             backend,
@@ -469,7 +472,7 @@ class TestNativeFuzzer(TestCase):
             [],
             [],
             callback_errors,
-            filtered_batches,
+            filtered_chunks,
         )
         worker_errors = []
         worker = threading.Thread(target=run_fuzzer, args=(fuzzer, worker_errors))
@@ -477,7 +480,7 @@ class TestNativeFuzzer(TestCase):
 
         try:
             self.assertTrue(backend.first_delivered.wait(timeout=1))
-            self.assertEqual(filtered_batches, [1])
+            self.assertEqual(filtered_chunks, [1])
             self.assertEqual(
                 restored_paths(dictionary.__getstate__()),
                 ["one", "two"],
@@ -499,7 +502,7 @@ class TestNativeFuzzer(TestCase):
         backend = IncrementalNativeBackend(fail_after_first=True)
         fuzzer = self.make_fuzzer(backend, dictionary, [], [], [])
 
-        with self.assertRaisesRegex(RuntimeError, "batch failed"):
+        with self.assertRaisesRegex(RuntimeError, "chunk failed"):
             fuzzer.start()
 
         self.assertEqual(

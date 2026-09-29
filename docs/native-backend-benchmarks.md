@@ -65,22 +65,22 @@ and scheduler behavior. It is the better reference for expected full-scan gains.
 ## Incremental Result Delivery Regression Check
 
 Native extension 0.2.18 was measured on a dedicated 4-vCPU Linux host with the
-legacy whole-batch return and incremental ordered micro-batches in the same
+whole-result collection and incremental ordered chunks in the same
 release build. A local nginx target ran outside the Python 3.14 benchmark
 process. Each sample scanned 30000 paths at concurrency 128, using the
-corresponding 12800-path `NativeFuzzer` batch size. One engine and connection
+corresponding 12800-path `NativeFuzzer` chunk size. One engine and connection
 pool remained alive across 15 balanced-order samples so the comparison isolates
 result delivery rather than pool startup. This is a direct engine comparison,
 not a full `dirsearch` contention result.
 
-| Results | Whole-batch median | Incremental median | Incremental / whole-batch | Median callbacks | Median first delivery |
+| Results | Whole-result median | Incremental median | Incremental / whole-result | Median callbacks | Median first delivery |
 |---|---:|---:|---:|---:|---:|
 | All filtered | 38023.9 RPS | 37956.1 RPS | 1.00x | 40 | 25.2 ms |
 | 5% actionable | 37490.6 RPS | 37671.8 RPS | 1.00x | 50 | 26.8 ms |
 
 A tuning sweep covered caps from 1024 to 4096 paths and flush targets from 10
 to 40 ms. A per-completion Tokio channel initially limited every incremental
-configuration to 0.91-0.92x whole-batch throughput. Replacing it with the shared
+configuration to 0.91-0.92x whole-result throughput. Replacing it with the shared
 completion bitmap restored 0.998-1.005x median throughput. The 2048-path cap plus
 20 ms flush target was retained as the balanced point: 25 ms saved 7 callbacks
 per 30000 filtered paths and 7 per 30000 mixed paths, but added about 4-5 ms to

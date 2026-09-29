@@ -62,7 +62,7 @@ fn discard_expired(request_times: &mut VecDeque<Instant>, now: Instant) {
 /// Engine-wide delay deadlines, one independent lane per request worker.
 ///
 /// A lane records its completion deadline instead of sleeping after a
-/// request. That preserves spacing across scan-batch boundaries while letting
+/// request. That preserves spacing across scan boundaries while letting
 /// a one-request calibration call return immediately; the scanner's existing
 /// delay satisfies the recorded deadline before its next request.
 #[derive(Debug)]
@@ -135,7 +135,7 @@ mod tests {
     }
 
     #[tokio::test(start_paused = true)]
-    async fn delay_deadlines_are_independent_and_persist_between_batches() {
+    async fn delay_deadlines_are_independent_and_persist_between_scans() {
         let pacer = std::sync::Arc::new(NativeDelayPacer::new(2, 0.25));
         pacer.mark_completed(0);
 

@@ -25,7 +25,7 @@ import threading
 import time
 from typing import Any, Callable, Generator
 
-from lib.connection.native import NativeHTTPBackend, NativeRequester, NativeScanBatch
+from lib.connection.native import NativeHTTPBackend, NativeRequester, NativeScanChunk
 from lib.connection.requester import AsyncRequester, BaseRequester, Requester
 from lib.connection.response import BaseResponse
 from lib.core.data import blacklists, options
@@ -40,7 +40,7 @@ from lib.core.settings import (
     NATIVE_PAUSE_TIMEOUT,
     WILDCARD_TEST_POINT_MARKER,
 )
-from lib.core.wordlist_backend import NativeWordlistBatch
+from lib.core.wordlist_backend import NativeWordlistChunk
 from lib.parse.url import clean_path
 from lib.utils.common import lstrip_once
 
@@ -519,7 +519,7 @@ class NativeFuzzer(Fuzzer):
         match_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         not_found_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         error_callbacks: tuple[Callable[[RequestException], Any], ...],
-        filtered_batch_callbacks: tuple[Callable[[int], Any], ...] = (),
+        filtered_chunk_callbacks: tuple[Callable[[int], Any], ...] = (),
     ) -> None:
         super().__init__(
             requester,
@@ -529,7 +529,7 @@ class NativeFuzzer(Fuzzer):
             error_callbacks=error_callbacks,
         )
         self._finished = False
-        self.filtered_batch_callbacks = filtered_batch_callbacks
+        self.filtered_chunk_callbacks = filtered_chunk_callbacks
         self._native_backend: NativeHTTPBackend | None = requester.backend
         self._paused_event = threading.Event()
         self._started_event = threading.Event()
@@ -576,10 +576,10 @@ class NativeFuzzer(Fuzzer):
                     break
 
                 try:
-                    self._native_backend.scan_batch(
+                    self._native_backend.scan_chunks(
                         self._requester._url,
                         paths,
-                        lambda batch: self._process_native_batch(paths, batch),
+                        lambda chunk: self._process_native_chunk(paths, chunk),
                         self._requester._query,
                     )
                 except BaseException:
@@ -596,15 +596,15 @@ class NativeFuzzer(Fuzzer):
             self._started_event.set()
             self._paused_event.set()
 
-    def _process_native_batch(
+    def _process_native_chunk(
         self,
-        paths: list[str] | NativeWordlistBatch,
-        batch: NativeScanBatch,
+        paths: list[str] | NativeWordlistChunk,
+        chunk: NativeScanChunk,
     ) -> None:
         """Expand Rust's compact event stream without rebuilding miss responses."""
 
-        next_index = batch.start_index
-        for event in batch.events:
+        next_index = chunk.start_index
+        for event in chunk.events:
             if self._should_stop_processing():
                 return
             # Missing indexes are responses that Rust already classified as
@@ -620,35 +620,35 @@ class NativeFuzzer(Fuzzer):
                     event.error,
                 )
             finally:
-                if isinstance(paths, NativeWordlistBatch):
+                if isinstance(paths, NativeWordlistChunk):
                     self._dictionary.release_native_claims(paths, 1)
                 else:
                     self._release_paths((event.path,))
             next_index = event.request_index + 1
 
-        # processed_count comes from Rust's final completion marker, so this
+        # end_index is the exclusive end of this ordered chunk, so it
         # also releases a filtered tail after the last actionable event.
-        if not self._should_stop_processing() and batch.processed_count > next_index:
-            self._process_filtered_range(paths, next_index, batch.processed_count)
+        if not self._should_stop_processing() and chunk.end_index > next_index:
+            self._process_filtered_range(paths, next_index, chunk.end_index)
 
     def _process_filtered_range(
         self,
-        paths: list[str] | NativeWordlistBatch,
+        paths: list[str] | NativeWordlistChunk,
         start: int,
         end: int,
     ) -> None:
         count = end - start
         if count <= 0:
             return
-        if isinstance(paths, NativeWordlistBatch):
+        if isinstance(paths, NativeWordlistChunk):
             try:
-                for callback in self.filtered_batch_callbacks:
+                for callback in self.filtered_chunk_callbacks:
                     callback(count)
             finally:
                 self._dictionary.release_native_claims(paths, count)
             return
 
-        # The common miss-only batch spans the original list. Avoid a second
+        # The common miss-only chunk spans the original list. Avoid a second
         # list of references merely to report/release its progress.
         filtered_paths = paths if start == 0 and end == len(paths) else paths[start:end]
         self._process_filtered_paths(filtered_paths)
@@ -657,7 +657,7 @@ class NativeFuzzer(Fuzzer):
         if not paths:
             return
         try:
-            for callback in self.filtered_batch_callbacks:
+            for callback in self.filtered_chunk_callbacks:
                 callback(len(paths))
         finally:
             self._release_paths(paths)
@@ -694,10 +694,10 @@ class NativeFuzzer(Fuzzer):
     def _should_stop_processing(self) -> bool:
         return self._quit_event.is_set() or not self._play_event.is_set()
 
-    def _next_chunk(self) -> list[str] | NativeWordlistBatch:
+    def _next_chunk(self) -> list[str] | NativeWordlistChunk:
         chunk_size = max(1000, options["thread_count"] * 100)
         paths = self._dictionary.claim_native_many(chunk_size, self._base_path)
-        if isinstance(paths, NativeWordlistBatch):
+        if isinstance(paths, NativeWordlistChunk):
             return paths
         if not self._base_path:
             return paths

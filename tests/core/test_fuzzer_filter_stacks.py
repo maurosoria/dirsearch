@@ -2,7 +2,7 @@ import threading
 import time
 from unittest import IsolatedAsyncioTestCase, TestCase
 
-from lib.connection.native import NativeScanBatch, NativeScanEvent
+from lib.connection.native import NativeScanChunk, NativeScanEvent
 from lib.connection.response import NativeResponse
 from lib.core.data import blacklists, options
 from lib.core.fuzzer import AsyncFuzzer, Fuzzer, NativeFuzzer
@@ -83,7 +83,7 @@ class DummyNativeRequester:
 
 
 class FilteringNativeBackend:
-    def scan_batch(self, base_url, paths, callback, query=""):
+    def scan_chunks(self, base_url, paths, callback, query=""):
         del base_url
         del query
         events = []
@@ -99,9 +99,9 @@ class FilteringNativeBackend:
                 )
             )
             events.append(NativeScanEvent(index, path, response, None))
-        batch = NativeScanBatch(len(paths), tuple(events))
-        callback(batch)
-        return batch.processed_count
+        chunk = NativeScanChunk(0, len(paths), tuple(events))
+        callback(chunk)
+        return chunk.end_index
 
     def reset_cancel(self):
         return None

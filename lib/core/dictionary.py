@@ -24,7 +24,7 @@ from typing import Any, Iterator
 
 from lib.core.settings import SCRIPT_PATH
 from lib.core.wordlist_backend import (
-    NativeWordlistBatch,
+    NativeWordlistChunk,
     NativeWordlistCorpus,
     get_wordlist_backend,
     is_valid_path,
@@ -34,7 +34,7 @@ from lib.utils.file import FileUtils
 
 @dataclass
 class _NativeClaim:
-    batch: NativeWordlistBatch
+    chunk: NativeWordlistChunk
     start: int
     released: int = 0
 
@@ -141,7 +141,7 @@ class Dictionary:
         self,
         maximum: int,
         base_path: str,
-    ) -> list[str] | NativeWordlistBatch:
+    ) -> list[str] | NativeWordlistChunk:
         """Claim a Rust-owned range without materializing its Python strings."""
         if maximum <= 0:
             return []
@@ -188,14 +188,14 @@ class Dictionary:
             if not item_count:
                 return []
             start = self._index
-            batch = self._items.batch(start, item_count, base_path)
+            chunk = self._items.chunk(start, item_count, base_path)
             self._index += item_count
-            self._native_claim = _NativeClaim(batch, start)
-            return batch
+            self._native_claim = _NativeClaim(chunk, start)
+            return chunk
 
     def release_native_claims(
         self,
-        batch: NativeWordlistBatch,
+        chunk: NativeWordlistChunk,
         count: int,
     ) -> None:
         """Release an ordered prefix from the active Rust-owned claim."""
@@ -204,12 +204,12 @@ class Dictionary:
 
         with self._lock:
             claim = self._native_claim
-            if claim is None or claim.batch is not batch:
-                raise ValueError("native wordlist batch is not claimed")
-            if claim.released + count > len(batch):
-                raise ValueError("native wordlist release exceeds claimed batch")
+            if claim is None or claim.chunk is not chunk:
+                raise ValueError("native wordlist chunk is not claimed")
+            if claim.released + count > len(chunk):
+                raise ValueError("native wordlist release exceeds claimed chunk")
             claim.released += count
-            if claim.released == len(batch):
+            if claim.released == len(chunk):
                 self._native_claim = None
 
     def release_claim(self, path: str) -> None:
@@ -223,7 +223,7 @@ class Dictionary:
 
         with self._lock:
             count = len(paths)
-            # Native batches normally complete in claim order. Removing the
+            # Native chunks normally complete in claim order. Removing the
             # prefix avoids a separate linear search for every path.
             if count == len(self._claimed) and self._claimed == paths:
                 self._claimed.clear()
@@ -257,7 +257,7 @@ class Dictionary:
                 self._claimed.clear()
             if self._native_claim is not None:
                 claim = self._native_claim
-                # NativeFuzzer has one synchronous batch in flight, so no later
+                # NativeFuzzer has one synchronous chunk in flight, so no later
                 # corpus claim can exist when cancellation rewinds this range.
                 self._index = claim.start + claim.released
                 self._native_claim = None

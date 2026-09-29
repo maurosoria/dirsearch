@@ -246,7 +246,7 @@ pub(crate) fn build_http_client(
 ///
 /// This value exists only while one target (including its retries) is being
 /// processed. Engine-lifetime resources stay in `NativeRequestContext`, and
-/// batch scheduling stays in `ScanTask`; keeping this request borrowed avoids
+/// scan scheduling stays in `ScanTask`; keeping this request borrowed avoids
 /// cloning those owners for each URL.
 pub(crate) struct ClientRequest<'a> {
     pub(crate) client: &'a reqwest::Client,
@@ -261,7 +261,8 @@ pub(crate) struct ClientRequest<'a> {
     pub(crate) max_body_size: usize,
     pub(crate) start: Instant,
     pub(crate) filter_config: &'a NativeFilterConfig,
-    pub(crate) compact_filtered: bool,
+    /// Avoid retaining a response body when its status alone excludes it.
+    pub(crate) skip_status_filtered_body: bool,
     pub(crate) origin_auth: &'a OriginAuth,
     /// Selected independently for every network attempt and then kept stable
     /// across redirects or a Digest challenge within that attempt.
@@ -328,7 +329,7 @@ async fn request_once(
     let response = response?;
     let status = response.status().as_u16();
     let final_url = response.url().to_string();
-    if request.compact_filtered
+    if request.skip_status_filtered_body
         && status != 407
         && request.filter_config.status_filter_reason(status).is_some()
     {

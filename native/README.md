@@ -7,26 +7,25 @@ It exposes a small PyO3 API:
 
 - `generate_wordlist(...)` for deterministic ordered wordlist generation.
 - `generate_wordlist_owned(...)` for keeping native-scan corpora in Rust.
-- `NativeHttpEngine` for batch HTTP requests using `reqwest` and `tokio`.
+- `NativeHttpEngine` for concurrent HTTP requests using `reqwest` and `tokio`.
 - `NativeHttpSession` for explicitly sharing cookies and request-rate state
   across engine rebuilds and replay transports.
 - `NativeFilterConfig` for compiling and reusing one immutable filter policy.
-- `scan_http(...)` as the compatibility entrypoint backed by a cached engine.
 
 The module also exposes `__version__`. The Python request and wordlist
 backends require an exact version match so a stale compiled extension fails
 with a rebuild instruction instead of silently using an older native contract.
 
 `NativeHttpEngine` keeps its Tokio runtime and HTTP clients alive across
-multiple batches and supports cooperative cancellation. Each batch is represented
-by one shared Rust scan task rather than a separate parameter bundle per worker.
-Python constructs one
-immutable filter configuration and reuses it across those batches. The
-`scan(...)` and `scan_owned(...)` methods evaluate the cheap legacy
-status/size filters and advanced match/filter options in native code. Compact
-status-filter misses drain their response stream for connection reuse without
-retaining headers or body data. Python still owns callbacks, session recovery,
-and dynamically discovered paths. Native regex matching uses the hybrid
+multiple scans and supports cooperative cancellation. Each scan is represented
+by one shared Rust job rather than a separate parameter bundle per worker.
+Python constructs one immutable filter configuration and reuses it across
+scans. `scan(...)` returns every result for calibration and individual backend
+requests. `scan_chunks(...)` and `scan_owned_chunks(...)` are the only scanning
+path used by `NativeFuzzer`; they deliver ordered chunks and omit Python result
+objects for filtered misses. Status-filter misses drain their response stream
+for connection reuse without retaining headers or body data. Python still owns
+callbacks, session recovery, and dynamically discovered paths. Native regex matching uses the hybrid
 `fancy-regex` engine: ordinary expressions retain the finite-automata fast path,
 while lookarounds and backreferences run in its bounded backtracking engine.
 Basic, Bearer/JWT, Digest, and target-embedded Basic origin authentication are
@@ -42,10 +41,10 @@ connection affinity under concurrent scans.
 engine rebuilds, and replay requests all consume the same budget. Retries stay
 inside their original logical request and do not consume another rate slot.
 `--delay` keeps an independent deadline for each worker and carries that
-deadline across batch boundaries. Both waits are asynchronous and remain
+deadline across scan boundaries. Both waits are asynchronous and remain
 interruptible by pause, quit, and scan cancellation.
 
-Native fuzzer batches are returned incrementally through ordered micro-batches.
+Native fuzzer results are returned incrementally through ordered chunks.
 Rust reorders concurrent completions, omits per-response Python objects for
 filtered misses, and records progress in a fixed-size atomic bitmap while
 Python runs callbacks. Only actionable results enter the shared result map, and
@@ -67,8 +66,9 @@ boundary small and makes it clear which changes require rebuilding an engine:
 | --- | --- | --- |
 | `NativeHttpEngine` | Python backend instance | Owns the Tokio runtime, concurrency limit, cancellation handle, and one request context. |
 | `NativeHttpSession` | Requester lifetime | Shares the cookie jar and request-rate window with rebuilt origin engines and replay transports. |
-| `NativeRequestContext` | Engine lifetime | Reuses built clients, raw headers, method/body, transport flags, per-worker delay deadlines, and the session handle across batches. |
-| `ScanTask` | One engine scan call | Holds paths, base URL, filter and retry policy, body limit, cancellation handle, and the atomic counter used by workers to claim paths. |
+| `NativeRequestContext` | Engine lifetime | Reuses built clients, raw headers, method/body, transport flags, per-worker delay deadlines, and the session handle across scans. |
+| `ScanJob` | One engine scan call | Carries paths, base URL, query, filter and retry policy, and body limit from the PyO3 boundary to the scheduler. |
+| `ScanTask` | One active worker set | Adds the cancellation handle, result-delivery policy, and atomic counter used by workers to claim paths. |
 | `ClientRequest` / `RawHttpRequest` | One target, including retries | Borrows the request inputs needed by the selected transport and returns one native result. |
 
 The ownership flow is:
@@ -76,14 +76,16 @@ The ownership flow is:
 ```text
 Python NativeHTTPBackend
   -> NativeHttpEngine
-       -> Arc<NativeRequestContext>       (reused across batches)
-       -> Arc<ScanTask>                   (shared by bounded workers)
+       -> Arc<NativeRequestContext>       (reused across scans)
+       -> ScanJob                         (one call from Python)
+            -> Arc<ScanTask>              (shared by bounded workers)
             -> ClientRequest/RawHttpRequest (one claimed target)
 ```
 
 Put a value in `NativeRequestContext` when it is fixed by engine construction
-and reused by every batch. Put it in `ScanTask` when Python supplies it for one
-batch. Put it in a transport request when it applies to one claimed target.
+and reused by every scan. Put it in `ScanJob` when Python supplies it for one
+call. Put worker coordination in `ScanTask`, and transport-only values in the
+request for one claimed target.
 Session state is the deliberate exception to immutability: the context holds a
 stable `NativeHttpSession` handle so all clients and replay engines can update
 the same policy-controlled cookie jar and request-rate window.
@@ -93,10 +95,12 @@ the same policy-controlled cookie jar and request-rate window.
 `src/lib.rs` only registers the Python module. The implementation is split by
 responsibility:
 
-- `engine.rs` owns the persistent engine, immutable request context, per-batch
-  scan task, bounded scheduler, and cancellation.
-- `stream.rs` reorders concurrent completions and builds compact, ordered
-  micro-batches for Python-owned callbacks and checkpoints.
+- `engine.rs` owns the PyO3 API, persistent runtime, client construction, and
+  cancellation handle.
+- `scan.rs` owns per-scan jobs, bounded workers, cancellation cleanup, and the
+  choice between complete collection and incremental chunks.
+- `chunks.rs` reorders concurrent completions and builds compact, ordered
+  chunks for Python-owned callbacks and checkpoints.
 - `session.rs` owns explicit cross-engine session state and cookie policy.
 - `pacing.rs` owns the shared request-rate limiter and per-worker delay lanes.
 - `request_target.rs` owns query insertion and URL quoting before scheduling.

@@ -6,7 +6,7 @@ from collections.abc import Sequence
 
 
 MIN_NATIVE_PYTHON = (3, 14)
-NATIVE_EXTENSION_VERSION = "0.2.18"
+NATIVE_EXTENSION_VERSION = "0.2.19"
 
 
 def format_python_version(version_info: Sequence[int] | None = None) -> str:

@@ -434,7 +434,7 @@ class Controller:
             url = options["urls"][0]
             fuzzer_options = {}
             if options["request_backend"] == "native":
-                fuzzer_options["filtered_batch_callbacks"] = (
+                fuzzer_options["filtered_chunk_callbacks"] = (
                     self.update_progress_bar_batch,
                     self.reset_consecutive_errors_batch,
                 )

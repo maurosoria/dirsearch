@@ -4,7 +4,7 @@ import time
 from unittest import TestCase
 
 from lib.core.dictionary import Dictionary
-from lib.core.wordlist_backend import NativeWordlistBatch, NativeWordlistCorpus
+from lib.core.wordlist_backend import NativeWordlistChunk, NativeWordlistCorpus
 
 
 TEST_TIMEOUT = 2.0
@@ -81,7 +81,7 @@ class BlockingSnapshotExtras(list):
         return result
 
 
-class FakeNativeBatchStorage:
+class FakeNativeChunkStorage:
     def __init__(self, items, base_path):
         self.items = items
         self.base_path = base_path
@@ -117,8 +117,8 @@ class FakeNativeCorpusStorage:
         self.to_list_calls += 1
         return list(self.items)
 
-    def batch(self, start, count, base_path):
-        return FakeNativeBatchStorage(
+    def chunk(self, start, count, base_path):
+        return FakeNativeChunkStorage(
             self.items[start:start + count],
             base_path,
         )
@@ -146,16 +146,16 @@ class TestDictionaryConcurrency(TestCase):
     def test_native_claim_requeues_only_its_unreleased_suffix(self):
         dictionary, storage = make_native_dictionary(["zero", "one", "two"])
 
-        batch = dictionary.claim_native_many(2, "api/")
-        self.assertIsInstance(batch, NativeWordlistBatch)
+        chunk = dictionary.claim_native_many(2, "api/")
+        self.assertIsInstance(chunk, NativeWordlistChunk)
         self.assertEqual(storage.to_list_calls, 0)
-        self.assertEqual(batch.path_at(0), "api/zero")
+        self.assertEqual(chunk.path_at(0), "api/zero")
 
-        dictionary.release_native_claims(batch, 1)
+        dictionary.release_native_claims(chunk, 1)
         dictionary.requeue_claims()
         resumed = dictionary.claim_native_many(2, "api/")
 
-        self.assertIsInstance(resumed, NativeWordlistBatch)
+        self.assertIsInstance(resumed, NativeWordlistChunk)
         self.assertEqual(resumed.to_list(), ["api/one", "api/two"])
         dictionary.release_native_claims(resumed, 2)
         self.assertEqual(remaining_paths(dictionary.__getstate__()), [])
@@ -169,14 +169,14 @@ class TestDictionaryConcurrency(TestCase):
         dictionary.release_claims(dynamic)
         static = dictionary.claim_native_many(10, "api/")
 
-        self.assertIsInstance(static, NativeWordlistBatch)
+        self.assertIsInstance(static, NativeWordlistChunk)
         self.assertEqual(static.path_at(0), "api/static")
         self.assertEqual(storage.to_list_calls, 0)
 
     def test_native_claim_snapshot_records_first_unreleased_index(self):
         dictionary, storage = make_native_dictionary(["zero", "one", "two"])
-        batch = dictionary.claim_native_many(3, "")
-        dictionary.release_native_claims(batch, 1)
+        chunk = dictionary.claim_native_many(3, "")
+        dictionary.release_native_claims(chunk, 1)
 
         state = dictionary.__getstate__()
 

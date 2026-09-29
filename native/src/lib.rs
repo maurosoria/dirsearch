@@ -1,5 +1,6 @@
 //! PyO3 module registration for the native dirsearch backend.
 
+mod chunks;
 mod compression;
 mod engine;
 mod filters;
@@ -9,17 +10,17 @@ mod raw_http;
 mod request_target;
 mod result;
 mod routing;
+mod scan;
 mod session;
-mod stream;
 mod transport;
 mod wordlist;
 
-use engine::{scan_http, NativeHttpEngine};
+use engine::NativeHttpEngine;
 use filters::NativeFilterConfig;
 use pyo3::prelude::*;
 use result::NativeHttpResult;
 use session::NativeHttpSession;
-use wordlist::{generate_wordlist, generate_wordlist_owned, NativeWordlist, NativeWordlistBatch};
+use wordlist::{generate_wordlist, generate_wordlist_owned, NativeWordlist, NativeWordlistChunk};
 
 #[cfg(test)]
 use engine::runtime_worker_count;
@@ -52,12 +53,11 @@ fn dirsearch_native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add("__version__", env!("CARGO_PKG_VERSION"))?;
     module.add_function(wrap_pyfunction!(generate_wordlist, module)?)?;
     module.add_function(wrap_pyfunction!(generate_wordlist_owned, module)?)?;
-    module.add_function(wrap_pyfunction!(scan_http, module)?)?;
     module.add_class::<NativeFilterConfig>()?;
     module.add_class::<NativeHttpEngine>()?;
     module.add_class::<NativeHttpSession>()?;
     module.add_class::<NativeHttpResult>()?;
     module.add_class::<NativeWordlist>()?;
-    module.add_class::<NativeWordlistBatch>()?;
+    module.add_class::<NativeWordlistChunk>()?;
     Ok(())
 }

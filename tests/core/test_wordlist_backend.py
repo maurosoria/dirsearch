@@ -36,11 +36,11 @@ class FakeOwnedWordlist:
     def to_list(self):
         return list(self.items)
 
-    def batch(self, start, count, base_path):
-        return FakeOwnedBatch(self.items[start:start + count], base_path)
+    def chunk(self, start, count, base_path):
+        return FakeOwnedChunk(self.items[start:start + count], base_path)
 
 
-class FakeOwnedBatch:
+class FakeOwnedChunk:
     def __init__(self, items, base_path):
         self.items = list(items)
         self.base_path = base_path
@@ -96,7 +96,7 @@ class TestWordlistBackend(TestCase):
         with self.assertRaises(IndexError):
             corpus[-3]
         self.assertIn("login", corpus)
-        self.assertEqual(corpus.batch(0, 2, "api/").to_list(), [
+        self.assertEqual(corpus.chunk(0, 2, "api/").to_list(), [
             "api/admin",
             "api/login",
         ])
