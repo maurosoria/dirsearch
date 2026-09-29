@@ -38,6 +38,22 @@ impl NativeWordlistBatch {
             })
             .collect()
     }
+
+    pub(crate) fn len_native(&self) -> usize {
+        self.end - self.start
+    }
+
+    /// Build one batch-relative path without cloning the rest of the claim.
+    pub(crate) fn path_at_owned(&self, index: usize) -> Option<String> {
+        if index >= self.len_native() {
+            return None;
+        }
+        let path = self.items.get(self.start + index)?;
+        let mut target = String::with_capacity(self.base_path.len() + path.len());
+        target.push_str(&self.base_path);
+        target.push_str(path);
+        Some(target)
+    }
 }
 
 #[pymethods]
@@ -104,7 +120,7 @@ fn wordlist_hash(value: &str) -> u64 {
 #[pymethods]
 impl NativeWordlistBatch {
     fn len(&self) -> usize {
-        self.end - self.start
+        self.len_native()
     }
 
     fn path_at(&self, index: usize) -> PyResult<String> {
@@ -113,15 +129,8 @@ impl NativeWordlistBatch {
                 "native wordlist batch index out of range",
             ));
         }
-        let path = self
-            .items
-            .get(self.start + index)
-            .ok_or_else(|| PyIndexError::new_err("native wordlist batch index out of range"))?;
-        if self.base_path.is_empty() {
-            Ok(path.clone())
-        } else {
-            Ok(format!("{}{path}", self.base_path))
-        }
+        self.path_at_owned(index)
+            .ok_or_else(|| PyIndexError::new_err("native wordlist batch index out of range"))
     }
 
     fn to_list(&self) -> Vec<String> {

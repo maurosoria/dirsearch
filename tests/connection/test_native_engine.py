@@ -2,6 +2,7 @@ import gzip
 import os
 import signal
 import socket
+import tempfile
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -897,6 +898,150 @@ class TestNativeHttpEngine(TestCase):
             ],
             ["api/index.php?scope=one", "api/home.html?scope=one"],
         )
+
+    def test_owned_wordlist_stream_prepares_path_and_query_on_demand(self):
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+        ) as wordlist_file:
+            wordlist_file.write("missing page/测试#part\n")
+            wordlist_file.flush()
+            wordlist = dirsearch_native.generate_wordlist_owned(
+                [wordlist_file.name],
+                [],
+            )
+            batch = wordlist.batch(0, 1, "api/")
+
+            server = RawResponseServer(
+                b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n"
+                b"Connection: close\r\n\r\nok"
+            )
+            engine = dirsearch_native.NativeHttpEngine(concurrency=1)
+            chunks = []
+
+            try:
+                processed_count = engine.scan_owned_batch_stream(
+                    server.url,
+                    batch,
+                    lambda start, end, results: chunks.append(
+                        (start, end, results)
+                    ),
+                    query="scope=hello world",
+                    chunk_size=1,
+                )
+            finally:
+                server.close()
+
+        expected = (
+            "api/missing%20page/%E6%B5%8B%E8%AF%95"
+            "?scope=hello%20world#part"
+        )
+        self.assertEqual(processed_count, 1)
+        self.assertEqual(
+            server.request_target,
+            "/api/missing%20page/%E6%B5%8B%E8%AF%95"
+            "?scope=hello%20world",
+        )
+        self.assertEqual(chunks[0][2][0].path, expected)
+        self.assertEqual(batch.path_at(0), "api/missing page/测试#part")
+
+    def test_owned_wordlist_stream_compacts_filtered_paths(self):
+        wordlist = dirsearch_native.generate_wordlist_owned(
+            ["tests/static/wordlist.txt"],
+            ["php"],
+        )
+        batch = wordlist.batch(0, 2, "api/")
+        server = CountingHTTPServer()
+        engine = dirsearch_native.NativeHttpEngine(concurrency=2)
+        chunks = []
+
+        try:
+            processed_count = engine.scan_owned_batch_stream(
+                server.url,
+                batch,
+                lambda start, end, results: chunks.append(
+                    (start, end, results)
+                ),
+                filter_config=dirsearch_native.NativeFilterConfig(
+                    include_status_codes=[201]
+                ),
+                chunk_size=1,
+            )
+        finally:
+            server.close()
+
+        self.assertEqual(processed_count, 2)
+        self.assertEqual(
+            [(start, end) for start, end, _results in chunks],
+            [(0, 1), (1, 2)],
+        )
+        self.assertTrue(all(not results for _start, _end, results in chunks))
+
+    def test_owned_wordlist_stream_preserves_error_path(self):
+        wordlist = dirsearch_native.generate_wordlist_owned(
+            ["tests/static/wordlist.txt"],
+            ["php"],
+        )
+        batch = wordlist.batch(0, 1, "api/")
+        server = RawResponseServer(
+            b"HTTP/1.1 404 Not Found\r\n"
+            b"Content-Encoding: gzip\r\n"
+            b"Content-Length: 4\r\n"
+            b"Connection: close\r\n\r\n"
+            b"nope"
+        )
+        engine = dirsearch_native.NativeHttpEngine(concurrency=1)
+        chunks = []
+
+        try:
+            processed_count = engine.scan_owned_batch_stream(
+                server.url,
+                batch,
+                lambda start, end, results: chunks.append(
+                    (start, end, results)
+                ),
+                filter_config=dirsearch_native.NativeFilterConfig(
+                    include_status_codes=[200]
+                ),
+                chunk_size=1,
+            )
+        finally:
+            server.close()
+
+        self.assertEqual(processed_count, 1)
+        self.assertEqual(chunks[0][2][0].path, "api/index.php")
+        self.assertIsNotNone(chunks[0][2][0].error)
+        self.assertIn("decode", chunks[0][2][0].error.lower())
+
+    def test_owned_wordlist_stream_cancellation_stops_pending_request(self):
+        wordlist = dirsearch_native.generate_wordlist_owned(
+            ["tests/static/wordlist.txt"],
+            ["php"],
+        )
+        batch = wordlist.batch(0, 1)
+        server = StalledHTTPServer()
+        engine = dirsearch_native.NativeHttpEngine(
+            concurrency=1,
+            timeout_secs=5,
+        )
+        cancel_timer = threading.Timer(0.1, engine.cancel)
+
+        try:
+            cancel_timer.start()
+            started = time.monotonic()
+            processed_count = engine.scan_owned_batch_stream(
+                server.url,
+                batch,
+                lambda *_args: None,
+                chunk_size=1,
+            )
+            elapsed = time.monotonic() - started
+        finally:
+            cancel_timer.join(timeout=1)
+            server.close()
+
+        self.assertEqual(processed_count, 0)
+        self.assertLess(elapsed, 2)
 
     def test_reuses_http_connection_across_scans(self):
         server = CountingHTTPServer()

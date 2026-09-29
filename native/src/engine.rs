@@ -3,7 +3,7 @@
 use crate::filters::{NativeFilterConfig, NumericRange, TimeFilter};
 use crate::pacing::NativeDelayPacer;
 use crate::raw_client::{raw_http_request, should_use_raw_http, RawHttpRequest};
-use crate::request_target::prepare_request_targets;
+use crate::request_target::{prepare_request_target, prepare_request_targets};
 use crate::result::{native_completion_marker, native_error_result, NativeHttpResult};
 use crate::routing::{ConnectionOverrideConfig, ConnectionRoutes};
 use crate::session::NativeHttpSession;
@@ -21,6 +21,7 @@ use pyo3::exceptions::{PyRuntimeError, PyTypeError};
 use pyo3::prelude::*;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue, COOKIE};
 use reqwest::Method;
+use std::borrow::Cow;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
@@ -280,7 +281,7 @@ impl NativeHttpEngine {
         self.scan_paths_stream(
             py,
             base_url,
-            paths,
+            ScanPaths::Materialized(paths),
             query,
             max_retries,
             max_body_size,
@@ -315,14 +316,13 @@ impl NativeHttpEngine {
     ) -> PyResult<usize> {
         validate_stream_callback(py, &callback)?;
         let owned_batch = (*batch).clone();
-        let paths = py.detach(move || owned_batch.to_paths());
         let filter_config = filter_config
             .map(|config| config.borrow(py).clone())
             .unwrap_or_default();
         self.scan_paths_stream(
             py,
             base_url,
-            paths,
+            ScanPaths::NativeBatch(owned_batch),
             query,
             max_retries,
             max_body_size,
@@ -496,9 +496,10 @@ impl NativeHttpEngine {
             runtime.block_on(async move {
                 prepare_request_targets(&mut paths, &query);
                 let result_count = paths.len();
-                let paths = Arc::new(paths);
+                let paths = Arc::new(ScanPaths::Materialized(paths));
                 let scan_task = Arc::new(ScanTask {
                     paths: paths.clone(),
+                    query: String::new(),
                     next_request: AtomicUsize::new(0),
                     base_url,
                     request_context,
@@ -582,7 +583,10 @@ impl NativeHttpEngine {
                 // Request workers only carry indexes. Clone encoded targets
                 // after compaction so filtered misses never allocate a result path.
                 for (request_index, result) in &mut results {
-                    result.path.clone_from(&paths[*request_index]);
+                    result.path = paths
+                        .get(*request_index, "")
+                        .expect("result index must refer to a prepared path")
+                        .into_owned();
                 }
                 Ok(results.into_iter().map(|(_, result)| result).collect())
             })
@@ -596,7 +600,7 @@ impl NativeHttpEngine {
         &self,
         py: Python<'_>,
         base_url: String,
-        mut paths: Vec<String>,
+        mut paths: ScanPaths,
         query: String,
         max_retries: usize,
         max_body_size: usize,
@@ -620,7 +624,7 @@ impl NativeHttpEngine {
 
         let result = py.detach(move || {
             runtime.block_on(async move {
-                prepare_request_targets(&mut paths, &query);
+                paths.prepare(&query);
                 let result_count = paths.len();
                 if result_count == 0 {
                     return Ok(0);
@@ -629,6 +633,7 @@ impl NativeHttpEngine {
                 let mut chunks = OrderedChunkBuffer::new(result_count);
                 let scan_task = Arc::new(ScanTask {
                     paths: paths.clone(),
+                    query,
                     next_request: AtomicUsize::new(0),
                     base_url,
                     request_context,
@@ -677,10 +682,7 @@ impl NativeHttpEngine {
                     if check_signals {
                         Python::attach(|py| py.check_signals())?;
                     }
-                    while let Some(mut chunk) = chunks.take_ready(chunk_size, force_flush) {
-                        for result in &mut chunk.results {
-                            result.path.clone_from(&paths[result.request_index]);
-                        }
+                    while let Some(chunk) = chunks.take_ready(chunk_size, force_flush) {
                         deliver_chunk(&callback, chunk)?;
                     }
                 }
@@ -688,10 +690,7 @@ impl NativeHttpEngine {
                 if cancelled.load(Ordering::Acquire) {
                     return Ok(chunks.delivered_count());
                 }
-                while let Some(mut chunk) = chunks.take_ready(chunk_size, true) {
-                    for result in &mut chunk.results {
-                        result.path.clone_from(&paths[result.request_index]);
-                    }
+                while let Some(chunk) = chunks.take_ready(chunk_size, true) {
                     deliver_chunk(&callback, chunk)?;
                 }
                 let delivered_count = chunks.delivered_count();
@@ -708,6 +707,40 @@ impl NativeHttpEngine {
     }
 }
 
+/// Path storage shared by a scan's bounded worker set.
+///
+/// Python lists arrive fully materialized. Rust-owned wordlist claims keep
+/// their shared corpus plus range and build only the path a worker has claimed.
+enum ScanPaths {
+    Materialized(Vec<String>),
+    NativeBatch(NativeWordlistBatch),
+}
+
+impl ScanPaths {
+    fn prepare(&mut self, query: &str) {
+        if let Self::Materialized(paths) = self {
+            prepare_request_targets(paths, query);
+        }
+    }
+
+    fn len(&self) -> usize {
+        match self {
+            Self::Materialized(paths) => paths.len(),
+            Self::NativeBatch(batch) => batch.len_native(),
+        }
+    }
+
+    fn get(&self, index: usize, query: &str) -> Option<Cow<'_, str>> {
+        match self {
+            Self::Materialized(paths) => paths.get(index).map(|path| Cow::Borrowed(path.as_str())),
+            Self::NativeBatch(batch) => batch.path_at_owned(index).map(|mut path| {
+                prepare_request_target(&mut path, query);
+                Cow::Owned(path)
+            }),
+        }
+    }
+}
+
 struct WorkerScanResults {
     events: Vec<(usize, NativeHttpResult)>,
     last_processed_index: Option<usize>,
@@ -720,7 +753,8 @@ struct WorkerScanResults {
 /// paths. Whole-batch results remain worker-local, while incremental scans
 /// publish into a fixed-size completion bitmap owned by the coordinator.
 struct ScanTask {
-    paths: Arc<Vec<String>>,
+    paths: Arc<ScanPaths>,
+    query: String,
     /// Atomic work distributor; it does not define result ordering.
     next_request: AtomicUsize,
     base_url: String,
@@ -746,9 +780,10 @@ async fn run_scan_worker(task: Arc<ScanTask>, worker_index: usize) -> WorkerScan
         // Workers only need a unique index here; results are ordered after
         // every worker finishes, so this counter does not synchronize data.
         let request_index = task.next_request.fetch_add(1, Ordering::Relaxed);
-        let Some(path) = task.paths.get(request_index) else {
+        let Some(path_value) = task.paths.get(request_index, &task.query) else {
             break;
         };
+        let path = path_value.as_ref();
         last_processed_index = Some(request_index);
         let request_context = task.request_context.as_ref();
         request_context.delay_pacer.wait(worker_index).await;
@@ -822,6 +857,12 @@ async fn run_scan_worker(task: Arc<ScanTask>, worker_index: usize) -> WorkerScan
             && result.filtered
             && result.error.is_none()
             && result.status != PROXY_AUTHENTICATION_REQUIRED;
+        // Incremental results leave this worker immediately, so they must own
+        // their prepared target. Legacy whole-batch scans fill paths once,
+        // after compaction, and avoid a redundant clone here.
+        if !compact_filtered && task.completion_writer.is_some() {
+            result.path = path_value.into_owned();
+        }
         if let Some(completion_writer) = task.completion_writer.as_ref() {
             let completion = WorkerCompletion {
                 request_index,
