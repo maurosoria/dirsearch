@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import threading
 
-from collections.abc import Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlsplit
@@ -35,14 +35,14 @@ from lib.core.settings import (
     PROXY_SCHEMES,
     SCRIPT_PATH,
 )
-from lib.core.wordlist_backend import NativeWordlistBatch
+from lib.core.wordlist_backend import NativeWordlistChunk
 from lib.utils.file import FileUtils
 from lib.utils.mimetype import guess_mimetype
 
 
 @dataclass(frozen=True, slots=True)
 class NativeScanEvent:
-    """One actionable Rust result, indexed into the original path batch."""
+    """One actionable Rust result, indexed into the original path chunk."""
 
     request_index: int
     path: str
@@ -51,10 +51,11 @@ class NativeScanEvent:
 
 
 @dataclass(frozen=True, slots=True)
-class NativeScanBatch:
-    """Compact results plus the number of paths Rust finished processing."""
+class NativeScanChunk:
+    """Actionable results from the completed range [start_index, end_index)."""
 
-    processed_count: int
+    start_index: int
+    end_index: int
     events: tuple[NativeScanEvent, ...]
 
 
@@ -215,42 +216,91 @@ class NativeHTTPBackend:
             if self._engine is not None:
                 self._engine.reset_cancel()
 
+    def close(self) -> None:
+        """Cancel active work and release the persistent Rust runtime and clients."""
+
+        with self._cancel_lock:
+            if self._engine is not None:
+                self._engine.cancel()
+            self._engine = None
+            self._engine_config = None
+
     def scan(
         self,
         base_url: str,
         paths: Iterable[str],
         query: str = "",
     ) -> Iterator[tuple[str, NativeResponse | None, RequestException | None]]:
-        raw_paths, results = self._scan(
-            base_url, paths, query, compact_filtered=False
-        )
+        raw_paths, results = self._scan(base_url, paths, query)
 
         for path, result in zip(raw_paths, results):
             response, error = self._convert_result(base_url, result)
             yield path, response, error
 
-    def scan_batch(
+    def scan_chunks(
         self,
         base_url: str,
-        paths: list[str] | NativeWordlistBatch,
+        paths: list[str] | NativeWordlistChunk,
+        callback: Callable[[NativeScanChunk], Any],
         query: str = "",
-    ) -> NativeScanBatch:
-        """Scan NativeFuzzer's owned list without copying its references."""
+    ) -> int:
+        """Deliver ordered compact ranges while Rust is still scanning."""
 
-        raw_paths, results = self._scan(
-            base_url,
-            paths,
-            query,
-            compact_filtered=True,
-            reuse_paths=True,
-        )
-        if not results:
-            return NativeScanBatch(0, ())
+        raw_paths = paths
+        with self._cancel_lock:
+            engine = self._get_engine()
+            cancel_generation = self._cancel_generation
+            if cancel_generation != self._consumed_cancel_generation:
+                engine.cancel()
 
-        # Rust retains the last processed result as a completion marker. Its
-        # index lets Python account for trailing filtered misses without
-        # receiving one PyO3 object for every miss.
-        processed_count = results[-1].request_index + 1
+        def process_chunk(
+            start_index: int,
+            end_index: int,
+            results: list[Any],
+        ) -> None:
+            callback(
+                self._make_scan_chunk(
+                    base_url,
+                    raw_paths,
+                    results,
+                    start_index=start_index,
+                    end_index=end_index,
+                )
+            )
+
+        scan_options = {
+            "query": query,
+            "max_retries": options["max_retries"],
+            "max_body_size": MAX_RESPONSE_SIZE,
+            "filter_config": self._get_filter_config(True),
+        }
+        try:
+            if isinstance(raw_paths, NativeWordlistChunk):
+                return engine.scan_owned_chunks(
+                    base_url,
+                    raw_paths.native,
+                    process_chunk,
+                    **scan_options,
+                )
+            return engine.scan_chunks(
+                base_url,
+                raw_paths,
+                process_chunk,
+                **scan_options,
+            )
+        finally:
+            with self._cancel_lock:
+                self._consumed_cancel_generation = self._cancel_generation
+
+    def _make_scan_chunk(
+        self,
+        base_url: str,
+        raw_paths: list[str] | NativeWordlistChunk,
+        results: Iterable[Any],
+        *,
+        start_index: int,
+        end_index: int,
+    ) -> NativeScanChunk:
         events = []
         for result in results:
             # Interior filtered results are represented by gaps between event
@@ -267,7 +317,7 @@ class NativeHTTPBackend:
                     request_index,
                     (
                         raw_paths.path_at(request_index)
-                        if isinstance(raw_paths, NativeWordlistBatch)
+                        if isinstance(raw_paths, NativeWordlistChunk)
                         else raw_paths[request_index]
                     ),
                     response,
@@ -275,7 +325,7 @@ class NativeHTTPBackend:
                 )
             )
 
-        return NativeScanBatch(processed_count, tuple(events))
+        return NativeScanChunk(start_index, end_index, tuple(events))
 
     def scan_unfiltered(
         self,
@@ -287,7 +337,6 @@ class NativeHTTPBackend:
             base_url,
             [path],
             query,
-            compact_filtered=False,
             apply_filters=False,
         )
         if not results:
@@ -297,20 +346,12 @@ class NativeHTTPBackend:
     def _scan(
         self,
         base_url: str,
-        paths: Iterable[str] | NativeWordlistBatch,
+        paths: Iterable[str] | NativeWordlistChunk,
         query: str,
         *,
-        compact_filtered: bool,
         apply_filters: bool = True,
-        reuse_paths: bool = False,
-    ) -> tuple[list[str] | NativeWordlistBatch, list[Any]]:
-        # NativeFuzzer already owns a stable list for the duration of this
-        # synchronous call. Reuse it instead of copying every batch boundary.
-        raw_paths = (
-            paths
-            if reuse_paths and isinstance(paths, (list, NativeWordlistBatch))
-            else list(paths)
-        )
+    ) -> tuple[list[str], list[Any]]:
+        raw_paths = list(paths)
         with self._cancel_lock:
             engine = self._get_engine()
             cancel_generation = self._cancel_generation
@@ -322,18 +363,12 @@ class NativeHTTPBackend:
             "max_retries": options["max_retries"],
             "max_body_size": MAX_RESPONSE_SIZE,
             "filter_config": self._get_filter_config(apply_filters),
-            "compact_filtered": compact_filtered,
         }
-        if isinstance(raw_paths, NativeWordlistBatch):
-            results = engine.scan_owned_batch(
-                base_url,
-                raw_paths.native,
-                **scan_options,
-            )
-        else:
+        try:
             results = engine.scan(base_url, raw_paths, **scan_options)
-        with self._cancel_lock:
-            self._consumed_cancel_generation = self._cancel_generation
+        finally:
+            with self._cancel_lock:
+                self._consumed_cancel_generation = self._cancel_generation
 
         return raw_paths, results
 
@@ -520,4 +555,7 @@ class NativeRequester:
         return response
 
     def close(self) -> None:
-        return None
+        if self.backend is None:
+            return
+        self.backend.close()
+        self.backend = None

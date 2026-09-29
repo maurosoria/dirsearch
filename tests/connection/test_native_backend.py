@@ -9,7 +9,7 @@ from lib.connection.native import (
 from lib.core.data import options
 from lib.core.exceptions import RequestException
 from lib.core.native_runtime import NATIVE_EXTENSION_VERSION
-from lib.core.wordlist_backend import NativeWordlistBatch
+from lib.core.wordlist_backend import NativeWordlistChunk
 
 
 class FakeNativeResult:
@@ -42,7 +42,8 @@ class FakeNativeEngine:
     def __init__(self, results=None, **config):
         self.config = config
         self.calls = []
-        self.owned_calls = []
+        self.chunk_calls = []
+        self.owned_chunk_calls = []
         self.cancelled = False
         self.results = results
 
@@ -50,9 +51,17 @@ class FakeNativeEngine:
         self.calls.append((args, kwargs))
         return self.results if self.results is not None else [FakeNativeResult()]
 
-    def scan_owned_batch(self, *args, **kwargs):
-        self.owned_calls.append((args, kwargs))
-        return self.results if self.results is not None else [FakeNativeResult()]
+    def scan_chunks(self, base_url, paths, callback, **kwargs):
+        self.chunk_calls.append(((base_url, paths, callback), kwargs))
+        results = self.results if self.results is not None else [FakeNativeResult()]
+        callback(0, len(paths), results)
+        return len(paths)
+
+    def scan_owned_chunks(self, base_url, chunk, callback, **kwargs):
+        self.owned_chunk_calls.append(((base_url, chunk, callback), kwargs))
+        results = self.results if self.results is not None else [FakeNativeResult()]
+        callback(0, chunk.len(), results)
+        return chunk.len()
 
     def cancel(self):
         self.cancelled = True
@@ -111,7 +120,7 @@ class IndexedNativeResult:
         self.final_url = f"https://example.com/{self.path}"
 
 
-class FakeOwnedBatch:
+class FakeOwnedChunk:
     def __init__(self, paths):
         self.paths = paths
         self.path_calls = []
@@ -692,62 +701,79 @@ class TestNativeHTTPBackend(TestCase):
             ["application/octet-stream"],
         )
 
-    def test_scan_batch_only_materializes_actionable_results(self):
+    def test_scan_chunks_deliver_compact_ranges_before_returning(self):
         fake_native = FakeNativeModule(
             [
                 IndexedNativeResult(1, filtered=False, status=200),
                 IndexedNativeResult(2, filtered=True),
             ]
         )
+        received = []
 
         with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
             backend = NativeHTTPBackend()
-            batch = backend.scan_batch(
-                "https://example.com/", ["zero", "one", "two"]
+            processed_count = backend.scan_chunks(
+                "https://example.com/",
+                ["zero", "one", "two"],
+                received.append,
             )
 
-        self.assertEqual(batch.processed_count, 3)
-        self.assertEqual(len(batch.events), 1)
-        event = batch.events[0]
-        self.assertEqual((event.request_index, event.path), (1, "one"))
-        self.assertEqual(event.response.status, 200)
-        self.assertIsNone(event.error)
-        self.assertTrue(fake_native.engines[0].calls[0][1]["compact_filtered"])
-
-    def test_scan_batch_keeps_owned_wordlist_batch_native(self):
-        fake_native = FakeNativeModule(
-            [
-                IndexedNativeResult(1, filtered=False, status=200),
-                IndexedNativeResult(2, filtered=True),
-            ]
+        self.assertEqual(processed_count, 3)
+        self.assertEqual(len(received), 1)
+        self.assertEqual(
+            (received[0].start_index, received[0].end_index),
+            (0, 3),
         )
-        native_batch = FakeOwnedBatch(["zero", "one", "two"])
-        paths = NativeWordlistBatch(native_batch)
+        self.assertEqual(
+            [(event.request_index, event.path) for event in received[0].events],
+            [(1, "one")],
+        )
+        engine = fake_native.engines[0]
+        self.assertEqual(engine.calls, [])
+        self.assertEqual(len(engine.chunk_calls), 1)
+
+    def test_scan_chunks_keep_owned_paths_in_rust(self):
+        fake_native = FakeNativeModule(
+            [IndexedNativeResult(1, filtered=False, status=200)]
+        )
+        native_chunk = FakeOwnedChunk(["zero", "one", "two"])
+        paths = NativeWordlistChunk(native_chunk)
+        received = []
 
         with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
             backend = NativeHTTPBackend()
-            batch = backend.scan_batch("https://example.com/", paths)
+            backend.scan_chunks(
+                "https://example.com/",
+                paths,
+                received.append,
+            )
 
         engine = fake_native.engines[0]
-        self.assertEqual(engine.calls, [])
-        self.assertEqual(len(engine.owned_calls), 1)
-        self.assertIs(engine.owned_calls[0][0][1], native_batch)
-        self.assertEqual(native_batch.path_calls, [1])
-        self.assertEqual(batch.events[0].path, "one")
+        self.assertEqual(engine.chunk_calls, [])
+        self.assertEqual(len(engine.owned_chunk_calls), 1)
+        self.assertIs(engine.owned_chunk_calls[0][0][1], native_chunk)
+        self.assertEqual(native_chunk.path_calls, [1])
+        self.assertEqual(received[0].events[0].path, "one")
 
-    def test_scan_batch_preserves_proxy_authentication_errors(self):
+    def test_scan_chunks_preserve_proxy_authentication_errors(self):
         fake_native = FakeNativeModule(
             [IndexedNativeResult(0, filtered=True, status=407)]
         )
+        received = []
 
         with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
             backend = NativeHTTPBackend()
-            batch = backend.scan_batch("https://example.com/", ["admin"])
+            backend.scan_chunks(
+                "https://example.com/",
+                ["admin"],
+                received.append,
+            )
 
-        self.assertEqual(batch.processed_count, 1)
-        self.assertEqual(len(batch.events), 1)
-        self.assertIsNone(batch.events[0].response)
-        self.assertEqual(str(batch.events[0].error), "Proxy authentication required")
+        chunk = received[0]
+        self.assertEqual(chunk.end_index, 1)
+        self.assertEqual(len(chunk.events), 1)
+        self.assertIsNone(chunk.events[0].response)
+        self.assertEqual(str(chunk.events[0].error), "Proxy authentication required")
 
     def test_native_requester_uses_unfiltered_native_engine_for_calibration(self):
         fake_native = FakeNativeModule(
@@ -764,7 +790,7 @@ class TestNativeHTTPBackend(TestCase):
         args, kwargs = fake_native.engines[0].calls[0]
         self.assertEqual(args[:2], ("https://example.com/", ["missing page"]))
         self.assertEqual(kwargs["query"], "scope=one")
-        self.assertFalse(kwargs["compact_filtered"])
+        self.assertNotIn("compact_filtered", kwargs)
         self.assertIs(kwargs["filter_config"], fake_native.filter_configs[0])
 
     def test_response_url_uses_the_target_prepared_by_native(self):
@@ -794,6 +820,22 @@ class TestNativeHTTPBackend(TestCase):
 
             with self.assertRaisesRegex(RequestException, "Native Rust backend"):
                 requester.request("admin")
+
+    def test_native_requester_close_cancels_and_releases_persistent_engine(self):
+        fake_native = FakeNativeModule()
+
+        with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
+            requester = NativeRequester()
+            backend = requester.get_backend()
+            list(backend.scan("https://example.com/", ["admin"]))
+            engine = fake_native.engines[0]
+
+            requester.close()
+            requester.close()
+
+        self.assertTrue(engine.cancelled)
+        self.assertIsNone(backend._engine)
+        self.assertIsNone(requester.backend)
 
     def test_proxy_urls_encode_reserved_credentials(self):
         options["proxy_auth"] = "proxy/user:p@ss/word?#%:tail"

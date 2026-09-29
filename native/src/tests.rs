@@ -420,7 +420,7 @@ fn run_reqwest_request_with_user_agents(
         max_body_size: 80,
         start: Instant::now() - Duration::from_secs(5),
         filter_config: &filter_config,
-        compact_filtered: false,
+        skip_status_filtered_body: false,
         origin_auth: &OriginAuth::None,
         random_user_agents,
     }));
@@ -487,7 +487,7 @@ fn run_authenticated_requests_with_cookie(
                     max_body_size: 80,
                     start: Instant::now(),
                     filter_config: &filter_config,
-                    compact_filtered: false,
+                    skip_status_filtered_body: false,
                     origin_auth: &auth,
                     random_user_agents,
                 })
@@ -853,7 +853,7 @@ fn reqwest_redirects_preserve_every_requested_url_in_history() {
         max_body_size: 80,
         start: std::time::Instant::now(),
         filter_config: &filter_config,
-        compact_filtered: false,
+        skip_status_filtered_body: false,
         origin_auth: &OriginAuth::None,
         random_user_agents: None,
     }));
@@ -1416,7 +1416,7 @@ fn raw_http_parser_skips_informational_response() {
 }
 
 #[test]
-fn legacy_status_filter_returns_empty_body_with_metadata() {
+fn status_filter_returns_empty_body_with_metadata() {
     let mut config = default_filter_config();
     config.exclude_status_codes = vec![404];
 
@@ -1829,7 +1829,7 @@ fn proxied_requests_receive_request_local_random_user_agents() {
         max_body_size: 80,
         start: Instant::now(),
         filter_config: &filter_config,
-        compact_filtered: false,
+        skip_status_filtered_body: false,
         origin_auth: &OriginAuth::None,
         random_user_agents: Some(&pool),
     }));
@@ -2027,7 +2027,7 @@ async fn run_mutual_tls_request(
         max_body_size: 80,
         start: Instant::now(),
         filter_config: &filter_config,
-        compact_filtered: false,
+        skip_status_filtered_body: false,
         origin_auth: &OriginAuth::None,
         random_user_agents: None,
     })

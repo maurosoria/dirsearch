@@ -5,7 +5,7 @@ use pyo3::prelude::*;
 
 #[pyclass]
 pub(crate) struct NativeHttpResult {
-    /// Position in the input batch; Python uses gaps to reconstruct filtered runs.
+    /// Position in the input chunk; Python uses gaps to reconstruct filtered runs.
     #[pyo3(get)]
     pub(crate) request_index: usize,
     #[pyo3(get)]
@@ -135,24 +135,6 @@ pub(crate) fn native_filtered_marker(status: u16, elapsed_ms: f64) -> NativeHttp
         status,
         length: 0,
         elapsed_ms,
-        error: None,
-        filtered: true,
-        filter_reason: None,
-        headers: Vec::new(),
-        body: Vec::new(),
-        body_complete: false,
-        history: Vec::new(),
-        final_url: String::new(),
-    }
-}
-
-pub(crate) fn native_completion_marker(request_index: usize) -> NativeHttpResult {
-    NativeHttpResult {
-        request_index,
-        path: String::new(),
-        status: 0,
-        length: 0,
-        elapsed_ms: 0.0,
         error: None,
         filtered: true,
         filter_reason: None,

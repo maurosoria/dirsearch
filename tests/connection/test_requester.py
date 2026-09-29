@@ -3034,10 +3034,12 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
                         backend = NativeHTTPBackend()
                     except RequestException as error:
                         self.skipTest(str(error))
-                    batch = backend.scan_batch(server.url, [path])
+                    chunks = []
+                    backend.scan_chunks(server.url, [path], chunks.append)
+                    chunk = chunks[0]
 
-                    self.assertEqual(batch.processed_count, 1)
-                    self.assertEqual(batch.events, ())
+                    self.assertEqual(chunk.end_index, 1)
+                    self.assertEqual(chunk.events, ())
 
     def test_native_requester_uses_authenticated_http_proxy(self):
         try:
