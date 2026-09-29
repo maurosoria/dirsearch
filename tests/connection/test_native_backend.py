@@ -42,9 +42,8 @@ class FakeNativeEngine:
     def __init__(self, results=None, **config):
         self.config = config
         self.calls = []
-        self.owned_calls = []
-        self.stream_calls = []
-        self.owned_stream_calls = []
+        self.batch_calls = []
+        self.owned_batch_calls = []
         self.cancelled = False
         self.results = results
 
@@ -52,18 +51,14 @@ class FakeNativeEngine:
         self.calls.append((args, kwargs))
         return self.results if self.results is not None else [FakeNativeResult()]
 
-    def scan_owned_batch(self, *args, **kwargs):
-        self.owned_calls.append((args, kwargs))
-        return self.results if self.results is not None else [FakeNativeResult()]
-
-    def scan_stream(self, base_url, paths, callback, **kwargs):
-        self.stream_calls.append(((base_url, paths, callback), kwargs))
+    def scan_batch(self, base_url, paths, callback, **kwargs):
+        self.batch_calls.append(((base_url, paths, callback), kwargs))
         results = self.results if self.results is not None else [FakeNativeResult()]
         callback(0, len(paths), results)
         return len(paths)
 
-    def scan_owned_batch_stream(self, base_url, batch, callback, **kwargs):
-        self.owned_stream_calls.append(((base_url, batch, callback), kwargs))
+    def scan_owned_batch(self, base_url, batch, callback, **kwargs):
+        self.owned_batch_calls.append(((base_url, batch, callback), kwargs))
         results = self.results if self.results is not None else [FakeNativeResult()]
         callback(0, batch.len(), results)
         return batch.len()
@@ -706,50 +701,7 @@ class TestNativeHTTPBackend(TestCase):
             ["application/octet-stream"],
         )
 
-    def test_scan_batch_only_materializes_actionable_results(self):
-        fake_native = FakeNativeModule(
-            [
-                IndexedNativeResult(1, filtered=False, status=200),
-                IndexedNativeResult(2, filtered=True),
-            ]
-        )
-
-        with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
-            backend = NativeHTTPBackend()
-            batch = backend.scan_batch(
-                "https://example.com/", ["zero", "one", "two"]
-            )
-
-        self.assertEqual(batch.processed_count, 3)
-        self.assertEqual(len(batch.events), 1)
-        event = batch.events[0]
-        self.assertEqual((event.request_index, event.path), (1, "one"))
-        self.assertEqual(event.response.status, 200)
-        self.assertIsNone(event.error)
-        self.assertTrue(fake_native.engines[0].calls[0][1]["compact_filtered"])
-
-    def test_scan_batch_keeps_owned_wordlist_batch_native(self):
-        fake_native = FakeNativeModule(
-            [
-                IndexedNativeResult(1, filtered=False, status=200),
-                IndexedNativeResult(2, filtered=True),
-            ]
-        )
-        native_batch = FakeOwnedBatch(["zero", "one", "two"])
-        paths = NativeWordlistBatch(native_batch)
-
-        with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
-            backend = NativeHTTPBackend()
-            batch = backend.scan_batch("https://example.com/", paths)
-
-        engine = fake_native.engines[0]
-        self.assertEqual(engine.calls, [])
-        self.assertEqual(len(engine.owned_calls), 1)
-        self.assertIs(engine.owned_calls[0][0][1], native_batch)
-        self.assertEqual(native_batch.path_calls, [1])
-        self.assertEqual(batch.events[0].path, "one")
-
-    def test_scan_batch_stream_delivers_compact_ranges_before_returning(self):
+    def test_scan_batch_delivers_compact_ranges_before_returning(self):
         fake_native = FakeNativeModule(
             [
                 IndexedNativeResult(1, filtered=False, status=200),
@@ -760,7 +712,7 @@ class TestNativeHTTPBackend(TestCase):
 
         with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
             backend = NativeHTTPBackend()
-            processed_count = backend.scan_batch_stream(
+            processed_count = backend.scan_batch(
                 "https://example.com/",
                 ["zero", "one", "two"],
                 received.append,
@@ -778,9 +730,9 @@ class TestNativeHTTPBackend(TestCase):
         )
         engine = fake_native.engines[0]
         self.assertEqual(engine.calls, [])
-        self.assertEqual(len(engine.stream_calls), 1)
+        self.assertEqual(len(engine.batch_calls), 1)
 
-    def test_scan_batch_stream_keeps_owned_paths_in_rust(self):
+    def test_scan_batch_keeps_owned_paths_in_rust(self):
         fake_native = FakeNativeModule(
             [IndexedNativeResult(1, filtered=False, status=200)]
         )
@@ -790,16 +742,16 @@ class TestNativeHTTPBackend(TestCase):
 
         with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
             backend = NativeHTTPBackend()
-            backend.scan_batch_stream(
+            backend.scan_batch(
                 "https://example.com/",
                 paths,
                 received.append,
             )
 
         engine = fake_native.engines[0]
-        self.assertEqual(engine.stream_calls, [])
-        self.assertEqual(len(engine.owned_stream_calls), 1)
-        self.assertIs(engine.owned_stream_calls[0][0][1], native_batch)
+        self.assertEqual(engine.batch_calls, [])
+        self.assertEqual(len(engine.owned_batch_calls), 1)
+        self.assertIs(engine.owned_batch_calls[0][0][1], native_batch)
         self.assertEqual(native_batch.path_calls, [1])
         self.assertEqual(received[0].events[0].path, "one")
 
@@ -807,11 +759,17 @@ class TestNativeHTTPBackend(TestCase):
         fake_native = FakeNativeModule(
             [IndexedNativeResult(0, filtered=True, status=407)]
         )
+        received = []
 
         with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
             backend = NativeHTTPBackend()
-            batch = backend.scan_batch("https://example.com/", ["admin"])
+            backend.scan_batch(
+                "https://example.com/",
+                ["admin"],
+                received.append,
+            )
 
+        batch = received[0]
         self.assertEqual(batch.processed_count, 1)
         self.assertEqual(len(batch.events), 1)
         self.assertIsNone(batch.events[0].response)

@@ -576,28 +576,12 @@ class NativeFuzzer(Fuzzer):
                     break
 
                 try:
-                    scan_batch_stream = getattr(
-                        self._native_backend,
-                        "scan_batch_stream",
-                        None,
+                    self._native_backend.scan_batch(
+                        self._requester._url,
+                        paths,
+                        lambda batch: self._process_native_batch(paths, batch),
+                        self._requester._query,
                     )
-                    if scan_batch_stream is None:
-                        # Keep injected/test backends that implement the old
-                        # compact contract usable. NativeHTTPBackend always
-                        # takes the incremental path.
-                        batch = self._native_backend.scan_batch(
-                            self._requester._url,
-                            paths,
-                            self._requester._query,
-                        )
-                        self._process_native_batch(paths, batch)
-                    else:
-                        scan_batch_stream(
-                            self._requester._url,
-                            paths,
-                            lambda batch: self._process_native_batch(paths, batch),
-                            self._requester._query,
-                        )
                 except BaseException:
                     # A callback or native failure must not strand claims. A
                     # saved Python session will resume at the first prefix that

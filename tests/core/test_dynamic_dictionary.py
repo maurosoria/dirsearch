@@ -80,17 +80,19 @@ class RecordingNativeBackend:
     def __init__(self):
         self.calls = []
 
-    def scan_batch(self, base_url, paths, query=""):
+    def scan_batch(self, base_url, paths, callback, query=""):
         del base_url
         del query
         self.calls.append(paths)
-        return NativeScanBatch(
+        batch = NativeScanBatch(
             len(paths),
             tuple(
                 NativeScanEvent(index, path, response_for(path), None)
                 for index, path in enumerate(paths)
             ),
         )
+        callback(batch)
+        return batch.processed_count
 
     def reset_cancel(self):
         return None

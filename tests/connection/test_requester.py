@@ -3034,7 +3034,9 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
                         backend = NativeHTTPBackend()
                     except RequestException as error:
                         self.skipTest(str(error))
-                    batch = backend.scan_batch(server.url, [path])
+                    batches = []
+                    backend.scan_batch(server.url, [path], batches.append)
+                    batch = batches[0]
 
                     self.assertEqual(batch.processed_count, 1)
                     self.assertEqual(batch.events, ())

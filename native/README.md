@@ -22,7 +22,7 @@ multiple batches and supports cooperative cancellation. Each batch is represente
 by one shared Rust scan task rather than a separate parameter bundle per worker.
 Python constructs one
 immutable filter configuration and reuses it across those batches. The
-`scan(...)` and `scan_owned_batch(...)` methods evaluate the cheap legacy
+`scan(...)` and `scan_owned(...)` methods evaluate the cheap legacy
 status/size filters and advanced match/filter options in native code. Compact
 status-filter misses drain their response stream for connection reuse without
 retaining headers or body data. Python still owns callbacks, session recovery,
@@ -68,7 +68,7 @@ boundary small and makes it clear which changes require rebuilding an engine:
 | `NativeHttpEngine` | Python backend instance | Owns the Tokio runtime, concurrency limit, cancellation handle, and one request context. |
 | `NativeHttpSession` | Requester lifetime | Shares the cookie jar and request-rate window with rebuilt origin engines and replay transports. |
 | `NativeRequestContext` | Engine lifetime | Reuses built clients, raw headers, method/body, transport flags, per-worker delay deadlines, and the session handle across batches. |
-| `ScanTask` | One `scan` or `scan_owned_batch` call | Holds paths, base URL, filter and retry policy, body limit, cancellation handle, and the atomic counter used by workers to claim paths. |
+| `ScanTask` | One engine scan call | Holds paths, base URL, filter and retry policy, body limit, cancellation handle, and the atomic counter used by workers to claim paths. |
 | `ClientRequest` / `RawHttpRequest` | One target, including retries | Borrows the request inputs needed by the selected transport and returns one native result. |
 
 The ownership flow is:

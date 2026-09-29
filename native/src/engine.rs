@@ -223,7 +223,7 @@ impl NativeHttpEngine {
         filter_config=None,
         compact_filtered=false,
     ))]
-    fn scan_owned_batch(
+    fn scan_owned(
         &self,
         py: Python<'_>,
         base_url: String,
@@ -262,7 +262,7 @@ impl NativeHttpEngine {
         filter_config=None,
         chunk_size=DEFAULT_STREAM_CHUNK_SIZE,
     ))]
-    fn scan_stream(
+    fn scan_batch(
         &self,
         py: Python<'_>,
         base_url: String,
@@ -274,11 +274,11 @@ impl NativeHttpEngine {
         filter_config: Option<Py<NativeFilterConfig>>,
         chunk_size: usize,
     ) -> PyResult<usize> {
-        validate_stream_callback(py, &callback)?;
+        validate_batch_callback(py, &callback)?;
         let filter_config = filter_config
             .map(|config| config.borrow(py).clone())
             .unwrap_or_default();
-        self.scan_paths_stream(
+        self.scan_paths_batch(
             py,
             base_url,
             ScanPaths::Materialized(paths),
@@ -302,7 +302,7 @@ impl NativeHttpEngine {
         filter_config=None,
         chunk_size=DEFAULT_STREAM_CHUNK_SIZE,
     ))]
-    fn scan_owned_batch_stream(
+    fn scan_owned_batch(
         &self,
         py: Python<'_>,
         base_url: String,
@@ -314,12 +314,12 @@ impl NativeHttpEngine {
         filter_config: Option<Py<NativeFilterConfig>>,
         chunk_size: usize,
     ) -> PyResult<usize> {
-        validate_stream_callback(py, &callback)?;
+        validate_batch_callback(py, &callback)?;
         let owned_batch = (*batch).clone();
         let filter_config = filter_config
             .map(|config| config.borrow(py).clone())
             .unwrap_or_default();
-        self.scan_paths_stream(
+        self.scan_paths_batch(
             py,
             base_url,
             ScanPaths::NativeBatch(owned_batch),
@@ -333,12 +333,12 @@ impl NativeHttpEngine {
     }
 }
 
-fn validate_stream_callback(py: Python<'_>, callback: &Py<PyAny>) -> PyResult<()> {
+fn validate_batch_callback(py: Python<'_>, callback: &Py<PyAny>) -> PyResult<()> {
     if callback.bind(py).is_callable() {
         Ok(())
     } else {
         Err(PyTypeError::new_err(
-            "native stream callback must be callable",
+            "native batch callback must be callable",
         ))
     }
 }
@@ -596,7 +596,7 @@ impl NativeHttpEngine {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn scan_paths_stream(
+    fn scan_paths_batch(
         &self,
         py: Python<'_>,
         base_url: String,
@@ -610,7 +610,7 @@ impl NativeHttpEngine {
     ) -> PyResult<usize> {
         if chunk_size == 0 {
             return Err(pyo3::exceptions::PyValueError::new_err(
-                "native stream chunk size must be greater than zero",
+                "native batch chunk size must be greater than zero",
             ));
         }
         // Pause may race ahead of the worker's first scan call.
@@ -696,7 +696,7 @@ impl NativeHttpEngine {
                 let delivered_count = chunks.delivered_count();
                 if delivered_count != result_count {
                     return Err(PyRuntimeError::new_err(format!(
-                        "native stream stopped after {delivered_count} of {result_count} paths",
+                        "native batch stopped after {delivered_count} of {result_count} paths",
                     )));
                 }
                 Ok(delivered_count)

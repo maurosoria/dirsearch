@@ -83,7 +83,7 @@ class DummyNativeRequester:
 
 
 class FilteringNativeBackend:
-    def scan_batch(self, base_url, paths, query=""):
+    def scan_batch(self, base_url, paths, callback, query=""):
         del base_url
         del query
         events = []
@@ -99,7 +99,9 @@ class FilteringNativeBackend:
                 )
             )
             events.append(NativeScanEvent(index, path, response, None))
-        return NativeScanBatch(len(paths), tuple(events))
+        batch = NativeScanBatch(len(paths), tuple(events))
+        callback(batch)
+        return batch.processed_count
 
     def reset_cancel(self):
         return None

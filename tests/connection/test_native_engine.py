@@ -607,7 +607,7 @@ class TestNativeHttpEngine(TestCase):
 
         def scan():
             try:
-                engine.scan_stream(
+                engine.scan_batch(
                     server.url,
                     ["fast", "slow"],
                     callback,
@@ -644,7 +644,7 @@ class TestNativeHttpEngine(TestCase):
         chunks = []
 
         try:
-            processed_count = engine.scan_stream(
+            processed_count = engine.scan_batch(
                 server.url,
                 ["zero", "one", "two"],
                 lambda start, end, results: chunks.append(
@@ -677,7 +677,7 @@ class TestNativeHttpEngine(TestCase):
             chunk_received.set()
 
         worker = threading.Thread(
-            target=lambda: engine.scan_stream(
+            target=lambda: engine.scan_batch(
                 server.url,
                 ["slow", "fast"],
                 callback,
@@ -719,11 +719,11 @@ class TestNativeHttpEngine(TestCase):
         def callback(_start_index, _processed_count, _results):
             callback_started.set()
             if not release_callback.wait(timeout=2):
-                raise AssertionError("stream callback was not released")
+                raise AssertionError("batch callback was not released")
 
         def scan():
             try:
-                engine.scan_stream(
+                engine.scan_batch(
                     server.url,
                     [f"path-{index}" for index in range(50)],
                     callback,
@@ -759,7 +759,7 @@ class TestNativeHttpEngine(TestCase):
                 NativeScanInterrupted,
                 "stop incremental delivery",
             ):
-                engine.scan_stream(
+                engine.scan_batch(
                     server.url,
                     [f"path-{index}" for index in range(200)],
                     fail_callback,
@@ -775,9 +775,9 @@ class TestNativeHttpEngine(TestCase):
         engine = dirsearch_native.NativeHttpEngine(concurrency=1)
 
         with self.assertRaisesRegex(TypeError, "callback must be callable"):
-            engine.scan_stream("http://127.0.0.1/", [], object())
+            engine.scan_batch("http://127.0.0.1/", [], object())
         with self.assertRaisesRegex(ValueError, "greater than zero"):
-            engine.scan_stream(
+            engine.scan_batch(
                 "http://127.0.0.1/",
                 [],
                 lambda *_args: None,
@@ -847,7 +847,7 @@ class TestNativeHttpEngine(TestCase):
         engine = dirsearch_native.NativeHttpEngine(concurrency=1)
 
         try:
-            results = engine.scan_owned_batch(
+            results = engine.scan_owned(
                 server.url,
                 batch,
                 query="scope=one",
@@ -873,7 +873,7 @@ class TestNativeHttpEngine(TestCase):
         chunks = []
 
         try:
-            processed_count = engine.scan_owned_batch_stream(
+            processed_count = engine.scan_owned_batch(
                 server.url,
                 batch,
                 lambda start, end, results: chunks.append(
@@ -920,7 +920,7 @@ class TestNativeHttpEngine(TestCase):
             chunks = []
 
             try:
-                processed_count = engine.scan_owned_batch_stream(
+                processed_count = engine.scan_owned_batch(
                     server.url,
                     batch,
                     lambda start, end, results: chunks.append(
@@ -956,7 +956,7 @@ class TestNativeHttpEngine(TestCase):
         chunks = []
 
         try:
-            processed_count = engine.scan_owned_batch_stream(
+            processed_count = engine.scan_owned_batch(
                 server.url,
                 batch,
                 lambda start, end, results: chunks.append(
@@ -994,7 +994,7 @@ class TestNativeHttpEngine(TestCase):
         chunks = []
 
         try:
-            processed_count = engine.scan_owned_batch_stream(
+            processed_count = engine.scan_owned_batch(
                 server.url,
                 batch,
                 lambda start, end, results: chunks.append(
@@ -1029,7 +1029,7 @@ class TestNativeHttpEngine(TestCase):
         try:
             cancel_timer.start()
             started = time.monotonic()
-            processed_count = engine.scan_owned_batch_stream(
+            processed_count = engine.scan_owned_batch(
                 server.url,
                 batch,
                 lambda *_args: None,

@@ -222,45 +222,13 @@ class NativeHTTPBackend:
         paths: Iterable[str],
         query: str = "",
     ) -> Iterator[tuple[str, NativeResponse | None, RequestException | None]]:
-        raw_paths, results = self._scan(
-            base_url, paths, query, compact_filtered=False
-        )
+        raw_paths, results = self._scan(base_url, paths, query)
 
         for path, result in zip(raw_paths, results):
             response, error = self._convert_result(base_url, result)
             yield path, response, error
 
     def scan_batch(
-        self,
-        base_url: str,
-        paths: list[str] | NativeWordlistBatch,
-        query: str = "",
-    ) -> NativeScanBatch:
-        """Scan NativeFuzzer's owned list without copying its references."""
-
-        raw_paths, results = self._scan(
-            base_url,
-            paths,
-            query,
-            compact_filtered=True,
-            reuse_paths=True,
-        )
-        if not results:
-            return NativeScanBatch(0, ())
-
-        # Rust retains the last processed result as a completion marker. Its
-        # index lets Python account for trailing filtered misses without
-        # receiving one PyO3 object for every miss.
-        processed_count = results[-1].request_index + 1
-        return self._make_scan_batch(
-            base_url,
-            raw_paths,
-            results,
-            start_index=0,
-            processed_count=processed_count,
-        )
-
-    def scan_batch_stream(
         self,
         base_url: str,
         paths: list[str] | NativeWordlistBatch,
@@ -299,13 +267,13 @@ class NativeHTTPBackend:
         }
         try:
             if isinstance(raw_paths, NativeWordlistBatch):
-                return engine.scan_owned_batch_stream(
+                return engine.scan_owned_batch(
                     base_url,
                     raw_paths.native,
                     process_chunk,
                     **scan_options,
                 )
-            return engine.scan_stream(
+            return engine.scan_batch(
                 base_url,
                 raw_paths,
                 process_chunk,
@@ -360,7 +328,6 @@ class NativeHTTPBackend:
             base_url,
             [path],
             query,
-            compact_filtered=False,
             apply_filters=False,
         )
         if not results:
@@ -373,17 +340,9 @@ class NativeHTTPBackend:
         paths: Iterable[str] | NativeWordlistBatch,
         query: str,
         *,
-        compact_filtered: bool,
         apply_filters: bool = True,
-        reuse_paths: bool = False,
-    ) -> tuple[list[str] | NativeWordlistBatch, list[Any]]:
-        # NativeFuzzer already owns a stable list for the duration of this
-        # synchronous call. Reuse it instead of copying every batch boundary.
-        raw_paths = (
-            paths
-            if reuse_paths and isinstance(paths, (list, NativeWordlistBatch))
-            else list(paths)
-        )
+    ) -> tuple[list[str], list[Any]]:
+        raw_paths = list(paths)
         with self._cancel_lock:
             engine = self._get_engine()
             cancel_generation = self._cancel_generation
@@ -395,16 +354,9 @@ class NativeHTTPBackend:
             "max_retries": options["max_retries"],
             "max_body_size": MAX_RESPONSE_SIZE,
             "filter_config": self._get_filter_config(apply_filters),
-            "compact_filtered": compact_filtered,
+            "compact_filtered": False,
         }
-        if isinstance(raw_paths, NativeWordlistBatch):
-            results = engine.scan_owned_batch(
-                base_url,
-                raw_paths.native,
-                **scan_options,
-            )
-        else:
-            results = engine.scan(base_url, raw_paths, **scan_options)
+        results = engine.scan(base_url, raw_paths, **scan_options)
         with self._cancel_lock:
             self._consumed_cancel_generation = self._cancel_generation
 

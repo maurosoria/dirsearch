@@ -65,13 +65,15 @@ class FakeNativeBackend:
         self.calls = []
         self.cancelled = False
 
-    def scan_batch(self, base_url, paths, query=""):
+    def scan_batch(self, base_url, paths, callback, query=""):
         self.calls.append((base_url, paths, query))
         events = tuple(
             NativeScanEvent(index, path, response, error)
             for index, (path, response, error) in enumerate(self.items)
         )
-        return NativeScanBatch(len(self.items), events)
+        batch = NativeScanBatch(len(self.items), events)
+        callback(batch)
+        return batch.processed_count
 
     def cancel(self):
         self.cancelled = True
@@ -85,9 +87,10 @@ class FakeBatchNativeBackend:
         self.batch = batch
         self.calls = []
 
-    def scan_batch(self, base_url, paths, query=""):
+    def scan_batch(self, base_url, paths, callback, query=""):
         self.calls.append((base_url, paths, query))
-        return self.batch
+        callback(self.batch)
+        return self.batch.processed_count
 
     def cancel(self):
         return None
@@ -102,25 +105,27 @@ class CoordinatedNativeBackend:
         self.cancelled = threading.Event()
         self.waiting_for_cancel = threading.Event()
 
-    def scan_batch(self, _base_url, paths, query=""):
+    def scan_batch(self, _base_url, paths, callback, query=""):
         self.calls.append(paths)
 
         if len(self.calls) == 1:
             self.waiting_for_cancel.set()
             if not self.cancelled.wait(timeout=2):
                 raise AssertionError("native scan was not cancelled while pausing")
-            return NativeScanBatch(
+            batch = NativeScanBatch(
                 1,
                 (NativeScanEvent(0, paths[0], None, RequestException(paths[0])),),
             )
-
-        return NativeScanBatch(
-            len(paths),
-            tuple(
-                NativeScanEvent(index, path, None, RequestException(path))
-                for index, path in enumerate(paths)
-            ),
-        )
+        else:
+            batch = NativeScanBatch(
+                len(paths),
+                tuple(
+                    NativeScanEvent(index, path, None, RequestException(path))
+                    for index, path in enumerate(paths)
+                ),
+            )
+        callback(batch)
+        return batch.processed_count
 
     def cancel(self):
         self.cancelled.set()
@@ -135,10 +140,10 @@ class UncooperativeNativeBackend:
         self.cancelled = threading.Event()
         self.release = threading.Event()
 
-    def scan_batch(self, _base_url, _paths, query=""):
+    def scan_batch(self, _base_url, _paths, _callback, query=""):
         self.started.set()
         self.release.wait(timeout=2)
-        return NativeScanBatch(0, ())
+        return 0
 
     def cancel(self):
         self.cancelled.set()
@@ -151,10 +156,10 @@ class CancelAwareNativeBackend:
     def __init__(self):
         self.cancelled = threading.Event()
 
-    def scan_batch(self, _base_url, _paths, query=""):
+    def scan_batch(self, _base_url, _paths, _callback, query=""):
         if not self.cancelled.wait(timeout=1):
             raise AssertionError("native scan was not cancelled")
-        return NativeScanBatch(0, ())
+        return 0
 
     def cancel(self):
         self.cancelled.set()
@@ -169,11 +174,11 @@ class IncrementalNativeBackend:
         self.release = threading.Event()
         self.fail_after_first = fail_after_first
 
-    def scan_batch_stream(self, _base_url, paths, callback, query=""):
+    def scan_batch(self, _base_url, paths, callback, query=""):
         callback(NativeScanBatch(1, (), 0))
         self.first_delivered.set()
         if self.fail_after_first:
-            raise RuntimeError("stream failed")
+            raise RuntimeError("batch failed")
         if not self.release.wait(timeout=2):
             raise AssertionError("incremental native backend was not released")
         callback(
@@ -190,6 +195,14 @@ class IncrementalNativeBackend:
 
     def cancel(self):
         self.release.set()
+
+    def reset_cancel(self):
+        return None
+
+
+class IncompleteNativeBackend:
+    def cancel(self):
+        return None
 
     def reset_cancel(self):
         return None
@@ -430,6 +443,21 @@ class TestNativeFuzzer(TestCase):
         with self.assertRaises(StopIteration):
             next(resumed)
 
+    def test_native_fuzzer_requires_the_batch_contract(self):
+        dictionary = make_dictionary(["admin"])
+        fuzzer = self.make_fuzzer(
+            IncompleteNativeBackend(),
+            dictionary,
+            [],
+            [],
+            [],
+        )
+
+        with self.assertRaisesRegex(AttributeError, "scan_batch"):
+            fuzzer.start()
+
+        self.assertEqual(restored_paths(dictionary.__getstate__()), ["admin"])
+
     def test_incremental_batch_updates_session_state_before_scan_returns(self):
         dictionary = make_dictionary(["zero", "one", "two"])
         backend = IncrementalNativeBackend()
@@ -466,12 +494,12 @@ class TestNativeFuzzer(TestCase):
         self.assertEqual([str(error) for error in callback_errors], ["one", "two"])
         self.assertEqual(restored_paths(dictionary.__getstate__()), [])
 
-    def test_stream_failure_requeues_only_the_undelivered_suffix(self):
+    def test_batch_failure_requeues_only_the_undelivered_suffix(self):
         dictionary = make_dictionary(["zero", "one", "two"])
         backend = IncrementalNativeBackend(fail_after_first=True)
         fuzzer = self.make_fuzzer(backend, dictionary, [], [], [])
 
-        with self.assertRaisesRegex(RuntimeError, "stream failed"):
+        with self.assertRaisesRegex(RuntimeError, "batch failed"):
             fuzzer.start()
 
         self.assertEqual(
