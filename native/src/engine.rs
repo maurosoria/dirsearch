@@ -3,6 +3,7 @@
 use crate::chunks::DEFAULT_RESULT_CHUNK_SIZE;
 use crate::filters::NativeFilterConfig;
 use crate::pacing::NativeDelayPacer;
+use crate::proxy::ProxyClientPool;
 use crate::result::NativeHttpResult;
 use crate::routing::{ConnectionOverrideConfig, ConnectionRoutes};
 use crate::scan::{
@@ -330,36 +331,23 @@ impl NativeHttpEngine {
         } else {
             1
         };
-        let proxy_urls = if config.proxies.is_empty() {
-            vec![None]
-        } else {
-            config
-                .proxies
-                .iter()
-                .map(|proxy| Some(proxy.as_str()))
-                .collect()
-        };
-        let mut clients = Vec::with_capacity(proxy_urls.len() * clients_per_proxy);
-        for proxy_url in proxy_urls {
-            for _ in 0..clients_per_proxy {
-                clients.push(
-                    build_http_client(
-                        &header_map,
-                        config.concurrency,
-                        config.timeout_secs,
-                        config.follow_redirects,
-                        config.max_redirects,
-                        proxy_url,
-                        client_identity,
-                        session.cookie_store.clone(),
-                        connection_routes.as_ref(),
-                        &config.network_interface,
-                        connection_bound_auth,
-                    )
-                    .map_err(|error| PyRuntimeError::new_err(error.to_string()))?,
-                );
-            }
-        }
+        let proxy_clients =
+            ProxyClientPool::build(&config.proxies, clients_per_proxy, |proxy_url| {
+                build_http_client(
+                    &header_map,
+                    config.concurrency,
+                    config.timeout_secs,
+                    config.follow_redirects,
+                    config.max_redirects,
+                    proxy_url,
+                    client_identity,
+                    session.cookie_store.clone(),
+                    connection_routes.as_ref(),
+                    &config.network_interface,
+                    connection_bound_auth,
+                )
+            })
+            .map_err(PyRuntimeError::new_err)?;
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .worker_threads(runtime_worker_count())
@@ -370,8 +358,7 @@ impl NativeHttpEngine {
             runtime,
             concurrency: config.concurrency.max(1),
             request_context: Arc::new(NativeRequestContext {
-                clients: Arc::new(clients),
-                clients_per_proxy,
+                proxy_clients,
                 raw_headers: Arc::new(raw_headers),
                 timeout_secs: config.timeout_secs,
                 max_rate: config.max_rate,

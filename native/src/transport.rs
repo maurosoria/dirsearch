@@ -3,6 +3,7 @@
 use crate::compression::{decode_async, decode_error, AsyncBodyReader};
 use crate::filters::NativeFilterConfig;
 use crate::ntlm::{tls_server_end_point, NtlmExchange};
+use crate::proxy::{configure_client as configure_proxy_client, is_non_retryable_error};
 use crate::raw_http;
 use crate::result::{
     native_error_result, native_filtered_marker, native_http_result_with_length, NativeHttpResult,
@@ -259,9 +260,7 @@ pub(crate) fn build_http_client(
         builder = builder.identity(identity);
     }
 
-    if let Some(proxy_url) = proxy_url {
-        builder = builder.proxy(reqwest::Proxy::all(proxy_url).map_err(|error| error.to_string())?);
-    }
+    builder = configure_proxy_client(builder, proxy_url)?;
 
     builder.build().map_err(|error| {
         if has_client_identity {
@@ -309,7 +308,7 @@ pub(crate) async fn request_with_client(request: ClientRequest<'_>) -> NativeHtt
         match request_once(&request, attempt_start).await {
             Ok(result) => return result,
             Err(error) => {
-                let retryable = !is_non_retryable_proxy_error(&error);
+                let retryable = !is_non_retryable_error(&error);
                 last_error = Some(error);
                 if !retryable || attempt == request.max_retries {
                     break;
@@ -326,18 +325,6 @@ pub(crate) async fn request_with_client(request: ClientRequest<'_>) -> NativeHtt
         attempt_start.elapsed().as_secs_f64() * 1000.0,
         last_error.unwrap_or_else(|| "request failed".to_string()),
     )
-}
-
-pub(crate) fn is_non_retryable_proxy_error(error: &str) -> bool {
-    let error = error.to_ascii_lowercase();
-    [
-        "tunnel error: unsuccessful",
-        "proxy authentication required",
-        "proxy authorization required",
-        "socks error: credentials not accepted",
-    ]
-    .iter()
-    .any(|marker| error.contains(marker))
 }
 
 async fn request_once(
