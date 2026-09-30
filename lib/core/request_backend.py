@@ -5,18 +5,12 @@ from urllib.parse import urlparse
 
 
 REQUEST_BACKENDS = ("python", "native")
-NATIVE_AUTHENTICATION_TYPES = ("basic", "bearer", "digest", "jwt")
-NATIVE_NTLM_AUTH_ERROR = (
-    "--request-backend native does not support NTLM authentication yet; "
-    "use the threaded or async engine"
-)
+NATIVE_AUTHENTICATION_TYPES = ("basic", "bearer", "digest", "jwt", "ntlm")
 
 
 def get_native_authentication_error(auth_type: str | None) -> str | None:
     if auth_type in NATIVE_AUTHENTICATION_TYPES:
         return None
-    if auth_type == "ntlm":
-        return NATIVE_NTLM_AUTH_ERROR
     return f"--request-backend native does not support {auth_type} authentication"
 
 

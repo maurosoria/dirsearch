@@ -242,6 +242,15 @@ python3 dirsearch.py -u https://target --max-time 360
 python3 dirsearch.py -u https://target --auth admin:pass --auth-type basic
 ```
 
+NTLM credentials accept `DOMAIN\user`, `user@domain`, or a plain username.
+The native request backend performs the connection-bound NTLMv2 exchange in
+Rust and sends TLS channel binding on HTTPS targets:
+
+```sh
+python3 dirsearch.py -u https://target --request-backend native \
+  --auth 'DOMAIN\user:password' --auth-type ntlm
+```
+
 ```sh
 python3 dirsearch.py -u https://target --headers-file rate-limit-bypasses.txt
 ```

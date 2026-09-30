@@ -507,19 +507,25 @@ class TestNativeHTTPBackend(TestCase):
         self.assertEqual(config["auth_type"], "jwt")
         self.assertEqual(config["auth_credential"], "replay-token")
 
-    def test_native_requester_rejects_ntlm_before_engine_creation(self):
+    def test_native_requester_passes_ntlm_to_the_native_engine(self):
         fake_native = FakeNativeModule()
 
-        with (
-            patch.dict("sys.modules", {"dirsearch_native": fake_native}),
-            self.assertRaisesRegex(
-                RequestException,
-                "native does not support NTLM authentication yet",
-            ),
-        ):
-            NativeRequester().set_auth("ntlm", "domain\\user:password")
+        with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
+            requester = NativeRequester()
+            requester.set_url("https://example.com/")
+            requester.set_auth("ntlm", "domain\\user:password")
+            requester.request("protected")
 
-        self.assertEqual(fake_native.engines, [])
+        self.assertEqual(len(fake_native.engines), 1)
+        config = fake_native.engines[0].config
+        self.assertEqual(config["auth_type"], "ntlm")
+        self.assertEqual(config["auth_credential"], "domain\\user:password")
+        self.assertFalse(
+            any(
+                name.lower() == "authorization"
+                for name, _value in config["headers"]
+            )
+        )
 
     def test_engine_receives_client_identity_bytes(self):
         options["cert_file"] = "client-cert.pem"

@@ -4,7 +4,9 @@ mod chunks;
 mod compression;
 mod engine;
 mod filters;
+mod ntlm;
 mod pacing;
+mod proxy;
 mod raw_client;
 mod raw_http;
 mod request_target;
@@ -27,6 +29,8 @@ use engine::runtime_worker_count;
 #[cfg(test)]
 use filters::{compile_header_regex, compile_regex};
 #[cfg(test)]
+use proxy::is_non_retryable_error as is_non_retryable_proxy_error;
+#[cfg(test)]
 use raw_client::{parse_raw_http_response, should_use_raw_http};
 #[cfg(test)]
 use request_target::prepare_request_target;
@@ -38,8 +42,8 @@ use result::{native_http_result, native_http_result_with_length, response_length
 use routing::ConnectionRoutes;
 #[cfg(test)]
 use transport::{
-    append_body_chunk, build_http_client as build_http_client_with_routing,
-    is_non_retryable_proxy_error, read_response_body, HeaderPairs, OriginAuth, RandomUserAgentPool,
+    append_body_chunk, build_http_client as build_http_client_with_routing, read_response_body,
+    HeaderPairs, OriginAuth, RandomUserAgentPool,
 };
 
 #[cfg(test)]

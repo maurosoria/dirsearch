@@ -2,6 +2,8 @@
 
 use crate::compression::{decode_async, decode_error, AsyncBodyReader};
 use crate::filters::NativeFilterConfig;
+use crate::ntlm::{tls_server_end_point, NtlmExchange};
+use crate::proxy::{configure_client as configure_proxy_client, is_non_retryable_error};
 use crate::raw_http;
 use crate::result::{
     native_error_result, native_filtered_marker, native_http_result_with_length, NativeHttpResult,
@@ -14,7 +16,8 @@ use bytes::Bytes;
 use digest_auth::{AuthContext, HttpMethod};
 use futures_util::TryStreamExt;
 use reqwest::header::{
-    HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_ENCODING, USER_AGENT, WWW_AUTHENTICATE,
+    HeaderMap, HeaderValue, AUTHORIZATION, CONNECTION, CONTENT_ENCODING, USER_AGENT,
+    WWW_AUTHENTICATE,
 };
 use reqwest::Method;
 use std::cell::RefCell;
@@ -117,6 +120,10 @@ pub(crate) enum OriginAuth {
         password: String,
         challenges: Arc<Mutex<HashMap<String, digest_auth::WwwAuthenticateHeader>>>,
     },
+    Ntlm {
+        username: String,
+        password: String,
+    },
 }
 
 impl OriginAuth {
@@ -146,10 +153,13 @@ impl OriginAuth {
                     challenges: Arc::new(Mutex::new(HashMap::new())),
                 })
             }
-            "ntlm" => Err(
-                "Native NTLM authentication is not supported yet; use the threaded or async engine"
-                    .to_string(),
-            ),
+            "ntlm" => {
+                let (username, password) = split_credential();
+                Ok(Self::Ntlm {
+                    username: username.to_string(),
+                    password: password.to_string(),
+                })
+            }
             other => Err(format!("Unsupported native authentication type: {other}")),
         }
     }
@@ -161,12 +171,24 @@ impl OriginAuth {
                 BASE64_STANDARD.encode(format!("{username}:{password}"))
             )),
             Self::Bearer(token) => Some(format!("Bearer {token}")),
-            Self::None | Self::Digest { .. } => None,
+            Self::None | Self::Digest { .. } | Self::Ntlm { .. } => None,
         }
     }
 
     pub(crate) fn requires_challenge(&self) -> bool {
-        matches!(self, Self::Digest { .. })
+        matches!(self, Self::Digest { .. } | Self::Ntlm { .. })
+    }
+
+    pub(crate) fn is_connection_bound(&self) -> bool {
+        matches!(self, Self::Ntlm { .. })
+    }
+
+    pub(crate) fn challenge_name(&self) -> &'static str {
+        match self {
+            Self::Digest { .. } => "Digest",
+            Self::Ntlm { .. } => "NTLM",
+            _ => "challenge-response",
+        }
     }
 }
 
@@ -186,6 +208,7 @@ pub(crate) fn build_http_client(
     cookie_store: Arc<NativeCookieStore>,
     connection_routes: &ConnectionRoutes,
     network_interface: &str,
+    connection_bound_auth: bool,
 ) -> Result<reqwest::Client, String> {
     let has_client_identity = client_identity.is_some();
     let mut builder = reqwest::Client::builder()
@@ -209,8 +232,19 @@ pub(crate) fn build_http_client(
             reqwest::redirect::Policy::none()
         })
         .timeout(Duration::from_secs_f64(timeout_secs))
-        .pool_max_idle_per_host(concurrency)
+        .pool_max_idle_per_host(if connection_bound_auth {
+            1
+        } else {
+            concurrency
+        })
         .cookie_provider(cookie_store);
+
+    if connection_bound_auth {
+        // NTLM authenticates an HTTP/1.1 connection, not an individual
+        // request. A client is dedicated to each worker, and this one-entry
+        // pool keeps the Type 1/2/3 exchange on that worker's socket.
+        builder = builder.http1_only().tls_info(true);
+    }
 
     builder = connection_routes.configure_client(builder, network_interface)?;
 
@@ -226,9 +260,7 @@ pub(crate) fn build_http_client(
         builder = builder.identity(identity);
     }
 
-    if let Some(proxy_url) = proxy_url {
-        builder = builder.proxy(reqwest::Proxy::all(proxy_url).map_err(|error| error.to_string())?);
-    }
+    builder = configure_proxy_client(builder, proxy_url)?;
 
     builder.build().map_err(|error| {
         if has_client_identity {
@@ -276,7 +308,7 @@ pub(crate) async fn request_with_client(request: ClientRequest<'_>) -> NativeHtt
         match request_once(&request, attempt_start).await {
             Ok(result) => return result,
             Err(error) => {
-                let retryable = !is_non_retryable_proxy_error(&error);
+                let retryable = !is_non_retryable_error(&error);
                 last_error = Some(error);
                 if !retryable || attempt == request.max_retries {
                     break;
@@ -293,18 +325,6 @@ pub(crate) async fn request_with_client(request: ClientRequest<'_>) -> NativeHtt
         attempt_start.elapsed().as_secs_f64() * 1000.0,
         last_error.unwrap_or_else(|| "request failed".to_string()),
     )
-}
-
-pub(crate) fn is_non_retryable_proxy_error(error: &str) -> bool {
-    let error = error.to_ascii_lowercase();
-    [
-        "tunnel error: unsuccessful",
-        "proxy authentication required",
-        "proxy authorization required",
-        "socks error: credentials not accepted",
-    ]
-    .iter()
-    .any(|marker| error.contains(marker))
 }
 
 async fn request_once(
@@ -439,7 +459,145 @@ async fn send_authenticated_request(
             let builder = build_request(challenge_url.as_str()).header(AUTHORIZATION, answer);
             send_with_cookie_override(request, builder).await
         }
+        OriginAuth::Ntlm { username, password } => {
+            send_ntlm_authenticated_request(request, &build_request, username, password).await
+        }
     }
+}
+
+async fn send_ntlm_authenticated_request<F>(
+    request: &ClientRequest<'_>,
+    build_request: &F,
+    username: &str,
+    password: &str,
+) -> Result<reqwest::Response, String>
+where
+    F: Fn(&str) -> reqwest::RequestBuilder,
+{
+    let original_url = reqwest::Url::parse(request.url)
+        .map_err(|error| format!("Invalid NTLM authentication target URL: {error}"))?;
+    let response = send_with_cookie_override(
+        request,
+        build_request(request.url).header(CONNECTION, "Keep-Alive"),
+    )
+    .await?;
+    if response.status() != reqwest::StatusCode::UNAUTHORIZED {
+        return Ok(response);
+    }
+
+    let Some(auth_scheme) = ntlm_authentication_scheme(response.headers())? else {
+        return Ok(response);
+    };
+    if !same_origin(&original_url, response.url()) {
+        // A redirect must never widen the credential scope.
+        return Ok(response);
+    }
+    let challenge_url = response.url().clone();
+    let target_host = challenge_url
+        .host_str()
+        .ok_or_else(|| "NTLM authentication target has no host".to_string())?;
+    let channel_bindings = ntlm_channel_bindings(&challenge_url, &response)?;
+    drain_authentication_response(response).await?;
+
+    let mut exchange = NtlmExchange::new(username, password, target_host)?;
+    let negotiate = BASE64_STANDARD.encode(exchange.negotiate_token()?);
+    let response = send_with_cookie_override(
+        request,
+        build_request(challenge_url.as_str())
+            .header(CONNECTION, "Keep-Alive")
+            .header(AUTHORIZATION, format!("{auth_scheme} {negotiate}")),
+    )
+    .await?;
+    if response.status() != reqwest::StatusCode::UNAUTHORIZED {
+        return Err(
+            "NTLM server accepted a negotiate token without proving credentials".to_string(),
+        );
+    }
+    if !same_origin(&challenge_url, response.url()) {
+        return Err("NTLM challenge was redirected to a different origin".to_string());
+    }
+    let challenge = ntlm_challenge(response.headers(), auth_scheme)?;
+    let challenge_url = response.url().clone();
+    drain_authentication_response(response).await?;
+
+    let authenticate = BASE64_STANDARD
+        .encode(exchange.authenticate_token(challenge, channel_bindings.as_deref())?);
+    send_with_cookie_override(
+        request,
+        build_request(challenge_url.as_str())
+            .header(CONNECTION, "Keep-Alive")
+            .header(AUTHORIZATION, format!("{auth_scheme} {authenticate}")),
+    )
+    .await
+}
+
+pub(crate) fn ntlm_authentication_scheme(
+    headers: &HeaderMap,
+) -> Result<Option<&'static str>, String> {
+    let mut negotiate = false;
+    for value in headers.get_all(WWW_AUTHENTICATE) {
+        let value = value
+            .to_str()
+            .map_err(|_| "NTLM authentication challenge is not valid text".to_string())?;
+        for challenge in value.split(',').map(str::trim) {
+            let scheme = challenge
+                .split_ascii_whitespace()
+                .next()
+                .unwrap_or_default();
+            if scheme.eq_ignore_ascii_case("ntlm") {
+                return Ok(Some("NTLM"));
+            }
+            negotiate |= scheme.eq_ignore_ascii_case("negotiate");
+        }
+    }
+    Ok(negotiate.then_some("Negotiate"))
+}
+
+pub(crate) fn ntlm_challenge(headers: &HeaderMap, auth_scheme: &str) -> Result<Vec<u8>, String> {
+    for value in headers.get_all(WWW_AUTHENTICATE) {
+        let value = value
+            .to_str()
+            .map_err(|_| "NTLM authentication challenge is not valid text".to_string())?;
+        for challenge in value.split(',').map(str::trim) {
+            let mut parts = challenge.split_ascii_whitespace();
+            if parts
+                .next()
+                .is_some_and(|scheme| scheme.eq_ignore_ascii_case(auth_scheme))
+            {
+                let encoded = parts
+                    .next()
+                    .ok_or_else(|| "NTLM server did not return a challenge token".to_string())?;
+                return BASE64_STANDARD
+                    .decode(encoded)
+                    .map_err(|_| "NTLM server returned an invalid challenge token".to_string());
+            }
+        }
+    }
+    Err("NTLM server did not return a challenge token".to_string())
+}
+
+fn ntlm_channel_bindings(
+    url: &reqwest::Url,
+    response: &reqwest::Response,
+) -> Result<Option<Vec<u8>>, String> {
+    if url.scheme() != "https" {
+        return Ok(None);
+    }
+    let certificate = response
+        .extensions()
+        .get::<reqwest::tls::TlsInfo>()
+        .and_then(reqwest::tls::TlsInfo::peer_certificate)
+        .ok_or_else(|| {
+            "HTTPS NTLM authentication could not read the TLS certificate for CBT".to_string()
+        })?;
+    tls_server_end_point(certificate).map(Some)
+}
+
+async fn drain_authentication_response(response: reqwest::Response) -> Result<(), String> {
+    let encodings = response_encodings(response.headers());
+    read_decoded_body(response, encodings, 0, false)
+        .await
+        .map(|_| ())
 }
 
 async fn send_with_cookie_override(

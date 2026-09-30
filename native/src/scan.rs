@@ -3,6 +3,7 @@
 use crate::chunks::{deliver_chunk, CompletionWriter, OrderedChunkBuffer, WorkerCompletion};
 use crate::filters::NativeFilterConfig;
 use crate::pacing::NativeDelayPacer;
+use crate::proxy::ProxyClientPool;
 use crate::raw_client::{raw_http_request, should_use_raw_http, RawHttpRequest};
 use crate::request_target::{prepare_request_target, prepare_request_targets};
 use crate::result::{native_error_result, NativeHttpResult};
@@ -33,7 +34,7 @@ const PROXY_AUTHENTICATION_REQUIRED: u16 = 407;
 /// `Arc`; mutable cookie and rate state lives behind the explicit session
 /// handle so rebuilding an engine does not discard either one.
 pub(crate) struct NativeRequestContext {
-    pub(crate) clients: Arc<Vec<reqwest::Client>>,
+    pub(crate) proxy_clients: ProxyClientPool,
     pub(crate) raw_headers: Arc<HeaderPairs>,
     pub(crate) timeout_secs: f64,
     pub(crate) max_rate: usize,
@@ -327,7 +328,9 @@ async fn run_scan_worker(
             break;
         }
 
-        let client = &request_context.clients[request_index % request_context.clients.len()];
+        let client = request_context
+            .proxy_clients
+            .client_for(request_index, worker_index);
         let url = format!("{}{path}", task.base_url);
         let start = Instant::now();
         let use_raw_path = request_context.use_raw_http
@@ -337,8 +340,10 @@ async fn run_scan_worker(
             native_error_result(
                 String::new(),
                 start.elapsed().as_secs_f64() * 1000.0,
-                "Native Digest authentication cannot be used with a byte-preserving raw HTTP target"
-                    .to_string(),
+                format!(
+                    "Native {} authentication cannot be used with a byte-preserving raw HTTP target",
+                    request_context.origin_auth.challenge_name()
+                ),
             )
         } else if use_raw_path {
             raw_http_request(
