@@ -718,6 +718,93 @@ class TestControllerResponseStores(TestCase):
 
 
 class TestAsyncResponseStores(IsolatedAsyncioTestCase):
+    async def test_cancelled_directory_save_drains_before_close(self):
+        started = threading.Event()
+        release = threading.Event()
+
+        with tempfile.TemporaryDirectory() as directory:
+            store = DirectoryResponseStore(directory)
+            original_claim = store._claim_file
+
+            def blocked_claim(base_name):
+                started.set()
+                if not release.wait(timeout=5):
+                    raise TimeoutError("test did not release response write")
+                return original_claim(base_name)
+
+            with patch.object(store, "_claim_file", side_effect=blocked_claim):
+                task = asyncio.create_task(store.save_async(make_artifact()))
+                self.assertTrue(await asyncio.to_thread(started.wait, 2))
+
+                task.cancel()
+                # Yield once so cancellation reaches save_async while its
+                # worker remains blocked at the controlled boundary.
+                await asyncio.sleep(0)
+                self.assertFalse(task.done())
+
+                release.set()
+                with self.assertRaises(asyncio.CancelledError):
+                    await asyncio.wait_for(task, timeout=2)
+
+            files_before_close = os.listdir(directory)
+            store.close()
+
+            self.assertEqual(len(files_before_close), 1)
+            self.assertEqual(os.listdir(directory), files_before_close)
+            with open(os.path.join(directory, files_before_close[0]), "rb") as handle:
+                self.assertEqual(handle.read(), b"response body")
+
+    async def test_close_waits_for_an_active_directory_save(self):
+        started = threading.Event()
+        release = threading.Event()
+        close_entered = threading.Event()
+        close_finished = threading.Event()
+
+        with tempfile.TemporaryDirectory() as directory:
+            store = DirectoryResponseStore(directory)
+            original_claim = store._claim_file
+
+            def blocked_claim(base_name):
+                started.set()
+                if not release.wait(timeout=5):
+                    raise TimeoutError("test did not release response write")
+                return original_claim(base_name)
+
+            def close_store():
+                close_entered.set()
+                store.close()
+                close_finished.set()
+
+            with patch.object(store, "_claim_file", side_effect=blocked_claim):
+                save_task = asyncio.create_task(
+                    asyncio.to_thread(store.save, make_artifact())
+                )
+                self.assertTrue(await asyncio.to_thread(started.wait, 2))
+                close_task = asyncio.create_task(asyncio.to_thread(close_store))
+                self.assertTrue(await asyncio.to_thread(close_entered.wait, 2))
+
+                def wait_until_closing():
+                    with store._lifecycle:
+                        return store._lifecycle.wait_for(
+                            lambda: store._closing,
+                            timeout=2,
+                        )
+
+                self.assertTrue(await asyncio.to_thread(wait_until_closing))
+                self.assertFalse(close_finished.is_set())
+                with self.assertRaisesRegex(OSError, "closed"):
+                    store.save(
+                        make_artifact(url="https://example.com/after-close-started")
+                    )
+
+                release.set()
+                await asyncio.wait_for(save_task, timeout=2)
+                await asyncio.wait_for(close_task, timeout=2)
+
+            self.assertTrue(store.closed)
+            self.assertTrue(close_finished.is_set())
+            self.assertEqual(len(os.listdir(directory)), 1)
+
     async def test_controller_offloads_and_awaits_store(self):
         started = threading.Event()
         release = threading.Event()

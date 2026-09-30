@@ -75,6 +75,10 @@ class JsonlResponseStore(BaseResponseStore):
         return self._file.read(1) != b"\n"
 
     def save(self, artifact: ResponseArtifact) -> str:
+        with self.save_operation():
+            return self._save(artifact)
+
+    def _save(self, artifact: ResponseArtifact) -> str:
         metadata = {
             "schema": JSONL_RESPONSE_SCHEMA,
             "timestamp": artifact.timestamp,
@@ -106,8 +110,6 @@ class JsonlResponseStore(BaseResponseStore):
         )
 
         with self._lock:
-            self.ensure_open()
-
             original_size = os.fstat(self._file.fileno()).st_size
             try:
                 if self._needs_separator:
@@ -136,12 +138,9 @@ class JsonlResponseStore(BaseResponseStore):
                 raise OSError(f"Short write to response store: {self.destination}")
             remaining = remaining[written:]
 
-    def close(self) -> None:
+    def _close_resources(self) -> None:
         with self._lock:
-            if self.closed:
-                return
             try:
                 self._file.flush()
             finally:
                 self._file.close()
-                super().close()

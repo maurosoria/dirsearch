@@ -49,7 +49,10 @@ class DirectoryResponseStore(BaseResponseStore):
         FileUtils.create_writable_dir(self.destination)
 
     def save(self, artifact: ResponseArtifact) -> str:
-        self.ensure_open()
+        with self.save_operation():
+            return self._save(artifact)
+
+    def _save(self, artifact: ResponseArtifact) -> str:
         base_name = response_filename(artifact.url, artifact.status)
         file_path, descriptor = self._claim_file(base_name)
         completed = False
