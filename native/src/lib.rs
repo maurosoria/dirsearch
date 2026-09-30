@@ -4,6 +4,7 @@ mod chunks;
 mod compression;
 mod engine;
 mod filters;
+mod ntlm;
 mod pacing;
 mod raw_client;
 mod raw_http;

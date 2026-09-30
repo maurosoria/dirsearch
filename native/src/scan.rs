@@ -34,6 +34,8 @@ const PROXY_AUTHENTICATION_REQUIRED: u16 = 407;
 /// handle so rebuilding an engine does not discard either one.
 pub(crate) struct NativeRequestContext {
     pub(crate) clients: Arc<Vec<reqwest::Client>>,
+    /// Connection-bound authentication owns one client per worker and proxy.
+    pub(crate) clients_per_proxy: usize,
     pub(crate) raw_headers: Arc<HeaderPairs>,
     pub(crate) timeout_secs: f64,
     pub(crate) max_rate: usize,
@@ -327,7 +329,13 @@ async fn run_scan_worker(
             break;
         }
 
-        let client = &request_context.clients[request_index % request_context.clients.len()];
+        let client = if request_context.clients_per_proxy == 1 {
+            &request_context.clients[request_index % request_context.clients.len()]
+        } else {
+            let proxy_count = request_context.clients.len() / request_context.clients_per_proxy;
+            let proxy_index = request_index % proxy_count;
+            &request_context.clients[proxy_index * request_context.clients_per_proxy + worker_index]
+        };
         let url = format!("{}{path}", task.base_url);
         let start = Instant::now();
         let use_raw_path = request_context.use_raw_http
@@ -337,8 +345,10 @@ async fn run_scan_worker(
             native_error_result(
                 String::new(),
                 start.elapsed().as_secs_f64() * 1000.0,
-                "Native Digest authentication cannot be used with a byte-preserving raw HTTP target"
-                    .to_string(),
+                format!(
+                    "Native {} authentication cannot be used with a byte-preserving raw HTTP target",
+                    request_context.origin_auth.challenge_name()
+                ),
             )
         } else if use_raw_path {
             raw_http_request(

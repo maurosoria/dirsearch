@@ -1,6 +1,6 @@
 [package]
 name = "dirsearch_native"
-version = "0.2.19"
+version = "0.2.20"
 edition = "2021"
 rust-version = "1.88"
 license = "GPL-2.0-only"
@@ -20,16 +20,25 @@ digest_auth = "0.3.1"
 fancy-regex = "0.19.2"
 flate2 = "1.1"
 futures-util = "0.3"
+hmac = "0.12"
 indexmap = "2.7"
+md-5 = "0.10"
+ntlmclient = "=0.2.0"
+picky-asn1-der = "0.5"
+picky-asn1-x509 = "0.15"
 pyo3 = { version = "0.29", features = ["extension-module", "abi3-py313"] }
 rayon = "1.10"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "http2", "socks", "stream", "cookies"] }
+sha2 = "0.11"
+sha3 = "0.11"
 tokio = { version = "1.43", features = ["rt-multi-thread", "macros", "net", "time", "io-util"] }
 tokio-util = { version = "0.7", features = ["io"] }
+zeroize = "1.8"
 zstd = "0.14"
 
 [dev-dependencies]
 http = "1.3"
+md4 = "0.10"
 rcgen = "=0.14.5"
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 # Pin the first patched release compatible with the crate's Rust 1.88 MSRV.

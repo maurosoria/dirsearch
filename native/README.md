@@ -28,14 +28,15 @@ for connection reuse without retaining headers or body data. Python still owns
 callbacks, session recovery, and dynamically discovered paths. Native regex matching uses the hybrid
 `fancy-regex` engine: ordinary expressions retain the finite-automata fast path,
 while lookarounds and backreferences run in its bounded backtracking engine.
-Basic, Bearer/JWT, Digest, and target-embedded Basic origin authentication are
-performed inside the native engine. Digest challenge responses stay scoped to
-the original origin, including when redirects are enabled, and are cached per
-origin for later requests. Digest cannot be combined with byte-preserving raw
-HTTP targets, so that combination fails explicitly instead of silently sending
-an unauthenticated request. NTLM remains an explicit parse-time error because
-the native transport cannot yet guarantee both HTTPS channel binding and
-connection affinity under concurrent scans.
+Basic, Bearer/JWT, Digest, NTLM, and target-embedded Basic origin authentication
+are performed inside the native engine. Challenge responses stay scoped to the
+original origin, including when redirects are enabled. Digest challenges are
+cached per origin for later requests. NTLM uses one HTTP/1.1 client per worker
+and proxy so each Type 1/2/3 exchange stays on one connection; HTTPS exchanges
+also send the RFC 5929 `tls-server-end-point` channel binding and fail closed if
+the peer certificate cannot produce it. Digest and NTLM cannot be combined
+with byte-preserving raw HTTP targets, so those combinations fail explicitly
+instead of silently sending unauthenticated requests.
 
 `--max-rate` uses one session-wide sliding window, so concurrent workers,
 engine rebuilds, and replay requests all consume the same budget. Retries stay
@@ -104,6 +105,7 @@ responsibility:
 - `session.rs` owns explicit cross-engine session state and cookie policy.
 - `pacing.rs` owns the shared request-rate limiter and per-worker delay lanes.
 - `request_target.rs` owns query insertion and URL quoting before scheduling.
+- `ntlm.rs` owns NTLMv2 token generation and TLS channel-binding derivation.
 - `transport.rs` owns reqwest requests and streamed response decoding.
 - `raw_client.rs` selects and drives the byte-preserving HTTP adapter, while
   `raw_http.rs` implements HTTP/1.1 framing and parsing.

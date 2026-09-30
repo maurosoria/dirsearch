@@ -1,24 +1,38 @@
 //! Cross-module regression tests for the native backend contract.
 
 use super::*;
+use crate::ntlm::{channel_binding_hash, split_username, tls_server_end_point};
 use crate::raw_client::{raw_http_request, RawHttpRequest};
 use crate::session::NativeCookieStore;
-use crate::transport::{request_with_client, ClientRequest};
+use crate::transport::{
+    ntlm_authentication_scheme, ntlm_challenge, request_with_client, ClientRequest,
+};
+use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
+use base64::Engine;
 use bytes::Bytes;
 use digest_auth::AuthContext;
+use hmac::{Hmac, Mac};
+use md4::{Digest as Md4Digest, Md4};
+use md5::Md5;
+use ntlmclient::{
+    Message as NtlmMessage, TargetInfoEntry as NtlmTargetInfoEntry,
+    TargetInfoType as NtlmTargetInfoType,
+};
 use rcgen::{
     date_time_ymd, BasicConstraints, CertificateParams, ExtendedKeyUsagePurpose, IsCa, Issuer,
     KeyPair, KeyUsagePurpose,
 };
 use reqwest::cookie::CookieStore;
+use reqwest::header::{HeaderValue, WWW_AUTHENTICATE};
 use reqwest::Method;
 use rustls::pki_types::{PrivateKeyDer, PrivatePkcs8KeyDer};
 use rustls::server::WebPkiClientVerifier;
 use rustls::{RootCertStore, ServerConfig};
+use sha2::{Digest as Sha2Digest, Sha256};
 use std::io::{ErrorKind, Read, Write};
 use std::net::{IpAddr, TcpListener, TcpStream};
 use std::str::FromStr;
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Barrier, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -33,6 +47,7 @@ const ZSTD_HELLO_WORLD: &[u8] = &[
 const DIGEST_CHALLENGE_RESPONSE: &[u8] = b"HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Digest realm=\"dirsearch-test\", nonce=\"abcdef0123456789\", algorithm=SHA-256, qop=\"auth\"\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
 const DIGEST_COOKIE_CHALLENGE_RESPONSE: &[u8] = b"HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Digest realm=\"dirsearch-test\", nonce=\"abcdef0123456789\", algorithm=SHA-256, qop=\"auth\"\r\nSet-Cookie: challenge=session; Path=/\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
 const MALFORMED_DIGEST_CHALLENGE_RESPONSE: &[u8] = b"HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Digest realm=\"missing-nonce\"\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+const NTLM_CHALLENGE: &str = "TlRMTVNTUAACAAAAAAAAADgAAAAHgoiiF0KPZZZUrRcAAAAAAAAAACAAIAA4AAAACgBjRQAAAA8CAAAAAQAAAAQAAAADAAAABwAIAAA1pnm8UN0BAAAAAA==";
 type CapturedRequests = Arc<Mutex<Vec<Vec<u8>>>>;
 type RetryServer = (String, thread::JoinHandle<()>, CapturedRequests);
 
@@ -58,6 +73,7 @@ fn build_http_client(
         cookie_store,
         &ConnectionRoutes::default(),
         "",
+        false,
     )
 }
 
@@ -181,6 +197,7 @@ fn reqwest_uses_connection_override_without_changing_host_header() {
         Arc::new(NativeCookieStore::default()),
         &routes,
         "",
+        false,
     )
     .unwrap();
     let runtime = tokio::runtime::Builder::new_current_thread()
@@ -271,6 +288,7 @@ fn reqwest_and_raw_http_can_bind_the_loopback_interface() {
         Arc::new(NativeCookieStore::default()),
         &ConnectionRoutes::default(),
         "lo",
+        false,
     )
     .unwrap();
     let runtime = tokio::runtime::Builder::new_current_thread()
@@ -369,6 +387,395 @@ fn spawn_retry_body_server(responses: Vec<&'static [u8]>) -> RetryServer {
     });
 
     (format!("http://{address}"), server, requests)
+}
+
+type NtlmServer = (
+    String,
+    thread::JoinHandle<()>,
+    CapturedRequests,
+    Arc<AtomicBool>,
+);
+
+fn spawn_ntlm_server(username: &str, password: &str) -> NtlmServer {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    let requests = Arc::new(Mutex::new(Vec::new()));
+    let server_requests = requests.clone();
+    let authenticated = Arc::new(AtomicBool::new(false));
+    let server_authenticated = authenticated.clone();
+    let username = username.to_string();
+    let password = password.to_string();
+    let server = thread::spawn(move || {
+        let (mut stream, _) = listener.accept().unwrap();
+        stream
+            .set_read_timeout(Some(Duration::from_secs(2)))
+            .unwrap();
+
+        let first = read_http_request(&mut stream);
+        assert_eq!(request_header(&first, "authorization"), None);
+        server_requests.lock().unwrap().push(first);
+        stream
+            .write_all(
+                b"HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: NTLM\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n",
+            )
+            .unwrap();
+
+        let second = read_http_request(&mut stream);
+        let negotiate = ntlm_authorization_token(&second, 1);
+        server_requests.lock().unwrap().push(second);
+        write!(
+            stream,
+            "HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: NTLM {NTLM_CHALLENGE}\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n"
+        )
+        .unwrap();
+        stream.flush().unwrap();
+
+        let third = read_http_request(&mut stream);
+        let authenticate = ntlm_authorization_token(&third, 3);
+        server_requests.lock().unwrap().push(third);
+        if verify_ntlm_authenticate(&negotiate, &authenticate, &username, &password, None) {
+            server_authenticated.store(true, Ordering::Release);
+            stream.write_all(OK_RESPONSE).unwrap();
+        } else {
+            stream
+                .write_all(
+                    b"HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: NTLM\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                )
+                .unwrap();
+        }
+    });
+
+    (format!("http://{address}"), server, requests, authenticated)
+}
+
+fn ntlm_authorization_token(request: &[u8], expected_message_type: u32) -> Vec<u8> {
+    let authorization = request_header(request, "authorization").expect("missing NTLM token");
+    let encoded = authorization
+        .strip_prefix("NTLM ")
+        .expect("authorization did not use NTLM");
+    let token = BASE64_STANDARD.decode(encoded).unwrap();
+    assert_eq!(&token[..8], b"NTLMSSP\0");
+    assert_eq!(
+        u32::from_le_bytes(token[8..12].try_into().unwrap()),
+        expected_message_type
+    );
+    token
+}
+
+fn verify_ntlm_authenticate(
+    negotiate: &[u8],
+    authenticate: &[u8],
+    username: &str,
+    password: &str,
+    expected_channel_bindings: Option<&[u8]>,
+) -> bool {
+    let challenge = match BASE64_STANDARD
+        .decode(NTLM_CHALLENGE)
+        .ok()
+        .and_then(|token| NtlmMessage::try_from(token.as_slice()).ok())
+    {
+        Some(NtlmMessage::Challenge(challenge)) => challenge,
+        _ => return false,
+    };
+    let message = match NtlmMessage::try_from(authenticate) {
+        Ok(NtlmMessage::Authenticate(message)) => message,
+        _ => return false,
+    };
+    let (expected_domain, expected_account) = username.split_once('\\').unwrap_or(("", username));
+    if message.domain_name != expected_domain || message.user_name != expected_account {
+        return false;
+    }
+    let Some((proof, blob)) = message.ntlm_response.split_at_checked(16) else {
+        return false;
+    };
+    if blob.len() < 32 || !blob.starts_with(&[1, 1, 0, 0, 0, 0, 0, 0]) {
+        return false;
+    }
+
+    let password_bytes = password
+        .encode_utf16()
+        .flat_map(u16::to_le_bytes)
+        .collect::<Vec<_>>();
+    let nt_hash = <Md4 as Md4Digest>::digest(password_bytes);
+    let identity = format!("{}{}", expected_account.to_uppercase(), expected_domain)
+        .encode_utf16()
+        .flat_map(u16::to_le_bytes)
+        .collect::<Vec<_>>();
+    type HmacMd5 = Hmac<Md5>;
+    let mut response_key = <HmacMd5 as Mac>::new_from_slice(&nt_hash).unwrap();
+    response_key.update(&identity);
+    let response_key = response_key.finalize().into_bytes();
+    let mut proof_mac = <HmacMd5 as Mac>::new_from_slice(&response_key).unwrap();
+    proof_mac.update(&challenge.challenge);
+    proof_mac.update(blob);
+    if proof_mac.verify_slice(proof).is_err() {
+        return false;
+    }
+
+    let mut target_info = &blob[28..];
+    let mut received_channel_bindings = None;
+    let mut received_target_name = false;
+    while !target_info.is_empty() {
+        let Ok((entry, remaining)) = NtlmTargetInfoEntry::try_from_bytes(target_info) else {
+            return false;
+        };
+        match entry.entry_type {
+            NtlmTargetInfoType::Terminator => break,
+            NtlmTargetInfoType::ChannelBindings => received_channel_bindings = Some(entry.data),
+            NtlmTargetInfoType::TargetName => received_target_name = true,
+            _ => {}
+        }
+        target_info = remaining;
+    }
+    if !received_target_name {
+        return false;
+    }
+    match expected_channel_bindings {
+        Some(bindings) => {
+            if received_channel_bindings.as_deref()
+                != Some(channel_binding_hash(bindings).as_slice())
+            {
+                return false;
+            }
+        }
+        None if received_channel_bindings.is_some() => return false,
+        None => {}
+    }
+
+    let mic_offset = if message.flags.contains(ntlmclient::Flags::NEGOTIATE_VERSION) {
+        72
+    } else {
+        64
+    };
+    let Some(received_mic) = authenticate.get(mic_offset..mic_offset + 16) else {
+        return false;
+    };
+    let mut authenticate_without_mic = authenticate.to_vec();
+    authenticate_without_mic[mic_offset..mic_offset + 16].fill(0);
+    let mut session_key = <HmacMd5 as Mac>::new_from_slice(&response_key).unwrap();
+    session_key.update(proof);
+    let session_key = session_key.finalize().into_bytes();
+    let mut mic = <HmacMd5 as Mac>::new_from_slice(&session_key).unwrap();
+    mic.update(negotiate);
+    mic.update(&BASE64_STANDARD.decode(NTLM_CHALLENGE).unwrap());
+    mic.update(&authenticate_without_mic);
+    mic.verify_slice(received_mic).is_ok()
+}
+
+fn run_ntlm_request(
+    server_username: &str,
+    server_password: &str,
+    client_credential: &str,
+) -> (NativeHttpResult, Vec<Vec<u8>>, bool) {
+    run_ntlm_request_with_proxy(server_username, server_password, client_credential, false)
+}
+
+fn run_ntlm_request_with_proxy(
+    server_username: &str,
+    server_password: &str,
+    client_credential: &str,
+    use_proxy: bool,
+) -> (NativeHttpResult, Vec<Vec<u8>>, bool) {
+    let (base_url, server, requests, authenticated) =
+        spawn_ntlm_server(server_username, server_password);
+    let proxy_url =
+        use_proxy.then(|| base_url.replacen("http://", "http://proxy-user:proxy-password@", 1));
+    let client = build_http_client_with_routing(
+        &HeaderMap::new(),
+        1,
+        2.0,
+        false,
+        30,
+        proxy_url.as_deref(),
+        None,
+        Arc::new(NativeCookieStore::default()),
+        &ConnectionRoutes::default(),
+        "",
+        true,
+    )
+    .unwrap();
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    let url = if use_proxy {
+        "http://example.test/protected".to_string()
+    } else {
+        format!("{base_url}/protected")
+    };
+    let method = Method::GET;
+    let body = Bytes::new();
+    let filter_config = default_filter_config();
+    let auth = OriginAuth::from_config("ntlm", client_credential).unwrap();
+    let result = runtime.block_on(request_with_client(ClientRequest {
+        client: &client,
+        url: &url,
+        method: &method,
+        body: &body,
+        initial_cookie_override: None,
+        capture_redirect_history: false,
+        max_retries: 0,
+        max_body_size: 80,
+        start: Instant::now(),
+        filter_config: &filter_config,
+        skip_status_filtered_body: false,
+        origin_auth: &auth,
+        random_user_agents: None,
+    }));
+    server.join().unwrap();
+    let requests = Arc::try_unwrap(requests).unwrap().into_inner().unwrap();
+    (result, requests, authenticated.load(Ordering::Acquire))
+}
+
+struct NtlmTlsFixture {
+    server_config: Arc<ServerConfig>,
+    certificate_der: Vec<u8>,
+}
+
+fn ntlm_tls_fixture() -> NtlmTlsFixture {
+    let _ = rustls::crypto::ring::default_provider().install_default();
+    let server_key = KeyPair::generate().unwrap();
+    let mut server_params = CertificateParams::new(vec!["localhost".to_string()]).unwrap();
+    server_params.key_usages = vec![KeyUsagePurpose::DigitalSignature];
+    server_params.extended_key_usages = vec![ExtendedKeyUsagePurpose::ServerAuth];
+    let server_certificate = server_params.self_signed(&server_key).unwrap();
+    let certificate_der = server_certificate.der().to_vec();
+    let server_key_der = PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(server_key.serialize_der()));
+    let server_config = ServerConfig::builder()
+        .with_no_client_auth()
+        .with_single_cert(vec![server_certificate.der().clone()], server_key_der)
+        .unwrap();
+
+    NtlmTlsFixture {
+        server_config: Arc::new(server_config),
+        certificate_der,
+    }
+}
+
+async fn read_async_http_request<S>(stream: &mut S) -> Result<Vec<u8>, String>
+where
+    S: tokio::io::AsyncRead + Unpin,
+{
+    use tokio::io::AsyncReadExt;
+
+    let mut request = Vec::new();
+    let mut buffer = [0u8; 1024];
+    loop {
+        let read = stream
+            .read(&mut buffer)
+            .await
+            .map_err(|error| error.to_string())?;
+        if read == 0 {
+            return Err("connection closed before request headers".to_string());
+        }
+        request.extend_from_slice(&buffer[..read]);
+        if request.windows(4).any(|window| window == b"\r\n\r\n") {
+            return Ok(request);
+        }
+    }
+}
+
+async fn run_https_ntlm_request() -> (NativeHttpResult, Result<Vec<Vec<u8>>, String>) {
+    use tokio::io::AsyncWriteExt;
+    use tokio_rustls::TlsAcceptor;
+
+    let fixture = ntlm_tls_fixture();
+    let expected_channel_bindings = tls_server_end_point(&fixture.certificate_der).unwrap();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let acceptor = TlsAcceptor::from(fixture.server_config);
+    let server = tokio::spawn(async move {
+        tokio::time::timeout(Duration::from_secs(3), async move {
+            let (stream, _) = listener.accept().await.map_err(|error| error.to_string())?;
+            let mut stream = acceptor
+                .accept(stream)
+                .await
+                .map_err(|error| error.to_string())?;
+            let mut requests = Vec::new();
+
+            let first = read_async_http_request(&mut stream).await?;
+            if request_header(&first, "authorization").is_some() {
+                return Err("credentials were sent before the NTLM challenge".to_string());
+            }
+            requests.push(first);
+            stream
+                .write_all(
+                    b"HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: NTLM\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n",
+                )
+                .await
+                .map_err(|error| error.to_string())?;
+
+            let second = read_async_http_request(&mut stream).await?;
+            let negotiate = ntlm_authorization_token(&second, 1);
+            requests.push(second);
+            stream
+                .write_all(
+                    format!(
+                        "HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: NTLM {NTLM_CHALLENGE}\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n"
+                    )
+                    .as_bytes(),
+                )
+                .await
+                .map_err(|error| error.to_string())?;
+
+            let third = read_async_http_request(&mut stream).await?;
+            let authenticate = ntlm_authorization_token(&third, 3);
+            requests.push(third);
+            if !verify_ntlm_authenticate(
+                &negotiate,
+                &authenticate,
+                "DOMAIN\\user",
+                "cbt-password",
+                Some(&expected_channel_bindings),
+            ) {
+                return Err("HTTPS NTLM credentials or channel binding were invalid".to_string());
+            }
+            stream
+                .write_all(OK_RESPONSE)
+                .await
+                .map_err(|error| error.to_string())?;
+            Ok(requests)
+        })
+        .await
+        .map_err(|_| "HTTPS NTLM fixture timed out".to_string())?
+    });
+
+    let client = build_http_client_with_routing(
+        &HeaderMap::new(),
+        1,
+        2.0,
+        false,
+        30,
+        None,
+        None,
+        Arc::new(NativeCookieStore::default()),
+        &ConnectionRoutes::default(),
+        "",
+        true,
+    )
+    .unwrap();
+    let url = format!("https://{address}/protected");
+    let method = Method::GET;
+    let body = Bytes::new();
+    let filter_config = default_filter_config();
+    let auth = OriginAuth::from_config("ntlm", "DOMAIN\\user:cbt-password").unwrap();
+    let result = request_with_client(ClientRequest {
+        client: &client,
+        url: &url,
+        method: &method,
+        body: &body,
+        initial_cookie_override: None,
+        capture_redirect_history: false,
+        max_retries: 0,
+        max_body_size: 80,
+        start: Instant::now(),
+        filter_config: &filter_config,
+        skip_status_filtered_body: false,
+        origin_auth: &auth,
+        random_user_agents: None,
+    })
+    .await;
+    (result, server.await.unwrap())
 }
 
 fn run_reqwest_retry(responses: Vec<&'static [u8]>) -> NativeHttpResult {
@@ -651,7 +1058,7 @@ fn native_auth_configuration_builds_preemptive_headers_without_losing_password_c
 
 #[test]
 fn native_auth_configuration_rejects_incomplete_and_unsupported_values() {
-    for (auth_type, credential) in [("", "secret"), ("basic", ""), ("ntlm", "u:p")] {
+    for (auth_type, credential) in [("", "secret"), ("basic", ""), ("unknown", "u:p")] {
         let error = OriginAuth::from_config(auth_type, credential)
             .err()
             .expect("invalid authentication configuration was accepted");
@@ -662,6 +1069,150 @@ fn native_auth_configuration_rejects_incomplete_and_unsupported_values() {
             );
         }
     }
+}
+
+#[test]
+fn native_auth_configuration_accepts_ntlm_without_preemptive_credentials() {
+    let auth = OriginAuth::from_config("ntlm", "DOMAIN\\user:password:tail").unwrap();
+
+    assert!(matches!(auth, OriginAuth::Ntlm { .. }));
+    assert_eq!(auth.preemptive_authorization(), None);
+    assert!(auth.is_connection_bound());
+}
+
+#[test]
+fn ntlm_usernames_accept_domain_upn_and_plain_forms() {
+    assert_eq!(
+        split_username("DOMAIN\\user").unwrap(),
+        ("DOMAIN".to_string(), "user".to_string())
+    );
+    assert_eq!(
+        split_username("user@example.test").unwrap(),
+        ("example.test".to_string(), "user".to_string())
+    );
+    assert_eq!(
+        split_username("local-user").unwrap(),
+        (String::new(), "local-user".to_string())
+    );
+    for invalid in ["", "\\user", "DOMAIN\\", "user@", "@example.test"] {
+        assert!(split_username(invalid).is_err(), "accepted {invalid:?}");
+    }
+}
+
+#[test]
+fn tls_server_end_point_uses_the_certificate_signature_hash_and_rejects_garbage() {
+    let fixture = ntlm_tls_fixture();
+    let mut expected = b"tls-server-end-point:".to_vec();
+    expected.extend_from_slice(&<Sha256 as Sha2Digest>::digest(&fixture.certificate_der));
+
+    assert_eq!(
+        tls_server_end_point(&fixture.certificate_der).unwrap(),
+        expected
+    );
+    assert!(tls_server_end_point(b"not a DER certificate").is_err());
+}
+
+#[test]
+fn ntlm_challenge_selection_prefers_an_explicit_ntlm_scheme() {
+    let mut headers = HeaderMap::new();
+    headers.append(WWW_AUTHENTICATE, HeaderValue::from_static("Negotiate"));
+    headers.append(
+        WWW_AUTHENTICATE,
+        HeaderValue::from_static("Basic realm=\"test\", nTlM"),
+    );
+
+    assert_eq!(ntlm_authentication_scheme(&headers).unwrap(), Some("NTLM"));
+}
+
+#[test]
+fn malformed_ntlm_challenge_tokens_fail_closed() {
+    for challenge in ["NTLM", "NTLM not-base64!"] {
+        let mut headers = HeaderMap::new();
+        headers.insert(WWW_AUTHENTICATE, HeaderValue::from_str(challenge).unwrap());
+
+        let error = ntlm_challenge(&headers, "NTLM").unwrap_err();
+        assert!(error.starts_with("NTLM server did not return") || error.contains("invalid"));
+    }
+}
+
+#[test]
+fn ntlm_authentication_completes_on_one_connection_without_sending_the_password() {
+    let password = "ntlm-password:with-colon";
+    let (result, requests, authenticated) = run_ntlm_request(
+        "DOMAIN\\user",
+        password,
+        &format!("DOMAIN\\user:{password}"),
+    );
+
+    assert_eq!(result.status, 200, "{:?}", result.error);
+    assert!(authenticated);
+    assert_eq!(requests.len(), 3);
+    assert_eq!(request_header(&requests[0], "authorization"), None);
+    assert!(requests.iter().all(|request| {
+        request_header(request, "connection")
+            .is_some_and(|value| value.eq_ignore_ascii_case("keep-alive"))
+    }));
+    assert!(requests.iter().all(|request| !request
+        .windows(password.len())
+        .any(|value| value == password.as_bytes())));
+}
+
+#[test]
+fn ntlm_origin_authentication_works_through_an_authenticated_http_proxy() {
+    let (result, requests, authenticated) = run_ntlm_request_with_proxy(
+        "DOMAIN\\user",
+        "ntlm-password",
+        "DOMAIN\\user:ntlm-password",
+        true,
+    );
+
+    assert_eq!(result.status, 200, "{:?}", result.error);
+    assert!(authenticated);
+    assert_eq!(requests.len(), 3);
+    assert!(requests
+        .iter()
+        .all(|request| request.starts_with(b"GET http://example.test/protected HTTP/1.1\r\n")));
+    assert!(requests.iter().all(|request| {
+        request_header(request, "proxy-authorization").as_deref()
+            == Some("Basic cHJveHktdXNlcjpwcm94eS1wYXNzd29yZA==")
+    }));
+}
+
+#[test]
+fn ntlm_authentication_rejects_an_invalid_password_without_leaking_it() {
+    let wrong_password = "wrong-password-do-not-log";
+    let (result, requests, authenticated) = run_ntlm_request(
+        "DOMAIN\\user",
+        "correct-password",
+        &format!("DOMAIN\\user:{wrong_password}"),
+    );
+
+    assert_eq!(result.status, 401, "{:?}", result.error);
+    assert!(!authenticated);
+    assert_eq!(requests.len(), 3);
+    assert!(requests.iter().all(|request| {
+        !request
+            .windows(wrong_password.len())
+            .any(|value| value == wrong_password.as_bytes())
+    }));
+    assert!(!result
+        .error
+        .as_deref()
+        .is_some_and(|error| error.contains(wrong_password)));
+}
+
+#[test]
+fn https_ntlm_authentication_uses_the_server_certificate_channel_binding() {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    let (result, server) = runtime.block_on(run_https_ntlm_request());
+
+    let requests = server.unwrap();
+    assert_eq!(result.status, 200, "{:?}", result.error);
+    assert_eq!(result.body, b"ok");
+    assert_eq!(requests.len(), 3);
 }
 
 #[test]

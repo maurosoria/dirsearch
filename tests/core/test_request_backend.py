@@ -232,16 +232,14 @@ class TestRequestBackend(TestCase):
                     )
                 )
 
-    def test_native_rejects_ntlm_authentication(self):
-        self.assertEqual(
+    def test_native_accepts_ntlm_authentication(self):
+        self.assertIsNone(
             get_native_request_backend_error(
                 native_options(
                     auth="domain\\user:password",
                     auth_type="ntlm",
                 )
-            ),
-            "--request-backend native does not support NTLM authentication "
-            "yet; use the threaded or async engine",
+            )
         )
 
     def test_native_accepts_embedded_target_credentials(self):
