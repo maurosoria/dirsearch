@@ -1,4 +1,5 @@
 import io
+import json
 import sys
 import tempfile
 from contextlib import redirect_stderr, redirect_stdout
@@ -107,3 +108,31 @@ class TestCLIOutputStreams(TestCase):
         self.assertEqual(raised.exception.code, 0)
         self.assertIn("No resumable sessions found", stdout.getvalue())
         self.assertEqual(stderr.getvalue(), "")
+
+    def test_session_listing_reports_bad_checkpoint_without_crashing(self):
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with tempfile.TemporaryDirectory() as directory:
+            session_dir = Path(directory, "damaged")
+            session_dir.mkdir()
+            checkpoint = session_dir / SessionStore.CHECKPOINT_FILE
+            checkpoint.write_text(json.dumps([]), encoding="utf-8")
+            arguments = [
+                "dirsearch.py",
+                "--list-sessions",
+                "--sessions-dir",
+                directory,
+            ]
+
+            with (
+                patch.object(sys, "argv", arguments),
+                redirect_stdout(stdout),
+                redirect_stderr(stderr),
+                self.assertRaises(SystemExit) as raised,
+            ):
+                parse_options()
+
+        self.assertEqual(raised.exception.code, 0)
+        self.assertIn("No resumable sessions found", stdout.getvalue())
+        self.assertIn("Skipping invalid session", stderr.getvalue())
+        self.assertIn("Session JSON root must be an object", stderr.getvalue())
