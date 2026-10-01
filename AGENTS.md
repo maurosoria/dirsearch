@@ -14,6 +14,8 @@
 ## Coding Style & Naming Conventions
 Use 4-space indentation and keep Python code straightforward and modular. Prefer descriptive `snake_case` for functions and variables, `PascalCase` for classes, and small helpers for exception-heavy logic. Keep module boundaries clean: networking belongs in `lib/connection`, report logic in `lib/report`, and CLI/config parsing in `lib/parse` or `lib/core`. Follow the existing flake8 rules in `pyproject.toml`.
 
+Prefer explicit, initialized attributes and typed protocols over `getattr()` or `hasattr()` in internal code. Do not use dynamic attribute access to hide missing initialization, preserve obsolete object shapes, or provide silent compatibility fallbacks; fix the contract or add an explicit adapter instead. Dynamic access remains appropriate at genuinely dynamic boundaries such as plugin discovery, optional platform/runtime constants, and third-party objects whose API varies by version. When that need is not obvious from the surrounding code, document it with a short comment.
+
 ## Testing Guidelines
 Tests use `unittest`. Add new coverage under `tests/` with filenames like `test_requester.py` and methods named `test_*`. When changing request, packaging, or report behavior, add message-level or artifact-level assertions rather than only smoke checks. For compatibility-sensitive changes, prefer Docker validation on supported Python versions.
 

@@ -48,6 +48,13 @@ class ResponseArtifact:
         )
 
 
+class _SaveOperationState(threading.local):
+    """Per-thread nesting state for tracked response-store writes."""
+
+    def __init__(self) -> None:
+        self.depth = 0
+
+
 class BaseResponseStore(ABC):
     """Shared lifecycle and async adapter for response artifact stores."""
 
@@ -56,7 +63,7 @@ class BaseResponseStore(ABC):
     def __init__(self, destination: str) -> None:
         self.destination = FileUtils.get_abs_path(destination)
         self._lifecycle = threading.Condition()
-        self._save_local = threading.local()
+        self._save_local = _SaveOperationState()
         self._active_saves = 0
         self._closing = False
         self._closed = False
@@ -74,7 +81,7 @@ class BaseResponseStore(ABC):
     @contextmanager
     def save_operation(self) -> Iterator[None]:
         """Register one save so close rejects new work and drains this one."""
-        depth = getattr(self._save_local, "depth", 0)
+        depth = self._save_local.depth
         if depth:
             self._save_local.depth = depth + 1
             try:
@@ -133,7 +140,7 @@ class BaseResponseStore(ABC):
         """Close store-specific resources after all accepted saves drain."""
 
     def close(self) -> None:
-        if getattr(self._save_local, "depth", 0):
+        if self._save_local.depth:
             raise RuntimeError("Cannot close a response store from an active save")
 
         with self._lifecycle:
