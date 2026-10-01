@@ -85,6 +85,12 @@ def parse_options() -> dict[str, Any]:
         except Exception:
             return
 
+    def _print_invalid_sessions(session_store: Any) -> None:
+        for session_path, error in session_store.invalid_sessions:
+            _print_diagnostic(
+                f"Skipping invalid session {session_path}: {error}"
+            )
+
     if opt.list_sessions:
         from lib.controller.session import SessionStore
 
@@ -93,6 +99,7 @@ def parse_options() -> dict[str, Any]:
         session_store = SessionStore({})
         sessions = session_store.list_sessions(base_dir)
         _session_debug(f"--list-sessions completed total={len(sessions)}")
+        _print_invalid_sessions(session_store)
 
         if not sessions:
             print(f"No resumable sessions found in {base_dir}")
@@ -125,6 +132,7 @@ def parse_options() -> dict[str, Any]:
         session_store = SessionStore({})
         sessions = session_store.list_sessions(base_dir)
         _session_debug(f"--session-id sessions found total={len(sessions)}")
+        _print_invalid_sessions(session_store)
         if not sessions:
             _fail(f"No resumable sessions found in {base_dir}")
         try:

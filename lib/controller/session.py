@@ -60,9 +60,11 @@ class SessionStore:
 
     def __init__(self, options: dict[str, Any]) -> None:
         self.options = options
+        self.invalid_sessions: list[tuple[str, str]] = []
 
     def list_sessions(self, base_path: str) -> list[dict[str, Any]]:
         sessions: list[dict[str, Any]] = []
+        self.invalid_sessions = []
 
         if os.path.isfile(base_path):
             summary = self._summarize_session_file(base_path)
@@ -283,7 +285,7 @@ class SessionStore:
     def _read_json(self, path: str) -> dict[str, Any]:
         try:
             with open(path, "r", encoding="utf-8") as file_handle:
-                return json.load(file_handle)
+                payload = json.load(file_handle)
         except (
             OSError,
             json.JSONDecodeError,
@@ -291,17 +293,115 @@ class SessionStore:
             UnicodeDecodeError,
         ) as error:
             raise UnpicklingError(str(error)) from error
+        if not isinstance(payload, dict):
+            raise UnpicklingError("Session JSON root must be an object")
+        return payload
 
     def _write_json(self, path: str, payload: dict[str, Any]) -> None:
         with FileUtils.atomic_write_private_text(path) as file_handle:
             json.dump(payload, file_handle, indent=2, ensure_ascii=False)
 
-    def _validate_payload(self, payload: dict[str, Any]) -> None:
+    def _validate_payload(self, payload: Any) -> None:
+        if not isinstance(payload, dict):
+            raise UnpicklingError("Session payload must be an object")
         if payload.get("version") != self.SESSION_VERSION:
             raise UnpicklingError("Unsupported session format version")
         for key in ("controller", "dictionary", "options"):
-            if key not in payload:
-                raise UnpicklingError("Missing required session data")
+            if not isinstance(payload.get(key), dict):
+                raise UnpicklingError(f"Invalid {key} session data")
+
+        self._validate_controller_state(payload["controller"])
+        self._validate_dictionary_state(payload["dictionary"])
+        self._validate_options_state(payload["options"])
+
+        last_output = payload.get("last_output")
+        if last_output is not None and not isinstance(last_output, str):
+            raise UnpicklingError("Invalid last_output session data")
+        output_history = payload.get("output_history")
+        if output_history is not None:
+            if not isinstance(output_history, list) or any(
+                not isinstance(entry, dict)
+                or not isinstance(entry.get("output"), str)
+                for entry in output_history
+            ):
+                raise UnpicklingError("Invalid output_history session data")
+
+    @staticmethod
+    def _validate_controller_state(controller: dict[str, Any]) -> None:
+        for key in ("url", "base_path"):
+            value = controller.get(key)
+            if value is not None and not isinstance(value, str):
+                raise UnpicklingError(f"Invalid controller.{key} session data")
+
+        for key in ("directories", "passed_urls"):
+            value = controller.get(key)
+            if value is not None and (
+                not isinstance(value, list)
+                or any(not isinstance(item, str) for item in value)
+            ):
+                raise UnpicklingError(f"Invalid controller.{key} session data")
+
+        for key in ("jobs_processed", "errors", "consecutive_errors"):
+            value = controller.get(key)
+            if value is not None and (
+                not isinstance(value, int) or isinstance(value, bool) or value < 0
+            ):
+                raise UnpicklingError(f"Invalid controller.{key} session data")
+
+        start_time = controller.get("start_time")
+        if start_time is not None and (
+            not isinstance(start_time, (int, float))
+            or isinstance(start_time, bool)
+        ):
+            raise UnpicklingError("Invalid controller.start_time session data")
+
+        old_session = controller.get("old_session")
+        if old_session is not None and not isinstance(old_session, bool):
+            raise UnpicklingError("Invalid controller.old_session session data")
+
+    @staticmethod
+    def _validate_dictionary_state(dictionary: dict[str, Any]) -> None:
+        items = dictionary.get("items")
+        index = dictionary.get("index")
+        extra = dictionary.get("extra", [])
+        extra_index = dictionary.get("extra_index", 0)
+
+        if not isinstance(items, list) or any(
+            not isinstance(item, str) for item in items
+        ):
+            raise UnpicklingError("Invalid dictionary.items session data")
+        if (
+            not isinstance(index, int)
+            or isinstance(index, bool)
+            or not 0 <= index <= len(items)
+        ):
+            raise UnpicklingError("Invalid dictionary.index session data")
+        if not isinstance(extra, list) or any(
+            not isinstance(item, str) for item in extra
+        ):
+            raise UnpicklingError("Invalid dictionary.extra session data")
+        if (
+            not isinstance(extra_index, int)
+            or isinstance(extra_index, bool)
+            or not 0 <= extra_index <= len(extra)
+        ):
+            raise UnpicklingError("Invalid dictionary.extra_index session data")
+
+    @staticmethod
+    def _validate_options_state(session_options: dict[str, Any]) -> None:
+        urls = session_options.get("urls")
+        if urls is not None and (
+            not isinstance(urls, list)
+            or any(not isinstance(url, str) for url in urls)
+        ):
+            raise UnpicklingError("Invalid options.urls session data")
+
+        output_formats = session_options.get("output_formats")
+        if output_formats is not None and (
+            not isinstance(output_formats, list)
+            or any(not isinstance(item, str) for item in output_formats)
+        ):
+            raise UnpicklingError("Invalid options.output_formats session data")
 
     def _get_controller_history(self, controller: Any) -> list[dict[str, Any]] | None:
         if not hasattr(controller, "output_history"):
@@ -381,7 +481,8 @@ class SessionStore:
             try:
                 payload = self._read_json(checkpoint_path)
                 self._validate_payload(payload)
-            except UnpicklingError:
+            except UnpicklingError as error:
+                self._record_invalid_session(session_dir, error)
                 return None
             return self._build_summary(
                 session_dir,
@@ -403,11 +504,18 @@ class SessionStore:
             options_payload = self._read_json(
                 FileUtils.build_path(session_dir, self.FILES["options"])
             )
-        except UnpicklingError:
+        except UnpicklingError as error:
+            self._record_invalid_session(session_dir, error)
             return None
-        return self._build_summary(
-            session_dir, meta_path, controller_payload, options_payload
-        )
+        try:
+            self._validate_controller_state(controller_payload)
+            self._validate_options_state(options_payload)
+            return self._build_summary(
+                session_dir, meta_path, controller_payload, options_payload
+            )
+        except UnpicklingError as error:
+            self._record_invalid_session(session_dir, error)
+            return None
 
     def _summarize_session_file(self, session_file: str) -> dict[str, Any] | None:
         try:
@@ -416,13 +524,24 @@ class SessionStore:
             return None
         if payload.get("version") != self.SESSION_VERSION:
             return None
-        controller_payload = payload.get("controller")
-        options_payload = payload.get("options")
-        if controller_payload is None or options_payload is None:
+        try:
+            self._validate_payload(payload)
+            return self._build_summary(
+                session_file,
+                session_file,
+                payload["controller"],
+                payload["options"],
+            )
+        except UnpicklingError as error:
+            self._record_invalid_session(session_file, error)
             return None
-        return self._build_summary(
-            session_file, session_file, controller_payload, options_payload
-        )
+
+    def _record_invalid_session(
+        self,
+        session_path: str,
+        error: UnpicklingError,
+    ) -> None:
+        self.invalid_sessions.append((session_path, str(error)))
 
     def _build_summary(
         self,

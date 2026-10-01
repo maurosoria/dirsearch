@@ -66,7 +66,7 @@ class TestSessionStore(TestCase):
 
     def _controller(self) -> SimpleNamespace:
         return SimpleNamespace(
-            start_time="2026-01-01T00:00:00Z",
+            start_time=1767225600.0,
             passed_urls=set(),
             directories=[],
             jobs_processed=0,
@@ -99,6 +99,101 @@ class TestSessionStore(TestCase):
                 [session["path"] for session in sessions],
                 sorted([current_dir, nested_dir, root_file]),
             )
+
+    def test_list_sessions_skips_non_session_json_without_hiding_valid_sessions(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            valid_file = os.path.join(tmpdir, "valid.json")
+            self._write_session_file(valid_file, "https://valid.example.com")
+            self._write_json(os.path.join(tmpdir, "array.json"), [])
+            self._write_json(os.path.join(tmpdir, "scalar.json"), "unrelated")
+
+            sessions = SessionStore({}).list_sessions(tmpdir)
+
+        self.assertEqual(
+            [session["path"] for session in sessions],
+            [valid_file],
+        )
+
+    def test_list_sessions_skips_session_with_invalid_nested_state(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            valid_file = os.path.join(tmpdir, "valid.json")
+            self._write_session_file(valid_file, "https://valid.example.com")
+            invalid_file = os.path.join(tmpdir, "invalid.json")
+            self._write_json(
+                invalid_file,
+                {
+                    "version": SessionStore.SESSION_VERSION,
+                    "controller": [],
+                    "dictionary": {},
+                    "options": {},
+                },
+            )
+
+            store = SessionStore({})
+            sessions = store.list_sessions(tmpdir)
+
+        self.assertEqual(
+            [session["path"] for session in sessions],
+            [valid_file],
+        )
+        self.assertEqual(len(store.invalid_sessions), 1)
+        self.assertEqual(store.invalid_sessions[0][0], invalid_file)
+        self.assertIn("controller", store.invalid_sessions[0][1])
+
+    def test_load_rejects_non_object_and_invalid_nested_state(self):
+        invalid_payloads = (
+            [],
+            {
+                "version": SessionStore.SESSION_VERSION,
+                "controller": {},
+                "dictionary": [],
+                "options": {},
+            },
+            {
+                "version": SessionStore.SESSION_VERSION,
+                "controller": {"directories": 7},
+                "dictionary": {
+                    "items": [],
+                    "index": 0,
+                    "extra": [],
+                    "extra_index": 0,
+                },
+                "options": {},
+            },
+            {
+                "version": SessionStore.SESSION_VERSION,
+                "controller": {},
+                "dictionary": {
+                    "items": [],
+                    "index": 1,
+                    "extra": [],
+                    "extra_index": 0,
+                },
+                "options": {},
+            },
+            {
+                "version": SessionStore.SESSION_VERSION,
+                "controller": {},
+                "dictionary": {
+                    "items": [],
+                    "index": 0,
+                    "extra": [],
+                    "extra_index": 0,
+                },
+                "options": {"urls": "https://invalid.example"},
+            },
+        )
+
+        for index, payload in enumerate(invalid_payloads):
+            with (
+                self.subTest(payload=payload),
+                tempfile.TemporaryDirectory() as tmpdir,
+            ):
+                session_file = os.path.join(tmpdir, f"invalid-{index}.json")
+                self._write_json(session_file, payload)
+
+                with self.assertRaises(UnpicklingError):
+                    SessionStore({}).load(session_file)
 
     def test_request_body_bytes_round_trip_through_json_session(self):
         body = "value=\u00e9&currency=\u20ac\r\n".encode("cp1252")
