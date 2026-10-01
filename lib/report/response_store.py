@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 from abc import ABC, abstractmethod
+from collections.abc import Iterator
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 
 from lib.connection.response import BaseResponse
@@ -45,6 +48,13 @@ class ResponseArtifact:
         )
 
 
+class _SaveOperationState(threading.local):
+    """Per-thread nesting state for tracked response-store writes."""
+
+    def __init__(self) -> None:
+        self.depth = 0
+
+
 class BaseResponseStore(ABC):
     """Shared lifecycle and async adapter for response artifact stores."""
 
@@ -52,26 +62,103 @@ class BaseResponseStore(ABC):
 
     def __init__(self, destination: str) -> None:
         self.destination = FileUtils.get_abs_path(destination)
+        self._lifecycle = threading.Condition()
+        self._save_local = _SaveOperationState()
+        self._active_saves = 0
+        self._closing = False
         self._closed = False
 
     @property
     def closed(self) -> bool:
-        return self._closed
+        with self._lifecycle:
+            return self._closed
 
     def ensure_open(self) -> None:
-        if self.closed:
-            raise OSError(f"Response store is closed: {self.destination}")
+        with self._lifecycle:
+            if self._closing or self._closed:
+                raise OSError(f"Response store is closed: {self.destination}")
+
+    @contextmanager
+    def save_operation(self) -> Iterator[None]:
+        """Register one save so close rejects new work and drains this one."""
+        depth = self._save_local.depth
+        if depth:
+            self._save_local.depth = depth + 1
+            try:
+                yield
+            finally:
+                self._save_local.depth -= 1
+            return
+
+        with self._lifecycle:
+            if self._closing or self._closed:
+                raise OSError(f"Response store is closed: {self.destination}")
+            self._active_saves += 1
+            self._save_local.depth = 1
+
+        try:
+            yield
+        finally:
+            self._save_local.depth = 0
+            with self._lifecycle:
+                self._active_saves -= 1
+                if self._active_saves == 0:
+                    self._lifecycle.notify_all()
 
     @abstractmethod
     def save(self, artifact: ResponseArtifact) -> str:
         raise NotImplementedError
 
     async def save_async(self, artifact: ResponseArtifact) -> str:
-        """Offload synchronous stores; native async stores may override this."""
-        return await asyncio.to_thread(self.save, artifact)
+        """Offload and drain synchronous saves before propagating cancellation."""
+        task = asyncio.create_task(asyncio.to_thread(self._save_tracked, artifact))
+        try:
+            return await asyncio.shield(task)
+        except asyncio.CancelledError:
+            # asyncio cannot stop a thread that is already running. Wait for
+            # the owned write so controller teardown cannot close the store
+            # and then observe that thread commit a late artifact.
+            while not task.done():
+                try:
+                    await asyncio.shield(task)
+                except asyncio.CancelledError:
+                    continue
+                except Exception:
+                    break
+            with suppress(Exception):
+                task.result()
+            raise
+
+    def _save_tracked(self, artifact: ResponseArtifact) -> str:
+        # The outer guard also covers third-party synchronous implementations
+        # that rely on BaseResponseStore.save_async(). Built-in stores guard
+        # direct save() calls as well; nesting is thread-local and counted once.
+        with self.save_operation():
+            return self.save(artifact)
+
+    def _close_resources(self) -> None:
+        """Close store-specific resources after all accepted saves drain."""
 
     def close(self) -> None:
-        self._closed = True
+        if self._save_local.depth:
+            raise RuntimeError("Cannot close a response store from an active save")
+
+        with self._lifecycle:
+            if self._closed:
+                return
+            if self._closing:
+                self._lifecycle.wait_for(lambda: self._closed)
+                return
+            self._closing = True
+            self._lifecycle.wait_for(lambda: self._active_saves == 0)
+
+        try:
+            self._close_resources()
+        finally:
+            with self._lifecycle:
+                self._closed = True
+                self._closing = False
+                self._lifecycle.notify_all()
 
     def __enter__(self) -> BaseResponseStore:
         return self
