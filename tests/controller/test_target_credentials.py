@@ -5,6 +5,7 @@ import requests
 
 from lib.connection.requester import AsyncRequester, Requester
 from lib.controller.controller import Controller
+from lib.core.request_config import RequestConfig
 from lib.core.data import options
 from lib.core.exceptions import InvalidURLException
 
@@ -137,7 +138,7 @@ class TestSyncTargetAuthenticationIntegration(
     TargetAuthenticationIntegrationMixin, TestCase
 ):
     def test_embedded_authentication_does_not_persist_to_next_target(self):
-        requester = Requester()
+        requester = Requester(RequestConfig.from_options(options))
         controller = self.controller_for(requester)
         try:
             controller.set_target("http://target-user:target-password@first.test/")
@@ -156,7 +157,7 @@ class TestSyncTargetAuthenticationIntegration(
                 "auth_type": "basic",
             }
         )
-        requester = Requester()
+        requester = Requester(RequestConfig.from_options(options))
         configured_auth = requester.session.auth
         controller = self.controller_for(requester)
         try:
@@ -171,7 +172,7 @@ class TestSyncTargetAuthenticationIntegration(
 
     def test_explicit_authorization_header_survives_target_override(self):
         options["headers"] = {"Authorization": "Bearer configured-token"}
-        requester = Requester()
+        requester = Requester(RequestConfig.from_options(options))
         controller = self.controller_for(requester)
         try:
             controller.set_target("http://target-user:target-password@first.test/")
@@ -200,7 +201,7 @@ class TestAsyncTargetAuthenticationIntegration(
     TargetAuthenticationIntegrationMixin, IsolatedAsyncioTestCase
 ):
     async def test_embedded_authentication_does_not_persist_to_next_target(self):
-        requester = AsyncRequester()
+        requester = AsyncRequester(RequestConfig.from_options(options))
         controller = self.controller_for(requester)
         try:
             controller.set_target("http://target-user:target-password@first.test/")
@@ -219,7 +220,7 @@ class TestAsyncTargetAuthenticationIntegration(
                 "auth_type": "basic",
             }
         )
-        requester = AsyncRequester()
+        requester = AsyncRequester(RequestConfig.from_options(options))
         configured_auth = requester.session.auth
         controller = self.controller_for(requester)
         try:
@@ -234,7 +235,7 @@ class TestAsyncTargetAuthenticationIntegration(
 
     async def test_explicit_authorization_header_survives_target_override(self):
         options["headers"] = {"Authorization": "Bearer configured-token"}
-        requester = AsyncRequester()
+        requester = AsyncRequester(RequestConfig.from_options(options))
         controller = self.controller_for(requester)
         try:
             controller.set_target("http://target-user:target-password@first.test/")

@@ -11,6 +11,8 @@ from urllib3.exceptions import InsecureRequestWarning
 
 from lib.connection.native import NativeHTTPBackend, NativeRequester
 from lib.connection.requester import AsyncRequester, Requester
+from lib.core.filters import native_filter_options
+from lib.core.request_config import RequestConfig
 from lib.core.data import options
 from lib.core.exceptions import RequestException
 from tests.connection.proxy_server import ProxyTestStack
@@ -127,7 +129,7 @@ class TestProxyIntegration(TestCase):
                 with self.subTest(settings=settings, scheme=target.scheme):
                     self._prepare_case(proxy, target)
                     with patch("httpx._utils.getproxies", return_value=settings):
-                        requester = AsyncRequester()
+                        requester = AsyncRequester(RequestConfig.from_options(options))
                     requester.set_url(target.url)
                     try:
                         response = await requester.request(path)
@@ -159,7 +161,7 @@ class TestProxyIntegration(TestCase):
                         "no": forced_host,
                     },
                 ):
-                    requester = AsyncRequester()
+                    requester = AsyncRequester(RequestConfig.from_options(options))
                 requester.set_ip(forced_host, port, "127.0.0.1")
                 requester.set_url(f"{target.scheme}://{forced_host}:{port}/")
                 try:
@@ -183,7 +185,7 @@ class TestProxyIntegration(TestCase):
             "httpx._utils.getproxies",
             return_value={"http": proxy.url},
         ):
-            requester = AsyncRequester()
+            requester = AsyncRequester(RequestConfig.from_options(options))
         requester.set_url(target.url)
         try:
             with self.assertRaisesRegex(
@@ -208,7 +210,7 @@ class TestProxyIntegration(TestCase):
             "httpx._utils.getproxies",
             return_value={"http": proxy.url, "no": "127.0.0.1"},
         ):
-            requester = AsyncRequester()
+            requester = AsyncRequester(RequestConfig.from_options(options))
         requester.set_url(target.url)
         try:
             response = await requester.request("origin-407")
@@ -248,7 +250,7 @@ class TestProxyIntegration(TestCase):
                 proxy.clear_events()
                 target.clear_events()
                 options["proxies"] = [proxy.url_for(scheme)]
-                requester = AsyncRequester()
+                requester = AsyncRequester(RequestConfig.from_options(options))
                 requester.set_url(f"http://{target_host}:{port}/")
                 try:
                     response = await requester.request(f"async-{scheme}")
@@ -458,7 +460,10 @@ class TestProxyIntegration(TestCase):
         proxy.clear_events()
         target.clear_events()
         options["proxies"] = []
-        requester = NativeRequester()
+        requester = NativeRequester(
+            RequestConfig.from_options(options),
+            filter_options=native_filter_options(options),
+        )
         requester.set_url(target.url)
 
         response = requester.request(
@@ -741,7 +746,7 @@ class TestProxyIntegration(TestCase):
     @staticmethod
     def _sync_request(proxy, target, path):
         options["proxies"] = [proxy.url]
-        requester = Requester()
+        requester = Requester(RequestConfig.from_options(options))
         requester.set_url(target.url)
         started = time.monotonic()
         try:
@@ -757,7 +762,7 @@ class TestProxyIntegration(TestCase):
     @staticmethod
     async def _async_request(proxy, target, path):
         options["proxies"] = [proxy.url]
-        requester = AsyncRequester()
+        requester = AsyncRequester(RequestConfig.from_options(options))
         requester.set_url(target.url)
         started = time.monotonic()
         try:
@@ -772,7 +777,7 @@ class TestProxyIntegration(TestCase):
     @staticmethod
     async def _async_replay_request(proxy, target, path):
         options["proxies"] = []
-        requester = AsyncRequester()
+        requester = AsyncRequester(RequestConfig.from_options(options))
         requester.set_url(target.url)
         try:
             try:
@@ -792,7 +797,10 @@ class TestProxyIntegration(TestCase):
         target_url=None,
     ):
         options["proxies"] = [proxy_url or proxy.url]
-        backend = NativeHTTPBackend()
+        backend = NativeHTTPBackend(
+            RequestConfig.from_options(options),
+            filter_options=native_filter_options(options),
+        )
         started = time.monotonic()
         rows = list(backend.scan(target_url or target.url, [path]))
         elapsed = time.monotonic() - started

@@ -53,6 +53,8 @@ from lib.connection.requester import (
     _find_ssl_error,
     _format_ssl_error,
 )
+from lib.core.filters import native_filter_options
+from lib.core.request_config import RequestConfig
 from lib.core.data import options
 from lib.core.exceptions import RequestException
 from lib.core.settings import MAX_REDIRECTS
@@ -712,7 +714,7 @@ class TestSSLHelpers(BaseRequesterTestCase):
 
 class TestRequesterSSLHandling(BaseRequesterTestCase):
     def test_sync_requests_ssl_error_uses_specific_message(self):
-        requester = Requester()
+        requester = Requester(RequestConfig.from_options(options))
         requester.set_url("https://example.com/")
         error = requests.exceptions.SSLError("CERTIFICATE_VERIFY_FAILED")
 
@@ -726,7 +728,7 @@ class TestRequesterSSLHandling(BaseRequesterTestCase):
         )
 
     def test_sync_wrapped_certificate_error_uses_specific_message(self):
-        requester = Requester()
+        requester = Requester(RequestConfig.from_options(options))
         requester.set_url("https://example.com/")
         cert_exc = ssl.SSLCertVerificationError(
             1,
@@ -746,7 +748,7 @@ class TestRequesterSSLHandling(BaseRequesterTestCase):
 
 class TestRequesterErrorClassification(BaseRequesterTestCase):
     def test_sync_origin_407_remains_a_response_without_a_proxy(self):
-        requester = Requester()
+        requester = Requester(RequestConfig.from_options(options))
         requester.set_url("http://example.com/")
         response = DummySyncResponse()
         response.status_code = 407
@@ -760,7 +762,7 @@ class TestRequesterErrorClassification(BaseRequesterTestCase):
         self.assertEqual(result.status, 407)
 
     def test_sync_too_many_redirects_uses_specific_message(self):
-        requester = Requester()
+        requester = Requester(RequestConfig.from_options(options))
         requester.set_url("http://example.com/")
 
         with patch.object(
@@ -777,7 +779,7 @@ class TestRequesterErrorClassification(BaseRequesterTestCase):
         )
 
     def test_sync_wrapped_read_timeout_uses_timeout_message(self):
-        requester = Requester()
+        requester = Requester(RequestConfig.from_options(options))
         requester.set_url("http://example.com/")
         error = requests.exceptions.ConnectionError("Read timed out.")
 
@@ -791,7 +793,7 @@ class TestRequesterErrorClassification(BaseRequesterTestCase):
         )
 
     def test_sync_wrapped_dns_failure_uses_dns_message(self):
-        requester = Requester()
+        requester = Requester(RequestConfig.from_options(options))
         requester.set_url("http://example.com/")
         resolution_error = urllib3.exceptions.NameResolutionError(
             "example.com",
@@ -813,7 +815,7 @@ class TestRequesterErrorClassification(BaseRequesterTestCase):
         self.assertEqual(str(ctx.exception), "Couldn't resolve DNS")
 
     def test_sync_invalid_url_uses_specific_message(self):
-        requester = Requester()
+        requester = Requester(RequestConfig.from_options(options))
         requester.set_url("http://example.com/")
 
         with patch.object(
@@ -830,7 +832,7 @@ class TestRequesterErrorClassification(BaseRequesterTestCase):
         )
 
     def test_sync_invalid_proxy_url_uses_specific_message(self):
-        requester = Requester()
+        requester = Requester(RequestConfig.from_options(options))
         requester.set_url("http://example.com/")
 
         with patch.object(
@@ -847,7 +849,7 @@ class TestRequesterErrorClassification(BaseRequesterTestCase):
         )
 
     def test_sync_connection_error_uses_specific_message(self):
-        requester = Requester()
+        requester = Requester(RequestConfig.from_options(options))
         requester.set_url("http://example.com/")
 
         with patch.object(
@@ -863,7 +865,7 @@ class TestRequesterErrorClassification(BaseRequesterTestCase):
         self.assertEqual(str(ctx.exception), "Cannot connect to: example.com")
 
     def test_sync_error_class_names_in_unrelated_text_stay_generic(self):
-        requester = Requester()
+        requester = Requester(RequestConfig.from_options(options))
         requester.set_url("http://example.com/")
 
         for message in ("InvalidURL", "InvalidProxyURL", "ConnectionError"):
@@ -883,7 +885,7 @@ class TestRequesterErrorClassification(BaseRequesterTestCase):
                 )
 
     def test_sync_chunked_encoding_error_uses_read_error_message(self):
-        requester = Requester()
+        requester = Requester(RequestConfig.from_options(options))
         requester.set_url("http://example.com/")
         error = requests.exceptions.ChunkedEncodingError("incomplete body")
 
@@ -900,6 +902,7 @@ class TestRequesterErrorClassification(BaseRequesterTestCase):
 class TestRequesterElapsed(TestCase):
     def test_random_agent_is_request_local(self):
         requester = object.__new__(Requester)
+        requester.config = RequestConfig()
         requester._rate_limiter = RequestRateLimiter()
         requester._url = "https://example.com/"
         requester._query = ""
@@ -926,6 +929,7 @@ class TestRequesterElapsed(TestCase):
 
     def test_request_elapsed_includes_stream_read(self):
         requester = object.__new__(Requester)
+        requester.config = RequestConfig()
         requester._rate_limiter = RequestRateLimiter()
         requester._url = "https://example.com/"
         requester._query = ""
@@ -942,6 +946,7 @@ class TestRequesterElapsed(TestCase):
 
     def test_retry_elapsed_reports_only_the_successful_attempt(self):
         requester = object.__new__(Requester)
+        requester.config = RequestConfig(max_retries=1)
         requester._rate_limiter = RequestRateLimiter()
         requester._url = "https://example.com/"
         requester._query = ""
@@ -955,7 +960,6 @@ class TestRequesterElapsed(TestCase):
         requester.session = DummySyncSession(successful)
 
         with (
-            patch.dict(options, {"max_retries": 1}),
             patch.object(
                 requester.session,
                 "send",
@@ -978,7 +982,7 @@ class TestRequesterElapsed(TestCase):
 
 class TestRequesterRateLimiting(BaseRequesterTestCase):
     def test_unlimited_requests_do_not_spawn_timer_threads(self):
-        requester = Requester()
+        requester = Requester(RequestConfig.from_options(options))
         requester.set_url("http://example.com/")
 
         try:
@@ -1001,7 +1005,7 @@ class TestRequesterRateLimiting(BaseRequesterTestCase):
 class TestRequesterResponseCleanup(BaseRequesterTestCase):
     def test_sync_save_response_option_captures_full_binary_body(self):
         options["save_response"] = "responses"
-        requester = Requester()
+        requester = Requester(RequestConfig.from_options(options))
         requester.set_url("http://example.com/")
         origin_response = BinaryMultiChunkSyncResponse()
 
@@ -1017,7 +1021,7 @@ class TestRequesterResponseCleanup(BaseRequesterTestCase):
         self.assertTrue(origin_response.closed)
 
     def test_sync_response_closes_after_early_bounded_parse(self):
-        requester = Requester()
+        requester = Requester(RequestConfig.from_options(options))
         requester.set_url("http://example.com/")
         origin_response = MultiChunkSyncResponse()
 
@@ -1037,7 +1041,7 @@ class TestRequesterResponseCleanup(BaseRequesterTestCase):
         self.assertTrue(origin_response.closed)
 
     def test_sync_response_closes_when_body_parse_fails(self):
-        requester = Requester()
+        requester = Requester(RequestConfig.from_options(options))
         requester.set_url("http://example.com/")
         origin_response = DummySyncResponse(
             requests.exceptions.ChunkedEncodingError("incomplete body")
@@ -1060,7 +1064,7 @@ class TestRequesterResponseCleanup(BaseRequesterTestCase):
 class TestRequesterPathPreservation(BaseRequesterTestCase):
     def test_sync_requester_preserves_encoded_edge_case_targets(self):
         with RequestTargetServer() as server:
-            requester = Requester()
+            requester = Requester(RequestConfig.from_options(options))
             requester.set_url(server.url)
 
             for _, path, _ in REQUEST_TARGET_CASES:
@@ -1073,7 +1077,7 @@ class TestRequesterPathPreservation(BaseRequesterTestCase):
 
     def test_sync_requester_appends_base_query(self):
         with RequestTargetServer() as server:
-            requester = Requester()
+            requester = Requester(RequestConfig.from_options(options))
             requester.set_url(server.url)
             requester.set_query("debug=true")
             requester.request("admin")
@@ -1084,7 +1088,7 @@ class TestRequesterPathPreservation(BaseRequesterTestCase):
         options["follow_redirects"] = True
 
         with RequestTargetServer() as server:
-            requester = Requester()
+            requester = Requester(RequestConfig.from_options(options))
             requester.set_url(server.url)
             try:
                 response = requester.request("redirect")
@@ -1099,7 +1103,7 @@ class TestRequesterPathPreservation(BaseRequesterTestCase):
         options["follow_redirects"] = True
 
         with RequestTargetServer() as server:
-            requester = Requester()
+            requester = Requester(RequestConfig.from_options(options))
             requester.set_url(server.url)
             try:
                 response = requester.request(
@@ -1115,7 +1119,7 @@ class TestRequesterPathPreservation(BaseRequesterTestCase):
         options["follow_redirects"] = True
 
         with RequestTargetServer() as server:
-            requester = Requester()
+            requester = Requester(RequestConfig.from_options(options))
             requester.set_url(server.url)
             try:
                 with self.assertRaisesRegex(
@@ -1130,7 +1134,7 @@ class TestRequesterPathPreservation(BaseRequesterTestCase):
         options["max_retries"] = 1
 
         with RequestTargetServer() as server:
-            requester = Requester()
+            requester = Requester(RequestConfig.from_options(options))
             requester.set_url(server.url)
             try:
                 response = requester.request("retry-body")
@@ -1149,7 +1153,7 @@ class TestRequesterBodyPreservation(BaseRequesterTestCase):
             for name, body in REQUEST_BODY_CASES:
                 with self.subTest(encoding=name):
                     options["data"] = body
-                    requester = Requester()
+                    requester = Requester(RequestConfig.from_options(options))
                     requester.set_url(server.url)
                     try:
                         requester.request(name)
@@ -1169,7 +1173,7 @@ class TestRequesterAuthenticationParity(BaseRequesterTestCase):
                 with self.subTest(auth_type=auth_type):
                     options["auth"] = credential
                     options["auth_type"] = auth_type
-                    requester = Requester()
+                    requester = Requester(RequestConfig.from_options(options))
                     requester.set_url(server.url)
                     try:
                         requester.request(auth_type)
@@ -1182,7 +1186,7 @@ class TestRequesterAuthenticationParity(BaseRequesterTestCase):
         options["auth_type"] = "digest"
 
         with RequestTargetServer() as server:
-            requester = Requester()
+            requester = Requester(RequestConfig.from_options(options))
             requester.set_url(server.url)
             try:
                 response = requester.request("digest-auth")
@@ -1207,7 +1211,7 @@ class TestRequesterAuthenticationParity(BaseRequesterTestCase):
 
         with RequestTargetServer() as origin, RequestTargetServer() as destination:
             origin.server.external_redirect_url = destination.url + "final"
-            requester = Requester()
+            requester = Requester(RequestConfig.from_options(options))
             requester.set_url(origin.url)
             try:
                 response = requester.request("external-redirect")
@@ -1228,7 +1232,7 @@ class TestAsyncRequesterAuthenticationParity(
                 with self.subTest(auth_type=auth_type):
                     options["auth"] = credential
                     options["auth_type"] = auth_type
-                    requester = AsyncRequester()
+                    requester = AsyncRequester(RequestConfig.from_options(options))
                     requester.set_url(server.url)
                     try:
                         await requester.request(auth_type)
@@ -1241,7 +1245,7 @@ class TestAsyncRequesterAuthenticationParity(
         options["auth_type"] = "digest"
 
         with RequestTargetServer() as server:
-            requester = AsyncRequester()
+            requester = AsyncRequester(RequestConfig.from_options(options))
             requester.set_url(server.url)
             try:
                 response = await requester.request("digest-auth")
@@ -1266,7 +1270,7 @@ class TestAsyncRequesterAuthenticationParity(
 
         with RequestTargetServer() as origin, RequestTargetServer() as destination:
             origin.server.external_redirect_url = destination.url + "final"
-            requester = AsyncRequester()
+            requester = AsyncRequester(RequestConfig.from_options(options))
             requester.set_url(origin.url)
             try:
                 response = await requester.request("external-redirect")
@@ -1282,7 +1286,7 @@ class TestRequesterProxyRouting(BaseRequesterTestCase):
     def test_replay_proxy_preserves_auth_and_cookies(self):
         options["auth"] = "sync-user:sync-password"
         options["auth_type"] = "basic"
-        requester = Requester()
+        requester = Requester(RequestConfig.from_options(options))
         requester.set_url("http://example.com/")
         requester.session.cookies.set(
             "primary",
@@ -1312,7 +1316,7 @@ class TestRequesterProxyRouting(BaseRequesterTestCase):
         self.assertEqual(prepared_request.headers["Cookie"], "primary=sync")
 
     def test_proxy_managers_keep_path_preserving_connection_pools(self):
-        requester = Requester()
+        requester = Requester(RequestConfig.from_options(options))
         adapter = requester.session.get_adapter("http://")
         try:
             cases = (
@@ -1347,7 +1351,7 @@ class TestRequesterProxyRouting(BaseRequesterTestCase):
                     proxy_scheme=proxy_scheme,
                     target_scheme=target_scheme,
                 ):
-                    requester = Requester()
+                    requester = Requester(RequestConfig.from_options(options))
                     requester.set_url(f"{target_scheme}://origin.invalid/")
 
                     with (
@@ -1375,7 +1379,7 @@ class TestAsyncRequesterProxyRouting(
         for scheme in ("socks5", "socks5h"):
             with self.subTest(scheme=scheme):
                 options["proxies"] = [f"{scheme}://proxy.invalid:1080"]
-                requester = AsyncRequester()
+                requester = AsyncRequester(RequestConfig.from_options(options))
                 try:
                     transport = requester.session._transport_for_url(
                         httpx.URL("https://target.invalid/")
@@ -1392,7 +1396,7 @@ class TestAsyncRequesterProxyRouting(
         options["auth"] = "first-user:first-password"
         options["auth_type"] = "basic"
         with RequestTargetServer() as origin, RequestTargetServer() as replay_proxy:
-            requester = AsyncRequester()
+            requester = AsyncRequester(RequestConfig.from_options(options))
             requester.set_url(origin.url)
             requester.session.cookies.set(
                 "primary",
@@ -1463,7 +1467,7 @@ class TestAsyncRequesterProxyRouting(
             "lib.connection.requester.PathPreservingAsyncHTTPTransport",
             side_effect=children,
         ):
-            requester = AsyncRequester()
+            requester = AsyncRequester(RequestConfig.from_options(options))
 
         await requester.close()
 
@@ -1512,7 +1516,7 @@ class TestAsyncRequesterProxyRouting(
         for environment_case, environment in environments:
             with self.subTest(environment_case=environment_case):
                 with patch.dict(os.environ, environment, clear=True):
-                    requester = AsyncRequester()
+                    requester = AsyncRequester(RequestConfig.from_options(options))
 
                 try:
                     for url in (
@@ -1537,7 +1541,7 @@ class TestAsyncRequesterProxyRouting(
                 "NO_PROXY": "",
             }
             with patch.dict(os.environ, environment, clear=True):
-                requester = AsyncRequester()
+                requester = AsyncRequester(RequestConfig.from_options(options))
 
             requester.set_url("http://origin.invalid/")
             try:
@@ -1555,7 +1559,7 @@ class TestAsyncRequesterProxyRouting(
             "NO_PROXY": "bypass.invalid",
         }
         with patch.dict(os.environ, environment, clear=True):
-            requester = AsyncRequester()
+            requester = AsyncRequester(RequestConfig.from_options(options))
             with patch.object(
                 requester,
                 "request",
@@ -1585,7 +1589,7 @@ class TestAsyncRequesterProxyRouting(
 class TestAsyncRequesterSSLHandling(BaseRequesterTestCase, IsolatedAsyncioTestCase):
     async def test_async_origin_407_remains_a_response_without_a_proxy(self):
         with patch("httpx._utils.getproxies", return_value={}):
-            requester = AsyncRequester()
+            requester = AsyncRequester(RequestConfig.from_options(options))
         requester.set_url("http://example.com/")
         response = DummyAsyncResponse()
         response.status_code = 407
@@ -1599,7 +1603,7 @@ class TestAsyncRequesterSSLHandling(BaseRequesterTestCase, IsolatedAsyncioTestCa
         self.assertEqual(result.status, 407)
 
     async def test_async_connect_error_with_ssl_cause_uses_ssl_message(self):
-        requester = AsyncRequester()
+        requester = AsyncRequester(RequestConfig.from_options(options))
         requester.set_url("https://example.com/")
         error = _with_cause(
             httpx.ConnectError("connect failed"),
@@ -1616,7 +1620,7 @@ class TestAsyncRequesterSSLHandling(BaseRequesterTestCase, IsolatedAsyncioTestCa
         )
 
     async def test_async_connect_error_without_ssl_cause_stays_connect_error(self):
-        requester = AsyncRequester()
+        requester = AsyncRequester(RequestConfig.from_options(options))
         requester.set_url("https://example.com/")
         requester.session.send = AsyncMock(
             side_effect=httpx.ConnectError("connection refused")
@@ -1628,7 +1632,7 @@ class TestAsyncRequesterSSLHandling(BaseRequesterTestCase, IsolatedAsyncioTestCa
         self.assertEqual(str(ctx.exception), "Cannot connect to: example.com")
 
     async def test_async_connect_error_with_dns_cause_uses_dns_message(self):
-        requester = AsyncRequester()
+        requester = AsyncRequester(RequestConfig.from_options(options))
         requester.set_url("https://example.com/")
         error = _with_cause(
             httpx.ConnectError("lookup failed"),
@@ -1642,7 +1646,7 @@ class TestAsyncRequesterSSLHandling(BaseRequesterTestCase, IsolatedAsyncioTestCa
         self.assertEqual(str(ctx.exception), "Couldn't resolve DNS")
 
     async def test_async_legacy_dns_message_remains_supported(self):
-        requester = AsyncRequester()
+        requester = AsyncRequester(RequestConfig.from_options(options))
         requester.set_url("https://example.com/")
         requester.session.send = AsyncMock(
             side_effect=httpx.ConnectError(
@@ -1656,7 +1660,7 @@ class TestAsyncRequesterSSLHandling(BaseRequesterTestCase, IsolatedAsyncioTestCa
         self.assertEqual(str(ctx.exception), "Couldn't resolve DNS")
 
     async def test_async_connect_error_with_cert_context_uses_cert_message(self):
-        requester = AsyncRequester()
+        requester = AsyncRequester(RequestConfig.from_options(options))
         requester.set_url("https://example.com/")
         cert_exc = ssl.SSLCertVerificationError(
             1,
@@ -1674,7 +1678,7 @@ class TestAsyncRequesterSSLHandling(BaseRequesterTestCase, IsolatedAsyncioTestCa
         )
 
     async def test_async_remote_protocol_error_uses_read_error_message(self):
-        requester = AsyncRequester()
+        requester = AsyncRequester(RequestConfig.from_options(options))
         requester.set_url("http://example.com/")
         requester.session.send = AsyncMock(
             side_effect=httpx.RemoteProtocolError("bad Content-Length")
@@ -1692,6 +1696,7 @@ class TestAsyncRequesterSSLHandling(BaseRequesterTestCase, IsolatedAsyncioTestCa
 class TestAsyncRequesterElapsed(IsolatedAsyncioTestCase):
     async def test_random_agent_is_request_local(self):
         requester = object.__new__(AsyncRequester)
+        requester.config = RequestConfig()
         requester._rate_limiter = RequestRateLimiter()
         requester._url = "https://example.com/"
         requester._query = ""
@@ -1719,6 +1724,7 @@ class TestAsyncRequesterElapsed(IsolatedAsyncioTestCase):
 
     async def test_request_elapsed_waits_for_stream_close(self):
         requester = object.__new__(AsyncRequester)
+        requester.config = RequestConfig()
         requester._rate_limiter = RequestRateLimiter()
         requester._url = "https://example.com/"
         requester._query = ""
@@ -1736,6 +1742,7 @@ class TestAsyncRequesterElapsed(IsolatedAsyncioTestCase):
 
     async def test_retry_elapsed_reports_only_the_successful_attempt(self):
         requester = object.__new__(AsyncRequester)
+        requester.config = RequestConfig(max_retries=1)
         requester._rate_limiter = RequestRateLimiter()
         requester._url = "https://example.com/"
         requester._query = ""
@@ -1749,7 +1756,6 @@ class TestAsyncRequesterElapsed(IsolatedAsyncioTestCase):
         requester.session.send = AsyncMock(side_effect=[failed, successful])
 
         with (
-            patch.dict(options, {"max_retries": 1}),
             patch.object(
                 requester_module.time,
                 "perf_counter",
@@ -1770,7 +1776,7 @@ class TestAsyncRequesterResponseCleanup(
 ):
     async def test_async_save_response_option_captures_full_binary_body(self):
         options["save_response_jsonl"] = "responses.jsonl"
-        requester = AsyncRequester()
+        requester = AsyncRequester(RequestConfig.from_options(options))
         requester.set_url("http://example.com/")
         origin_response = BinaryMultiChunkAsyncResponse()
         requester.session.send = AsyncMock(return_value=origin_response)
@@ -1784,7 +1790,7 @@ class TestAsyncRequesterResponseCleanup(
         self.assertTrue(origin_response.closed)
 
     async def test_async_response_closes_when_body_parse_fails(self):
-        requester = AsyncRequester()
+        requester = AsyncRequester(RequestConfig.from_options(options))
         requester.set_url("http://example.com/")
         origin_response = DummyAsyncResponse(
             httpx.RemoteProtocolError("incomplete body")
@@ -1802,7 +1808,7 @@ class TestAsyncRequesterResponseCleanup(
         self.assertTrue(origin_response.closed)
 
     async def test_async_response_closes_after_early_bounded_parse(self):
-        requester = AsyncRequester()
+        requester = AsyncRequester(RequestConfig.from_options(options))
         requester.set_url("http://example.com/")
         origin_response = MultiChunkAsyncResponse()
         requester.session.send = AsyncMock(return_value=origin_response)
@@ -1819,6 +1825,7 @@ class TestAsyncRequesterResponseCleanup(
 
     async def test_close_closes_primary_and_replay_sessions(self):
         requester = object.__new__(AsyncRequester)
+        requester.config = RequestConfig.from_options(options)
         requester.session = DummyAsyncSession(DummyAsyncResponse())
         requester.replay_session = DummyAsyncSession(DummyAsyncResponse())
 
@@ -1831,7 +1838,7 @@ class TestAsyncRequesterResponseCleanup(
 class TestAsyncRequesterPathPreservation(BaseRequesterTestCase, IsolatedAsyncioTestCase):
     async def test_async_requester_preserves_encoded_edge_case_targets(self):
         with RequestTargetServer() as server:
-            requester = AsyncRequester()
+            requester = AsyncRequester(RequestConfig.from_options(options))
             requester.set_url(server.url)
             try:
                 for _, path, _ in REQUEST_TARGET_CASES:
@@ -1846,7 +1853,7 @@ class TestAsyncRequesterPathPreservation(BaseRequesterTestCase, IsolatedAsyncioT
 
     async def test_async_requester_appends_base_query(self):
         with RequestTargetServer() as server:
-            requester = AsyncRequester()
+            requester = AsyncRequester(RequestConfig.from_options(options))
             requester.set_url(server.url)
             requester.set_query("debug=true")
             try:
@@ -1860,7 +1867,7 @@ class TestAsyncRequesterPathPreservation(BaseRequesterTestCase, IsolatedAsyncioT
         options["follow_redirects"] = True
 
         with RequestTargetServer() as server:
-            requester = AsyncRequester()
+            requester = AsyncRequester(RequestConfig.from_options(options))
             requester.set_url(server.url)
             try:
                 response = await requester.request("redirect")
@@ -1875,7 +1882,7 @@ class TestAsyncRequesterPathPreservation(BaseRequesterTestCase, IsolatedAsyncioT
         options["follow_redirects"] = True
 
         with RequestTargetServer() as server:
-            requester = AsyncRequester()
+            requester = AsyncRequester(RequestConfig.from_options(options))
             requester.set_url(server.url)
             try:
                 response = await requester.request(
@@ -1905,7 +1912,7 @@ class TestAsyncRequesterPathPreservation(BaseRequesterTestCase, IsolatedAsyncioT
         options["follow_redirects"] = True
 
         with RequestTargetServer() as server:
-            requester = AsyncRequester()
+            requester = AsyncRequester(RequestConfig.from_options(options))
             requester.set_url(server.url)
             try:
                 response = await requester.request(
@@ -1921,7 +1928,7 @@ class TestAsyncRequesterPathPreservation(BaseRequesterTestCase, IsolatedAsyncioT
         options["follow_redirects"] = True
 
         with RequestTargetServer() as server:
-            requester = AsyncRequester()
+            requester = AsyncRequester(RequestConfig.from_options(options))
             requester.set_url(server.url)
             try:
                 with self.assertRaisesRegex(
@@ -1938,7 +1945,7 @@ class TestAsyncRequesterPathPreservation(BaseRequesterTestCase, IsolatedAsyncioT
         options["max_retries"] = 1
 
         with RequestTargetServer() as server:
-            requester = AsyncRequester()
+            requester = AsyncRequester(RequestConfig.from_options(options))
             requester.set_url(server.url)
             try:
                 response = await requester.request("retry-body")
@@ -1955,7 +1962,7 @@ class TestAsyncRequesterPathPreservation(BaseRequesterTestCase, IsolatedAsyncioT
             parsed_url = urlsplit(server.url)
             forced_host = "redirect.invalid"
             forced_url = f"http://{forced_host}:{parsed_url.port}/"
-            requester = AsyncRequester()
+            requester = AsyncRequester(RequestConfig.from_options(options))
             requester.set_ip(forced_host, parsed_url.port, "127.0.0.1")
             requester.set_url(forced_url)
             try:
@@ -1973,7 +1980,7 @@ class TestAsyncRequesterPathPreservation(BaseRequesterTestCase, IsolatedAsyncioT
         options["follow_redirects"] = True
 
         with RequestTargetServer() as server:
-            requester = AsyncRequester()
+            requester = AsyncRequester(RequestConfig.from_options(options))
             requester.set_url(server.url)
             try:
                 response = await requester.request("digest-auth%3d..%1\\*")
@@ -1994,7 +2001,7 @@ class TestAsyncRequesterPathPreservation(BaseRequesterTestCase, IsolatedAsyncioT
 
     async def test_async_requester_does_not_follow_redirects_when_disabled(self):
         with RequestTargetServer() as server:
-            requester = AsyncRequester()
+            requester = AsyncRequester(RequestConfig.from_options(options))
             requester.set_url(server.url)
             try:
                 response = await requester.request("redirect")
@@ -2011,7 +2018,7 @@ class TestAsyncRequesterPathPreservation(BaseRequesterTestCase, IsolatedAsyncioT
 
         with RequestTargetServer() as proxy:
             options["proxies"] = [proxy.url]
-            requester = AsyncRequester()
+            requester = AsyncRequester(RequestConfig.from_options(options))
             requester.set_url("http://origin.invalid/")
             try:
                 response = await requester.request("redirect")
@@ -2038,7 +2045,7 @@ class TestAsyncRequesterPathPreservation(BaseRequesterTestCase, IsolatedAsyncioT
             for name, body in REQUEST_BODY_CASES:
                 with self.subTest(encoding=name):
                     options["data"] = body
-                    requester = AsyncRequester()
+                    requester = AsyncRequester(RequestConfig.from_options(options))
                     requester.set_url(server.url)
                     try:
                         await requester.request(name)
@@ -2055,7 +2062,7 @@ class TestAsyncRequesterPathPreservation(BaseRequesterTestCase, IsolatedAsyncioT
         options["data"] = "value=\u00e9"
 
         with RequestTargetServer() as server:
-            requester = AsyncRequester()
+            requester = AsyncRequester(RequestConfig.from_options(options))
             requester.set_url(server.url)
             try:
                 await requester.request("inline")
@@ -2068,7 +2075,7 @@ class TestAsyncRequesterPathPreservation(BaseRequesterTestCase, IsolatedAsyncioT
 class TestCookieSessionParity(BaseRequesterTestCase, IsolatedAsyncioTestCase):
     def test_sync_requester_reuses_response_cookies(self):
         with RequestTargetServer() as server:
-            requester = Requester()
+            requester = Requester(RequestConfig.from_options(options))
             requester.set_url(server.url)
             try:
                 requester.request("cookie/set")
@@ -2081,7 +2088,7 @@ class TestCookieSessionParity(BaseRequesterTestCase, IsolatedAsyncioTestCase):
 
     async def test_async_requester_reuses_response_cookies(self):
         with RequestTargetServer() as server:
-            requester = AsyncRequester()
+            requester = AsyncRequester(RequestConfig.from_options(options))
             requester.set_url(server.url)
             try:
                 await requester.request("cookie/set")
@@ -2095,7 +2102,7 @@ class TestCookieSessionParity(BaseRequesterTestCase, IsolatedAsyncioTestCase):
     def test_sync_retry_reuses_cookie_from_truncated_response(self):
         options["max_retries"] = 1
         with RequestTargetServer() as server:
-            requester = Requester()
+            requester = Requester(RequestConfig.from_options(options))
             requester.set_url(server.url)
             try:
                 response = requester.request("cookie/retry-body")
@@ -2108,7 +2115,7 @@ class TestCookieSessionParity(BaseRequesterTestCase, IsolatedAsyncioTestCase):
     async def test_async_retry_reuses_cookie_from_truncated_response(self):
         options["max_retries"] = 1
         with RequestTargetServer() as server:
-            requester = AsyncRequester()
+            requester = AsyncRequester(RequestConfig.from_options(options))
             requester.set_url(server.url)
             try:
                 response = await requester.request("cookie/retry-body")
@@ -2122,7 +2129,7 @@ class TestCookieSessionParity(BaseRequesterTestCase, IsolatedAsyncioTestCase):
         options["headers"] = {"Cookie": "fixed=manual"}
         options["follow_redirects"] = True
         with RequestTargetServer() as server:
-            requester = Requester()
+            requester = Requester(RequestConfig.from_options(options))
             requester.set_url(server.url)
             try:
                 requester.request("cookie/fixed-seed")
@@ -2140,7 +2147,7 @@ class TestCookieSessionParity(BaseRequesterTestCase, IsolatedAsyncioTestCase):
         options["headers"] = {"Cookie": "fixed=manual"}
         options["follow_redirects"] = True
         with RequestTargetServer() as server:
-            requester = AsyncRequester()
+            requester = AsyncRequester(RequestConfig.from_options(options))
             requester.set_url(server.url)
             try:
                 await requester.request("cookie/fixed-seed")
@@ -2157,7 +2164,7 @@ class TestCookieSessionParity(BaseRequesterTestCase, IsolatedAsyncioTestCase):
     def test_sync_does_not_send_secure_cookie_over_loopback_http(self):
         for host in ("address", "localhost"):
             with self.subTest(host=host), RequestTargetServer() as server:
-                requester = Requester()
+                requester = Requester(RequestConfig.from_options(options))
                 requester.set_url(
                     server.url if host == "address" else server.localhost_url
                 )
@@ -2172,7 +2179,7 @@ class TestCookieSessionParity(BaseRequesterTestCase, IsolatedAsyncioTestCase):
     async def test_async_does_not_send_secure_cookie_over_loopback_http(self):
         for host in ("address", "localhost"):
             with self.subTest(host=host), RequestTargetServer() as server:
-                requester = AsyncRequester()
+                requester = AsyncRequester(RequestConfig.from_options(options))
                 requester.set_url(
                     server.url if host == "address" else server.localhost_url
                 )
@@ -2186,7 +2193,7 @@ class TestCookieSessionParity(BaseRequesterTestCase, IsolatedAsyncioTestCase):
 
     def test_sync_cookie_header_uses_longest_path_first(self):
         with RequestTargetServer() as server:
-            requester = Requester()
+            requester = Requester(RequestConfig.from_options(options))
             requester.set_url(server.url)
             try:
                 requester.request("cookie/path-root-set")
@@ -2202,7 +2209,7 @@ class TestCookieSessionParity(BaseRequesterTestCase, IsolatedAsyncioTestCase):
 
     async def test_async_cookie_header_uses_longest_path_first(self):
         with RequestTargetServer() as server:
-            requester = AsyncRequester()
+            requester = AsyncRequester(RequestConfig.from_options(options))
             requester.set_url(server.url)
             try:
                 await requester.request("cookie/path-root-set")
@@ -2219,7 +2226,7 @@ class TestCookieSessionParity(BaseRequesterTestCase, IsolatedAsyncioTestCase):
     def test_sync_cookie_domain_rules_match_existing_session_behavior(self):
         with RequestTargetServer() as proxy:
             options["proxies"] = [proxy.url]
-            requester = Requester()
+            requester = Requester(RequestConfig.from_options(options))
             try:
                 requester.set_url("http://foo.com/")
                 requester.request("cookie/domain-super-set")
@@ -2231,7 +2238,7 @@ class TestCookieSessionParity(BaseRequesterTestCase, IsolatedAsyncioTestCase):
 
         with RequestTargetServer() as proxy:
             options["proxies"] = [proxy.url]
-            requester = Requester()
+            requester = Requester(RequestConfig.from_options(options))
             try:
                 requester.set_url("http://api.example.com/")
                 requester.request("cookie/domain-parent-set")
@@ -2244,7 +2251,7 @@ class TestCookieSessionParity(BaseRequesterTestCase, IsolatedAsyncioTestCase):
     async def test_async_cookie_domain_rules_match_existing_session_behavior(self):
         with RequestTargetServer() as proxy:
             options["proxies"] = [proxy.url]
-            requester = AsyncRequester()
+            requester = AsyncRequester(RequestConfig.from_options(options))
             try:
                 requester.set_url("http://foo.com/")
                 await requester.request("cookie/domain-super-set")
@@ -2256,7 +2263,7 @@ class TestCookieSessionParity(BaseRequesterTestCase, IsolatedAsyncioTestCase):
 
         with RequestTargetServer() as proxy:
             options["proxies"] = [proxy.url]
-            requester = AsyncRequester()
+            requester = AsyncRequester(RequestConfig.from_options(options))
             try:
                 requester.set_url("http://api.example.com/")
                 await requester.request("cookie/domain-parent-set")
@@ -2269,7 +2276,10 @@ class TestCookieSessionParity(BaseRequesterTestCase, IsolatedAsyncioTestCase):
 
 class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
     def native_requester_or_skip(self):
-        requester = NativeRequester()
+        requester = NativeRequester(
+            RequestConfig.from_options(options),
+            filter_options=native_filter_options(options),
+        )
         try:
             requester.get_backend()
         except RequestException as error:
@@ -2373,13 +2383,16 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         options["auth_type"] = "basic"
         options["proxy_auth"] = "proxy-user:proxy-password"
 
-        try:
-            backend = NativeHTTPBackend()
-        except RequestException as error:
-            self.skipTest(str(error))
-
         with RequestTargetServer() as proxy:
             options["proxies"] = [proxy.url]
+            try:
+                backend = NativeHTTPBackend(
+                    RequestConfig.from_options(options),
+                    filter_options=native_filter_options(options),
+                )
+            except RequestException as error:
+                self.skipTest(str(error))
+            self.addCleanup(backend.close)
             result = list(backend.scan("http://origin.invalid/", ["admin"]))[0]
 
         self.assertIsNone(result[2])
@@ -2393,9 +2406,9 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         )
 
     def test_native_cross_origin_redirect_strips_authentication(self):
+        options["follow_redirects"] = True
         options["auth"] = "redirect-token"
         options["auth_type"] = "bearer"
-        options["follow_redirects"] = True
 
         with RequestTargetServer() as origin, RequestTargetServer() as destination:
             origin.server.external_redirect_url = destination.url + "final"
@@ -2408,9 +2421,9 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         self.assertEqual(destination.authorizations, [None])
 
     def test_native_same_origin_redirect_keeps_preemptive_authentication(self):
+        options["follow_redirects"] = True
         options["auth"] = "redirect-token"
         options["auth_type"] = "bearer"
-        options["follow_redirects"] = True
 
         with RequestTargetServer() as server:
             requester = self.native_requester_or_skip()
@@ -2424,9 +2437,9 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         )
 
     def test_native_digest_answers_a_same_origin_redirect_challenge(self):
+        options["follow_redirects"] = True
         options["auth"] = "digest-user:digest-password"
         options["auth_type"] = "digest"
-        options["follow_redirects"] = True
 
         with RequestTargetServer() as server:
             server.server.external_redirect_url = server.url + "digest-auth"
@@ -2447,9 +2460,9 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         )
 
     def test_native_digest_does_not_answer_a_cross_origin_challenge(self):
+        options["follow_redirects"] = True
         options["auth"] = "digest-user:digest-password"
         options["auth_type"] = "digest"
-        options["follow_redirects"] = True
 
         with RequestTargetServer() as origin, RequestTargetServer() as destination:
             origin.server.external_redirect_url = destination.url + "digest-auth"
@@ -2505,7 +2518,10 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
     def test_native_replay_proxy_shares_origin_authentication_and_session(self):
         options["auth"] = "replay-token"
         options["auth_type"] = "bearer"
-        requester = NativeRequester()
+        requester = NativeRequester(
+            RequestConfig.from_options(options),
+            filter_options=native_filter_options(options),
+        )
         with RequestTargetServer() as server:
             requester.set_url(server.url)
             try:
@@ -2525,7 +2541,10 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
 
     def test_native_replay_proxy_reapplies_cookie_scope_on_redirect(self):
         options["follow_redirects"] = True
-        requester = NativeRequester()
+        requester = NativeRequester(
+            RequestConfig.from_options(options),
+            filter_options=native_filter_options(options),
+        )
         with RequestTargetServer() as server:
             requester.set_url(server.url)
             try:
@@ -2544,7 +2563,10 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
 
     def test_native_requester_reuses_response_cookies(self):
         try:
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
         except RequestException as error:
             self.skipTest(str(error))
 
@@ -2562,7 +2584,10 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         for path in ("cookie/retry-body", "cookie/retry-body%1"):
             with self.subTest(path=path), RequestTargetServer() as server:
                 try:
-                    backend = NativeHTTPBackend()
+                    backend = NativeHTTPBackend(
+                        RequestConfig.from_options(options),
+                        filter_options=native_filter_options(options),
+                    )
                 except RequestException as error:
                     self.skipTest(str(error))
                 result = list(backend.scan(server.url, [path]))[0]
@@ -2573,7 +2598,10 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
 
     def test_native_raw_fallback_reuses_response_cookies(self):
         try:
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
         except RequestException as error:
             self.skipTest(str(error))
 
@@ -2587,12 +2615,14 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         self.assertEqual(server.cookies, [None, "session=native"])
 
     def test_native_redirect_applies_response_cookie_to_next_hop(self):
+        options["follow_redirects"] = True
         try:
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
         except RequestException as error:
             self.skipTest(str(error))
-
-        options["follow_redirects"] = True
         with RequestTargetServer() as server:
             result = list(backend.scan(server.url, ["cookie/redirect"]))[0]
 
@@ -2605,7 +2635,10 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         with RequestTargetServer() as first_proxy, RequestTargetServer() as second_proxy:
             options["proxies"] = [first_proxy.url, second_proxy.url]
             try:
-                backend = NativeHTTPBackend()
+                backend = NativeHTTPBackend(
+                    RequestConfig.from_options(options),
+                    filter_options=native_filter_options(options),
+                )
             except RequestException as error:
                 self.skipTest(str(error))
             results = list(
@@ -2625,7 +2658,10 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         with RequestTargetServer() as proxy:
             options["proxies"] = [proxy.url]
             try:
-                backend = NativeHTTPBackend()
+                backend = NativeHTTPBackend(
+                    RequestConfig.from_options(options),
+                    filter_options=native_filter_options(options),
+                )
             except RequestException as error:
                 self.skipTest(str(error))
             stored = list(
@@ -2642,15 +2678,20 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
 
     def test_native_cookie_jar_survives_internal_engine_rebuild(self):
         try:
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
         except RequestException as error:
             self.skipTest(str(error))
 
         with RequestTargetServer() as server:
             stored = list(backend.scan(server.url, ["cookie/set"]))[0]
-            options["follow_redirects"] = True
+            first_engine = backend._engine
+            backend.set_origin_authentication("bearer", "target-token")
             reused = list(backend.scan(server.url, ["cookie/required"]))[0]
 
+        self.assertIsNot(backend._engine, first_engine)
         self.assertIsNone(stored[2])
         self.assertIsNone(reused[2])
         self.assertEqual(reused[1].status, 200)
@@ -2658,7 +2699,10 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
 
     def test_native_raw_fallback_honors_cookie_path_scope(self):
         try:
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
         except RequestException as error:
             self.skipTest(str(error))
 
@@ -2681,7 +2725,10 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
     def test_native_explicit_cookie_header_takes_precedence_over_session(self):
         options["headers"] = {"Cookie": "fixed=manual"}
         try:
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
         except RequestException as error:
             self.skipTest(str(error))
 
@@ -2698,10 +2745,13 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         self.assertEqual(server.cookies, ["fixed=manual"] * 3)
 
     def test_native_fixed_cookie_yields_to_jar_on_redirect(self):
-        options["headers"] = {"Cookie": "fixed=manual"}
         options["follow_redirects"] = True
+        options["headers"] = {"Cookie": "fixed=manual"}
         try:
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
         except RequestException as error:
             self.skipTest(str(error))
 
@@ -2724,7 +2774,10 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         options["thread_count"] = 8
         options["timeout"] = 5
         try:
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
         except RequestException as error:
             self.skipTest(str(error))
 
@@ -2739,7 +2792,10 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         for host in ("address", "localhost"):
             with self.subTest(host=host), RequestTargetServer() as server:
                 try:
-                    backend = NativeHTTPBackend()
+                    backend = NativeHTTPBackend(
+                        RequestConfig.from_options(options),
+                        filter_options=native_filter_options(options),
+                    )
                 except RequestException as error:
                     self.skipTest(str(error))
                 base_url = server.url if host == "address" else server.localhost_url
@@ -2757,7 +2813,10 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         with RequestTargetServer() as proxy:
             options["proxies"] = [proxy.url]
             try:
-                backend = NativeHTTPBackend()
+                backend = NativeHTTPBackend(
+                    RequestConfig.from_options(options),
+                    filter_options=native_filter_options(options),
+                )
             except RequestException as error:
                 self.skipTest(str(error))
             stored = list(
@@ -2773,7 +2832,10 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
 
     def test_native_cookie_header_uses_longest_path_first(self):
         try:
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
         except RequestException as error:
             self.skipTest(str(error))
 
@@ -2805,7 +2867,10 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         with RequestTargetServer() as proxy:
             options["proxies"] = [proxy.url]
             try:
-                backend = NativeHTTPBackend()
+                backend = NativeHTTPBackend(
+                    RequestConfig.from_options(options),
+                    filter_options=native_filter_options(options),
+                )
             except RequestException as error:
                 self.skipTest(str(error))
             supercookie = list(
@@ -2821,7 +2886,10 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
 
         with RequestTargetServer() as proxy:
             options["proxies"] = [proxy.url]
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
             parent = list(
                 backend.scan(
                     "http://api.example.com/",
@@ -2837,11 +2905,6 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         self.assertEqual(proxy.cookies, [None, "parent=native"])
 
     def test_native_requester_preserves_methods_and_request_body_bytes(self):
-        try:
-            backend = NativeHTTPBackend()
-        except RequestException as error:
-            self.skipTest(str(error))
-
         cases = (
             ("POST", "ascii", b"name=plain&line=two\r\n"),
             ("PATCH", "raw%1", b"value=\xff\r\nnext=line\n"),
@@ -2852,6 +2915,14 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
                 with self.subTest(method=method, path=path):
                     options["http_method"] = method
                     options["data"] = body
+                    try:
+                        backend = NativeHTTPBackend(
+                            RequestConfig.from_options(options),
+                            filter_options=native_filter_options(options),
+                        )
+                    except RequestException as error:
+                        self.skipTest(str(error))
+                    self.addCleanup(backend.close)
                     result = list(backend.scan(server.url, [path]))[0]
                     self.assertIsNone(result[2])
 
@@ -2863,7 +2934,10 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
 
     def test_native_requester_preserves_encoded_edge_case_targets(self):
         try:
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
         except RequestException as error:
             self.skipTest(str(error))
 
@@ -2882,12 +2956,14 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
             )
 
     def test_native_requester_follows_redirects(self):
+        options["follow_redirects"] = True
         try:
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
         except RequestException as error:
             self.skipTest(str(error))
-
-        options["follow_redirects"] = True
         with RequestTargetServer() as server:
             results = list(backend.scan(server.url, ["redirect"]))
 
@@ -2897,12 +2973,15 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
             self.assertEqual(server.targets, [b"/redirect", b"/final"])
 
     def test_native_requester_preserves_multi_hop_redirect_history(self):
+        options["follow_redirects"] = True
+
         try:
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
         except RequestException as error:
             self.skipTest(str(error))
-
-        options["follow_redirects"] = True
         with RequestTargetServer() as server:
             results = list(
                 backend.scan(
@@ -2930,12 +3009,15 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
             )
 
     def test_native_requester_follows_shared_redirect_limit(self):
+        options["follow_redirects"] = True
+
         try:
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
         except RequestException as error:
             self.skipTest(str(error))
-
-        options["follow_redirects"] = True
         with RequestTargetServer() as server:
             result = list(
                 backend.scan(
@@ -2952,12 +3034,15 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
             )
 
     def test_native_requester_rejects_redirects_above_shared_limit(self):
+        options["follow_redirects"] = True
+
         try:
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
         except RequestException as error:
             self.skipTest(str(error))
-
-        options["follow_redirects"] = True
         with RequestTargetServer() as server:
             result = list(
                 backend.scan(
@@ -2971,12 +3056,15 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
             self.assertIn("too many redirects", str(result[2]).lower())
 
     def test_native_requester_retries_response_body_read_failures(self):
+        options["max_retries"] = 1
+
         try:
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
         except RequestException as error:
             self.skipTest(str(error))
-
-        options["max_retries"] = 1
         with RequestTargetServer() as server:
             result = list(backend.scan(server.url, ["retry-body"]))[0]
 
@@ -2985,12 +3073,15 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
             self.assertEqual(server.target_counts[b"/retry-body"], 2)
 
     def test_native_raw_request_retries_response_body_read_failures(self):
+        options["max_retries"] = 1
+
         try:
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
         except RequestException as error:
             self.skipTest(str(error))
-
-        options["max_retries"] = 1
         with RequestTargetServer() as server:
             result = list(backend.scan(server.url, ["retry-body%1"]))[0]
 
@@ -3000,7 +3091,10 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
 
     def test_native_requester_does_not_retry_body_reads_when_disabled(self):
         try:
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
         except RequestException as error:
             self.skipTest(str(error))
 
@@ -3031,7 +3125,10 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
                 with self.subTest(name=name):
                     options["filter_regex"] = pattern
                     try:
-                        backend = NativeHTTPBackend()
+                        backend = NativeHTTPBackend(
+                            RequestConfig.from_options(options),
+                            filter_options=native_filter_options(options),
+                        )
                     except RequestException as error:
                         self.skipTest(str(error))
                     chunks = []
@@ -3042,14 +3139,17 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
                     self.assertEqual(chunk.events, ())
 
     def test_native_requester_uses_authenticated_http_proxy(self):
-        try:
-            backend = NativeHTTPBackend()
-        except RequestException as error:
-            self.skipTest(str(error))
-
         with RequestTargetServer() as proxy:
             options["proxies"] = [proxy.url]
             options["proxy_auth"] = "user:password"
+            try:
+                backend = NativeHTTPBackend(
+                    RequestConfig.from_options(options),
+                    filter_options=native_filter_options(options),
+                )
+            except RequestException as error:
+                self.skipTest(str(error))
+            self.addCleanup(backend.close)
             results = list(
                 backend.scan("http://origin.invalid/", ["admin"])
             )
@@ -3066,7 +3166,10 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
 
     def test_native_requester_appends_base_query(self):
         try:
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
         except RequestException as error:
             self.skipTest(str(error))
 
@@ -3089,7 +3192,7 @@ class TestResponseStoreTransportIntegration(
 
     def test_sync_repeated_response_headers_are_preserved(self):
         with RequestTargetServer() as server:
-            requester = Requester()
+            requester = Requester(RequestConfig.from_options(options))
             requester.set_url(server.url)
             try:
                 response = requester.request("repeated-headers")
@@ -3100,7 +3203,7 @@ class TestResponseStoreTransportIntegration(
 
     async def test_async_repeated_response_headers_are_preserved(self):
         with RequestTargetServer() as server:
-            requester = AsyncRequester()
+            requester = AsyncRequester(RequestConfig.from_options(options))
             requester.set_url(server.url)
             try:
                 response = await requester.request("repeated-headers")
@@ -3111,7 +3214,10 @@ class TestResponseStoreTransportIntegration(
 
     def test_native_repeated_response_headers_are_preserved(self):
         try:
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
         except RequestException as error:
             self.skipTest(str(error))
 
@@ -3178,7 +3284,7 @@ class TestResponseStoreTransportIntegration(
     def test_sync_gzip_multiscript_charsets_round_trip(self):
         options["save_response_jsonl"] = "responses.jsonl"
         with RequestTargetServer() as server:
-            requester = Requester()
+            requester = Requester(RequestConfig.from_options(options))
             requester.set_url(server.url)
             try:
                 responses = [
@@ -3195,7 +3301,7 @@ class TestResponseStoreTransportIntegration(
     async def test_async_gzip_multiscript_charsets_round_trip(self):
         options["save_response_jsonl"] = "responses.jsonl"
         with RequestTargetServer() as server:
-            requester = AsyncRequester()
+            requester = AsyncRequester(RequestConfig.from_options(options))
             requester.set_url(server.url)
             try:
                 responses = []
@@ -3210,7 +3316,10 @@ class TestResponseStoreTransportIntegration(
 
     def test_native_gzip_multiscript_charsets_round_trip(self):
         try:
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
         except RequestException as error:
             self.skipTest(str(error))
 
@@ -3231,12 +3340,15 @@ class TestResponseStoreTransportIntegration(
         self._assert_jsonl_round_trip(responses)
 
     def test_native_non_utf8_matcher_is_deferred_until_after_decoding(self):
+        options["match_regex"] = ARABIC_TEXT
         try:
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
         except RequestException as error:
             self.skipTest(str(error))
 
-        options["match_regex"] = ARABIC_TEXT
         with RequestTargetServer() as server:
             results = list(
                 backend.scan(server.url, ["encoded/arabic-windows-1256%1"])

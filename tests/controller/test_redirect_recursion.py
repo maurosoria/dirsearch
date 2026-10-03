@@ -7,6 +7,8 @@ from lib.connection.native import NativeHTTPBackend
 from lib.connection.requester import AsyncRequester, Requester
 from lib.connection.response import NativeResponse
 from lib.controller.controller import Controller
+from lib.core.filters import native_filter_options
+from lib.core.request_config import RequestConfig
 from lib.core.data import options
 from lib.core.exceptions import RequestException
 from lib.parse.url import same_origin
@@ -220,7 +222,7 @@ class TestThreadedFollowedRedirectRecursion(
     TestCase,
 ):
     def request(self, server: DirectoryRedirectServer):
-        requester = Requester()
+        requester = Requester(RequestConfig.from_options(options))
         requester.set_url(server.url)
         try:
             return requester.request("directory")
@@ -245,7 +247,7 @@ class TestAsyncFollowedRedirectRecursion(
     IsolatedAsyncioTestCase,
 ):
     async def request(self, server: DirectoryRedirectServer):
-        requester = AsyncRequester()
+        requester = AsyncRequester(RequestConfig.from_options(options))
         requester.set_url(server.url)
         try:
             return await requester.request("directory")
@@ -273,7 +275,10 @@ class TestNativeFollowedRedirectRecursion(
 ):
     def request(self, server: DirectoryRedirectServer):
         try:
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
         except RequestException as error:
             self.skipTest(str(error))
 

@@ -6,6 +6,8 @@ from lib.connection.native import (
     NativeHTTPBackend,
     NativeRequester,
 )
+from lib.core.filters import native_filter_options
+from lib.core.request_config import RequestConfig
 from lib.core.data import options
 from lib.core.exceptions import RequestException
 from lib.core.native_runtime import NATIVE_EXTENSION_VERSION
@@ -198,15 +200,21 @@ class TestNativeHTTPBackend(TestCase):
                 rf"expected {re.escape(NATIVE_EXTENSION_VERSION)}, found 0\.2\.7",
             ),
         ):
-            NativeHTTPBackend()
+            NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
 
     def test_engine_rebuild_reuses_explicit_native_session(self):
         fake_native = FakeNativeModule()
 
         with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
             first_engine = backend._get_engine()
-            options["follow_redirects"] = True
+            backend.set_origin_authentication("bearer", "target-token")
             backend._get_engine()
 
         self.assertIs(first_engine.config["session"], fake_native.sessions[0])
@@ -221,7 +229,10 @@ class TestNativeHTTPBackend(TestCase):
         fake_native = FakeNativeModule()
 
         with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
-            requester = NativeRequester()
+            requester = NativeRequester(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
             requester.set_url("https://example.com/")
             requester.set_query("scope=one")
             requester.request("first")
@@ -239,7 +250,10 @@ class TestNativeHTTPBackend(TestCase):
         fake_native = FakeNativeModule()
 
         with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
-            requester = NativeRequester()
+            requester = NativeRequester(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
             requester.set_ip("SECOND.EXAMPLE.", 443, "::1")
             requester.set_ip("First.Example", 80, "127.0.0.1")
             requester.set_url("http://first.example/")
@@ -260,7 +274,10 @@ class TestNativeHTTPBackend(TestCase):
         fake_native = FakeNativeModule()
 
         with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
-            requester = NativeRequester()
+            requester = NativeRequester(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
             requester.set_url("http://example.com/")
             requester.request("first")
             requester.set_ip("example.com", 80, "127.0.0.1")
@@ -279,7 +296,10 @@ class TestNativeHTTPBackend(TestCase):
         fake_native = FakeNativeModule()
 
         with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
-            requester = NativeRequester()
+            requester = NativeRequester(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
             requester.set_ip("example.com", 443, "192.0.2.10")
             requester.set_url("https://example.com/")
             requester.request("admin", proxy="http://replay.test:8080")
@@ -293,7 +313,10 @@ class TestNativeHTTPBackend(TestCase):
         fake_native = FakeNativeModule()
 
         with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
-            requester = NativeRequester()
+            requester = NativeRequester(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
             requester.set_url("https://example.com/")
             requester.request("first", proxy="http://replay.test:8080")
 
@@ -307,7 +330,10 @@ class TestNativeHTTPBackend(TestCase):
         fake_native = FakeNativeModule([result])
 
         with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
             response = list(backend.scan("https://example.com/", ["admin"]))[0][1]
 
         self.assertEqual(result.history_reads, 0)
@@ -320,7 +346,10 @@ class TestNativeHTTPBackend(TestCase):
         fake_native = FakeNativeModule([result])
 
         with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
             response = list(backend.scan("https://example.com/", ["admin"]))[0][1]
 
         self.assertEqual(result.history_reads, 1)
@@ -330,7 +359,10 @@ class TestNativeHTTPBackend(TestCase):
         fake_native = FakeNativeModule()
 
         with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
             rows = list(backend.scan("https://example.com/", ["missing page"]))
 
         self.assertEqual(len(rows), 1)
@@ -386,7 +418,10 @@ class TestNativeHTTPBackend(TestCase):
         fake_native = FakeNativeModule()
 
         with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
-            requester = NativeRequester()
+            requester = NativeRequester(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
             self.assertEqual(requester.rate, 0)
             requester.set_url("https://example.com/")
             requester.request("admin")
@@ -399,7 +434,10 @@ class TestNativeHTTPBackend(TestCase):
         fake_native = FakeNativeModule()
 
         with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
-            requester = NativeRequester()
+            requester = NativeRequester(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
             requester.set_url("https://example.com/")
             requester.request("admin", proxy="http://replay.test:8080")
             fake_native.sessions[0].rate_value = 1
@@ -412,7 +450,10 @@ class TestNativeHTTPBackend(TestCase):
         fake_native = FakeNativeModule()
 
         with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
             list(backend.scan("https://example.com/", ["admin"]))
 
         config = fake_native.engines[0].config
@@ -434,7 +475,10 @@ class TestNativeHTTPBackend(TestCase):
                 fake_native = FakeNativeModule()
 
                 with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
-                    list(NativeHTTPBackend().scan("https://example.com/", ["admin"]))
+                    list(NativeHTTPBackend(
+                        RequestConfig.from_options(options),
+                        filter_options=native_filter_options(options),
+                    ).scan("https://example.com/", ["admin"]))
 
                 config = fake_native.engines[0].config
                 self.assertEqual(config["auth_type"], auth_type)
@@ -452,7 +496,10 @@ class TestNativeHTTPBackend(TestCase):
         fake_native = FakeNativeModule()
 
         with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
-            requester = NativeRequester()
+            requester = NativeRequester(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
             requester.set_url("https://example.com/")
             requester.set_auth("basic", "target-user:target-password")
             requester.request("first")
@@ -475,7 +522,10 @@ class TestNativeHTTPBackend(TestCase):
         fake_native = FakeNativeModule()
 
         with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
-            requester = NativeRequester()
+            requester = NativeRequester(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
             requester.set_url("https://example.com/")
             requester.set_auth("basic", "target-user:target-password")
             requester.request("first")
@@ -498,7 +548,10 @@ class TestNativeHTTPBackend(TestCase):
         fake_native = FakeNativeModule()
 
         with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
-            requester = NativeRequester()
+            requester = NativeRequester(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
             requester.set_url("https://example.com/")
             requester.request("admin", proxy="http://replay.invalid:8080")
 
@@ -511,7 +564,10 @@ class TestNativeHTTPBackend(TestCase):
         fake_native = FakeNativeModule()
 
         with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
-            requester = NativeRequester()
+            requester = NativeRequester(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
             requester.set_url("https://example.com/")
             requester.set_auth("ntlm", "domain\\user:password")
             requester.request("protected")
@@ -539,7 +595,10 @@ class TestNativeHTTPBackend(TestCase):
                 side_effect=[b"CERTIFICATE BYTES", b"PRIVATE KEY BYTES"],
             ) as read_bytes,
         ):
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
             list(backend.scan("https://example.com/", ["admin"]))
             list(backend.scan("https://example.com/", ["second"]))
 
@@ -566,7 +625,10 @@ class TestNativeHTTPBackend(TestCase):
                 return_value=["agent-one", "agent-two"],
             ) as get_lines,
         ):
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
             list(backend.scan("https://example.com/", ["admin"]))
             list(backend.scan("https://example.com/", ["second"]))
 
@@ -594,7 +656,10 @@ class TestNativeHTTPBackend(TestCase):
                 "Could not read random User-Agent list: agent list disappeared",
             ),
         ):
-            NativeHTTPBackend()
+            NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
 
     def test_incomplete_client_identity_fails_before_engine_creation(self):
         options["cert_file"] = "client-cert.pem"
@@ -607,7 +672,10 @@ class TestNativeHTTPBackend(TestCase):
                 "--cert-file and --key-file must be used together",
             ),
         ):
-            list(NativeHTTPBackend().scan("https://example.com/", ["admin"]))
+            list(NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            ).scan("https://example.com/", ["admin"]))
 
         self.assertEqual(fake_native.engines, [])
 
@@ -633,7 +701,10 @@ class TestNativeHTTPBackend(TestCase):
                         "Client certificate and private key files must not be empty",
                     ),
                 ):
-                    NativeHTTPBackend()
+                    NativeHTTPBackend(
+                        RequestConfig.from_options(options),
+                        filter_options=native_filter_options(options),
+                    )
 
                 self.assertEqual(fake_native.engines, [])
 
@@ -659,7 +730,10 @@ class TestNativeHTTPBackend(TestCase):
                         "Could not read client certificate or private key: ",
                     ),
                 ):
-                    NativeHTTPBackend()
+                    NativeHTTPBackend(
+                        RequestConfig.from_options(options),
+                        filter_options=native_filter_options(options),
+                    )
 
     def test_invalid_client_identity_from_native_engine_is_a_request_error(self):
         options["cert_file"] = "client-cert.pem"
@@ -682,7 +756,10 @@ class TestNativeHTTPBackend(TestCase):
                 "Invalid client certificate or private key: builder error",
             ) as raised,
         ):
-            list(NativeHTTPBackend().scan("https://example.com/", ["admin"]))
+            list(NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            ).scan("https://example.com/", ["admin"]))
 
         self.assertNotIn("SECRET PRIVATE KEY", str(raised.exception))
 
@@ -693,7 +770,10 @@ class TestNativeHTTPBackend(TestCase):
         fake_native = FakeNativeModule()
 
         with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
             list(backend.scan("https://example.com/", ["upload"]))
 
         config = fake_native.engines[0].config
@@ -717,7 +797,10 @@ class TestNativeHTTPBackend(TestCase):
         received = []
 
         with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
             processed_count = backend.scan_chunks(
                 "https://example.com/",
                 ["zero", "one", "two"],
@@ -747,7 +830,10 @@ class TestNativeHTTPBackend(TestCase):
         received = []
 
         with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
             backend.scan_chunks(
                 "https://example.com/",
                 paths,
@@ -768,7 +854,10 @@ class TestNativeHTTPBackend(TestCase):
         received = []
 
         with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
             backend.scan_chunks(
                 "https://example.com/",
                 ["admin"],
@@ -787,7 +876,10 @@ class TestNativeHTTPBackend(TestCase):
         )
 
         with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
-            requester = NativeRequester()
+            requester = NativeRequester(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
             requester.set_url("https://example.com/")
             requester.set_query("scope=one")
             response = requester.request("missing page")
@@ -805,7 +897,10 @@ class TestNativeHTTPBackend(TestCase):
         fake_native = FakeNativeModule([result])
 
         with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
             rows = list(
                 backend.scan(
                     "https://example.com/",
@@ -821,7 +916,10 @@ class TestNativeHTTPBackend(TestCase):
 
     def test_native_requester_defers_extension_import_until_first_request(self):
         with patch.dict("sys.modules", {"dirsearch_native": None}):
-            requester = NativeRequester()
+            requester = NativeRequester(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
             requester.set_url("https://example.com/")
 
             with self.assertRaisesRegex(RequestException, "Native Rust backend"):
@@ -831,7 +929,10 @@ class TestNativeHTTPBackend(TestCase):
         fake_native = FakeNativeModule()
 
         with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
-            requester = NativeRequester()
+            requester = NativeRequester(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
             backend = requester.get_backend()
             list(backend.scan("https://example.com/", ["admin"]))
             engine = fake_native.engines[0]
@@ -847,7 +948,7 @@ class TestNativeHTTPBackend(TestCase):
         options["proxy_auth"] = "proxy/user:p@ss/word?#%:tail"
 
         self.assertEqual(
-            NativeHTTPBackend._proxy_urls(),
+            NativeHTTPBackend._proxy_urls(RequestConfig.from_options(options)),
             [
                 "http://proxy%2Fuser:p%40ss%2Fword%3F%23%25%3Atail"
                 "@127.0.0.1:8080"
@@ -866,7 +967,7 @@ class TestNativeHTTPBackend(TestCase):
         ]
 
         self.assertEqual(
-            NativeHTTPBackend._proxy_urls(),
+            NativeHTTPBackend._proxy_urls(RequestConfig.from_options(options)),
             [
                 "http://proxy.example:8080",
                 "https://proxy.example:8443",
@@ -882,7 +983,7 @@ class TestNativeHTTPBackend(TestCase):
         options["proxies"] = ["socks5h://proxy.example:1080"]
 
         self.assertEqual(
-            NativeHTTPBackend._proxy_urls(),
+            NativeHTTPBackend._proxy_urls(RequestConfig.from_options(options)),
             [
                 "socks5h://proxy%2Fuser:p%40ss%2Fword%3F%23%25%3Atail"
                 "@proxy.example:1080"
@@ -896,6 +997,8 @@ class TestNativeHTTPBackend(TestCase):
 
         with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
             backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
                 proxy_override="socks5://proxy.example:1080"
             )
             list(backend.scan("https://example.com/", ["admin"]))
@@ -917,13 +1020,16 @@ class TestNativeHTTPBackend(TestCase):
                     RequestException,
                     "does not support SOCKS4 user IDs",
                 ):
-                    NativeHTTPBackend._proxy_urls()
+                    NativeHTTPBackend._proxy_urls(RequestConfig.from_options(options))
 
     def test_reuses_engine_across_chunks_and_forwards_cancellation(self):
         fake_native = FakeNativeModule()
 
         with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
             list(backend.scan("https://example.com/", ["first"]))
             list(backend.scan("https://example.com/", ["second"]))
             backend.cancel()
@@ -941,7 +1047,10 @@ class TestNativeHTTPBackend(TestCase):
         fake_native = FakeNativeModule()
 
         with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
             backend.cancel()
             list(backend.scan("https://example.com/", ["first"]))
 
@@ -953,7 +1062,10 @@ class TestNativeHTTPBackend(TestCase):
         fake_native = FakeNativeModule()
 
         with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
             backend.cancel()
             backend.reset_cancel()
             list(backend.scan("https://example.com/", ["first"]))
@@ -970,7 +1082,10 @@ class TestNativeHTTPBackend(TestCase):
             patch.dict("sys.modules", {"dirsearch_native": fake_native}),
             patch.object(FakeNativeResult, "status", 407),
         ):
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
             rows = list(backend.scan("https://example.com/", ["admin"]))
 
         self.assertEqual(len(rows), 1)

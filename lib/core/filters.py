@@ -16,6 +16,8 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
+from typing import Any
 
 
 NumericRange = tuple[int, int]
@@ -150,3 +152,35 @@ def matches_time_filters(elapsed: float, filters: tuple[TimeFilter, ...]) -> boo
             return True
 
     return False
+
+
+def native_filter_options(values: Mapping[str, Any]) -> dict[str, Any]:
+    """Adapt normalized filter options at the orchestration boundary.
+
+    Request configuration intentionally excludes matching policy. The native
+    backend owns a copy of this mapping until the common FilterConfig migration.
+    """
+    return {
+        "include_status_codes": sorted(values["include_status_codes"]),
+        "exclude_status_codes": sorted(values["exclude_status_codes"]),
+        "minimum_response_size": values["minimum_response_size"],
+        "maximum_response_size": values["maximum_response_size"],
+        "matcher_mode": values["matcher_mode"],
+        "filter_mode": values["filter_mode"],
+        "match_status_codes": sorted(values["match_status_codes"]),
+        "filter_status_codes": sorted(values["filter_status_codes"]),
+        "match_sizes": list(values["match_sizes"]),
+        "filter_sizes": list(values["filter_sizes"]),
+        "match_words": list(values["match_words"]),
+        "filter_words": list(values["filter_words"]),
+        "match_lines": list(values["match_lines"]),
+        "filter_lines": list(values["filter_lines"]),
+        "match_regex": values["match_regex"],
+        "filter_regex": values["filter_regex"],
+        "match_headers": list(values["match_headers"]),
+        "filter_headers": list(values["filter_headers"]),
+        "match_header_regex": values["match_header_regex"],
+        "filter_header_regex": values["filter_header_regex"],
+        "match_time": list(values["match_time"]),
+        "filter_time": list(values["filter_time"]),
+    }

@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import threading
 
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator, Mapping
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlsplit
@@ -17,7 +18,7 @@ from lib.connection.proxy import (
     proxy_error_status,
 )
 from lib.connection.response import NativeResponse
-from lib.core.data import options
+from lib.core.request_config import RequestConfig
 from lib.core.exceptions import RequestException
 from lib.core.native_runtime import (
     get_native_backend_install_error,
@@ -62,6 +63,9 @@ class NativeScanChunk:
 class NativeHTTPBackend:
     def __init__(
         self,
+        config: RequestConfig,
+        *,
+        filter_options: Mapping[str, Any],
         proxy_override: str | None = None,
         session: Any | None = None,
         auth_override: tuple[str, str] | None = None,
@@ -75,6 +79,9 @@ class NativeHTTPBackend:
         if version_error := get_native_extension_version_error(dirsearch_native):
             raise RequestException(version_error)
 
+        self.config = config
+        # Filters are supplied by orchestration, independently of request policy.
+        self._filter_options = deepcopy(dict(filter_options))
         self._native = dirsearch_native
         self._engine = None
         self._engine_config = None
@@ -88,8 +95,8 @@ class NativeHTTPBackend:
             session if session is not None else self._native.NativeHttpSession()
         )
         self._auth_type, self._auth_credential = auth_override or (
-            (options["auth_type"], options["auth"])
-            if options["auth"]
+            (self.config.auth_type, self.config.auth)
+            if self.config.auth
             else ("", "")
         )
         self._client_certificate, self._client_key = self._load_client_identity()
@@ -101,39 +108,39 @@ class NativeHTTPBackend:
 
     def _get_engine(self):
         proxies = (
-            self._normalize_proxy_urls([self._proxy_override])
+            self._normalize_proxy_urls([self._proxy_override], self.config.proxy_auth)
             if self._proxy_override is not None
-            else self._proxy_urls()
+            else self._proxy_urls(self.config)
         )
         body = self._request_body()
         headers = [
             (name, value)
-            for name, value in options["headers"].items()
+            for name, value in self.config.headers
             if not (
                 (self._random_user_agents and name.lower() == "user-agent")
                 or (self._auth_type and name.lower() == "authorization")
             )
         ]
         if body and not any(name.lower() == "content-type" for name, _ in headers):
-            headers.append(("content-type", guess_mimetype(options["data"])))
+            headers.append(("content-type", guess_mimetype(self.config.body)))
 
         config = {
-            "concurrency": options["thread_count"],
-            "timeout_secs": options["timeout"],
-            "max_rate": options["max_rate"],
-            "delay_secs": options["delay"],
+            "concurrency": self.config.concurrency,
+            "timeout_secs": self.config.timeout,
+            "max_rate": self.config.max_rate,
+            "delay_secs": self.config.delay,
             "headers": headers,
             "proxies": proxies,
-            "follow_redirects": options["follow_redirects"],
+            "follow_redirects": self.config.follow_redirects,
             "max_redirects": MAX_REDIRECTS,
-            "method": options["http_method"],
+            "method": self.config.method,
             "body": body,
             "client_certificate": self._client_certificate,
             "client_key": self._client_key,
             "auth_type": self._auth_type,
             "auth_credential": self._auth_credential,
             "random_user_agents": self._random_user_agents,
-            "network_interface": options["network_interface"] or "",
+            "network_interface": self.config.network_interface or "",
             "connection_overrides": self._ip_overrides.connection_overrides(),
         }
         if self._engine is None or config != self._engine_config:
@@ -163,24 +170,22 @@ class NativeHTTPBackend:
         self._auth_type = auth_type
         self._auth_credential = credential
 
-    @staticmethod
-    def _request_body() -> bytes:
-        data = options["data"]
+    def _request_body(self) -> bytes:
+        data = self.config.body
         if data is None:
             return b""
         if isinstance(data, str):
             return data.encode("utf-8")
         return bytes(data)
 
-    @staticmethod
-    def _load_client_identity() -> tuple[bytes, bytes]:
-        if bool(options["cert_file"]) != bool(options["key_file"]):
+    def _load_client_identity(self) -> tuple[bytes, bytes]:
+        if bool(self.config.cert_file) != bool(self.config.key_file):
             raise RequestException(CLIENT_CERTIFICATE_PAIR_ERROR)
-        if not options["cert_file"]:
+        if not self.config.cert_file:
             return b"", b""
         try:
-            certificate = FileUtils.read_bytes(options["cert_file"])
-            key = FileUtils.read_bytes(options["key_file"])
+            certificate = FileUtils.read_bytes(self.config.cert_file)
+            key = FileUtils.read_bytes(self.config.key_file)
         except OSError as error:
             raise RequestException(
                 f"Could not read client certificate or private key: {error}"
@@ -191,9 +196,8 @@ class NativeHTTPBackend:
             )
         return certificate, key
 
-    @staticmethod
-    def _load_random_user_agents() -> list[str]:
-        if not options["random_agents"]:
+    def _load_random_user_agents(self) -> list[str]:
+        if not self.config.random_agents:
             return []
         try:
             return FileUtils.get_lines(
@@ -270,7 +274,7 @@ class NativeHTTPBackend:
 
         scan_options = {
             "query": query,
-            "max_retries": options["max_retries"],
+            "max_retries": self.config.max_retries,
             "max_body_size": MAX_RESPONSE_SIZE,
             "filter_config": self._get_filter_config(True),
         }
@@ -360,7 +364,7 @@ class NativeHTTPBackend:
 
         scan_options = {
             "query": query,
-            "max_retries": options["max_retries"],
+            "max_retries": self.config.max_retries,
             "max_body_size": MAX_RESPONSE_SIZE,
             "filter_config": self._get_filter_config(apply_filters),
         }
@@ -416,11 +420,13 @@ class NativeHTTPBackend:
         )
 
     @staticmethod
-    def _proxy_urls() -> list[str]:
-        return NativeHTTPBackend._normalize_proxy_urls(options["proxies"])
+    def _proxy_urls(config: RequestConfig) -> list[str]:
+        return NativeHTTPBackend._normalize_proxy_urls(config.proxies, config.proxy_auth)
 
     @staticmethod
-    def _normalize_proxy_urls(proxy_values: Iterable[str]) -> list[str]:
+    def _normalize_proxy_urls(
+        proxy_values: Iterable[str], proxy_auth: str | None
+    ) -> list[str]:
         proxies = []
         for proxy in proxy_values:
             if "://" not in proxy:
@@ -430,45 +436,18 @@ class NativeHTTPBackend:
 
             parsed = urlsplit(proxy)
             if parsed.scheme.lower() in ("socks4", "socks4a") and (
-                options["proxy_auth"] or parsed.username is not None
+                proxy_auth or parsed.username is not None
             ):
                 raise RequestException(NATIVE_SOCKS4_AUTH_ERROR)
 
-            proxy = add_proxy_authentication(proxy, options["proxy_auth"])
+            proxy = add_proxy_authentication(proxy, proxy_auth)
             proxies.append(proxy)
 
         return proxies
 
     @property
     def _using_proxy(self) -> bool:
-        return self._proxy_override is not None or bool(options["proxies"])
-
-    @staticmethod
-    def _filter_options() -> dict[str, Any]:
-        return {
-            "include_status_codes": sorted(options["include_status_codes"]),
-            "exclude_status_codes": sorted(options["exclude_status_codes"]),
-            "minimum_response_size": options["minimum_response_size"],
-            "maximum_response_size": options["maximum_response_size"],
-            "matcher_mode": options["matcher_mode"],
-            "filter_mode": options["filter_mode"],
-            "match_status_codes": sorted(options["match_status_codes"]),
-            "filter_status_codes": sorted(options["filter_status_codes"]),
-            "match_sizes": list(options["match_sizes"]),
-            "filter_sizes": list(options["filter_sizes"]),
-            "match_words": list(options["match_words"]),
-            "filter_words": list(options["filter_words"]),
-            "match_lines": list(options["match_lines"]),
-            "filter_lines": list(options["filter_lines"]),
-            "match_regex": options["match_regex"],
-            "filter_regex": options["filter_regex"],
-            "match_headers": list(options["match_headers"]),
-            "filter_headers": list(options["filter_headers"]),
-            "match_header_regex": options["match_header_regex"],
-            "filter_header_regex": options["filter_header_regex"],
-            "match_time": list(options["match_time"]),
-            "filter_time": list(options["filter_time"]),
-        }
+        return self._proxy_override is not None or bool(self.config.proxies)
 
     def _get_filter_config(self, apply_filters: bool):
         if not apply_filters:
@@ -477,7 +456,7 @@ class NativeHTTPBackend:
             return self._empty_filter_config
         if self._filter_config is None:
             self._filter_config = self._native.NativeFilterConfig(
-                **self._filter_options()
+                **self._filter_options
             )
         return self._filter_config
 
@@ -485,12 +464,16 @@ class NativeHTTPBackend:
 class NativeRequester:
     """Minimal requester facade used by native scans and calibration."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self, config: RequestConfig, *, filter_options: Mapping[str, Any]
+    ) -> None:
+        self.config = config
+        self._filter_options = deepcopy(dict(filter_options))
         self._url = ""
         self._query = ""
         self._configured_auth = (
-            (options["auth_type"], options["auth"])
-            if options["auth"]
+            (self.config.auth_type, self.config.auth)
+            if self.config.auth
             else ("", "")
         )
         self._origin_auth = self._configured_auth
@@ -503,6 +486,8 @@ class NativeRequester:
     def get_backend(self) -> NativeHTTPBackend:
         if self.backend is None:
             self.backend = NativeHTTPBackend(
+                self.config,
+                filter_options=self._filter_options,
                 auth_override=self._origin_auth,
                 ip_overrides=self._ip_overrides,
             )
@@ -541,6 +526,8 @@ class NativeRequester:
         if proxy:
             origin_backend = self.get_backend()
             backend = NativeHTTPBackend(
+                self.config,
+                filter_options=self._filter_options,
                 proxy_override=proxy,
                 session=origin_backend.session,
                 auth_override=self._origin_auth,
