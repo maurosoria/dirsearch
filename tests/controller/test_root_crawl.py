@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, Mock, patch
 from lib.connection.response import NativeResponse
 from lib.controller.controller import Controller
 from lib.core.data import options
+from lib.core.wordlist_config import WordlistConfig
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.exceptions import RequestException
 
@@ -106,6 +107,7 @@ class TestRootCrawl(TestCase):
             patch("lib.controller.controller.signal.signal"),
             patch("lib.controller.controller.interface"),
         ):
+            controller.wordlist_config = WordlistConfig.from_options(options)
             controller.run()
 
         requester.request.assert_called_once_with("base/")

@@ -6,12 +6,13 @@ from lib.controller.controller import Controller
 from lib.core.data import options
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.dictionary import Dictionary
+from lib.core.wordlist_config import WordlistConfig
 from lib.core.settings import ARCHIVE_EXTENSIONS, BACKUP_EXTENSIONS
 from lib.core.wordlist_template import generate_backup_paths
 
 
 def make_dictionary() -> Dictionary:
-    dictionary = object.__new__(Dictionary)
+    dictionary = Dictionary(WordlistConfig.from_options(options))
     dictionary.__setstate__(([], 0, [], 0))
     return dictionary
 

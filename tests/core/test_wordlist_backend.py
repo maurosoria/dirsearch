@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import re
+from dataclasses import replace
 import tempfile
 from pathlib import Path
 from unittest import TestCase
 from unittest.mock import patch
 
 from lib.core.data import options
+from lib.core.wordlist_config import WordlistConfig
 from lib.core.exceptions import WordlistBackendUnavailableError
 from lib.core.native_runtime import NATIVE_EXTENSION_VERSION
 from lib.core.wordlist_backend import (
@@ -74,10 +76,11 @@ class TestWordlistBackend(TestCase):
         options.update(self._original_options)
 
     def test_auto_selects_python_backend(self):
-        self.assertIsInstance(get_wordlist_backend(), PythonWordlistBackend)
+        self.assertIsInstance(get_wordlist_backend(WordlistConfig()), PythonWordlistBackend)
 
     def test_python_selects_python_backend(self):
-        self.assertIsInstance(get_wordlist_backend("python"), PythonWordlistBackend)
+        config = WordlistConfig(backend="python")
+        self.assertIsInstance(get_wordlist_backend(config), PythonWordlistBackend)
 
     def test_auto_keeps_native_request_wordlist_owned_by_rust(self):
         options["request_backend"] = "native"
@@ -87,7 +90,8 @@ class TestWordlistBackend(TestCase):
         ):
             wordlist = Path(temp_dir) / "wordlist.txt"
             wordlist.write_text("admin\nlogin\n", encoding="utf-8")
-            corpus = get_wordlist_backend().generate([str(wordlist)])
+            backend = get_wordlist_backend(WordlistConfig.from_options(options))
+            corpus = backend.generate([str(wordlist)])
 
         self.assertIsInstance(corpus, NativeWordlistCorpus)
         self.assertEqual(len(corpus), 2)
@@ -103,7 +107,7 @@ class TestWordlistBackend(TestCase):
 
     def test_native_reports_unavailable(self):
         try:
-            backend = get_wordlist_backend("native")
+            backend = get_wordlist_backend(WordlistConfig(backend="native"))
         except WordlistBackendUnavailableError:
             return
 
@@ -123,7 +127,7 @@ class TestWordlistBackend(TestCase):
                 rf"expected {re.escape(NATIVE_EXTENSION_VERSION)}, found 0\.2\.7",
             ),
         ):
-            NativeWordlistBackend()
+            NativeWordlistBackend(WordlistConfig.from_options(options))
 
     def test_percent_encoded_paths_do_not_force_python_expansion(self):
         backend = object.__new__(NativeWordlistBackend)
@@ -150,7 +154,7 @@ class TestWordlistBackend(TestCase):
 
     def test_native_matches_python_when_available(self):
         try:
-            native = get_wordlist_backend("native")
+            get_wordlist_backend(WordlistConfig(backend="native"))
         except WordlistBackendUnavailableError:
             return
 
@@ -171,7 +175,9 @@ class TestWordlistBackend(TestCase):
             }
         )
         try:
-            python = get_wordlist_backend("python")
+            config = WordlistConfig.from_options(options)
+            native = get_wordlist_backend(replace(config, backend="native"))
+            python = get_wordlist_backend(replace(config, backend="python"))
             self.assertEqual(
                 native.generate(files),
                 python.generate(files),
@@ -182,7 +188,7 @@ class TestWordlistBackend(TestCase):
 
     def test_native_matches_python_for_generation_options_when_available(self):
         try:
-            native = get_wordlist_backend("native")
+            get_wordlist_backend(WordlistConfig(backend="native"))
         except WordlistBackendUnavailableError:
             return
 
@@ -242,7 +248,9 @@ class TestWordlistBackend(TestCase):
                     options.update(default_options)
                     options.update(test_case["options"])
 
-                    python = get_wordlist_backend("python")
+                    config = WordlistConfig.from_options(options)
+                    native = get_wordlist_backend(replace(config, backend="native"))
+                    python = get_wordlist_backend(replace(config, backend="python"))
                     self.assertEqual(
                         native.generate([str(wordlist)]),
                         python.generate([str(wordlist)]),

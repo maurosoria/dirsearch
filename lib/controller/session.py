@@ -25,8 +25,10 @@ import json
 import os
 from typing import Any
 
+from lib.core.dictionary import Dictionary
 from lib.core.exceptions import InvalidURLException, UnpicklingError
 from lib.core.logger import logger
+from lib.core.wordlist_config import WordlistConfig
 from lib.report.manager import ReportManager
 from lib.utils.file import FileUtils
 from lib.view.terminal import interface
@@ -170,7 +172,13 @@ class SessionStore:
         if not os.listdir(session_path):
             os.rmdir(session_path)
 
-    def apply_to_controller(self, controller: Any, payload: dict[str, Any]) -> None:
+    def apply_to_controller(
+        self,
+        controller: Any,
+        payload: dict[str, Any],
+        *,
+        wordlist_config: WordlistConfig,
+    ) -> None:
         controller_state = payload["controller"]
         controller.start_time = controller_state["start_time"]
         controller.passed_urls = set(controller_state.get("passed_urls", []))
@@ -181,12 +189,7 @@ class SessionStore:
         controller.base_path = controller_state.get("base_path", "")
         controller.url = controller_state.get("url", "")
         controller.old_session = controller_state.get("old_session", True)
-        if not hasattr(controller, "dictionary") or controller.dictionary is None:
-            from lib.core.dictionary import Dictionary
-
-            controller.dictionary = Dictionary()
-        else:
-            controller.dictionary = controller.dictionary.__class__()
+        controller.dictionary = Dictionary(wordlist_config)
         dictionary_state = payload["dictionary"]
         controller.dictionary.__setstate__(
             (

@@ -9,11 +9,12 @@ from lib.core.data import options
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.filter_config import FilterConfig
 from lib.core.dictionary import Dictionary
+from lib.core.wordlist_config import WordlistConfig
 from lib.core.fuzzer import AsyncFuzzer, Fuzzer, NativeFuzzer
 
 
 def make_dictionary(paths: list[str]) -> Dictionary:
-    dictionary = object.__new__(Dictionary)
+    dictionary = Dictionary(WordlistConfig.from_options(options))
     dictionary.__setstate__((list(paths), 0, [], 0))
     return dictionary
 
@@ -198,7 +199,7 @@ class TestDynamicDictionaryMembership(DynamicDictionaryOptionsMixin, TestCase):
         dictionary = make_dictionary(["seed"])
         dictionary.add_extra("dynamic")
 
-        restored = object.__new__(Dictionary)
+        restored = Dictionary(WordlistConfig.from_options(options))
         restored.__setstate__(dictionary.__getstate__())
         restored.add_extra("seed")
         restored.add_extra("dynamic")

@@ -6,6 +6,7 @@ from lib.core.data import options
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.filter_config import FilterConfig
 from lib.core.dictionary import Dictionary
+from lib.core.wordlist_config import WordlistConfig
 from lib.core.fuzzer import AsyncFuzzer
 
 
@@ -58,7 +59,7 @@ class BlockingAsyncRequester:
 
 
 def make_dictionary(paths):
-    dictionary = object.__new__(Dictionary)
+    dictionary = Dictionary(WordlistConfig.from_options(options))
     dictionary.__setstate__((list(paths), 0, [], 0))
     return dictionary
 
@@ -137,7 +138,7 @@ class TestAsyncFuzzer(IsolatedAsyncioTestCase):
         with self.assertRaises(asyncio.CancelledError):
             await run_task
 
-        resumed = object.__new__(Dictionary)
+        resumed = Dictionary(WordlistConfig.from_options(options))
         resumed.__setstate__(saved_state)
         self.assertEqual([next(resumed), next(resumed)], ["admin", "login"])
         with self.assertRaises(StopIteration):

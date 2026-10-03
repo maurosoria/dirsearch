@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch
 from lib.controller.controller import Controller
 from lib.core.data import options
 from lib.core.dictionary import Dictionary
+from lib.core.wordlist_config import WordlistConfig
 
 
 class RecordingFuzzer:
@@ -55,7 +56,7 @@ class TestSessionResumeQueue(TestCase):
         controller.base_path = "first/"
         controller.url = "https://first.example/"
         controller.old_session = True
-        controller.dictionary = object.__new__(Dictionary)
+        controller.dictionary = Dictionary(WordlistConfig.from_options(options))
         controller.dictionary.__setstate__(
             (["done", "in-flight", "later"], 2, ["in-flight"], 0)
         )
@@ -122,6 +123,7 @@ class TestSessionResumeQueue(TestCase):
                     patch("lib.controller.controller.interface"),
                 ):
                     try:
+                        controller.wordlist_config = WordlistConfig.from_options(options)
                         controller.run()
                     finally:
                         loop = getattr(controller, "loop", None)

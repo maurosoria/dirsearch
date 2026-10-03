@@ -76,9 +76,10 @@ is still rebuilt when loading a saved session.
 
 This step removes global filter-policy reads and the global blacklist store.
 Controller discovery flags and calibration prefixes/suffixes/extensions now use
-`DiscoveryConfig`. This does **not** finish global-state removal: wordlist
-generation/validation, scheduling/concurrency/pacing, the remaining controller
-state and logging still have separate ownership work ahead. Full concurrent
+`DiscoveryConfig`; blacklist and dictionary generation/validation use
+[WordlistConfig](wordlist-configuration.md). This does **not** finish global-state
+removal: scheduling/concurrency/pacing, the remaining controller state and
+logging still have separate ownership work ahead. Full concurrent
 controllers are not yet supported.
 
 ## Validation

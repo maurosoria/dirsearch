@@ -7,6 +7,7 @@ from unittest import TestCase
 
 from lib.core.data import options
 from lib.core.dictionary import Dictionary
+from lib.core.wordlist_config import WordlistConfig
 from lib.core.exceptions import WordlistLimitError
 from lib.core.settings import ARCHIVE_EXTENSIONS, BACKUP_EXTENSIONS
 from lib.core.wordlist_template import DEFAULT_PLACEHOLDERS
@@ -39,7 +40,7 @@ class TestDictionaryTemplates(TestCase):
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as handle:
                 handle.write("\n".join(lines))
-            return Dictionary(files=[path])
+            return Dictionary(WordlistConfig.from_options(options), files=[path])
         finally:
             os.unlink(path)
 
@@ -90,7 +91,7 @@ class TestDictionaryTemplates(TestCase):
 
     def test_add_extra_filters_invalid_dynamic_paths(self):
         options["exclude_extensions"] = ("zip",)
-        dictionary = Dictionary(files=[])
+        dictionary = Dictionary(WordlistConfig.from_options(options), files=[])
 
         for path in ("", "#comment", "backup.zip?download=1"):
             dictionary.add_extra(path)

@@ -4,7 +4,6 @@ import re
 from collections.abc import Iterator
 from typing import Any, Protocol
 
-from lib.core.data import options
 from lib.core.exceptions import WordlistBackendUnavailableError, WordlistLimitError
 from lib.core.native_runtime import (
     get_native_backend_install_error,
@@ -16,6 +15,7 @@ from lib.core.settings import (
     EXTENSION_TAG,
 )
 from lib.core.structures import OrderedSet
+from lib.core.wordlist_config import WordlistConfig
 from lib.core.wordlist_template import (
     TOKEN_RE,
     expand_template_line,
@@ -92,7 +92,7 @@ class WordlistBackend(Protocol):
         pass
 
 
-def is_valid_path(path: str) -> bool:
+def is_valid_path(path: str, config: WordlistConfig) -> bool:
     # Skip comments and empty lines
     if not path or path.startswith("#"):
         return False
@@ -100,7 +100,7 @@ def is_valid_path(path: str) -> bool:
     # Skip if the path has excluded extensions
     cleaned_path = clean_path(path)
     if cleaned_path.endswith(
-        tuple(f".{extension}" for extension in options["exclude_extensions"])
+        tuple(f".{extension}" for extension in config.exclude_extensions)
     ):
         return False
 
@@ -109,6 +109,9 @@ def is_valid_path(path: str) -> bool:
 
 class PythonWordlistBackend:
     name = "python"
+
+    def __init__(self, config: WordlistConfig) -> None:
+        self.config = config
 
     def generate(
         self, files: list[str], is_blacklist: bool = False
@@ -121,7 +124,7 @@ class PythonWordlistBackend:
 
                 for line in expand_template_line(
                     line,
-                    extensions=options["extensions"],
+                    extensions=self.config.extensions,
                 ):
                     if not self.is_valid(line):
                         continue
@@ -136,19 +139,19 @@ class PythonWordlistBackend:
                     # If "forced extensions" is used and the path is not a directory (terminated by /)
                     # or has had an extension already, append extensions to the path
                     if (
-                        options["force_extensions"]
+                        self.config.force_extensions
                         and "." not in line
                         and not line.endswith("/")
                     ):
                         self._add_wordlist_entry(wordlist, line + "/")
 
-                        for extension in options["extensions"]:
+                        for extension in self.config.extensions:
                             self._add_wordlist_entry(wordlist, f"{line}.{extension}")
                     # Overwrite unknown extensions with selected ones (but also keep the origin)
                     elif (
-                        options["overwrite_extensions"]
+                        self.config.overwrite_extensions
                         and not line.endswith(
-                            options["extensions"] + EXCLUDE_OVERWRITE_EXTENSIONS
+                            self.config.extensions + EXCLUDE_OVERWRITE_EXTENSIONS
                         )
                         # Paths that have queries in wordlist are usually used for exploiting
                         # disclosed vulnerabilities of services, skip such paths
@@ -158,7 +161,7 @@ class PythonWordlistBackend:
                     ):
                         base = line.split(".")[0]
 
-                        for extension in options["extensions"]:
+                        for extension in self.config.extensions:
                             self._add_wordlist_entry(wordlist, f"{base}.{extension}")
 
         if not is_blacklist:
@@ -166,10 +169,10 @@ class PythonWordlistBackend:
             altered_wordlist = OrderedSet()
 
             for path in wordlist:
-                for pref in options["prefixes"]:
+                for pref in self.config.prefixes:
                     if not path.startswith(("/", pref)):
                         self._add_wordlist_entry(altered_wordlist, pref + path)
-                for suff in options["suffixes"]:
+                for suff in self.config.suffixes:
                     if (
                         not path.endswith(("/", suff))
                         # Appending suffixes to the URL fragment is useless
@@ -181,21 +184,21 @@ class PythonWordlistBackend:
             if altered_wordlist:
                 wordlist = altered_wordlist
 
-        if options["lowercase"]:
+        if self.config.lowercase:
             return list(map(str.lower, wordlist))
-        elif options["uppercase"]:
+        elif self.config.uppercase:
             return list(map(str.upper, wordlist))
-        elif options["capitalization"]:
+        elif self.config.capitalization:
             return list(map(str.capitalize, wordlist))
         else:
             return list(wordlist)
 
     def is_valid(self, path: str) -> bool:
-        return is_valid_path(path)
+        return is_valid_path(path, self.config)
 
     def _add_wordlist_entry(self, wordlist: OrderedSet, path: str) -> None:
         wordlist.add(path)
-        max_size = options["wordlist_max_size"]
+        max_size = self.config.max_size
         if max_size and len(wordlist) > max_size:
             raise WordlistLimitError(
                 f"Generated wordlist exceeded --wordlist-max-size ({max_size})"
@@ -205,7 +208,8 @@ class PythonWordlistBackend:
 class NativeWordlistBackend:
     name = "native"
 
-    def __init__(self) -> None:
+    def __init__(self, config: WordlistConfig) -> None:
+        self.config = config
         try:
             import dirsearch_native
         except ImportError as e:
@@ -220,33 +224,35 @@ class NativeWordlistBackend:
         self, files: list[str], is_blacklist: bool = False
     ) -> list[str] | NativeWordlistCorpus:
         if is_blacklist or self._requires_python_template_expansion(files):
-            return PythonWordlistBackend().generate(files, is_blacklist=is_blacklist)
+            return PythonWordlistBackend(self.config).generate(
+                files, is_blacklist=is_blacklist
+            )
 
         generate = (
             self._native.generate_wordlist_owned
-            if options["request_backend"] == "native"
+            if self.config.native_corpus
             else self._native.generate_wordlist
         )
         wordlist = generate(
             files,
-            list(options["extensions"]),
-            force_extensions=options["force_extensions"],
-            prefixes=list(options["prefixes"]),
-            suffixes=list(options["suffixes"]),
-            exclude_extensions=list(options["exclude_extensions"]),
+            list(self.config.extensions),
+            force_extensions=self.config.force_extensions,
+            prefixes=list(self.config.prefixes),
+            suffixes=list(self.config.suffixes),
+            exclude_extensions=list(self.config.exclude_extensions),
             overwrite_exclude_extensions=list(EXCLUDE_OVERWRITE_EXTENSIONS),
-            lowercase=options["lowercase"],
-            uppercase=options["uppercase"],
-            capitalization=options["capitalization"],
-            overwrite_extensions=options["overwrite_extensions"],
-            max_size=options["wordlist_max_size"],
+            lowercase=self.config.lowercase,
+            uppercase=self.config.uppercase,
+            capitalization=self.config.capitalization,
+            overwrite_extensions=self.config.overwrite_extensions,
+            max_size=self.config.max_size,
         )
-        if options["request_backend"] == "native":
+        if self.config.native_corpus:
             return NativeWordlistCorpus(wordlist)
         return wordlist
 
     def is_valid(self, path: str) -> bool:
-        return is_valid_path(path)
+        return is_valid_path(path, self.config)
 
     def _requires_python_template_expansion(self, files: list[str]) -> bool:
         extension_token = EXTENSION_TAG.strip("%").upper()
@@ -267,17 +273,17 @@ class NativeWordlistBackend:
         return False
 
 
-def get_wordlist_backend(name: str | None = None) -> WordlistBackend:
-    backend = name or options["wordlist_backend"]
-    if backend == "auto" and options["request_backend"] == "native":
+def get_wordlist_backend(config: WordlistConfig) -> WordlistBackend:
+    backend = config.backend
+    if backend == "auto" and config.native_corpus:
         try:
-            return NativeWordlistBackend()
+            return NativeWordlistBackend(config)
         except WordlistBackendUnavailableError:
             # Requester initialization owns the actionable native install error.
             # Keeping auto wordlist selection non-fatal preserves that lazy path.
-            return PythonWordlistBackend()
+            return PythonWordlistBackend(config)
     if backend in ("auto", "python"):
-        return PythonWordlistBackend()
+        return PythonWordlistBackend(config)
     if backend == "native":
-        return NativeWordlistBackend()
+        return NativeWordlistBackend(config)
     raise ValueError(f"Unknown wordlist backend: {backend}")

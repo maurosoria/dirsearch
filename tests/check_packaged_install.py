@@ -38,6 +38,7 @@ def main() -> None:
     from dirsearch.lib.core.filter_config import FilterConfig
     from dirsearch.lib.core.filter_state import FilterState
     from dirsearch.lib.core.request_config import RequestConfig
+    from dirsearch.lib.core.wordlist_config import WordlistConfig
     from dirsearch.lib.report.directory_response_store import DirectoryResponseStore
     from dirsearch.lib.report.jsonl_response_store import JsonlResponseStore
     from dirsearch.lib.report.response_store import (
@@ -55,6 +56,7 @@ def main() -> None:
     assert WordlistLimitError
     assert WordlistState
     assert WordlistTemplate
+    assert WordlistConfig(extensions=["html"]).extensions == ("html",)
     assert RequestConfig(method="POST").method == "POST"
     assert DiscoveryConfig(subdirs=[""]).subdirs == ("",)
     assert FilterConfig(include_status_codes={200}).native_options()["include_status_codes"] == [200]
