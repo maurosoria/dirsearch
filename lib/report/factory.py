@@ -118,6 +118,8 @@ class _StructuredReportState:
     journal_base_hash: str
     journal_entries: int = 0
     applied_entries: int = 0
+    truncated_tail: bool = False
+    complete_records: tuple[dict, ...] = ()
 
 
 class StructuredFileReportMixin(FileReportMixin):
@@ -134,6 +136,10 @@ class StructuredFileReportMixin(FileReportMixin):
         parent = FileUtils.parent(file)
         name = f".{os.path.basename(file)}.dirsearch-journal"
         return os.path.join(parent, name)
+
+    @classmethod
+    def recovery_journal_path(cls, file):
+        return f"{cls.journal_path(file)}.recovery"
 
     def _state_for_journal(self, data):
         return data
@@ -188,10 +194,91 @@ class StructuredFileReportMixin(FileReportMixin):
             encoding=DEFAULT_ENCODING,
         )
 
+    @staticmethod
+    def _has_known_journal_prefix(record):
+        expected_prefixes = ('{"entry":', '{"entries":')
+        return any(
+            record.startswith(prefix) or prefix.startswith(record)
+            for prefix in expected_prefixes
+        )
+
+    @classmethod
+    def _is_incomplete_json_record(cls, record, error):
+        """Return whether a non-terminated record is clearly cut off at EOF."""
+        if not cls._has_known_journal_prefix(record):
+            return False
+        if error.msg == "Unterminated string starting at":
+            return True
+        if error.pos >= len(record):
+            return True
+        if error.msg == "Invalid \\uXXXX escape":
+            fragment = record[error.pos:]
+            return (
+                fragment.startswith("u")
+                and len(fragment) < 5
+                and all(
+                    character in "0123456789abcdefABCDEF"
+                    for character in fragment[1:]
+                )
+            )
+        if error.msg == "Expecting value":
+            fragment = record[error.pos:]
+            literal_prefixes = {
+                literal[:length]
+                for literal in ("true", "false", "null")
+                for length in range(1, len(literal))
+            }
+            return fragment in literal_prefixes
+        return False
+
+    def _parse_journal_records(self, journal):
+        records = []
+        pending_line = None
+        with open(journal, "rb") as file_handle:
+            for line in file_handle:
+                if not line.strip():
+                    continue
+                if pending_line is not None:
+                    records.append(
+                        json.loads(pending_line.decode(DEFAULT_ENCODING))
+                    )
+                pending_line = line
+
+        if pending_line is None:
+            raise ValueError(f"Invalid structured report journal: {journal}")
+
+        truncated_tail = False
+        has_line_ending = pending_line.endswith((b"\n", b"\r"))
+        try:
+            record = pending_line.decode(DEFAULT_ENCODING)
+        except UnicodeDecodeError as error:
+            valid_prefix = pending_line[: error.start].decode(DEFAULT_ENCODING)
+            if (
+                not has_line_ending
+                and error.reason == "unexpected end of data"
+                and error.end == len(pending_line)
+                and self._has_known_journal_prefix(valid_prefix)
+            ):
+                truncated_tail = True
+            else:
+                raise
+        else:
+            try:
+                records.append(json.loads(record))
+            except json.JSONDecodeError as error:
+                if (
+                    not has_line_ending
+                    and self._is_incomplete_json_record(record, error)
+                ):
+                    truncated_tail = True
+                else:
+                    raise
+
+        return records, truncated_tail
+
     def _read_journal(self, file, data):
         journal = self.journal_path(file)
-        with open(journal, encoding=DEFAULT_ENCODING) as file_handle:
-            records = [json.loads(line) for line in file_handle if line.strip()]
+        records, truncated_tail = self._parse_journal_records(journal)
 
         if not records or not isinstance(records[0], dict):
             raise ValueError(f"Invalid structured report journal: {journal}")
@@ -252,7 +339,70 @@ class StructuredFileReportMixin(FileReportMixin):
             journal_base_hash=base_hash,
             journal_entries=len(entries),
             applied_entries=applied_entries,
+            truncated_tail=truncated_tail,
+            complete_records=tuple(records) if truncated_tail else (),
         )
+
+    def _restore_interrupted_journal_repair(self, file):
+        journal = self.journal_path(file)
+        recovery = self.recovery_journal_path(file)
+        if not FileUtils.exists(journal) and FileUtils.exists(recovery):
+            os.replace(recovery, journal)
+
+    def _write_repaired_journal(self, file, state, report_hash):
+        journal = self.journal_path(file)
+        recovery = self.recovery_journal_path(file)
+        if FileUtils.exists(recovery):
+            raise OSError(f"Structured report recovery already exists: {recovery}")
+
+        os.replace(journal, recovery)
+        try:
+            with FileUtils.atomic_write_private_text(
+                journal,
+                encoding=DEFAULT_ENCODING,
+            ) as file_handle:
+                for record in state.complete_records:
+                    file_handle.write(self._journal_record(record))
+                file_handle.write(
+                    self._journal_record(
+                        {
+                            "entries": state.journal_entries,
+                            "kind": "commit",
+                            "report": report_hash,
+                        }
+                    )
+                )
+        except BaseException:
+            if not FileUtils.exists(journal) and FileUtils.exists(recovery):
+                os.replace(recovery, journal)
+            raise
+
+    def _cleanup_journal(self, file):
+        journal = self.journal_path(file)
+        recovery = self.recovery_journal_path(file)
+        if FileUtils.exists(recovery):
+            try:
+                FileUtils.remove(recovery)
+            except OSError:
+                return False
+        try:
+            FileUtils.remove(journal)
+        except OSError:
+            return False
+        return True
+
+    def _finish_truncated_recovery(self, file, data, state):
+        report_hash = self._state_hash(data)
+        self._write_repaired_journal(file, state, report_hash)
+        self.write(file, data)
+        state.applied_entries = state.journal_entries
+        state.truncated_tail = False
+        state.complete_records = ()
+
+        if self._cleanup_journal(file):
+            state.journal_base_hash = report_hash
+            state.journal_entries = 0
+            state.applied_entries = 0
 
     @locked
     def initiate(self, file):
@@ -271,17 +421,18 @@ class StructuredFileReportMixin(FileReportMixin):
                 journal_base_hash=self._state_hash(data),
             )
             journal = self.journal_path(file)
+            self._restore_interrupted_journal_repair(file)
             if FileUtils.exists(journal):
                 state = self._read_journal(file, data)
-                if state.applied_entries == state.journal_entries:
-                    try:
-                        FileUtils.remove(journal)
-                    except OSError:
-                        pass
-                    else:
-                        state.journal_base_hash = self._state_hash(data)
-                        state.journal_entries = 0
-                        state.applied_entries = 0
+                if state.truncated_tail:
+                    self._finish_truncated_recovery(file, data, state)
+                elif (
+                    state.applied_entries == state.journal_entries
+                    and self._cleanup_journal(file)
+                ):
+                    state.journal_base_hash = self._state_hash(data)
+                    state.journal_entries = 0
+                    state.applied_entries = 0
         except REPORT_PARSE_ERRORS as error:
             raise FileExistsException(f"Output file {file} already exists") from error
 
@@ -313,10 +464,15 @@ class StructuredFileReportMixin(FileReportMixin):
         state.journal_entries = recovered.journal_entries
         state.applied_entries = recovered.applied_entries
 
+        if recovered.truncated_tail:
+            self._finish_truncated_recovery(file, data, recovered)
+            state.journal_base_hash = recovered.journal_base_hash
+            state.journal_entries = recovered.journal_entries
+            state.applied_entries = recovered.applied_entries
+            return
+
         if state.journal_entries == state.applied_entries:
-            try:
-                FileUtils.remove(journal)
-            except OSError:
+            if not self._cleanup_journal(file):
                 return
             state.journal_base_hash = self._state_hash(data)
             state.journal_entries = 0
@@ -336,9 +492,7 @@ class StructuredFileReportMixin(FileReportMixin):
         self.write(file, data)
         state.applied_entries = state.journal_entries
 
-        try:
-            FileUtils.remove(journal)
-        except OSError:
+        if not self._cleanup_journal(file):
             return
 
         state.journal_base_hash = report_hash
