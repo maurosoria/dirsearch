@@ -2912,17 +2912,19 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         )
         with RequestTargetServer() as server:
             for method, path, body in cases:
+                options["http_method"] = method
+                options["data"] = body
+                # Skip the whole test when native is unavailable. A skip inside
+                # subTest would still execute the final server assertions.
+                try:
+                    backend = NativeHTTPBackend(
+                        RequestConfig.from_options(options),
+                        filter_options=native_filter_options(options),
+                    )
+                except RequestException as error:
+                    self.skipTest(str(error))
+                self.addCleanup(backend.close)
                 with self.subTest(method=method, path=path):
-                    options["http_method"] = method
-                    options["data"] = body
-                    try:
-                        backend = NativeHTTPBackend(
-                            RequestConfig.from_options(options),
-                            filter_options=native_filter_options(options),
-                        )
-                    except RequestException as error:
-                        self.skipTest(str(error))
-                    self.addCleanup(backend.close)
                     result = list(backend.scan(server.url, [path]))[0]
                     self.assertIsNone(result[2])
 
