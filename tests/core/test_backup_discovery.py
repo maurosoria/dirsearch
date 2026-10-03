@@ -4,6 +4,7 @@ from unittest.mock import patch
 from lib.connection.response import NativeResponse
 from lib.controller.controller import Controller
 from lib.core.data import options
+from lib.core.discovery_config import DiscoveryConfig
 from lib.core.dictionary import Dictionary
 from lib.core.settings import ARCHIVE_EXTENSIONS, BACKUP_EXTENSIONS
 from lib.core.wordlist_template import generate_backup_paths
@@ -96,6 +97,7 @@ class TestBackupDiscoveryCallback(TestCase):
 
     def _controller(self) -> Controller:
         controller = object.__new__(Controller)
+        controller.discovery_config = DiscoveryConfig.from_options(options)
         controller.base_path = "app/"
         controller.dictionary = make_dictionary()
         return controller

@@ -3,6 +3,7 @@ from unittest import IsolatedAsyncioTestCase, TestCase
 from unittest.mock import patch
 
 from lib.core.data import options
+from lib.core.discovery_config import DiscoveryConfig
 from lib.core.filter_config import FilterConfig
 from lib.core.fuzzer import AsyncFuzzer, Fuzzer, NativeFuzzer
 from lib.core.scanner import AsyncScanner, BaseScanner, Scanner
@@ -64,6 +65,7 @@ class TestFilterConfig(TestCase):
                 def make_fuzzer(policy):
                     return engine(
                         NativeRequesterStub(), DummyDictionary(), filter_config=policy,
+                        discovery_config=DiscoveryConfig(),
                         match_callbacks=(), not_found_callbacks=(), error_callbacks=(),
                     )
 
@@ -90,6 +92,7 @@ class TestFilterConfig(TestCase):
                 fuzzers = [
                     engine(
                         NativeRequesterStub(), DummyDictionary(), filter_config=config,
+                        discovery_config=DiscoveryConfig(),
                         match_callbacks=(), not_found_callbacks=(), error_callbacks=(),
                     )
                     for _ in range(2)

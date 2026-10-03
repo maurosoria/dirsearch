@@ -35,6 +35,7 @@ from lib.connection.response import BaseResponse
 from lib.core.data import options
 from lib.core.decorators import locked
 from lib.core.dictionary import Dictionary, get_blacklists
+from lib.core.discovery_config import DiscoveryConfig
 from lib.core.exceptions import (
     CannotConnectException,
     FileExistsException,
@@ -426,6 +427,7 @@ class Controller:
         # setup() has parsed raw requests, or _import() has restored the session.
         # Snapshot once, before any requester or lazy native engine is created.
         self.request_config = RequestConfig.from_options(options)
+        self.discovery_config = DiscoveryConfig.from_options(options)
         self.filter_config = FilterConfig.from_options(
             options, blacklists=get_blacklists()
         )
@@ -453,6 +455,7 @@ class Controller:
                 self.requester,
                 self.dictionary,
                 filter_config=self.filter_config,
+                discovery_config=self.discovery_config,
                 match_callbacks=tuple(match_callbacks),
                 not_found_callbacks=not_found_callbacks,
                 error_callbacks=error_callbacks,
@@ -463,7 +466,7 @@ class Controller:
                 self.set_target(url)
 
                 if not self.directories:
-                    for subdir in options["subdirs"]:
+                    for subdir in self.discovery_config.subdirs:
                         self.add_directory(self.base_path + subdir)
 
                 if not self.old_session:
@@ -780,7 +783,7 @@ class Controller:
         self.requester.set_query(parsed.query)
 
     def crawl_target(self) -> None:
-        if not options["crawl"]:
+        if not self.discovery_config.crawl:
             return
 
         try:
@@ -876,6 +879,7 @@ class Controller:
     def match_callback(
         self, response: BaseResponse
     ) -> Awaitable[BaseResponse] | None:
+        discovery = self.discovery_config
         replay = None
 
         if response.status in options["skip_on_status"]:
@@ -885,11 +889,11 @@ class Controller:
 
         interface.status_report(response, options["full_url"])
 
-        if response.status in options["recursion_status_codes"] and any(
+        if response.status in discovery.recursion_status_codes and any(
             (
-                options["recursive"],
-                options["deep_recursive"],
-                options["force_recursive"],
+                discovery.recursive,
+                discovery.deep_recursive,
+                discovery.force_recursive,
             )
         ):
             if response.redirect:
@@ -930,10 +934,10 @@ class Controller:
                     proxy=options["replay_proxy"],
                 )
 
-        if options["crawl"]:
+        if discovery.crawl:
             self.add_crawled_paths(response)
 
-        if options["find_backup"]:
+        if discovery.find_backup:
             path = lstrip_once(response.path, self.base_path)
             for backup_path in generate_backup_paths(path):
                 self.dictionary.add_extra(backup_path)
@@ -943,7 +947,7 @@ class Controller:
     def update_progress_bar(self, response: BaseResponse | None) -> None:
         jobs_count = (
             # Jobs left for unscanned targets
-            len(options["subdirs"]) * (len(options["urls"]) - 1)
+            len(self.discovery_config.subdirs) * (len(options["urls"]) - 1)
             # Jobs left for the current target
             + len(self.directories)
             # Finished jobs
@@ -1086,9 +1090,10 @@ class Controller:
             return
 
         url = self.url + path
+        depth_limit = self.discovery_config.recursion_depth
 
         if (
-            path.count("/") - self.base_path.count("/") > options["recursion_depth"] > 0
+            path.count("/") - self.base_path.count("/") > depth_limit > 0
             or url in self.passed_urls
         ):
             return
@@ -1096,12 +1101,11 @@ class Controller:
         self.directories.append(path)
         self.passed_urls.add(url)
 
-    @staticmethod
-    def _is_excluded_subdir(path: str) -> bool:
+    def _is_excluded_subdir(self, path: str) -> bool:
         resource_path = path.split("?", 1)[0].lstrip("/")
         return any(
             resource_path.startswith(subdir) or f"/{subdir}" in resource_path
-            for subdir in options["exclude_subdirs"]
+            for subdir in self.discovery_config.exclude_subdirs
         )
 
     @locked
@@ -1109,16 +1113,16 @@ class Controller:
         dirs_count = len(self.directories)
         path = clean_path(path)
 
-        if options["force_recursive"] and not path.endswith("/"):
+        if self.discovery_config.force_recursive and not path.endswith("/"):
             path += "/"
 
-        if options["deep_recursive"]:
+        if self.discovery_config.deep_recursive:
             i = 0
             for _ in range(path.count("/")):
                 i = path.index("/", i) + 1
                 self.add_directory(path[:i])
         elif (
-            options["recursive"]
+            self.discovery_config.recursive
             and path.endswith("/")
             and re.search(EXTENSION_RECOGNITION_REGEX, path[:-1]) is None
         ):

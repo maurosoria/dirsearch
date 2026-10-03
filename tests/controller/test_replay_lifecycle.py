@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch
 from lib.connection.response import NativeResponse
 from lib.controller.controller import Controller
 from lib.core.data import options
+from lib.core.discovery_config import DiscoveryConfig
 from lib.core.exceptions import RequestException
 from lib.core.fuzzer import AsyncFuzzer
 
@@ -80,6 +81,7 @@ class TestAsyncReplayLifecycle(ReplayOptionsMixin, IsolatedAsyncioTestCase):
         options["async_mode"] = True
         requester = RecordingAsyncRequester()
         controller = object.__new__(Controller)
+        controller.discovery_config = DiscoveryConfig.from_options(options)
         controller.loop = asyncio.get_running_loop()
         controller.requester = requester
 
@@ -102,6 +104,7 @@ class TestAsyncReplayLifecycle(ReplayOptionsMixin, IsolatedAsyncioTestCase):
         options["async_mode"] = True
         requester = BlockingAsyncRequester()
         controller = object.__new__(Controller)
+        controller.discovery_config = DiscoveryConfig.from_options(options)
         controller.loop = asyncio.get_running_loop()
         controller.requester = requester
 
@@ -126,6 +129,7 @@ class TestAsyncReplayLifecycle(ReplayOptionsMixin, IsolatedAsyncioTestCase):
     async def test_replay_failure_is_observed_by_callback_runner(self):
         options["async_mode"] = True
         controller = object.__new__(Controller)
+        controller.discovery_config = DiscoveryConfig.from_options(options)
         controller.loop = asyncio.get_running_loop()
         controller.requester = FailingAsyncRequester()
 
@@ -144,6 +148,7 @@ class TestSyncReplayLifecycle(ReplayOptionsMixin, TestCase):
         options["async_mode"] = False
         requester = Mock()
         controller = object.__new__(Controller)
+        controller.discovery_config = DiscoveryConfig.from_options(options)
         controller.requester = requester
 
         with patch("lib.controller.controller.interface"):
