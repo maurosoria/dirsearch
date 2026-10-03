@@ -223,18 +223,12 @@ class StructuredFileReportMixin(FileReportMixin):
             )
         if error.msg == "Expecting value":
             fragment = record[error.pos:]
-            return fragment in {
-                "t",
-                "tr",
-                "tru",
-                "f",
-                "fa",
-                "fal",
-                "fals",
-                "n",
-                "nu",
-                "nul",
+            literal_prefixes = {
+                literal[:length]
+                for literal in ("true", "false", "null")
+                for length in range(1, len(literal))
             }
+            return fragment in literal_prefixes
         return False
 
     def _parse_journal_records(self, journal):
