@@ -10,6 +10,7 @@ from lib.controller.controller import Controller
 from lib.core.filter_config import FilterConfig
 from lib.core.request_config import RequestConfig
 from lib.core.data import options
+from lib.core.discovery_config import DiscoveryConfig
 from lib.core.exceptions import RequestException
 from lib.parse.url import same_origin
 
@@ -43,6 +44,7 @@ class TestRedirectRecursionOrigin(TestCase):
         )
 
         self.controller = object.__new__(Controller)
+        self.controller.discovery_config = DiscoveryConfig.from_options(options)
         self.controller._operation_lock = threading.Lock()
         self.controller.url = "https://example.test/"
         self.controller.base_path = ""
@@ -88,7 +90,7 @@ class TestRedirectRecursionOrigin(TestCase):
                 self.assertEqual(self.queued_directories(location), ["admin/"])
 
     def test_excluded_subdirectory_matching_is_segment_aware(self):
-        options["exclude_subdirs"] = ["admin/"]
+        self.controller.discovery_config = DiscoveryConfig(exclude_subdirs=("admin/",))
 
         for path in ("admin/", "nested/admin/"):
             with self.subTest(path=path):
@@ -193,6 +195,7 @@ class FollowedRedirectRecursionContract:
     @staticmethod
     def queued_directories(response) -> list[str]:
         controller = object.__new__(Controller)
+        controller.discovery_config = DiscoveryConfig.from_options(options)
         controller._operation_lock = threading.Lock()
         controller.url = response.url.rsplit("/", 1)[0] + "/"
         controller.base_path = ""

@@ -34,6 +34,7 @@ def main() -> None:
         WordlistTemplate,
     )
     from dirsearch.lib.core import settings
+    from dirsearch.lib.core.discovery_config import DiscoveryConfig
     from dirsearch.lib.core.filter_config import FilterConfig
     from dirsearch.lib.core.filter_state import FilterState
     from dirsearch.lib.core.request_config import RequestConfig
@@ -55,6 +56,7 @@ def main() -> None:
     assert WordlistState
     assert WordlistTemplate
     assert RequestConfig(method="POST").method == "POST"
+    assert DiscoveryConfig(subdirs=[""]).subdirs == ("",)
     assert FilterConfig(include_status_codes={200}).native_options()["include_status_codes"] == [200]
     assert FilterState().scanners == {"default": {}, "prefixes": {}, "suffixes": {}}
     assert issubclass(DirectoryResponseStore, BaseResponseStore), (

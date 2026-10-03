@@ -5,6 +5,7 @@ from unittest import IsolatedAsyncioTestCase, TestCase
 from lib.connection.native import NativeScanChunk, NativeScanEvent
 from lib.connection.response import NativeResponse
 from lib.core.data import options
+from lib.core.discovery_config import DiscoveryConfig
 from lib.core.filter_config import FilterConfig
 from lib.core.fuzzer import AsyncFuzzer, Fuzzer, NativeFuzzer
 
@@ -160,6 +161,7 @@ class TestSyncFuzzerFilterStack(FilterStackOptionsMixin, TestCase):
             DummySyncRequester(),
             DummyDictionary([]),
             filter_config=FilterConfig.from_options(options),
+            discovery_config=DiscoveryConfig.from_options(options),
             match_callbacks=(matches.append,),
             not_found_callbacks=(misses.append,),
             error_callbacks=(),
@@ -178,6 +180,7 @@ class TestSyncFuzzerFilterStack(FilterStackOptionsMixin, TestCase):
             DummySyncRequester(),
             DummyDictionary([]),
             filter_config=FilterConfig.from_options(options),
+            discovery_config=DiscoveryConfig.from_options(options),
             match_callbacks=(matches.append,),
             not_found_callbacks=(misses.append,),
             error_callbacks=(),
@@ -228,6 +231,7 @@ class TestSyncFuzzerFilterStack(FilterStackOptionsMixin, TestCase):
             DummySyncRequester(),
             dictionary,
             filter_config=FilterConfig.from_options(options),
+            discovery_config=DiscoveryConfig.from_options(options),
             match_callbacks=(matches.append,),
             not_found_callbacks=(misses.append,),
             error_callbacks=(errors.append,),
@@ -258,6 +262,7 @@ class TestAsyncFuzzerFilterStack(FilterStackOptionsMixin, IsolatedAsyncioTestCas
             DummyAsyncRequester(),
             dictionary,
             filter_config=FilterConfig.from_options(options),
+            discovery_config=DiscoveryConfig.from_options(options),
             match_callbacks=(matches.append,),
             not_found_callbacks=(misses.append,),
             error_callbacks=(errors.append,),
@@ -282,6 +287,7 @@ class TestNativeFuzzerFilterStack(FilterStackOptionsMixin, TestCase):
             DummyNativeRequester(backend),
             dictionary,
             filter_config=FilterConfig.from_options(options),
+            discovery_config=DiscoveryConfig.from_options(options),
             match_callbacks=(matches.append,),
             not_found_callbacks=(misses.append,),
             error_callbacks=(errors.append,),
@@ -313,6 +319,7 @@ class TestAdvancedRegexFilterParity(
             DummySyncRequester(),
             DummyDictionary(["keep", "drop"]),
             filter_config=FilterConfig.from_options(options),
+            discovery_config=DiscoveryConfig.from_options(options),
             match_callbacks=(sync_matches.append,),
             not_found_callbacks=(sync_misses.append,),
             error_callbacks=(sync_errors.append,),
@@ -332,6 +339,7 @@ class TestAdvancedRegexFilterParity(
             DummyAsyncRequester(),
             DummyDictionary(["keep", "drop"]),
             filter_config=FilterConfig.from_options(options),
+            discovery_config=DiscoveryConfig.from_options(options),
             match_callbacks=(async_matches.append,),
             not_found_callbacks=(async_misses.append,),
             error_callbacks=(async_errors.append,),
@@ -351,6 +359,7 @@ class TestAdvancedRegexFilterParity(
             DummyNativeRequester(FilteringNativeBackend()),
             DummyDictionary(["keep", "drop"]),
             filter_config=FilterConfig.from_options(options),
+            discovery_config=DiscoveryConfig.from_options(options),
             match_callbacks=(native_matches.append,),
             not_found_callbacks=(native_misses.append,),
             error_callbacks=(native_errors.append,),

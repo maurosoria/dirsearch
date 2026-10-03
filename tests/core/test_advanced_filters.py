@@ -1,6 +1,7 @@
 from unittest import TestCase
 
 from lib.connection.response import NativeResponse
+from lib.core.discovery_config import DiscoveryConfig
 from lib.core.filter_config import FilterConfig
 from lib.core.filters import (
     parse_numeric_ranges,
@@ -35,6 +36,7 @@ class TestAdvancedFilters(TestCase):
             None,
             DummyDictionary(),
             filter_config=FilterConfig(**self.filter_options),
+            discovery_config=DiscoveryConfig(),
             match_callbacks=(),
             not_found_callbacks=(),
             error_callbacks=(),

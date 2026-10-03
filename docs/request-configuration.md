@@ -16,9 +16,11 @@ a supplied mapping; it never imports the process-wide options dictionary.
 The transport migration replaces direct `options` reads in
 `lib/connection/requester.py` and `lib/connection/native.py`. Filter policy is
 deliberately not part of `RequestConfig`; its ownership is described in
-[filter configuration](filter-configuration.md). Scheduling, discovery, logger
-and controller globals remain separate migration steps. Requester and filter
-isolation do not yet make two complete `Controller` instances safe to run together.
+[filter configuration](filter-configuration.md). Controller discovery policy and
+calibration variants now use [DiscoveryConfig](discovery-configuration.md).
+Scheduling, wordlist generation/validation, logger and controller globals remain
+separate migration steps. These snapshots do not yet make two complete
+`Controller` instances safe to run together.
 
 ## Constructing a requester
 

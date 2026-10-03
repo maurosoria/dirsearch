@@ -30,6 +30,7 @@ from lib.connection.requester import AsyncRequester, BaseRequester, Requester
 from lib.connection.response import BaseResponse
 from lib.core.data import options
 from lib.core.dictionary import Dictionary
+from lib.core.discovery_config import DiscoveryConfig
 from lib.core.exceptions import RequestException
 from lib.core.filter_config import FilterConfig
 from lib.core.filter_state import FilterState
@@ -72,6 +73,7 @@ class BaseFuzzer:
         dictionary: Dictionary,
         *,
         filter_config: FilterConfig,
+        discovery_config: DiscoveryConfig,
         match_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         not_found_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         error_callbacks: tuple[Callable[[RequestException], Any], ...],
@@ -80,6 +82,7 @@ class BaseFuzzer:
         self._dictionary = dictionary
         self._base_path: str = ""
         self.filter_config = filter_config
+        self.discovery_config = discovery_config
         self.filter_state = FilterState()
         self.match_callbacks = match_callbacks
         self.not_found_callbacks = not_found_callbacks
@@ -344,6 +347,7 @@ class Fuzzer(BaseFuzzer):
         dictionary: Dictionary,
         *,
         filter_config: FilterConfig,
+        discovery_config: DiscoveryConfig,
         match_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         not_found_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         error_callbacks: tuple[Callable[[RequestException], Any], ...],
@@ -352,6 +356,7 @@ class Fuzzer(BaseFuzzer):
             requester,
             dictionary,
             filter_config=filter_config,
+            discovery_config=discovery_config,
             match_callbacks=match_callbacks,
             not_found_callbacks=not_found_callbacks,
             error_callbacks=error_callbacks,
@@ -382,7 +387,7 @@ class Fuzzer(BaseFuzzer):
                 path=self.filter_config.exclude_response,
             )
 
-        for prefix in set(options["prefixes"] + DEFAULT_TEST_PREFIXES):
+        for prefix in set(self.discovery_config.prefixes + DEFAULT_TEST_PREFIXES):
             scanners["prefixes"][prefix] = Scanner(
                 self._requester,
                 filter_config=self.filter_config,
@@ -392,7 +397,7 @@ class Fuzzer(BaseFuzzer):
                 context=f"/{self._base_path}{prefix}***",
             )
 
-        for suffix in set(options["suffixes"] + DEFAULT_TEST_SUFFIXES):
+        for suffix in set(self.discovery_config.suffixes + DEFAULT_TEST_SUFFIXES):
             scanners["suffixes"][suffix] = Scanner(
                 self._requester,
                 filter_config=self.filter_config,
@@ -402,7 +407,7 @@ class Fuzzer(BaseFuzzer):
                 context=f"/{self._base_path}***{suffix}",
             )
 
-        for extension in options["extensions"]:
+        for extension in self.discovery_config.extensions:
             if "." + extension not in scanners["suffixes"]:
                 scanners["suffixes"]["." + extension] = Scanner(
                     self._requester,
@@ -534,6 +539,7 @@ class NativeFuzzer(Fuzzer):
         dictionary: Dictionary,
         *,
         filter_config: FilterConfig,
+        discovery_config: DiscoveryConfig,
         match_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         not_found_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         error_callbacks: tuple[Callable[[RequestException], Any], ...],
@@ -543,6 +549,7 @@ class NativeFuzzer(Fuzzer):
             requester,
             dictionary,
             filter_config=filter_config,
+            discovery_config=discovery_config,
             match_callbacks=match_callbacks,
             not_found_callbacks=not_found_callbacks,
             error_callbacks=error_callbacks,
@@ -763,6 +770,7 @@ class AsyncFuzzer(BaseFuzzer):
         dictionary: Dictionary,
         *,
         filter_config: FilterConfig,
+        discovery_config: DiscoveryConfig,
         match_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         not_found_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         error_callbacks: tuple[Callable[[RequestException], Any], ...],
@@ -771,6 +779,7 @@ class AsyncFuzzer(BaseFuzzer):
             requester,
             dictionary,
             filter_config=filter_config,
+            discovery_config=discovery_config,
             match_callbacks=match_callbacks,
             not_found_callbacks=not_found_callbacks,
             error_callbacks=error_callbacks,
@@ -797,7 +806,7 @@ class AsyncFuzzer(BaseFuzzer):
                 path=self.filter_config.exclude_response,
             )
 
-        for prefix in options["prefixes"] + DEFAULT_TEST_PREFIXES:
+        for prefix in self.discovery_config.prefixes + DEFAULT_TEST_PREFIXES:
             scanners["prefixes"][prefix] = await AsyncScanner.create(
                 self._requester,
                 filter_config=self.filter_config,
@@ -807,7 +816,7 @@ class AsyncFuzzer(BaseFuzzer):
                 context=f"/{self._base_path}{prefix}***",
             )
 
-        for suffix in options["suffixes"] + DEFAULT_TEST_SUFFIXES:
+        for suffix in self.discovery_config.suffixes + DEFAULT_TEST_SUFFIXES:
             scanners["suffixes"][suffix] = await AsyncScanner.create(
                 self._requester,
                 filter_config=self.filter_config,
@@ -817,7 +826,7 @@ class AsyncFuzzer(BaseFuzzer):
                 context=f"/{self._base_path}***{suffix}",
             )
 
-        for extension in options["extensions"]:
+        for extension in self.discovery_config.extensions:
             if "." + extension not in scanners["suffixes"]:
                 scanners["suffixes"]["." + extension] = await AsyncScanner.create(
                     self._requester,

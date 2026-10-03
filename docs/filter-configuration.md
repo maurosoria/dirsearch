@@ -47,6 +47,8 @@ policy = FilterConfig(
 ```
 
 Pass this policy as `filter_config=policy` to the fuzzer and native requester.
+Fuzzers also require an explicit `discovery_config`, described in
+[discovery configuration](discovery-configuration.md).
 Create a new policy and new consumers when changing run settings; do not swap
 the policy on a running consumer, whose observations or native filters may
 already reflect the old one.
@@ -73,9 +75,11 @@ or engine-specific serialization is introduced, and learned calibration state
 is still rebuilt when loading a saved session.
 
 This step removes global filter-policy reads and the global blacklist store.
-It does **not** finish global-state removal: discovery prefixes/suffixes,
-extensions, scheduling/concurrency/pacing, the controller and logging still have
-separate ownership work ahead. Full concurrent controllers are not yet supported.
+Controller discovery flags and calibration prefixes/suffixes/extensions now use
+`DiscoveryConfig`. This does **not** finish global-state removal: wordlist
+generation/validation, scheduling/concurrency/pacing, the remaining controller
+state and logging still have separate ownership work ahead. Full concurrent
+controllers are not yet supported.
 
 ## Validation
 

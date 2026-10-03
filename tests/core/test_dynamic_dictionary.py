@@ -6,6 +6,7 @@ from lib.connection.native import NativeScanChunk, NativeScanEvent
 from lib.connection.response import NativeResponse
 from lib.controller.controller import Controller
 from lib.core.data import options
+from lib.core.discovery_config import DiscoveryConfig
 from lib.core.filter_config import FilterConfig
 from lib.core.dictionary import Dictionary
 from lib.core.fuzzer import AsyncFuzzer, Fuzzer, NativeFuzzer
@@ -42,6 +43,7 @@ def crawled_paths_response() -> NativeResponse:
 
 def add_crawled_paths(dictionary: Dictionary) -> None:
     controller = object.__new__(Controller)
+    controller.discovery_config = DiscoveryConfig.from_options(options)
     controller.base_path = ""
     controller.dictionary = dictionary
     controller.add_crawled_paths(crawled_paths_response())
@@ -219,6 +221,7 @@ class TestSyncDynamicDictionary(DynamicDictionaryOptionsMixin, TestCase):
             requester,
             dictionary,
             filter_config=FilterConfig.from_options(options),
+            discovery_config=DiscoveryConfig.from_options(options),
             match_callbacks=(),
             not_found_callbacks=(),
             error_callbacks=(),
@@ -247,6 +250,7 @@ class TestSyncDynamicDictionary(DynamicDictionaryOptionsMixin, TestCase):
             requester,
             dictionary,
             filter_config=FilterConfig.from_options(options),
+            discovery_config=DiscoveryConfig.from_options(options),
             match_callbacks=(self.add_dynamic_path(dictionary),),
             not_found_callbacks=(),
             error_callbacks=(),
@@ -274,6 +278,7 @@ class TestAsyncDynamicDictionary(
             requester,
             dictionary,
             filter_config=FilterConfig.from_options(options),
+            discovery_config=DiscoveryConfig.from_options(options),
             match_callbacks=(),
             not_found_callbacks=(),
             error_callbacks=(),
@@ -301,6 +306,7 @@ class TestAsyncDynamicDictionary(
             requester,
             dictionary,
             filter_config=FilterConfig.from_options(options),
+            discovery_config=DiscoveryConfig.from_options(options),
             match_callbacks=(self.add_dynamic_path(dictionary),),
             not_found_callbacks=(),
             error_callbacks=(),
@@ -324,6 +330,7 @@ class TestNativeDynamicDictionary(DynamicDictionaryOptionsMixin, TestCase):
             DummyNativeRequester(backend),
             dictionary,
             filter_config=FilterConfig.from_options(options),
+            discovery_config=DiscoveryConfig.from_options(options),
             match_callbacks=(),
             not_found_callbacks=(),
             error_callbacks=(),
@@ -348,6 +355,7 @@ class TestNativeDynamicDictionary(DynamicDictionaryOptionsMixin, TestCase):
             DummyNativeRequester(backend),
             dictionary,
             filter_config=FilterConfig.from_options(options),
+            discovery_config=DiscoveryConfig.from_options(options),
             match_callbacks=(self.add_dynamic_path(dictionary),),
             not_found_callbacks=(),
             error_callbacks=(),

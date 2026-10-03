@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, Mock, patch
 from lib.connection.response import NativeResponse
 from lib.controller.controller import Controller
 from lib.core.data import options
+from lib.core.discovery_config import DiscoveryConfig
 from lib.core.exceptions import RequestException
 
 
@@ -54,8 +55,9 @@ def resolved_html_response():
     )
 
 
-def create_controller(requester):
+def create_controller(requester, *, crawl=False):
     controller = object.__new__(Controller)
+    controller.discovery_config = DiscoveryConfig(crawl=crawl)
     controller.requester = requester
     controller.dictionary = RecordingDictionary()
     controller.base_path = "base/"
@@ -113,7 +115,7 @@ class TestRootCrawl(TestCase):
     def test_async_root_request_is_awaited(self):
         requester = Mock()
         requester.request = AsyncMock(return_value=root_response())
-        controller = create_controller(requester)
+        controller = create_controller(requester, crawl=True)
         controller.loop = asyncio.new_event_loop()
 
         try:
@@ -149,7 +151,7 @@ class TestRootCrawl(TestCase):
         error = RequestException("root request failed")
         requester = Mock()
         requester.request.side_effect = error
-        controller = create_controller(requester)
+        controller = create_controller(requester, crawl=True)
 
         with patch.dict(options, {"async_mode": False, "crawl": True}):
             controller.crawl_target()

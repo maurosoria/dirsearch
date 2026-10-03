@@ -3,6 +3,7 @@ from unittest import IsolatedAsyncioTestCase
 
 from lib.connection.response import NativeResponse
 from lib.core.data import options
+from lib.core.discovery_config import DiscoveryConfig
 from lib.core.filter_config import FilterConfig
 from lib.core.dictionary import Dictionary
 from lib.core.fuzzer import AsyncFuzzer
@@ -98,6 +99,7 @@ class TestAsyncFuzzer(IsolatedAsyncioTestCase):
             DummyAsyncRequester(),
             dictionary,
             filter_config=FilterConfig.from_options(options),
+            discovery_config=DiscoveryConfig.from_options(options),
             match_callbacks=(matches.append,),
             not_found_callbacks=(misses.append,),
             error_callbacks=(errors.append,),
@@ -117,6 +119,7 @@ class TestAsyncFuzzer(IsolatedAsyncioTestCase):
             requester,
             dictionary,
             filter_config=FilterConfig.from_options(options),
+            discovery_config=DiscoveryConfig.from_options(options),
             match_callbacks=(),
             not_found_callbacks=(),
             error_callbacks=(),
@@ -157,6 +160,7 @@ class TestAsyncFuzzer(IsolatedAsyncioTestCase):
             DummyAsyncRequester(),
             dictionary,
             filter_config=FilterConfig.from_options(options),
+            discovery_config=DiscoveryConfig.from_options(options),
             match_callbacks=(save_match,),
             not_found_callbacks=(),
             error_callbacks=(),

@@ -4,6 +4,7 @@ from unittest.mock import Mock, patch
 
 from lib.controller.controller import Controller
 from lib.core.data import options
+from lib.core.discovery_config import DiscoveryConfig
 from lib.core.filter_config import FilterConfig
 from lib.core.dictionary import Dictionary
 from lib.core.exceptions import QuitInterrupt, RequestException
@@ -45,6 +46,7 @@ class TestThreadedControllerDeadlines(TestCase):
             requester,
             dictionary,
             filter_config=FilterConfig.from_options(options),
+            discovery_config=DiscoveryConfig.from_options(options),
             match_callbacks=(),
             not_found_callbacks=(),
             error_callbacks=(),
@@ -116,6 +118,7 @@ class TestThreadedControllerDeadlines(TestCase):
             requester,
             dictionary,
             filter_config=FilterConfig.from_options(options),
+            discovery_config=DiscoveryConfig.from_options(options),
             match_callbacks=(),
             not_found_callbacks=(),
             error_callbacks=(),
