@@ -105,6 +105,85 @@ class TestFileUtils(TestCase):
                 self.assertEqual(file_handle.read(), "preserved")
             self.assertEqual(os.listdir(directory), ["options.json"])
 
+    @skipIf(os.name == "nt", "directory fsync is unavailable on Windows")
+    def test_atomic_private_write_syncs_file_then_replacement_directory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            file_name = FileUtils.build_path(directory, "options.json")
+            events = []
+
+            def record_sync(descriptor):
+                mode = os.fstat(descriptor).st_mode
+                events.append("directory-sync" if stat.S_ISDIR(mode) else "file-sync")
+
+            original_replace = os.replace
+
+            def record_replace(source, destination):
+                events.append("replace")
+                original_replace(source, destination)
+
+            with (
+                patch("lib.utils.file.os.fsync", side_effect=record_sync),
+                patch("lib.utils.file.os.replace", side_effect=record_replace),
+            ):
+                with FileUtils.atomic_write_private_text(file_name) as file_handle:
+                    file_handle.write("replacement")
+
+            self.assertEqual(events, ["file-sync", "replace", "directory-sync"])
+            with open(file_name, encoding="utf-8") as file_handle:
+                self.assertEqual(file_handle.read(), "replacement")
+
+    def test_atomic_private_write_preserves_destination_when_file_sync_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            file_name = FileUtils.build_path(directory, "options.json")
+            with open(file_name, "w", encoding="utf-8") as file_handle:
+                file_handle.write("preserved")
+
+            with patch(
+                "lib.utils.file.os.fsync",
+                side_effect=OSError("sync failed"),
+            ):
+                with self.assertRaisesRegex(OSError, "sync failed"):
+                    with FileUtils.atomic_write_private_text(file_name) as file_handle:
+                        file_handle.write("replacement")
+
+            with open(file_name, encoding="utf-8") as file_handle:
+                self.assertEqual(file_handle.read(), "preserved")
+            self.assertEqual(os.listdir(directory), ["options.json"])
+
+    @skipIf(os.name == "nt", "directory fsync is unavailable on Windows")
+    def test_atomic_private_write_closes_directory_after_sync_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            file_name = FileUtils.build_path(directory, "options.json")
+            directory_descriptors = []
+
+            def fail_directory_sync(descriptor):
+                if stat.S_ISDIR(os.fstat(descriptor).st_mode):
+                    directory_descriptors.append(descriptor)
+                    raise OSError("directory sync failed")
+
+            with patch(
+                "lib.utils.file.os.fsync",
+                side_effect=fail_directory_sync,
+            ):
+                with self.assertRaisesRegex(OSError, "directory sync failed"):
+                    with FileUtils.atomic_write_private_text(file_name) as file_handle:
+                        file_handle.write("replacement")
+
+            with open(file_name, encoding="utf-8") as file_handle:
+                self.assertEqual(file_handle.read(), "replacement")
+            self.assertEqual(len(directory_descriptors), 1)
+            with self.assertRaises(OSError):
+                os.fstat(directory_descriptors[0])
+
+    def test_parent_directory_sync_is_skipped_on_windows(self):
+        with (
+            patch("lib.utils.file.os.name", "nt"),
+            patch("lib.utils.file.os.open") as open_directory,
+        ):
+            FileUtils._sync_parent_directory("session.json")
+
+        open_directory.assert_not_called()
+
     @skipUnless(hasattr(os, "symlink"), "symbolic links are unavailable")
     def test_atomic_private_write_replaces_symlink_without_following_it(self):
         with tempfile.TemporaryDirectory() as directory:
