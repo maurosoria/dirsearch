@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, Mock, patch
 from lib.core.data import options
 from lib.core.dictionary import Dictionary
 from lib.core.discovery_config import DiscoveryConfig
-from lib.core.execution_config import ExecutionConfig
+from lib.core.execution_config import ExecutionConfig, ScanEngine
 from lib.core.filter_config import FilterConfig
 from lib.core.fuzzer import AsyncFuzzer, Fuzzer, NativeFuzzer
 from lib.core.wordlist_config import WordlistConfig
@@ -32,6 +32,7 @@ class TestExecutionConfig(TestCase):
     def test_config_freezes_statuses_and_reads_only_supplied_options(self):
         statuses = {429, 503}
         values = {
+            "request_backend": "python", "async_mode": False,
             "thread_count": 3, "delay": 0.25, "max_time": 10,
             "target_max_time": 2.5, "skip_on_status": statuses, "exit_on_error": True,
         }
@@ -39,13 +40,41 @@ class TestExecutionConfig(TestCase):
             config = ExecutionConfig.from_options(values)
         statuses.clear()
         values["thread_count"] = 99
+        values.update(request_backend="native", async_mode=False)
         self.assertEqual(config, ExecutionConfig(
             concurrency=3, delay=0.25, max_time=10, target_max_time=2.5,
             skip_on_status={429, 503}, exit_on_error=True,
         ))
         with self.assertRaises(FrozenInstanceError):
             config.concurrency = 1
+        with self.assertRaises(FrozenInstanceError):
+            config.engine = ScanEngine.NATIVE
         self.assertEqual(ExecutionConfig().skip_on_status, frozenset())
+
+    def test_engine_mapping_uses_only_supplied_options(self):
+        for backend, async_mode, expected in (
+            ("python", False, ScanEngine.THREADED),
+            ("python", True, ScanEngine.ASYNC),
+            ("native", False, ScanEngine.NATIVE),
+        ):
+            with self.subTest(engine=expected), patch.dict(options, {}, clear=True):
+                self.assertIs(ScanEngine.from_options({
+                    "request_backend": backend, "async_mode": async_mode,
+                }), expected)
+
+    def test_conflicting_engine_flags_are_rejected(self):
+        with self.assertRaisesRegex(ValueError, "native cannot be combined with --async"):
+            ScanEngine.from_options({"request_backend": "native", "async_mode": True})
+
+    def test_unknown_backend_is_not_silently_threaded(self):
+        for backend in ("rust", "", None):
+            with self.subTest(backend=backend), self.assertRaisesRegex(ValueError, "python, native"):
+                ScanEngine.from_options({"request_backend": backend, "async_mode": False})
+
+    def test_manual_config_requires_an_engine_enum(self):
+        for engine in ("native", "async", None):
+            with self.subTest(engine=engine), self.assertRaisesRegex(TypeError, "engine must be a ScanEngine"):
+                ExecutionConfig(engine=engine)
 
     def test_thread_count_and_delay_are_owned_by_each_fuzzer(self):
         for count, delay in ((1, 0), (3, 0.25)):

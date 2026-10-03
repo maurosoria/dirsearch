@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 
 from lib.controller.controller import Controller
 from lib.core.data import options
-from lib.core.execution_config import ExecutionConfig
+from lib.core.execution_config import ExecutionConfig, ScanEngine
 from lib.core.exceptions import QuitInterrupt, SkipTargetInterrupt
 
 
@@ -34,7 +34,7 @@ def create_controller(fuzzer):
     controller.loop = asyncio.get_running_loop()
     controller.pause_future = controller.loop.create_future()
     controller.fuzzer = fuzzer
-    controller.execution_config = ExecutionConfig()
+    controller.execution_config = ExecutionConfig(engine=ScanEngine.ASYNC)
     return controller
 
 
@@ -130,10 +130,8 @@ class TestAsyncController(IsolatedAsyncioTestCase):
             save_async=async_callback,
         )
 
-        with patch.dict(
-            options,
-            {"request_backend": "python", "async_mode": True},
-        ):
+        controller.execution_config = ExecutionConfig(engine=ScanEngine.ASYNC)
+        with patch.dict(options, {}, clear=True):
             callback = controller._report_match_callback()
 
         self.assertIs(callback, async_callback)
@@ -147,10 +145,8 @@ class TestAsyncController(IsolatedAsyncioTestCase):
             save_async=object(),
         )
 
-        with patch.dict(
-            options,
-            {"request_backend": "python", "async_mode": True},
-        ):
+        controller.execution_config = ExecutionConfig(engine=ScanEngine.ASYNC)
+        with patch.dict(options, {}, clear=True):
             callback = controller._report_match_callback()
 
         self.assertIs(callback, sync_callback)
@@ -164,21 +160,9 @@ class TestAsyncController(IsolatedAsyncioTestCase):
             save_async=object(),
         )
 
-        for request_backend, async_mode in (
-            ("python", False),
-            ("native", False),
-            ("native", True),
-        ):
-            with self.subTest(
-                request_backend=request_backend,
-                async_mode=async_mode,
-            ), patch.dict(
-                options,
-                {
-                    "request_backend": request_backend,
-                    "async_mode": async_mode,
-                },
-            ):
+        for engine in (ScanEngine.THREADED, ScanEngine.NATIVE):
+            controller.execution_config = ExecutionConfig(engine=engine)
+            with self.subTest(engine=engine), patch.dict(options, {}, clear=True):
                 callback = controller._report_match_callback()
 
             self.assertIs(callback, sync_callback)

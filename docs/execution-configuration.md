@@ -1,12 +1,14 @@
 # Execution configuration ownership
 
-`ExecutionConfig` holds immutable worker, pacing and stop policy for one run.
+`ExecutionConfig` holds immutable engine, worker, pacing and stop policy for one run.
 `Controller.run()` constructs it after raw-request setup or session restoration,
-alongside the transport, filter and discovery snapshots. The controller passes
-the same object to every target's fuzzer.
+before selecting requester/fuzzer classes, callbacks or an event loop. Transport,
+filter and discovery snapshots follow at the same preparation boundary. The
+controller passes the same execution policy to every target's fuzzer.
 
 | Previous global reads | Current owner | Consumers |
 | --- | --- | --- |
+| `request_backend`, `async_mode` in the running controller | `ExecutionConfig.engine` (`ScanEngine`) | Requester/fuzzer selection, report/response callbacks, root crawl, replay, dispatch, pause and worker-drain routing |
 | `thread_count` in `lib/core/fuzzer.py` | `ExecutionConfig.concurrency` | Thread count, async workers/semaphore, native dictionary claim size |
 | `delay` in `lib/core/fuzzer.py` | `ExecutionConfig.delay` | Python worker pacing and all engines' calibration scanners |
 | `max_time`, `target_max_time` in `lib/controller/controller.py` | `ExecutionConfig` | Threaded polling and async/native deadlines |
@@ -19,9 +21,10 @@ boundary; this config freezes normalized input rather than implementing a
 second parser. Status collections are copied into a frozenset.
 
 ```python
-from lib.core.execution_config import ExecutionConfig
+from lib.core.execution_config import ExecutionConfig, ScanEngine
 
 policy = ExecutionConfig(
+    engine=ScanEngine.THREADED,
     concurrency=3,
     delay=0.1,
     max_time=60,
@@ -35,6 +38,32 @@ Pass `execution_config=policy` when constructing `Fuzzer`, `AsyncFuzzer` or
 `NativeFuzzer`, together with the existing policies and callbacks. Create new
 configuration and consumers to change execution policy; do not replace it under
 active workers.
+
+## One engine per run
+
+The existing CLI/session selectors are converted into one enum value:
+
+| `request_backend` | `async_mode` | `ExecutionConfig.engine` |
+| --- | --- | --- |
+| `python` | `False` | `ScanEngine.THREADED` |
+| `python` | `True` | `ScanEngine.ASYNC` |
+| `native` | `False` | `ScanEngine.NATIVE` |
+
+Native plus async is rejected with the same diagnostic as CLI validation.
+Unknown backend names are also rejected, not silently dispatched as threaded.
+This check runs before requester or loop construction, including on resume.
+Manual `ExecutionConfig` construction requires a `ScanEngine`, not a string.
+
+Runtime branches use the frozen enum rather than re-reading selector flags.
+Only async owns an asyncio loop and awaitable callbacks; threaded/native keep
+inline callbacks. Native retains its filtered-result chunk callbacks, and only
+threaded uses the threaded worker-drain path. Changing global flags after
+preparation cannot switch those paths for later targets. Requester cleanup
+continues to use the loop actually created, including after partial startup.
+
+CLI/raw-request validation and wordlist preparation still consume normalized
+selector input at their existing boundaries. There is no new CLI flag or fuzzer
+constructor argument; the enum travels in the existing execution policy.
 
 ## Transport versus execution
 
@@ -73,7 +102,7 @@ objects. Resume rebuilds execution policy after restoring session options and
 before starting any target. No checkpoint schema or engine-specific state is
 added; existing saved start-time semantics are unchanged.
 
-Engine selection, target queues/routing, output, replay settings and remaining
+Target queues/routing, output, replay destinations and remaining
 controller/logging globals are separate migration steps. This does not make
 complete controllers safe to run concurrently, even though individual fuzzers
 no longer read global options.
@@ -83,6 +112,12 @@ no longer read global options.
 Run `python -m unittest discover -s tests -t .`.
 
 - Immutable status inputs and complete mapping adaptation.
+- All three selector mappings; invalid combinations and unknown backends fail
+  before requester/loop creation without a traceback.
+- Engine choice, report/response callbacks, native filtered chunks and cleanup
+  across two targets even when global selectors change after preparation.
+- Root crawl, replay, directory dispatch and pause quit/save/skip routing follow
+  the frozen engine, with empty or deliberately contradictory global selectors.
 - Threaded/async worker counts and pacing with global options empty.
 - Simultaneous async fuzzers retaining separate concurrency limits, with bounded
   event coordination and cancellation/drain assertions.
@@ -92,7 +127,7 @@ Run `python -m unittest discover -s tests -t .`.
   all three request-stack configurations, with transport settings kept aligned.
 - Existing lifecycle, native integration and deterministic loopback CLI contracts.
 
-`tests/check_packaged_install.py` imports the new module. Setuptools discovers
-it through `lib.core`; PyInstaller's existing `collect_submodules('lib')` includes
-it. Native integration requires the matching optional extension and skips when
+`tests/check_packaged_install.py` imports the config and enum. Setuptools discovers
+the module through `lib.core`; PyInstaller's existing `collect_submodules('lib')`
+includes it. Native integration requires the matching optional extension and skips when
 it is absent.
