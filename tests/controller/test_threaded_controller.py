@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch
 from lib.controller.controller import Controller
 from lib.core.data import options
 from lib.core.discovery_config import DiscoveryConfig
+from lib.core.execution_config import ExecutionConfig
 from lib.core.filter_config import FilterConfig
 from lib.core.dictionary import Dictionary
 from lib.core.wordlist_config import WordlistConfig
@@ -25,6 +26,7 @@ def create_controller(fuzzer, dictionary):
     controller.old_session = True
     controller.dictionary = dictionary
     controller.fuzzer = fuzzer
+    controller.execution_config = fuzzer.execution_config
     controller.jobs_processed = 0
     controller._native_worker = None
     return controller
@@ -48,6 +50,7 @@ class TestThreadedControllerDeadlines(TestCase):
             dictionary,
             filter_config=FilterConfig.from_options(options),
             discovery_config=DiscoveryConfig.from_options(options),
+            execution_config=ExecutionConfig(concurrency=1, max_time=5),
             match_callbacks=(),
             not_found_callbacks=(),
             error_callbacks=(),
@@ -120,6 +123,7 @@ class TestThreadedControllerDeadlines(TestCase):
             dictionary,
             filter_config=FilterConfig.from_options(options),
             discovery_config=DiscoveryConfig.from_options(options),
+            execution_config=ExecutionConfig(concurrency=1, max_time=5),
             match_callbacks=(),
             not_found_callbacks=(),
             error_callbacks=(),

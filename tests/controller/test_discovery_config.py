@@ -6,11 +6,13 @@ from lib.controller.controller import Controller
 from lib.core.data import options
 from lib.core.wordlist_config import WordlistConfig
 from lib.core.discovery_config import DiscoveryConfig
+from lib.core.execution_config import ExecutionConfig
 from tests.core.test_backup_discovery import response_for
 
 
 def policy_controller(policy):
     controller = object.__new__(Controller)
+    controller.execution_config = ExecutionConfig()
     controller.discovery_config = policy
     controller._operation_lock = threading.Lock()
     controller.url = "http://example.test/"

@@ -47,6 +47,7 @@ from lib.core.exceptions import (
     UnpicklingError,
     WordlistLimitError,
 )
+from lib.core.execution_config import ExecutionConfig
 from lib.core.filter_config import FilterConfig
 from lib.core.request_config import RequestConfig
 from lib.core.logger import enable_logging, logger
@@ -433,6 +434,7 @@ class Controller:
 
         # setup() has parsed raw requests, or _import() has restored the session.
         # Snapshot once, before any requester or lazy native engine is created.
+        self.execution_config = ExecutionConfig.from_options(options)
         self.request_config = RequestConfig.from_options(options)
         self.discovery_config = DiscoveryConfig.from_options(options)
         self.filter_config = FilterConfig.from_options(
@@ -463,6 +465,7 @@ class Controller:
                 self.dictionary,
                 filter_config=self.filter_config,
                 discovery_config=self.discovery_config,
+                execution_config=self.execution_config,
                 match_callbacks=tuple(match_callbacks),
                 not_found_callbacks=not_found_callbacks,
                 error_callbacks=error_callbacks,
@@ -579,17 +582,17 @@ class Controller:
         now = time.time()
         time_limits = []
 
-        if options["max_time"] > 0:
+        if self.execution_config.max_time > 0:
             time_limits.append(
                 (
-                    options["max_time"] - (now - self.start_time),
+                    self.execution_config.max_time - (now - self.start_time),
                     QuitInterrupt("Runtime exceeded the maximum set by the user"),
                 )
             )
-        if options["target_max_time"] > 0:
+        if self.execution_config.target_max_time > 0:
             time_limits.append(
                 (
-                    options["target_max_time"] - (now - start_time),
+                    self.execution_config.target_max_time - (now - start_time),
                     SkipTargetInterrupt(
                         "Runtime for target exceeded the maximum set by the user"
                     ),
@@ -700,11 +703,11 @@ class Controller:
         while True:
             while not self.fuzzer.is_finished():
                 now = time.time()
-                if now - self.start_time > options["max_time"] > 0:
+                if now - self.start_time > self.execution_config.max_time > 0:
                     raise QuitInterrupt(
                         "Runtime exceeded the maximum set by the user"
                     )
-                if now - start_time > options["target_max_time"] > 0:
+                if now - start_time > self.execution_config.target_max_time > 0:
                     raise SkipTargetInterrupt(
                         "Runtime for target exceeded the maximum set by the user"
                     )
@@ -889,7 +892,7 @@ class Controller:
         discovery = self.discovery_config
         replay = None
 
-        if response.status in options["skip_on_status"]:
+        if response.status in self.execution_config.skip_on_status:
             raise SkipTargetInterrupt(
                 f"Skipped the target due to {response.status} status code"
             )
@@ -974,7 +977,7 @@ class Controller:
         self.update_progress_bar(None)
 
     def raise_error(self, exception: RequestException) -> None:
-        if options["exit_on_error"]:
+        if self.execution_config.exit_on_error:
             raise QuitInterrupt("Canceled due to an error")
 
         self.errors += 1

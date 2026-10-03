@@ -7,6 +7,7 @@ from lib.connection.response import NativeResponse
 from lib.controller.controller import Controller
 from lib.core.data import options
 from lib.core.discovery_config import DiscoveryConfig
+from lib.core.execution_config import ExecutionConfig
 from lib.core.filter_config import FilterConfig
 from lib.core.dictionary import Dictionary
 from lib.core.wordlist_config import WordlistConfig
@@ -223,6 +224,7 @@ class TestSyncDynamicDictionary(DynamicDictionaryOptionsMixin, TestCase):
             dictionary,
             filter_config=FilterConfig.from_options(options),
             discovery_config=DiscoveryConfig.from_options(options),
+            execution_config=ExecutionConfig.from_options(options),
             match_callbacks=(),
             not_found_callbacks=(),
             error_callbacks=(),
@@ -252,6 +254,7 @@ class TestSyncDynamicDictionary(DynamicDictionaryOptionsMixin, TestCase):
             dictionary,
             filter_config=FilterConfig.from_options(options),
             discovery_config=DiscoveryConfig.from_options(options),
+            execution_config=ExecutionConfig.from_options(options),
             match_callbacks=(self.add_dynamic_path(dictionary),),
             not_found_callbacks=(),
             error_callbacks=(),
@@ -280,6 +283,7 @@ class TestAsyncDynamicDictionary(
             dictionary,
             filter_config=FilterConfig.from_options(options),
             discovery_config=DiscoveryConfig.from_options(options),
+            execution_config=ExecutionConfig.from_options(options),
             match_callbacks=(),
             not_found_callbacks=(),
             error_callbacks=(),
@@ -308,6 +312,7 @@ class TestAsyncDynamicDictionary(
             dictionary,
             filter_config=FilterConfig.from_options(options),
             discovery_config=DiscoveryConfig.from_options(options),
+            execution_config=ExecutionConfig.from_options(options),
             match_callbacks=(self.add_dynamic_path(dictionary),),
             not_found_callbacks=(),
             error_callbacks=(),
@@ -332,6 +337,7 @@ class TestNativeDynamicDictionary(DynamicDictionaryOptionsMixin, TestCase):
             dictionary,
             filter_config=FilterConfig.from_options(options),
             discovery_config=DiscoveryConfig.from_options(options),
+            execution_config=ExecutionConfig.from_options(options),
             match_callbacks=(),
             not_found_callbacks=(),
             error_callbacks=(),
@@ -357,6 +363,7 @@ class TestNativeDynamicDictionary(DynamicDictionaryOptionsMixin, TestCase):
             dictionary,
             filter_config=FilterConfig.from_options(options),
             discovery_config=DiscoveryConfig.from_options(options),
+            execution_config=ExecutionConfig.from_options(options),
             match_callbacks=(self.add_dynamic_path(dictionary),),
             not_found_callbacks=(),
             error_callbacks=(),

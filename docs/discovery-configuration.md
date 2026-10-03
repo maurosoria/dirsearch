@@ -39,7 +39,8 @@ policy = DiscoveryConfig(
 ```
 
 Pass it as `discovery_config=policy` when constructing a fuzzer, alongside its
-filter policy and callbacks. To change policy, create new configuration and
+filter policy, [execution policy](execution-configuration.md) and callbacks.
+To change policy, create new configuration and
 consumers; do not swap it under a running scan.
 
 The directory queue and visited URLs still belong to the controller. Learned
@@ -71,8 +72,9 @@ snapshot the same normalized inputs for their distinct consumers. Dictionary
 construction and session restoration pass that policy explicitly without
 materializing the native corpus.
 
-Scheduling/concurrency/pacing, targets, output, replay settings and other runtime
-globals also remain separate steps. No new Rust ABI, chunk parameter, callback
+[ExecutionConfig](execution-configuration.md) owns fuzzer concurrency/pacing and
+stop policy. Engine selection, targets, output, replay settings and other runtime
+globals remain separate steps. No new Rust ABI, chunk parameter, callback
 protocol, CLI flag or discovery capability is introduced. No throughput claim is
 made.
 

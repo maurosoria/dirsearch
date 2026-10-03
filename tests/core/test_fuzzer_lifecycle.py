@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from lib.core.data import options
 from lib.core.discovery_config import DiscoveryConfig
+from lib.core.execution_config import ExecutionConfig
 from lib.core.filter_config import FilterConfig
 from lib.core.dictionary import Dictionary
 from lib.core.wordlist_config import WordlistConfig
@@ -101,6 +102,7 @@ class TestThreadedFuzzerLifecycle(TestCase):
             dictionary,
             filter_config=FilterConfig.from_options(options),
             discovery_config=DiscoveryConfig.from_options(options),
+            execution_config=ExecutionConfig(concurrency=1),
             match_callbacks=(),
             not_found_callbacks=(),
             error_callbacks=(),
@@ -150,6 +152,7 @@ class TestThreadedFuzzerLifecycle(TestCase):
             LifecycleDictionary(["fail", "blocked", "after"]),
             filter_config=FilterConfig.from_options(options),
             discovery_config=DiscoveryConfig.from_options(options),
+            execution_config=ExecutionConfig(concurrency=2),
             match_callbacks=(),
             not_found_callbacks=(),
             error_callbacks=(stop_scan,),
@@ -189,6 +192,7 @@ class TestAsyncFuzzerLifecycle(IsolatedAsyncioTestCase):
             LifecycleDictionary(["fail", "blocked"]),
             filter_config=FilterConfig.from_options(options),
             discovery_config=DiscoveryConfig.from_options(options),
+            execution_config=ExecutionConfig(concurrency=2),
             match_callbacks=(),
             not_found_callbacks=(),
             error_callbacks=(stop_scan,),

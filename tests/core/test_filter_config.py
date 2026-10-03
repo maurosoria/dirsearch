@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from lib.core.data import options
 from lib.core.discovery_config import DiscoveryConfig
+from lib.core.execution_config import ExecutionConfig
 from lib.core.filter_config import FilterConfig
 from lib.core.fuzzer import AsyncFuzzer, Fuzzer, NativeFuzzer
 from lib.core.scanner import AsyncScanner, BaseScanner, Scanner
@@ -66,6 +67,7 @@ class TestFilterConfig(TestCase):
                     return engine(
                         NativeRequesterStub(), DummyDictionary(), filter_config=policy,
                         discovery_config=DiscoveryConfig(),
+                        execution_config=ExecutionConfig(),
                         match_callbacks=(), not_found_callbacks=(), error_callbacks=(),
                     )
 
@@ -93,6 +95,7 @@ class TestFilterConfig(TestCase):
                     engine(
                         NativeRequesterStub(), DummyDictionary(), filter_config=config,
                         discovery_config=DiscoveryConfig(),
+                        execution_config=ExecutionConfig(),
                         match_callbacks=(), not_found_callbacks=(), error_callbacks=(),
                     )
                     for _ in range(2)
