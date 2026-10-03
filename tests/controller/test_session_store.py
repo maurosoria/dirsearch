@@ -208,6 +208,59 @@ class TestSessionStore(TestCase):
 
         self.assertEqual(restored["data"], body)
 
+    def test_loaded_checkpoint_file_can_be_overwritten_in_place(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            session_file = os.path.join(tmpdir, "checkpoint.json")
+            self._write_session_file(
+                session_file,
+                "https://previous.example/",
+            )
+            store = SessionStore(
+                {
+                    "urls": ["https://current.example/"],
+                    "output_formats": [],
+                }
+            )
+            controller = self._controller()
+            controller.jobs_processed = 7
+
+            store.load(session_file)
+            store.save(controller, session_file, "current output")
+            restored = store.load(session_file)
+
+            self.assertTrue(os.path.isfile(session_file))
+            self.assertEqual(
+                os.listdir(tmpdir),
+                ["checkpoint.json"],
+            )
+            self.assertEqual(restored["controller"]["jobs_processed"], 7)
+            self.assertEqual(
+                restored["options"]["urls"],
+                ["https://current.example/"],
+            )
+            self.assertEqual(restored["last_output"], "current output")
+
+    @skipIf(os.name == "nt", "POSIX mode bits are unavailable on Windows")
+    def test_overwriting_checkpoint_file_tightens_its_permissions(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            session_file = os.path.join(tmpdir, "checkpoint.json")
+            self._write_session_file(
+                session_file,
+                "https://previous.example/",
+            )
+            os.chmod(session_file, 0o644)
+
+            SessionStore({"output_formats": []}).save(
+                self._controller(),
+                session_file,
+                "",
+            )
+
+            self.assertEqual(
+                stat.S_IMODE(os.stat(session_file).st_mode),
+                0o600,
+            )
+
     def test_resume_preserves_later_jobs_and_targets_with_full_wordlist(self):
         target_urls = ["https://first.example/", "https://second.example/"]
         session_options = {
