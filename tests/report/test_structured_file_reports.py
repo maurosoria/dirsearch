@@ -44,6 +44,274 @@ def result_urls(report, destination):
 
 
 class TestStructuredFileReports(TestCase):
+    def test_truncated_final_record_recovers_only_complete_entries(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for report_class, extension in STRUCTURED_REPORTS:
+                with self.subTest(report=report_class.__name__):
+                    destination = os.path.join(
+                        directory,
+                        f"truncated-{report_class.__name__}.{extension}",
+                    )
+                    report = report_class()
+                    report.initiate(destination)
+                    kept_url = "https://example.test/complete"
+                    report.save(destination, make_result(kept_url))
+                    report.save(
+                        destination,
+                        make_result("https://example.test/interrupted"),
+                    )
+
+                    journal = Path(report.journal_path(destination))
+                    lines = journal.read_text(encoding="utf-8").splitlines()
+                    journal.write_text(
+                        "\n".join((*lines[:-1], lines[-1][:-4])),
+                        encoding="utf-8",
+                    )
+
+                    recovered = report_class()
+                    recovered.initiate(destination)
+                    recovered.save(
+                        destination,
+                        make_result("https://example.test/after-recovery"),
+                    )
+                    recovered.finish()
+
+                    self.assertEqual(
+                        result_urls(recovered, destination),
+                        [kept_url, "https://example.test/after-recovery"],
+                    )
+                    self.assertFalse(journal.exists())
+
+    def test_truncated_record_preserves_original_journal_until_snapshot(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for report_class, extension in STRUCTURED_REPORTS:
+                with self.subTest(report=report_class.__name__):
+                    destination = os.path.join(
+                        directory,
+                        f"preserve-{report_class.__name__}.{extension}",
+                    )
+                    report = report_class()
+                    report.initiate(destination)
+                    kept_url = "https://example.test/complete"
+                    report.save(destination, make_result(kept_url))
+                    report.save(
+                        destination,
+                        make_result("https://example.test/interrupted"),
+                    )
+
+                    journal = Path(report.journal_path(destination))
+                    lines = journal.read_text(encoding="utf-8").splitlines()
+                    journal.write_text(
+                        "\n".join((*lines[:-1], lines[-1][:-4])),
+                        encoding="utf-8",
+                    )
+                    original_journal = journal.read_bytes()
+                    original_report = Path(destination).read_bytes()
+
+                    interrupted = report_class()
+                    with patch.object(
+                        interrupted,
+                        "write",
+                        side_effect=OSError("injected recovery snapshot failure"),
+                    ):
+                        with self.assertRaises(FileExistsException) as raised:
+                            interrupted.initiate(destination)
+
+                    self.assertIsInstance(raised.exception.__cause__, OSError)
+
+                    recovery = Path(interrupted.recovery_journal_path(destination))
+                    self.assertEqual(Path(destination).read_bytes(), original_report)
+                    self.assertEqual(recovery.read_bytes(), original_journal)
+
+                    recovered = report_class()
+                    recovered.initiate(destination)
+                    recovered.finish()
+
+                    self.assertEqual(result_urls(recovered, destination), [kept_url])
+                    self.assertFalse(journal.exists())
+                    self.assertFalse(recovery.exists())
+
+    def test_truncated_utf8_character_in_final_record_is_recovered(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for report_class, extension in STRUCTURED_REPORTS:
+                with self.subTest(report=report_class.__name__):
+                    destination = os.path.join(
+                        directory,
+                        f"truncated-utf8-{report_class.__name__}.{extension}",
+                    )
+                    report = report_class()
+                    report.initiate(destination)
+                    kept_url = "https://example.test/complete"
+                    report.save(destination, make_result(kept_url))
+                    report.save(
+                        destination,
+                        make_result("https://example.test/interrupted-💥"),
+                    )
+
+                    journal = Path(report.journal_path(destination))
+                    lines = journal.read_bytes().splitlines(keepends=True)
+                    emoji = "💥".encode("utf-8")
+                    emoji_offset = lines[-1].index(emoji)
+                    journal.write_bytes(
+                        b"".join(lines[:-1])
+                        + lines[-1][: emoji_offset + 2]
+                    )
+
+                    recovered = report_class()
+                    recovered.initiate(destination)
+                    recovered.finish()
+
+                    self.assertEqual(result_urls(recovered, destination), [kept_url])
+                    self.assertFalse(journal.exists())
+
+    def test_truncated_tail_after_committed_snapshot_replays_only_new_entries(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for report_class, extension in STRUCTURED_REPORTS:
+                with self.subTest(report=report_class.__name__):
+                    destination = os.path.join(
+                        directory,
+                        f"truncated-commit-{report_class.__name__}.{extension}",
+                    )
+                    report = report_class()
+                    report.initiate(destination)
+                    committed_url = "https://example.test/committed"
+                    pending_url = "https://example.test/pending"
+                    report.save(destination, make_result(committed_url))
+                    with patch.object(
+                        FileUtils,
+                        "remove",
+                        side_effect=OSError("injected cleanup failure"),
+                    ):
+                        report.finish()
+
+                    report.save(destination, make_result(pending_url))
+                    report.save(
+                        destination,
+                        make_result("https://example.test/interrupted"),
+                    )
+                    journal = Path(report.journal_path(destination))
+                    lines = journal.read_text(encoding="utf-8").splitlines()
+                    journal.write_text(
+                        "\n".join((*lines[:-1], lines[-1][:-4])),
+                        encoding="utf-8",
+                    )
+
+                    recovered = report_class()
+                    recovered.initiate(destination)
+                    recovered.finish()
+
+                    self.assertEqual(
+                        result_urls(recovered, destination),
+                        [committed_url, pending_url],
+                    )
+                    self.assertFalse(journal.exists())
+
+    def test_malformed_middle_record_is_not_treated_as_truncated(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for report_class, extension in STRUCTURED_REPORTS:
+                with self.subTest(report=report_class.__name__):
+                    destination = os.path.join(
+                        directory,
+                        f"middle-{report_class.__name__}.{extension}",
+                    )
+                    report = report_class()
+                    report.initiate(destination)
+                    report.save(
+                        destination,
+                        make_result("https://example.test/first"),
+                    )
+                    report.save(
+                        destination,
+                        make_result("https://example.test/second"),
+                    )
+                    original_report = Path(destination).read_bytes()
+
+                    journal = Path(report.journal_path(destination))
+                    lines = journal.read_text(encoding="utf-8").splitlines(
+                        keepends=True
+                    )
+                    lines[1] = '{"entry":\n'
+                    journal.write_text("".join(lines), encoding="utf-8")
+
+                    with self.assertRaises(FileExistsException):
+                        report_class().initiate(destination)
+
+                    self.assertEqual(Path(destination).read_bytes(), original_report)
+
+    def test_complete_invalid_final_record_is_rejected(self):
+        invalid_records = (
+            '{"entry":,}\n',
+            '{"entry":,}',
+            '{"kind":"result"}',
+            '{"kind":"resu',
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            for report_class, extension in STRUCTURED_REPORTS:
+                for record_index, invalid_record in enumerate(invalid_records):
+                    with self.subTest(
+                        report=report_class.__name__,
+                        invalid_record=invalid_record,
+                    ):
+                        destination = os.path.join(
+                            directory,
+                            f"complete-invalid-{report_class.__name__}."
+                            f"{record_index}.{extension}",
+                        )
+                        report = report_class()
+                        report.initiate(destination)
+                        report.save(
+                            destination,
+                            make_result("https://example.test/complete"),
+                        )
+                        original_report = Path(destination).read_bytes()
+
+                        journal = Path(report.journal_path(destination))
+                        lines = journal.read_text(encoding="utf-8").splitlines(
+                            keepends=True
+                        )
+                        journal.write_text(
+                            "".join((*lines[:-1], invalid_record)),
+                            encoding="utf-8",
+                        )
+
+                        with self.assertRaises(FileExistsException):
+                            report_class().initiate(destination)
+
+                        self.assertEqual(
+                            Path(destination).read_bytes(),
+                            original_report,
+                        )
+
+    def test_empty_or_blank_journal_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for report_class, extension in STRUCTURED_REPORTS:
+                for content_index, journal_content in enumerate(("", " \t\r\n\n")):
+                    with self.subTest(
+                        report=report_class.__name__,
+                        journal_content=repr(journal_content),
+                    ):
+                        destination = os.path.join(
+                            directory,
+                            f"empty-{report_class.__name__}."
+                            f"{content_index}.{extension}",
+                        )
+                        report = report_class()
+                        report.initiate(destination)
+                        report.finish()
+                        original_report = Path(destination).read_bytes()
+                        Path(report.journal_path(destination)).write_text(
+                            journal_content,
+                            encoding="utf-8",
+                        )
+
+                        with self.assertRaises(FileExistsException):
+                            report_class().initiate(destination)
+
+                        self.assertEqual(
+                            Path(destination).read_bytes(),
+                            original_report,
+                        )
+
     def test_large_batches_parse_once_and_write_one_final_snapshot(self):
         with tempfile.TemporaryDirectory() as directory:
             for report_class, extension in STRUCTURED_REPORTS:
