@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from lib.controller.controller import Controller
 from lib.core.data import options
+from lib.core.wordlist_config import WordlistConfig
 
 
 class TestControllerRequestConfig(TestCase):
@@ -22,6 +23,7 @@ class TestControllerRequestConfig(TestCase):
                             headers={"X-Prepared": "yes"}, timeout=3,
                             session_file=None, urls=[],
                         )
+                        controller.wordlist_config = WordlistConfig.from_options(options)
                         controller.reporter = Mock(reports=())
 
                     requester = Mock()

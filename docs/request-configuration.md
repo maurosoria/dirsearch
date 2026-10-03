@@ -18,8 +18,9 @@ The transport migration replaces direct `options` reads in
 deliberately not part of `RequestConfig`; its ownership is described in
 [filter configuration](filter-configuration.md). Controller discovery policy and
 calibration variants now use [DiscoveryConfig](discovery-configuration.md).
-Scheduling, wordlist generation/validation, logger and controller globals remain
-separate migration steps. These snapshots do not yet make two complete
+Wordlist generation and validation now use
+[WordlistConfig](wordlist-configuration.md). Scheduling, logger and controller
+globals remain separate migration steps. These snapshots do not yet make two complete
 `Controller` instances safe to run together.
 
 ## Constructing a requester

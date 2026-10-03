@@ -4,6 +4,7 @@ import time
 from unittest import TestCase
 
 from lib.core.dictionary import Dictionary
+from lib.core.wordlist_config import WordlistConfig
 from lib.core.wordlist_backend import NativeWordlistChunk, NativeWordlistCorpus
 
 
@@ -12,7 +13,7 @@ CONTAINS_TIMEOUT = 0.5
 
 
 def make_dictionary(items=()) -> Dictionary:
-    dictionary = object.__new__(Dictionary)
+    dictionary = Dictionary(WordlistConfig())
     dictionary.__setstate__((list(items), 0, [], 0))
     return dictionary
 
@@ -132,7 +133,7 @@ def make_native_dictionary(items=()) -> tuple[Dictionary, FakeNativeCorpusStorag
 
 
 def remaining_paths(state: tuple[list[str], int, list[str], int]) -> list[str]:
-    dictionary = object.__new__(Dictionary)
+    dictionary = Dictionary(WordlistConfig())
     dictionary.__setstate__(state)
     paths = []
     while True:

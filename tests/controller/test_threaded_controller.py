@@ -7,12 +7,13 @@ from lib.core.data import options
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.filter_config import FilterConfig
 from lib.core.dictionary import Dictionary
+from lib.core.wordlist_config import WordlistConfig
 from lib.core.exceptions import QuitInterrupt, RequestException
 from lib.core.fuzzer import Fuzzer
 
 
 def create_dictionary():
-    dictionary = object.__new__(Dictionary)
+    dictionary = Dictionary(WordlistConfig.from_options(options))
     dictionary.__setstate__((["one", "two"], 0, [], 0))
     return dictionary
 

@@ -12,6 +12,7 @@ from lib.controller.controller import Controller
 from lib.core.filter_config import FilterConfig
 from lib.core.request_config import RequestConfig
 from lib.core.data import options
+from lib.core.wordlist_config import WordlistConfig
 from lib.core.exceptions import InvalidURLException, RequestException
 
 
@@ -229,6 +230,7 @@ class TestControllerTargetURL(TestCase):
                     patch("lib.controller.controller.interface") as interface,
                 ):
                     try:
+                        controller.wordlist_config = WordlistConfig.from_options(options)
                         controller.run()
                     finally:
                         loop = getattr(controller, "loop", None)

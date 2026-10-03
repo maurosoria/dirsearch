@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from lib.controller.controller import Controller
 from lib.core.data import options
+from lib.core.wordlist_config import WordlistConfig
 from lib.core.fuzzer import AsyncFuzzer, Fuzzer, NativeFuzzer
 from tests.core.test_advanced_filters import response
 
@@ -27,12 +28,14 @@ class TestControllerFilterConfig(TestCase):
                             exclude_texts=[], session_file=None, subdirs=[],
                             urls=["http://first.test/", "http://second.test/"],
                         )
+                        controller.wordlist_config = WordlistConfig.from_options(options)
                         controller.reporter = Mock(reports=())
                         controller.dictionary = Mock()
                         controller.directories = []
 
-                    def load_blacklists():
+                    def load_blacklists(wordlist_config):
                         self.assertEqual(prepared, [True])
+                        self.assertIsInstance(wordlist_config, WordlistConfig)
                         return blacklists
 
                     def set_target(controller, url):
@@ -75,7 +78,7 @@ class TestControllerFilterConfig(TestCase):
                     ):
                         controller = Controller()
 
-                    loader.assert_called_once_with()
+                    loader.assert_called_once_with(controller.wordlist_config)
                     self.assertEqual(len(fuzzers), 2)
                     self.assertIsNot(fuzzers[0].filter_state, fuzzers[1].filter_state)
                     if backend == "native":

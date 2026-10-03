@@ -64,11 +64,12 @@ schema and engine-independent resume behavior are unchanged.
 ## Remaining boundaries
 
 This is an incremental ownership change, not full concurrent-controller support.
-Wordlist generation and validation still read their settings through the
-wordlist backend. That includes the wordlist use of prefixes/suffixes/extensions,
-excluded extensions, transformations and backend selection. Their migration must
-cover Dictionary construction/restoration and native-owned corpus behavior in a
-separate PR. This change does not materialize or copy the native wordlist.
+Wordlist generation and validation now receive
+[WordlistConfig](wordlist-configuration.md), including their use of
+prefixes/suffixes/extensions, transformations and backend selection. Both policies
+snapshot the same normalized inputs for their distinct consumers. Dictionary
+construction and session restoration pass that policy explicitly without
+materializing the native corpus.
 
 Scheduling/concurrency/pacing, targets, output, replay settings and other runtime
 globals also remain separate steps. No new Rust ABI, chunk parameter, callback

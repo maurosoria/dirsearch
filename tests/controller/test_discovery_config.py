@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from lib.controller.controller import Controller
 from lib.core.data import options
+from lib.core.wordlist_config import WordlistConfig
 from lib.core.discovery_config import DiscoveryConfig
 from tests.core.test_backup_discovery import response_for
 
@@ -81,6 +82,7 @@ class TestControllerDiscoveryConfig(TestCase):
                             urls=["http://first.test/", "http://second.test/"],
                             session_file=None,
                         )
+                        controller.wordlist_config = WordlistConfig.from_options(options)
                         controller.reporter = Mock(reports=())
                         controller.dictionary = Mock()
                         controller.directories = []

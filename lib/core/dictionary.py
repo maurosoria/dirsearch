@@ -20,7 +20,7 @@ from __future__ import annotations
 import threading
 from collections import Counter
 from dataclasses import dataclass
-from typing import Any, Iterator
+from typing import Iterator
 
 from lib.core.settings import SCRIPT_PATH
 from lib.core.wordlist_backend import (
@@ -29,6 +29,7 @@ from lib.core.wordlist_backend import (
     get_wordlist_backend,
     is_valid_path,
 )
+from lib.core.wordlist_config import WordlistConfig
 from lib.utils.file import FileUtils
 
 
@@ -41,7 +42,7 @@ class _NativeClaim:
 
 # Get ignore paths for status codes.
 # Reference: https://github.com/maurosoria/dirsearch#Blacklist
-def get_blacklists() -> dict[int, Dictionary]:
+def get_blacklists(config: WordlistConfig) -> dict[int, Dictionary]:
     blacklists = {}
 
     for status in [400, 403, 500]:
@@ -55,6 +56,7 @@ def get_blacklists() -> dict[int, Dictionary]:
             continue
 
         blacklists[status] = Dictionary(
+            config,
             files=[blacklist_file_name],
             is_blacklist=True,
         )
@@ -63,10 +65,19 @@ def get_blacklists() -> dict[int, Dictionary]:
 
 
 class Dictionary:
-    def __init__(self, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        config: WordlistConfig,
+        *,
+        files: list[str] | None = None,
+        is_blacklist: bool = False,
+    ) -> None:
+        self.config = config
         self._lock = threading.Lock()
         self._index = 0
-        self._items = self.generate(**kwargs)
+        # Restored dictionaries use saved items, not the original input files
+        # or generator. This also avoids initializing an unused native backend.
+        self._items = [] if files is None else self.generate(files, is_blacklist)
         self._item_membership: set[str] | None = None
         # Items in self._extra will be cleared when self.reset() is called
         self._extra_index = 0
@@ -283,8 +294,7 @@ class Dictionary:
             return items, index, extra, self._extra_index
 
     def __setstate__(self, state: tuple[list[str], int, list[str], int]) -> None:
-        if not hasattr(self, "_lock"):
-            self._lock = threading.Lock()
+        """Restore queue state on a dictionary initialized with explicit policy."""
         with self._lock:
             self._items, self._index, self._extra, self._extra_index = state
             self._item_membership = None
@@ -300,7 +310,7 @@ class Dictionary:
 
     def generate(
         self,
-        files: list[str] = [],
+        files: list[str],
         is_blacklist: bool = False,
     ) -> list[str] | NativeWordlistCorpus:
         """
@@ -320,10 +330,12 @@ class Dictionary:
                 append line unmodified.
         """
 
-        return get_wordlist_backend().generate(files, is_blacklist=is_blacklist)
+        return get_wordlist_backend(self.config).generate(
+            files, is_blacklist=is_blacklist
+        )
 
     def is_valid(self, path: str) -> bool:
-        return is_valid_path(path)
+        return is_valid_path(path, self.config)
 
     def add_extra(self, path: str) -> None:
         """Queue a valid dynamically discovered path once."""

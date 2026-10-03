@@ -72,6 +72,7 @@ from lib.core.settings import (
     THREADED_WORKER_SHUTDOWN_TIMEOUT,
     UNKNOWN,
 )
+from lib.core.wordlist_config import WordlistConfig
 from lib.core.wordlist_template import generate_backup_paths
 from lib.parse.rawrequest import parse_raw
 from lib.parse.url import (
@@ -279,7 +280,10 @@ class Controller:
                 last_output = self._format_output_history(output_history)
             else:
                 last_output = ""
-            session_store.apply_to_controller(self, payload)
+            self.wordlist_config = WordlistConfig.from_options(options)
+            session_store.apply_to_controller(
+                self, payload, wordlist_config=self.wordlist_config
+            )
             self._prepare_response_stores()
             self._confirm_session_overwrite(session_file)
         except (OSError, KeyError, TypeError, UnpicklingError):
@@ -348,8 +352,11 @@ class Controller:
         else:
             options["headers"] = {**DEFAULT_HEADERS, **options["headers"]}
 
+        self.wordlist_config = WordlistConfig.from_options(options)
         try:
-            self.dictionary = Dictionary(files=options["wordlists"])
+            self.dictionary = Dictionary(
+                self.wordlist_config, files=options["wordlists"]
+            )
         except WordlistLimitError as e:
             interface.error(str(e))
             sys.exit(1)
@@ -429,7 +436,7 @@ class Controller:
         self.request_config = RequestConfig.from_options(options)
         self.discovery_config = DiscoveryConfig.from_options(options)
         self.filter_config = FilterConfig.from_options(
-            options, blacklists=get_blacklists()
+            options, blacklists=get_blacklists(self.wordlist_config)
         )
         if options["request_backend"] == "native":
             self.requester = Requester(

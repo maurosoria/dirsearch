@@ -53,9 +53,12 @@ def main():
 
     if options["wordlist_status"]:
         from lib.core.dictionary import Dictionary
+        from lib.core.wordlist_config import WordlistConfig
 
         try:
-            dictionary = Dictionary(files=options["wordlists"])
+            dictionary = Dictionary(
+                WordlistConfig.from_options(options), files=options["wordlists"]
+            )
         except WordlistLimitError as error:
             fail(error)
 

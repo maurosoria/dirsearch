@@ -7,6 +7,7 @@ from lib.core.data import options
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.filter_config import FilterConfig
 from lib.core.dictionary import Dictionary
+from lib.core.wordlist_config import WordlistConfig
 from lib.core.exceptions import RequestException, SkipTargetInterrupt
 from lib.core.fuzzer import AsyncFuzzer, Fuzzer
 
@@ -92,7 +93,7 @@ class CoordinatedAsyncRequester:
 
 class TestThreadedFuzzerLifecycle(TestCase):
     def test_saved_state_retries_in_flight_path(self):
-        dictionary = object.__new__(Dictionary)
+        dictionary = Dictionary(WordlistConfig.from_options(options))
         dictionary.__setstate__((["blocked", "later"], 0, [], 0))
         requester = BlockingSyncRequester()
         fuzzer = Fuzzer(
@@ -118,7 +119,7 @@ class TestThreadedFuzzerLifecycle(TestCase):
                     worker.join(timeout=2)
 
         self.assertFalse(any(worker.is_alive() for worker in fuzzer._threads))
-        resumed = object.__new__(Dictionary)
+        resumed = Dictionary(WordlistConfig.from_options(options))
         resumed.__setstate__(saved_state)
         self.assertEqual([next(resumed), next(resumed)], ["blocked", "later"])
         with self.assertRaises(StopIteration):
@@ -129,7 +130,7 @@ class TestThreadedFuzzerLifecycle(TestCase):
         with self.assertRaises(StopIteration):
             next(resumed)
 
-        completed = object.__new__(Dictionary)
+        completed = Dictionary(WordlistConfig.from_options(options))
         completed.__setstate__(dictionary.__getstate__())
         self.assertEqual(next(completed), "later")
         with self.assertRaises(StopIteration):

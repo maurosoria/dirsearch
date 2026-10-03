@@ -10,6 +10,7 @@ from unittest.mock import Mock, patch
 from lib.controller.controller import Controller
 from lib.controller.session import SessionStore
 from lib.core.data import options
+from lib.core.wordlist_config import WordlistConfig
 from lib.report.json_report import JSONReport
 from lib.report.sqlite_report import SQLiteReport
 
@@ -56,6 +57,7 @@ class TestSessionCleanup(TestCase):
             patch("lib.controller.controller.signal.signal"),
             patch("lib.controller.controller.interface"),
         ):
+            controller.wordlist_config = WordlistConfig.from_options(options)
             controller.run()
 
     def test_completed_session_preserves_unrelated_directory_entries(self):

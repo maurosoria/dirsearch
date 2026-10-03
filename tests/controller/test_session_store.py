@@ -28,6 +28,7 @@ from unittest.mock import patch
 
 from lib.controller.session import SessionStore
 from lib.core.dictionary import Dictionary
+from lib.core.wordlist_config import WordlistConfig
 from lib.core.exceptions import UnpicklingError
 
 
@@ -75,7 +76,7 @@ class TestSessionStore(TestCase):
             base_path="",
             url="https://example.com/",
             old_session=False,
-            dictionary=Dictionary(),
+            dictionary=Dictionary(WordlistConfig()),
             output_history=[],
         )
 
@@ -270,7 +271,7 @@ class TestSessionStore(TestCase):
         controller = self._controller()
         controller.directories = ["current/", "next/"]
         controller.jobs_processed = 3
-        controller.dictionary = object.__new__(Dictionary)
+        controller.dictionary = Dictionary(WordlistConfig())
         controller.dictionary.__setstate__(
             (["done", "in-flight", "later"], 1, [], 0)
         )
@@ -282,7 +283,9 @@ class TestSessionStore(TestCase):
             payload = store.load(session_dir)
             restored_options = store.restore_options(payload["options"])
             resumed = SimpleNamespace(dictionary=None)
-            SessionStore(restored_options).apply_to_controller(resumed, payload)
+            SessionStore(restored_options).apply_to_controller(
+                resumed, payload, wordlist_config=WordlistConfig()
+            )
 
         self.assertEqual(resumed.directories, ["current/", "next/"])
         self.assertEqual(resumed.jobs_processed, 3)
@@ -315,7 +318,7 @@ class TestSessionStore(TestCase):
         session_options = {"urls": old_urls, "output_formats": []}
         controller = self._controller()
         controller.jobs_processed = 1
-        controller.dictionary = object.__new__(Dictionary)
+        controller.dictionary = Dictionary(WordlistConfig())
         controller.dictionary.__setstate__((["one", "two"], 1, [], 0))
 
         with tempfile.TemporaryDirectory() as session_dir:
