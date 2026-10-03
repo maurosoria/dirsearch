@@ -47,7 +47,7 @@ from lib.core.exceptions import (
     UnpicklingError,
     WordlistLimitError,
 )
-from lib.core.execution_config import ExecutionConfig
+from lib.core.execution_config import ExecutionConfig, ScanEngine
 from lib.core.filter_config import FilterConfig
 from lib.core.request_config import RequestConfig
 from lib.core.logger import enable_logging, logger
@@ -398,10 +398,18 @@ class Controller:
             interface.log_file(options["log_file"])
 
     def run(self) -> None:
-        if options["request_backend"] == "native":
+        # Resolve only after setup/session restoration, before imports, callbacks
+        # or workers can choose an execution model. A restored invalid pair of
+        # flags must fail here rather than dispatch through conflicting branches.
+        try:
+            self.execution_config = ExecutionConfig.from_options(options)
+        except ValueError as error:
+            fail(error)
+
+        if self.execution_config.engine is ScanEngine.NATIVE:
             from lib.connection.native import NativeRequester as Requester
             from lib.core.fuzzer import NativeFuzzer as Fuzzer
-        elif options["async_mode"]:
+        elif self.execution_config.engine is ScanEngine.ASYNC:
             from lib.connection.requester import AsyncRequester as Requester
             from lib.core.fuzzer import AsyncFuzzer as Fuzzer
 
@@ -423,7 +431,7 @@ class Controller:
         if self.response_stores:
             match_callbacks.append(
                 self.save_response_async
-                if options["request_backend"] != "native" and options["async_mode"]
+                if self.execution_config.engine is ScanEngine.ASYNC
                 else self.save_response
             )
         match_callbacks.append(self.reset_consecutive_errors)
@@ -434,19 +442,18 @@ class Controller:
 
         # setup() has parsed raw requests, or _import() has restored the session.
         # Snapshot once, before any requester or lazy native engine is created.
-        self.execution_config = ExecutionConfig.from_options(options)
         self.request_config = RequestConfig.from_options(options)
         self.discovery_config = DiscoveryConfig.from_options(options)
         self.filter_config = FilterConfig.from_options(
             options, blacklists=get_blacklists(self.wordlist_config)
         )
-        if options["request_backend"] == "native":
+        if self.execution_config.engine is ScanEngine.NATIVE:
             self.requester = Requester(
                 self.request_config, filter_config=self.filter_config
             )
         else:
             self.requester = Requester(self.request_config)
-        if options["async_mode"]:
+        if self.execution_config.engine is ScanEngine.ASYNC:
             self.loop = asyncio.new_event_loop()
 
         signal.signal(signal.SIGINT, lambda *_: self.handle_pause())
@@ -455,7 +462,7 @@ class Controller:
         while options["urls"]:
             url = options["urls"][0]
             fuzzer_options = {}
-            if options["request_backend"] == "native":
+            if self.execution_config.engine is ScanEngine.NATIVE:
                 fuzzer_options["filtered_chunk_callbacks"] = (
                     self.update_progress_bar_batch,
                     self.reset_consecutive_errors_batch,
@@ -520,8 +527,7 @@ class Controller:
     def _report_match_callback(self):
         if (
             self.reporter.reports
-            and options["request_backend"] != "native"
-            and options["async_mode"]
+            and self.execution_config.engine is ScanEngine.ASYNC
         ):
             return self.reporter.save_async
         return self.reporter.save
@@ -542,12 +548,12 @@ class Controller:
                     interface.warning(msg)
 
                 self.fuzzer.set_base_path(current_directory)
-                if options["async_mode"]:
+                if self.execution_config.engine is ScanEngine.ASYNC:
                     # use a future to get exceptions from handle_pause
                     # https://stackoverflow.com/a/64230941
                     self.pause_future = self.loop.create_future()
                     self.loop.run_until_complete(self.start_coroutines(start_time))
-                elif options["request_backend"] == "native":
+                elif self.execution_config.engine is ScanEngine.NATIVE:
                     self.start_native_fuzzer(start_time)
                 else:
                     self.fuzzer.start()
@@ -558,8 +564,7 @@ class Controller:
 
             finally:
                 if (
-                    options["request_backend"] == "python"
-                    and not options["async_mode"]
+                    self.execution_config.engine is ScanEngine.THREADED
                     and not self.fuzzer.stop(THREADED_WORKER_SHUTDOWN_TIMEOUT)
                 ):
                     raise QuitInterrupt("Threaded scan did not stop safely")
@@ -797,7 +802,7 @@ class Controller:
             return
 
         try:
-            if options["async_mode"]:
+            if self.execution_config.engine is ScanEngine.ASYNC:
                 response = self.loop.run_until_complete(
                     self.requester.request(self.base_path)
                 )
@@ -931,7 +936,7 @@ class Controller:
 
         if options["replay_proxy"]:
             # Replay the request with new proxy
-            if options["async_mode"]:
+            if self.execution_config.engine is ScanEngine.ASYNC:
                 # AsyncFuzzer awaits callback results, so replay remains inside
                 # the scan lifecycle and receives cancellation with its worker.
                 replay = self.requester.replay_request(
@@ -1058,14 +1063,14 @@ class Controller:
 
                         self._export(session_file)
                         quitexc = QuitInterrupt(f"Session saved to: {session_file}")
-                        if options["async_mode"]:
+                        if self.execution_config.engine is ScanEngine.ASYNC:
                             self.pause_future.set_exception(quitexc)
                             break
                         else:
                             raise quitexc
                     elif option.lower() == "q":
                         quitexc = QuitInterrupt("Canceled by the user")
-                        if options["async_mode"]:
+                        if self.execution_config.engine is ScanEngine.ASYNC:
                             self.pause_future.set_exception(quitexc)
                             break
                         else:
@@ -1084,7 +1089,7 @@ class Controller:
                 elif option.lower() == "s" and len(options["urls"]) > 1:
                     self._reset_pause_state()
                     skipexc = SkipTargetInterrupt("Target skipped by the user")
-                    if options["async_mode"]:
+                    if self.execution_config.engine is ScanEngine.ASYNC:
                         self.pause_future.set_exception(skipexc)
                         break
                     else:

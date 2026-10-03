@@ -5,7 +5,8 @@ from unittest.mock import Mock, patch
 
 from lib.controller.controller import Controller
 from lib.core.data import options
-from lib.core.exceptions import SkipTargetInterrupt
+from lib.core.exceptions import QuitInterrupt, SkipTargetInterrupt
+from lib.core.execution_config import ExecutionConfig, ScanEngine
 
 
 class RecordingForceQuitHandler:
@@ -40,6 +41,7 @@ class TestPauseState(TestCase):
 
     def reset_controller(self):
         self.controller = object.__new__(Controller)
+        self.controller.execution_config = ExecutionConfig.from_options(options)
         self.controller._handling_pause = False
         self.controller._force_quit_handler = RecordingForceQuitHandler()
         self.controller.fuzzer = Mock()
@@ -82,6 +84,39 @@ class TestPauseState(TestCase):
                 self.assert_pause_state_was_rearmed()
                 self.controller.fuzzer.quit.assert_called_once_with()
 
+    def test_quit_save_and_skip_follow_frozen_engine_after_flags_change(self):
+        for engine in ScanEngine:
+            for answers, error_type in (
+                (("q", "q"), QuitInterrupt),
+                (("q", "s", "checkpoint"), QuitInterrupt),
+                (("s",), SkipTargetInterrupt),
+            ):
+                with (
+                    self.subTest(engine=engine, answers=answers),
+                    patch.dict(options, {
+                        "urls": ["http://first.test/", "http://second.test/"],
+                        "session_file": None,
+                    }),
+                    patch("builtins.input", side_effect=answers),
+                    patch("lib.controller.controller.interface"),
+                ):
+                    self.reset_controller()
+                    self.controller.execution_config = ExecutionConfig(engine=engine)
+                    self.controller.pause_future = RecordingPauseFuture()
+                    self.controller._export = Mock()
+                    options.update(request_backend="python", async_mode=engine is not ScanEngine.ASYNC)
+                    if engine is ScanEngine.ASYNC:
+                        self.controller.handle_pause()
+                        self.assertIsInstance(self.controller.pause_future.error, error_type)
+                    else:
+                        with self.assertRaises(error_type):
+                            self.controller.handle_pause()
+                        self.assertIsNone(self.controller.pause_future.error)
+                    if answers == ("q", "s", "checkpoint"):
+                        self.controller._export.assert_called_once_with("checkpoint")
+                    else:
+                        self.controller._export.assert_not_called()
+
     def test_skip_target_rearms_pause_for_threaded_and_native_engines(self):
         for request_backend in ("python", "native"):
             with self.subTest(request_backend=request_backend), patch.dict(
@@ -116,6 +151,7 @@ class TestPauseState(TestCase):
                 "urls": ["https://first.test", "https://second.test"],
             },
         ):
+            self.controller.execution_config = ExecutionConfig(engine=ScanEngine.ASYNC)
             self.exercise_second_pause("s")
 
         self.assertIsInstance(

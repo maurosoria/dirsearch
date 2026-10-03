@@ -35,7 +35,7 @@ def main() -> None:
     )
     from dirsearch.lib.core import settings
     from dirsearch.lib.core.discovery_config import DiscoveryConfig
-    from dirsearch.lib.core.execution_config import ExecutionConfig
+    from dirsearch.lib.core.execution_config import ExecutionConfig, ScanEngine
     from dirsearch.lib.core.filter_config import FilterConfig
     from dirsearch.lib.core.filter_state import FilterState
     from dirsearch.lib.core.request_config import RequestConfig
@@ -58,6 +58,7 @@ def main() -> None:
     assert WordlistState
     assert WordlistTemplate
     assert WordlistConfig(extensions=["html"]).extensions == ("html",)
+    assert ExecutionConfig(engine=ScanEngine.NATIVE).engine is ScanEngine.NATIVE
     assert ExecutionConfig(skip_on_status=[429]).skip_on_status == frozenset({429})
     assert RequestConfig(method="POST").method == "POST"
     assert DiscoveryConfig(subdirs=[""]).subdirs == ("",)

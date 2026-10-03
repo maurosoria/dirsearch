@@ -72,9 +72,9 @@ snapshot the same normalized inputs for their distinct consumers. Dictionary
 construction and session restoration pass that policy explicitly without
 materializing the native corpus.
 
-[ExecutionConfig](execution-configuration.md) owns fuzzer concurrency/pacing and
-stop policy. Engine selection, targets, output, replay settings and other runtime
-globals remain separate steps. No new Rust ABI, chunk parameter, callback
+[ExecutionConfig](execution-configuration.md) owns engine selection, fuzzer
+concurrency/pacing and stop policy. Targets, output, replay destinations and
+other runtime globals remain separate steps. No new Rust ABI, chunk parameter, callback
 protocol, CLI flag or discovery capability is introduced. No throughput claim is
 made.
 
