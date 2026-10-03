@@ -385,6 +385,29 @@ class TestStructuredFileReports(TestCase):
                             original_report,
                         )
 
+    def test_trailing_blank_journal_lines_preserve_complete_entries(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for report_class, extension in STRUCTURED_REPORTS:
+                with self.subTest(report=report_class.__name__):
+                    destination = os.path.join(
+                        directory,
+                        f"blank-tail-{report_class.__name__}.{extension}",
+                    )
+                    report = report_class()
+                    report.initiate(destination)
+                    kept_url = "https://example.test/complete"
+                    report.save(destination, make_result(kept_url))
+                    journal = Path(report.journal_path(destination))
+                    with journal.open("ab") as file_handle:
+                        file_handle.write(b" \t\r\n\n")
+
+                    recovered = report_class()
+                    recovered.initiate(destination)
+                    recovered.finish()
+
+                    self.assertEqual(result_urls(recovered, destination), [kept_url])
+                    self.assertFalse(journal.exists())
+
     def test_large_batches_parse_once_and_write_one_final_snapshot(self):
         with tempfile.TemporaryDirectory() as directory:
             for report_class, extension in STRUCTURED_REPORTS:

@@ -232,46 +232,47 @@ class StructuredFileReportMixin(FileReportMixin):
         return False
 
     def _parse_journal_records(self, journal):
+        records = []
+        pending_line = None
         with open(journal, "rb") as file_handle:
-            lines = file_handle.readlines()
+            for line in file_handle:
+                if not line.strip():
+                    continue
+                if pending_line is not None:
+                    records.append(
+                        json.loads(pending_line.decode(DEFAULT_ENCODING))
+                    )
+                pending_line = line
 
-        nonblank_lines = [index for index, line in enumerate(lines) if line.strip()]
-        if not nonblank_lines:
+        if pending_line is None:
             raise ValueError(f"Invalid structured report journal: {journal}")
 
-        final_nonblank_line = nonblank_lines[-1]
-        records = []
         truncated_tail = False
-        for index, line in enumerate(lines):
-            if not line.strip():
-                continue
-            has_line_ending = line.endswith((b"\n", b"\r"))
-            try:
-                record = line.decode(DEFAULT_ENCODING)
-            except UnicodeDecodeError as error:
-                valid_prefix = line[: error.start].decode(DEFAULT_ENCODING)
-                if (
-                    index == final_nonblank_line
-                    and not has_line_ending
-                    and error.reason == "unexpected end of data"
-                    and error.end == len(line)
-                    and self._has_known_journal_prefix(valid_prefix)
-                ):
-                    truncated_tail = True
-                    break
+        has_line_ending = pending_line.endswith((b"\n", b"\r"))
+        try:
+            record = pending_line.decode(DEFAULT_ENCODING)
+        except UnicodeDecodeError as error:
+            valid_prefix = pending_line[: error.start].decode(DEFAULT_ENCODING)
+            if (
+                not has_line_ending
+                and error.reason == "unexpected end of data"
+                and error.end == len(pending_line)
+                and self._has_known_journal_prefix(valid_prefix)
+            ):
+                truncated_tail = True
+            else:
                 raise
-
+        else:
             try:
                 records.append(json.loads(record))
             except json.JSONDecodeError as error:
                 if (
-                    index == final_nonblank_line
-                    and not has_line_ending
+                    not has_line_ending
                     and self._is_incomplete_json_record(record, error)
                 ):
                     truncated_tail = True
-                    break
-                raise
+                else:
+                    raise
 
         return records, truncated_tail
 
