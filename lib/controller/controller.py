@@ -32,7 +32,7 @@ from typing import Any, Awaitable
 from urllib.parse import unquote, urlparse
 
 from lib.connection.response import BaseResponse
-from lib.core.data import blacklists, options
+from lib.core.data import options
 from lib.core.decorators import locked
 from lib.core.dictionary import Dictionary, get_blacklists
 from lib.core.exceptions import (
@@ -46,7 +46,7 @@ from lib.core.exceptions import (
     UnpicklingError,
     WordlistLimitError,
 )
-from lib.core.filters import native_filter_options
+from lib.core.filter_config import FilterConfig
 from lib.core.request_config import RequestConfig
 from lib.core.logger import enable_logging, logger
 from lib.core.options import (
@@ -329,8 +329,6 @@ class Controller:
         session_store.save(self, session_file, last_output)
 
     def setup(self) -> None:
-        blacklists.update(get_blacklists())
-
         if options["raw_file"]:
             try:
                 options.update(
@@ -428,9 +426,12 @@ class Controller:
         # setup() has parsed raw requests, or _import() has restored the session.
         # Snapshot once, before any requester or lazy native engine is created.
         self.request_config = RequestConfig.from_options(options)
+        self.filter_config = FilterConfig.from_options(
+            options, blacklists=get_blacklists()
+        )
         if options["request_backend"] == "native":
             self.requester = Requester(
-                self.request_config, filter_options=native_filter_options(options)
+                self.request_config, filter_config=self.filter_config
             )
         else:
             self.requester = Requester(self.request_config)
@@ -451,6 +452,7 @@ class Controller:
             self.fuzzer = Fuzzer(
                 self.requester,
                 self.dictionary,
+                filter_config=self.filter_config,
                 match_callbacks=tuple(match_callbacks),
                 not_found_callbacks=not_found_callbacks,
                 error_callbacks=error_callbacks,

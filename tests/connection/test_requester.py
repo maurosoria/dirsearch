@@ -53,7 +53,7 @@ from lib.connection.requester import (
     _find_ssl_error,
     _format_ssl_error,
 )
-from lib.core.filters import native_filter_options
+from lib.core.filter_config import FilterConfig
 from lib.core.request_config import RequestConfig
 from lib.core.data import options
 from lib.core.exceptions import RequestException
@@ -2278,7 +2278,7 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
     def native_requester_or_skip(self):
         requester = NativeRequester(
             RequestConfig.from_options(options),
-            filter_options=native_filter_options(options),
+            filter_config=FilterConfig.from_options(options),
         )
         try:
             requester.get_backend()
@@ -2388,7 +2388,7 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
             try:
                 backend = NativeHTTPBackend(
                     RequestConfig.from_options(options),
-                    filter_options=native_filter_options(options),
+                    filter_config=FilterConfig.from_options(options),
                 )
             except RequestException as error:
                 self.skipTest(str(error))
@@ -2520,7 +2520,7 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         options["auth_type"] = "bearer"
         requester = NativeRequester(
             RequestConfig.from_options(options),
-            filter_options=native_filter_options(options),
+            filter_config=FilterConfig.from_options(options),
         )
         with RequestTargetServer() as server:
             requester.set_url(server.url)
@@ -2543,7 +2543,7 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         options["follow_redirects"] = True
         requester = NativeRequester(
             RequestConfig.from_options(options),
-            filter_options=native_filter_options(options),
+            filter_config=FilterConfig.from_options(options),
         )
         with RequestTargetServer() as server:
             requester.set_url(server.url)
@@ -2565,7 +2565,7 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         try:
             backend = NativeHTTPBackend(
                 RequestConfig.from_options(options),
-                filter_options=native_filter_options(options),
+                filter_config=FilterConfig.from_options(options),
             )
         except RequestException as error:
             self.skipTest(str(error))
@@ -2586,7 +2586,7 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
                 try:
                     backend = NativeHTTPBackend(
                         RequestConfig.from_options(options),
-                        filter_options=native_filter_options(options),
+                        filter_config=FilterConfig.from_options(options),
                     )
                 except RequestException as error:
                     self.skipTest(str(error))
@@ -2600,7 +2600,7 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         try:
             backend = NativeHTTPBackend(
                 RequestConfig.from_options(options),
-                filter_options=native_filter_options(options),
+                filter_config=FilterConfig.from_options(options),
             )
         except RequestException as error:
             self.skipTest(str(error))
@@ -2619,7 +2619,7 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         try:
             backend = NativeHTTPBackend(
                 RequestConfig.from_options(options),
-                filter_options=native_filter_options(options),
+                filter_config=FilterConfig.from_options(options),
             )
         except RequestException as error:
             self.skipTest(str(error))
@@ -2637,7 +2637,7 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
             try:
                 backend = NativeHTTPBackend(
                     RequestConfig.from_options(options),
-                    filter_options=native_filter_options(options),
+                    filter_config=FilterConfig.from_options(options),
                 )
             except RequestException as error:
                 self.skipTest(str(error))
@@ -2660,7 +2660,7 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
             try:
                 backend = NativeHTTPBackend(
                     RequestConfig.from_options(options),
-                    filter_options=native_filter_options(options),
+                    filter_config=FilterConfig.from_options(options),
                 )
             except RequestException as error:
                 self.skipTest(str(error))
@@ -2680,7 +2680,7 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         try:
             backend = NativeHTTPBackend(
                 RequestConfig.from_options(options),
-                filter_options=native_filter_options(options),
+                filter_config=FilterConfig.from_options(options),
             )
         except RequestException as error:
             self.skipTest(str(error))
@@ -2701,7 +2701,7 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         try:
             backend = NativeHTTPBackend(
                 RequestConfig.from_options(options),
-                filter_options=native_filter_options(options),
+                filter_config=FilterConfig.from_options(options),
             )
         except RequestException as error:
             self.skipTest(str(error))
@@ -2727,7 +2727,7 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         try:
             backend = NativeHTTPBackend(
                 RequestConfig.from_options(options),
-                filter_options=native_filter_options(options),
+                filter_config=FilterConfig.from_options(options),
             )
         except RequestException as error:
             self.skipTest(str(error))
@@ -2750,7 +2750,7 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         try:
             backend = NativeHTTPBackend(
                 RequestConfig.from_options(options),
-                filter_options=native_filter_options(options),
+                filter_config=FilterConfig.from_options(options),
             )
         except RequestException as error:
             self.skipTest(str(error))
@@ -2776,7 +2776,7 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         try:
             backend = NativeHTTPBackend(
                 RequestConfig.from_options(options),
-                filter_options=native_filter_options(options),
+                filter_config=FilterConfig.from_options(options),
             )
         except RequestException as error:
             self.skipTest(str(error))
@@ -2794,7 +2794,7 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
                 try:
                     backend = NativeHTTPBackend(
                         RequestConfig.from_options(options),
-                        filter_options=native_filter_options(options),
+                        filter_config=FilterConfig.from_options(options),
                     )
                 except RequestException as error:
                     self.skipTest(str(error))
@@ -2815,7 +2815,7 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
             try:
                 backend = NativeHTTPBackend(
                     RequestConfig.from_options(options),
-                    filter_options=native_filter_options(options),
+                    filter_config=FilterConfig.from_options(options),
                 )
             except RequestException as error:
                 self.skipTest(str(error))
@@ -2834,7 +2834,7 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         try:
             backend = NativeHTTPBackend(
                 RequestConfig.from_options(options),
-                filter_options=native_filter_options(options),
+                filter_config=FilterConfig.from_options(options),
             )
         except RequestException as error:
             self.skipTest(str(error))
@@ -2869,7 +2869,7 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
             try:
                 backend = NativeHTTPBackend(
                     RequestConfig.from_options(options),
-                    filter_options=native_filter_options(options),
+                    filter_config=FilterConfig.from_options(options),
                 )
             except RequestException as error:
                 self.skipTest(str(error))
@@ -2888,7 +2888,7 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
             options["proxies"] = [proxy.url]
             backend = NativeHTTPBackend(
                 RequestConfig.from_options(options),
-                filter_options=native_filter_options(options),
+                filter_config=FilterConfig.from_options(options),
             )
             parent = list(
                 backend.scan(
@@ -2919,7 +2919,7 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
                 try:
                     backend = NativeHTTPBackend(
                         RequestConfig.from_options(options),
-                        filter_options=native_filter_options(options),
+                        filter_config=FilterConfig.from_options(options),
                     )
                 except RequestException as error:
                     self.skipTest(str(error))
@@ -2938,7 +2938,7 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         try:
             backend = NativeHTTPBackend(
                 RequestConfig.from_options(options),
-                filter_options=native_filter_options(options),
+                filter_config=FilterConfig.from_options(options),
             )
         except RequestException as error:
             self.skipTest(str(error))
@@ -2962,7 +2962,7 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         try:
             backend = NativeHTTPBackend(
                 RequestConfig.from_options(options),
-                filter_options=native_filter_options(options),
+                filter_config=FilterConfig.from_options(options),
             )
         except RequestException as error:
             self.skipTest(str(error))
@@ -2980,7 +2980,7 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         try:
             backend = NativeHTTPBackend(
                 RequestConfig.from_options(options),
-                filter_options=native_filter_options(options),
+                filter_config=FilterConfig.from_options(options),
             )
         except RequestException as error:
             self.skipTest(str(error))
@@ -3016,7 +3016,7 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         try:
             backend = NativeHTTPBackend(
                 RequestConfig.from_options(options),
-                filter_options=native_filter_options(options),
+                filter_config=FilterConfig.from_options(options),
             )
         except RequestException as error:
             self.skipTest(str(error))
@@ -3041,7 +3041,7 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         try:
             backend = NativeHTTPBackend(
                 RequestConfig.from_options(options),
-                filter_options=native_filter_options(options),
+                filter_config=FilterConfig.from_options(options),
             )
         except RequestException as error:
             self.skipTest(str(error))
@@ -3063,7 +3063,7 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         try:
             backend = NativeHTTPBackend(
                 RequestConfig.from_options(options),
-                filter_options=native_filter_options(options),
+                filter_config=FilterConfig.from_options(options),
             )
         except RequestException as error:
             self.skipTest(str(error))
@@ -3080,7 +3080,7 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         try:
             backend = NativeHTTPBackend(
                 RequestConfig.from_options(options),
-                filter_options=native_filter_options(options),
+                filter_config=FilterConfig.from_options(options),
             )
         except RequestException as error:
             self.skipTest(str(error))
@@ -3095,7 +3095,7 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         try:
             backend = NativeHTTPBackend(
                 RequestConfig.from_options(options),
-                filter_options=native_filter_options(options),
+                filter_config=FilterConfig.from_options(options),
             )
         except RequestException as error:
             self.skipTest(str(error))
@@ -3129,7 +3129,7 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
                     try:
                         backend = NativeHTTPBackend(
                             RequestConfig.from_options(options),
-                            filter_options=native_filter_options(options),
+                            filter_config=FilterConfig.from_options(options),
                         )
                     except RequestException as error:
                         self.skipTest(str(error))
@@ -3147,7 +3147,7 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
             try:
                 backend = NativeHTTPBackend(
                     RequestConfig.from_options(options),
-                    filter_options=native_filter_options(options),
+                    filter_config=FilterConfig.from_options(options),
                 )
             except RequestException as error:
                 self.skipTest(str(error))
@@ -3170,7 +3170,7 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         try:
             backend = NativeHTTPBackend(
                 RequestConfig.from_options(options),
-                filter_options=native_filter_options(options),
+                filter_config=FilterConfig.from_options(options),
             )
         except RequestException as error:
             self.skipTest(str(error))
@@ -3218,7 +3218,7 @@ class TestResponseStoreTransportIntegration(
         try:
             backend = NativeHTTPBackend(
                 RequestConfig.from_options(options),
-                filter_options=native_filter_options(options),
+                filter_config=FilterConfig.from_options(options),
             )
         except RequestException as error:
             self.skipTest(str(error))
@@ -3320,7 +3320,7 @@ class TestResponseStoreTransportIntegration(
         try:
             backend = NativeHTTPBackend(
                 RequestConfig.from_options(options),
-                filter_options=native_filter_options(options),
+                filter_config=FilterConfig.from_options(options),
             )
         except RequestException as error:
             self.skipTest(str(error))
@@ -3346,7 +3346,7 @@ class TestResponseStoreTransportIntegration(
         try:
             backend = NativeHTTPBackend(
                 RequestConfig.from_options(options),
-                filter_options=native_filter_options(options),
+                filter_config=FilterConfig.from_options(options),
             )
         except RequestException as error:
             self.skipTest(str(error))

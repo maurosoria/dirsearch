@@ -4,6 +4,7 @@ from unittest.mock import Mock, patch
 
 from lib.controller.controller import Controller
 from lib.core.data import options
+from lib.core.filter_config import FilterConfig
 from lib.core.dictionary import Dictionary
 from lib.core.exceptions import QuitInterrupt, RequestException
 from lib.core.fuzzer import Fuzzer
@@ -43,6 +44,7 @@ class TestThreadedControllerDeadlines(TestCase):
         fuzzer = Fuzzer(
             requester,
             dictionary,
+            filter_config=FilterConfig.from_options(options),
             match_callbacks=(),
             not_found_callbacks=(),
             error_callbacks=(),
@@ -113,6 +115,7 @@ class TestThreadedControllerDeadlines(TestCase):
         fuzzer = Fuzzer(
             requester,
             dictionary,
+            filter_config=FilterConfig.from_options(options),
             match_callbacks=(),
             not_found_callbacks=(),
             error_callbacks=(),

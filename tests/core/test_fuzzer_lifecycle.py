@@ -4,6 +4,7 @@ from unittest import IsolatedAsyncioTestCase, TestCase
 from unittest.mock import patch
 
 from lib.core.data import options
+from lib.core.filter_config import FilterConfig
 from lib.core.dictionary import Dictionary
 from lib.core.exceptions import RequestException, SkipTargetInterrupt
 from lib.core.fuzzer import AsyncFuzzer, Fuzzer
@@ -96,6 +97,7 @@ class TestThreadedFuzzerLifecycle(TestCase):
         fuzzer = Fuzzer(
             requester,
             dictionary,
+            filter_config=FilterConfig.from_options(options),
             match_callbacks=(),
             not_found_callbacks=(),
             error_callbacks=(),
@@ -143,6 +145,7 @@ class TestThreadedFuzzerLifecycle(TestCase):
         fuzzer = Fuzzer(
             requester,
             LifecycleDictionary(["fail", "blocked", "after"]),
+            filter_config=FilterConfig.from_options(options),
             match_callbacks=(),
             not_found_callbacks=(),
             error_callbacks=(stop_scan,),
@@ -180,6 +183,7 @@ class TestAsyncFuzzerLifecycle(IsolatedAsyncioTestCase):
         fuzzer = AsyncFuzzer(
             requester,
             LifecycleDictionary(["fail", "blocked"]),
+            filter_config=FilterConfig.from_options(options),
             match_callbacks=(),
             not_found_callbacks=(),
             error_callbacks=(stop_scan,),

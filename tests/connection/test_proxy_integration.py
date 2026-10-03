@@ -11,7 +11,7 @@ from urllib3.exceptions import InsecureRequestWarning
 
 from lib.connection.native import NativeHTTPBackend, NativeRequester
 from lib.connection.requester import AsyncRequester, Requester
-from lib.core.filters import native_filter_options
+from lib.core.filter_config import FilterConfig
 from lib.core.request_config import RequestConfig
 from lib.core.data import options
 from lib.core.exceptions import RequestException
@@ -462,7 +462,7 @@ class TestProxyIntegration(TestCase):
         options["proxies"] = []
         requester = NativeRequester(
             RequestConfig.from_options(options),
-            filter_options=native_filter_options(options),
+            filter_config=FilterConfig.from_options(options),
         )
         requester.set_url(target.url)
 
@@ -799,7 +799,7 @@ class TestProxyIntegration(TestCase):
         options["proxies"] = [proxy_url or proxy.url]
         backend = NativeHTTPBackend(
             RequestConfig.from_options(options),
-            filter_options=native_filter_options(options),
+            filter_config=FilterConfig.from_options(options),
         )
         started = time.monotonic()
         rows = list(backend.scan(target_url or target.url, [path]))

@@ -20,7 +20,7 @@ from unittest import TestCase
 from unittest.mock import patch
 
 from lib.connection.response import NativeResponse, Response
-from lib.core.data import options
+from lib.core.filter_config import FilterConfig
 from lib.core.fuzzer import BaseFuzzer
 from lib.core.scanner import BaseScanner
 from lib.core.settings import REFLECTED_PATH_MARKER, WILDCARD_TEST_POINT_MARKER
@@ -64,14 +64,6 @@ class ChunkedResponse:
 
 
 class TestScanner(TestCase):
-    def setUp(self):
-        self.original_options = dict(options)
-        options.update({"delay": 0, "auto_calibration": False})
-
-    def tearDown(self):
-        options.clear()
-        options.update(self.original_options)
-
     def test_generate_redirect_regex(self):
         self.assertEqual(
             BaseScanner.generate_redirect_regex(
@@ -87,9 +79,11 @@ class TestScanner(TestCase):
     def test_auto_calibration_filters_dynamic_soft_404(self):
         from lib.core.scanner import Scanner
 
-        options["auto_calibration"] = True
         requester = DynamicSoft404Requester()
-        scanner = Scanner(requester, path=WILDCARD_TEST_POINT_MARKER)
+        scanner = Scanner(
+            requester, filter_config=FilterConfig(auto_calibration=True),
+            delay=0, path=WILDCARD_TEST_POINT_MARKER,
+        )
         response = requester.request("admin")
 
         self.assertGreater(scanner.sample_count, 2)
@@ -98,9 +92,11 @@ class TestScanner(TestCase):
     def test_dynamic_soft_404_does_not_hide_distinct_content(self):
         from lib.core.scanner import Scanner
 
-        options["auto_calibration"] = True
         requester = DynamicSoft404Requester()
-        scanner = Scanner(requester, path=WILDCARD_TEST_POINT_MARKER)
+        scanner = Scanner(
+            requester, filter_config=FilterConfig(auto_calibration=True),
+            delay=0, path=WILDCARD_TEST_POINT_MARKER,
+        )
         response = NativeResponse(
             "https://example.com/admin",
             200,
@@ -112,7 +108,7 @@ class TestScanner(TestCase):
 
     def test_binary_prefix_match_does_not_hide_distinct_response(self):
         prefix = b"\x00" + b"a" * 15
-        scanner = BaseScanner(None)
+        scanner = BaseScanner(None, filter_config=FilterConfig(), delay=0)
         scanner.response = Response(
             "https://example.com/wildcard.bin",
             ChunkedResponse([prefix, b"LEFT"]),
@@ -128,7 +124,7 @@ class TestScanner(TestCase):
 
     def test_binary_fingerprint_still_matches_identical_responses(self):
         prefix = b"\x00" + b"a" * 15
-        scanner = BaseScanner(None)
+        scanner = BaseScanner(None, filter_config=FilterConfig(), delay=0)
         scanner.response = Response(
             "https://example.com/wildcard.bin",
             ChunkedResponse([prefix, b"SAME"]),
@@ -144,7 +140,7 @@ class TestScanner(TestCase):
     def test_response_normalization_is_reused_across_filter_and_scanner(self):
         base_content = "missing one two three four five six seven eight nine random"
         candidate_content = "missing one two three four five six seven eight nine admin"
-        scanner = BaseScanner(None)
+        scanner = BaseScanner(None, filter_config=FilterConfig(), delay=0)
         scanner.response = NativeResponse(
             "https://example.com/random",
             200,
@@ -177,7 +173,7 @@ class TestScanner(TestCase):
                 raise AssertionError("expensive similarity should be skipped")
 
         large_body = b"a" * 270000
-        scanner = BaseScanner(None)
+        scanner = BaseScanner(None, filter_config=FilterConfig(), delay=0)
         scanner.response = NativeResponse(
             "https://example.com/random",
             200,
@@ -207,7 +203,7 @@ class TestScanner(TestCase):
                 return 1
 
         medium_body = b"a" * 70000
-        scanner = BaseScanner(None)
+        scanner = BaseScanner(None, filter_config=FilterConfig(), delay=0)
         scanner.response = NativeResponse(
             "https://example.com/random",
             200,

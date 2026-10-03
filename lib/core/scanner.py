@@ -25,7 +25,7 @@ from typing import Any
 
 from lib.connection.requester import AsyncRequester, BaseRequester, Requester
 from lib.connection.response import BaseResponse
-from lib.core.data import options
+from lib.core.filter_config import FilterConfig
 from lib.core.logger import logger
 from lib.core.settings import (
     REFLECTED_PATH_MARKER,
@@ -49,12 +49,17 @@ class BaseScanner:
     def __init__(
         self,
         requester: BaseRequester,
+        *,
+        filter_config: FilterConfig,
+        delay: float,
         path: str = "",
-        tested: dict[str, Any] = {},
+        tested: dict[str, Any] | None = None,
         context: str = "all cases",
     ) -> None:
         self.path = path
-        self.tested = tested
+        self.tested = tested if tested is not None else {}
+        self.filter_config = filter_config
+        self.delay = delay
         self.context = context
         self.requester = requester
         self.response = None
@@ -178,7 +183,7 @@ class BaseScanner:
         return self.content_parser.is_ambiguous
 
     def should_auto_calibrate(self) -> bool:
-        return bool(options.get("auto_calibration")) or self.content_parser.is_ambiguous
+        return self.filter_config.auto_calibration or self.content_parser.is_ambiguous
 
     def add_calibration_sample(self, response: BaseResponse) -> None:
         self.sample_count += 1
@@ -213,11 +218,16 @@ class Scanner(BaseScanner):
         self,
         requester: Requester,
         *,
+        filter_config: FilterConfig,
+        delay: float,
         path: str = "",
-        tested: dict[str, dict[str, Scanner]] = {},
+        tested: dict[str, dict[str, BaseScanner]] | None = None,
         context: str = "all cases",
     ) -> None:
-        super().__init__(requester, path, tested, context)
+        super().__init__(
+            requester, filter_config=filter_config, delay=delay,
+            path=path, tested=tested, context=context,
+        )
         self.setup()
 
     def setup(self) -> None:
@@ -233,7 +243,7 @@ class Scanner(BaseScanner):
         first_response = self.requester.request(first_path)
         self.response = first_response
         self.sample_count = 1
-        time.sleep(options["delay"])
+        time.sleep(self.delay)
 
         # Another test was performed before and has the same response as this
         if duplicate := self.get_duplicate(first_response):
@@ -248,7 +258,7 @@ class Scanner(BaseScanner):
         )
         second_response = self.requester.request(second_path)
         self.sample_count += 1
-        time.sleep(options["delay"])
+        time.sleep(self.delay)
 
         if first_response.redirect and second_response.redirect:
             # Removing the queries (and DOM) with clean_path() because sometimes
@@ -281,7 +291,7 @@ class Scanner(BaseScanner):
             omitted.add(sample_path)
             sample_response = self.requester.request(sample_path)
             self.add_calibration_sample(sample_response)
-            time.sleep(options["delay"])
+            time.sleep(self.delay)
 
 
 class AsyncScanner(BaseScanner):
@@ -289,22 +299,32 @@ class AsyncScanner(BaseScanner):
         self,
         requester: AsyncRequester,
         *,
+        filter_config: FilterConfig,
+        delay: float,
         path: str = "",
-        tested: dict[str, dict[str, AsyncScanner]] = {},
+        tested: dict[str, dict[str, BaseScanner]] | None = None,
         context: str = "all cases",
     ) -> None:
-        super().__init__(requester, path, tested, context)
+        super().__init__(
+            requester, filter_config=filter_config, delay=delay,
+            path=path, tested=tested, context=context,
+        )
 
     @classmethod
     async def create(
         cls,
         requester: AsyncRequester,
         *,
+        filter_config: FilterConfig,
+        delay: float,
         path: str = "",
-        tested: dict[str, dict[str, AsyncScanner]] = {},
+        tested: dict[str, dict[str, BaseScanner]] | None = None,
         context: str = "all cases",
     ) -> AsyncScanner:
-        self = cls(requester, path=path, tested=tested, context=context)
+        self = cls(
+            requester, filter_config=filter_config, delay=delay,
+            path=path, tested=tested, context=context,
+        )
         await self.setup()
         return self
 
@@ -321,7 +341,7 @@ class AsyncScanner(BaseScanner):
         first_response = await self.requester.request(first_path)
         self.response = first_response
         self.sample_count = 1
-        await asyncio.sleep(options["delay"])
+        await asyncio.sleep(self.delay)
 
         duplicate = self.get_duplicate(first_response)
         # Another test was performed before and has the same response as this
@@ -337,7 +357,7 @@ class AsyncScanner(BaseScanner):
         )
         second_response = await self.requester.request(second_path)
         self.sample_count += 1
-        await asyncio.sleep(options["delay"])
+        await asyncio.sleep(self.delay)
 
         if first_response.redirect and second_response.redirect:
             self.wildcard_redirect_regex = self.generate_redirect_regex(
@@ -368,4 +388,4 @@ class AsyncScanner(BaseScanner):
             omitted.add(sample_path)
             sample_response = await self.requester.request(sample_path)
             self.add_calibration_sample(sample_response)
-            await asyncio.sleep(options["delay"])
+            await asyncio.sleep(self.delay)

@@ -4,7 +4,8 @@ from unittest import TestCase
 from unittest.mock import patch
 from lib.connection.native import NativeScanChunk, NativeScanEvent
 from lib.connection.response import NativeResponse
-from lib.core.data import blacklists, options
+from lib.core.data import options
+from lib.core.filter_config import FilterConfig
 from lib.core.dictionary import Dictionary
 from lib.core.exceptions import RequestException
 from lib.core.fuzzer import NativeFuzzer
@@ -237,7 +238,6 @@ def run_fuzzer(fuzzer, errors):
 class TestNativeFuzzer(TestCase):
     def setUp(self):
         self.original_options = dict(options)
-        self.original_blacklists = dict(blacklists)
         options.update(
             {
                 "thread_count": 2,
@@ -270,13 +270,10 @@ class TestNativeFuzzer(TestCase):
                 "auto_calibration": False,
             }
         )
-        blacklists.clear()
 
     def tearDown(self):
         options.clear()
         options.update(self.original_options)
-        blacklists.clear()
-        blacklists.update(self.original_blacklists)
 
     def make_fuzzer(
         self,
@@ -290,6 +287,7 @@ class TestNativeFuzzer(TestCase):
         fuzzer = NativeFuzzer(
             DummyRequester(backend),
             dictionary,
+            filter_config=FilterConfig.from_options(options),
             match_callbacks=(matches.append,),
             not_found_callbacks=(misses.append,),
             error_callbacks=(errors.append,),
@@ -529,6 +527,7 @@ class TestNativeFuzzer(TestCase):
         fuzzer = NativeFuzzer(
             DummyRequester(backend),
             dictionary,
+            filter_config=FilterConfig.from_options(options),
             match_callbacks=(),
             not_found_callbacks=(),
             error_callbacks=(record_error,),
