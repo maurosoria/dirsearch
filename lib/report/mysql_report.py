@@ -16,7 +16,7 @@
 #
 #  Author: Mauro Soria
 
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 from lib.core.exceptions import InvalidURLException
 from lib.core.settings import DB_CONNECTION_TIMEOUT
@@ -43,9 +43,11 @@ class MySQLReport(SQLReportMixin, BaseReport):
             conn = mysql.connector.connect(
                 host=parsed.hostname,
                 port=parsed.port or 3306,
-                user=parsed.username,
-                password=parsed.password,
-                database=parsed.path.lstrip("/"),
+                user=unquote(parsed.username) if parsed.username is not None else None,
+                password=(
+                    unquote(parsed.password) if parsed.password is not None else None
+                ),
+                database=unquote(parsed.path.lstrip("/")),
                 connection_timeout=DB_CONNECTION_TIMEOUT,
             )
         except mysql.connector.Error as error:
