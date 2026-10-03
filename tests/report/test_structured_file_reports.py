@@ -43,6 +43,16 @@ def result_urls(report, destination):
     return [entry["url"] for entry in data]
 
 
+def truncate_final_journal_record(report, destination):
+    journal = Path(report.journal_path(destination))
+    lines = journal.read_text(encoding="utf-8").splitlines()
+    journal.write_text(
+        "\n".join((*lines[:-1], lines[-1][:-4])),
+        encoding="utf-8",
+    )
+    return journal
+
+
 class TestStructuredFileReports(TestCase):
     def test_truncated_final_record_recovers_only_complete_entries(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -61,12 +71,7 @@ class TestStructuredFileReports(TestCase):
                         make_result("https://example.test/interrupted"),
                     )
 
-                    journal = Path(report.journal_path(destination))
-                    lines = journal.read_text(encoding="utf-8").splitlines()
-                    journal.write_text(
-                        "\n".join((*lines[:-1], lines[-1][:-4])),
-                        encoding="utf-8",
-                    )
+                    journal = truncate_final_journal_record(report, destination)
 
                     recovered = report_class()
                     recovered.initiate(destination)
@@ -99,12 +104,7 @@ class TestStructuredFileReports(TestCase):
                         make_result("https://example.test/interrupted"),
                     )
 
-                    journal = Path(report.journal_path(destination))
-                    lines = journal.read_text(encoding="utf-8").splitlines()
-                    journal.write_text(
-                        "\n".join((*lines[:-1], lines[-1][:-4])),
-                        encoding="utf-8",
-                    )
+                    journal = truncate_final_journal_record(report, destination)
                     original_journal = journal.read_bytes()
                     original_report = Path(destination).read_bytes()
 
@@ -121,6 +121,84 @@ class TestStructuredFileReports(TestCase):
 
                     recovery = Path(interrupted.recovery_journal_path(destination))
                     self.assertEqual(Path(destination).read_bytes(), original_report)
+                    self.assertEqual(recovery.read_bytes(), original_journal)
+
+                    recovered = report_class()
+                    recovered.initiate(destination)
+                    recovered.finish()
+
+                    self.assertEqual(result_urls(recovered, destination), [kept_url])
+                    self.assertFalse(journal.exists())
+                    self.assertFalse(recovery.exists())
+
+    def test_repaired_journal_creation_failure_restores_original(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for report_class, extension in STRUCTURED_REPORTS:
+                with self.subTest(report=report_class.__name__):
+                    destination = os.path.join(
+                        directory,
+                        f"repair-failure-{report_class.__name__}.{extension}",
+                    )
+                    report = report_class()
+                    report.initiate(destination)
+                    kept_url = "https://example.test/complete"
+                    report.save(destination, make_result(kept_url))
+                    report.save(
+                        destination,
+                        make_result("https://example.test/interrupted"),
+                    )
+                    journal = truncate_final_journal_record(report, destination)
+                    recovery = Path(report.recovery_journal_path(destination))
+                    original_journal = journal.read_bytes()
+                    original_snapshot = Path(destination).read_bytes()
+
+                    interrupted = report_class()
+                    with patch.object(
+                        FileUtils,
+                        "atomic_write_private_text",
+                        side_effect=OSError("injected repaired journal failure"),
+                    ):
+                        with self.assertRaises(FileExistsException) as raised:
+                            interrupted.initiate(destination)
+
+                    self.assertIsInstance(raised.exception.__cause__, OSError)
+                    self.assertEqual(journal.read_bytes(), original_journal)
+                    self.assertFalse(recovery.exists())
+                    self.assertEqual(
+                        Path(destination).read_bytes(),
+                        original_snapshot,
+                    )
+
+                    recovered = report_class()
+                    recovered.initiate(destination)
+                    recovered.finish()
+
+                    self.assertEqual(result_urls(recovered, destination), [kept_url])
+                    self.assertFalse(journal.exists())
+                    self.assertFalse(recovery.exists())
+
+    def test_restart_restores_journal_moved_before_repair(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for report_class, extension in STRUCTURED_REPORTS:
+                with self.subTest(report=report_class.__name__):
+                    destination = os.path.join(
+                        directory,
+                        f"repair-crash-{report_class.__name__}.{extension}",
+                    )
+                    report = report_class()
+                    report.initiate(destination)
+                    kept_url = "https://example.test/complete"
+                    report.save(destination, make_result(kept_url))
+                    report.save(
+                        destination,
+                        make_result("https://example.test/interrupted"),
+                    )
+                    journal = truncate_final_journal_record(report, destination)
+                    recovery = Path(report.recovery_journal_path(destination))
+                    original_journal = journal.read_bytes()
+                    os.replace(journal, recovery)
+
+                    self.assertFalse(journal.exists())
                     self.assertEqual(recovery.read_bytes(), original_journal)
 
                     recovered = report_class()
@@ -189,12 +267,7 @@ class TestStructuredFileReports(TestCase):
                         destination,
                         make_result("https://example.test/interrupted"),
                     )
-                    journal = Path(report.journal_path(destination))
-                    lines = journal.read_text(encoding="utf-8").splitlines()
-                    journal.write_text(
-                        "\n".join((*lines[:-1], lines[-1][:-4])),
-                        encoding="utf-8",
-                    )
+                    journal = truncate_final_journal_record(report, destination)
 
                     recovered = report_class()
                     recovered.initiate(destination)
