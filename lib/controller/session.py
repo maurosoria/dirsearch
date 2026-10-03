@@ -100,14 +100,8 @@ class SessionStore:
         return sessions
 
     def load(self, session_path: str) -> dict[str, Any]:
-        if os.path.isfile(session_path):
-            payload = self._read_json(session_path)
-            self._validate_payload(payload)
-            return payload
-
-        session_dir = self._get_session_dir(session_path)
-        checkpoint_path = FileUtils.build_path(
-            session_dir, self.CHECKPOINT_FILE
+        session_dir, checkpoint_path, _ = self._resolve_session_paths(
+            session_path
         )
         if os.path.isfile(checkpoint_path):
             payload = self._read_json(checkpoint_path)
@@ -135,10 +129,12 @@ class SessionStore:
         return payload
 
     def save(self, controller: Any, session_path: str, last_output: str) -> None:
-        session_dir = self._get_session_dir(session_path)
+        session_dir, checkpoint_path, uses_session_directory = (
+            self._resolve_session_paths(session_path)
+        )
         output_history = self._get_controller_history(controller)
         if output_history is None:
-            output_history = self._load_output_history(session_dir)
+            output_history = self._load_output_history(session_path)
         else:
             output_history = list(output_history)
         if last_output:
@@ -153,12 +149,11 @@ class SessionStore:
             "last_output": last_output,
             "output_history": output_history,
         }
-        FileUtils.create_private_dir(session_dir)
-        self._write_json(
-            FileUtils.build_path(session_dir, self.CHECKPOINT_FILE),
-            payload,
-        )
-        self._delete_session_files(session_dir, self.FILES.values())
+        if uses_session_directory:
+            FileUtils.create_private_dir(session_dir)
+        self._write_json(checkpoint_path, payload)
+        if uses_session_directory:
+            self._delete_session_files(session_dir, self.FILES.values())
         controller.output_history = output_history
 
     def delete(self, session_path: str) -> None:
@@ -268,8 +263,19 @@ class SessionStore:
                 serialized[key] = value
         return serialized
 
-    def _get_session_dir(self, session_path: str) -> str:
-        return session_path
+    def _resolve_session_paths(
+        self,
+        session_path: str,
+    ) -> tuple[str, str, bool]:
+        """Resolve an existing checkpoint file or a session directory."""
+        if os.path.isfile(session_path):
+            return FileUtils.parent(session_path), session_path, False
+
+        return (
+            session_path,
+            FileUtils.build_path(session_path, self.CHECKPOINT_FILE),
+            True,
+        )
 
     def _delete_session_files(
         self,
@@ -411,9 +417,9 @@ class SessionStore:
             return history
         return None
 
-    def _load_output_history(self, session_dir: str) -> list[dict[str, Any]]:
-        checkpoint_path = FileUtils.build_path(
-            session_dir, self.CHECKPOINT_FILE
+    def _load_output_history(self, session_path: str) -> list[dict[str, Any]]:
+        session_dir, checkpoint_path, _ = self._resolve_session_paths(
+            session_path
         )
         if os.path.isfile(checkpoint_path):
             try:
