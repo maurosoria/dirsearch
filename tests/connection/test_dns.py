@@ -31,6 +31,8 @@ from urllib3.exceptions import InsecureRequestWarning
 from lib.connection.ip_overrides import IPOverrides
 from lib.connection.native import NativeRequester
 from lib.connection.requester import AsyncRequester, Requester
+from lib.core.filters import native_filter_options
+from lib.core.request_config import RequestConfig
 from lib.core.data import options
 from lib.core.native_runtime import NATIVE_EXTENSION_VERSION
 from tests.connection.proxy_server import ProxyTestStack
@@ -167,7 +169,7 @@ class TestIPOverrideIntegration(TestCase):
         for target in self.stack.targets:
             with self.subTest(scheme=target.scheme):
                 target.clear_events()
-                requester = Requester()
+                requester = Requester(RequestConfig.from_options(options))
                 requester.set_ip(FORCED_HOST, urlsplit(target.url).port, "127.0.0.1")
                 requester.set_url(self.forced_url(target))
                 try:
@@ -196,7 +198,7 @@ class TestIPOverrideIntegration(TestCase):
         for target in self.stack.targets:
             with self.subTest(scheme=target.scheme):
                 target.clear_events()
-                requester = AsyncRequester()
+                requester = AsyncRequester(RequestConfig.from_options(options))
                 requester.set_ip(FORCED_HOST, urlsplit(target.url).port, "127.0.0.1")
                 requester.set_url(self.forced_url(target))
                 try:
@@ -224,7 +226,10 @@ class TestIPOverrideIntegration(TestCase):
         for target in self.stack.targets:
             with self.subTest(scheme=target.scheme):
                 target.clear_events()
-                requester = NativeRequester()
+                requester = NativeRequester(
+                    RequestConfig.from_options(options),
+                    filter_options=native_filter_options(options),
+                )
                 requester.set_ip(
                     FORCED_HOST,
                     urlsplit(target.url).port,
@@ -252,7 +257,10 @@ class TestIPOverrideIntegration(TestCase):
     def test_native_raw_http_path_uses_ip_override(self):
         target = next(target for target in self.stack.targets if target.scheme == "http")
         target.clear_events()
-        requester = NativeRequester()
+        requester = NativeRequester(
+            RequestConfig.from_options(options),
+            filter_options=native_filter_options(options),
+        )
         requester.set_ip(FORCED_HOST, urlsplit(target.url).port, "127.0.0.1")
         requester.set_url(self.forced_url(target))
         try:

@@ -34,6 +34,7 @@ def main() -> None:
         WordlistTemplate,
     )
     from dirsearch.lib.core import settings
+    from dirsearch.lib.core.request_config import RequestConfig
     from dirsearch.lib.report.directory_response_store import DirectoryResponseStore
     from dirsearch.lib.report.jsonl_response_store import JsonlResponseStore
     from dirsearch.lib.report.response_store import (
@@ -51,6 +52,7 @@ def main() -> None:
     assert WordlistLimitError
     assert WordlistState
     assert WordlistTemplate
+    assert RequestConfig(method="POST").method == "POST"
     assert issubclass(DirectoryResponseStore, BaseResponseStore), (
         DirectoryResponseStore.__mro__
     )

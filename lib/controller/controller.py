@@ -46,6 +46,8 @@ from lib.core.exceptions import (
     UnpicklingError,
     WordlistLimitError,
 )
+from lib.core.filters import native_filter_options
+from lib.core.request_config import RequestConfig
 from lib.core.logger import enable_logging, logger
 from lib.core.options import (
     validate_numeric_options,
@@ -423,7 +425,15 @@ class Controller:
         )
         error_callbacks = (self.raise_error, self.append_error_log)
 
-        self.requester = Requester()
+        # setup() has parsed raw requests, or _import() has restored the session.
+        # Snapshot once, before any requester or lazy native engine is created.
+        self.request_config = RequestConfig.from_options(options)
+        if options["request_backend"] == "native":
+            self.requester = Requester(
+                self.request_config, filter_options=native_filter_options(options)
+            )
+        else:
+            self.requester = Requester(self.request_config)
         if options["async_mode"]:
             self.loop = asyncio.new_event_loop()
 

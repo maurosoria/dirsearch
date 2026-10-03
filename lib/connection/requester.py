@@ -56,7 +56,7 @@ from lib.connection.proxy import (
 )
 from lib.connection.rate_limiter import RequestRateLimiter
 from lib.connection.response import AsyncResponse, Response
-from lib.core.data import options
+from lib.core.request_config import RequestConfig
 from lib.core.decorators import cached
 from lib.core.exceptions import RequestException
 from lib.core.logger import logger
@@ -440,37 +440,38 @@ def _format_ssl_error(exc: Exception, url: str = "") -> str:
 
 
 class BaseRequester:
-    def __init__(self) -> None:
+    def __init__(self, config: RequestConfig) -> None:
+        self.config = config
         self._url: str = ""
         self._query: str = ""
         self._ip_overrides = IPOverrides()
         self._rate_limiter = RequestRateLimiter()
-        self.proxy_cred = options["proxy_auth"]
-        self.headers = CaseInsensitiveDict(options["headers"])
+        self.proxy_cred = self.config.proxy_auth
+        self.headers = CaseInsensitiveDict(self.config.headers)
         self.agents: list[str] = []
         self.session = None
         self._configured_auth = None
 
         self._cert = None
-        if options["cert_file"] and options["key_file"]:
-            self._cert = (options["cert_file"], options["key_file"])
+        if self.config.cert_file and self.config.key_file:
+            self._cert = (self.config.cert_file, self.config.key_file)
 
         self._socket_options = []
-        if options["network_interface"]:
+        if self.config.network_interface:
             self._socket_options.append(
                 (
                     socket.SOL_SOCKET,
                     socket.SO_BINDTODEVICE,
-                    options["network_interface"].encode("utf-8"),
+                    self.config.network_interface.encode("utf-8"),
                 )
             )
 
-        if options["random_agents"]:
+        if self.config.random_agents:
             self._fetch_agents()
 
         # Guess the mime type of request data if not specified
-        if options["data"] and "content-type" not in self.headers:
-            self.set_header("content-type", guess_mimetype(options["data"]))
+        if self.config.body and "content-type" not in self.headers:
+            self.set_header("content-type", guess_mimetype(self.config.body))
 
     def _fetch_agents(self) -> None:
         self.agents = FileUtils.get_lines(
@@ -505,7 +506,7 @@ class BaseRequester:
         self.session.auth = self._configured_auth
 
     def wait_for_rate_limit(self) -> None:
-        self._rate_limiter.wait(options["max_rate"])
+        self._rate_limiter.wait(self.config.max_rate)
 
     @property
     @cached(RATE_UPDATE_DELAY)
@@ -523,8 +524,8 @@ class HTTPBearerAuth(AuthBase):
 
 
 class Requester(BaseRequester):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, config: RequestConfig) -> None:
+        super().__init__(config)
 
         self.session = requests.Session()
         self.session.max_redirects = MAX_REDIRECTS
@@ -536,14 +537,14 @@ class Requester(BaseRequester):
                 scheme,
                 PathPreservingSocketOptionsAdapter(
                     max_retries=0,
-                    pool_maxsize=options["thread_count"],
+                    pool_maxsize=self.config.concurrency,
                     socket_options=self._socket_options,
                     ip_overrides=self._ip_overrides,
                 ),
             )
 
-        if options["auth"]:
-            self.set_auth(options["auth_type"], options["auth"])
+        if self.config.auth:
+            self.set_auth(self.config.auth_type, self.config.auth)
         self._configured_auth = self.session.auth
 
     def set_auth(self, type: str, credential: str) -> None:
@@ -576,11 +577,11 @@ class Requester(BaseRequester):
         url = self._url + quoted_request_path
 
         # Why using a loop instead of max_retries argument? Check issue #1009
-        for _ in range(options["max_retries"] + 1):
+        for _ in range(self.config.max_retries + 1):
             try:
                 proxies = {}
                 try:
-                    proxy_url = proxy or random.choice(options["proxies"])
+                    proxy_url = proxy or random.choice(self.config.proxies)
                     if not proxy_url.startswith(PROXY_SCHEMES):
                         proxy_url = f"http://{proxy_url}"
 
@@ -597,10 +598,10 @@ class Requester(BaseRequester):
                 # Use prepared request to avoid the URL path from being normalized
                 # Reference: https://github.com/psf/requests/issues/5289
                 request = requests.Request(
-                    options["http_method"],
+                    self.config.method,
                     url,
                     headers=self._request_headers(),
-                    data=options["data"],
+                    data=self.config.body,
                 )
                 prep = self.session.prepare_request(request)
                 prep.url = url
@@ -611,8 +612,8 @@ class Requester(BaseRequester):
                 start_time = time.perf_counter()
                 origin_response = self.session.send(
                     prep,
-                    allow_redirects=options["follow_redirects"],
-                    timeout=options["timeout"],
+                    allow_redirects=self.config.follow_redirects,
+                    timeout=self.config.timeout,
                     proxies=proxies,
                     stream=True,
                 )
@@ -626,16 +627,13 @@ class Requester(BaseRequester):
                     response = Response(
                         url,
                         origin_response,
-                        capture_full_body=bool(
-                            options["save_response"]
-                            or options["save_response_jsonl"]
-                        ),
+                        capture_full_body=self.config.capture_full_body,
                     )
                 finally:
                     origin_response.close()
                 response.elapsed = time.perf_counter() - start_time
 
-                log_msg = f'"{options["http_method"]} {response.url}" {response.status} - {response.length}B'
+                log_msg = f'"{self.config.method} {response.url}" {response.status} - {response.length}B'
 
                 if response.redirect:
                     log_msg += f" - LOCATION: {response.redirect}"
@@ -795,19 +793,19 @@ class ProxyRoatingTransport(httpx.AsyncBaseTransport):
 
 
 class AsyncRequester(BaseRequester):
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, config: RequestConfig) -> None:
+        super().__init__(config)
 
         tpargs = {
             "verify": False,
             "cert": self._cert,
-            "limits": httpx.Limits(max_connections=options["thread_count"]),
+            "limits": httpx.Limits(max_connections=self.config.concurrency),
             "socket_options": self._socket_options,
         }
         self._inherited_proxy_transports: set[httpx.AsyncBaseTransport] = set()
-        if options["proxies"]:
+        if self.config.proxies:
             transport = ProxyRoatingTransport(
-                [self.parse_proxy(p) for p in options["proxies"]], **tpargs
+                [self.parse_proxy(p) for p in self.config.proxies], **tpargs
             )
             mounts = None
         else:
@@ -820,13 +818,13 @@ class AsyncRequester(BaseRequester):
         self.session = httpx.AsyncClient(
             transport=transport,
             mounts=mounts,
-            timeout=httpx.Timeout(options["timeout"]),
+            timeout=httpx.Timeout(self.config.timeout),
             max_redirects=MAX_REDIRECTS,
         )
         self.replay_session = None
 
-        if options["auth"]:
-            self.set_auth(options["auth_type"], options["auth"])
+        if self.config.auth:
+            self.set_auth(self.config.auth_type, self.config.auth)
         self._configured_auth = self.session.auth
 
     def _environment_proxy_mounts(
@@ -905,13 +903,13 @@ class AsyncRequester(BaseRequester):
             transport = PathPreservingAsyncHTTPTransport(
                 verify=False,
                 cert=self._cert,
-                limits=httpx.Limits(max_connections=options["thread_count"]),
+                limits=httpx.Limits(max_connections=self.config.concurrency),
                 proxy=self.parse_proxy(proxy),
                 socket_options=self._socket_options,
             )
             self.replay_session = httpx.AsyncClient(
                 transport=transport,
-                timeout=httpx.Timeout(options["timeout"]),
+                timeout=httpx.Timeout(self.config.timeout),
                 max_redirects=MAX_REDIRECTS,
             )
         self.replay_session.auth = self.session.auth
@@ -930,16 +928,16 @@ class AsyncRequester(BaseRequester):
         quoted_request_path = safequote(request_path)
         url = self._url + quoted_request_path
         session = session or self.session
-        using_proxy = replay or bool(options["proxies"])
+        using_proxy = replay or bool(self.config.proxies)
 
-        for _ in range(options["max_retries"] + 1):
+        for _ in range(self.config.max_retries + 1):
             try:
                 # Use "target" extension to avoid the URL path from being normalized
                 request = session.build_request(
-                    options["http_method"],
+                    self.config.method,
                     url,
                     headers=self._request_headers(),
-                    content=options["data"],
+                    content=self.config.body,
                     extensions={
                         "target": _join_request_target(
                             self._url, quoted_request_path
@@ -951,7 +949,7 @@ class AsyncRequester(BaseRequester):
                 xresponse = await session.send(
                     request,
                     stream=True,
-                    follow_redirects=options["follow_redirects"],
+                    follow_redirects=self.config.follow_redirects,
                 )
                 try:
                     if (
@@ -965,10 +963,7 @@ class AsyncRequester(BaseRequester):
                     response = await AsyncResponse.create(
                         url,
                         xresponse,
-                        capture_full_body=bool(
-                            options["save_response"]
-                            or options["save_response_jsonl"]
-                        ),
+                        capture_full_body=self.config.capture_full_body,
                     )
                 finally:
                     await xresponse.aclose()
@@ -976,7 +971,7 @@ class AsyncRequester(BaseRequester):
                 # modes report the same thing.
                 response.elapsed = time.perf_counter() - start_time
 
-                log_msg = f'"{options["http_method"]} {response.url}" {response.status} - {response.length}B'
+                log_msg = f'"{self.config.method} {response.url}" {response.status} - {response.length}B'
 
                 if response.redirect:
                     log_msg += f" - LOCATION: {response.redirect}"
@@ -1014,4 +1009,4 @@ class AsyncRequester(BaseRequester):
         raise RequestException(err_msg)
 
     async def wait_for_rate_limit(self) -> None:
-        await self._rate_limiter.wait_async(options["max_rate"])
+        await self._rate_limiter.wait_async(self.config.max_rate)

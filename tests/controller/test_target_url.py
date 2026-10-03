@@ -9,6 +9,8 @@ from unittest.mock import Mock, patch
 from lib.connection.native import NativeHTTPBackend
 from lib.connection.requester import AsyncRequester, Requester
 from lib.controller.controller import Controller
+from lib.core.filters import native_filter_options
+from lib.core.request_config import RequestConfig
 from lib.core.data import options
 from lib.core.exceptions import InvalidURLException, RequestException
 
@@ -246,7 +248,7 @@ class TestControllerTargetURL(TestCase):
     def test_threaded_requester_reaches_ipv6_literal(self):
         with patch.dict(os.environ, PROXY_ENVIRONMENT):
             with LocalIPv6HTTPServer() as server:
-                requester = Requester()
+                requester = Requester(RequestConfig.from_options(options))
                 self.controller.requester = requester
                 try:
                     for hostname in IPV6_LOOPBACK_FORMS:
@@ -262,13 +264,16 @@ class TestControllerTargetURL(TestCase):
     def test_native_requester_reaches_ipv6_literal(self):
         options["request_backend"] = "native"
         try:
-            backend = NativeHTTPBackend()
+            backend = NativeHTTPBackend(
+                RequestConfig.from_options(options),
+                filter_options=native_filter_options(options),
+            )
         except RequestException as error:
             self.skipTest(str(error))
 
         with patch.dict(os.environ, PROXY_ENVIRONMENT):
             with LocalIPv6HTTPServer() as server:
-                requester = Requester()
+                requester = Requester(RequestConfig.from_options(options))
                 self.controller.requester = requester
                 try:
                     for hostname in IPV6_LOOPBACK_FORMS:
@@ -304,7 +309,7 @@ class TestAsyncControllerTargetURL(IsolatedAsyncioTestCase):
     async def test_async_requester_reaches_ipv6_literal(self):
         with patch.dict(os.environ, PROXY_ENVIRONMENT):
             with LocalIPv6HTTPServer() as server:
-                requester = AsyncRequester()
+                requester = AsyncRequester(RequestConfig.from_options(options))
                 self.controller.requester = requester
                 try:
                     for hostname in IPV6_LOOPBACK_FORMS:
