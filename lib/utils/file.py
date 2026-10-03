@@ -240,7 +240,14 @@ class FileUtils:
         encoding: str | None = "utf-8",
         newline: str | None = None,
     ):
-        """Write text through a private same-directory replacement file."""
+        """Publish a flushed private file through a same-directory replacement.
+
+        The replacement file is synchronized before it becomes visible. On
+        POSIX, the parent directory is synchronized after ``os.replace`` so a
+        successful return also requests persistence of the new directory
+        entry. Python does not expose a portable directory-sync operation on
+        Windows, where only the replacement file itself is synchronized.
+        """
         descriptor, temporary_path = tempfile.mkstemp(
             prefix=f".{os.path.basename(file_name)}.",
             suffix=".tmp",
@@ -257,7 +264,10 @@ class FileUtils:
             ) as file_handle:
                 descriptor = -1
                 yield file_handle
+                file_handle.flush()
+                os.fsync(file_handle.fileno())
             os.replace(temporary_path, file_name)
+            FileUtils._sync_parent_directory(file_name)
         finally:
             if descriptor != -1:
                 os.close(descriptor)
@@ -265,6 +275,21 @@ class FileUtils:
                 os.remove(temporary_path)
             except FileNotFoundError:
                 pass
+
+    @staticmethod
+    def _sync_parent_directory(file_name: str) -> None:
+        """Synchronize a replacement's directory entry where supported."""
+        if os.name == "nt":
+            return
+
+        directory = FileUtils.parent(file_name) or os.curdir
+        flags = os.O_RDONLY
+        flags |= getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_DIRECTORY", 0)
+        descriptor = os.open(directory, flags)
+        try:
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
 
     @staticmethod
     def _open_exclusive_windows(file_name: str) -> int:
