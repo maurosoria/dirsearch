@@ -28,10 +28,10 @@ from typing import Any, Callable, Generator
 from lib.connection.native import NativeHTTPBackend, NativeRequester, NativeScanChunk
 from lib.connection.requester import AsyncRequester, BaseRequester, Requester
 from lib.connection.response import BaseResponse
-from lib.core.data import options
 from lib.core.dictionary import Dictionary
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.exceptions import RequestException
+from lib.core.execution_config import ExecutionConfig
 from lib.core.filter_config import FilterConfig
 from lib.core.filter_state import FilterState
 from lib.core.filters import matches_numeric_ranges, matches_time_filters
@@ -74,6 +74,7 @@ class BaseFuzzer:
         *,
         filter_config: FilterConfig,
         discovery_config: DiscoveryConfig,
+        execution_config: ExecutionConfig,
         match_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         not_found_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         error_callbacks: tuple[Callable[[RequestException], Any], ...],
@@ -83,6 +84,7 @@ class BaseFuzzer:
         self._base_path: str = ""
         self.filter_config = filter_config
         self.discovery_config = discovery_config
+        self.execution_config = execution_config
         self.filter_state = FilterState()
         self.match_callbacks = match_callbacks
         self.not_found_callbacks = not_found_callbacks
@@ -348,6 +350,7 @@ class Fuzzer(BaseFuzzer):
         *,
         filter_config: FilterConfig,
         discovery_config: DiscoveryConfig,
+        execution_config: ExecutionConfig,
         match_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         not_found_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         error_callbacks: tuple[Callable[[RequestException], Any], ...],
@@ -357,6 +360,7 @@ class Fuzzer(BaseFuzzer):
             dictionary,
             filter_config=filter_config,
             discovery_config=discovery_config,
+            execution_config=execution_config,
             match_callbacks=match_callbacks,
             not_found_callbacks=not_found_callbacks,
             error_callbacks=error_callbacks,
@@ -374,7 +378,7 @@ class Fuzzer(BaseFuzzer):
         scanners["default"]["random"] = Scanner(
             self._requester,
             filter_config=self.filter_config,
-            delay=options["delay"],
+            delay=self.execution_config.delay,
             path=self._base_path + WILDCARD_TEST_POINT_MARKER,
         )
 
@@ -382,7 +386,7 @@ class Fuzzer(BaseFuzzer):
             scanners["default"]["custom"] = Scanner(
                 self._requester,
                 filter_config=self.filter_config,
-                delay=options["delay"],
+                delay=self.execution_config.delay,
                 tested=scanners,
                 path=self.filter_config.exclude_response,
             )
@@ -391,7 +395,7 @@ class Fuzzer(BaseFuzzer):
             scanners["prefixes"][prefix] = Scanner(
                 self._requester,
                 filter_config=self.filter_config,
-                delay=options["delay"],
+                delay=self.execution_config.delay,
                 tested=scanners,
                 path=f"{self._base_path}{prefix}{WILDCARD_TEST_POINT_MARKER}",
                 context=f"/{self._base_path}{prefix}***",
@@ -401,7 +405,7 @@ class Fuzzer(BaseFuzzer):
             scanners["suffixes"][suffix] = Scanner(
                 self._requester,
                 filter_config=self.filter_config,
-                delay=options["delay"],
+                delay=self.execution_config.delay,
                 tested=scanners,
                 path=f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}{suffix}",
                 context=f"/{self._base_path}***{suffix}",
@@ -412,7 +416,7 @@ class Fuzzer(BaseFuzzer):
                 scanners["suffixes"]["." + extension] = Scanner(
                     self._requester,
                     filter_config=self.filter_config,
-                    delay=options["delay"],
+                    delay=self.execution_config.delay,
                     tested=scanners,
                     path=f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}.{extension}",
                     context=f"/{self._base_path}***.{extension}",
@@ -422,7 +426,7 @@ class Fuzzer(BaseFuzzer):
         if self._threads:
             self._threads = []
 
-        for _ in range(options["thread_count"]):
+        for _ in range(self.execution_config.concurrency):
             new_thread = threading.Thread(target=self.thread_proc)
             new_thread.daemon = True
             self._threads.append(new_thread)
@@ -517,7 +521,7 @@ class Fuzzer(BaseFuzzer):
                 self._stop_with_exception(e)
 
             finally:
-                time.sleep(options["delay"])
+                time.sleep(self.execution_config.delay)
 
                 if not self._play_event.is_set():
                     logger.info(f'THREAD-{threading.get_ident()} paused"')
@@ -540,6 +544,7 @@ class NativeFuzzer(Fuzzer):
         *,
         filter_config: FilterConfig,
         discovery_config: DiscoveryConfig,
+        execution_config: ExecutionConfig,
         match_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         not_found_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         error_callbacks: tuple[Callable[[RequestException], Any], ...],
@@ -550,6 +555,7 @@ class NativeFuzzer(Fuzzer):
             dictionary,
             filter_config=filter_config,
             discovery_config=discovery_config,
+            execution_config=execution_config,
             match_callbacks=match_callbacks,
             not_found_callbacks=not_found_callbacks,
             error_callbacks=error_callbacks,
@@ -721,7 +727,7 @@ class NativeFuzzer(Fuzzer):
         return self._quit_event.is_set() or not self._play_event.is_set()
 
     def _next_chunk(self) -> list[str] | NativeWordlistChunk:
-        chunk_size = max(1000, options["thread_count"] * 100)
+        chunk_size = max(1000, self.execution_config.concurrency * 100)
         paths = self._dictionary.claim_native_many(chunk_size, self._base_path)
         if isinstance(paths, NativeWordlistChunk):
             return paths
@@ -771,6 +777,7 @@ class AsyncFuzzer(BaseFuzzer):
         *,
         filter_config: FilterConfig,
         discovery_config: DiscoveryConfig,
+        execution_config: ExecutionConfig,
         match_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         not_found_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         error_callbacks: tuple[Callable[[RequestException], Any], ...],
@@ -780,6 +787,7 @@ class AsyncFuzzer(BaseFuzzer):
             dictionary,
             filter_config=filter_config,
             discovery_config=discovery_config,
+            execution_config=execution_config,
             match_callbacks=match_callbacks,
             not_found_callbacks=not_found_callbacks,
             error_callbacks=error_callbacks,
@@ -793,7 +801,7 @@ class AsyncFuzzer(BaseFuzzer):
         scanners["default"]["random"] = await AsyncScanner.create(
             self._requester,
             filter_config=self.filter_config,
-            delay=options["delay"],
+            delay=self.execution_config.delay,
             path=self._base_path + WILDCARD_TEST_POINT_MARKER,
         )
 
@@ -801,7 +809,7 @@ class AsyncFuzzer(BaseFuzzer):
             scanners["default"]["custom"] = await AsyncScanner.create(
                 self._requester,
                 filter_config=self.filter_config,
-                delay=options["delay"],
+                delay=self.execution_config.delay,
                 tested=scanners,
                 path=self.filter_config.exclude_response,
             )
@@ -810,7 +818,7 @@ class AsyncFuzzer(BaseFuzzer):
             scanners["prefixes"][prefix] = await AsyncScanner.create(
                 self._requester,
                 filter_config=self.filter_config,
-                delay=options["delay"],
+                delay=self.execution_config.delay,
                 tested=scanners,
                 path=f"{self._base_path}{prefix}{WILDCARD_TEST_POINT_MARKER}",
                 context=f"/{self._base_path}{prefix}***",
@@ -820,7 +828,7 @@ class AsyncFuzzer(BaseFuzzer):
             scanners["suffixes"][suffix] = await AsyncScanner.create(
                 self._requester,
                 filter_config=self.filter_config,
-                delay=options["delay"],
+                delay=self.execution_config.delay,
                 tested=scanners,
                 path=f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}{suffix}",
                 context=f"/{self._base_path}***{suffix}",
@@ -831,7 +839,7 @@ class AsyncFuzzer(BaseFuzzer):
                 scanners["suffixes"]["." + extension] = await AsyncScanner.create(
                     self._requester,
                     filter_config=self.filter_config,
-                    delay=options["delay"],
+                    delay=self.execution_config.delay,
                     tested=scanners,
                     path=f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}.{extension}",
                     context=f"/{self._base_path}***.{extension}",
@@ -840,12 +848,12 @@ class AsyncFuzzer(BaseFuzzer):
     async def start(self) -> None:
         # In Python 3.9, initialize the Semaphore within the coroutine
         # to avoid binding to a different event loop.
-        self.sem = asyncio.Semaphore(options["thread_count"])
+        self.sem = asyncio.Semaphore(self.execution_config.concurrency)
         await self.setup_scanners()
         self.play()
 
         tasks = []
-        for _ in range(min(options["thread_count"], len(self._dictionary))):
+        for _ in range(min(self.execution_config.concurrency, len(self._dictionary))):
             task = asyncio.create_task(self.task_proc())
             tasks.append(task)
             self._background_tasks.add(task)
@@ -903,4 +911,4 @@ class AsyncFuzzer(BaseFuzzer):
             finally:
                 self._dictionary.release_claim(path)
 
-            await asyncio.sleep(options["delay"])
+            await asyncio.sleep(self.execution_config.delay)

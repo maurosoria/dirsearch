@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch
 
 from lib.controller.controller import Controller
 from lib.core.data import options
+from lib.core.execution_config import ExecutionConfig
 from lib.core.exceptions import QuitInterrupt, SkipTargetInterrupt
 
 
@@ -68,6 +69,7 @@ def create_controller(fuzzer):
     controller.directories = [""]
     controller.old_session = True
     controller.fuzzer = fuzzer
+    controller.execution_config = ExecutionConfig()
     controller.dictionary = Mock()
     controller.jobs_processed = 0
     controller._native_worker = None
@@ -84,6 +86,7 @@ class TestNativeControllerDeadlines(TestCase):
 
         def run_controller():
             try:
+                controller.execution_config = ExecutionConfig.from_options(options)
                 controller.start()
             except BaseException as error:
                 errors.append(error)
@@ -129,6 +132,7 @@ class TestNativeControllerDeadlines(TestCase):
                 "target_max_time": 0,
             },
         ):
+            controller.execution_config = ExecutionConfig.from_options(options)
             controller.start()
 
         self.assertEqual(fuzzer.quit_calls, 0)
@@ -154,6 +158,7 @@ class TestNativeControllerDeadlines(TestCase):
                 QuitInterrupt, "Runtime exceeded the maximum set by the user"
             ),
         ):
+            controller.execution_config = ExecutionConfig.from_options(options)
             controller.start()
 
         self.assertFalse(fuzzer.started.is_set())
@@ -174,6 +179,7 @@ class TestNativeControllerDeadlines(TestCase):
                 QuitInterrupt, "Runtime exceeded the maximum set by the user"
             ),
         ):
+            controller.execution_config = ExecutionConfig.from_options(options)
             controller.start_native_fuzzer(start_time=0)
 
         self.assertEqual(fuzzer.quit_calls, 0)
@@ -209,6 +215,7 @@ class TestNativeControllerDeadlines(TestCase):
         def run_controller():
             controller_thread_ids.append(threading.get_ident())
             try:
+                controller.execution_config = ExecutionConfig.from_options(options)
                 controller.start_native_fuzzer(start_time=time.time())
             except BaseException as error:
                 errors.append(error)
@@ -250,6 +257,7 @@ class TestNativeControllerDeadlines(TestCase):
                     QuitInterrupt, "Native scan did not stop safely"
                 ),
             ):
+                controller.execution_config = ExecutionConfig.from_options(options)
                 controller.start()
         finally:
             fuzzer.release.set()

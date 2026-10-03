@@ -19,8 +19,10 @@ deliberately not part of `RequestConfig`; its ownership is described in
 [filter configuration](filter-configuration.md). Controller discovery policy and
 calibration variants now use [DiscoveryConfig](discovery-configuration.md).
 Wordlist generation and validation now use
-[WordlistConfig](wordlist-configuration.md). Scheduling, logger and controller
-globals remain separate migration steps. These snapshots do not yet make two complete
+[WordlistConfig](wordlist-configuration.md). Fuzzer concurrency/pacing and stop
+policy use [ExecutionConfig](execution-configuration.md), built from the same
+normalized input as the transport. Engine selection, logger and remaining
+controller globals are separate migration steps. These snapshots do not yet make two complete
 `Controller` instances safe to run together.
 
 ## Constructing a requester

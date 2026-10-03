@@ -5,6 +5,7 @@ from lib.connection.response import NativeResponse
 from lib.controller.controller import Controller
 from lib.core.data import options
 from lib.core.discovery_config import DiscoveryConfig
+from lib.core.execution_config import ExecutionConfig
 from lib.core.dictionary import Dictionary
 from lib.core.wordlist_config import WordlistConfig
 from lib.core.settings import ARCHIVE_EXTENSIONS, BACKUP_EXTENSIONS
@@ -98,6 +99,7 @@ class TestBackupDiscoveryCallback(TestCase):
 
     def _controller(self) -> Controller:
         controller = object.__new__(Controller)
+        controller.execution_config = ExecutionConfig()
         controller.discovery_config = DiscoveryConfig.from_options(options)
         controller.base_path = "app/"
         controller.dictionary = make_dictionary()

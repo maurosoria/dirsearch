@@ -48,7 +48,8 @@ policy = FilterConfig(
 
 Pass this policy as `filter_config=policy` to the fuzzer and native requester.
 Fuzzers also require an explicit `discovery_config`, described in
-[discovery configuration](discovery-configuration.md).
+[discovery configuration](discovery-configuration.md), and `execution_config`,
+described in [execution configuration](execution-configuration.md).
 Create a new policy and new consumers when changing run settings; do not swap
 the policy on a running consumer, whose observations or native filters may
 already reflect the old one.
@@ -78,8 +79,9 @@ This step removes global filter-policy reads and the global blacklist store.
 Controller discovery flags and calibration prefixes/suffixes/extensions now use
 `DiscoveryConfig`; blacklist and dictionary generation/validation use
 [WordlistConfig](wordlist-configuration.md). This does **not** finish global-state
-removal: scheduling/concurrency/pacing, the remaining controller state and
-logging still have separate ownership work ahead. Full concurrent
+removal: [ExecutionConfig](execution-configuration.md) now owns fuzzer
+concurrency/pacing and stop policy, but engine selection, the remaining
+controller state and logging still have separate ownership work ahead. Full concurrent
 controllers are not yet supported.
 
 ## Validation

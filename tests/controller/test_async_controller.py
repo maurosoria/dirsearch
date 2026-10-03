@@ -6,6 +6,7 @@ from unittest.mock import Mock, patch
 
 from lib.controller.controller import Controller
 from lib.core.data import options
+from lib.core.execution_config import ExecutionConfig
 from lib.core.exceptions import QuitInterrupt, SkipTargetInterrupt
 
 
@@ -33,6 +34,7 @@ def create_controller(fuzzer):
     controller.loop = asyncio.get_running_loop()
     controller.pause_future = controller.loop.create_future()
     controller.fuzzer = fuzzer
+    controller.execution_config = ExecutionConfig()
     return controller
 
 
@@ -210,6 +212,7 @@ class TestAsyncController(IsolatedAsyncioTestCase):
             with self.assertRaisesRegex(
                 QuitInterrupt, "Runtime exceeded the maximum set by the user"
             ):
+                controller.execution_config = ExecutionConfig.from_options(options)
                 await controller.start_coroutines(start_time=100)
 
         self.assertFalse(fuzzer.started)
@@ -227,6 +230,7 @@ class TestAsyncController(IsolatedAsyncioTestCase):
                 SkipTargetInterrupt,
                 "Runtime for target exceeded the maximum set by the user",
             ):
+                controller.execution_config = ExecutionConfig.from_options(options)
                 await controller.start_coroutines(start_time=90)
 
         self.assertFalse(fuzzer.started)
@@ -241,6 +245,7 @@ class TestAsyncController(IsolatedAsyncioTestCase):
             patch("lib.controller.controller.time.time", return_value=100),
         ):
             with self.assertRaises(QuitInterrupt):
+                controller.execution_config = ExecutionConfig.from_options(options)
                 await controller.start_coroutines(start_time=95)
 
         self.assertFalse(fuzzer.started)

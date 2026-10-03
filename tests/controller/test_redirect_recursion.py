@@ -11,6 +11,7 @@ from lib.core.filter_config import FilterConfig
 from lib.core.request_config import RequestConfig
 from lib.core.data import options
 from lib.core.discovery_config import DiscoveryConfig
+from lib.core.execution_config import ExecutionConfig
 from lib.core.exceptions import RequestException
 from lib.parse.url import same_origin
 
@@ -44,6 +45,7 @@ class TestRedirectRecursionOrigin(TestCase):
         )
 
         self.controller = object.__new__(Controller)
+        self.controller.execution_config = ExecutionConfig()
         self.controller.discovery_config = DiscoveryConfig.from_options(options)
         self.controller._operation_lock = threading.Lock()
         self.controller.url = "https://example.test/"
@@ -195,6 +197,7 @@ class FollowedRedirectRecursionContract:
     @staticmethod
     def queued_directories(response) -> list[str]:
         controller = object.__new__(Controller)
+        controller.execution_config = ExecutionConfig()
         controller.discovery_config = DiscoveryConfig.from_options(options)
         controller._operation_lock = threading.Lock()
         controller.url = response.url.rsplit("/", 1)[0] + "/"

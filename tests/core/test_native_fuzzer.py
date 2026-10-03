@@ -6,6 +6,7 @@ from lib.connection.native import NativeScanChunk, NativeScanEvent
 from lib.connection.response import NativeResponse
 from lib.core.data import options
 from lib.core.discovery_config import DiscoveryConfig
+from lib.core.execution_config import ExecutionConfig
 from lib.core.filter_config import FilterConfig
 from lib.core.dictionary import Dictionary
 from lib.core.wordlist_config import WordlistConfig
@@ -291,6 +292,7 @@ class TestNativeFuzzer(TestCase):
             dictionary,
             filter_config=FilterConfig.from_options(options),
             discovery_config=DiscoveryConfig.from_options(options),
+            execution_config=ExecutionConfig.from_options(options),
             match_callbacks=(matches.append,),
             not_found_callbacks=(misses.append,),
             error_callbacks=(errors.append,),
@@ -532,6 +534,7 @@ class TestNativeFuzzer(TestCase):
             dictionary,
             filter_config=FilterConfig.from_options(options),
             discovery_config=DiscoveryConfig.from_options(options),
+            execution_config=ExecutionConfig.from_options(options),
             match_callbacks=(),
             not_found_callbacks=(),
             error_callbacks=(record_error,),

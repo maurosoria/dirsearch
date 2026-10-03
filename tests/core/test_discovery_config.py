@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, Mock, patch
 from lib.connection.response import NativeResponse
 from lib.core.data import options
 from lib.core.discovery_config import DiscoveryConfig
+from lib.core.execution_config import ExecutionConfig
 from lib.core.filter_config import FilterConfig
 from lib.core.fuzzer import AsyncFuzzer, Fuzzer, NativeFuzzer
 from lib.core.settings import DEFAULT_TEST_PREFIXES, DEFAULT_TEST_SUFFIXES
@@ -72,12 +73,13 @@ class TestCalibrationDiscoveryConfig(IsolatedAsyncioTestCase):
         policy = DiscoveryConfig(
             prefixes=("first-", "first-"), suffixes=(".txt",), extensions=("txt",),
         )
-        with patch.dict(options, {"delay": 0}, clear=True):
+        with patch.dict(options, {}, clear=True):
             for engine in (Fuzzer, AsyncFuzzer, NativeFuzzer):
                 with self.subTest(engine=engine.__name__):
                     fuzzer = engine(
                         CalibrationRequester(), None, filter_config=FilterConfig(),
                         discovery_config=policy,
+                        execution_config=ExecutionConfig(),
                         match_callbacks=(), not_found_callbacks=(), error_callbacks=(),
                     )
                     fuzzer.set_base_path("base/")
@@ -110,8 +112,8 @@ class TestCalibrationDiscoveryConfig(IsolatedAsyncioTestCase):
             DiscoveryConfig(prefixes=["first-"], suffixes=["~"], extensions=["txt"]),
             DiscoveryConfig(prefixes=["second-"], suffixes=[".old"], extensions=["html"]),
         )
-        # Pacing is still a separate migration. No discovery options are present.
-        with patch.dict(options, {"delay": 0}, clear=True):
+        # Both discovery and execution policy are explicit; no globals are needed.
+        with patch.dict(options, {}, clear=True):
             for engine in (Fuzzer, AsyncFuzzer, NativeFuzzer):
                 with self.subTest(engine=engine.__name__):
                     fuzzers = []
@@ -123,6 +125,7 @@ class TestCalibrationDiscoveryConfig(IsolatedAsyncioTestCase):
                         fuzzer = engine(
                             requester, None, filter_config=FilterConfig(),
                             discovery_config=policy,
+                            execution_config=ExecutionConfig(),
                             match_callbacks=(), not_found_callbacks=(), error_callbacks=(),
                         )
                         fuzzer.set_base_path("base/")

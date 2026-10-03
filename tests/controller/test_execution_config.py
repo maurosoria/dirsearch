@@ -1,0 +1,213 @@
+import os
+import tempfile
+from types import SimpleNamespace
+from unittest import TestCase
+from unittest.mock import AsyncMock, Mock, patch
+
+from lib.connection.response import NativeResponse
+from lib.controller.controller import Controller
+from lib.controller.session import SessionStore
+from lib.core.data import options
+from lib.core.dictionary import Dictionary
+from lib.core.discovery_config import DiscoveryConfig
+from lib.core.exceptions import QuitInterrupt, RequestException, SkipTargetInterrupt
+from lib.core.execution_config import ExecutionConfig
+from lib.core.settings import MAX_CONSECUTIVE_REQUEST_ERRORS
+from lib.core.wordlist_config import WordlistConfig
+
+
+def make_controller(config):
+    controller = object.__new__(Controller)
+    controller.execution_config = config
+    controller.discovery_config = DiscoveryConfig()
+    controller.start_time = 0
+    controller.errors = 0
+    controller.consecutive_errors = 0
+    return controller
+
+
+class TestControllerExecutionConfig(TestCase):
+    def test_time_limits_keep_zero_disabled_and_earliest_deadline_semantics(self):
+        cases = (
+            (0, 0, None, None),
+            (10, 0, 9, QuitInterrupt),
+            (0, 4, 3, SkipTargetInterrupt),
+            (10, 4, 3, SkipTargetInterrupt),
+            (4, 10, 3, QuitInterrupt),
+            (4, 4, 3, QuitInterrupt),
+        )
+        with patch.dict(options, {}, clear=True), patch("lib.controller.controller.time.time", return_value=1):
+            for total, target, remaining, error_type in cases:
+                with self.subTest(total=total, target=target):
+                    controller = make_controller(ExecutionConfig(max_time=total, target_max_time=target))
+                    timeout, error = controller.get_time_limit(start_time=0)
+                    self.assertEqual(timeout, remaining)
+                    if error_type is None:
+                        self.assertIsNone(error)
+                    else:
+                        self.assertIsInstance(error, error_type)
+
+    def test_expired_limit_precedence_does_not_depend_on_global_options(self):
+        with patch.dict(options, {}, clear=True), patch("lib.controller.controller.time.time", return_value=4):
+            for total, target, error in ((4, 4, QuitInterrupt), (10, 4, SkipTargetInterrupt)):
+                with self.subTest(total=total, target=target):
+                    controller = make_controller(ExecutionConfig(max_time=total, target_max_time=target))
+                    with self.assertRaises(error):
+                        controller.get_time_limit(start_time=0)
+
+    def test_threaded_polling_keeps_existing_strict_deadline_boundary(self):
+        cases = (
+            (4, 0, 4, None), (4, 0, 5, QuitInterrupt),
+            (0, 4, 4, None), (0, 4, 5, SkipTargetInterrupt),
+            (4, 4, 5, QuitInterrupt),
+        )
+        for total, target, now, error in cases:
+            with self.subTest(total=total, target=target, now=now):
+                controller = make_controller(ExecutionConfig(max_time=total, target_max_time=target))
+                controller.fuzzer = Mock()
+                controller.fuzzer.is_finished.side_effect = [False, True]
+                with (
+                    patch.dict(options, {}, clear=True),
+                    patch("lib.controller.controller.time.time", return_value=now),
+                    patch("lib.controller.controller.time.sleep") as sleep,
+                ):
+                    if error is None:
+                        controller.process(start_time=0)
+                        sleep.assert_called_once_with(0.5)
+                    else:
+                        with self.assertRaises(error):
+                            controller.process(start_time=0)
+                        sleep.assert_not_called()
+
+    def test_skip_and_error_policies_are_instance_owned(self):
+        statuses = {429}
+        stopped = make_controller(ExecutionConfig(skip_on_status=statuses, exit_on_error=True))
+        continuing = make_controller(ExecutionConfig())
+        statuses.clear()
+        response = NativeResponse("http://example.test/item", 429, [], b"")
+        error = RequestException("synthetic request failure")
+        with patch.dict(options, {}, clear=True):
+            with self.assertRaises(SkipTargetInterrupt):
+                stopped.match_callback(response)
+            with self.assertRaises(QuitInterrupt):
+                stopped.raise_error(error)
+            continuing.raise_error(error)
+        self.assertEqual(stopped.errors, 0)
+        self.assertEqual(continuing.errors, 1)
+        self.assertEqual(continuing.consecutive_errors, 1)
+        continuing.consecutive_errors = MAX_CONSECUTIVE_REQUEST_ERRORS
+        with patch.dict(options, {}, clear=True), self.assertRaises(SkipTargetInterrupt):
+            continuing.raise_error(error)
+        with (
+            patch.dict(options, {"skip_on_status": {429}, "full_url": False, "replay_proxy": None}, clear=True),
+            patch("lib.controller.controller.interface") as interface,
+        ):
+            self.assertIsNone(continuing.match_callback(response))
+        interface.status_report.assert_called_once_with(response, False)
+
+    def test_prepared_policy_is_shared_across_targets_and_agrees_with_transport(self):
+        for backend, async_mode, requester_path in (
+            ("python", False, "lib.connection.requester.Requester"),
+            ("python", True, "lib.connection.requester.AsyncRequester"),
+            ("native", False, "lib.connection.native.NativeRequester"),
+        ):
+            for resumed in (False, True):
+                with self.subTest(backend=backend, async_mode=async_mode, resumed=resumed):
+                    policies = []
+
+                    def prepare(controller, *_args):
+                        options.update(
+                            thread_count=3, delay=0.125, max_time=30, target_max_time=4,
+                            skip_on_status={429}, exit_on_error=True, session_file=None,
+                            urls=["http://first.test/", "http://second.test/"], subdirs=[],
+                        )
+                        controller.wordlist_config = WordlistConfig.from_options(options)
+                        controller.reporter = Mock(reports=())
+                        controller.dictionary = Mock()
+                        controller.directories = []
+
+                    def start(controller):
+                        policies.append(controller.fuzzer.execution_config)
+                        self.assertIs(policies[-1], controller.execution_config)
+                        options.update(thread_count=99, delay=0, max_time=0, target_max_time=0, exit_on_error=False)
+                        options["skip_on_status"].clear()
+
+                    def set_target(controller, url):
+                        controller.url = url
+
+                    requester = Mock(backend=None)
+                    if async_mode:
+                        requester.close = AsyncMock()
+                    with (
+                        patch.dict(options, {
+                            "request_backend": backend, "async_mode": async_mode,
+                            "session_file": "session.json" if resumed else None,
+                        }),
+                        patch.object(Controller, "setup", new=prepare),
+                        patch.object(Controller, "_import", new=prepare),
+                        patch.object(Controller, "set_target", new=set_target),
+                        patch.object(Controller, "crawl_target"),
+                        patch.object(Controller, "start", new=start),
+                        patch(requester_path, return_value=requester) as factory,
+                        patch("lib.controller.controller.get_blacklists", return_value={}),
+                        patch("lib.controller.controller.signal.signal"),
+                        patch("lib.controller.controller.interface"),
+                    ):
+                        controller = Controller()
+                    self.assertEqual(len(policies), 2)
+                    self.assertIs(policies[0], policies[1])
+                    self.assertEqual(controller.execution_config, ExecutionConfig(
+                        concurrency=3, delay=0.125, max_time=30, target_max_time=4,
+                        skip_on_status={429}, exit_on_error=True,
+                    ))
+                    transport = factory.call_args.args[0]
+                    self.assertEqual(transport.concurrency, controller.execution_config.concurrency)
+                    self.assertEqual(transport.delay, controller.execution_config.delay)
+
+    def test_real_checkpoint_restore_uses_saved_execution_policy(self):
+        for backend, async_mode, requester_path in (
+            ("python", False, "lib.connection.requester.Requester"),
+            ("python", True, "lib.connection.requester.AsyncRequester"),
+            ("native", False, "lib.connection.native.NativeRequester"),
+        ):
+            with self.subTest(backend=backend, async_mode=async_mode), tempfile.TemporaryDirectory() as directory:
+                saved_options = dict(options)
+                saved_options.update(
+                    request_backend=backend, async_mode=async_mode, urls=[],
+                    thread_count=3, delay=0.125, max_time=30, target_max_time=4,
+                    skip_on_status={429}, exit_on_error=True,
+                    session_file=None, output_formats=[], log_file=None,
+                    save_response=None, save_response_jsonl=None,
+                )
+                saved_controller = SimpleNamespace(
+                    start_time=100, passed_urls=set(), directories=[],
+                    jobs_processed=0, errors=0, consecutive_errors=0,
+                    base_path="", url="", old_session=False, output_history=[],
+                    dictionary=Dictionary(WordlistConfig()),
+                )
+                checkpoint = os.path.join(directory, "checkpoint")
+                SessionStore(saved_options).save(saved_controller, checkpoint, "")
+                requester = Mock(backend=None)
+                if async_mode:
+                    requester.close = AsyncMock()
+                with (
+                    patch.dict(options, {
+                        "session_file": checkpoint, "thread_count": 99, "delay": 0,
+                        "max_time": 0, "target_max_time": 0, "skip_on_status": set(),
+                        "exit_on_error": False,
+                    }),
+                    patch.object(Controller, "_confirm_session_overwrite"),
+                    patch(requester_path, return_value=requester),
+                    patch("lib.controller.controller.get_blacklists", return_value={}),
+                    patch("lib.controller.session.ReportManager", return_value=Mock(reports=())),
+                    patch("lib.controller.controller.signal.signal"),
+                    patch("lib.controller.controller.interface"),
+                    patch("builtins.print"),
+                ):
+                    controller = Controller()
+                self.assertEqual(controller.execution_config, ExecutionConfig(
+                    concurrency=3, delay=0.125, max_time=30, target_max_time=4,
+                    skip_on_status={429}, exit_on_error=True,
+                ))
+                self.assertEqual(controller.request_config.concurrency, 3)
+                self.assertEqual(controller.request_config.delay, 0.125)
