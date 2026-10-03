@@ -5,7 +5,8 @@ from unittest import IsolatedAsyncioTestCase, TestCase
 from lib.connection.native import NativeScanChunk, NativeScanEvent
 from lib.connection.response import NativeResponse
 from lib.controller.controller import Controller
-from lib.core.data import blacklists, options
+from lib.core.data import options
+from lib.core.filter_config import FilterConfig
 from lib.core.dictionary import Dictionary
 from lib.core.fuzzer import AsyncFuzzer, Fuzzer, NativeFuzzer
 
@@ -112,7 +113,6 @@ class MembershipTrackingList(list):
 class DynamicDictionaryOptionsMixin:
     def setUp(self):
         self._original_options = dict(options)
-        self._original_blacklists = dict(blacklists)
         options.update(
             {
                 "thread_count": 1,
@@ -152,13 +152,10 @@ class DynamicDictionaryOptionsMixin:
                 "exclude_subdirs": ["private/"],
             }
         )
-        blacklists.clear()
 
     def tearDown(self):
         options.clear()
         options.update(self._original_options)
-        blacklists.clear()
-        blacklists.update(self._original_blacklists)
 
     @staticmethod
     def add_dynamic_path(dictionary):
@@ -221,6 +218,7 @@ class TestSyncDynamicDictionary(DynamicDictionaryOptionsMixin, TestCase):
         fuzzer = Fuzzer(
             requester,
             dictionary,
+            filter_config=FilterConfig.from_options(options),
             match_callbacks=(),
             not_found_callbacks=(),
             error_callbacks=(),
@@ -248,6 +246,7 @@ class TestSyncDynamicDictionary(DynamicDictionaryOptionsMixin, TestCase):
         fuzzer = Fuzzer(
             requester,
             dictionary,
+            filter_config=FilterConfig.from_options(options),
             match_callbacks=(self.add_dynamic_path(dictionary),),
             not_found_callbacks=(),
             error_callbacks=(),
@@ -274,6 +273,7 @@ class TestAsyncDynamicDictionary(
         fuzzer = AsyncFuzzer(
             requester,
             dictionary,
+            filter_config=FilterConfig.from_options(options),
             match_callbacks=(),
             not_found_callbacks=(),
             error_callbacks=(),
@@ -300,6 +300,7 @@ class TestAsyncDynamicDictionary(
         fuzzer = AsyncFuzzer(
             requester,
             dictionary,
+            filter_config=FilterConfig.from_options(options),
             match_callbacks=(self.add_dynamic_path(dictionary),),
             not_found_callbacks=(),
             error_callbacks=(),
@@ -322,6 +323,7 @@ class TestNativeDynamicDictionary(DynamicDictionaryOptionsMixin, TestCase):
         fuzzer = NativeFuzzer(
             DummyNativeRequester(backend),
             dictionary,
+            filter_config=FilterConfig.from_options(options),
             match_callbacks=(),
             not_found_callbacks=(),
             error_callbacks=(),
@@ -345,6 +347,7 @@ class TestNativeDynamicDictionary(DynamicDictionaryOptionsMixin, TestCase):
         fuzzer = NativeFuzzer(
             DummyNativeRequester(backend),
             dictionary,
+            filter_config=FilterConfig.from_options(options),
             match_callbacks=(self.add_dynamic_path(dictionary),),
             not_found_callbacks=(),
             error_callbacks=(),

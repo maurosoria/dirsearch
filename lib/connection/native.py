@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import threading
 
-from collections.abc import Callable, Iterable, Iterator, Mapping
-from copy import deepcopy
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlsplit
@@ -18,6 +17,7 @@ from lib.connection.proxy import (
     proxy_error_status,
 )
 from lib.connection.response import NativeResponse
+from lib.core.filter_config import FilterConfig
 from lib.core.request_config import RequestConfig
 from lib.core.exceptions import RequestException
 from lib.core.native_runtime import (
@@ -65,7 +65,7 @@ class NativeHTTPBackend:
         self,
         config: RequestConfig,
         *,
-        filter_options: Mapping[str, Any],
+        filter_config: FilterConfig,
         proxy_override: str | None = None,
         session: Any | None = None,
         auth_override: tuple[str, str] | None = None,
@@ -81,12 +81,12 @@ class NativeHTTPBackend:
 
         self.config = config
         # Filters are supplied by orchestration, independently of request policy.
-        self._filter_options = deepcopy(dict(filter_options))
+        self.filter_config = filter_config
         self._native = dirsearch_native
         self._engine = None
         self._engine_config = None
-        self._filter_config = None
-        self._empty_filter_config = None
+        self._native_filter_config = None
+        self._empty_native_filter_config = None
         self._proxy_override = proxy_override
         self._ip_overrides = (
             ip_overrides if ip_overrides is not None else IPOverrides()
@@ -276,7 +276,7 @@ class NativeHTTPBackend:
             "query": query,
             "max_retries": self.config.max_retries,
             "max_body_size": MAX_RESPONSE_SIZE,
-            "filter_config": self._get_filter_config(True),
+            "filter_config": self._get_native_filter_config(True),
         }
         try:
             if isinstance(raw_paths, NativeWordlistChunk):
@@ -366,7 +366,7 @@ class NativeHTTPBackend:
             "query": query,
             "max_retries": self.config.max_retries,
             "max_body_size": MAX_RESPONSE_SIZE,
-            "filter_config": self._get_filter_config(apply_filters),
+            "filter_config": self._get_native_filter_config(apply_filters),
         }
         try:
             results = engine.scan(base_url, raw_paths, **scan_options)
@@ -449,26 +449,26 @@ class NativeHTTPBackend:
     def _using_proxy(self) -> bool:
         return self._proxy_override is not None or bool(self.config.proxies)
 
-    def _get_filter_config(self, apply_filters: bool):
+    def _get_native_filter_config(self, apply_filters: bool):
         if not apply_filters:
-            if self._empty_filter_config is None:
-                self._empty_filter_config = self._native.NativeFilterConfig()
-            return self._empty_filter_config
-        if self._filter_config is None:
-            self._filter_config = self._native.NativeFilterConfig(
-                **self._filter_options
+            if self._empty_native_filter_config is None:
+                self._empty_native_filter_config = self._native.NativeFilterConfig()
+            return self._empty_native_filter_config
+        if self._native_filter_config is None:
+            self._native_filter_config = self._native.NativeFilterConfig(
+                **self.filter_config.native_options()
             )
-        return self._filter_config
+        return self._native_filter_config
 
 
 class NativeRequester:
     """Minimal requester facade used by native scans and calibration."""
 
     def __init__(
-        self, config: RequestConfig, *, filter_options: Mapping[str, Any]
+        self, config: RequestConfig, *, filter_config: FilterConfig
     ) -> None:
         self.config = config
-        self._filter_options = deepcopy(dict(filter_options))
+        self.filter_config = filter_config
         self._url = ""
         self._query = ""
         self._configured_auth = (
@@ -487,7 +487,7 @@ class NativeRequester:
         if self.backend is None:
             self.backend = NativeHTTPBackend(
                 self.config,
-                filter_options=self._filter_options,
+                filter_config=self.filter_config,
                 auth_override=self._origin_auth,
                 ip_overrides=self._ip_overrides,
             )
@@ -527,7 +527,7 @@ class NativeRequester:
             origin_backend = self.get_backend()
             backend = NativeHTTPBackend(
                 self.config,
-                filter_options=self._filter_options,
+                filter_config=self.filter_config,
                 proxy_override=proxy,
                 session=origin_backend.session,
                 auth_override=self._origin_auth,

@@ -10,15 +10,15 @@ a supplied mapping; it never imports the process-wide options dictionary.
 | Translate normalized CLI/session options | `RequestConfig.from_options()` at the controller boundary |
 | Method, body, headers, configured auth, proxies, TLS files, timeout, retries and pacing | Frozen `RequestConfig` |
 | Target URL/query, target auth, cookies, IP overrides and connection pools | Each requester and its session |
-| Native matching policy | Separate filter mapping, copied before lazy compilation |
+| Matching policy | Separate immutable `FilterConfig`, shared with Python filtering |
 | Session persistence and response destinations | Existing Python controller and report adapters |
 
 The transport migration replaces direct `options` reads in
-`lib/connection/requester.py` and `lib/connection/native.py`. The old native filter
-mapping adapter moves to `lib/core/filters.py`; filter policy is deliberately not
-part of `RequestConfig`. The remaining fuzzer, scanner, logger and controller
-globals are separate migration steps. Requester isolation does not yet make two
-complete `Controller` instances safe to run together.
+`lib/connection/requester.py` and `lib/connection/native.py`. Filter policy is
+deliberately not part of `RequestConfig`; its ownership is described in
+[filter configuration](filter-configuration.md). Scheduling, discovery, logger
+and controller globals remain separate migration steps. Requester and filter
+isolation do not yet make two complete `Controller` instances safe to run together.
 
 ## Constructing a requester
 
@@ -42,9 +42,10 @@ finally:
 ```
 
 `AsyncRequester` takes the same config and has asynchronous request/close methods.
-`NativeRequester` additionally requires `filter_options`; pass `{}` when no
-native filters are wanted, or use `native_filter_options(normalized_options)` at
-the orchestration boundary. The optional extension is still loaded lazily.
+`NativeRequester` additionally requires `filter_config`; pass `FilterConfig()`
+when no explicit filters are wanted, or use
+`FilterConfig.from_options(normalized_options)` at the orchestration boundary.
+The optional extension is still loaded lazily.
 
 Headers and proxies are immutable tuples, and mutable byte buffers are copied.
 Text bodies stay text so each transport retains its existing encoding behavior.

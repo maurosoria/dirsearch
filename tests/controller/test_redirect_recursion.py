@@ -7,7 +7,7 @@ from lib.connection.native import NativeHTTPBackend
 from lib.connection.requester import AsyncRequester, Requester
 from lib.connection.response import NativeResponse
 from lib.controller.controller import Controller
-from lib.core.filters import native_filter_options
+from lib.core.filter_config import FilterConfig
 from lib.core.request_config import RequestConfig
 from lib.core.data import options
 from lib.core.exceptions import RequestException
@@ -277,7 +277,7 @@ class TestNativeFollowedRedirectRecursion(
         try:
             backend = NativeHTTPBackend(
                 RequestConfig.from_options(options),
-                filter_options=native_filter_options(options),
+                filter_config=FilterConfig.from_options(options),
             )
         except RequestException as error:
             self.skipTest(str(error))

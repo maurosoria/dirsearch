@@ -28,9 +28,11 @@ from typing import Any, Callable, Generator
 from lib.connection.native import NativeHTTPBackend, NativeRequester, NativeScanChunk
 from lib.connection.requester import AsyncRequester, BaseRequester, Requester
 from lib.connection.response import BaseResponse
-from lib.core.data import blacklists, options
+from lib.core.data import options
 from lib.core.dictionary import Dictionary
 from lib.core.exceptions import RequestException
+from lib.core.filter_config import FilterConfig
+from lib.core.filter_state import FilterState
 from lib.core.filters import matches_numeric_ranges, matches_time_filters
 from lib.core.logger import logger
 from lib.core.scanner import AsyncScanner, BaseScanner, Scanner
@@ -54,7 +56,7 @@ def response_headers_text(resp: BaseResponse) -> str:
     return "\n".join(f"{name}: {value}" for name, value in resp.headers.items())
 
 
-def matches_header_text(resp: BaseResponse, patterns: list[str]) -> bool:
+def matches_header_text(resp: BaseResponse, patterns: tuple[str, ...]) -> bool:
     headers = response_headers_text(resp).lower()
     return any(pattern.lower() in headers for pattern in patterns)
 
@@ -69,6 +71,7 @@ class BaseFuzzer:
         requester: BaseRequester,
         dictionary: Dictionary,
         *,
+        filter_config: FilterConfig,
         match_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         not_found_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         error_callbacks: tuple[Callable[[RequestException], Any], ...],
@@ -76,79 +79,73 @@ class BaseFuzzer:
         self._requester = requester
         self._dictionary = dictionary
         self._base_path: str = ""
-        self._filter_fingerprints: dict[int, int] = {}
+        self.filter_config = filter_config
+        self.filter_state = FilterState()
         self.match_callbacks = match_callbacks
         self.not_found_callbacks = not_found_callbacks
         self.error_callbacks = error_callbacks
-        self._similar_fingerprints: dict[tuple, int] = {}
-        self._auto_calibrated_fingerprints: set[tuple] = set()
-        self._filter_state_lock = threading.Lock()
-
-        self.scanners: dict[str, dict[str, Scanner]] = {
-            "default": {},
-            "prefixes": {},
-            "suffixes": {},
-        }
 
     def set_base_path(self, path: str) -> None:
         self._base_path = path
 
     def get_scanners_for(self, path: str) -> Generator[BaseScanner, None, None]:
+        scanners = self.filter_state.scanners
         # Clean the path, so can check for extensions/suffixes
         path = clean_path(path)
 
-        for prefix in self.scanners["prefixes"]:
+        for prefix in scanners["prefixes"]:
             if path.startswith(prefix):
-                yield self.scanners["prefixes"][prefix]
+                yield scanners["prefixes"][prefix]
 
-        for suffix in self.scanners["suffixes"]:
+        for suffix in scanners["suffixes"]:
             if path.endswith(suffix):
-                yield self.scanners["suffixes"][suffix]
+                yield scanners["suffixes"][suffix]
 
-        for scanner in self.scanners["default"].values():
+        for scanner in scanners["default"].values():
             yield scanner
 
     def is_excluded(self, resp: BaseResponse) -> bool:
         """Validate the response by different filters"""
+        config = self.filter_config
 
-        if resp.status in options["exclude_status_codes"]:
+        if resp.status in config.exclude_status_codes:
             return True
 
         if (
-            options["include_status_codes"]
-            and resp.status not in options["include_status_codes"]
+            config.include_status_codes
+            and resp.status not in config.include_status_codes
         ):
             return True
 
         if (
-            resp.status in blacklists
+            resp.status in config.blacklists
             and any(
                 resp.path.endswith(lstrip_once(suffix, "/"))
-                for suffix in blacklists.get(resp.status)
+                for suffix in config.blacklists[resp.status]
             )
         ):
             return True
 
-        if resp.length in options["exclude_sizes"]:
+        if resp.length in config.exclude_sizes:
             return True
 
-        if resp.length < options["minimum_response_size"]:
+        if resp.length < config.minimum_response_size:
             return True
 
-        if resp.length > options["maximum_response_size"] > 0:
+        if resp.length > config.maximum_response_size > 0:
             return True
 
-        if any(text in resp.content for text in options["exclude_texts"]):
+        if any(text in resp.content for text in config.exclude_texts):
             return True
 
-        if options["exclude_regex"] and re.search(options["exclude_regex"], resp.content):
+        if config.exclude_regex and re.search(config.exclude_regex, resp.content):
             return True
 
         if (
-            options["exclude_redirect"]
+            config.exclude_redirect
             and (
-                options["exclude_redirect"] in resp.redirect
-                or re.search(options["exclude_redirect"], resp.redirect)
+                config.exclude_redirect in resp.redirect
+                or re.search(config.exclude_redirect, resp.redirect)
             )
         ):
             return True
@@ -165,48 +162,50 @@ class BaseFuzzer:
         return False
 
     def matches_advanced_matchers(self, resp: BaseResponse) -> bool:
+        config = self.filter_config
         checks = []
 
-        if options["match_status_codes"]:
-            checks.append(resp.status in options["match_status_codes"])
-        if options["match_sizes"]:
-            checks.append(matches_numeric_ranges(resp.length, options["match_sizes"]))
-        if options["match_words"]:
-            checks.append(matches_numeric_ranges(resp.words, options["match_words"]))
-        if options["match_lines"]:
-            checks.append(matches_numeric_ranges(resp.lines, options["match_lines"]))
-        if options["match_regex"]:
-            checks.append(bool(re.search(options["match_regex"], resp.text)))
-        if options["match_headers"]:
-            checks.append(matches_header_text(resp, options["match_headers"]))
-        if options["match_header_regex"]:
-            checks.append(matches_header_regex(resp, options["match_header_regex"]))
-        if options["match_time"]:
-            checks.append(matches_time_filters(resp.elapsed, options["match_time"]))
+        if config.match_status_codes:
+            checks.append(resp.status in config.match_status_codes)
+        if config.match_sizes:
+            checks.append(matches_numeric_ranges(resp.length, config.match_sizes))
+        if config.match_words:
+            checks.append(matches_numeric_ranges(resp.words, config.match_words))
+        if config.match_lines:
+            checks.append(matches_numeric_ranges(resp.lines, config.match_lines))
+        if config.match_regex:
+            checks.append(bool(re.search(config.match_regex, resp.text)))
+        if config.match_headers:
+            checks.append(matches_header_text(resp, config.match_headers))
+        if config.match_header_regex:
+            checks.append(matches_header_regex(resp, config.match_header_regex))
+        if config.match_time:
+            checks.append(matches_time_filters(resp.elapsed, config.match_time))
 
-        return self._combine_advanced_checks(checks, options["matcher_mode"], default=True)
+        return self._combine_advanced_checks(checks, config.matcher_mode, default=True)
 
     def matches_advanced_filters(self, resp: BaseResponse) -> bool:
+        config = self.filter_config
         checks = []
 
-        if options["filter_status_codes"]:
-            checks.append(resp.status in options["filter_status_codes"])
-        if options["filter_sizes"]:
-            checks.append(matches_numeric_ranges(resp.length, options["filter_sizes"]))
-        if options["filter_words"]:
-            checks.append(matches_numeric_ranges(resp.words, options["filter_words"]))
-        if options["filter_lines"]:
-            checks.append(matches_numeric_ranges(resp.lines, options["filter_lines"]))
-        if options["filter_regex"]:
-            checks.append(bool(re.search(options["filter_regex"], resp.text)))
-        if options["filter_headers"]:
-            checks.append(matches_header_text(resp, options["filter_headers"]))
-        if options["filter_header_regex"]:
-            checks.append(matches_header_regex(resp, options["filter_header_regex"]))
-        if options["filter_time"]:
-            checks.append(matches_time_filters(resp.elapsed, options["filter_time"]))
+        if config.filter_status_codes:
+            checks.append(resp.status in config.filter_status_codes)
+        if config.filter_sizes:
+            checks.append(matches_numeric_ranges(resp.length, config.filter_sizes))
+        if config.filter_words:
+            checks.append(matches_numeric_ranges(resp.words, config.filter_words))
+        if config.filter_lines:
+            checks.append(matches_numeric_ranges(resp.lines, config.filter_lines))
+        if config.filter_regex:
+            checks.append(bool(re.search(config.filter_regex, resp.text)))
+        if config.filter_headers:
+            checks.append(matches_header_text(resp, config.filter_headers))
+        if config.filter_header_regex:
+            checks.append(matches_header_regex(resp, config.filter_header_regex))
+        if config.filter_time:
+            checks.append(matches_time_filters(resp.elapsed, config.filter_time))
 
-        return self._combine_advanced_checks(checks, options["filter_mode"], default=False)
+        return self._combine_advanced_checks(checks, config.filter_mode, default=False)
 
     @staticmethod
     def _combine_advanced_checks(checks: list[bool], mode: str, default: bool) -> bool:
@@ -219,25 +218,26 @@ class BaseFuzzer:
         return any(checks)
 
     def is_auto_calibrated(self, resp: BaseResponse) -> bool:
+        state = self.filter_state
         fingerprint = self.response_fingerprint(resp)
         should_record = self.should_record_auto_calibration(resp)
         threshold = (
             AUTO_CALIBRATION_FORCED_THRESHOLD
-            if options["auto_calibration"]
+            if self.filter_config.auto_calibration
             else AUTO_CALIBRATION_DUPLICATE_THRESHOLD
         )
         repeated_fingerprint = False
-        with self._filter_state_lock:
-            if fingerprint in self._auto_calibrated_fingerprints:
+        with state.lock:
+            if fingerprint in state.auto_calibrated_fingerprints:
                 repeated_fingerprint = True
             elif not should_record:
                 return False
             else:
-                count = self._similar_fingerprints.get(fingerprint, 0) + 1
-                self._similar_fingerprints[fingerprint] = count
+                count = state.similar_fingerprints.get(fingerprint, 0) + 1
+                state.similar_fingerprints[fingerprint] = count
                 if count < threshold:
                     return False
-                self._auto_calibrated_fingerprints.add(fingerprint)
+                state.auto_calibrated_fingerprints.add(fingerprint)
 
         if repeated_fingerprint:
             logger.debug(f'"{resp.url}" filtered by auto-calibration fingerprint')
@@ -249,16 +249,17 @@ class BaseFuzzer:
         return True
 
     def is_filter_threshold_reached(self, resp: BaseResponse) -> bool:
-        threshold = options["filter_threshold"]
+        state = self.filter_state
+        threshold = self.filter_config.filter_threshold
         if not threshold:
             return False
 
         fingerprint = resp.filter_fingerprint
-        with self._filter_state_lock:
-            count = self._filter_fingerprints.get(fingerprint, 0)
+        with state.lock:
+            count = state.filter_fingerprints.get(fingerprint, 0)
             if count >= threshold:
                 return True
-            self._filter_fingerprints[fingerprint] = count + 1
+            state.filter_fingerprints[fingerprint] = count + 1
         return False
 
     def should_record_auto_calibration(self, resp: BaseResponse) -> bool:
@@ -268,7 +269,7 @@ class BaseFuzzer:
         if resp.length < AUTO_CALIBRATION_MIN_CONTENT_LENGTH:
             return False
 
-        if options["auto_calibration"]:
+        if self.filter_config.auto_calibration:
             return True
 
         if 400 <= resp.status <= 599:
@@ -280,18 +281,18 @@ class BaseFuzzer:
 
         return bool(resp.redirect)
 
-    @staticmethod
-    def has_advanced_matchers() -> bool:
+    def has_advanced_matchers(self) -> bool:
+        config = self.filter_config
         return any(
             (
-                options["match_status_codes"],
-                options["match_sizes"],
-                options["match_words"],
-                options["match_lines"],
-                options["match_regex"],
-                options["match_headers"],
-                options["match_header_regex"],
-                options["match_time"],
+                config.match_status_codes,
+                config.match_sizes,
+                config.match_words,
+                config.match_lines,
+                config.match_regex,
+                config.match_headers,
+                config.match_header_regex,
+                config.match_time,
             )
         )
 
@@ -342,6 +343,7 @@ class Fuzzer(BaseFuzzer):
         requester: Requester,
         dictionary: Dictionary,
         *,
+        filter_config: FilterConfig,
         match_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         not_found_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         error_callbacks: tuple[Callable[[RequestException], Any], ...],
@@ -349,6 +351,7 @@ class Fuzzer(BaseFuzzer):
         super().__init__(
             requester,
             dictionary,
+            filter_config=filter_config,
             match_callbacks=match_callbacks,
             not_found_callbacks=not_found_callbacks,
             error_callbacks=error_callbacks,
@@ -361,37 +364,51 @@ class Fuzzer(BaseFuzzer):
         self._pause_semaphore = threading.Semaphore(0)
 
     def setup_scanners(self) -> None:
+        scanners = self.filter_state.scanners
         # Default scanners (wildcard testers)
-        self.scanners["default"]["random"] = Scanner(
-            self._requester, path=self._base_path + WILDCARD_TEST_POINT_MARKER
+        scanners["default"]["random"] = Scanner(
+            self._requester,
+            filter_config=self.filter_config,
+            delay=options["delay"],
+            path=self._base_path + WILDCARD_TEST_POINT_MARKER,
         )
 
-        if options["exclude_response"]:
-            self.scanners["default"]["custom"] = Scanner(
-                self._requester, tested=self.scanners, path=options["exclude_response"]
+        if self.filter_config.exclude_response:
+            scanners["default"]["custom"] = Scanner(
+                self._requester,
+                filter_config=self.filter_config,
+                delay=options["delay"],
+                tested=scanners,
+                path=self.filter_config.exclude_response,
             )
 
         for prefix in set(options["prefixes"] + DEFAULT_TEST_PREFIXES):
-            self.scanners["prefixes"][prefix] = Scanner(
+            scanners["prefixes"][prefix] = Scanner(
                 self._requester,
-                tested=self.scanners,
+                filter_config=self.filter_config,
+                delay=options["delay"],
+                tested=scanners,
                 path=f"{self._base_path}{prefix}{WILDCARD_TEST_POINT_MARKER}",
                 context=f"/{self._base_path}{prefix}***",
             )
 
         for suffix in set(options["suffixes"] + DEFAULT_TEST_SUFFIXES):
-            self.scanners["suffixes"][suffix] = Scanner(
+            scanners["suffixes"][suffix] = Scanner(
                 self._requester,
-                tested=self.scanners,
+                filter_config=self.filter_config,
+                delay=options["delay"],
+                tested=scanners,
                 path=f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}{suffix}",
                 context=f"/{self._base_path}***{suffix}",
             )
 
         for extension in options["extensions"]:
-            if "." + extension not in self.scanners["suffixes"]:
-                self.scanners["suffixes"]["." + extension] = Scanner(
+            if "." + extension not in scanners["suffixes"]:
+                scanners["suffixes"]["." + extension] = Scanner(
                     self._requester,
-                    tested=self.scanners,
+                    filter_config=self.filter_config,
+                    delay=options["delay"],
+                    tested=scanners,
                     path=f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}.{extension}",
                     context=f"/{self._base_path}***.{extension}",
                 )
@@ -516,6 +533,7 @@ class NativeFuzzer(Fuzzer):
         requester: NativeRequester,
         dictionary: Dictionary,
         *,
+        filter_config: FilterConfig,
         match_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         not_found_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         error_callbacks: tuple[Callable[[RequestException], Any], ...],
@@ -524,6 +542,7 @@ class NativeFuzzer(Fuzzer):
         super().__init__(
             requester,
             dictionary,
+            filter_config=filter_config,
             match_callbacks=match_callbacks,
             not_found_callbacks=not_found_callbacks,
             error_callbacks=error_callbacks,
@@ -743,6 +762,7 @@ class AsyncFuzzer(BaseFuzzer):
         requester: AsyncRequester,
         dictionary: Dictionary,
         *,
+        filter_config: FilterConfig,
         match_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         not_found_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         error_callbacks: tuple[Callable[[RequestException], Any], ...],
@@ -750,6 +770,7 @@ class AsyncFuzzer(BaseFuzzer):
         super().__init__(
             requester,
             dictionary,
+            filter_config=filter_config,
             match_callbacks=match_callbacks,
             not_found_callbacks=not_found_callbacks,
             error_callbacks=error_callbacks,
@@ -758,37 +779,51 @@ class AsyncFuzzer(BaseFuzzer):
         self._background_tasks = set()
 
     async def setup_scanners(self) -> None:
+        scanners = self.filter_state.scanners
         # Default scanners (wildcard testers)
-        self.scanners["default"]["random"] = await AsyncScanner.create(
-            self._requester, path=self._base_path + WILDCARD_TEST_POINT_MARKER
+        scanners["default"]["random"] = await AsyncScanner.create(
+            self._requester,
+            filter_config=self.filter_config,
+            delay=options["delay"],
+            path=self._base_path + WILDCARD_TEST_POINT_MARKER,
         )
 
-        if options["exclude_response"]:
-            self.scanners["default"]["custom"] = await AsyncScanner.create(
-                self._requester, tested=self.scanners, path=options["exclude_response"]
+        if self.filter_config.exclude_response:
+            scanners["default"]["custom"] = await AsyncScanner.create(
+                self._requester,
+                filter_config=self.filter_config,
+                delay=options["delay"],
+                tested=scanners,
+                path=self.filter_config.exclude_response,
             )
 
         for prefix in options["prefixes"] + DEFAULT_TEST_PREFIXES:
-            self.scanners["prefixes"][prefix] = await AsyncScanner.create(
+            scanners["prefixes"][prefix] = await AsyncScanner.create(
                 self._requester,
-                tested=self.scanners,
+                filter_config=self.filter_config,
+                delay=options["delay"],
+                tested=scanners,
                 path=f"{self._base_path}{prefix}{WILDCARD_TEST_POINT_MARKER}",
                 context=f"/{self._base_path}{prefix}***",
             )
 
         for suffix in options["suffixes"] + DEFAULT_TEST_SUFFIXES:
-            self.scanners["suffixes"][suffix] = await AsyncScanner.create(
+            scanners["suffixes"][suffix] = await AsyncScanner.create(
                 self._requester,
-                tested=self.scanners,
+                filter_config=self.filter_config,
+                delay=options["delay"],
+                tested=scanners,
                 path=f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}{suffix}",
                 context=f"/{self._base_path}***{suffix}",
             )
 
         for extension in options["extensions"]:
-            if "." + extension not in self.scanners["suffixes"]:
-                self.scanners["suffixes"]["." + extension] = await AsyncScanner.create(
+            if "." + extension not in scanners["suffixes"]:
+                scanners["suffixes"]["." + extension] = await AsyncScanner.create(
                     self._requester,
-                    tested=self.scanners,
+                    filter_config=self.filter_config,
+                    delay=options["delay"],
+                    tested=scanners,
                     path=f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}.{extension}",
                     context=f"/{self._base_path}***.{extension}",
                 )

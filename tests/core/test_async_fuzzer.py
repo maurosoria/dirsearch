@@ -2,7 +2,8 @@ import asyncio
 from unittest import IsolatedAsyncioTestCase
 
 from lib.connection.response import NativeResponse
-from lib.core.data import blacklists, options
+from lib.core.data import options
+from lib.core.filter_config import FilterConfig
 from lib.core.dictionary import Dictionary
 from lib.core.fuzzer import AsyncFuzzer
 
@@ -64,7 +65,6 @@ def make_dictionary(paths):
 class TestAsyncFuzzer(IsolatedAsyncioTestCase):
     def setUp(self):
         self.original_options = dict(options)
-        self.original_blacklists = dict(blacklists)
         options.update(
             {
                 "thread_count": 1,
@@ -84,13 +84,10 @@ class TestAsyncFuzzer(IsolatedAsyncioTestCase):
                 "extensions": (),
             }
         )
-        blacklists.clear()
 
     def tearDown(self):
         options.clear()
         options.update(self.original_options)
-        blacklists.clear()
-        blacklists.update(self.original_blacklists)
 
     async def test_does_not_filter_response_matching_index_page(self):
         dictionary = DummyDictionary(["home.html"])
@@ -100,6 +97,7 @@ class TestAsyncFuzzer(IsolatedAsyncioTestCase):
         fuzzer = AsyncFuzzer(
             DummyAsyncRequester(),
             dictionary,
+            filter_config=FilterConfig.from_options(options),
             match_callbacks=(matches.append,),
             not_found_callbacks=(misses.append,),
             error_callbacks=(errors.append,),
@@ -118,6 +116,7 @@ class TestAsyncFuzzer(IsolatedAsyncioTestCase):
         fuzzer = AsyncFuzzer(
             requester,
             dictionary,
+            filter_config=FilterConfig.from_options(options),
             match_callbacks=(),
             not_found_callbacks=(),
             error_callbacks=(),
@@ -157,6 +156,7 @@ class TestAsyncFuzzer(IsolatedAsyncioTestCase):
         fuzzer = AsyncFuzzer(
             DummyAsyncRequester(),
             dictionary,
+            filter_config=FilterConfig.from_options(options),
             match_callbacks=(save_match,),
             not_found_callbacks=(),
             error_callbacks=(),

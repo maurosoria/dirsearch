@@ -4,7 +4,8 @@ from unittest import IsolatedAsyncioTestCase, TestCase
 
 from lib.connection.native import NativeScanChunk, NativeScanEvent
 from lib.connection.response import NativeResponse
-from lib.core.data import blacklists, options
+from lib.core.data import options
+from lib.core.filter_config import FilterConfig
 from lib.core.fuzzer import AsyncFuzzer, Fuzzer, NativeFuzzer
 
 
@@ -110,7 +111,6 @@ class FilteringNativeBackend:
 class FilterStackOptionsMixin:
     def setUp(self):
         self.original_options = dict(options)
-        self.original_blacklists = dict(blacklists)
         options.update(
             {
                 "thread_count": 1,
@@ -145,13 +145,10 @@ class FilterStackOptionsMixin:
                 "filter_time": (),
             }
         )
-        blacklists.clear()
 
     def tearDown(self):
         options.clear()
         options.update(self.original_options)
-        blacklists.clear()
-        blacklists.update(self.original_blacklists)
 
 
 class TestSyncFuzzerFilterStack(FilterStackOptionsMixin, TestCase):
@@ -162,6 +159,7 @@ class TestSyncFuzzerFilterStack(FilterStackOptionsMixin, TestCase):
         fuzzer = Fuzzer(
             DummySyncRequester(),
             DummyDictionary([]),
+            filter_config=FilterConfig.from_options(options),
             match_callbacks=(matches.append,),
             not_found_callbacks=(misses.append,),
             error_callbacks=(),
@@ -179,6 +177,7 @@ class TestSyncFuzzerFilterStack(FilterStackOptionsMixin, TestCase):
         fuzzer = Fuzzer(
             DummySyncRequester(),
             DummyDictionary([]),
+            filter_config=FilterConfig.from_options(options),
             match_callbacks=(matches.append,),
             not_found_callbacks=(misses.append,),
             error_callbacks=(),
@@ -192,7 +191,7 @@ class TestSyncFuzzerFilterStack(FilterStackOptionsMixin, TestCase):
                 scanner_barrier.wait(timeout=2)
                 return True
 
-        fuzzer.scanners["default"]["barrier"] = BarrierScanner()
+        fuzzer.filter_state.scanners["default"]["barrier"] = BarrierScanner()
         responses = (
             stack_response("first", b"missing /first"),
             stack_response("second", b"missing /second"),
@@ -228,6 +227,7 @@ class TestSyncFuzzerFilterStack(FilterStackOptionsMixin, TestCase):
         fuzzer = Fuzzer(
             DummySyncRequester(),
             dictionary,
+            filter_config=FilterConfig.from_options(options),
             match_callbacks=(matches.append,),
             not_found_callbacks=(misses.append,),
             error_callbacks=(errors.append,),
@@ -257,6 +257,7 @@ class TestAsyncFuzzerFilterStack(FilterStackOptionsMixin, IsolatedAsyncioTestCas
         fuzzer = AsyncFuzzer(
             DummyAsyncRequester(),
             dictionary,
+            filter_config=FilterConfig.from_options(options),
             match_callbacks=(matches.append,),
             not_found_callbacks=(misses.append,),
             error_callbacks=(errors.append,),
@@ -280,6 +281,7 @@ class TestNativeFuzzerFilterStack(FilterStackOptionsMixin, TestCase):
         fuzzer = NativeFuzzer(
             DummyNativeRequester(backend),
             dictionary,
+            filter_config=FilterConfig.from_options(options),
             match_callbacks=(matches.append,),
             not_found_callbacks=(misses.append,),
             error_callbacks=(errors.append,),
@@ -310,6 +312,7 @@ class TestAdvancedRegexFilterParity(
         sync_fuzzer = Fuzzer(
             DummySyncRequester(),
             DummyDictionary(["keep", "drop"]),
+            filter_config=FilterConfig.from_options(options),
             match_callbacks=(sync_matches.append,),
             not_found_callbacks=(sync_misses.append,),
             error_callbacks=(sync_errors.append,),
@@ -328,6 +331,7 @@ class TestAdvancedRegexFilterParity(
         async_fuzzer = AsyncFuzzer(
             DummyAsyncRequester(),
             DummyDictionary(["keep", "drop"]),
+            filter_config=FilterConfig.from_options(options),
             match_callbacks=(async_matches.append,),
             not_found_callbacks=(async_misses.append,),
             error_callbacks=(async_errors.append,),
@@ -346,6 +350,7 @@ class TestAdvancedRegexFilterParity(
         native_fuzzer = NativeFuzzer(
             DummyNativeRequester(FilteringNativeBackend()),
             DummyDictionary(["keep", "drop"]),
+            filter_config=FilterConfig.from_options(options),
             match_callbacks=(native_matches.append,),
             not_found_callbacks=(native_misses.append,),
             error_callbacks=(native_errors.append,),

@@ -12,6 +12,7 @@ from lib.connection.native import NativeHTTPBackend, NativeRequester
 from lib.connection.requester import AsyncRequester, Requester
 from lib.core.data import options
 from lib.core.native_runtime import get_native_extension_version_error
+from lib.core.filter_config import FilterConfig
 from lib.core.request_config import RequestConfig
 from tests.connection.test_native_backend import FakeNativeModule
 
@@ -115,7 +116,7 @@ class TestRequestConfigIsolation(TestCase):
             try:
                 for index, config in enumerate(self.configs):
                     requester = (
-                        NativeRequester(config, filter_options={})
+                        NativeRequester(config, filter_config=FilterConfig())
                         if native else Requester(config)
                     )
                     requesters.append(requester)
@@ -187,7 +188,7 @@ class TestNativeConfigSnapshot(TestCase):
         )
         filters = {"include_status_codes": [200], "match_sizes": [[1, 10]]}
         with patch.dict("sys.modules", {"dirsearch_native": fake_native}):
-            requester = NativeRequester(config, filter_options=filters)
+            requester = NativeRequester(config, filter_config=FilterConfig(**filters))
             requester.set_url("http://example.test/")
             filters["include_status_codes"].append(404)
             filters["match_sizes"][0][1] = 99
@@ -222,22 +223,21 @@ class TestNativeConfigSnapshot(TestCase):
             fake_native.engines[0].config["proxies"],
             fake_native.engines[2].config["proxies"],
         )
-        self.assertEqual(fake_native.filter_configs[0].config, {
-            "include_status_codes": [200], "match_sizes": [[1, 10]],
-        })
+        self.assertEqual(fake_native.filter_configs[0].config["include_status_codes"], [200])
+        self.assertEqual(fake_native.filter_configs[0].config["match_sizes"], [(1, 10)])
 
-    def test_direct_backend_copies_filters_before_lazy_compilation(self):
+    def test_direct_backend_uses_detached_filters_at_lazy_compilation(self):
         fake_native = FakeNativeModule()
         filters = {"filter_sizes": [[5, 10]]}
         with (
             patch.dict("sys.modules", {"dirsearch_native": fake_native}),
             patch.dict(options, {}, clear=True),
         ):
-            backend = NativeHTTPBackend(RequestConfig(), filter_options=filters)
+            backend = NativeHTTPBackend(RequestConfig(), filter_config=FilterConfig(**filters))
             try:
                 filters["filter_sizes"][0][1] = 99
                 list(backend.scan("http://example.test/", ["first"]))
             finally:
                 backend.close()
 
-        self.assertEqual(fake_native.filter_configs[0].config, {"filter_sizes": [[5, 10]]})
+        self.assertEqual(fake_native.filter_configs[0].config["filter_sizes"], [(5, 10)])

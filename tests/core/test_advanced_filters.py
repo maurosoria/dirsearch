@@ -1,7 +1,7 @@
 from unittest import TestCase
 
 from lib.connection.response import NativeResponse
-from lib.core.data import blacklists, options
+from lib.core.filter_config import FilterConfig
 from lib.core.filters import (
     parse_numeric_ranges,
     parse_size,
@@ -28,101 +28,69 @@ def response(path="admin", status=200, body=b"admin panel", elapsed=0.0, headers
 
 class TestAdvancedFilters(TestCase):
     def setUp(self):
-        self.original_options = dict(options)
-        self.original_blacklists = dict(blacklists)
-        options.update(
-            {
-                "exclude_status_codes": set(),
-                "include_status_codes": set(),
-                "exclude_sizes": set(),
-                "minimum_response_size": 0,
-                "maximum_response_size": 0,
-                "exclude_texts": [],
-                "exclude_regex": None,
-                "exclude_redirect": None,
-                "filter_threshold": 0,
-                "auto_calibration": False,
-                "matcher_mode": "or",
-                "filter_mode": "or",
-                "match_status_codes": set(),
-                "filter_status_codes": set(),
-                "match_sizes": (),
-                "filter_sizes": (),
-                "match_words": (),
-                "filter_words": (),
-                "match_lines": (),
-                "filter_lines": (),
-                "match_regex": None,
-                "filter_regex": None,
-                "match_headers": [],
-                "filter_headers": [],
-                "match_header_regex": None,
-                "filter_header_regex": None,
-                "match_time": (),
-                "filter_time": (),
-            }
-        )
-        blacklists.clear()
-        self.fuzzer = BaseFuzzer(
+        self.filter_options = {}
+
+    def make_fuzzer(self):
+        return BaseFuzzer(
             None,
             DummyDictionary(),
+            filter_config=FilterConfig(**self.filter_options),
             match_callbacks=(),
             not_found_callbacks=(),
             error_callbacks=(),
         )
 
-    def tearDown(self):
-        options.clear()
-        options.update(self.original_options)
-        blacklists.clear()
-        blacklists.update(self.original_blacklists)
-
     def test_match_status_is_opt_in(self):
-        options["match_status_codes"] = {200}
+        self.filter_options["match_status_codes"] = {200}
 
-        self.assertFalse(self.fuzzer.is_excluded(response(status=200)))
-        self.assertTrue(self.fuzzer.is_excluded(response(status=404)))
+        fuzzer = self.make_fuzzer()
+        self.assertFalse(fuzzer.is_excluded(response(status=200)))
+        self.assertTrue(fuzzer.is_excluded(response(status=404)))
 
     def test_filter_regex_excludes_response_body(self):
-        options["filter_regex"] = "not found"
+        self.filter_options["filter_regex"] = "not found"
 
-        self.assertTrue(self.fuzzer.is_excluded(response(body=b"not found")))
-        self.assertFalse(self.fuzzer.is_excluded(response(body=b"admin panel")))
+        fuzzer = self.make_fuzzer()
+        self.assertTrue(fuzzer.is_excluded(response(body=b"not found")))
+        self.assertFalse(fuzzer.is_excluded(response(body=b"admin panel")))
 
     def test_header_text_matchers_are_case_insensitive(self):
-        options["match_headers"] = ["etag: w/\"123"]
+        self.filter_options["match_headers"] = ["etag: w/\"123"]
 
+        fuzzer = self.make_fuzzer()
         self.assertFalse(
-            self.fuzzer.is_excluded(
+            fuzzer.is_excluded(
                 response(headers=[("ETag", 'W/"123-abc"')])
             )
         )
         self.assertTrue(
-            self.fuzzer.is_excluded(
+            fuzzer.is_excluded(
                 response(headers=[("X-Cache", "real")])
             )
         )
 
     def test_header_text_filters_exclude_matching_responses(self):
-        options["filter_headers"] = ["x-cache: fallback"]
+        self.filter_options["filter_headers"] = ["x-cache: fallback"]
 
+        fuzzer = self.make_fuzzer()
         self.assertTrue(
-            self.fuzzer.is_excluded(
+            fuzzer.is_excluded(
                 response(headers=[("X-Cache", "fallback")])
             )
         )
         self.assertFalse(
-            self.fuzzer.is_excluded(
+            fuzzer.is_excluded(
                 response(headers=[("X-Cache", "real")])
             )
         )
 
     def test_header_regex_matchers_and_filters(self):
-        options["match_header_regex"] = r"ETag: W/\"[0-9]+"
-        options["filter_header_regex"] = r"X-Cache: fallback-[0-9]+"
+        self.filter_options["match_header_regex"] = r"ETag: W/\"[0-9]+"
+        self.filter_options["filter_header_regex"] = r"X-Cache: fallback-[0-9]+"
 
+        fuzzer = self.make_fuzzer()
         self.assertFalse(
-            self.fuzzer.is_excluded(
+            fuzzer.is_excluded(
                 response(
                     headers=[
                         ("ETag", 'W/"123-abc"'),
@@ -132,7 +100,7 @@ class TestAdvancedFilters(TestCase):
             )
         )
         self.assertTrue(
-            self.fuzzer.is_excluded(
+            fuzzer.is_excluded(
                 response(
                     headers=[
                         ("ETag", 'W/"123-abc"'),
@@ -155,66 +123,72 @@ class TestAdvancedFilters(TestCase):
             parse_size("12XB")
 
     def test_exclude_sizes_match_raw_bytes_and_units(self):
-        options["exclude_sizes"] = parse_size_list("1024,2KB")
+        self.filter_options["exclude_sizes"] = parse_size_list("1024,2KB")
 
-        self.assertTrue(self.fuzzer.is_excluded(response(body=b"x" * 1024)))
-        self.assertTrue(self.fuzzer.is_excluded(response(body=b"x" * 2048)))
-        self.assertFalse(self.fuzzer.is_excluded(response(body=b"x" * 1536)))
+        fuzzer = self.make_fuzzer()
+        self.assertTrue(fuzzer.is_excluded(response(body=b"x" * 1024)))
+        self.assertTrue(fuzzer.is_excluded(response(body=b"x" * 2048)))
+        self.assertFalse(fuzzer.is_excluded(response(body=b"x" * 1536)))
 
     def test_min_and_max_response_sizes_use_parsed_bytes(self):
-        options["minimum_response_size"] = parse_size("1KB")
-        options["maximum_response_size"] = parse_size("2KB")
+        self.filter_options["minimum_response_size"] = parse_size("1KB")
+        self.filter_options["maximum_response_size"] = parse_size("2KB")
 
-        self.assertTrue(self.fuzzer.is_excluded(response(body=b"x" * 1023)))
-        self.assertFalse(self.fuzzer.is_excluded(response(body=b"x" * 1024)))
-        self.assertFalse(self.fuzzer.is_excluded(response(body=b"x" * 2048)))
-        self.assertTrue(self.fuzzer.is_excluded(response(body=b"x" * 2049)))
+        fuzzer = self.make_fuzzer()
+        self.assertTrue(fuzzer.is_excluded(response(body=b"x" * 1023)))
+        self.assertFalse(fuzzer.is_excluded(response(body=b"x" * 1024)))
+        self.assertFalse(fuzzer.is_excluded(response(body=b"x" * 2048)))
+        self.assertTrue(fuzzer.is_excluded(response(body=b"x" * 2049)))
 
     def test_size_words_lines_and_time_filters(self):
-        options["match_sizes"] = parse_numeric_ranges("10-20")
-        options["match_words"] = parse_numeric_ranges("2")
-        options["match_lines"] = parse_numeric_ranges("1")
-        options["match_time"] = parse_time_filters(">100")
-        options["matcher_mode"] = "and"
+        self.filter_options["match_sizes"] = parse_numeric_ranges("10-20")
+        self.filter_options["match_words"] = parse_numeric_ranges("2")
+        self.filter_options["match_lines"] = parse_numeric_ranges("1")
+        self.filter_options["match_time"] = parse_time_filters(">100")
+        self.filter_options["matcher_mode"] = "and"
 
+        fuzzer = self.make_fuzzer()
         self.assertFalse(
-            self.fuzzer.is_excluded(
+            fuzzer.is_excluded(
                 response(body=b"admin panel", elapsed=0.2)
             )
         )
         self.assertTrue(
-            self.fuzzer.is_excluded(
+            fuzzer.is_excluded(
                 response(body=b"admin panel", elapsed=0.05)
             )
         )
 
     def test_header_text_matcher_disables_auto_calibration(self):
-        options["auto_calibration"] = True
-        options["match_headers"] = ["x-result: found"]
+        self.filter_options["auto_calibration"] = True
+        self.filter_options["match_headers"] = ["x-result: found"]
         candidate = response(
             body=b"repeated response body that is long enough for calibration",
             headers=[("X-Result", "found")],
         )
 
-        self.assertFalse(self.fuzzer.should_record_auto_calibration(candidate))
+        fuzzer = self.make_fuzzer()
+        self.assertFalse(fuzzer.should_record_auto_calibration(candidate))
 
     def test_header_regex_matcher_disables_auto_calibration(self):
-        options["auto_calibration"] = True
-        options["match_header_regex"] = r"X-Result: found-[0-9]+"
+        self.filter_options["auto_calibration"] = True
+        self.filter_options["match_header_regex"] = r"X-Result: found-[0-9]+"
         candidate = response(
             body=b"repeated response body that is long enough for calibration",
             headers=[("X-Result", "found-42")],
         )
 
-        self.assertFalse(self.fuzzer.should_record_auto_calibration(candidate))
+        fuzzer = self.make_fuzzer()
+        self.assertFalse(fuzzer.should_record_auto_calibration(candidate))
 
     def test_forced_auto_calibration_filters_repeated_reflected_responses(self):
-        options["auto_calibration"] = True
+        self.filter_options["auto_calibration"] = True
         repeated = [
             response(path=f"missing-{index}", body=f"missing missing-{index} soft 404 body with repeated template content".encode())
             for index in range(3)
         ]
 
-        self.assertFalse(self.fuzzer.is_excluded(repeated[0]))
-        self.assertFalse(self.fuzzer.is_excluded(repeated[1]))
-        self.assertTrue(self.fuzzer.is_excluded(repeated[2]))
+        fuzzer = self.make_fuzzer()
+        self.assertFalse(fuzzer.is_excluded(repeated[0]))
+        self.assertFalse(fuzzer.is_excluded(repeated[1]))
+        self.assertTrue(fuzzer.is_excluded(repeated[2]))

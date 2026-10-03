@@ -113,7 +113,6 @@ class TestOptions(TestCase):
                 options.update(parsed_options)
 
                 with (
-                    patch("lib.controller.controller.get_blacklists", return_value={}),
                     patch(
                         "lib.controller.controller.Dictionary",
                         side_effect=AssertionError(

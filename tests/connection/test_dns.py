@@ -31,7 +31,7 @@ from urllib3.exceptions import InsecureRequestWarning
 from lib.connection.ip_overrides import IPOverrides
 from lib.connection.native import NativeRequester
 from lib.connection.requester import AsyncRequester, Requester
-from lib.core.filters import native_filter_options
+from lib.core.filter_config import FilterConfig
 from lib.core.request_config import RequestConfig
 from lib.core.data import options
 from lib.core.native_runtime import NATIVE_EXTENSION_VERSION
@@ -228,7 +228,7 @@ class TestIPOverrideIntegration(TestCase):
                 target.clear_events()
                 requester = NativeRequester(
                     RequestConfig.from_options(options),
-                    filter_options=native_filter_options(options),
+                    filter_config=FilterConfig.from_options(options),
                 )
                 requester.set_ip(
                     FORCED_HOST,
@@ -259,7 +259,7 @@ class TestIPOverrideIntegration(TestCase):
         target.clear_events()
         requester = NativeRequester(
             RequestConfig.from_options(options),
-            filter_options=native_filter_options(options),
+            filter_config=FilterConfig.from_options(options),
         )
         requester.set_ip(FORCED_HOST, urlsplit(target.url).port, "127.0.0.1")
         requester.set_url(self.forced_url(target))
