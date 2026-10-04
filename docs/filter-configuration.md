@@ -80,7 +80,8 @@ Controller discovery flags and calibration prefixes/suffixes/extensions now use
 `DiscoveryConfig`; blacklist and dictionary generation/validation use
 [WordlistConfig](wordlist-configuration.md). This does **not** finish global-state
 removal: [ExecutionConfig](execution-configuration.md) now owns engine selection,
-fuzzer concurrency/pacing and stop policy, but the remaining controller state
+fuzzer concurrency/pacing and stop policy. [ReportConfig](report-configuration.md)
+owns report destinations and SQLite batch policy. Remaining controller state
 and logging still have separate ownership work ahead. Full concurrent
 controllers are not yet supported.
 

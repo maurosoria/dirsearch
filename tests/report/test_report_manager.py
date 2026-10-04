@@ -11,6 +11,7 @@ from unittest.mock import Mock, patch
 
 from lib.controller.session import SessionStore
 from lib.core.data import options
+from lib.core.report_config import ReportConfig
 from lib.report.html_report import HTMLReport
 from lib.report.manager import ReportManager
 from lib.report.xml_report import XMLReport
@@ -19,6 +20,9 @@ from lib.report.xml_report import XMLReport
 class DummyReport:
     __format__ = "dummy"
     __extension__ = "txt"
+
+    def __init__(self, commit_batch_size=1):
+        self.commit_batch_size = commit_batch_size
 
 
 class BlockingReport(DummyReport):
@@ -47,13 +51,6 @@ def make_result(url):
 
 
 class TestReportManagerDestinations(TestCase):
-    def setUp(self):
-        self.original_options = dict(options)
-
-    def tearDown(self):
-        options.clear()
-        options.update(self.original_options)
-
     def test_uses_destinations_restored_after_report_module_import(self):
         output_file = "/tmp/restored-{format}.{extension}"
         output_table = "restored_results"
@@ -67,7 +64,6 @@ class TestReportManagerDestinations(TestCase):
                 "postgres_url": postgres_url,
             }
         )
-        options.update(restored)
         expected_sources = {
             "simple": [output_file],
             "plain": [output_file],
@@ -84,26 +80,25 @@ class TestReportManagerDestinations(TestCase):
         with patch.object(ReportManager, "_load_report", return_value=DummyReport):
             for report_format, sources in expected_sources.items():
                 with self.subTest(report_format=report_format):
-                    manager = ReportManager([report_format])
+                    manager = ReportManager(ReportConfig.from_options({
+                        **options, **restored, "output_formats": [report_format],
+                    }))
                     self.assertEqual(len(manager.reports), 1)
                     self.assertEqual(manager.reports[0][1], sources)
 
     def test_sqlite_report_uses_configured_commit_batch_size(self):
-        options.update(
-            {
-                "output_file": "/tmp/report.sqlite",
-                "output_table": "results",
-                "sqlite_commit_batch_size": 25,
-            }
+        config = ReportConfig(
+            formats=("sqlite",), output_file="report.sqlite",
+            output_table="results", sqlite_commit_batch_size=25,
         )
-
-        manager = ReportManager(["sqlite"])
+        with patch.dict(options, {}, clear=True):
+            manager = ReportManager(config)
 
         self.assertEqual(manager.reports[0][0]._commit_batch_size, 25)
 
     @patch("lib.report.manager.START_TIME", "2026-09-13 07:30:45")
     def test_datetime_token_is_safe_for_windows_paths(self):
-        manager = ReportManager([])
+        manager = ReportManager(ReportConfig())
 
         destination = manager.format(
             "report-{datetime}.{extension}",
@@ -116,15 +111,11 @@ class TestReportManagerDestinations(TestCase):
     def test_restored_file_and_sqlite_reports_persist_results(self):
         with TemporaryDirectory() as directory:
             output_file = str(Path(directory, "report-{format}.{extension}"))
-            options.update(
-                SessionStore({}).restore_options(
-                    {
-                        "output_file": output_file,
-                        "output_table": "results",
-                    }
-                )
-            )
-            manager = ReportManager(["json", "sqlite"])
+            restored = SessionStore({}).restore_options({
+                "output_formats": ["json", "sqlite"],
+                "output_file": output_file, "output_table": "results",
+            })
+            manager = ReportManager(ReportConfig.from_options({**options, **restored}))
 
             self.assertEqual(len(manager.reports), 2)
             manager.prepare("https://example.test/")
@@ -157,25 +148,87 @@ class TestReportManagerDestinations(TestCase):
         self.assertEqual(sqlite_rows, [("https://example.test/admin", 200)])
 
     def test_formats_without_a_current_destination_are_skipped(self):
-        options.update(
-            {
-                "output_file": None,
-                "output_table": "results",
-                "mysql_url": None,
-            }
+        cases = (
+            ReportConfig(formats=("simple", "plain", "json", "xml", "md", "csv", "html")),
+            ReportConfig(formats=("sqlite", "mysql", "postgresql"), output_table="results"),
+            ReportConfig(
+                formats=("sqlite", "mysql", "postgresql"), output_file="report.sqlite",
+                mysql_url="mysql://example.test/db", postgres_url="postgresql://example.test/db",
+            ),
         )
+        for config in cases:
+            with self.subTest(config=config), patch.object(ReportManager, "_load_report") as load_report:
+                manager = ReportManager(config)
+            self.assertEqual(manager.reports, [])
+            load_report.assert_not_called()
 
-        with patch.object(ReportManager, "_load_report") as load_report:
-            manager = ReportManager(["json", "mysql"])
+    def test_optional_database_report_imports_are_lazy_and_explicit(self):
+        for format, module_name, class_name in (
+            ("mysql", "lib.report.mysql_report", "MySQLReport"),
+            ("postgresql", "lib.report.postgresql_report", "PostgreSQLReport"),
+        ):
+            with self.subTest(format=format):
+                factory = Mock(return_value=DummyReport())
+                module = SimpleNamespace(**{class_name: factory})
+                config = ReportConfig(
+                    formats=(format,), output_table="results",
+                    mysql_url="mysql://example.test/db", postgres_url="postgresql://example.test/db",
+                )
+                with (
+                    patch.dict(options, {}, clear=True),
+                    patch("importlib.import_module", return_value=module) as import_module,
+                ):
+                    manager = ReportManager(config)
+                import_module.assert_called_once_with(module_name)
+                factory.assert_called_once_with()
+                self.assertEqual(manager.reports[0][1][-1], "results")
 
-        self.assertEqual(manager.reports, [])
-        load_report.assert_not_called()
+    def test_missing_optional_driver_is_not_silently_skipped(self):
+        config = ReportConfig(
+            formats=("mysql",), output_table="results", mysql_url="mysql://example.test/db",
+        )
+        with (
+            patch("importlib.import_module", side_effect=ImportError("driver unavailable")),
+            self.assertRaisesRegex(ImportError, "driver unavailable"),
+        ):
+            ReportManager(config)
+
+    def test_unknown_format_is_not_silently_skipped(self):
+        with self.assertRaises(KeyError):
+            ReportManager(ReportConfig(formats=("unknown",)))
+
+    def test_two_managers_keep_independent_destinations_and_sqlite_batches(self):
+        with TemporaryDirectory() as directory:
+            managers = []
+            try:
+                for name, batch_size in (("first", 1), ("second", 3)):
+                    with patch.dict(options, {}, clear=True):
+                        manager = ReportManager(ReportConfig(
+                            formats=("json", "sqlite"),
+                            output_file=str(Path(directory, name + "-{format}.{extension}")),
+                            output_table="results", sqlite_commit_batch_size=batch_size,
+                        ))
+                        managers.append(manager)
+                        manager.prepare("https://example.test/")
+                        manager.save(make_result("https://example.test/" + name))
+                for name, expected in (("first", 1), ("second", 0)):
+                    with closing(sqlite3.connect(Path(directory, name + "-sql.sqlite"))) as connection:
+                        self.assertEqual(connection.execute('SELECT COUNT(*) FROM "results"').fetchone()[0], expected)
+            finally:
+                for manager in managers:
+                    manager.finish()
+            for name in ("first", "second"):
+                expected_url = "https://example.test/" + name
+                rows = json.loads(Path(directory, name + "-json.json").read_text(encoding="utf-8"))["results"]
+                self.assertEqual([row["url"] for row in rows], [expected_url])
+                with closing(sqlite3.connect(Path(directory, name + "-sql.sqlite"))) as connection:
+                    self.assertEqual(connection.execute('SELECT url FROM "results"').fetchall(), [(expected_url,)])
 
     def test_finish_attempts_every_report_before_reraising_first_error(self):
         first = Mock()
         second = Mock()
         first.finish.side_effect = OSError("first close failed")
-        manager = ReportManager([])
+        manager = ReportManager(ReportConfig())
         manager.reports = [(first, []), (second, [])]
 
         with self.assertRaisesRegex(OSError, "first close failed"):
@@ -186,15 +239,8 @@ class TestReportManagerDestinations(TestCase):
 
 
 class TestAsyncReportManager(IsolatedAsyncioTestCase):
-    def setUp(self):
-        self.original_options = dict(options)
-
-    def tearDown(self):
-        options.clear()
-        options.update(self.original_options)
-
     async def test_async_save_without_reports_avoids_thread_handoff(self):
-        manager = ReportManager([])
+        manager = ReportManager(ReportConfig())
 
         with patch(
             "lib.report.manager.asyncio.to_thread",
@@ -206,15 +252,11 @@ class TestAsyncReportManager(IsolatedAsyncioTestCase):
 
     async def test_concurrent_async_saves_preserve_file_and_sqlite_results(self):
         with TemporaryDirectory() as directory:
-            options.update(
-                {
-                    "output_file": str(
-                        Path(directory, "report-{format}.{extension}")
-                    ),
-                    "output_table": "results",
-                }
-            )
-            manager = ReportManager(["json", "xml", "html", "sqlite"])
+            manager = ReportManager(ReportConfig(
+                formats=("json", "xml", "html", "sqlite"),
+                output_file=str(Path(directory, "report-{format}.{extension}")),
+                output_table="results",
+            ))
             manager.prepare("https://example.test/")
             urls = {
                 f"https://example.test/result-{index}"
@@ -257,7 +299,7 @@ class TestAsyncReportManager(IsolatedAsyncioTestCase):
         self.assertEqual(sqlite_urls, urls)
 
     async def test_async_save_keeps_event_loop_responsive(self):
-        manager = ReportManager([])
+        manager = ReportManager(ReportConfig())
         report = BlockingReport()
         manager.reports = [(report, ["unused"])]
         entered_waiter = asyncio.create_task(
@@ -284,7 +326,7 @@ class TestAsyncReportManager(IsolatedAsyncioTestCase):
         self.assertTrue(report.finished.is_set())
 
     async def test_async_save_cancellation_drains_started_write(self):
-        manager = ReportManager([])
+        manager = ReportManager(ReportConfig())
         report = BlockingReport()
         manager.reports = [(report, ["unused"])]
         save_task = asyncio.create_task(

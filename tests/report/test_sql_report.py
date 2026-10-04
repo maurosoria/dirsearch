@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import call, patch
 
+from lib.core.data import options
 from lib.report.factory import SQLReportMixin
 from lib.report.sqlite_report import SQLiteReport
 
@@ -22,6 +23,20 @@ def make_result(url):
 
 
 class TestSQLReportPersistence(TestCase):
+    def test_default_batch_size_never_reads_global_options(self):
+        with patch.dict(options, {"sqlite_commit_batch_size": 99}):
+            report = SQLiteReport()
+        self.assertEqual(report._commit_batch_size, 1)
+
+    def test_invalid_explicit_batch_sizes_do_not_fall_back_to_globals(self):
+        for batch_size in (None, 0, -1, 1.5, "3"):
+            with (
+                self.subTest(batch_size=batch_size),
+                patch.dict(options, {"sqlite_commit_batch_size": 3}),
+                self.assertRaisesRegex(ValueError, "positive integer"),
+            ):
+                SQLiteReport(commit_batch_size=batch_size)
+
     def test_sqlite_batch_commits_at_configured_boundary(self):
         with TemporaryDirectory() as directory:
             database = str(Path(directory, "report.sqlite"))

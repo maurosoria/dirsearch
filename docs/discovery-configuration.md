@@ -73,8 +73,9 @@ construction and session restoration pass that policy explicitly without
 materializing the native corpus.
 
 [ExecutionConfig](execution-configuration.md) owns engine selection, fuzzer
-concurrency/pacing and stop policy. Targets, output, replay destinations and
-other runtime globals remain separate steps. No new Rust ABI, chunk parameter, callback
+concurrency/pacing and stop policy. [ReportConfig](report-configuration.md) owns
+report destinations and SQLite batch policy. Targets, terminal/response output,
+replay destinations and other runtime globals remain separate steps. No new Rust ABI, chunk parameter, callback
 protocol, CLI flag or discovery capability is introduced. No throughput claim is
 made.
 
