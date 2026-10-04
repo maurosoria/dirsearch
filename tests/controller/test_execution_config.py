@@ -11,7 +11,8 @@ from lib.core.data import options
 from lib.core.dictionary import Dictionary
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.exceptions import QuitInterrupt, RequestException, SkipTargetInterrupt
-from lib.core.execution_config import ExecutionConfig
+from lib.core.execution_config import ExecutionConfig, ScanEngine
+from lib.core.fuzzer import AsyncFuzzer, Fuzzer, NativeFuzzer
 from lib.core.settings import MAX_CONSECUTIVE_REQUEST_ERRORS
 from lib.core.wordlist_config import WordlistConfig
 
@@ -106,10 +107,10 @@ class TestControllerExecutionConfig(TestCase):
         interface.status_report.assert_called_once_with(response, False)
 
     def test_prepared_policy_is_shared_across_targets_and_agrees_with_transport(self):
-        for backend, async_mode, requester_path in (
-            ("python", False, "lib.connection.requester.Requester"),
-            ("python", True, "lib.connection.requester.AsyncRequester"),
-            ("native", False, "lib.connection.native.NativeRequester"),
+        for backend, async_mode, engine, requester_path in (
+            ("python", False, ScanEngine.THREADED, "lib.connection.requester.Requester"),
+            ("python", True, ScanEngine.ASYNC, "lib.connection.requester.AsyncRequester"),
+            ("native", False, ScanEngine.NATIVE, "lib.connection.native.NativeRequester"),
         ):
             for resumed in (False, True):
                 with self.subTest(backend=backend, async_mode=async_mode, resumed=resumed):
@@ -117,18 +118,37 @@ class TestControllerExecutionConfig(TestCase):
 
                     def prepare(controller, *_args):
                         options.update(
+                            request_backend=backend, async_mode=async_mode,
                             thread_count=3, delay=0.125, max_time=30, target_max_time=4,
                             skip_on_status={429}, exit_on_error=True, session_file=None,
                             urls=["http://first.test/", "http://second.test/"], subdirs=[],
                         )
                         controller.wordlist_config = WordlistConfig.from_options(options)
-                        controller.reporter = Mock(reports=())
+                        controller.reporter = Mock(reports=(object(),))
+                        controller.response_stores = (Mock(),)
                         controller.dictionary = Mock()
                         controller.directories = []
 
                     def start(controller):
                         policies.append(controller.fuzzer.execution_config)
                         self.assertIs(policies[-1], controller.execution_config)
+                        expected_fuzzer = {
+                            ScanEngine.THREADED: Fuzzer,
+                            ScanEngine.ASYNC: AsyncFuzzer,
+                            ScanEngine.NATIVE: NativeFuzzer,
+                        }[engine]
+                        self.assertIs(type(controller.fuzzer), expected_fuzzer)
+                        self.assertEqual(controller.fuzzer.match_callbacks, (
+                            controller.match_callback,
+                            controller.reporter.save_async if async_mode else controller.reporter.save,
+                            controller.save_response_async if async_mode else controller.save_response,
+                            controller.reset_consecutive_errors,
+                        ))
+                        if engine is ScanEngine.NATIVE:
+                            self.assertEqual(controller.fuzzer.filtered_chunk_callbacks, (
+                                controller.update_progress_bar_batch,
+                                controller.reset_consecutive_errors_batch,
+                            ))
                         options.update(thread_count=99, delay=0, max_time=0, target_max_time=0, exit_on_error=False)
                         options["skip_on_status"].clear()
 
@@ -138,9 +158,20 @@ class TestControllerExecutionConfig(TestCase):
                     requester = Mock(backend=None)
                     if async_mode:
                         requester.close = AsyncMock()
+
+                    def make_requester(*_args, **_kwargs):
+                        # Deliberately contradict the prepared flags before loop
+                        # creation and before either target's fuzzer is built.
+                        options.update(
+                            request_backend="python" if backend == "native" else "native",
+                            async_mode=not async_mode,
+                        )
+                        return requester
+
                     with (
                         patch.dict(options, {
-                            "request_backend": backend, "async_mode": async_mode,
+                            "request_backend": "python" if backend == "native" else "native",
+                            "async_mode": False,
                             "session_file": "session.json" if resumed else None,
                         }),
                         patch.object(Controller, "setup", new=prepare),
@@ -148,7 +179,7 @@ class TestControllerExecutionConfig(TestCase):
                         patch.object(Controller, "set_target", new=set_target),
                         patch.object(Controller, "crawl_target"),
                         patch.object(Controller, "start", new=start),
-                        patch(requester_path, return_value=requester) as factory,
+                        patch(requester_path, side_effect=make_requester) as factory,
                         patch("lib.controller.controller.get_blacklists", return_value={}),
                         patch("lib.controller.controller.signal.signal"),
                         patch("lib.controller.controller.interface"),
@@ -157,18 +188,29 @@ class TestControllerExecutionConfig(TestCase):
                     self.assertEqual(len(policies), 2)
                     self.assertIs(policies[0], policies[1])
                     self.assertEqual(controller.execution_config, ExecutionConfig(
+                        engine=engine,
                         concurrency=3, delay=0.125, max_time=30, target_max_time=4,
                         skip_on_status={429}, exit_on_error=True,
                     ))
                     transport = factory.call_args.args[0]
                     self.assertEqual(transport.concurrency, controller.execution_config.concurrency)
                     self.assertEqual(transport.delay, controller.execution_config.delay)
+                    self.assertEqual(factory.call_count, 1)
+                    self.assertEqual(factory.call_args.kwargs, (
+                        {"filter_config": controller.filter_config} if engine is ScanEngine.NATIVE else {}
+                    ))
+                    if async_mode:
+                        requester.close.assert_awaited_once_with()
+                        self.assertTrue(controller.loop.is_closed())
+                    else:
+                        requester.close.assert_called_once_with()
+                        self.assertIsNone(controller.loop)
 
     def test_real_checkpoint_restore_uses_saved_execution_policy(self):
-        for backend, async_mode, requester_path in (
-            ("python", False, "lib.connection.requester.Requester"),
-            ("python", True, "lib.connection.requester.AsyncRequester"),
-            ("native", False, "lib.connection.native.NativeRequester"),
+        for backend, async_mode, engine, requester_path in (
+            ("python", False, ScanEngine.THREADED, "lib.connection.requester.Requester"),
+            ("python", True, ScanEngine.ASYNC, "lib.connection.requester.AsyncRequester"),
+            ("native", False, ScanEngine.NATIVE, "lib.connection.native.NativeRequester"),
         ):
             with self.subTest(backend=backend, async_mode=async_mode), tempfile.TemporaryDirectory() as directory:
                 saved_options = dict(options)
@@ -195,6 +237,8 @@ class TestControllerExecutionConfig(TestCase):
                         "session_file": checkpoint, "thread_count": 99, "delay": 0,
                         "max_time": 0, "target_max_time": 0, "skip_on_status": set(),
                         "exit_on_error": False,
+                        "request_backend": "python" if backend == "native" else "native",
+                        "async_mode": False,
                     }),
                     patch.object(Controller, "_confirm_session_overwrite"),
                     patch(requester_path, return_value=requester),
@@ -206,6 +250,7 @@ class TestControllerExecutionConfig(TestCase):
                 ):
                     controller = Controller()
                 self.assertEqual(controller.execution_config, ExecutionConfig(
+                    engine=engine,
                     concurrency=3, delay=0.125, max_time=30, target_max_time=4,
                     skip_on_status={429}, exit_on_error=True,
                 ))

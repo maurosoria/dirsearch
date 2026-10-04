@@ -8,6 +8,7 @@ from lib.core.data import options
 from lib.core.wordlist_config import WordlistConfig
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.exceptions import RequestException
+from lib.core.execution_config import ExecutionConfig, ScanEngine
 
 
 class RecordingDictionary:
@@ -56,8 +57,9 @@ def resolved_html_response():
     )
 
 
-def create_controller(requester, *, crawl=False):
+def create_controller(requester, *, crawl=False, engine=ScanEngine.THREADED):
     controller = object.__new__(Controller)
+    controller.execution_config = ExecutionConfig(engine=engine)
     controller.discovery_config = DiscoveryConfig(crawl=crawl)
     controller.requester = requester
     controller.dictionary = RecordingDictionary()
@@ -117,11 +119,11 @@ class TestRootCrawl(TestCase):
     def test_async_root_request_is_awaited(self):
         requester = Mock()
         requester.request = AsyncMock(return_value=root_response())
-        controller = create_controller(requester, crawl=True)
+        controller = create_controller(requester, crawl=True, engine=ScanEngine.ASYNC)
         controller.loop = asyncio.new_event_loop()
 
         try:
-            with patch.dict(options, {"async_mode": True, "crawl": True}):
+            with patch.dict(options, {}, clear=True):
                 controller.crawl_target()
         finally:
             controller.loop.close()
@@ -138,6 +140,17 @@ class TestRootCrawl(TestCase):
             set(controller.dictionary.extra),
             {"assets/api", "render?size=1", "render?size=2"},
         )
+
+    def test_threaded_and_native_root_requests_ignore_global_flags(self):
+        for engine in (ScanEngine.THREADED, ScanEngine.NATIVE):
+            with self.subTest(engine=engine):
+                requester = Mock()
+                requester.request.return_value = root_response()
+                controller = create_controller(requester, crawl=True, engine=engine)
+                with patch.dict(options, {}, clear=True):
+                    controller.crawl_target()
+                requester.request.assert_called_once_with("base/")
+                self.assertEqual(controller.dictionary.extra, ["root-only"])
 
     def test_disabled_crawl_does_not_request_target_root(self):
         requester = Mock()

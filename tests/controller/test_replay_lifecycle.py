@@ -6,7 +6,7 @@ from lib.connection.response import NativeResponse
 from lib.controller.controller import Controller
 from lib.core.data import options
 from lib.core.discovery_config import DiscoveryConfig
-from lib.core.execution_config import ExecutionConfig
+from lib.core.execution_config import ExecutionConfig, ScanEngine
 from lib.core.exceptions import RequestException
 from lib.core.fuzzer import AsyncFuzzer
 
@@ -79,10 +79,10 @@ class FailingAsyncRequester:
 
 class TestAsyncReplayLifecycle(ReplayOptionsMixin, IsolatedAsyncioTestCase):
     async def test_match_callback_waits_for_replay_to_finish(self):
-        options["async_mode"] = True
+        options["async_mode"] = False
         requester = RecordingAsyncRequester()
         controller = object.__new__(Controller)
-        controller.execution_config = ExecutionConfig()
+        controller.execution_config = ExecutionConfig(engine=ScanEngine.ASYNC)
         controller.discovery_config = DiscoveryConfig.from_options(options)
         controller.loop = asyncio.get_running_loop()
         controller.requester = requester
@@ -103,10 +103,10 @@ class TestAsyncReplayLifecycle(ReplayOptionsMixin, IsolatedAsyncioTestCase):
         )
 
     async def test_cancelling_callback_cancels_in_progress_replay(self):
-        options["async_mode"] = True
+        options["async_mode"] = False
         requester = BlockingAsyncRequester()
         controller = object.__new__(Controller)
-        controller.execution_config = ExecutionConfig()
+        controller.execution_config = ExecutionConfig(engine=ScanEngine.ASYNC)
         controller.discovery_config = DiscoveryConfig.from_options(options)
         controller.loop = asyncio.get_running_loop()
         controller.requester = requester
@@ -130,9 +130,9 @@ class TestAsyncReplayLifecycle(ReplayOptionsMixin, IsolatedAsyncioTestCase):
         self.assertTrue(cancelled_with_callback)
 
     async def test_replay_failure_is_observed_by_callback_runner(self):
-        options["async_mode"] = True
+        options["async_mode"] = False
         controller = object.__new__(Controller)
-        controller.execution_config = ExecutionConfig()
+        controller.execution_config = ExecutionConfig(engine=ScanEngine.ASYNC)
         controller.discovery_config = DiscoveryConfig.from_options(options)
         controller.loop = asyncio.get_running_loop()
         controller.requester = FailingAsyncRequester()
@@ -149,18 +149,21 @@ class TestAsyncReplayLifecycle(ReplayOptionsMixin, IsolatedAsyncioTestCase):
 
 class TestSyncReplayLifecycle(ReplayOptionsMixin, TestCase):
     def test_match_callback_replays_inline(self):
-        options["async_mode"] = False
-        requester = Mock()
-        controller = object.__new__(Controller)
-        controller.execution_config = ExecutionConfig()
-        controller.discovery_config = DiscoveryConfig.from_options(options)
-        controller.requester = requester
+        for engine in (ScanEngine.THREADED, ScanEngine.NATIVE):
+            with self.subTest(engine=engine):
+                options["async_mode"] = True
+                requester = Mock()
+                controller = object.__new__(Controller)
+                controller.execution_config = ExecutionConfig(engine=engine)
+                controller.discovery_config = DiscoveryConfig.from_options(options)
+                controller.requester = requester
 
-        with patch("lib.controller.controller.interface"):
-            result = controller.match_callback(matched_response())
+                with patch("lib.controller.controller.interface"):
+                    result = controller.match_callback(matched_response())
 
-        self.assertIsNone(result)
-        requester.request.assert_called_once_with(
-            "admin",
-            proxy="http://replay.test:8080",
-        )
+                self.assertIsNone(result)
+                requester.request.assert_called_once_with(
+                    "admin",
+                    proxy="http://replay.test:8080",
+                )
+                requester.replay_request.assert_not_called()

@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 
 
 REQUEST_BACKENDS = ("python", "native")
+NATIVE_ASYNC_ERROR = "--request-backend native cannot be combined with --async"
 NATIVE_AUTHENTICATION_TYPES = ("basic", "bearer", "digest", "jwt", "ntlm")
 
 
@@ -54,7 +55,7 @@ def get_async_request_backend_error(opt: Values) -> str | None:
 
 def get_native_request_backend_error(opt: Values) -> str | None:
     if opt.async_mode:
-        return "--request-backend native cannot be combined with --async"
+        return NATIVE_ASYNC_ERROR
     for proxy in opt.proxies:
         parsed = urlparse(proxy if "://" in proxy else f"http://{proxy}")
         if parsed.scheme not in NATIVE_PROXY_SCHEMES:

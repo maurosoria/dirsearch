@@ -83,8 +83,8 @@ engine-independent and continue to restore saved items as a Python list.
 
 ## Scope and validation
 
-[ExecutionConfig](execution-configuration.md) owns fuzzer concurrency/pacing and
-stop policy. Engine selection, targets, output, replay settings and other
+[ExecutionConfig](execution-configuration.md) owns engine selection, fuzzer
+concurrency/pacing and stop policy. Targets, output, replay destinations and other
 controller/logging globals remain separate migration steps. This does not yet
 make complete controllers safe to run concurrently.
 
