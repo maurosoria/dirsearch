@@ -39,6 +39,7 @@ def main() -> None:
     from dirsearch.lib.core.filter_config import FilterConfig
     from dirsearch.lib.core.filter_state import FilterState
     from dirsearch.lib.core.request_config import RequestConfig
+    from dirsearch.lib.core.report_config import ReportConfig
     from dirsearch.lib.core.wordlist_config import WordlistConfig
     from dirsearch.lib.report.directory_response_store import DirectoryResponseStore
     from dirsearch.lib.report.jsonl_response_store import JsonlResponseStore
@@ -61,6 +62,7 @@ def main() -> None:
     assert ExecutionConfig(engine=ScanEngine.NATIVE).engine is ScanEngine.NATIVE
     assert ExecutionConfig(skip_on_status=[429]).skip_on_status == frozenset({429})
     assert RequestConfig(method="POST").method == "POST"
+    assert ReportConfig(formats=["json"]).formats == ("json",)
     assert DiscoveryConfig(subdirs=[""]).subdirs == ("",)
     assert FilterConfig(include_status_codes={200}).native_options()["include_status_codes"] == [200]
     assert FilterState().scanners == {"default": {}, "prefixes": {}, "suffixes": {}}

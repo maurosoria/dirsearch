@@ -84,8 +84,9 @@ engine-independent and continue to restore saved items as a Python list.
 ## Scope and validation
 
 [ExecutionConfig](execution-configuration.md) owns engine selection, fuzzer
-concurrency/pacing and stop policy. Targets, output, replay destinations and other
-controller/logging globals remain separate migration steps. This does not yet
+concurrency/pacing and stop policy. [ReportConfig](report-configuration.md) owns
+report destinations and SQLite batch policy. Targets, terminal/response output,
+replay destinations and other controller/logging globals remain separate migration steps. This does not yet
 make complete controllers safe to run concurrently.
 
 Run `python -m unittest discover -s tests -t .`. New coverage checks immutable

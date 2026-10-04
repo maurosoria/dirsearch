@@ -28,6 +28,7 @@ from typing import Any
 from lib.core.dictionary import Dictionary
 from lib.core.exceptions import InvalidURLException, UnpicklingError
 from lib.core.logger import logger
+from lib.core.report_config import ReportConfig
 from lib.core.wordlist_config import WordlistConfig
 from lib.report.manager import ReportManager
 from lib.utils.file import FileUtils
@@ -200,7 +201,7 @@ class SessionStore:
             )
         )
         try:
-            controller.reporter = ReportManager(self.options["output_formats"])
+            controller.reporter = ReportManager(ReportConfig.from_options(self.options))
         except InvalidURLException as error:
             logger.exception(error)
             interface.error(str(error))

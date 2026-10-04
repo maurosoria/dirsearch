@@ -19,7 +19,7 @@
 import asyncio
 from urllib.parse import urlparse
 
-from lib.core.data import options
+from lib.core.report_config import ReportConfig
 from lib.core.settings import STANDARD_PORTS, START_TIME
 from lib.report.csv_report import CSVReport
 from lib.report.html_report import HTMLReport
@@ -31,7 +31,8 @@ from lib.report.sqlite_report import SQLiteReport
 from lib.report.xml_report import XMLReport
 from lib.utils.file import FileUtils
 
-# Store option keys so restored session destinations are resolved at manager creation.
+# Destination keys refer to the supplied config, never to process-wide options.
+# Optional database drivers stay lazy: only load them for an enabled destination.
 output_handlers = {
     "simple": (SimpleReport, ("output_file",)),
     "plain": (PlainTextReport, ("output_file",)),
@@ -55,20 +56,32 @@ output_handlers = {
 
 
 class ReportManager:
-    def __init__(self, formats):
+    def __init__(self, config: ReportConfig):
+        self.config = config
         self.reports = []
         # Reporters share files and database connections. Queue async saves
         # before entering the executor instead of occupying worker threads on
         # their per-reporter locks.
         self._async_save_lock = asyncio.Lock()
 
-        for format in formats:
+        destinations = {
+            "output_file": config.output_file,
+            "output_table": config.output_table,
+            "mysql_url": config.mysql_url,
+            "postgres_url": config.postgres_url,
+        }
+        for format in config.formats:
             # No output location provided
             handler = output_handlers[format]
-            sources = [options[key] for key in handler[-1]]
+            sources = [destinations[key] for key in handler[-1]]
             if any(not _ for _ in sources):
                 continue
-            self.reports.append((self._load_report(handler)(), sources))
+            report_class = self._load_report(handler)
+            if format == "sqlite":
+                reporter = report_class(commit_batch_size=config.sqlite_commit_batch_size)
+            else:
+                reporter = report_class()
+            self.reports.append((reporter, sources))
 
     def _load_report(self, handler):
         if len(handler) == 2:
@@ -78,6 +91,8 @@ class ReportManager:
 
         module_name, class_name, _ = handler
         module = import_module(module_name)
+        # This lookup is the lazy optional-driver boundary, not a fallback for
+        # missing internal attributes. Import/attribute errors must propagate.
         return getattr(module, class_name)
 
     def prepare(self, target):

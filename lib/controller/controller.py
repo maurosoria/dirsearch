@@ -50,6 +50,7 @@ from lib.core.exceptions import (
 from lib.core.execution_config import ExecutionConfig, ScanEngine
 from lib.core.filter_config import FilterConfig
 from lib.core.request_config import RequestConfig
+from lib.core.report_config import ReportConfig
 from lib.core.logger import enable_logging, logger
 from lib.core.options import (
     validate_numeric_options,
@@ -388,7 +389,7 @@ class Controller:
         interface.config(len(self.dictionary))
 
         try:
-            self.reporter = ReportManager(options["output_formats"])
+            self.reporter = ReportManager(ReportConfig.from_options(options))
         except InvalidURLException as e:
             logger.exception(e)
             interface.error(str(e))

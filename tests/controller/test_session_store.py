@@ -267,6 +267,11 @@ class TestSessionStore(TestCase):
         session_options = {
             "urls": target_urls,
             "output_formats": [],
+            "output_file": None,
+            "output_table": None,
+            "mysql_url": None,
+            "postgres_url": None,
+            "sqlite_commit_batch_size": 1,
         }
         controller = self._controller()
         controller.directories = ["current/", "next/"]
