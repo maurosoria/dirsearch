@@ -19,5 +19,6 @@ dirsearch is an advanced web path brute-forcer. This documentation is split into
 - [Target Configuration](target-configuration.md): immutable target preparation hints and transport boundaries.
 - [Terminal Configuration](terminal-configuration.md): per-controller output policy, streams, history and cleanup.
 - [Logging Ownership](logging-ownership.md): per-run file handlers, redaction snapshots and cleanup.
+- [Result Configuration](result-configuration.md): response destinations, full-URL presentation and replay policy.
 - [Refactoring Backlog](refactoring-backlog.md): remaining local state ownership work and mutable-global inventory.
 - [References](references.md): external articles, tutorials, and videos.

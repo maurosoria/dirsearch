@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from lib.controller.controller import Controller
 from lib.core.data import options
+from lib.core.result_config import ResultConfig
 from lib.core.wordlist_config import WordlistConfig
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.execution_config import ExecutionConfig
@@ -12,6 +13,7 @@ from tests.core.test_backup_discovery import response_for
 
 def policy_controller(policy):
     controller = object.__new__(Controller)
+    controller.result_config = ResultConfig()
     controller.interface = Mock()
     controller.execution_config = ExecutionConfig()
     controller.discovery_config = policy
@@ -53,11 +55,7 @@ class TestControllerDiscoveryConfig(TestCase):
         enabled.add_crawled_paths = Mock()
         disabled.add_crawled_paths = Mock()
         response = response_for("file.txt")
-        with (
-            patch.dict(options, {
-                "skip_on_status": set(), "full_url": False, "replay_proxy": None,
-            }, clear=True),
-        ):
+        with patch.dict(options, {}, clear=True):
             enabled.match_callback(response)
             disabled.match_callback(response)
 
@@ -85,6 +83,7 @@ class TestControllerDiscoveryConfig(TestCase):
                             session_file=None,
                         )
                         controller.wordlist_config = WordlistConfig.from_options(options)
+                        controller.result_config = ResultConfig.from_options(options)
                         controller.reporter = Mock(reports=())
                         controller.dictionary = Mock()
                         controller.directories = []

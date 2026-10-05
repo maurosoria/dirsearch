@@ -4,6 +4,7 @@ from unittest.mock import Mock, patch
 
 from lib.controller.controller import Controller
 from lib.core.data import options
+from lib.core.result_config import ResultConfig
 from lib.core.dictionary import Dictionary
 from lib.core.wordlist_config import WordlistConfig
 
@@ -47,6 +48,7 @@ class RecordingAsyncFuzzer(RecordingFuzzer):
 class TestSessionResumeQueue(TestCase):
     def _controller(self):
         controller = object.__new__(Controller)
+        controller.result_config = ResultConfig()
         controller.logger = Mock()
         controller.interface = Mock()
         controller.start_time = 0

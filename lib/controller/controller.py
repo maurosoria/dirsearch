@@ -26,6 +26,7 @@ import sys
 import re
 import threading
 import time
+from dataclasses import replace
 from types import SimpleNamespace
 from typing import Any, Awaitable, TextIO
 
@@ -51,6 +52,7 @@ from lib.core.execution_config import ExecutionConfig, ScanEngine
 from lib.core.filter_config import FilterConfig
 from lib.core.request_config import RequestConfig
 from lib.core.report_config import ReportConfig
+from lib.core.result_config import ResultConfig
 from lib.core.log_config import LogConfig
 from lib.core.logger import RunLogger
 from lib.core.options import (
@@ -323,6 +325,7 @@ class Controller:
             session_store.apply_to_controller(
                 self, payload, wordlist_config=self.wordlist_config
             )
+            self.result_config = ResultConfig.from_options(options)
             self._prepare_response_stores()
             self._confirm_session_overwrite(session_file)
         except InvalidURLException as error:
@@ -417,6 +420,7 @@ class Controller:
 
         self._prepare_logging()
 
+        self.result_config = ResultConfig.from_options(options)
         self._prepare_response_stores()
 
         self.interface.header(BANNER)
@@ -479,7 +483,13 @@ class Controller:
         # Snapshot once, before any requester or lazy native engine is created.
         self.run_state = ScanRunState(options["urls"])
         self.target_config = TargetConfig.from_options(options)
-        self.request_config = RequestConfig.from_options(options)
+        # Stores were prepared before run(). Their frozen policy determines
+        # body capture even if composition options have changed in between.
+        # Keep destination paths out of the transport's configuration.
+        self.request_config = replace(
+            RequestConfig.from_options(options),
+            capture_full_body=self.result_config.capture_full_body,
+        )
         self.discovery_config = DiscoveryConfig.from_options(options)
         self.filter_config = FilterConfig.from_options(
             options, blacklists=get_blacklists(self.wordlist_config)
@@ -869,8 +879,8 @@ class Controller:
         self.response_stores = ()
         try:
             self.response_stores = create_response_stores(
-                options["save_response"],
-                options["save_response_jsonl"],
+                self.result_config.response_directory,
+                self.result_config.response_jsonl_file,
             )
         except (OSError, ValueError) as error:
             self.logger.exception(error)
@@ -940,7 +950,7 @@ class Controller:
                 f"Skipped the target due to {response.status} status code"
             )
 
-        self.interface.status_report(response, options["full_url"])
+        self.interface.status_report(response, self.result_config.full_url)
 
         if response.status in discovery.recursion_status_codes and any(
             (
@@ -972,19 +982,19 @@ class Controller:
             if added_to_queue:
                 self.interface.new_directories(added_to_queue)
 
-        if options["replay_proxy"]:
+        if self.result_config.replay_proxy:
             # Replay the request with new proxy
             if self.execution_config.engine is ScanEngine.ASYNC:
                 # AsyncFuzzer awaits callback results, so replay remains inside
                 # the scan lifecycle and receives cancellation with its worker.
                 replay = self.requester.replay_request(
                     response.full_path,
-                    proxy=options["replay_proxy"],
+                    proxy=self.result_config.replay_proxy,
                 )
             else:
                 self.requester.request(
                     response.full_path,
-                    proxy=options["replay_proxy"],
+                    proxy=self.result_config.replay_proxy,
                 )
 
         if discovery.crawl:

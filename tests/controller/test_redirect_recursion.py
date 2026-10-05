@@ -10,6 +10,7 @@ from lib.controller.controller import Controller
 from lib.core.filter_config import FilterConfig
 from lib.core.request_config import RequestConfig
 from lib.core.data import options
+from lib.core.result_config import ResultConfig
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.execution_config import ExecutionConfig
 from lib.core.exceptions import RequestException
@@ -45,6 +46,7 @@ class TestRedirectRecursionOrigin(TestCase):
         )
 
         self.controller = object.__new__(Controller)
+        self.controller.result_config = ResultConfig()
         self.controller.interface = Mock()
         self.controller.execution_config = ExecutionConfig()
         self.controller.discovery_config = DiscoveryConfig.from_options(options)
@@ -197,6 +199,7 @@ class FollowedRedirectRecursionContract:
     @staticmethod
     def queued_directories(response) -> list[str]:
         controller = object.__new__(Controller)
+        controller.result_config = ResultConfig()
         controller.interface = Mock()
         controller.execution_config = ExecutionConfig()
         controller.discovery_config = DiscoveryConfig.from_options(options)

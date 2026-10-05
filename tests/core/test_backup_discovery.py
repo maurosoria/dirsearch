@@ -4,6 +4,7 @@ from unittest.mock import Mock
 from lib.connection.response import NativeResponse
 from lib.controller.controller import Controller
 from lib.core.data import options
+from lib.core.result_config import ResultConfig
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.execution_config import ExecutionConfig
 from lib.core.dictionary import Dictionary
@@ -99,6 +100,7 @@ class TestBackupDiscoveryCallback(TestCase):
 
     def _controller(self) -> Controller:
         controller = object.__new__(Controller)
+        controller.result_config = ResultConfig()
         controller.interface = Mock()
         controller.execution_config = ExecutionConfig()
         controller.discovery_config = DiscoveryConfig.from_options(options)

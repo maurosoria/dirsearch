@@ -13,6 +13,7 @@ from lib.core.filter_config import FilterConfig
 from lib.core.request_config import RequestConfig
 from lib.core.target_config import TargetConfig
 from lib.core.data import options
+from lib.core.result_config import ResultConfig
 from lib.core.wordlist_config import WordlistConfig
 from lib.core.exceptions import InvalidURLException, RequestException
 
@@ -190,6 +191,7 @@ class TestControllerTargetURL(TestCase):
         for stack, async_mode, request_backend in stack_cases:
             with self.subTest(stack=stack):
                 controller = object.__new__(Controller)
+                controller.result_config = ResultConfig()
                 controller.logger = Mock()
                 controller.interface = Mock()
                 controller.loop = None

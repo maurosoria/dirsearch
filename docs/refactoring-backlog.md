@@ -1,7 +1,7 @@
 # Local state ownership backlog
 
-This is the state-isolation backlog following PR #1740, including the
-logging-ownership refactor in this branch. It is not a list of all product issues, nor
+This is the state-isolation backlog following PR #1741, including the
+result-policy refactor in this branch. It is not a list of all product issues, nor
 a claim that multiple complete controllers can already share a process safely.
 Keep subsequent steps independently reviewable, with explicit contracts and
 regressions before replacing their callers.
@@ -9,8 +9,8 @@ regressions before replacing their callers.
 ## Completed boundaries
 
 - Immutable `WordlistConfig`, `RequestConfig`, `FilterConfig`, `DiscoveryConfig`,
-  `ExecutionConfig`, `ReportConfig`, `TargetConfig`, `TerminalConfig` and
-  `LogConfig` snapshots.
+  `ExecutionConfig`, `ReportConfig`, `TargetConfig`, `TerminalConfig`,
+  `LogConfig` and `ResultConfig` snapshots.
 - Instance-owned mutable `FilterState` and explicit `ScanEngine` selection.
 - `ScanRunState` separates pending targets from the active target, preserving
   the existing engine-independent checkpoint representation.
@@ -21,21 +21,23 @@ regressions before replacing their callers.
   created at module import and cleanup no longer depends on a global `atexit` hook.
 - [Logging](logging-ownership.md) is controller-owned, with a detached redaction
   policy, no named global logger, and handler cleanup after its borrowers.
+- [Result policy](result-configuration.md) fixes response destinations, full-URL
+  presentation and replay selection per run; transport composition derives its
+  capture flag from that prepared policy. Store lifecycle and native body limits
+  are unchanged.
 
 ## Remaining work, in suggested order
 
 | Order | Boundary | Completion criterion |
 | --- | --- | --- |
-| 1 | Response capture and result presentation | Snapshot response destinations, full-URL presentation and replay policy; preserve capture completeness, write draining and existing replay behavior. |
-| 2 | Session preparation and persistence | Export prepared configuration plus owned progress, not the process-wide options map; preserve cross-engine resume and the current schema contract. |
-| 3 | Aggregate configuration and local context | Group prepared policies without a giant parameter list; separate configuration, live resources and mutable progress. Assign ownership to run metadata and generator state without changing generation behavior. |
-| 4 | CLI options boundary | Keep mutable normalization local to one invocation; remove the global `options` dictionary once its last consumers are migrated. |
-| 5 | Constant tables | Make read-only intent enforceable where compatible, including `TEXT_CHARS`, and review the duplicate default-port mappings. |
-| 6 | Isolation acceptance tests | Prove independent local lifecycles, output, failure cleanup and resume without process-global patching; address signal ownership and ambient raw-target context. Passing component tests alone is insufficient. |
+| 1 | Session preparation and persistence | Export prepared configuration plus owned progress, not the process-wide options map; preserve cross-engine resume and the current schema contract. |
+| 2 | Aggregate configuration and local context | Group prepared policies without a giant parameter list; separate configuration, live resources and mutable progress. Assign ownership to run metadata and generator state without changing generation behavior. |
+| 3 | CLI options boundary | Keep mutable normalization local to one invocation; remove the global `options` dictionary once its last consumers are migrated. |
+| 4 | Constant tables | Make read-only intent enforceable where compatible, including `TEXT_CHARS`, and review the duplicate default-port mappings. |
+| 5 | Isolation acceptance tests | Prove independent local lifecycles, output, failure cleanup and resume without process-global patching; address signal ownership and ambient raw-target context. Passing component tests alone is insufficient. |
 
-Steps 1-2 have separate ownership concerns and can be scoped independently.
-Steps 3-4 depend on making those boundaries explicit; add isolation tests along
-the way, with step 6 as the final acceptance gate. Any future public task/context
+Steps 1-3 build on the explicit component boundaries; add isolation tests along
+the way, with step 5 as the final acceptance gate. Any future public task/context
 API must distinguish serializable task data from live handles and Rust's existing
 internal `ScanTask`; no parallel-target, GUI or remote scheduling is added here.
 

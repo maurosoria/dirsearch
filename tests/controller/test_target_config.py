@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, Mock, call, patch
 from lib.controller.controller import Controller
 from lib.controller.session import SessionStore
 from lib.core.data import options
+from lib.core.result_config import ResultConfig
 from lib.core.dictionary import Dictionary
 from lib.core.exceptions import InvalidURLException
 from lib.core.execution_config import ScanEngine
@@ -23,6 +24,7 @@ class TestControllerTargetConfig(TestCase):
         ):
             with self.subTest(engine=engine):
                 controller = object.__new__(Controller)
+                controller.result_config = ResultConfig()
                 controller.logger = Mock()
                 controller.interface = Mock()
                 controller.wordlist_config = WordlistConfig()
