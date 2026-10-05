@@ -8,6 +8,7 @@ from lib.connection.response import NativeResponse
 from lib.controller.controller import Controller
 from lib.controller.session import SessionStore
 from lib.core.data import options
+from lib.core.result_config import ResultConfig
 from lib.core.dictionary import Dictionary
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.exceptions import QuitInterrupt, RequestException, SkipTargetInterrupt
@@ -19,6 +20,7 @@ from lib.core.wordlist_config import WordlistConfig
 
 def make_controller(config):
     controller = object.__new__(Controller)
+    controller.result_config = ResultConfig()
     controller.interface = Mock()
     controller.execution_config = config
     controller.discovery_config = DiscoveryConfig()
@@ -101,7 +103,7 @@ class TestControllerExecutionConfig(TestCase):
         with patch.dict(options, {}, clear=True), self.assertRaises(SkipTargetInterrupt):
             continuing.raise_error(error)
         with (
-            patch.dict(options, {"skip_on_status": {429}, "full_url": False, "replay_proxy": None}, clear=True),
+            patch.dict(options, {"skip_on_status": {429}}, clear=True),
             patch.object(continuing, "interface") as interface,
         ):
             self.assertIsNone(continuing.match_callback(response))
@@ -126,6 +128,7 @@ class TestControllerExecutionConfig(TestCase):
                             urls=["http://first.test/", "http://second.test/"], subdirs=[],
                         )
                         controller.wordlist_config = WordlistConfig.from_options(options)
+                        controller.result_config = ResultConfig.from_options(options)
                         controller.reporter = Mock(reports=(object(),))
                         controller.response_stores = (Mock(),)
                         controller.dictionary = Mock()

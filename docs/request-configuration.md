@@ -11,7 +11,8 @@ a supplied mapping; it never imports the process-wide options dictionary.
 | Method, body, headers, configured auth, proxies, TLS files, timeout, retries and pacing | Frozen `RequestConfig` |
 | Target URL/query, target auth, cookies, IP overrides and connection pools | Each requester and its session |
 | Matching policy | Separate immutable `FilterConfig`, shared with Python filtering |
-| Session persistence and response destinations | Existing Python controller and report adapters |
+| Response destinations, presentation and replay selection | Separate immutable `ResultConfig` |
+| Session persistence | Existing Python controller and session adapters |
 
 The transport migration replaces direct `options` reads in
 `lib/connection/requester.py` and `lib/connection/native.py`. Filter policy is
@@ -23,8 +24,10 @@ Wordlist generation and validation now use
 concurrency/pacing and stop policy use [ExecutionConfig](execution-configuration.md),
 built from the same normalized input as the transport.
 [ReportConfig](report-configuration.md) owns report destinations and SQLite
-batch policy. Logging and remaining controller globals are separate migration
-steps. These snapshots do not yet
+batch policy. [ResultConfig](result-configuration.md) owns response destinations,
+presentation and replay selection; its derived capture flag is applied before
+requester construction. [Logging](logging-ownership.md) is run-owned. Remaining
+controller globals are separate migration steps. These snapshots do not yet
 make two complete `Controller` instances safe to run together.
 
 ## Constructing a requester

@@ -10,6 +10,7 @@ from unittest.mock import Mock, patch
 from lib.controller.controller import Controller
 from lib.controller.session import SessionStore
 from lib.core.data import options
+from lib.core.result_config import ResultConfig
 from lib.core.scan_run_state import ScanRunState
 from lib.core.wordlist_config import WordlistConfig
 from lib.report.json_report import JSONReport
@@ -31,6 +32,7 @@ class TestSessionCleanup(TestCase):
 
     def _complete_scan(self, session_path):
         controller = object.__new__(Controller)
+        controller.result_config = ResultConfig()
         controller.logger = Mock()
         controller.interface = Mock()
         controller.response_stores = ()

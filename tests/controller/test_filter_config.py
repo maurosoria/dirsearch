@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from lib.controller.controller import Controller
 from lib.core.data import options
+from lib.core.result_config import ResultConfig
 from lib.core.wordlist_config import WordlistConfig
 from lib.core.fuzzer import AsyncFuzzer, Fuzzer, NativeFuzzer
 from tests.core.test_advanced_filters import response
@@ -29,6 +30,7 @@ class TestControllerFilterConfig(TestCase):
                             urls=["http://first.test/", "http://second.test/"],
                         )
                         controller.wordlist_config = WordlistConfig.from_options(options)
+                        controller.result_config = ResultConfig.from_options(options)
                         controller.reporter = Mock(reports=())
                         controller.dictionary = Mock()
                         controller.directories = []

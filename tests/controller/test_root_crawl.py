@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, Mock, patch
 from lib.connection.response import NativeResponse
 from lib.controller.controller import Controller
 from lib.core.data import options
+from lib.core.result_config import ResultConfig
 from lib.core.wordlist_config import WordlistConfig
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.exceptions import RequestException
@@ -59,6 +60,7 @@ def resolved_html_response():
 
 def create_controller(requester, *, crawl=False, engine=ScanEngine.THREADED):
     controller = object.__new__(Controller)
+    controller.result_config = ResultConfig()
     controller.logger = Mock()
     controller.interface = Mock()
     controller.execution_config = ExecutionConfig(engine=engine)

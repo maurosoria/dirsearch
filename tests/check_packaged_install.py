@@ -43,6 +43,7 @@ def main() -> None:
     from dirsearch.lib.core.logger import RunLogger
     from dirsearch.lib.core.request_config import RequestConfig
     from dirsearch.lib.core.report_config import ReportConfig
+    from dirsearch.lib.core.result_config import ResultConfig
     from dirsearch.lib.core.scan_run_state import ScanRunState
     from dirsearch.lib.core.target_config import TargetConfig
     from dirsearch.lib.core.terminal_config import TerminalConfig
@@ -103,9 +104,14 @@ def main() -> None:
         JsonlResponseStore.__mro__
     )
 
+    result_config = ResultConfig(
+        response_directory=os.path.join(temp_dir, "responses"),
+        response_jsonl_file=os.path.join(temp_dir, "responses.jsonl"),
+    )
+    assert result_config.capture_full_body
     stores = create_response_stores(
-        os.path.join(temp_dir, "responses"),
-        os.path.join(temp_dir, "responses.jsonl"),
+        result_config.response_directory,
+        result_config.response_jsonl_file,
     )
     try:
         assert all(isinstance(store, BaseResponseStore) for store in stores)

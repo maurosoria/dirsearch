@@ -8,6 +8,7 @@ from unittest.mock import Mock, call, patch
 from lib.controller.controller import Controller
 from lib.controller.session import SessionStore
 from lib.core.data import options
+from lib.core.result_config import ResultConfig
 from lib.core.dictionary import Dictionary
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.exceptions import InvalidURLException, QuitInterrupt, SkipTargetInterrupt
@@ -19,6 +20,7 @@ from lib.core.wordlist_config import WordlistConfig
 class TestControllerRunState(TestCase):
     def _controller(self):
         controller = object.__new__(Controller)
+        controller.result_config = ResultConfig()
         controller.logger = Mock()
         controller.interface = Mock(buffer="")
         controller._terminal_stream = StringIO()
