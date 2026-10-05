@@ -5,6 +5,65 @@ from lib.core.scan_run_state import ScanRunState
 
 
 class TestScanRunState(TestCase):
+    def test_preparing_targets_preserves_restored_run_progress(self):
+        state = ScanRunState(["old"])
+        state.activate_next()
+        state.finish_active()
+        state.passed_urls.add("http://first.test/current/")
+        state.jobs_processed = 3
+        state.errors = 5
+        state.consecutive_errors = 2
+        state.old_session = True
+        targets = ["resumed", "pending", "pending"]
+        state.prepare_targets(targets)
+        targets.clear()
+        self.assertEqual(state.snapshot_targets(), ["resumed", "pending", "pending"])
+        self.assertEqual(state.pending_count, 3)
+        self.assertIsNone(state.active_target)
+        self.assertEqual(state.passed_urls, {"http://first.test/current/"})
+        self.assertEqual((state.jobs_processed, state.errors, state.consecutive_errors), (3, 5, 2))
+        self.assertTrue(state.old_session)
+
+    def test_preparing_targets_rejects_active_work_without_consuming_input(self):
+        state = ScanRunState(["active", "pending"])
+        state.activate_next()
+
+        def must_not_iterate():
+            raise AssertionError("consumed input before checking active state")
+            yield
+
+        with self.assertRaisesRegex(RuntimeError, "target is active"):
+            state.prepare_targets(must_not_iterate())
+        self.assertEqual(state.active_target, "active")
+        self.assertEqual(state.snapshot_targets(), ["active", "pending"])
+
+    def test_failed_input_preparation_keeps_previous_queue_and_totals(self):
+        state = ScanRunState(["finished", "pending"])
+        state.activate_next()
+        state.finish_active()
+        state.jobs_processed = 3
+
+        def broken_input():
+            yield "replacement"
+            raise ValueError("input failed")
+
+        with self.assertRaisesRegex(ValueError, "input failed"):
+            state.prepare_targets(broken_input())
+        self.assertEqual(state.snapshot_targets(), ["pending"])
+        self.assertEqual(state.jobs_processed, 3)
+
+    def test_run_counters_and_scheduled_urls_are_not_shared(self):
+        first = ScanRunState()
+        second = ScanRunState()
+        first.passed_urls.add("http://first.test/")
+        first.jobs_processed = 4
+        first.errors = 2
+        first.consecutive_errors = 1
+        first.old_session = True
+        self.assertEqual(second.passed_urls, set())
+        self.assertEqual((second.jobs_processed, second.errors, second.consecutive_errors), (0, 0, 0))
+        self.assertFalse(second.old_session)
+
     def test_empty_run_has_no_active_or_pending_target(self):
         state = ScanRunState()
         self.assertIsNone(state.active_target)
@@ -107,10 +166,26 @@ class TestScanRunState(TestCase):
 
     def test_checkpoint_during_activation_never_loses_or_duplicates_a_target(self):
         state = ScanRunState(["first", "second"])
+        snapshots = self._snapshots_during(state, state.activate_next)
+        self.assertTrue(snapshots)
+        for snapshot in snapshots:
+            self.assertEqual(snapshot, ["first", "second"])
+
+    def test_checkpoint_during_preparation_sees_whole_old_or_new_queue(self):
+        state = ScanRunState(["finished", "old"])
+        state.activate_next()
+        state.finish_active()
+        snapshots = self._snapshots_during(state, state.prepare_targets, ["new", "next"])
+        self.assertTrue(snapshots)
+        for snapshot in snapshots:
+            self.assertIn(snapshot, (["old"], ["new", "next"]))
+        self.assertEqual(state.snapshot_targets(), ["new", "next"])
+
+    def _snapshots_during(self, state, transition, *args):
         snapshots = []
 
         def checkpoint_between_bytecodes(frame, event, _arg):
-            if frame.f_code is ScanRunState.activate_next.__code__:
+            if frame.f_code is transition.__code__:
                 frame.f_trace_opcodes = True
                 if event == "opcode":
                     # Model a reentrant Ctrl+C checkpoint without delivering
@@ -126,11 +201,9 @@ class TestScanRunState(TestCase):
         current_frame.f_trace_opcodes = True
         sys.settrace(checkpoint_between_bytecodes)
         try:
-            state.activate_next()
+            transition(*args)
         finally:
             current_frame.f_trace_opcodes = previous_opcodes
             sys.settrace(previous_trace)
 
-        self.assertTrue(snapshots)
-        for snapshot in snapshots:
-            self.assertEqual(snapshot, ["first", "second"])
+        return snapshots

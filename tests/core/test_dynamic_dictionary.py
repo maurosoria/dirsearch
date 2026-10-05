@@ -5,6 +5,8 @@ from unittest import IsolatedAsyncioTestCase, TestCase
 from lib.connection.native import NativeScanChunk, NativeScanEvent
 from lib.connection.response import NativeResponse
 from lib.controller.controller import Controller
+from lib.core.target_progress import TargetProgress
+from lib.core.scan_run_state import ScanRunState
 from lib.core.data import options
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.execution_config import ExecutionConfig
@@ -45,8 +47,10 @@ def crawled_paths_response() -> NativeResponse:
 
 def add_crawled_paths(dictionary: Dictionary) -> None:
     controller = object.__new__(Controller)
+    controller.run_state = ScanRunState()
+    controller.target_progress = TargetProgress()
     controller.discovery_config = DiscoveryConfig.from_options(options)
-    controller.base_path = ""
+    controller.target_progress.base_path = ""
     controller.dictionary = dictionary
     controller.add_crawled_paths(crawled_paths_response())
 

@@ -9,6 +9,8 @@ from unittest.mock import patch
 
 from lib.connection.response import NativeResponse
 from lib.controller.controller import Controller
+from lib.core.scan_run_state import ScanRunState
+from lib.core.target_progress import TargetProgress
 from lib.controller.session import SessionStore
 from lib.core.data import options
 from lib.core.dictionary import Dictionary
@@ -64,9 +66,8 @@ class TestSessionReportConfiguration(TestCase):
                     checkpoint = str(Path(directory, "checkpoint.json"))
                     if resumed:
                         saved_controller = SimpleNamespace(
-                            start_time=0, passed_urls=set(), directories=[],
-                            jobs_processed=0, errors=0, consecutive_errors=0,
-                            base_path="", url="", old_session=False, output_history=[],
+                            start_time=0, run_state=ScanRunState(),
+                            target_progress=TargetProgress(), output_history=[],
                             dictionary=Dictionary(WordlistConfig()),
                         )
                         SessionStore().save(

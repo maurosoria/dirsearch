@@ -62,8 +62,8 @@ class TestControllerWordlistConfig(TestCase):
                 patch("lib.core.wordlist_backend.FileUtils.get_lines", return_value=["done", "pending"]),
             ):
                 original = Controller()
-                original.base_path = ""
-                original.url = "http://example.test/"
+                original.target_progress.base_path = ""
+                original.target_progress.url = "http://example.test/"
                 self.assertEqual(next(original.dictionary), "done")
                 self.assertEqual(original.dictionary.claim_next(), "pending")
                 original.dictionary.add_extra("dynamic.html")

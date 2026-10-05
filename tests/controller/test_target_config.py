@@ -5,6 +5,8 @@ from unittest import TestCase
 from unittest.mock import AsyncMock, Mock, call, patch
 
 from lib.controller.controller import Controller
+from lib.core.target_progress import TargetProgress
+from lib.core.scan_run_state import ScanRunState
 from lib.controller.session import SessionStore
 from lib.core.data import options
 from lib.core.result_config import ResultConfig
@@ -24,13 +26,15 @@ class TestControllerTargetConfig(TestCase):
         ):
             with self.subTest(engine=engine):
                 controller = object.__new__(Controller)
+                controller.run_state = ScanRunState()
+                controller.target_progress = TargetProgress()
                 controller.result_config = ResultConfig()
                 controller.logger = Mock()
                 controller.interface = Mock()
                 controller.wordlist_config = WordlistConfig()
                 controller.dictionary = Mock()
-                controller.directories = []
-                controller.old_session = False
+                controller.target_progress.directories = []
+                controller.run_state.old_session = False
                 controller.response_stores = ()
                 controller.reporter = Mock()
                 controller.crawl_target = Mock()
@@ -82,10 +86,14 @@ class TestControllerTargetConfig(TestCase):
 
     def test_independent_target_policies_work_with_global_options_empty(self):
         first = object.__new__(Controller)
+        first.run_state = ScanRunState()
+        first.target_progress = TargetProgress()
         first.interface = Mock()
         first.target_config = TargetConfig("https", "192.0.2.7", True)
         first.requester = Mock()
         second = object.__new__(Controller)
+        second.run_state = ScanRunState()
+        second.target_progress = TargetProgress()
         second.interface = Mock()
         second.target_config = TargetConfig("http")
         second.requester = Mock()
@@ -94,10 +102,10 @@ class TestControllerTargetConfig(TestCase):
             second.set_target("example.test/public")
             first.set_target("example.test/other")
 
-        self.assertEqual(first.url, "https://example.test/")
-        self.assertEqual(second.url, "http://example.test/")
-        self.assertEqual(first.base_path, "other/")
-        self.assertEqual(second.base_path, "public/")
+        self.assertEqual(first.target_progress.url, "https://example.test/")
+        self.assertEqual(second.target_progress.url, "http://example.test/")
+        self.assertEqual(first.target_progress.base_path, "other/")
+        self.assertEqual(second.target_progress.base_path, "public/")
         self.assertEqual(first.requester.set_ip.call_args_list, [
             call("example.test", 443, "192.0.2.7"),
             call("example.test", 443, "192.0.2.7"),
@@ -107,6 +115,8 @@ class TestControllerTargetConfig(TestCase):
 
     def test_frozen_proxy_guard_rejects_before_probe_or_requester_mutation(self):
         controller = object.__new__(Controller)
+        controller.run_state = ScanRunState()
+        controller.target_progress = TargetProgress()
         controller.interface = Mock()
         controller.target_config = TargetConfig(proxy_configured=True)
         controller.requester = Mock()
@@ -126,6 +136,8 @@ class TestControllerTargetConfig(TestCase):
         ):
             with self.subTest(target=target):
                 controller = object.__new__(Controller)
+                controller.run_state = ScanRunState()
+                controller.target_progress = TargetProgress()
                 controller.interface = Mock()
                 controller.target_config = TargetConfig(connect_host="2001:db8::7")
                 controller.requester = Mock()
@@ -157,10 +169,10 @@ class TestControllerTargetConfig(TestCase):
                     save_response=None, save_response_jsonl=None, session_file=None,
                 )
                 saved_controller = SimpleNamespace(
-                    start_time=0, passed_urls=set(), directories=[], jobs_processed=0,
-                    errors=0, consecutive_errors=0, base_path="", url="",
-                    old_session=True, output_history=[], dictionary=Dictionary(WordlistConfig()),
+                    start_time=0, run_state=ScanRunState(), target_progress=TargetProgress(),
+                    output_history=[], dictionary=Dictionary(WordlistConfig()),
                 )
+                saved_controller.run_state.old_session = True
                 checkpoint = os.path.join(directory, "checkpoint")
                 SessionStore().save(
                     Controller._snapshot_session(saved_controller, saved_options, ""), checkpoint

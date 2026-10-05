@@ -64,6 +64,7 @@ from lib.core.options import (
 from lib.core.request_backend import get_native_request_backend_error
 from lib.core.scan_run_state import ScanRunState
 from lib.core.target_config import TargetConfig
+from lib.core.target_progress import TargetProgress
 from lib.core.terminal_config import TerminalConfig
 from lib.core.settings import (
     BANNER,
@@ -208,16 +209,16 @@ class Controller:
         self.response_stores = ()
         self._native_worker = None
         self.run_state = ScanRunState()
+        self.target_progress = TargetProgress()
         self.output_history: list[dict[str, Any]] = []
 
         try:
             if options["session_file"]:
+                self.run_state.old_session = True
                 self._import(options["session_file"])
-                if not hasattr(self, "old_session"):
-                    self.old_session = True
             else:
                 self.setup()
-                self.old_session = False
+                self.run_state.old_session = False
 
             self.run()
         finally:
@@ -350,15 +351,17 @@ class Controller:
         normal controller cleanup also covers partial restoration failures.
         """
         progress = payload["controller"]
+        self.run_state = ScanRunState()
+        self.target_progress = TargetProgress()
         self.start_time = progress["start_time"]
-        self.passed_urls = set(progress.get("passed_urls", []))
-        self.directories = list(progress.get("directories", []))
-        self.jobs_processed = progress.get("jobs_processed", 0)
-        self.errors = progress.get("errors", 0)
-        self.consecutive_errors = progress.get("consecutive_errors", 0)
-        self.base_path = progress.get("base_path", "")
-        self.url = progress.get("url", "")
-        self.old_session = progress.get("old_session", True)
+        self.run_state.passed_urls = set(progress.get("passed_urls", []))
+        self.target_progress.directories = list(progress.get("directories", []))
+        self.run_state.jobs_processed = progress.get("jobs_processed", 0)
+        self.run_state.errors = progress.get("errors", 0)
+        self.run_state.consecutive_errors = progress.get("consecutive_errors", 0)
+        self.target_progress.base_path = progress.get("base_path", "")
+        self.target_progress.url = progress.get("url", "")
+        self.run_state.old_session = progress.get("old_session", True)
         self.dictionary = Dictionary(self.wordlist_config)
         dictionary = payload["dictionary"]
         self.dictionary.__setstate__((
@@ -382,14 +385,14 @@ class Controller:
         return SessionSnapshot(
             controller={
                 "start_time": self.start_time,
-                "passed_urls": sorted(self.passed_urls),
-                "directories": self.directories,
-                "jobs_processed": self.jobs_processed,
-                "errors": self.errors,
-                "consecutive_errors": self.consecutive_errors,
-                "base_path": self.base_path,
-                "url": self.url,
-                "old_session": self.old_session,
+                "passed_urls": sorted(self.run_state.passed_urls),
+                "directories": self.target_progress.directories,
+                "jobs_processed": self.run_state.jobs_processed,
+                "errors": self.run_state.errors,
+                "consecutive_errors": self.run_state.consecutive_errors,
+                "base_path": self.target_progress.base_path,
+                "url": self.target_progress.url,
+                "old_session": self.run_state.old_session,
             },
             dictionary={
                 "items": items, "index": index,
@@ -475,11 +478,8 @@ class Controller:
             self.interface.error(str(e))
             sys.exit(1)
         self.start_time = time.time()
-        self.passed_urls: set[str] = set()
-        self.directories: list[str] = []
-        self.jobs_processed = 0
-        self.errors = 0
-        self.consecutive_errors = 0
+        self.run_state = ScanRunState()
+        self.target_progress = TargetProgress()
 
         self._prepare_logging()
 
@@ -545,7 +545,7 @@ class Controller:
 
         # setup() has parsed raw requests, or _import() has restored the session.
         # Snapshot once, before any requester or lazy native engine is created.
-        self.run_state = ScanRunState(options["urls"])
+        self.run_state.prepare_targets(options["urls"])
         self.target_config = TargetConfig.from_options(options)
         # Stores were prepared before run(). Their frozen policy determines
         # body capture even if composition options have changed in between.
@@ -593,14 +593,14 @@ class Controller:
             try:
                 self.set_target(url)
 
-                if not self.directories:
+                if not self.target_progress.directories:
                     for subdir in self.discovery_config.subdirs:
-                        self.add_directory(self.base_path + subdir)
+                        self.add_directory(self.target_progress.base_path + subdir)
 
-                if not self.old_session:
-                    self.interface.target(self.url)
+                if not self.run_state.old_session:
+                    self.interface.target(self.target_progress.url)
 
-                self.reporter.prepare(self.url)
+                self.reporter.prepare(self.target_progress.url)
                 self.crawl_target()
                 self.start()
 
@@ -612,7 +612,7 @@ class Controller:
                 SkipTargetInterrupt,
                 KeyboardInterrupt,
             ) as e:
-                self.directories.clear()
+                self.target_progress.directories.clear()
                 self.dictionary.reset()
 
                 if e.args:
@@ -646,13 +646,13 @@ class Controller:
     def start(self) -> None:
         start_time = time.time()
 
-        while self.directories:
+        while self.target_progress.directories:
             try:
                 gc.collect()
 
-                current_directory = self.directories[0]
+                current_directory = self.target_progress.directories[0]
 
-                if not self.old_session:
+                if not self.run_state.old_session:
                     current_time = time.strftime("%H:%M:%S")
                     msg = f"{NEW_LINE}[{current_time}] Scanning: {current_directory}"
 
@@ -687,10 +687,10 @@ class Controller:
                     raise QuitInterrupt("Native scan did not stop safely")
 
                 self.dictionary.reset()
-                self.directories.pop(0)
+                self.target_progress.directories.pop(0)
 
-                self.jobs_processed += 1
-                self.old_session = False
+                self.run_state.jobs_processed += 1
+                self.run_state.old_session = False
 
     def get_time_limit(
         self, start_time: float
@@ -845,7 +845,7 @@ class Controller:
                 "Cannot auto-detect the scheme when using a proxy or Tor. "
                 "Specify http:// or https:// in the target, or use --scheme"
             )
-        self.base_path = lstrip_once(parsed.path, "/")
+        self.target_progress.base_path = lstrip_once(parsed.path, "/")
 
         # Parse target-scoped credentials without changing requester state until
         # the target has been validated.
@@ -896,17 +896,17 @@ class Controller:
 
         hostname = parsed.hostname
         url_hostname = f"[{hostname}]" if hostname and ":" in hostname else hostname
-        self.url = f"{scheme}://{url_hostname}"
+        self.target_progress.url = f"{scheme}://{url_hostname}"
 
         if port != STANDARD_PORTS[scheme]:
-            self.url += f":{port}"
+            self.target_progress.url += f":{port}"
 
-        self.url += "/"
+        self.target_progress.url += "/"
 
         self.requester.reset_auth()
         if credential is not None:
             self.requester.set_auth("basic", credential)
-        self.requester.set_url(self.url)
+        self.requester.set_url(self.target_progress.url)
         self.requester.set_query(parsed.query)
 
     def crawl_target(self) -> None:
@@ -916,10 +916,10 @@ class Controller:
         try:
             if self.execution_config.engine is ScanEngine.ASYNC:
                 response = self.loop.run_until_complete(
-                    self.requester.request(self.base_path)
+                    self.requester.request(self.target_progress.base_path)
                 )
             else:
-                response = self.requester.request(self.base_path)
+                response = self.requester.request(self.target_progress.base_path)
         except RequestException as error:
             self.raise_error(error)
             self.append_error_log(error)
@@ -929,15 +929,15 @@ class Controller:
 
     def add_crawled_paths(self, response: BaseResponse) -> None:
         for path in Crawler.crawl(response):
-            path = lstrip_once(path, self.base_path)
+            path = lstrip_once(path, self.target_progress.base_path)
             if not self._is_excluded_subdir(path):
                 self.dictionary.add_extra(path)
 
     def reset_consecutive_errors(self, response: BaseResponse) -> None:
-        self.consecutive_errors = 0
+        self.run_state.consecutive_errors = 0
 
     def reset_consecutive_errors_batch(self, _count: int) -> None:
-        self.consecutive_errors = 0
+        self.run_state.consecutive_errors = 0
 
     def _prepare_response_stores(self) -> None:
         self.response_stores = ()
@@ -1065,7 +1065,7 @@ class Controller:
             self.add_crawled_paths(response)
 
         if discovery.find_backup:
-            path = lstrip_once(response.path, self.base_path)
+            path = lstrip_once(response.path, self.target_progress.base_path)
             for backup_path in generate_backup_paths(path):
                 self.dictionary.add_extra(backup_path)
 
@@ -1076,18 +1076,18 @@ class Controller:
             # Jobs left for unscanned targets
             len(self.discovery_config.subdirs) * self.run_state.pending_count
             # Jobs left for the current target
-            + len(self.directories)
+            + len(self.target_progress.directories)
             # Finished jobs
-            + self.jobs_processed
+            + self.run_state.jobs_processed
         )
 
         self.interface.last_path(
             self.dictionary.index,
             len(self.dictionary),
-            self.jobs_processed + 1,
+            self.run_state.jobs_processed + 1,
             jobs_count,
             self.requester.rate,
-            self.errors,
+            self.run_state.errors,
         )
 
     def update_progress_bar_batch(self, _count: int) -> None:
@@ -1097,10 +1097,10 @@ class Controller:
         if self.execution_config.exit_on_error:
             raise QuitInterrupt("Canceled due to an error")
 
-        self.errors += 1
-        self.consecutive_errors += 1
+        self.run_state.errors += 1
+        self.run_state.consecutive_errors += 1
 
-        if self.consecutive_errors > MAX_CONSECUTIVE_REQUEST_ERRORS:
+        if self.run_state.consecutive_errors > MAX_CONSECUTIVE_REQUEST_ERRORS:
             raise SkipTargetInterrupt("Too many request errors")
 
     def append_error_log(self, exception: RequestException) -> None:
@@ -1148,7 +1148,7 @@ class Controller:
             while True:
                 msg = "[q]uit / [c]ontinue"
 
-                if len(self.directories) > 1:
+                if len(self.target_progress.directories) > 1:
                     msg += " / [n]ext"
 
                 if self.run_state.pending_count:
@@ -1193,7 +1193,7 @@ class Controller:
                     self.fuzzer.play()
                     break
 
-                elif option.lower() == "n" and len(self.directories) > 1:
+                elif option.lower() == "n" and len(self.target_progress.directories) > 1:
                     self._reset_pause_state()
                     self.fuzzer.quit()
                     break
@@ -1216,17 +1216,17 @@ class Controller:
         if self._is_excluded_subdir(path):
             return
 
-        url = self.url + path
+        url = self.target_progress.url + path
         depth_limit = self.discovery_config.recursion_depth
 
         if (
-            path.count("/") - self.base_path.count("/") > depth_limit > 0
-            or url in self.passed_urls
+            path.count("/") - self.target_progress.base_path.count("/") > depth_limit > 0
+            or url in self.run_state.passed_urls
         ):
             return
 
-        self.directories.append(path)
-        self.passed_urls.add(url)
+        self.target_progress.directories.append(path)
+        self.run_state.passed_urls.add(url)
 
     def _is_excluded_subdir(self, path: str) -> bool:
         resource_path = path.split("?", 1)[0].lstrip("/")
@@ -1237,7 +1237,7 @@ class Controller:
 
     @locked
     def recur(self, path: str) -> list[str]:
-        dirs_count = len(self.directories)
+        dirs_count = len(self.target_progress.directories)
         path = clean_path(path)
 
         if self.discovery_config.force_recursive and not path.endswith("/"):
@@ -1256,7 +1256,7 @@ class Controller:
             self.add_directory(path)
 
         # Return newly added directories
-        return self.directories[dirs_count:]
+        return self.target_progress.directories[dirs_count:]
 
     def recur_for_redirect(self, path: str, redirect_path: str) -> list[str]:
         if redirect_path == path + "/":

@@ -1,4 +1,4 @@
-"""Target progress owned by one sequential controller run."""
+"""Target ordering and cumulative progress of one sequential controller run."""
 
 from __future__ import annotations
 
@@ -8,8 +8,9 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True, slots=True)
 class _TargetPosition:
-    """Publish the pending cursor and active target together at each transition."""
+    """Publish input, pending cursor and active target in one transition."""
 
+    targets: tuple[str, ...] = ()
     next_index: int = 0
     active_target: str | None = None
 
@@ -23,8 +24,28 @@ class ScanRunState:
     """
 
     def __init__(self, targets: Iterable[str] = ()) -> None:
-        self._targets = tuple(targets)
-        self._position = _TargetPosition()
+        self._position = _TargetPosition(tuple(targets))
+        # These values retain their historical run-wide scope. In particular,
+        # passed_urls records scheduled directory URLs, not successful targets;
+        # duplicate targets must not reset it or the completed-job/error totals.
+        self.passed_urls: set[str] = set()
+        self.jobs_processed = 0
+        self.errors = 0
+        self.consecutive_errors = 0
+        # Existing session-presentation flag, consumed after a directory job.
+        # It can survive a handled target exit before a job starts.
+        self.old_session = False
+
+    def prepare_targets(self, targets: Iterable[str]) -> None:
+        """Set input before workers/signals start, preserving restored totals.
+
+        This is controller preparation, not a live queue-editing API. A target
+        must not be replaced while active. Materialize input before mutating the
+        queue so a failed iterable leaves both ordering and progress untouched.
+        """
+        if self.active_target is not None:
+            raise RuntimeError("Cannot prepare targets while a target is active")
+        self._position = _TargetPosition(tuple(targets))
 
     @property
     def active_target(self) -> str | None:
@@ -33,7 +54,8 @@ class ScanRunState:
     @property
     def pending_count(self) -> int:
         """Targets not yet activated, excluding the current target."""
-        return len(self._targets) - self._position.next_index
+        position = self._position
+        return len(position.targets) - position.next_index
 
     def activate_next(self) -> str | None:
         """Activate the oldest pending target, or return None when exhausted.
@@ -44,13 +66,13 @@ class ScanRunState:
         position = self._position
         if position.active_target is not None:
             raise RuntimeError("Finish the active target before activating another")
-        if position.next_index == len(self._targets):
+        if position.next_index == len(position.targets):
             return None
-        target = self._targets[position.next_index]
+        target = position.targets[position.next_index]
         # A signal handler can save a checkpoint between Python instructions.
         # Publish both changes once: pop-then-assign could lose a target, while
         # assign-then-pop could duplicate it in a reentrant snapshot.
-        self._position = _TargetPosition(position.next_index + 1, target)
+        self._position = _TargetPosition(position.targets, position.next_index + 1, target)
         return target
 
     def finish_active(self) -> None:
@@ -62,7 +84,7 @@ class ScanRunState:
         position = self._position
         if position.active_target is None:
             raise RuntimeError("There is no active target to finish")
-        self._position = _TargetPosition(position.next_index)
+        self._position = _TargetPosition(position.targets, position.next_index)
 
     def snapshot_targets(self) -> list[str]:
         """Copy remaining work in the session format: active first, then pending.
@@ -71,7 +93,7 @@ class ScanRunState:
         entries. Neither saving nor mutating the returned list consumes work.
         """
         position = self._position
-        targets = list(self._targets[position.next_index:])
+        targets = list(position.targets[position.next_index:])
         if position.active_target is not None:
             targets.insert(0, position.active_target)
         return targets

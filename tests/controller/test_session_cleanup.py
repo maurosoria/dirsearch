@@ -8,6 +8,7 @@ from unittest import TestCase
 from unittest.mock import Mock, patch
 
 from lib.controller.controller import Controller
+from lib.core.target_progress import TargetProgress
 from lib.controller.session import SessionStore
 from lib.core.data import options
 from lib.core.result_config import ResultConfig
@@ -32,16 +33,18 @@ class TestSessionCleanup(TestCase):
 
     def _complete_scan(self, session_path):
         controller = object.__new__(Controller)
+        controller.run_state = ScanRunState()
+        controller.target_progress = TargetProgress()
         controller.result_config = ResultConfig()
         controller.logger = Mock()
         controller.interface = Mock()
         controller.response_stores = ()
         controller.reporter = Mock()
         controller.dictionary = Mock()
-        controller.directories = []
-        controller.base_path = ""
-        controller.old_session = True
-        controller.url = "https://example.test/"
+        controller.target_progress.directories = []
+        controller.target_progress.base_path = ""
+        controller.run_state.old_session = True
+        controller.target_progress.url = "https://example.test/"
         controller.set_target = Mock()
         controller.crawl_target = Mock()
         controller.start = Mock()
@@ -112,10 +115,11 @@ class TestSessionCleanup(TestCase):
 
     def test_session_export_flushes_reports_before_saving_checkpoint(self):
         controller = object.__new__(Controller)
+        controller.run_state = ScanRunState()
+        controller.target_progress = TargetProgress()
         controller._session_options = {}
         controller._snapshot_session = Mock(return_value=SimpleNamespace(output_history=[]))
         controller.interface = Mock()
-        controller.run_state = ScanRunState()
         controller.reporter = Mock()
         events = []
         controller.reporter.flush.side_effect = lambda: events.append("report")

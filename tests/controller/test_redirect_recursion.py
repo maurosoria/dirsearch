@@ -7,6 +7,8 @@ from lib.connection.native import NativeHTTPBackend
 from lib.connection.requester import AsyncRequester, Requester
 from lib.connection.response import NativeResponse
 from lib.controller.controller import Controller
+from lib.core.target_progress import TargetProgress
+from lib.core.scan_run_state import ScanRunState
 from lib.core.filter_config import FilterConfig
 from lib.core.request_config import RequestConfig
 from lib.core.data import options
@@ -46,25 +48,27 @@ class TestRedirectRecursionOrigin(TestCase):
         )
 
         self.controller = object.__new__(Controller)
+        self.controller.run_state = ScanRunState()
+        self.controller.target_progress = TargetProgress()
         self.controller.result_config = ResultConfig()
         self.controller.interface = Mock()
         self.controller.execution_config = ExecutionConfig()
         self.controller.discovery_config = DiscoveryConfig.from_options(options)
         self.controller._operation_lock = threading.Lock()
-        self.controller.url = "https://example.test/"
-        self.controller.base_path = ""
+        self.controller.target_progress.url = "https://example.test/"
+        self.controller.target_progress.base_path = ""
 
     def tearDown(self):
         options.clear()
         options.update(self.original_options)
 
     def queued_directories(self, location: str) -> list[str]:
-        self.controller.directories = []
-        self.controller.passed_urls = set()
+        self.controller.target_progress.directories = []
+        self.controller.run_state.passed_urls = set()
 
         self.controller.match_callback(redirect_response(location))
 
-        return self.controller.directories
+        return self.controller.target_progress.directories
 
     def test_cross_origin_redirects_do_not_recur_on_the_target(self):
         locations = (
@@ -98,13 +102,13 @@ class TestRedirectRecursionOrigin(TestCase):
 
         for path in ("admin/", "nested/admin/"):
             with self.subTest(path=path):
-                self.controller.directories = []
-                self.controller.passed_urls = set()
+                self.controller.target_progress.directories = []
+                self.controller.run_state.passed_urls = set()
                 self.controller.add_directory(path)
-                self.assertEqual(self.controller.directories, [])
+                self.assertEqual(self.controller.target_progress.directories, [])
 
         self.controller.add_directory("administrator/")
-        self.assertEqual(self.controller.directories, ["administrator/"])
+        self.assertEqual(self.controller.target_progress.directories, ["administrator/"])
 
 
 class DirectoryRedirectHandler(BaseHTTPRequestHandler):
@@ -199,19 +203,21 @@ class FollowedRedirectRecursionContract:
     @staticmethod
     def queued_directories(response) -> list[str]:
         controller = object.__new__(Controller)
+        controller.run_state = ScanRunState()
+        controller.target_progress = TargetProgress()
         controller.result_config = ResultConfig()
         controller.interface = Mock()
         controller.execution_config = ExecutionConfig()
         controller.discovery_config = DiscoveryConfig.from_options(options)
         controller._operation_lock = threading.Lock()
-        controller.url = response.url.rsplit("/", 1)[0] + "/"
-        controller.base_path = ""
-        controller.directories = []
-        controller.passed_urls = set()
+        controller.target_progress.url = response.url.rsplit("/", 1)[0] + "/"
+        controller.target_progress.base_path = ""
+        controller.target_progress.directories = []
+        controller.run_state.passed_urls = set()
 
         controller.match_callback(response)
 
-        return controller.directories
+        return controller.target_progress.directories
 
     def assert_same_origin_directory_redirect_recurs(self, response) -> None:
         self.assertEqual(response.status, 200)

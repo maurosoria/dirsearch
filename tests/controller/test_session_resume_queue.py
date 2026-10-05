@@ -3,6 +3,8 @@ from unittest import TestCase
 from unittest.mock import Mock, patch
 
 from lib.controller.controller import Controller
+from lib.core.target_progress import TargetProgress
+from lib.core.scan_run_state import ScanRunState
 from lib.core.data import options
 from lib.core.result_config import ResultConfig
 from lib.core.dictionary import Dictionary
@@ -48,18 +50,20 @@ class RecordingAsyncFuzzer(RecordingFuzzer):
 class TestSessionResumeQueue(TestCase):
     def _controller(self):
         controller = object.__new__(Controller)
+        controller.run_state = ScanRunState()
+        controller.target_progress = TargetProgress()
         controller.result_config = ResultConfig()
         controller.logger = Mock()
         controller.interface = Mock()
         controller.start_time = 0
-        controller.passed_urls = set()
-        controller.directories = ["current/", "next/"]
-        controller.jobs_processed = 3
-        controller.errors = 0
-        controller.consecutive_errors = 0
-        controller.base_path = "first/"
-        controller.url = "https://first.example/"
-        controller.old_session = True
+        controller.run_state.passed_urls = set()
+        controller.target_progress.directories = ["current/", "next/"]
+        controller.run_state.jobs_processed = 3
+        controller.run_state.errors = 0
+        controller.run_state.consecutive_errors = 0
+        controller.target_progress.base_path = "first/"
+        controller.target_progress.url = "https://first.example/"
+        controller.run_state.old_session = True
         controller.dictionary = Dictionary(WordlistConfig.from_options(options))
         controller.dictionary.__setstate__(
             (["done", "in-flight", "later"], 2, ["in-flight"], 0)
@@ -72,8 +76,8 @@ class TestSessionResumeQueue(TestCase):
         controller.crawl_target = Mock()
 
         def set_target(url):
-            controller.url = url
-            controller.base_path = (
+            controller.target_progress.url = url
+            controller.target_progress.base_path = (
                 "first/" if url == "https://first.example/" else "second/"
             )
 
@@ -142,6 +146,6 @@ class TestSessionResumeQueue(TestCase):
                         ("second/", ["done", "in-flight", "later"]),
                     ],
                 )
-                self.assertEqual(controller.jobs_processed, 6)
-                self.assertEqual(controller.directories, [])
+                self.assertEqual(controller.run_state.jobs_processed, 6)
+                self.assertEqual(controller.target_progress.directories, [])
                 self.assertEqual(run_options["urls"], original_urls)

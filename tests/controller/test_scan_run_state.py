@@ -6,6 +6,7 @@ from unittest import TestCase
 from unittest.mock import Mock, call, patch
 
 from lib.controller.controller import Controller
+from lib.core.target_progress import TargetProgress
 from lib.controller.session import SessionStore
 from lib.core.data import options
 from lib.core.result_config import ResultConfig
@@ -21,21 +22,22 @@ from lib.core.wordlist_config import WordlistConfig
 class TestControllerRunState(TestCase):
     def _controller(self):
         controller = object.__new__(Controller)
+        controller.run_state = ScanRunState()
+        controller.target_progress = TargetProgress()
         controller.result_config = ResultConfig()
         controller.logger = Mock()
         controller.interface = Mock(buffer="")
         controller._terminal_stream = StringIO()
         self.addCleanup(lambda: controller.interface.close())
-        controller.run_state = ScanRunState()
         controller.start_time = 0
-        controller.passed_urls = set()
-        controller.directories = []
-        controller.jobs_processed = 0
-        controller.errors = 0
-        controller.consecutive_errors = 0
-        controller.base_path = ""
-        controller.url = ""
-        controller.old_session = False
+        controller.run_state.passed_urls = set()
+        controller.target_progress.directories = []
+        controller.run_state.jobs_processed = 0
+        controller.run_state.errors = 0
+        controller.run_state.consecutive_errors = 0
+        controller.target_progress.base_path = ""
+        controller.target_progress.url = ""
+        controller.run_state.old_session = False
         controller.wordlist_config = WordlistConfig()
         controller.dictionary = Dictionary(controller.wordlist_config)
         controller.output_history = []
@@ -45,7 +47,7 @@ class TestControllerRunState(TestCase):
         controller._reporter_finished = False
         controller.loop = None
         controller.reporter = Mock()
-        controller.set_target = Mock(side_effect=lambda url: setattr(controller, "url", url))
+        controller.set_target = Mock(side_effect=lambda url: setattr(controller.target_progress, "url", url))
         controller.crawl_target = Mock()
         controller.start = Mock()
 
@@ -161,8 +163,8 @@ class TestControllerRunState(TestCase):
         controller.run_state.finish_active()
         controller.run_state.activate_next()
         controller.discovery_config = DiscoveryConfig(subdirs=["", "api/"])
-        controller.directories = ["current/", "queued/"]
-        controller.jobs_processed = 3
+        controller.target_progress.directories = ["current/", "queued/"]
+        controller.run_state.jobs_processed = 3
         controller.requester = Mock(rate=7)
         for callback in (controller.update_progress_bar, controller.update_progress_bar_batch):
             with (
@@ -228,13 +230,13 @@ class TestControllerRunState(TestCase):
             controller = self._controller()
             controller.run_state = ScanRunState(targets)
             controller.run_state.activate_next()
-            controller.url = targets[0]
+            controller.target_progress.url = targets[0]
             checkpoint = os.path.join(directory, "checkpoint.json")
             controller._export(checkpoint)
             before = SessionStore().load(checkpoint)
             controller.run_state.finish_active()
             controller.run_state.activate_next()
-            controller.url = targets[1]
+            controller.target_progress.url = targets[1]
             with (
                 patch("lib.utils.file.os.replace", side_effect=OSError("write failed")),
                 self.assertRaisesRegex(OSError, "write failed"),
@@ -260,7 +262,7 @@ class TestControllerRunState(TestCase):
                 saved.run_state.activate_next()
                 saved.run_state.finish_active()
                 saved.run_state.activate_next()
-                saved.url = targets[1]
+                saved.target_progress.url = targets[1]
                 checkpoint = os.path.join(directory, "checkpoint.json")
                 saved._export(checkpoint)
 
