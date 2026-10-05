@@ -143,7 +143,9 @@ class TestResultPreparation(TestCase):
                                 base_path="", url="", old_session=False, output_history=[],
                                 dictionary=Dictionary(WordlistConfig()),
                             )
-                            SessionStore(saved).save(saved_controller, checkpoint, "")
+                            SessionStore().save(
+                                Controller._snapshot_session(saved_controller, saved, ""), checkpoint
+                            )
 
                         current = dict(saved)
                         if resumed:

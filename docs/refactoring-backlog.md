@@ -1,7 +1,7 @@
 # Local state ownership backlog
 
-This is the state-isolation backlog following PR #1741, including the
-result-policy refactor in this branch. It is not a list of all product issues, nor
+This is the state-isolation backlog following PR #1742, including the
+session-snapshot boundary in this branch. It is not a list of all product issues, nor
 a claim that multiple complete controllers can already share a process safely.
 Keep subsequent steps independently reviewable, with explicit contracts and
 regressions before replacing their callers.
@@ -25,13 +25,17 @@ regressions before replacing their callers.
   presentation and replay selection per run; transport composition derives its
   capture flag from that prepared policy. Store lifecycle and native body limits
   are unchanged.
+- [Session snapshots](session-snapshots.md) detach persistence input from live
+  controllers. Export uses prepared options plus owned progress; storage no
+  longer creates runtime resources. Version-1 JSON and cross-engine resume stay
+  unchanged. The prepared options mapping remains a transitional representation.
 
 ## Remaining work, in suggested order
 
 | Order | Boundary | Completion criterion |
 | --- | --- | --- |
-| 1 | Session preparation and persistence | Export prepared configuration plus owned progress, not the process-wide options map; preserve cross-engine resume and the current schema contract. |
-| 2 | Aggregate configuration and local context | Group prepared policies without a giant parameter list; separate configuration, live resources and mutable progress. Assign ownership to run metadata and generator state without changing generation behavior. |
+| 1 | Per-task progress and checkpoint model | Separate one target's mutable progress from run-wide progress; define a data-only task descriptor and checkpoint without changing sequential execution or cross-engine resume. |
+| 2 | Aggregate configuration and local context | Group prepared policies without a giant parameter list; replace the transitional session options mapping. Separate configuration, live resources and mutable progress. Assign ownership to run metadata and generator state without changing generation behavior. |
 | 3 | CLI options boundary | Keep mutable normalization local to one invocation; remove the global `options` dictionary once its last consumers are migrated. |
 | 4 | Constant tables | Make read-only intent enforceable where compatible, including `TEXT_CHARS`, and review the duplicate default-port mappings. |
 | 5 | Isolation acceptance tests | Prove independent local lifecycles, output, failure cleanup and resume without process-global patching; address signal ownership and ambient raw-target context. Passing component tests alone is insufficient. |
@@ -40,6 +44,29 @@ Steps 1-3 build on the explicit component boundaries; add isolation tests along
 the way, with step 5 as the final acceptance gate. Any future public task/context
 API must distinguish serializable task data from live handles and Rust's existing
 internal `ScanTask`; no parallel-target, GUI or remote scheduling is added here.
+
+## Broader architectural roadmap
+
+Removing globals is a prerequisite, not completion of the architecture work.
+The following stages are proposals, not implemented features or release promises:
+
+1. Complete the task/progress/checkpoint and aggregate-configuration boundaries
+   above. A future `TaskCheckpoint` is not the current run-level `SessionSnapshot`.
+2. Separate construction, preparation, execution and closure. Keep live resources
+   in explicit contexts with owned cleanup; put process signals in the CLI adapter.
+3. Prove independent lifecycle, cancellation, persistence and output isolation
+   before allowing complete concurrent executions.
+4. Define backend-independent result/lifecycle events for CLI and future UI
+   consumers, retaining chunk-oriented native boundaries.
+5. Design local task concurrency separately from request concurrency within a
+   target, with deterministic lifecycle and checkpoint acceptance tests.
+6. Only afterward consider GUI/external orchestration adapters using data
+   contracts rather than serialized live runtime objects. Remote scheduling is
+   a separate future design, not part of these state-isolation PRs.
+
+Add acceptance tests throughout, not only at the end. Constant-table cleanup can
+proceed independently; persistence and hot-path changes need proportionate
+compatibility and performance validation.
 
 ## Module-level mutable dictionaries
 

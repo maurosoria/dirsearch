@@ -65,6 +65,7 @@ class TestControllerLoggingOwnership(TestCase):
                 patch("lib.controller.controller.SessionStore") as store,
                 patch.object(Controller, "_confirm_session_overwrite"),
                 patch.object(Controller, "run", new=run),
+                patch.object(Controller, "_restore_session"),
             ):
                 store.return_value.load.return_value = {"options": {}}
                 store.return_value.restore_options.return_value = {

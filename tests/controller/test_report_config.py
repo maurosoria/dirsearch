@@ -17,7 +17,7 @@ from lib.core.wordlist_config import WordlistConfig
 
 
 class TestSessionReportConfiguration(TestCase):
-    def test_session_manager_uses_its_supplied_options_not_process_globals(self):
+    def test_restore_uses_supplied_report_policy_not_process_globals(self):
         saved_options = {
             "output_formats": ["sqlite"],
             "output_file": "saved.sqlite",
@@ -30,15 +30,14 @@ class TestSessionReportConfiguration(TestCase):
             "controller": {"start_time": 0},
             "dictionary": {"items": [], "index": 0},
         }
-        controller = SimpleNamespace()
+        controller = object.__new__(Controller)
+        controller.wordlist_config = WordlistConfig()
         with patch.dict(options, {
             "output_file": "other.sqlite",
             "output_table": "other_results",
             "sqlite_commit_batch_size": 99,
         }):
-            SessionStore(saved_options).apply_to_controller(
-                controller, payload, wordlist_config=WordlistConfig(),
-            )
+            controller._restore_session(payload, ReportConfig.from_options(saved_options))
         try:
             self.assertEqual(len(controller.reporter.reports), 1)
             reporter, sources = controller.reporter.reports[0]
@@ -70,7 +69,9 @@ class TestSessionReportConfiguration(TestCase):
                             base_path="", url="", old_session=False, output_history=[],
                             dictionary=Dictionary(WordlistConfig()),
                         )
-                        SessionStore(saved_options).save(saved_controller, checkpoint, "")
+                        SessionStore().save(
+                            Controller._snapshot_session(saved_controller, saved_options, ""), checkpoint
+                        )
 
                     def run(controller):
                         self.assertEqual(controller.reporter.config, ReportConfig.from_options(saved_options))

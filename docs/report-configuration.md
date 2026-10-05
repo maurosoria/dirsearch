@@ -11,8 +11,8 @@ commit batch size. It contains no connections, locks, pending rows or journals.
 | `sqlite_commit_batch_size` in `SQLiteReport` | Explicit constructor argument from the config | Existing SQLite commit/flush policy |
 
 `Controller.setup()` snapshots normalized options when creating the manager.
-`SessionStore.apply_to_controller()` snapshots its supplied, restored options;
-it no longer relies on those options also being installed in global state.
+`Controller._restore_session()` receives an explicit report policy prepared from
+validated restored options. Session storage does not construct report managers.
 `lib/report` Python modules no longer import the global options dictionary.
 
 ## Constructing a manager
@@ -87,7 +87,7 @@ Run `python -m unittest discover -s tests -t .`. Coverage includes:
 - Immutable format lists, supplied-mapping adaptation and database URL repr safety.
 - All reporter destination mappings, missing destinations, optional import failures
   and unknown formats, without connecting to external databases.
-- A regression where a session store's own destinations and SQLite batch differ
+- A regression where restored report policy's destinations and SQLite batch differ
   from process globals; the old implementation selected the global destination.
 - Real controller setup and JSON checkpoint restoration for all three engine
   selectors, followed by two target-specific JSON/SQLite artifacts.

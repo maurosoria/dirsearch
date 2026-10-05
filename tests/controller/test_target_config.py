@@ -162,7 +162,9 @@ class TestControllerTargetConfig(TestCase):
                     old_session=True, output_history=[], dictionary=Dictionary(WordlistConfig()),
                 )
                 checkpoint = os.path.join(directory, "checkpoint")
-                SessionStore(saved_options).save(saved_controller, checkpoint, "")
+                SessionStore().save(
+                    Controller._snapshot_session(saved_controller, saved_options, ""), checkpoint
+                )
                 requester = Mock(backend=None)
                 if engine is ScanEngine.ASYNC:
                     requester.close = AsyncMock()
@@ -175,7 +177,7 @@ class TestControllerTargetConfig(TestCase):
                     patch.object(Controller, "_confirm_session_overwrite"),
                     patch.object(Controller, "crawl_target"),
                     patch.object(Controller, "start"),
-                    patch("lib.controller.session.ReportManager", return_value=Mock(reports=())),
+                    patch("lib.controller.controller.ReportManager", return_value=Mock(reports=())),
                     patch(requester_path, return_value=requester),
                     patch("lib.core.fuzzer.Fuzzer"),
                     patch("lib.core.fuzzer.AsyncFuzzer"),

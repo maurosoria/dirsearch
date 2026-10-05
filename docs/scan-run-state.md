@@ -54,8 +54,8 @@ full list is copied only for a checkpoint snapshot.
 ## Sessions
 
 `snapshot_targets()` returns a detached list containing the active target first,
-followed by pending targets. Saving passes this list in a detached options mapping
-to `SessionStore`, after flushing reports. It does not temporarily overwrite
+followed by pending targets. Saving overlays this list on prepared options in a
+[SessionSnapshot](session-snapshots.md), after flushing reports. It does not temporarily overwrite
 global options or consume queue entries, including if saving fails.
 
 Quit-and-save writes the checkpoint **before** unwinding the active attempt.

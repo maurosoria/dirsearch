@@ -9,6 +9,7 @@ from lib.controller.controller import Controller
 from lib.controller.session import SessionStore
 from lib.core.data import options
 from lib.core.result_config import ResultConfig
+from lib.core.report_config import ReportConfig
 from lib.core.dictionary import Dictionary
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.exceptions import InvalidURLException, QuitInterrupt, SkipTargetInterrupt
@@ -38,6 +39,7 @@ class TestControllerRunState(TestCase):
         controller.wordlist_config = WordlistConfig()
         controller.dictionary = Dictionary(controller.wordlist_config)
         controller.output_history = []
+        controller._session_options = dict(options)
         controller.response_stores = ()
         controller._native_worker = None
         controller._reporter_finished = False
@@ -193,7 +195,7 @@ class TestControllerRunState(TestCase):
                 with self.assertRaises(SystemExit) as stopped:
                     controller.run()
                 self.assertEqual(stopped.exception.code, 0)
-                payload = SessionStore({}).load(checkpoint)
+                payload = SessionStore().load(checkpoint)
                 self.assertEqual(payload["version"], SessionStore.SESSION_VERSION)
                 self.assertEqual(payload["options"]["urls"], targets[1:])
                 self.assertEqual(payload["controller"]["url"], targets[1])
@@ -207,12 +209,9 @@ class TestControllerRunState(TestCase):
                 for resume_engine in ScanEngine:
                     with self.subTest(resume_engine=resume_engine):
                         resumed = self._controller()
-                        restored = SessionStore({}).restore_options(payload["options"])
+                        restored = SessionStore().restore_options(payload["options"])
                         with self._environment(resume_engine, restored["urls"]):
-                            store = SessionStore(options)
-                            store.apply_to_controller(
-                                resumed, payload, wordlist_config=resumed.wordlist_config
-                            )
+                            resumed._restore_session(payload, ReportConfig.from_options(options))
                             self.addCleanup(resumed.reporter.finish)
                             resumed.run()
                             self.assertEqual(
@@ -232,7 +231,7 @@ class TestControllerRunState(TestCase):
             controller.url = targets[0]
             checkpoint = os.path.join(directory, "checkpoint.json")
             controller._export(checkpoint)
-            before = SessionStore({}).load(checkpoint)
+            before = SessionStore().load(checkpoint)
             controller.run_state.finish_active()
             controller.run_state.activate_next()
             controller.url = targets[1]
@@ -241,7 +240,7 @@ class TestControllerRunState(TestCase):
                 self.assertRaisesRegex(OSError, "write failed"),
             ):
                 controller._export(checkpoint)
-            self.assertEqual(SessionStore({}).load(checkpoint), before)
+            self.assertEqual(SessionStore().load(checkpoint), before)
             self.assertEqual(controller.run_state.active_target, targets[1])
             self.assertEqual(controller.run_state.snapshot_targets(), targets[1:])
             self.assertEqual(options["urls"], targets)
@@ -253,7 +252,7 @@ class TestControllerRunState(TestCase):
                 self.subTest(engine=engine),
                 tempfile.TemporaryDirectory() as directory,
                 self._environment(engine, targets),
-                patch("lib.controller.session.ReportManager", return_value=Mock()),
+                patch("lib.controller.controller.ReportManager", return_value=Mock()),
                 patch.object(Controller, "_confirm_session_overwrite"),
             ):
                 saved = self._controller()

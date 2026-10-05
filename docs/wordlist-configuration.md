@@ -70,8 +70,8 @@ per word or corpus copy is added. This refactor does not claim benchmark gains.
 
 Checkpoints keep their existing options and dictionary-state representation;
 they do not serialize `WordlistConfig`. The controller reconstructs the policy
-from restored options and supplies it to `SessionStore.apply_to_controller()`.
-That method initializes an empty dictionary and restores saved words and indexes
+from restored options. `Controller._restore_session()`
+initializes an empty dictionary and restores saved words and indexes
 without invoking a generator or accessing the original wordlist files.
 
 `Dictionary(config)` is the explicit empty construction path.

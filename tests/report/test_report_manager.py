@@ -56,7 +56,7 @@ class TestReportManagerDestinations(TestCase):
         output_table = "restored_results"
         mysql_url = "mysql://user:pass@example.test/db"
         postgres_url = "postgresql://user:pass@example.test/db"
-        restored = SessionStore({}).restore_options(
+        restored = SessionStore().restore_options(
             {
                 "output_file": output_file,
                 "output_table": output_table,
@@ -111,7 +111,7 @@ class TestReportManagerDestinations(TestCase):
     def test_restored_file_and_sqlite_reports_persist_results(self):
         with TemporaryDirectory() as directory:
             output_file = str(Path(directory, "report-{format}.{extension}"))
-            restored = SessionStore({}).restore_options({
+            restored = SessionStore().restore_options({
                 "output_formats": ["json", "sqlite"],
                 "output_file": output_file, "output_table": "results",
             })
