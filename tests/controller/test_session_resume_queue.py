@@ -47,6 +47,7 @@ class RecordingAsyncFuzzer(RecordingFuzzer):
 class TestSessionResumeQueue(TestCase):
     def _controller(self):
         controller = object.__new__(Controller)
+        controller.interface = Mock()
         controller.start_time = 0
         controller.passed_urls = set()
         controller.directories = ["current/", "next/"]
@@ -122,7 +123,6 @@ class TestSessionResumeQueue(TestCase):
                     patch("lib.core.fuzzer.AsyncFuzzer", create_fuzzer),
                     patch("lib.core.fuzzer.NativeFuzzer", create_fuzzer),
                     patch("lib.controller.controller.signal.signal"),
-                    patch("lib.controller.controller.interface"),
                 ):
                     try:
                         controller.wordlist_config = WordlistConfig.from_options(options)

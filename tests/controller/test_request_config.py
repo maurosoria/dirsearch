@@ -39,7 +39,7 @@ class TestControllerRequestConfig(TestCase):
                         patch.object(Controller, "_import", new=prepare),
                         patch(requester_path, return_value=requester) as factory,
                         patch("lib.controller.controller.signal.signal"),
-                        patch("lib.controller.controller.interface"),
+                        patch("lib.controller.controller.create_terminal"),
                     ):
                         controller = Controller()
                         options["headers"]["X-Prepared"] = "changed"

@@ -98,8 +98,7 @@ class TestSessionReportConfiguration(TestCase):
                         patch.object(Controller, "run", new=run),
                         patch.object(Controller, "_confirm_session_overwrite"),
                         patch("lib.controller.controller.Dictionary", return_value=Dictionary(WordlistConfig())),
-                        patch("lib.controller.controller.interface"),
-                        patch("builtins.print"),
+                        patch("lib.controller.controller.create_terminal"),
                     ):
                         controller = Controller()
                     for host in ("first.test", "second.test"):

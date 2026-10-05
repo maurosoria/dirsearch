@@ -9,7 +9,7 @@ import tempfile
 import threading
 from dataclasses import replace
 from unittest import IsolatedAsyncioTestCase, TestCase, skipUnless
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from lib.connection.response import NativeResponse
 from lib.controller.controller import Controller
@@ -607,6 +607,7 @@ class TestResponseStoreFactory(TestCase):
             response_directory = os.path.join(directory, "responses")
             jsonl_file = os.path.join(directory, "responses.jsonl")
             controller = object.__new__(Controller)
+            controller.interface = Mock()
             controller.response_stores = create_response_stores(
                 response_directory,
                 jsonl_file,
@@ -672,11 +673,10 @@ class TestControllerResponseStores(TestCase):
         failing = FailingStore("failure")
         recording = RecordingStore()
         controller = object.__new__(Controller)
+        controller.interface = Mock()
         controller.response_stores = (failing, recording)
 
-        with patch("lib.controller.controller.logger.exception"), patch(
-            "lib.controller.controller.interface.error"
-        ) as report_error:
+        with patch("lib.controller.controller.logger.exception"), patch.object(controller.interface, "error") as report_error:
             controller.save_response(make_response())
 
         report_error.assert_called_once()
@@ -706,11 +706,10 @@ class TestControllerResponseStores(TestCase):
 
         recording = RecordingCloseStore()
         controller = object.__new__(Controller)
+        controller.interface = Mock()
         controller.response_stores = (FailingCloseStore("failure"), recording)
 
-        with patch("lib.controller.controller.logger.exception"), patch(
-            "lib.controller.controller.interface.error"
-        ) as report_error:
+        with patch("lib.controller.controller.logger.exception"), patch.object(controller.interface, "error") as report_error:
             controller._close_response_stores()
 
         report_error.assert_called_once()
@@ -817,6 +816,7 @@ class TestAsyncResponseStores(IsolatedAsyncioTestCase):
                 return self.destination
 
         controller = object.__new__(Controller)
+        controller.interface = Mock()
         controller.response_stores = (BlockingStore("memory"),)
         task = asyncio.create_task(controller.save_response_async(make_response()))
 
@@ -846,6 +846,7 @@ class TestAsyncResponseStores(IsolatedAsyncioTestCase):
 
         stores = (AsyncStore("first"), AsyncStore("second"))
         controller = object.__new__(Controller)
+        controller.interface = Mock()
         controller.response_stores = stores
         task = asyncio.create_task(controller.save_response_async(make_response()))
 
@@ -883,11 +884,10 @@ class TestAsyncResponseStores(IsolatedAsyncioTestCase):
 
         recording = RecordingStore()
         controller = object.__new__(Controller)
+        controller.interface = Mock()
         controller.response_stores = (FailingStore("failure"), recording)
 
-        with patch("lib.controller.controller.logger.exception"), patch(
-            "lib.controller.controller.interface.error"
-        ) as report_error:
+        with patch("lib.controller.controller.logger.exception"), patch.object(controller.interface, "error") as report_error:
             await controller.save_response_async(make_response())
 
         report_error.assert_called_once()

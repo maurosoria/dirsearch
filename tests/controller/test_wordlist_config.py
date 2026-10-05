@@ -25,7 +25,7 @@ class TestControllerWordlistConfig(TestCase):
                 }),
                 patch.object(Controller, "run"),
                 patch.object(Controller, "_prepare_response_stores"),
-                patch("lib.controller.controller.interface"),
+                patch("lib.controller.controller.create_terminal"),
                 patch("lib.controller.controller.ReportManager"),
                 patch("lib.core.wordlist_backend.FileUtils.get_lines", return_value=["page.%EXT%"]),
             ):
@@ -57,10 +57,9 @@ class TestControllerWordlistConfig(TestCase):
                 patch.object(Controller, "run"),
                 patch.object(Controller, "_prepare_response_stores"),
                 patch.object(Controller, "_confirm_session_overwrite"),
-                patch("lib.controller.controller.interface"),
+                patch("lib.controller.controller.create_terminal"),
                 patch("lib.controller.controller.ReportManager"),
                 patch("lib.core.wordlist_backend.FileUtils.get_lines", return_value=["done", "pending"]),
-                patch("builtins.print"),
             ):
                 original = Controller()
                 original.base_path = ""

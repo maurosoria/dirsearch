@@ -1,6 +1,6 @@
 import asyncio
 from unittest import IsolatedAsyncioTestCase, TestCase
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 from lib.connection.response import NativeResponse
 from lib.controller.controller import Controller
@@ -82,16 +82,16 @@ class TestAsyncReplayLifecycle(ReplayOptionsMixin, IsolatedAsyncioTestCase):
         options["async_mode"] = False
         requester = RecordingAsyncRequester()
         controller = object.__new__(Controller)
+        controller.interface = Mock()
         controller.execution_config = ExecutionConfig(engine=ScanEngine.ASYNC)
         controller.discovery_config = DiscoveryConfig.from_options(options)
         controller.loop = asyncio.get_running_loop()
         controller.requester = requester
 
-        with patch("lib.controller.controller.interface"):
-            await AsyncFuzzer.run_callbacks(
-                (controller.match_callback,),
-                matched_response(),
-            )
+        await AsyncFuzzer.run_callbacks(
+            (controller.match_callback,),
+            matched_response(),
+        )
 
         completed_when_callback_returned = requester.completed
         await asyncio.sleep(0)
@@ -106,21 +106,21 @@ class TestAsyncReplayLifecycle(ReplayOptionsMixin, IsolatedAsyncioTestCase):
         options["async_mode"] = False
         requester = BlockingAsyncRequester()
         controller = object.__new__(Controller)
+        controller.interface = Mock()
         controller.execution_config = ExecutionConfig(engine=ScanEngine.ASYNC)
         controller.discovery_config = DiscoveryConfig.from_options(options)
         controller.loop = asyncio.get_running_loop()
         controller.requester = requester
 
-        with patch("lib.controller.controller.interface"):
-            callback_task = asyncio.create_task(
-                AsyncFuzzer.run_callbacks(
-                    (controller.match_callback,),
-                    matched_response(),
-                )
+        callback_task = asyncio.create_task(
+            AsyncFuzzer.run_callbacks(
+                (controller.match_callback,),
+                matched_response(),
             )
-            await asyncio.wait_for(requester.started.wait(), timeout=1)
-            callback_task.cancel()
-            await asyncio.gather(callback_task, return_exceptions=True)
+        )
+        await asyncio.wait_for(requester.started.wait(), timeout=1)
+        callback_task.cancel()
+        await asyncio.gather(callback_task, return_exceptions=True)
 
         cancelled_with_callback = requester.cancelled.is_set()
         if requester.task is not None and not requester.task.done():
@@ -132,13 +132,13 @@ class TestAsyncReplayLifecycle(ReplayOptionsMixin, IsolatedAsyncioTestCase):
     async def test_replay_failure_is_observed_by_callback_runner(self):
         options["async_mode"] = False
         controller = object.__new__(Controller)
+        controller.interface = Mock()
         controller.execution_config = ExecutionConfig(engine=ScanEngine.ASYNC)
         controller.discovery_config = DiscoveryConfig.from_options(options)
         controller.loop = asyncio.get_running_loop()
         controller.requester = FailingAsyncRequester()
 
         with (
-            patch("lib.controller.controller.interface"),
             self.assertRaisesRegex(RequestException, "replay failed"),
         ):
             await AsyncFuzzer.run_callbacks(
@@ -154,12 +154,12 @@ class TestSyncReplayLifecycle(ReplayOptionsMixin, TestCase):
                 options["async_mode"] = True
                 requester = Mock()
                 controller = object.__new__(Controller)
+                controller.interface = Mock()
                 controller.execution_config = ExecutionConfig(engine=engine)
                 controller.discovery_config = DiscoveryConfig.from_options(options)
                 controller.requester = requester
 
-                with patch("lib.controller.controller.interface"):
-                    result = controller.match_callback(matched_response())
+                result = controller.match_callback(matched_response())
 
                 self.assertIsNone(result)
                 requester.request.assert_called_once_with(

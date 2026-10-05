@@ -1,5 +1,6 @@
 import os
 import tempfile
+from io import StringIO
 from contextlib import contextmanager
 from unittest import TestCase
 from unittest.mock import Mock, call, patch
@@ -18,6 +19,9 @@ from lib.core.wordlist_config import WordlistConfig
 class TestControllerRunState(TestCase):
     def _controller(self):
         controller = object.__new__(Controller)
+        controller.interface = Mock(buffer="")
+        controller._terminal_stream = StringIO()
+        self.addCleanup(lambda: controller.interface.close())
         controller.run_state = ScanRunState()
         controller.start_time = 0
         controller.passed_urls = set()
@@ -69,9 +73,7 @@ class TestControllerRunState(TestCase):
             patch("lib.core.fuzzer.AsyncFuzzer"),
             patch("lib.core.fuzzer.NativeFuzzer"),
             patch("lib.controller.controller.signal.signal"),
-            patch("lib.controller.controller.interface") as interface,
         ):
-            interface.buffer = ""
             yield
 
     def test_later_global_changes_cannot_replace_pending_targets(self):
@@ -161,7 +163,7 @@ class TestControllerRunState(TestCase):
             with (
                 self.subTest(callback=callback.__name__),
                 patch.dict(options, {}, clear=True),
-                patch("lib.controller.controller.interface") as interface,
+                patch.object(controller, "interface") as interface,
             ):
                 callback(None)
                 interface.last_path.assert_called_once_with(0, 0, 4, 9, 7, 0)
@@ -250,7 +252,6 @@ class TestControllerRunState(TestCase):
                 self._environment(engine, targets),
                 patch("lib.controller.session.ReportManager", return_value=Mock()),
                 patch.object(Controller, "_confirm_session_overwrite"),
-                patch("builtins.print"),
             ):
                 saved = self._controller()
                 saved.run_state = ScanRunState(targets)

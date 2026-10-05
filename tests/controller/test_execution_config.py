@@ -19,6 +19,7 @@ from lib.core.wordlist_config import WordlistConfig
 
 def make_controller(config):
     controller = object.__new__(Controller)
+    controller.interface = Mock()
     controller.execution_config = config
     controller.discovery_config = DiscoveryConfig()
     controller.start_time = 0
@@ -101,7 +102,7 @@ class TestControllerExecutionConfig(TestCase):
             continuing.raise_error(error)
         with (
             patch.dict(options, {"skip_on_status": {429}, "full_url": False, "replay_proxy": None}, clear=True),
-            patch("lib.controller.controller.interface") as interface,
+            patch.object(continuing, "interface") as interface,
         ):
             self.assertIsNone(continuing.match_callback(response))
         interface.status_report.assert_called_once_with(response, False)
@@ -185,7 +186,7 @@ class TestControllerExecutionConfig(TestCase):
                         patch(requester_path, side_effect=make_requester) as factory,
                         patch("lib.controller.controller.get_blacklists", return_value={}),
                         patch("lib.controller.controller.signal.signal"),
-                        patch("lib.controller.controller.interface"),
+                        patch("lib.controller.controller.create_terminal"),
                     ):
                         controller = Controller()
                     self.assertEqual(len(policies), 2)
@@ -249,8 +250,7 @@ class TestControllerExecutionConfig(TestCase):
                     patch("lib.controller.controller.get_blacklists", return_value={}),
                     patch("lib.controller.session.ReportManager", return_value=Mock(reports=())),
                     patch("lib.controller.controller.signal.signal"),
-                    patch("lib.controller.controller.interface"),
-                    patch("builtins.print"),
+                    patch("lib.controller.controller.create_terminal"),
                 ):
                     controller = Controller()
                 self.assertEqual(controller.execution_config, ExecutionConfig(
