@@ -17,4 +17,5 @@ dirsearch is an advanced web path brute-forcer. This documentation is split into
 - [Building](building.md): PyInstaller builds, portable archives, Docker images, and GitHub Actions workflows.
 - [Target Progress](scan-run-state.md): pending/active ownership, sequential execution, and checkpoint boundaries.
 - [Target Configuration](target-configuration.md): immutable target preparation hints and transport boundaries.
+- [Refactoring Backlog](refactoring-backlog.md): remaining local state ownership work and mutable-global inventory.
 - [References](references.md): external articles, tutorials, and videos.

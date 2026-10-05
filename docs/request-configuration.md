@@ -67,6 +67,24 @@ its existing connection pools were built from the original policy. Explicit
 target changes continue through `set_url`, `set_query`, `set_ip`, `set_auth` and
 `reset_auth`. Resetting authentication restores the configured baseline.
 
+## Display-rate ownership
+
+Threaded and async requesters retain one display-rate snapshot per instance,
+valid for 150 ms using a monotonic clock. A snapshot stores its expiry and value
+together; cached reads take no lock. Refreshes share only that requester's lock
+and recheck expiry after acquiring it. A failed sample does not extend the old
+snapshot. No process-wide cache or requester-identity registry is retained.
+
+This cache is only for presentation. The request limiter still accounts for
+each reservation and enforces its rolling window independently. Native rate
+reporting remains owned by the Rust session and does not use the Python cache.
+Target changes preserve the existing requester-level telemetry lifetime.
+
+`tests/connection/test_requester_rate.py` checks expiry, zero values, failures,
+independent instances, cross-requester blocking and both Python transports
+without making network requests. The existing limiter and native tests cover
+reservation accounting separately.
+
 ## Replay, calibration and native execution
 
 Calibration uses the already-configured requester. Replay uses its snapshot and

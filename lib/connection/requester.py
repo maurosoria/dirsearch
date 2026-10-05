@@ -57,7 +57,6 @@ from lib.connection.proxy import (
 from lib.connection.rate_limiter import RequestRateLimiter
 from lib.connection.response import AsyncResponse, Response
 from lib.core.request_config import RequestConfig
-from lib.core.decorators import cached
 from lib.core.exceptions import RequestException
 from lib.core.logger import logger
 from lib.core.settings import (
@@ -446,6 +445,9 @@ class BaseRequester:
         self._query: str = ""
         self._ip_overrides = IPOverrides()
         self._rate_limiter = RequestRateLimiter()
+        # Display-only cache: (monotonic expiry, rate), owned by this requester.
+        self._rate_snapshot: tuple[float, int] | None = None
+        self._rate_snapshot_lock = threading.Lock()
         self.proxy_cred = self.config.proxy_auth
         self.headers = CaseInsensitiveDict(self.config.headers)
         self.agents: list[str] = []
@@ -509,9 +511,21 @@ class BaseRequester:
         self._rate_limiter.wait(self.config.max_rate)
 
     @property
-    @cached(RATE_UPDATE_DELAY)
     def rate(self) -> int:
-        return self._rate_limiter.rate
+        """Sample display telemetry at most once per interval, without pacing requests."""
+        # Read a coherent immutable pair; cached reads need no lock.
+        snapshot = self._rate_snapshot
+        if snapshot is not None and time.monotonic() < snapshot[0]:
+            return snapshot[1]
+
+        with self._rate_snapshot_lock:
+            # Another reader may have refreshed it while we waited.
+            snapshot = self._rate_snapshot
+            if snapshot is None or time.monotonic() >= snapshot[0]:
+                rate = self._rate_limiter.rate
+                snapshot = (time.monotonic() + RATE_UPDATE_DELAY, rate)
+                self._rate_snapshot = snapshot
+            return snapshot[1]
 
 
 class HTTPBearerAuth(AuthBase):
