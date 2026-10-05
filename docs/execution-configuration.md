@@ -103,7 +103,8 @@ before starting any target. No checkpoint schema or engine-specific state is
 added; existing saved start-time semantics are unchanged.
 
 [ReportConfig](report-configuration.md) now owns report destinations and SQLite
-batch policy. Target queues/routing, terminal and raw-response output, replay
+batch policy, and [ScanRunState](scan-run-state.md) owns pending and active
+targets. Target routing, terminal and raw-response output, replay
 destinations and remaining controller/logging globals are separate migration
 steps. This does not make complete controllers safe to run concurrently, even though individual fuzzers
 no longer read global options.

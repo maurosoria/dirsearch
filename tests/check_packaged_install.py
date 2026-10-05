@@ -40,6 +40,7 @@ def main() -> None:
     from dirsearch.lib.core.filter_state import FilterState
     from dirsearch.lib.core.request_config import RequestConfig
     from dirsearch.lib.core.report_config import ReportConfig
+    from dirsearch.lib.core.scan_run_state import ScanRunState
     from dirsearch.lib.core.wordlist_config import WordlistConfig
     from dirsearch.lib.report.directory_response_store import DirectoryResponseStore
     from dirsearch.lib.report.jsonl_response_store import JsonlResponseStore
@@ -66,6 +67,10 @@ def main() -> None:
     assert DiscoveryConfig(subdirs=[""]).subdirs == ("",)
     assert FilterConfig(include_status_codes={200}).native_options()["include_status_codes"] == [200]
     assert FilterState().scanners == {"default": {}, "prefixes": {}, "suffixes": {}}
+    run_state = ScanRunState(["http://example.test/", "http://next.test/"])
+    assert run_state.activate_next() == "http://example.test/"
+    assert run_state.pending_count == 1
+    assert run_state.snapshot_targets() == ["http://example.test/", "http://next.test/"]
     assert issubclass(DirectoryResponseStore, BaseResponseStore), (
         DirectoryResponseStore.__mro__
     )

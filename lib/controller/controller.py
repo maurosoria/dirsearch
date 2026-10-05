@@ -58,6 +58,7 @@ from lib.core.options import (
     validate_regex_options,
 )
 from lib.core.request_backend import get_native_request_backend_error
+from lib.core.scan_run_state import ScanRunState
 from lib.core.settings import (
     BANNER,
     DEFAULT_HEADERS,
@@ -193,6 +194,7 @@ class Controller:
         self._reporter_finished = False
         self.response_stores = ()
         self._native_worker = None
+        self.run_state = ScanRunState()
 
         try:
             if options["session_file"]:
@@ -332,7 +334,10 @@ class Controller:
 
         # A saved session must never advance beyond durable report rows.
         self.reporter.flush()
-        session_store = SessionStore(options)
+        # Keep the on-disk active-first URL list without using global options as
+        # a mutable queue. A detached mapping also leaves options intact on error.
+        session_options = {**options, "urls": self.run_state.snapshot_targets()}
+        session_store = SessionStore(session_options)
         session_store.save(self, session_file, last_output)
 
     def setup(self) -> None:
@@ -443,6 +448,7 @@ class Controller:
 
         # setup() has parsed raw requests, or _import() has restored the session.
         # Snapshot once, before any requester or lazy native engine is created.
+        self.run_state = ScanRunState(options["urls"])
         self.request_config = RequestConfig.from_options(options)
         self.discovery_config = DiscoveryConfig.from_options(options)
         self.filter_config = FilterConfig.from_options(
@@ -460,8 +466,7 @@ class Controller:
         signal.signal(signal.SIGINT, lambda *_: self.handle_pause())
         signal.signal(signal.SIGTERM, lambda *_: self.handle_pause())
 
-        while options["urls"]:
-            url = options["urls"][0]
+        while (url := self.run_state.activate_next()) is not None:
             fuzzer_options = {}
             if self.execution_config.engine is ScanEngine.NATIVE:
                 fuzzer_options["filtered_chunk_callbacks"] = (
@@ -514,7 +519,7 @@ class Controller:
                 sys.exit(0)
 
             finally:
-                options["urls"].pop(0)
+                self.run_state.finish_active()
 
         interface.warning("\nTask Completed")
         self._close_reporter()
@@ -963,7 +968,7 @@ class Controller:
     def update_progress_bar(self, response: BaseResponse | None) -> None:
         jobs_count = (
             # Jobs left for unscanned targets
-            len(self.discovery_config.subdirs) * (len(options["urls"]) - 1)
+            len(self.discovery_config.subdirs) * self.run_state.pending_count
             # Jobs left for the current target
             + len(self.directories)
             # Finished jobs
@@ -1040,7 +1045,7 @@ class Controller:
                 if len(self.directories) > 1:
                     msg += " / [n]ext"
 
-                if len(options["urls"]) > 1:
+                if self.run_state.pending_count:
                     msg += " / [s]kip target"
 
                 interface.in_line(msg + ": ")
@@ -1087,7 +1092,7 @@ class Controller:
                     self.fuzzer.quit()
                     break
 
-                elif option.lower() == "s" and len(options["urls"]) > 1:
+                elif option.lower() == "s" and self.run_state.pending_count:
                     self._reset_pause_state()
                     skipexc = SkipTargetInterrupt("Target skipped by the user")
                     if self.execution_config.engine is ScanEngine.ASYNC:

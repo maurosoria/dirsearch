@@ -8,6 +8,12 @@ Sessions are stored as one JSON checkpoint inside a session directory. The
 checkpoint contains the output history, controller state, wordlist position,
 and command-line options as one atomic snapshot.
 
+The checkpoint's target list contains the interrupted target first, followed by
+pending targets in their original order. Completed targets are not repeated.
+The active target's saved dictionary and directory progress determines where
+work resumes. This representation is shared by all three engines; it does not
+serialize the runtime queue object.
+
 ```text
 session_name/
 └── dirsearch-session.json

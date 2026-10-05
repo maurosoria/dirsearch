@@ -1,0 +1,270 @@
+import os
+import tempfile
+from contextlib import contextmanager
+from unittest import TestCase
+from unittest.mock import Mock, call, patch
+
+from lib.controller.controller import Controller
+from lib.controller.session import SessionStore
+from lib.core.data import options
+from lib.core.dictionary import Dictionary
+from lib.core.discovery_config import DiscoveryConfig
+from lib.core.exceptions import InvalidURLException, QuitInterrupt, SkipTargetInterrupt
+from lib.core.execution_config import ScanEngine
+from lib.core.scan_run_state import ScanRunState
+from lib.core.wordlist_config import WordlistConfig
+
+
+class TestControllerRunState(TestCase):
+    def _controller(self):
+        controller = object.__new__(Controller)
+        controller.run_state = ScanRunState()
+        controller.start_time = 0
+        controller.passed_urls = set()
+        controller.directories = []
+        controller.jobs_processed = 0
+        controller.errors = 0
+        controller.consecutive_errors = 0
+        controller.base_path = ""
+        controller.url = ""
+        controller.old_session = False
+        controller.wordlist_config = WordlistConfig()
+        controller.dictionary = Dictionary(controller.wordlist_config)
+        controller.output_history = []
+        controller.response_stores = ()
+        controller._native_worker = None
+        controller._reporter_finished = False
+        controller.loop = None
+        controller.reporter = Mock()
+        controller.set_target = Mock(side_effect=lambda url: setattr(controller, "url", url))
+        controller.crawl_target = Mock()
+        controller.start = Mock()
+
+        def close_loop():
+            if controller.loop is not None:
+                controller.loop.close()
+
+        self.addCleanup(close_loop)
+        return controller
+
+    @contextmanager
+    def _environment(self, engine, targets):
+        # The controller lifecycle is real; no requests or worker threads run.
+        with (
+            patch.dict(options, {
+                "urls": targets,
+                "request_backend": "native" if engine is ScanEngine.NATIVE else "python",
+                "async_mode": engine is ScanEngine.ASYNC,
+                "subdirs": [],
+                "session_file": None,
+                "output_formats": [],
+                "log_file": None,
+                "save_response": None,
+                "save_response_jsonl": None,
+            }),
+            patch("lib.connection.requester.Requester"),
+            patch("lib.connection.requester.AsyncRequester"),
+            patch("lib.connection.native.NativeRequester"),
+            patch("lib.core.fuzzer.Fuzzer"),
+            patch("lib.core.fuzzer.AsyncFuzzer"),
+            patch("lib.core.fuzzer.NativeFuzzer"),
+            patch("lib.controller.controller.signal.signal"),
+            patch("lib.controller.controller.interface") as interface,
+        ):
+            interface.buffer = ""
+            yield
+
+    def test_later_global_changes_cannot_replace_pending_targets(self):
+        for engine in ScanEngine:
+            targets = ["http://first.test/", "http://next.test/", "http://first.test/"]
+            expected = list(targets)
+            with self.subTest(engine=engine), self._environment(engine, targets):
+                controller = self._controller()
+                observations = []
+
+                def start():
+                    observations.append((
+                        controller.run_state.active_target,
+                        controller.run_state.pending_count,
+                        controller.run_state.snapshot_targets(),
+                    ))
+                    options["urls"] = ["http://unrelated.test/"]
+
+                controller.start.side_effect = start
+                controller.run()
+                self.assertEqual(controller.set_target.call_args_list, list(map(call, expected)))
+                self.assertEqual(observations, [
+                    (target, len(expected) - index - 1, expected[index:])
+                    for index, target in enumerate(expected)
+                ])
+                self.assertEqual(targets, expected)
+                self.assertEqual(options["urls"], ["http://unrelated.test/"])
+                self.assertIsNone(controller.run_state.active_target)
+                self.assertEqual(controller.run_state.snapshot_targets(), [])
+
+    def test_empty_run_never_activates_a_target(self):
+        for engine in ScanEngine:
+            with self.subTest(engine=engine), self._environment(engine, []):
+                controller = self._controller()
+                controller.run()
+                controller.set_target.assert_not_called()
+                controller.start.assert_not_called()
+                controller.reporter.finish.assert_called_once_with()
+                self.assertEqual(controller.run_state.snapshot_targets(), [])
+
+    def test_handled_target_exit_advances_once(self):
+        for engine in ScanEngine:
+            for error in (InvalidURLException, SkipTargetInterrupt, KeyboardInterrupt):
+                targets = ["http://first.test/", "http://next.test/"]
+                with (
+                    self.subTest(engine=engine, error=error),
+                    self._environment(engine, targets),
+                ):
+                    controller = self._controller()
+                    controller.start.side_effect = [error("interrupted"), None]
+                    controller.run()
+                    self.assertEqual(controller.set_target.call_args_list, list(map(call, targets)))
+                    self.assertEqual(controller.start.call_count, 2)
+                    self.assertEqual(controller.run_state.snapshot_targets(), [])
+
+    def test_fuzzer_setup_failure_does_not_activate_later_targets(self):
+        for engine, fuzzer_name in (
+            (ScanEngine.THREADED, "Fuzzer"),
+            (ScanEngine.ASYNC, "AsyncFuzzer"),
+            (ScanEngine.NATIVE, "NativeFuzzer"),
+        ):
+            targets = ["http://first.test/", "http://next.test/"]
+            with (
+                self.subTest(engine=engine),
+                self._environment(engine, targets),
+                patch(f"lib.core.fuzzer.{fuzzer_name}", side_effect=RuntimeError("setup failed")),
+            ):
+                controller = self._controller()
+                with self.assertRaisesRegex(RuntimeError, "setup failed"):
+                    controller.run()
+                controller.set_target.assert_not_called()
+                self.assertEqual(controller.run_state.active_target, targets[0])
+                self.assertEqual(controller.run_state.pending_count, 1)
+                self.assertEqual(controller.run_state.snapshot_targets(), targets)
+
+    def test_progress_counts_pending_targets_without_global_urls(self):
+        controller = self._controller()
+        controller.run_state = ScanRunState(["done", "active", "next", "last"])
+        controller.run_state.activate_next()
+        controller.run_state.finish_active()
+        controller.run_state.activate_next()
+        controller.discovery_config = DiscoveryConfig(subdirs=["", "api/"])
+        controller.directories = ["current/", "queued/"]
+        controller.jobs_processed = 3
+        controller.requester = Mock(rate=7)
+        for callback in (controller.update_progress_bar, controller.update_progress_bar_batch):
+            with (
+                self.subTest(callback=callback.__name__),
+                patch.dict(options, {}, clear=True),
+                patch("lib.controller.controller.interface") as interface,
+            ):
+                callback(None)
+                interface.last_path.assert_called_once_with(0, 0, 4, 9, 7, 0)
+
+    def test_saved_quit_preserves_active_and_pending_for_every_engine(self):
+        for engine in ScanEngine:
+            targets = ["http://done.test/", "http://active.test/", "http://pending.test/"]
+            with (
+                self.subTest(engine=engine),
+                tempfile.TemporaryDirectory() as directory,
+                self._environment(engine, targets),
+            ):
+                controller = self._controller()
+                checkpoint = os.path.join(directory, "checkpoint.json")
+
+                def start():
+                    if controller.run_state.active_target == targets[1]:
+                        # Changing global input must not leak into persistence.
+                        options["urls"] = ["http://unrelated.test/"]
+                        controller._export(checkpoint)
+                        raise QuitInterrupt("saved")
+
+                controller.start.side_effect = start
+                with self.assertRaises(SystemExit) as stopped:
+                    controller.run()
+                self.assertEqual(stopped.exception.code, 0)
+                payload = SessionStore({}).load(checkpoint)
+                self.assertEqual(payload["version"], SessionStore.SESSION_VERSION)
+                self.assertEqual(payload["options"]["urls"], targets[1:])
+                self.assertEqual(payload["controller"]["url"], targets[1])
+                self.assertEqual(controller.set_target.call_args_list, list(map(call, targets[:2])))
+                self.assertEqual(options["urls"], ["http://unrelated.test/"])
+                self.assertIsNone(controller.run_state.active_target)
+                self.assertEqual(controller.run_state.snapshot_targets(), targets[2:])
+
+                # A real JSON checkpoint can resume through any engine. Engine
+                # overrides belong to the caller, not the serialized queue.
+                for resume_engine in ScanEngine:
+                    with self.subTest(resume_engine=resume_engine):
+                        resumed = self._controller()
+                        restored = SessionStore({}).restore_options(payload["options"])
+                        with self._environment(resume_engine, restored["urls"]):
+                            store = SessionStore(options)
+                            store.apply_to_controller(
+                                resumed, payload, wordlist_config=resumed.wordlist_config
+                            )
+                            self.addCleanup(resumed.reporter.finish)
+                            resumed.run()
+                            self.assertEqual(
+                                resumed.set_target.call_args_list, list(map(call, targets[1:]))
+                            )
+                            self.assertEqual(restored["urls"], targets[1:])
+
+    def test_failed_save_changes_neither_input_nor_progress(self):
+        targets = ["http://first.test/", "http://next.test/"]
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            self._environment(ScanEngine.THREADED, targets),
+        ):
+            controller = self._controller()
+            controller.run_state = ScanRunState(targets)
+            controller.run_state.activate_next()
+            controller.url = targets[0]
+            checkpoint = os.path.join(directory, "checkpoint.json")
+            controller._export(checkpoint)
+            before = SessionStore({}).load(checkpoint)
+            controller.run_state.finish_active()
+            controller.run_state.activate_next()
+            controller.url = targets[1]
+            with (
+                patch("lib.utils.file.os.replace", side_effect=OSError("write failed")),
+                self.assertRaisesRegex(OSError, "write failed"),
+            ):
+                controller._export(checkpoint)
+            self.assertEqual(SessionStore({}).load(checkpoint), before)
+            self.assertEqual(controller.run_state.active_target, targets[1])
+            self.assertEqual(controller.run_state.snapshot_targets(), targets[1:])
+            self.assertEqual(options["urls"], targets)
+
+    def test_import_rebuilds_remaining_work_from_checkpoint_not_cli_input(self):
+        for engine in ScanEngine:
+            targets = ["http://done.test/", "http://active.test/", "http://pending.test/"]
+            with (
+                self.subTest(engine=engine),
+                tempfile.TemporaryDirectory() as directory,
+                self._environment(engine, targets),
+                patch("lib.controller.session.ReportManager", return_value=Mock()),
+                patch.object(Controller, "_confirm_session_overwrite"),
+                patch("builtins.print"),
+            ):
+                saved = self._controller()
+                saved.run_state = ScanRunState(targets)
+                saved.run_state.activate_next()
+                saved.run_state.finish_active()
+                saved.run_state.activate_next()
+                saved.url = targets[1]
+                checkpoint = os.path.join(directory, "checkpoint.json")
+                saved._export(checkpoint)
+
+                options["urls"] = ["http://unrelated.test/"]
+                resumed = self._controller()
+                resumed._import(checkpoint)
+                resumed.run()
+                self.assertEqual(resumed.set_target.call_args_list, list(map(call, targets[1:])))
+                self.assertEqual(options["urls"], targets[1:])
+                self.assertEqual(resumed.run_state.snapshot_targets(), [])

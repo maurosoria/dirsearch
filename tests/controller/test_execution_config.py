@@ -115,6 +115,7 @@ class TestControllerExecutionConfig(TestCase):
             for resumed in (False, True):
                 with self.subTest(backend=backend, async_mode=async_mode, resumed=resumed):
                     policies = []
+                    targets = []
 
                     def prepare(controller, *_args):
                         options.update(
@@ -154,6 +155,7 @@ class TestControllerExecutionConfig(TestCase):
 
                     def set_target(controller, url):
                         controller.url = url
+                        targets.append(url)
 
                     requester = Mock(backend=None)
                     if async_mode:
@@ -165,6 +167,7 @@ class TestControllerExecutionConfig(TestCase):
                         options.update(
                             request_backend="python" if backend == "native" else "native",
                             async_mode=not async_mode,
+                            urls=["http://unrelated.test/"],
                         )
                         return requester
 
@@ -186,6 +189,7 @@ class TestControllerExecutionConfig(TestCase):
                     ):
                         controller = Controller()
                     self.assertEqual(len(policies), 2)
+                    self.assertEqual(targets, ["http://first.test/", "http://second.test/"])
                     self.assertIs(policies[0], policies[1])
                     self.assertEqual(controller.execution_config, ExecutionConfig(
                         engine=engine,

@@ -10,6 +10,7 @@ from unittest.mock import Mock, patch
 from lib.controller.controller import Controller
 from lib.controller.session import SessionStore
 from lib.core.data import options
+from lib.core.scan_run_state import ScanRunState
 from lib.core.wordlist_config import WordlistConfig
 from lib.report.json_report import JSONReport
 from lib.report.sqlite_report import SQLiteReport
@@ -108,6 +109,7 @@ class TestSessionCleanup(TestCase):
 
     def test_session_export_flushes_reports_before_saving_checkpoint(self):
         controller = object.__new__(Controller)
+        controller.run_state = ScanRunState()
         controller.reporter = Mock()
         events = []
         controller.reporter.flush.side_effect = lambda: events.append("report")
