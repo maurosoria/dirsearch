@@ -27,7 +27,7 @@ import re
 import threading
 import time
 from types import SimpleNamespace
-from typing import Any, Awaitable
+from typing import Any, Awaitable, TextIO
 
 from urllib.parse import unquote, urlparse
 
@@ -60,6 +60,7 @@ from lib.core.options import (
 from lib.core.request_backend import get_native_request_backend_error
 from lib.core.scan_run_state import ScanRunState
 from lib.core.target_config import TargetConfig
+from lib.core.terminal_config import TerminalConfig
 from lib.core.settings import (
     BANNER,
     DEFAULT_HEADERS,
@@ -95,7 +96,7 @@ from lib.utils.common import lstrip_once
 from lib.utils.crawl import Crawler
 from lib.utils.file import FileUtils
 from lib.utils.schemedet import detect_scheme
-from lib.view.terminal import interface
+from lib.view.terminal import CLI, create_terminal
 from lib.controller.session import SessionStore
 
 
@@ -107,7 +108,7 @@ class ForceQuitHandler:
     logic.
     """
 
-    def check_force_quit(self) -> bool:
+    def check_force_quit(self, terminal: CLI) -> bool:
         """Check if force quit should be triggered.
 
         Returns True if force quit was triggered (program will exit).
@@ -129,8 +130,8 @@ class StandardForceQuitHandler(ForceQuitHandler):
     Immediately exits on any Ctrl+C during pause mode.
     """
 
-    def check_force_quit(self) -> bool:
-        interface.warning("\nForce quit!", do_save=False)
+    def check_force_quit(self, terminal: CLI) -> bool:
+        terminal.warning("\nForce quit!", do_save=False)
         os._exit(1)
         return True  # Unreachable, but satisfies type checker
 
@@ -146,7 +147,7 @@ class PyInstallerLinuxForceQuitHandler(ForceQuitHandler):
         self._sigint_count = 0
         self._last_sigint_time = 0.0
 
-    def check_force_quit(self) -> bool:
+    def check_force_quit(self, terminal: CLI) -> bool:
         now = time.monotonic()
         if now - self._last_sigint_time <= SIGINT_WINDOW_SECONDS:
             self._sigint_count += 1
@@ -155,7 +156,7 @@ class PyInstallerLinuxForceQuitHandler(ForceQuitHandler):
         self._last_sigint_time = now
 
         if self._sigint_count >= SIGINT_FORCE_QUIT_THRESHOLD:
-            interface.warning("\nForce quit!", do_save=False)
+            terminal.warning("\nForce quit!", do_save=False)
             os.kill(os.getpid(), signal.SIGKILL)
             os._exit(1)
         return False
@@ -185,7 +186,12 @@ def format_session_path(path: str) -> str:
 
 
 class Controller:
-    def __init__(self) -> None:
+    def __init__(self, *, output: TextIO | None = None) -> None:
+        self._terminal_stream = sys.stdout if output is None else output
+        # Bootstrap presentation handles errors before input preparation finishes.
+        self.interface = create_terminal(
+            TerminalConfig.from_options(options), stream=self._terminal_stream
+        )
         self._operation_lock = threading.Lock()
         self._handling_pause = False
         self._force_quit_handler = _create_force_quit_handler()
@@ -214,7 +220,23 @@ class Controller:
                 try:
                     self._close_requester()
                 finally:
-                    self._close_response_stores()
+                    try:
+                        self._close_response_stores()
+                    finally:
+                        self.interface.close()
+
+    def _refresh_terminal(self) -> None:
+        """Replace bootstrap policy after raw parsing or restored session options.
+
+        No scan output has been emitted yet. Construct the replacement first so
+        a creation failure leaves a valid terminal for error reporting/cleanup.
+        """
+        terminal = create_terminal(
+            TerminalConfig.from_options(options), stream=self._terminal_stream
+        )
+        previous = self.interface
+        self.interface = terminal
+        previous.close()
 
     def _close_reporter(self) -> None:
         reporter = self.reporter
@@ -247,7 +269,7 @@ class Controller:
     def _import(self, session_file: str) -> None:
         try:
             if os.path.isfile(session_file) and session_file.endswith((".pickle", ".pkl")):
-                interface.warning(
+                self.interface.warning(
                     "Pickle session files are no longer supported. "
                     "Please start a new scan to create a JSON session."
                 )
@@ -261,6 +283,7 @@ class Controller:
             validate_random_agent_headers(SimpleNamespace(**options))
             validate_numeric_options(SimpleNamespace(**options))
             validate_regex_options(SimpleNamespace(**options))
+            self._refresh_terminal()
             if options["log_file"]:
                 try:
                     FileUtils.create_dir(FileUtils.parent(options["log_file"]))
@@ -268,7 +291,7 @@ class Controller:
                         raise OSError(f'Cannot write log file: {options["log_file"]}')
                     enable_logging()
                 except OSError:
-                    interface.error(
+                    self.interface.error(
                         f'Couldn\'t create log file at {options["log_file"]}'
                     )
                     sys.exit(1)
@@ -291,12 +314,16 @@ class Controller:
             )
             self._prepare_response_stores()
             self._confirm_session_overwrite(session_file)
+        except InvalidURLException as error:
+            logger.exception(error)
+            self.interface.error(str(error))
+            sys.exit(1)
         except (OSError, KeyError, TypeError, UnpicklingError):
-            interface.error(
+            self.interface.error(
                 f"{session_file} is not a valid session file or it's in an old format"
             )
             sys.exit(1)
-        print(last_output)
+        self.interface.new_line(last_output, do_save=False)
 
     def _format_output_history(self, output_history: list[dict[str, Any]]) -> str:
         formatted: list[str] = []
@@ -318,7 +345,7 @@ class Controller:
         return "\n".join(formatted).rstrip()
 
     def _confirm_session_overwrite(self, session_file: str) -> None:
-        interface.in_line(
+        self.interface.in_line(
             f"Resume session from {session_file}. Overwrite on save? [o]verwrite/[n]ew: "
         )
         choice = input().strip().lower()
@@ -327,7 +354,7 @@ class Controller:
 
     def _export(self, session_file: str) -> None:
         # Save written output
-        last_output = interface.buffer.rstrip()
+        last_output = self.interface.buffer.rstrip()
         session_file = format_session_path(session_file)
         parent_dir = FileUtils.parent(session_file)
         if parent_dir:
@@ -360,13 +387,14 @@ class Controller:
         else:
             options["headers"] = {**DEFAULT_HEADERS, **options["headers"]}
 
+        self._refresh_terminal()
         self.wordlist_config = WordlistConfig.from_options(options)
         try:
             self.dictionary = Dictionary(
                 self.wordlist_config, files=options["wordlists"]
             )
         except WordlistLimitError as e:
-            interface.error(str(e))
+            self.interface.error(str(e))
             sys.exit(1)
         self.start_time = time.time()
         self.passed_urls: set[str] = set()
@@ -384,25 +412,25 @@ class Controller:
                 enable_logging()
 
             except OSError:
-                interface.error(
+                self.interface.error(
                     f'Couldn\'t create log file at {options["log_file"]}'
                 )
                 sys.exit(1)
 
         self._prepare_response_stores()
 
-        interface.header(BANNER)
-        interface.config(len(self.dictionary))
+        self.interface.header(BANNER)
+        self.interface.print_config(len(self.dictionary))
 
         try:
             self.reporter = ReportManager(ReportConfig.from_options(options))
         except InvalidURLException as e:
             logger.exception(e)
-            interface.error(str(e))
+            self.interface.error(str(e))
             sys.exit(1)
 
         if options["log_file"]:
-            interface.log_file(options["log_file"])
+            self.interface.log_file(options["log_file"])
 
     def run(self) -> None:
         # Resolve only after setup/session restoration, before imports, callbacks
@@ -495,7 +523,7 @@ class Controller:
                         self.add_directory(self.base_path + subdir)
 
                 if not self.old_session:
-                    interface.target(self.url)
+                    self.interface.target(self.url)
 
                 self.reporter.prepare(self.url)
                 self.crawl_target()
@@ -513,24 +541,24 @@ class Controller:
                 self.dictionary.reset()
 
                 if e.args:
-                    interface.error(str(e))
+                    self.interface.error(str(e))
 
             except QuitInterrupt as e:
                 self._close_reporter()
-                interface.error(e.args[0])
+                self.interface.error(e.args[0])
                 sys.exit(0)
 
             finally:
                 self.run_state.finish_active()
 
-        interface.warning("\nTask Completed")
+        self.interface.warning("\nTask Completed")
         self._close_reporter()
 
         if options["session_file"]:
             try:
                 SessionStore(options).delete(options["session_file"])
             except OSError:
-                interface.error("Failed to delete old session file, remove it to free some space")
+                self.interface.error("Failed to delete old session file, remove it to free some space")
 
     def _report_match_callback(self):
         if (
@@ -553,7 +581,7 @@ class Controller:
                     current_time = time.strftime("%H:%M:%S")
                     msg = f"{NEW_LINE}[{current_time}] Scanning: {current_directory}"
 
-                    interface.warning(msg)
+                    self.interface.warning(msg)
 
                 self.fuzzer.set_base_path(current_directory)
                 if self.execution_config.engine is ScanEngine.ASYNC:
@@ -845,7 +873,7 @@ class Controller:
             )
         except (OSError, ValueError) as error:
             logger.exception(error)
-            interface.error(
+            self.interface.error(
                 f"Couldn't prepare response storage: {error}"
             )
             sys.exit(1)
@@ -877,14 +905,14 @@ class Controller:
         except (OSError, ValueError) as error:
             self._report_response_store_error(store, artifact, error)
 
-    @staticmethod
     def _report_response_store_error(
+        self,
         store: BaseResponseStore,
         artifact: ResponseArtifact,
         error: OSError | ValueError,
     ) -> None:
         logger.exception(error)
-        interface.error(
+        self.interface.error(
             f"Couldn't save response for {artifact.url} to "
             f"{store.name} store at {store.destination}: {error}"
         )
@@ -895,7 +923,7 @@ class Controller:
                 store.close()
             except OSError as error:
                 logger.exception(error)
-                interface.error(
+                self.interface.error(
                     f"Couldn't close {store.name} response store at "
                     f"{store.destination}: {error}"
                 )
@@ -911,7 +939,7 @@ class Controller:
                 f"Skipped the target due to {response.status} status code"
             )
 
-        interface.status_report(response, options["full_url"])
+        self.interface.status_report(response, options["full_url"])
 
         if response.status in discovery.recursion_status_codes and any(
             (
@@ -941,7 +969,7 @@ class Controller:
                 added_to_queue = self.recur(response.path)
 
             if added_to_queue:
-                interface.new_directories(added_to_queue)
+                self.interface.new_directories(added_to_queue)
 
         if options["replay_proxy"]:
             # Replay the request with new proxy
@@ -978,7 +1006,7 @@ class Controller:
             + self.jobs_processed
         )
 
-        interface.last_path(
+        self.interface.last_path(
             self.dictionary.index,
             len(self.dictionary),
             self.jobs_processed + 1,
@@ -1005,7 +1033,7 @@ class Controller:
 
     def _force_exit(self) -> None:
         """Force process termination, stopping asyncio loop if running."""
-        interface.warning("\nForce quit!", do_save=False)
+        self.interface.warning("\nForce quit!", do_save=False)
         # Stop asyncio loop first if running (prevents hang in async mode)
         if self.loop and self.loop.is_running():
             try:
@@ -1021,7 +1049,7 @@ class Controller:
     def handle_pause(self) -> None:
         """Handle SIGINT (Ctrl+C) by pausing execution and showing options."""
         if self._handling_pause:
-            self._force_quit_handler.check_force_quit()
+            self._force_quit_handler.check_force_quit(self.interface)
             return
 
         self._handling_pause = True
@@ -1029,11 +1057,11 @@ class Controller:
 
         try:
             try:
-                interface.warning(
+                self.interface.warning(
                     "CTRL+C detected: Pausing threads, please wait...", do_save=False
                 )
                 if not self.fuzzer.pause():
-                    interface.warning(
+                    self.interface.warning(
                         "Could not pause all threads (some may be blocked on I/O). "
                         "Press CTRL+C again to force quit.",
                         do_save=False
@@ -1051,12 +1079,12 @@ class Controller:
                 if self.run_state.pending_count:
                     msg += " / [s]kip target"
 
-                interface.in_line(msg + ": ")
+                self.interface.in_line(msg + ": ")
 
                 option = input()
 
                 if option.lower() == "q":
-                    interface.in_line("[s]ave / [q]uit without saving: ")
+                    self.interface.in_line("[s]ave / [q]uit without saving: ")
 
                     option = input()
 
@@ -1066,7 +1094,7 @@ class Controller:
                         )
                         msg = f"Save to file [{default_session_path}]: "
 
-                        interface.in_line(msg)
+                        self.interface.in_line(msg)
 
                         session_file = format_session_path(input() or default_session_path)
 

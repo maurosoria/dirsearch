@@ -41,6 +41,7 @@ class TestEngineSelection(TestCase):
         for engine in ScanEngine:
             with self.subTest(engine=engine):
                 controller = object.__new__(Controller)
+                controller.interface = Mock()
                 controller.execution_config = ExecutionConfig(engine=engine)
                 controller.directories = ["first/", "second/"]
                 controller.old_session = True
@@ -53,7 +54,7 @@ class TestEngineSelection(TestCase):
                 controller.start_coroutines = AsyncMock()
                 controller.loop = asyncio.new_event_loop() if engine is ScanEngine.ASYNC else None
                 try:
-                    with patch.dict(options, {}, clear=True), patch("lib.controller.controller.interface"):
+                    with patch.dict(options, {}, clear=True):
                         controller.start()
                     self.assertEqual(controller.dictionary.reset.call_count, 2)
                     self.assertEqual(controller.jobs_processed, 2)

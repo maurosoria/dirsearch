@@ -12,6 +12,7 @@ from tests.core.test_backup_discovery import response_for
 
 def policy_controller(policy):
     controller = object.__new__(Controller)
+    controller.interface = Mock()
     controller.execution_config = ExecutionConfig()
     controller.discovery_config = policy
     controller._operation_lock = threading.Lock()
@@ -56,7 +57,6 @@ class TestControllerDiscoveryConfig(TestCase):
             patch.dict(options, {
                 "skip_on_status": set(), "full_url": False, "replay_proxy": None,
             }, clear=True),
-            patch("lib.controller.controller.interface"),
         ):
             enabled.match_callback(response)
             disabled.match_callback(response)
@@ -120,7 +120,7 @@ class TestControllerDiscoveryConfig(TestCase):
                         patch(requester_path, return_value=requester),
                         patch("lib.controller.controller.get_blacklists", return_value={}),
                         patch("lib.controller.controller.signal.signal"),
-                        patch("lib.controller.controller.interface"),
+                        patch("lib.controller.controller.create_terminal"),
                     ):
                         controller = Controller()
 

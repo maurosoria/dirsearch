@@ -23,6 +23,7 @@ class TestControllerTargetConfig(TestCase):
         ):
             with self.subTest(engine=engine):
                 controller = object.__new__(Controller)
+                controller.interface = Mock()
                 controller.wordlist_config = WordlistConfig()
                 controller.dictionary = Mock()
                 controller.directories = []
@@ -58,7 +59,6 @@ class TestControllerTargetConfig(TestCase):
                     patch("lib.core.fuzzer.NativeFuzzer"),
                     patch("lib.controller.controller.detect_scheme") as detect,
                     patch("lib.controller.controller.signal.signal"),
-                    patch("lib.controller.controller.interface"),
                 ):
                     try:
                         controller.run()
@@ -79,9 +79,11 @@ class TestControllerTargetConfig(TestCase):
 
     def test_independent_target_policies_work_with_global_options_empty(self):
         first = object.__new__(Controller)
+        first.interface = Mock()
         first.target_config = TargetConfig("https", "192.0.2.7", True)
         first.requester = Mock()
         second = object.__new__(Controller)
+        second.interface = Mock()
         second.target_config = TargetConfig("http")
         second.requester = Mock()
         with patch.dict(options, {}, clear=True):
@@ -102,6 +104,7 @@ class TestControllerTargetConfig(TestCase):
 
     def test_frozen_proxy_guard_rejects_before_probe_or_requester_mutation(self):
         controller = object.__new__(Controller)
+        controller.interface = Mock()
         controller.target_config = TargetConfig(proxy_configured=True)
         controller.requester = Mock()
         with (
@@ -120,6 +123,7 @@ class TestControllerTargetConfig(TestCase):
         ):
             with self.subTest(target=target):
                 controller = object.__new__(Controller)
+                controller.interface = Mock()
                 controller.target_config = TargetConfig(connect_host="2001:db8::7")
                 controller.requester = Mock()
                 with (
@@ -175,8 +179,7 @@ class TestControllerTargetConfig(TestCase):
                     patch("lib.core.fuzzer.NativeFuzzer"),
                     patch("lib.controller.controller.detect_scheme") as detect,
                     patch("lib.controller.controller.signal.signal"),
-                    patch("lib.controller.controller.interface"),
-                    patch("builtins.print"),
+                    patch("lib.controller.controller.create_terminal"),
                 ):
                     controller = Controller()
                 self.assertEqual(controller.target_config, TargetConfig("https", "2001:db8::7", True))

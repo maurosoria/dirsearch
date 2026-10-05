@@ -1,5 +1,5 @@
 from unittest import TestCase
-from unittest.mock import patch
+from unittest.mock import Mock
 
 from lib.connection.response import NativeResponse
 from lib.controller.controller import Controller
@@ -99,6 +99,7 @@ class TestBackupDiscoveryCallback(TestCase):
 
     def _controller(self) -> Controller:
         controller = object.__new__(Controller)
+        controller.interface = Mock()
         controller.execution_config = ExecutionConfig()
         controller.discovery_config = DiscoveryConfig.from_options(options)
         controller.base_path = "app/"
@@ -108,8 +109,7 @@ class TestBackupDiscoveryCallback(TestCase):
     def test_adds_generated_candidates_to_shared_dictionary(self):
         controller = self._controller()
 
-        with patch("lib.controller.controller.interface.status_report"):
-            controller.match_callback(response_for("app/test.php"))
+        controller.match_callback(response_for("app/test.php"))
 
         self.assertIn("test.php.bak", controller.dictionary._extra)
         self.assertIn("test.bak", controller.dictionary._extra)
@@ -119,8 +119,7 @@ class TestBackupDiscoveryCallback(TestCase):
         options["exclude_extensions"] = ("bak", "zip")
         controller = self._controller()
 
-        with patch("lib.controller.controller.interface.status_report"):
-            controller.match_callback(response_for("app/test.php"))
+        controller.match_callback(response_for("app/test.php"))
 
         self.assertTrue(controller.dictionary._extra)
         self.assertFalse(

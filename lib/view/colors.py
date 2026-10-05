@@ -17,11 +17,12 @@
 #  Author: Mauro Soria
 
 import re
+from types import MappingProxyType
 
-from colorama import init, Fore, Back, Style
+from colorama import Fore, Back, Style
 
 
-BACK_COLORS = {
+BACK_COLORS = MappingProxyType({
     "red": Back.RED,
     "green": Back.GREEN,
     "yellow": Back.YELLOW,
@@ -30,9 +31,9 @@ BACK_COLORS = {
     "cyan": Back.CYAN,
     "white": Back.WHITE,
     "none": "",
-}
+})
 
-FORE_COLORS = {
+FORE_COLORS = MappingProxyType({
     "red": Fore.RED,
     "green": Fore.GREEN,
     "yellow": Fore.YELLOW,
@@ -41,30 +42,22 @@ FORE_COLORS = {
     "cyan": Fore.CYAN,
     "white": Fore.WHITE,
     "none": "",
-}
+})
 
-STYLES = {
+STYLES = MappingProxyType({
     "bright": Style.BRIGHT,
     "dim": Style.DIM,
     "normal": ""
-}
+})
 
 # Credit: https://stackoverflow.com/a/14693789
 _ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
 
-init()
 
-
-def disable_color():
-    for style in STYLES:
-        STYLES[style] = STYLES["normal"]
-
-    for table in (FORE_COLORS, BACK_COLORS):
-        for color in ("red", "green", "yellow", "blue", "magenta", "cyan", "white"):
-            table[color] = table["none"]
-
-
-def set_color(msg, fore="none", back="none", style="normal"):
+def set_color(msg, fore="none", back="none", style="normal", *, enabled=True):
+    """Style one message without changing another terminal's palette."""
+    if not enabled:
+        return msg
     msg = STYLES[style] + FORE_COLORS[fore] + BACK_COLORS[back] + msg
     return msg + Style.RESET_ALL
 

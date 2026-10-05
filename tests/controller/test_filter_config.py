@@ -74,7 +74,7 @@ class TestControllerFilterConfig(TestCase):
                         patch(requester_path, return_value=requester) as factory,
                         patch("lib.controller.controller.get_blacklists", side_effect=load_blacklists) as loader,
                         patch("lib.controller.controller.signal.signal"),
-                        patch("lib.controller.controller.interface"),
+                        patch("lib.controller.controller.create_terminal"),
                     ):
                         controller = Controller()
 

@@ -31,6 +31,7 @@ class TestSessionCleanup(TestCase):
 
     def _complete_scan(self, session_path):
         controller = object.__new__(Controller)
+        controller.interface = Mock()
         controller.response_stores = ()
         controller.reporter = Mock()
         controller.dictionary = Mock()
@@ -56,7 +57,6 @@ class TestSessionCleanup(TestCase):
             patch("lib.connection.requester.Requester", return_value=Mock()),
             patch("lib.core.fuzzer.Fuzzer", DummyFuzzer),
             patch("lib.controller.controller.signal.signal"),
-            patch("lib.controller.controller.interface"),
         ):
             controller.wordlist_config = WordlistConfig.from_options(options)
             controller.run()
@@ -109,6 +109,7 @@ class TestSessionCleanup(TestCase):
 
     def test_session_export_flushes_reports_before_saving_checkpoint(self):
         controller = object.__new__(Controller)
+        controller.interface = Mock()
         controller.run_state = ScanRunState()
         controller.reporter = Mock()
         events = []

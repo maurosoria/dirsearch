@@ -16,7 +16,7 @@ class RecordingForceQuitHandler:
         self.resumes = 0
         self.force_quit_checks = 0
 
-    def check_force_quit(self):
+    def check_force_quit(self, terminal):
         self.force_quit_checks += 1
         return False
 
@@ -42,6 +42,7 @@ class TestPauseState(TestCase):
 
     def reset_controller(self):
         self.controller = object.__new__(Controller)
+        self.controller.interface = Mock()
         self.controller.execution_config = ExecutionConfig.from_options(options)
         self.controller.run_state = ScanRunState(options["urls"])
         self.controller.run_state.activate_next()
@@ -56,9 +57,7 @@ class TestPauseState(TestCase):
         options.update(self.original_options)
 
     def exercise_second_pause(self, first_option, second_option="c"):
-        with patch("builtins.input", side_effect=(first_option, second_option)), patch(
-            "lib.controller.controller.interface"
-        ):
+        with patch("builtins.input", side_effect=(first_option, second_option)):
             self.controller.handle_pause()
             self.controller.handle_pause()
 
@@ -101,7 +100,6 @@ class TestPauseState(TestCase):
                         "session_file": None,
                     }),
                     patch("builtins.input", side_effect=answers),
-                    patch("lib.controller.controller.interface"),
                 ):
                     self.reset_controller()
                     self.controller.execution_config = ExecutionConfig(engine=engine)
@@ -132,8 +130,6 @@ class TestPauseState(TestCase):
             ), patch(
                 "builtins.input",
                 side_effect=("s", "c"),
-            ), patch(
-                "lib.controller.controller.interface"
             ):
                 self.reset_controller()
                 with self.assertRaises(SkipTargetInterrupt):
@@ -170,7 +166,6 @@ class TestPauseState(TestCase):
                 self.subTest(engine=engine),
                 patch.dict(options, {"urls": []}),
                 patch("builtins.input", return_value="s"),
-                patch("lib.controller.controller.interface") as interface,
             ):
                 self.reset_controller()
                 self.controller.execution_config = ExecutionConfig(engine=engine)
@@ -183,7 +178,7 @@ class TestPauseState(TestCase):
                 else:
                     with self.assertRaises(SkipTargetInterrupt):
                         self.controller.handle_pause()
-                self.assertIn("[s]kip target", interface.in_line.call_args.args[0])
+                self.assertIn("[s]kip target", self.controller.interface.in_line.call_args.args[0])
                 # The menu signals the exit; only run() finishes the attempt.
                 self.assertEqual(self.controller.run_state.active_target, "first")
 
@@ -193,13 +188,12 @@ class TestPauseState(TestCase):
                 self.subTest(engine=engine),
                 patch.dict(options, {"urls": ["stale", "also-stale"]}),
                 patch("builtins.input", side_effect=("s", "c")),
-                patch("lib.controller.controller.interface") as interface,
             ):
                 self.reset_controller()
                 self.controller.execution_config = ExecutionConfig(engine=engine)
                 self.controller.run_state = ScanRunState(["last"])
                 self.controller.run_state.activate_next()
                 self.controller.handle_pause()
-                for call in interface.in_line.call_args_list:
+                for call in self.controller.interface.in_line.call_args_list:
                     self.assertNotIn("[s]kip target", call.args[0])
                 self.controller.fuzzer.play.assert_called_once_with()

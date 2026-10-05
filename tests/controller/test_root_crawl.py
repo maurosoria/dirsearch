@@ -59,6 +59,7 @@ def resolved_html_response():
 
 def create_controller(requester, *, crawl=False, engine=ScanEngine.THREADED):
     controller = object.__new__(Controller)
+    controller.interface = Mock()
     controller.execution_config = ExecutionConfig(engine=engine)
     controller.discovery_config = DiscoveryConfig(crawl=crawl)
     controller.requester = requester
@@ -107,7 +108,6 @@ class TestRootCrawl(TestCase):
             patch("lib.connection.requester.Requester", return_value=requester),
             patch("lib.core.fuzzer.Fuzzer", DummyFuzzer),
             patch("lib.controller.controller.signal.signal"),
-            patch("lib.controller.controller.interface"),
         ):
             controller.wordlist_config = WordlistConfig.from_options(options)
             controller.run()

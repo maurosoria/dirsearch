@@ -16,17 +16,19 @@
 #
 #  Author: Mauro Soria
 
-import atexit
 import shutil
 import sys
 import tempfile
 import threading
 import unicodedata
+from typing import TextIO
 
-from lib.core.data import options
+from colorama import AnsiToWin32
+
 from lib.core.decorators import locked
 from lib.core.settings import IS_WINDOWS
-from lib.view.colors import set_color, clean_color, disable_color
+from lib.core.terminal_config import TerminalConfig
+from lib.view.colors import set_color, clean_color
 
 
 if IS_WINDOWS:
@@ -56,7 +58,12 @@ def safe_display_text(value, max_length=MAX_DISPLAY_TEXT_LENGTH):
 
 
 class CLI:
-    def __init__(self):
+    def __init__(self, config: TerminalConfig, *, stream: TextIO | None = None):
+        self.config = config
+        # Colorama adapts only this borrowed stream; never replace sys.stdout.
+        output = sys.stdout if stream is None else stream
+        adapter = AnsiToWin32(output)
+        self._stream = adapter.stream if adapter.should_wrap() else output
         self._operation_lock = threading.Lock()
         self.last_in_line = False
         self._output_buffer = tempfile.SpooledTemporaryFile(
@@ -66,8 +73,8 @@ class CLI:
             newline="",
         )
 
-        if not options["color"]:
-            disable_color()
+    def _color(self, message, fore="none", back="none", style="normal"):
+        return set_color(message, fore, back, style, enabled=self.config.color)
 
     @property
     @locked
@@ -81,48 +88,54 @@ class CLI:
 
     @locked
     def close(self):
+        """Close owned history, not the caller's output stream; safe to repeat."""
         self._output_buffer.close()
 
-    @staticmethod
-    def erase():
+    def erase(self):
+        if not self._stream.isatty():
+            return
         if IS_WINDOWS:
             csbi = GetConsoleScreenBufferInfo()
             line = "\b" * int(csbi.dwCursorPosition.X)
-            sys.stdout.write(line)
+            self._stream.write(line)
             width = csbi.dwCursorPosition.X
             csbi.dwCursorPosition.X = 0
             FillConsoleOutputCharacter(STDOUT, " ", width, csbi.dwCursorPosition)
-            sys.stdout.write(line)
-            sys.stdout.flush()
+            self._stream.write(line)
+            self._stream.flush()
 
         else:
-            sys.stdout.write("\033[1K")
-            sys.stdout.write("\033[0G")
+            self._stream.write("\033[1K")
+            self._stream.write("\033[0G")
 
     @locked
     def in_line(self, string):
+        if self._output_buffer.closed:
+            raise ValueError("Terminal is closed")
         self.erase()
-        sys.stdout.write(string)
-        sys.stdout.flush()
+        self._stream.write(string)
+        self._stream.flush()
         self.last_in_line = True
 
     @locked
     def new_line(self, string="", do_save=True):
+        if self._output_buffer.closed:
+            raise ValueError("Terminal is closed")
         if self.last_in_line:
             self.erase()
 
         if IS_WINDOWS:
-            sys.stdout.write(string)
-            sys.stdout.flush()
-            sys.stdout.write("\n")
-            sys.stdout.flush()
+            self._stream.write(string)
+            self._stream.flush()
+            self._stream.write("\n")
+            self._stream.flush()
 
         else:
-            sys.stdout.write(string + "\n")
+            self._stream.write(string + "\n")
 
-        sys.stdout.flush()
+        self._stream.flush()
         self.last_in_line = False
-        sys.stdout.flush()
+        self._stream.flush()
 
         if do_save:
             self._output_buffer.write(string)
@@ -134,23 +147,23 @@ class CLI:
         time = response.datetime.split()[1]
         message = f"[{time}] {response.status} - {response.size.rjust(6, ' ')} - {target}"
 
-        if options["verbose"]:
+        if self.config.verbose:
             elapsed_ms = int(response.elapsed * 1000) if response.elapsed else 0
             content_type = response.type
             message += f"  ({elapsed_ms}ms, {content_type})"
 
         if response.status in (200, 201, 204):
-            message = set_color(message, fore="green")
+            message = self._color(message, fore="green")
         elif response.status == 401:
-            message = set_color(message, fore="yellow")
+            message = self._color(message, fore="yellow")
         elif response.status == 403:
-            message = set_color(message, fore="blue")
+            message = self._color(message, fore="blue")
         elif response.status in range(500, 600):
-            message = set_color(message, fore="red")
+            message = self._color(message, fore="red")
         elif response.status in range(300, 400):
-            message = set_color(message, fore="cyan")
+            message = self._color(message, fore="cyan")
         else:
-            message = set_color(message, fore="magenta")
+            message = self._color(message, fore="magenta")
 
         if response.redirect:
             message += f"  ->  {safe_display_text(response.redirect)}"
@@ -162,14 +175,14 @@ class CLI:
 
     def last_path(self, index, length, current_job, all_jobs, rate, errors):
         percentage = int(index / length * 100)
-        task = set_color("#", fore="cyan", style="bright") * int(percentage / 5)
+        task = self._color("#", fore="cyan", style="bright") * int(percentage / 5)
         task += " " * (20 - int(percentage / 5))
         progress = f"{index}/{length}"
 
-        grean_job = set_color("job", fore="green", style="bright")
+        grean_job = self._color("job", fore="green", style="bright")
         jobs = f"{grean_job}:{current_job}/{all_jobs}"
 
-        red_error = set_color("errors", fore="red", style="bright")
+        red_error = self._color("errors", fore="red", style="bright")
         errors = f"{red_error}:{errors}"
 
         progress_bar = f"[{task}] {str(percentage).rjust(2, chr(32))}% "
@@ -183,7 +196,7 @@ class CLI:
         self.in_line(progress_bar)
 
     def new_directories(self, directories):
-        message = set_color(
+        message = self._color(
             f"Added to the queue: {safe_display_text(', '.join(directories))}",
             fore="yellow",
             style="dim",
@@ -191,23 +204,23 @@ class CLI:
         self.new_line(message)
 
     def error(self, reason):
-        message = set_color(reason, fore="white", back="red", style="bright")
+        message = self._color(reason, fore="white", back="red", style="bright")
         self.new_line("\n" + message)
 
     def warning(self, message, do_save=True):
-        message = set_color(message, fore="yellow", style="bright")
+        message = self._color(message, fore="yellow", style="bright")
         self.new_line(message, do_save=do_save)
 
     def header(self, message):
-        message = set_color(message, fore="magenta", style="bright")
+        message = self._color(message, fore="magenta", style="bright")
         self.new_line(message)
 
     def print_header(self, headers):
         msg = []
 
         for key, value in headers.items():
-            new = set_color(key + ": ", fore="yellow", style="bright")
-            new += set_color(value, fore="cyan", style="bright")
+            new = self._color(key + ": ", fore="yellow", style="bright")
+            new += self._color(value, fore="cyan", style="bright")
 
             if (
                 not msg
@@ -216,25 +229,25 @@ class CLI:
             ):
                 msg.append("")
             else:
-                msg[-1] += set_color(" | ", fore="magenta", style="bright")
+                msg[-1] += self._color(" | ", fore="magenta", style="bright")
 
             msg[-1] += new
 
         self.new_line("\n".join(msg))
 
-    def config(self, wordlist_size):
+    def print_config(self, wordlist_size):
 
         config = {}
-        config["Extensions"] = ", ".join(options["extensions"])
+        config["Extensions"] = ", ".join(self.config.extensions)
 
-        if options["prefixes"]:
-            config["Prefixes"] = ", ".join(options["prefixes"])
-        if options["suffixes"]:
-            config["Suffixes"] = ", ".join(options["suffixes"])
+        if self.config.prefixes:
+            config["Prefixes"] = ", ".join(self.config.prefixes)
+        if self.config.suffixes:
+            config["Suffixes"] = ", ".join(self.config.suffixes)
 
         config.update({
-            "HTTP method": options["http_method"],
-            "Threads": str(options["thread_count"]),
+            "HTTP method": self.config.method,
+            "Threads": str(self.config.concurrency),
             "Wordlist size": str(wordlist_size),
         })
 
@@ -264,7 +277,7 @@ class QuietCLI(CLI):
     def header(*args):
         pass
 
-    def config(*args):
+    def print_config(*args):
         pass
 
     def target(*args):
@@ -282,5 +295,7 @@ class EmptyCLI(QuietCLI):
         pass
 
 
-interface = EmptyCLI() if options["disable_cli"] else QuietCLI() if options["quiet"] else CLI()
-atexit.register(interface.close)
+def create_terminal(config: TerminalConfig, *, stream: TextIO | None = None) -> CLI:
+    """Create one explicitly owned output mode; importing this module creates none."""
+    terminal_type = EmptyCLI if config.disabled else QuietCLI if config.quiet else CLI
+    return terminal_type(config, stream=stream)

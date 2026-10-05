@@ -26,13 +26,11 @@ import os
 from typing import Any
 
 from lib.core.dictionary import Dictionary
-from lib.core.exceptions import InvalidURLException, UnpicklingError
-from lib.core.logger import logger
+from lib.core.exceptions import UnpicklingError
 from lib.core.report_config import ReportConfig
 from lib.core.wordlist_config import WordlistConfig
 from lib.report.manager import ReportManager
 from lib.utils.file import FileUtils
-from lib.view.terminal import interface
 
 
 class SessionStore:
@@ -200,12 +198,8 @@ class SessionStore:
                 dictionary_state.get("extra_index", 0),
             )
         )
-        try:
-            controller.reporter = ReportManager(ReportConfig.from_options(self.options))
-        except InvalidURLException as error:
-            logger.exception(error)
-            interface.error(str(error))
-            raise SystemExit(1)
+        # Presentation of restore failures belongs to the controller's terminal.
+        controller.reporter = ReportManager(ReportConfig.from_options(self.options))
 
     def restore_options(self, serialized: dict[str, Any]) -> dict[str, Any]:
         restored: dict[str, Any] = {}

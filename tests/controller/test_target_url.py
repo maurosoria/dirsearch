@@ -88,6 +88,7 @@ class TestControllerTargetURL(TestCase):
             }
         )
         self.controller = object.__new__(Controller)
+        self.controller.interface = Mock()
         self.controller.target_config = TargetConfig.from_options(options)
         self.controller.requester = Mock()
 
@@ -189,6 +190,7 @@ class TestControllerTargetURL(TestCase):
         for stack, async_mode, request_backend in stack_cases:
             with self.subTest(stack=stack):
                 controller = object.__new__(Controller)
+                controller.interface = Mock()
                 controller.loop = None
                 controller.start_time = 0
                 controller.passed_urls = set()
@@ -231,7 +233,7 @@ class TestControllerTargetURL(TestCase):
                     patch("lib.core.fuzzer.AsyncFuzzer", return_value=Mock()),
                     patch("lib.core.fuzzer.NativeFuzzer", return_value=Mock()),
                     patch("lib.controller.controller.signal.signal"),
-                    patch("lib.controller.controller.interface") as interface,
+                    patch.object(controller, "interface") as interface,
                 ):
                     try:
                         controller.wordlist_config = WordlistConfig.from_options(options)
@@ -306,6 +308,7 @@ class TestAsyncControllerTargetURL(IsolatedAsyncioTestCase):
             }
         )
         self.controller = object.__new__(Controller)
+        self.controller.interface = Mock()
         self.controller.target_config = TargetConfig.from_options(options)
 
     def tearDown(self):

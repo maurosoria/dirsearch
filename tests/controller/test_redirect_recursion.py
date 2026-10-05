@@ -1,7 +1,7 @@
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import threading
 from unittest import IsolatedAsyncioTestCase, TestCase
-from unittest.mock import patch
+from unittest.mock import Mock
 
 from lib.connection.native import NativeHTTPBackend
 from lib.connection.requester import AsyncRequester, Requester
@@ -45,6 +45,7 @@ class TestRedirectRecursionOrigin(TestCase):
         )
 
         self.controller = object.__new__(Controller)
+        self.controller.interface = Mock()
         self.controller.execution_config = ExecutionConfig()
         self.controller.discovery_config = DiscoveryConfig.from_options(options)
         self.controller._operation_lock = threading.Lock()
@@ -59,8 +60,7 @@ class TestRedirectRecursionOrigin(TestCase):
         self.controller.directories = []
         self.controller.passed_urls = set()
 
-        with patch("lib.controller.controller.interface"):
-            self.controller.match_callback(redirect_response(location))
+        self.controller.match_callback(redirect_response(location))
 
         return self.controller.directories
 
@@ -197,6 +197,7 @@ class FollowedRedirectRecursionContract:
     @staticmethod
     def queued_directories(response) -> list[str]:
         controller = object.__new__(Controller)
+        controller.interface = Mock()
         controller.execution_config = ExecutionConfig()
         controller.discovery_config = DiscoveryConfig.from_options(options)
         controller._operation_lock = threading.Lock()
@@ -205,8 +206,7 @@ class FollowedRedirectRecursionContract:
         controller.directories = []
         controller.passed_urls = set()
 
-        with patch("lib.controller.controller.interface"):
-            controller.match_callback(response)
+        controller.match_callback(response)
 
         return controller.directories
 
