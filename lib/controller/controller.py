@@ -26,6 +26,7 @@ import sys
 import re
 import threading
 import time
+from copy import deepcopy
 from dataclasses import replace
 from types import SimpleNamespace
 from typing import Any, Awaitable, TextIO
@@ -101,6 +102,7 @@ from lib.utils.file import FileUtils
 from lib.utils.schemedet import detect_scheme
 from lib.view.terminal import CLI, create_terminal
 from lib.controller.session import SessionStore
+from lib.controller.session_snapshot import SessionSnapshot
 
 
 class ForceQuitHandler:
@@ -206,6 +208,7 @@ class Controller:
         self.response_stores = ()
         self._native_worker = None
         self.run_state = ScanRunState()
+        self.output_history: list[dict[str, Any]] = []
 
         try:
             if options["session_file"]:
@@ -297,7 +300,7 @@ class Controller:
                     "Please start a new scan to create a JSON session."
                 )
                 sys.exit(1)
-            session_store = SessionStore(options)
+            session_store = SessionStore()
             payload = session_store.load(session_file)
             # Keep the explicit session path so resume/overwrite works as expected.
             loaded_session_file = session_file
@@ -316,18 +319,17 @@ class Controller:
                     output_history = [
                         {"start_time": start_time, "output": legacy_output}
                     ]
-            self.output_history = output_history
+            self.output_history = deepcopy(output_history)
             if output_history:
                 last_output = self._format_output_history(output_history)
             else:
                 last_output = ""
             self.wordlist_config = WordlistConfig.from_options(options)
-            session_store.apply_to_controller(
-                self, payload, wordlist_config=self.wordlist_config
-            )
+            self._restore_session(payload, ReportConfig.from_options(options))
             self.result_config = ResultConfig.from_options(options)
             self._prepare_response_stores()
             self._confirm_session_overwrite(session_file)
+            self._session_options = deepcopy(options)
         except InvalidURLException as error:
             self.logger.exception(error)
             self.interface.error(str(error))
@@ -338,6 +340,65 @@ class Controller:
             )
             sys.exit(1)
         self.interface.new_line(last_output, do_save=False)
+
+    def _restore_session(
+        self, payload: dict[str, Any], report_config: ReportConfig
+    ) -> None:
+        """Rebuild owned runtime objects from already validated session data.
+
+        Storage does not construct resources. Keep their ownership here so the
+        normal controller cleanup also covers partial restoration failures.
+        """
+        progress = payload["controller"]
+        self.start_time = progress["start_time"]
+        self.passed_urls = set(progress.get("passed_urls", []))
+        self.directories = list(progress.get("directories", []))
+        self.jobs_processed = progress.get("jobs_processed", 0)
+        self.errors = progress.get("errors", 0)
+        self.consecutive_errors = progress.get("consecutive_errors", 0)
+        self.base_path = progress.get("base_path", "")
+        self.url = progress.get("url", "")
+        self.old_session = progress.get("old_session", True)
+        self.dictionary = Dictionary(self.wordlist_config)
+        dictionary = payload["dictionary"]
+        self.dictionary.__setstate__((
+            list(dictionary["items"]), dictionary["index"],
+            list(dictionary.get("extra", [])), dictionary.get("extra_index", 0),
+        ))
+        self.reporter = ReportManager(report_config)
+
+    def _snapshot_session(
+        self, session_options: dict[str, Any], last_output: str
+    ) -> SessionSnapshot:
+        """Capture data at the paused save boundary, without advancing progress.
+
+        Dictionary serialization retains outstanding claims for cross-engine
+        resume. History is committed to this controller only after save succeeds.
+        """
+        items, index, extra, extra_index = self.dictionary.__getstate__()
+        history = list(self.output_history)
+        if last_output:
+            history.append({"start_time": self.start_time, "output": last_output})
+        return SessionSnapshot(
+            controller={
+                "start_time": self.start_time,
+                "passed_urls": sorted(self.passed_urls),
+                "directories": self.directories,
+                "jobs_processed": self.jobs_processed,
+                "errors": self.errors,
+                "consecutive_errors": self.consecutive_errors,
+                "base_path": self.base_path,
+                "url": self.url,
+                "old_session": self.old_session,
+            },
+            dictionary={
+                "items": items, "index": index,
+                "extra": extra, "extra_index": extra_index,
+            },
+            options=session_options,
+            last_output=last_output,
+            output_history=history,
+        )
 
     def _format_output_history(self, output_history: list[dict[str, Any]]) -> str:
         formatted: list[str] = []
@@ -376,11 +437,13 @@ class Controller:
 
         # A saved session must never advance beyond durable report rows.
         self.reporter.flush()
-        # Keep the on-disk active-first URL list without using global options as
-        # a mutable queue. A detached mapping also leaves options intact on error.
-        session_options = {**options, "urls": self.run_state.snapshot_targets()}
-        session_store = SessionStore(session_options)
-        session_store.save(self, session_file, last_output)
+        # Progress overlays the prepared input, never the process-wide options.
+        session_options = {
+            **self._session_options, "urls": self.run_state.snapshot_targets()
+        }
+        snapshot = self._snapshot_session(session_options, last_output)
+        SessionStore().save(snapshot, session_file)
+        self.output_history = snapshot.output_history
 
     def setup(self) -> None:
         if options["raw_file"]:
@@ -435,6 +498,7 @@ class Controller:
 
         if options["log_file"]:
             self.interface.log_file(options["log_file"])
+        self._session_options = deepcopy(options)
 
     def run(self) -> None:
         # Resolve only after setup/session restoration, before imports, callbacks
@@ -567,7 +631,7 @@ class Controller:
 
         if options["session_file"]:
             try:
-                SessionStore(options).delete(options["session_file"])
+                SessionStore().delete(options["session_file"])
             except OSError:
                 self.interface.error("Failed to delete old session file, remove it to free some space")
 

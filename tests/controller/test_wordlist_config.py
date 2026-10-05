@@ -72,8 +72,8 @@ class TestControllerWordlistConfig(TestCase):
                 options["wordlists"] = [os.path.join(directory, "absent.txt")]
                 options["wordlist_max_size"] = 1
                 checkpoint = os.path.join(directory, "session")
-                store = SessionStore(options)
-                store.save(original, checkpoint, "")
+                store = SessionStore()
+                store.save(original._snapshot_session(options, ""), checkpoint)
                 payload = store.load(checkpoint)
                 self.assertEqual(set(payload["dictionary"]), {
                     "items", "index", "extra", "extra_index",

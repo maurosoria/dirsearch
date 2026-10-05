@@ -35,6 +35,8 @@ def main() -> None:
         WordlistTemplate,
     )
     from dirsearch.lib.core import settings
+    from dirsearch.lib.controller.session import SessionStore
+    from dirsearch.lib.controller.session_snapshot import SessionSnapshot
     from dirsearch.lib.core.discovery_config import DiscoveryConfig
     from dirsearch.lib.core.execution_config import ExecutionConfig, ScanEngine
     from dirsearch.lib.core.filter_config import FilterConfig
@@ -66,6 +68,19 @@ def main() -> None:
     assert WordlistLimitError
     assert WordlistState
     assert WordlistTemplate
+    snapshot = SessionSnapshot(
+        controller={
+            "start_time": 0, "passed_urls": [], "directories": [],
+            "jobs_processed": 0, "errors": 0, "consecutive_errors": 0,
+            "base_path": "", "url": "", "old_session": False,
+        },
+        dictionary={"items": [], "index": 0, "extra": [], "extra_index": 0},
+        options={"urls": [], "data": b"\x80\r\n"},
+    )
+    session_path = str(Path(temp_dir, "checkpoint"))
+    store = SessionStore()
+    store.save(snapshot, session_path)
+    assert store.restore_options(store.load(session_path)["options"]) == snapshot.options
     assert WordlistConfig(extensions=["html"]).extensions == ("html",)
     assert ExecutionConfig(engine=ScanEngine.NATIVE).engine is ScanEngine.NATIVE
     assert ExecutionConfig(skip_on_status=[429]).skip_on_status == frozenset({429})

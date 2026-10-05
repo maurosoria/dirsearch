@@ -134,11 +134,11 @@ class TestControllerTerminalOwnership(TestCase):
         with (
             patch("lib.controller.controller.SessionStore") as store_factory,
             patch.object(Controller, "run") as run,
+            patch.object(Controller, "_restore_session", side_effect=InvalidURLException("invalid report URL")),
         ):
             store = store_factory.return_value
             store.load.return_value = {"options": {}}
             store.restore_options.return_value = {}
-            store.apply_to_controller.side_effect = InvalidURLException("invalid report URL")
             with self.assertRaises(SystemExit) as stopped:
                 Controller(output=output)
         self.assertEqual(stopped.exception.code, 1)

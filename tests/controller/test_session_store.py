@@ -27,12 +27,18 @@ from unittest import TestCase, skipIf
 from unittest.mock import patch
 
 from lib.controller.session import SessionStore
+from lib.controller.controller import Controller
 from lib.core.dictionary import Dictionary
+from lib.core.report_config import ReportConfig
 from lib.core.wordlist_config import WordlistConfig
 from lib.core.exceptions import UnpicklingError
 
 
 class TestSessionStore(TestCase):
+    def _snapshot(self, options, last_output="", controller=None):
+        controller = self._controller() if controller is None else controller
+        return Controller._snapshot_session(controller, options, last_output)
+
     def _write_json(self, path: str, payload: dict) -> None:
         with open(path, "w", encoding="utf-8") as handle:
             json.dump(payload, handle)
@@ -89,11 +95,11 @@ class TestSessionStore(TestCase):
             self._write_session_file(root_file, "https://root.example.com")
 
             current_dir = os.path.join(tmpdir, "2026-01-01", "session_02")
-            SessionStore({"urls": [], "output_formats": []}).save(
-                self._controller(), current_dir, ""
+            SessionStore().save(
+                self._snapshot({"urls": [], "output_formats": []}), current_dir
             )
 
-            sessions = SessionStore({}).list_sessions(tmpdir)
+            sessions = SessionStore().list_sessions(tmpdir)
 
             self.assertEqual(len(sessions), 3)
             self.assertEqual(
@@ -108,7 +114,7 @@ class TestSessionStore(TestCase):
             self._write_json(os.path.join(tmpdir, "array.json"), [])
             self._write_json(os.path.join(tmpdir, "scalar.json"), "unrelated")
 
-            sessions = SessionStore({}).list_sessions(tmpdir)
+            sessions = SessionStore().list_sessions(tmpdir)
 
         self.assertEqual(
             [session["path"] for session in sessions],
@@ -130,7 +136,7 @@ class TestSessionStore(TestCase):
                 },
             )
 
-            store = SessionStore({})
+            store = SessionStore()
             sessions = store.list_sessions(tmpdir)
 
         self.assertEqual(
@@ -194,7 +200,7 @@ class TestSessionStore(TestCase):
                 self._write_json(session_file, payload)
 
                 with self.assertRaises(UnpicklingError):
-                    SessionStore({}).load(session_file)
+                    SessionStore().load(session_file)
 
     def test_request_body_bytes_round_trip_through_json_session(self):
         body = "value=\u00e9&currency=\u20ac\r\n".encode("cp1252")
@@ -202,8 +208,8 @@ class TestSessionStore(TestCase):
         controller = self._controller()
 
         with tempfile.TemporaryDirectory() as session_dir:
-            store = SessionStore(session_options)
-            store.save(controller, session_dir, "")
+            store = SessionStore()
+            store.save(self._snapshot(session_options, controller=controller), session_dir)
             payload = store.load(session_dir)
             restored = store.restore_options(payload["options"])
 
@@ -216,17 +222,15 @@ class TestSessionStore(TestCase):
                 session_file,
                 "https://previous.example/",
             )
-            store = SessionStore(
-                {
-                    "urls": ["https://current.example/"],
-                    "output_formats": [],
-                }
-            )
+            store = SessionStore()
+            session_options = {
+                "urls": ["https://current.example/"], "output_formats": [],
+            }
             controller = self._controller()
             controller.jobs_processed = 7
 
             store.load(session_file)
-            store.save(controller, session_file, "current output")
+            store.save(self._snapshot(session_options, "current output", controller), session_file)
             restored = store.load(session_file)
 
             self.assertTrue(os.path.isfile(session_file))
@@ -251,11 +255,7 @@ class TestSessionStore(TestCase):
             )
             os.chmod(session_file, 0o644)
 
-            SessionStore({"output_formats": []}).save(
-                self._controller(),
-                session_file,
-                "",
-            )
+            SessionStore().save(self._snapshot({"output_formats": []}), session_file)
 
             self.assertEqual(
                 stat.S_IMODE(os.stat(session_file).st_mode),
@@ -283,14 +283,14 @@ class TestSessionStore(TestCase):
         self.assertEqual(controller.dictionary.claim_next(), "in-flight")
 
         with tempfile.TemporaryDirectory() as session_dir:
-            store = SessionStore(session_options)
-            store.save(controller, session_dir, "")
+            store = SessionStore()
+            store.save(self._snapshot(session_options, controller=controller), session_dir)
             payload = store.load(session_dir)
             restored_options = store.restore_options(payload["options"])
-            resumed = SimpleNamespace(dictionary=None)
-            SessionStore(restored_options).apply_to_controller(
-                resumed, payload, wordlist_config=WordlistConfig()
-            )
+            resumed = object.__new__(Controller)
+            resumed.wordlist_config = WordlistConfig()
+            resumed._restore_session(payload, ReportConfig.from_options(restored_options))
+            self.addCleanup(resumed.reporter.finish)
 
         self.assertEqual(resumed.directories, ["current/", "next/"])
         self.assertEqual(resumed.jobs_processed, 3)
@@ -327,8 +327,8 @@ class TestSessionStore(TestCase):
         controller.dictionary.__setstate__((["one", "two"], 1, [], 0))
 
         with tempfile.TemporaryDirectory() as session_dir:
-            store = SessionStore(session_options)
-            store.save(controller, session_dir, "old output")
+            store = SessionStore()
+            store.save(self._snapshot(session_options, "old output", controller), session_dir)
 
             controller.jobs_processed = 2
             controller.dictionary.__setstate__((["one", "two"], 2, [], 0))
@@ -347,7 +347,7 @@ class TestSessionStore(TestCase):
                 ),
                 self.assertRaisesRegex(OSError, "injected serialization failure"),
             ):
-                store.save(controller, session_dir, "new output")
+                store.save(self._snapshot(session_options, "new output", controller), session_dir)
 
             restored = store.load(session_dir)
 
@@ -357,12 +357,7 @@ class TestSessionStore(TestCase):
         self.assertEqual(restored["last_output"], "old output")
         self.assertEqual(
             controller.output_history,
-            [
-                {
-                    "start_time": controller.start_time,
-                    "output": "old output",
-                }
-            ],
+            [],
         )
 
     @skipIf(os.name == "nt", "POSIX mode bits are unavailable on Windows")
@@ -373,8 +368,8 @@ class TestSessionStore(TestCase):
                     session_dir = os.path.join(root, f"session-{umask:o}")
                     previous_umask = os.umask(umask)
                     try:
-                        SessionStore({"auth": "alice:secret"}).save(
-                            self._controller(), session_dir, ""
+                        SessionStore().save(
+                            self._snapshot({"auth": "alice:secret"}), session_dir
                         )
                     finally:
                         os.umask(previous_umask)
@@ -399,15 +394,16 @@ class TestSessionStore(TestCase):
     def test_resaving_session_tightens_checkpoint_permissions(self):
         with tempfile.TemporaryDirectory() as root:
             session_dir = os.path.join(root, "session")
-            store = SessionStore({"auth": "alice:secret"})
-            store.save(self._controller(), session_dir, "")
+            store = SessionStore()
+            snapshot = self._snapshot({"auth": "alice:secret"})
+            store.save(snapshot, session_dir)
             os.chmod(session_dir, 0o755)
             checkpoint_path = os.path.join(
                 session_dir, SessionStore.CHECKPOINT_FILE
             )
             os.chmod(checkpoint_path, 0o644)
 
-            store.save(self._controller(), session_dir, "")
+            store.save(snapshot, session_dir)
 
             self.assertEqual(
                 stat.S_IMODE(os.stat(session_dir).st_mode),
@@ -424,9 +420,11 @@ class TestSessionStore(TestCase):
             self._write_session_dir(session_dir, "https://legacy.example/")
             controller = self._controller()
             controller.jobs_processed = 7
-            store = SessionStore({"urls": ["https://current.example/"]})
+            store = SessionStore()
 
-            store.save(controller, session_dir, "current output")
+            store.save(self._snapshot(
+                {"urls": ["https://current.example/"]}, "current output", controller
+            ), session_dir)
             restored = store.load(session_dir)
 
             self.assertTrue(
@@ -449,7 +447,7 @@ class TestSessionStore(TestCase):
         with tempfile.TemporaryDirectory() as root:
             session_dir = os.path.join(root, "session")
             self._write_session_dir(session_dir, "https://legacy.example/")
-            store = SessionStore({"urls": ["https://new.example/"]})
+            store = SessionStore()
             original_dump = json.dump
 
             def fail_checkpoint(payload, file_handle, *args, **kwargs):
@@ -463,7 +461,7 @@ class TestSessionStore(TestCase):
                 ),
                 self.assertRaisesRegex(OSError, "injected migration failure"),
             ):
-                store.save(self._controller(), session_dir, "new output")
+                store.save(self._snapshot({"urls": ["https://new.example/"]}, "new output"), session_dir)
 
             restored = store.load(session_dir)
 
@@ -485,7 +483,7 @@ class TestSessionStore(TestCase):
         marker = SessionStore.SESSION_BYTES_MARKER
         headers = {marker: "header-value"}
 
-        restored = SessionStore({}).restore_options({"headers": headers})
+        restored = SessionStore().restore_options({"headers": headers})
 
         self.assertEqual(restored["headers"], headers)
 
@@ -498,4 +496,4 @@ class TestSessionStore(TestCase):
             UnpicklingError,
             "Invalid binary session option: data",
         ):
-            SessionStore({}).restore_options(serialized)
+            SessionStore().restore_options(serialized)

@@ -112,6 +112,8 @@ class TestSessionCleanup(TestCase):
 
     def test_session_export_flushes_reports_before_saving_checkpoint(self):
         controller = object.__new__(Controller)
+        controller._session_options = {}
+        controller._snapshot_session = Mock(return_value=SimpleNamespace(output_history=[]))
         controller.interface = Mock()
         controller.run_state = ScanRunState()
         controller.reporter = Mock()

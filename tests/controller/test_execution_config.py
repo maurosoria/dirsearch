@@ -238,7 +238,9 @@ class TestControllerExecutionConfig(TestCase):
                     dictionary=Dictionary(WordlistConfig()),
                 )
                 checkpoint = os.path.join(directory, "checkpoint")
-                SessionStore(saved_options).save(saved_controller, checkpoint, "")
+                SessionStore().save(
+                    Controller._snapshot_session(saved_controller, saved_options, ""), checkpoint
+                )
                 requester = Mock(backend=None)
                 if async_mode:
                     requester.close = AsyncMock()
@@ -253,7 +255,7 @@ class TestControllerExecutionConfig(TestCase):
                     patch.object(Controller, "_confirm_session_overwrite"),
                     patch(requester_path, return_value=requester),
                     patch("lib.controller.controller.get_blacklists", return_value={}),
-                    patch("lib.controller.session.ReportManager", return_value=Mock(reports=())),
+                    patch("lib.controller.controller.ReportManager", return_value=Mock(reports=())),
                     patch("lib.controller.controller.signal.signal"),
                     patch("lib.controller.controller.create_terminal"),
                 ):

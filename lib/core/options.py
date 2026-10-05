@@ -96,7 +96,7 @@ def parse_options() -> dict[str, Any]:
 
         base_dir = opt.sessions_dir or DEFAULT_SESSION_DIR
         _session_debug(f"--list-sessions enabled base_dir={base_dir!r}")
-        session_store = SessionStore({})
+        session_store = SessionStore()
         sessions = session_store.list_sessions(base_dir)
         _session_debug(f"--list-sessions completed total={len(sessions)}")
         _print_invalid_sessions(session_store)
@@ -129,7 +129,7 @@ def parse_options() -> dict[str, Any]:
 
         base_dir = opt.sessions_dir or DEFAULT_SESSION_DIR
         _session_debug(f"--session-id enabled base_dir={base_dir!r}")
-        session_store = SessionStore({})
+        session_store = SessionStore()
         sessions = session_store.list_sessions(base_dir)
         _session_debug(f"--session-id sessions found total={len(sessions)}")
         _print_invalid_sessions(session_store)
