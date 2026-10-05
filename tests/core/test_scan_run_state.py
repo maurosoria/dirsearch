@@ -1,0 +1,136 @@
+import sys
+from unittest import TestCase
+
+from lib.core.scan_run_state import ScanRunState
+
+
+class TestScanRunState(TestCase):
+    def test_empty_run_has_no_active_or_pending_target(self):
+        state = ScanRunState()
+        self.assertIsNone(state.active_target)
+        self.assertEqual(state.pending_count, 0)
+        self.assertEqual(state.snapshot_targets(), [])
+        self.assertIsNone(state.activate_next())
+
+    def test_activation_separates_active_from_pending(self):
+        state = ScanRunState(["first", "second"])
+        self.assertEqual(state.activate_next(), "first")
+        self.assertEqual(state.active_target, "first")
+        self.assertEqual(state.pending_count, 1)
+        self.assertEqual(state.snapshot_targets(), ["first", "second"])
+
+        state.finish_active()
+        self.assertIsNone(state.active_target)
+        self.assertEqual(state.snapshot_targets(), ["second"])
+        self.assertEqual(state.activate_next(), "second")
+        self.assertEqual(state.pending_count, 0)
+        self.assertEqual(state.snapshot_targets(), ["second"])
+        state.finish_active()
+        self.assertIsNone(state.activate_next())
+        self.assertEqual(state.snapshot_targets(), [])
+
+    def test_active_target_cannot_be_replaced_even_without_pending_work(self):
+        for targets in (["first"], ["first", "second"]):
+            with self.subTest(targets=targets):
+                state = ScanRunState(targets)
+                state.activate_next()
+                with self.assertRaisesRegex(RuntimeError, "Finish the active target"):
+                    state.activate_next()
+                self.assertEqual(state.active_target, "first")
+                self.assertEqual(state.snapshot_targets(), targets)
+
+    def test_finishing_without_an_active_target_is_an_error(self):
+        state = ScanRunState(["first"])
+        with self.assertRaisesRegex(RuntimeError, "no active target"):
+            state.finish_active()
+        state.activate_next()
+        state.finish_active()
+        with self.assertRaisesRegex(RuntimeError, "no active target"):
+            state.finish_active()
+
+    def test_input_and_snapshots_do_not_alias_state(self):
+        targets = ["first", "second"]
+        state = ScanRunState(targets)
+        targets.clear()
+        state.snapshot_targets().clear()
+        self.assertEqual(state.activate_next(), "first")
+        state.snapshot_targets().append("unrelated")
+        self.assertEqual(state.snapshot_targets(), ["first", "second"])
+
+    def test_order_duplicates_and_raw_url_text_are_preserved(self):
+        targets = [
+            "https://example.test/a%2Fb?next=/home",
+            "http://[::1]:8080/",
+            "https://example.test/café",
+            "http://[::1]:8080/",
+        ]
+        state = ScanRunState(iter(targets))
+        for index, target in enumerate(targets):
+            self.assertEqual(state.activate_next(), target)
+            self.assertEqual(state.snapshot_targets(), targets[index:])
+            state.finish_active()
+        self.assertIsNone(state.activate_next())
+
+    def test_empty_target_is_not_the_exhaustion_sentinel(self):
+        # URL validation belongs to the controller, not this state container.
+        state = ScanRunState(["", "next"])
+        self.assertEqual(state.activate_next(), "")
+        self.assertEqual(state.snapshot_targets(), ["", "next"])
+        with self.assertRaises(RuntimeError):
+            state.activate_next()
+        state.finish_active()
+        self.assertEqual(state.activate_next(), "next")
+
+    def test_runs_do_not_share_progress(self):
+        targets = ["first", "second"]
+        first = ScanRunState(targets)
+        second = ScanRunState(targets)
+        first.activate_next()
+        first.finish_active()
+        self.assertEqual(first.snapshot_targets(), ["second"])
+        self.assertIsNone(second.active_target)
+        self.assertEqual(second.snapshot_targets(), targets)
+        self.assertEqual(targets, ["first", "second"])
+
+    def test_checkpoint_reactivates_unfinished_target_before_pending_work(self):
+        state = ScanRunState(["finished", "interrupted", "pending"])
+        state.activate_next()
+        state.finish_active()
+        state.activate_next()
+
+        resumed = ScanRunState(state.snapshot_targets())
+        self.assertIsNone(resumed.active_target)
+        self.assertEqual(resumed.activate_next(), "interrupted")
+        self.assertEqual(resumed.pending_count, 1)
+        resumed.finish_active()
+        self.assertEqual(resumed.activate_next(), "pending")
+
+    def test_checkpoint_during_activation_never_loses_or_duplicates_a_target(self):
+        state = ScanRunState(["first", "second"])
+        snapshots = []
+
+        def checkpoint_between_bytecodes(frame, event, _arg):
+            if frame.f_code is ScanRunState.activate_next.__code__:
+                frame.f_trace_opcodes = True
+                if event == "opcode":
+                    # Model a reentrant Ctrl+C checkpoint without delivering
+                    # process-wide signals or relying on scheduler timing.
+                    snapshots.append(state.snapshot_targets())
+            return checkpoint_between_bytecodes
+
+        previous_trace = sys.gettrace()
+        # Python 3.12 requires opcode tracing on an existing frame before
+        # settrace(): https://docs.python.org/3.12/library/sys.html#sys.settrace
+        current_frame = sys._getframe()
+        previous_opcodes = current_frame.f_trace_opcodes
+        current_frame.f_trace_opcodes = True
+        sys.settrace(checkpoint_between_bytecodes)
+        try:
+            state.activate_next()
+        finally:
+            current_frame.f_trace_opcodes = previous_opcodes
+            sys.settrace(previous_trace)
+
+        self.assertTrue(snapshots)
+        for snapshot in snapshots:
+            self.assertEqual(snapshot, ["first", "second"])

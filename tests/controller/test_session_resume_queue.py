@@ -63,6 +63,7 @@ class TestSessionResumeQueue(TestCase):
         controller.output_history = []
         controller.response_stores = ()
         controller._native_worker = None
+        controller.loop = None
         controller.reporter = Mock()
         controller.crawl_target = Mock()
 
@@ -104,6 +105,7 @@ class TestSessionResumeQueue(TestCase):
                     "target_max_time": 0,
                     "session_file": None,
                 }
+                original_urls = list(run_options["urls"])
 
                 with (
                     patch.dict(options, run_options),
@@ -126,9 +128,8 @@ class TestSessionResumeQueue(TestCase):
                         controller.wordlist_config = WordlistConfig.from_options(options)
                         controller.run()
                     finally:
-                        loop = getattr(controller, "loop", None)
-                        if isinstance(loop, asyncio.AbstractEventLoop):
-                            loop.close()
+                        if isinstance(controller.loop, asyncio.AbstractEventLoop):
+                            controller.loop.close()
 
                 self.assertEqual(
                     records,
@@ -140,3 +141,4 @@ class TestSessionResumeQueue(TestCase):
                 )
                 self.assertEqual(controller.jobs_processed, 6)
                 self.assertEqual(controller.directories, [])
+                self.assertEqual(run_options["urls"], original_urls)

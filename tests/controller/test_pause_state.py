@@ -7,6 +7,7 @@ from lib.controller.controller import Controller
 from lib.core.data import options
 from lib.core.exceptions import QuitInterrupt, SkipTargetInterrupt
 from lib.core.execution_config import ExecutionConfig, ScanEngine
+from lib.core.scan_run_state import ScanRunState
 
 
 class RecordingForceQuitHandler:
@@ -42,6 +43,8 @@ class TestPauseState(TestCase):
     def reset_controller(self):
         self.controller = object.__new__(Controller)
         self.controller.execution_config = ExecutionConfig.from_options(options)
+        self.controller.run_state = ScanRunState(options["urls"])
+        self.controller.run_state.activate_next()
         self.controller._handling_pause = False
         self.controller._force_quit_handler = RecordingForceQuitHandler()
         self.controller.fuzzer = Mock()
@@ -141,8 +144,6 @@ class TestPauseState(TestCase):
                 self.controller.fuzzer.quit.assert_not_called()
 
     def test_skip_target_rearms_pause_for_async_engine(self):
-        self.reset_controller()
-        self.controller.pause_future = RecordingPauseFuture()
         with patch.dict(
             options,
             {
@@ -151,6 +152,8 @@ class TestPauseState(TestCase):
                 "urls": ["https://first.test", "https://second.test"],
             },
         ):
+            self.reset_controller()
+            self.controller.pause_future = RecordingPauseFuture()
             self.controller.execution_config = ExecutionConfig(engine=ScanEngine.ASYNC)
             self.exercise_second_pause("s")
 
@@ -160,3 +163,43 @@ class TestPauseState(TestCase):
         )
         self.assert_pause_state_was_rearmed()
         self.controller.fuzzer.quit.assert_not_called()
+
+    def test_skip_uses_pending_state_even_if_global_urls_are_empty(self):
+        for engine in ScanEngine:
+            with (
+                self.subTest(engine=engine),
+                patch.dict(options, {"urls": []}),
+                patch("builtins.input", return_value="s"),
+                patch("lib.controller.controller.interface") as interface,
+            ):
+                self.reset_controller()
+                self.controller.execution_config = ExecutionConfig(engine=engine)
+                self.controller.pause_future = RecordingPauseFuture()
+                self.controller.run_state = ScanRunState(["first", "pending"])
+                self.controller.run_state.activate_next()
+                if engine is ScanEngine.ASYNC:
+                    self.controller.handle_pause()
+                    self.assertIsInstance(self.controller.pause_future.error, SkipTargetInterrupt)
+                else:
+                    with self.assertRaises(SkipTargetInterrupt):
+                        self.controller.handle_pause()
+                self.assertIn("[s]kip target", interface.in_line.call_args.args[0])
+                # The menu signals the exit; only run() finishes the attempt.
+                self.assertEqual(self.controller.run_state.active_target, "first")
+
+    def test_last_active_target_cannot_skip_to_stale_global_urls(self):
+        for engine in ScanEngine:
+            with (
+                self.subTest(engine=engine),
+                patch.dict(options, {"urls": ["stale", "also-stale"]}),
+                patch("builtins.input", side_effect=("s", "c")),
+                patch("lib.controller.controller.interface") as interface,
+            ):
+                self.reset_controller()
+                self.controller.execution_config = ExecutionConfig(engine=engine)
+                self.controller.run_state = ScanRunState(["last"])
+                self.controller.run_state.activate_next()
+                self.controller.handle_pause()
+                for call in interface.in_line.call_args_list:
+                    self.assertNotIn("[s]kip target", call.args[0])
+                self.controller.fuzzer.play.assert_called_once_with()
