@@ -11,6 +11,7 @@ from lib.connection.requester import AsyncRequester, Requester
 from lib.controller.controller import Controller
 from lib.core.filter_config import FilterConfig
 from lib.core.request_config import RequestConfig
+from lib.core.target_config import TargetConfig
 from lib.core.data import options
 from lib.core.wordlist_config import WordlistConfig
 from lib.core.exceptions import InvalidURLException, RequestException
@@ -87,6 +88,7 @@ class TestControllerTargetURL(TestCase):
             }
         )
         self.controller = object.__new__(Controller)
+        self.controller.target_config = TargetConfig.from_options(options)
         self.controller.requester = Mock()
 
     def tearDown(self):
@@ -146,6 +148,7 @@ class TestControllerTargetURL(TestCase):
 
     def test_scheme_option_keeps_ipv6_literal_brackets(self):
         options["scheme"] = "https"
+        self.controller.target_config = TargetConfig.from_options(options)
 
         self.controller.set_target("[2001:db8::1]:8443/private")
 
@@ -186,6 +189,7 @@ class TestControllerTargetURL(TestCase):
         for stack, async_mode, request_backend in stack_cases:
             with self.subTest(stack=stack):
                 controller = object.__new__(Controller)
+                controller.loop = None
                 controller.start_time = 0
                 controller.passed_urls = set()
                 controller.directories = []
@@ -233,9 +237,8 @@ class TestControllerTargetURL(TestCase):
                         controller.wordlist_config = WordlistConfig.from_options(options)
                         controller.run()
                     finally:
-                        loop = getattr(controller, "loop", None)
-                        if isinstance(loop, asyncio.AbstractEventLoop):
-                            loop.close()
+                        if isinstance(controller.loop, asyncio.AbstractEventLoop):
+                            controller.loop.close()
 
                 controller.start.assert_called_once_with()
                 controller.reporter.prepare.assert_called_once_with(
@@ -303,6 +306,7 @@ class TestAsyncControllerTargetURL(IsolatedAsyncioTestCase):
             }
         )
         self.controller = object.__new__(Controller)
+        self.controller.target_config = TargetConfig.from_options(options)
 
     def tearDown(self):
         options.clear()

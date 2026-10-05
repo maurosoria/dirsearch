@@ -6,6 +6,7 @@ import requests
 from lib.connection.requester import AsyncRequester, Requester
 from lib.controller.controller import Controller
 from lib.core.request_config import RequestConfig
+from lib.core.target_config import TargetConfig
 from lib.core.data import options
 from lib.core.exceptions import InvalidURLException
 
@@ -21,6 +22,7 @@ class TestControllerTargetCredentials(TestCase):
             }
         )
         self.controller = object.__new__(Controller)
+        self.controller.target_config = TargetConfig.from_options(options)
         self.controller.requester = Mock()
 
     def tearDown(self):
@@ -130,6 +132,7 @@ class TargetAuthenticationIntegrationMixin:
     @staticmethod
     def controller_for(requester):
         controller = object.__new__(Controller)
+        controller.target_config = TargetConfig.from_options(options)
         controller.requester = requester
         return controller
 
