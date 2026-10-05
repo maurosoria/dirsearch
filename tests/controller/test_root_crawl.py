@@ -59,6 +59,7 @@ def resolved_html_response():
 
 def create_controller(requester, *, crawl=False, engine=ScanEngine.THREADED):
     controller = object.__new__(Controller)
+    controller.logger = Mock()
     controller.interface = Mock()
     controller.execution_config = ExecutionConfig(engine=engine)
     controller.discovery_config = DiscoveryConfig(crawl=crawl)

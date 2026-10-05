@@ -31,6 +31,7 @@ class TestSessionCleanup(TestCase):
 
     def _complete_scan(self, session_path):
         controller = object.__new__(Controller)
+        controller.logger = Mock()
         controller.interface = Mock()
         controller.response_stores = ()
         controller.reporter = Mock()

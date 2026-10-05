@@ -51,7 +51,8 @@ from lib.core.execution_config import ExecutionConfig, ScanEngine
 from lib.core.filter_config import FilterConfig
 from lib.core.request_config import RequestConfig
 from lib.core.report_config import ReportConfig
-from lib.core.logger import enable_logging, logger
+from lib.core.log_config import LogConfig
+from lib.core.logger import RunLogger
 from lib.core.options import (
     validate_numeric_options,
     validate_random_agent_headers,
@@ -192,6 +193,7 @@ class Controller:
         self.interface = create_terminal(
             TerminalConfig.from_options(options), stream=self._terminal_stream
         )
+        self.logger = RunLogger()
         self._operation_lock = threading.Lock()
         self._handling_pause = False
         self._force_quit_handler = _create_force_quit_handler()
@@ -223,7 +225,10 @@ class Controller:
                     try:
                         self._close_response_stores()
                     finally:
-                        self.interface.close()
+                        try:
+                            self.interface.close()
+                        finally:
+                            self.logger.close()
 
     def _refresh_terminal(self) -> None:
         """Replace bootstrap policy after raw parsing or restored session options.
@@ -236,6 +241,22 @@ class Controller:
         )
         previous = self.interface
         self.interface = terminal
+        previous.close()
+
+    def _prepare_logging(self) -> None:
+        """Replace bootstrap logging only after effective options are available."""
+        config = LogConfig.from_options(options)
+        try:
+            if config.file_path:
+                FileUtils.create_dir(FileUtils.parent(config.file_path))
+                if not FileUtils.can_write(config.file_path):
+                    raise OSError(f"Cannot write log file: {config.file_path}")
+            logger = RunLogger(config)
+        except OSError:
+            self.interface.error(f"Couldn't create log file at {config.file_path}")
+            sys.exit(1)
+        previous = self.logger
+        self.logger = logger
         previous.close()
 
     def _close_reporter(self) -> None:
@@ -284,17 +305,7 @@ class Controller:
             validate_numeric_options(SimpleNamespace(**options))
             validate_regex_options(SimpleNamespace(**options))
             self._refresh_terminal()
-            if options["log_file"]:
-                try:
-                    FileUtils.create_dir(FileUtils.parent(options["log_file"]))
-                    if not FileUtils.can_write(options["log_file"]):
-                        raise OSError(f'Cannot write log file: {options["log_file"]}')
-                    enable_logging()
-                except OSError:
-                    self.interface.error(
-                        f'Couldn\'t create log file at {options["log_file"]}'
-                    )
-                    sys.exit(1)
+            self._prepare_logging()
             output_history = payload.get("output_history") or []
             if not output_history:
                 legacy_output = payload.get("last_output", "")
@@ -315,7 +326,7 @@ class Controller:
             self._prepare_response_stores()
             self._confirm_session_overwrite(session_file)
         except InvalidURLException as error:
-            logger.exception(error)
+            self.logger.exception(error)
             self.interface.error(str(error))
             sys.exit(1)
         except (OSError, KeyError, TypeError, UnpicklingError):
@@ -379,6 +390,7 @@ class Controller:
                 )
                 validate_random_agent_headers(SimpleNamespace(**options))
             except InvalidRawRequest as e:
+                self.logger.exception(e)
                 fail(e)
 
             if options["request_backend"] == "native":
@@ -403,19 +415,7 @@ class Controller:
         self.errors = 0
         self.consecutive_errors = 0
 
-        if options["log_file"]:
-            try:
-                FileUtils.create_dir(FileUtils.parent(options["log_file"]))
-                if not FileUtils.can_write(options["log_file"]):
-                    raise OSError(f'Cannot write log file: {options["log_file"]}')
-
-                enable_logging()
-
-            except OSError:
-                self.interface.error(
-                    f'Couldn\'t create log file at {options["log_file"]}'
-                )
-                sys.exit(1)
+        self._prepare_logging()
 
         self._prepare_response_stores()
 
@@ -425,7 +425,7 @@ class Controller:
         try:
             self.reporter = ReportManager(ReportConfig.from_options(options))
         except InvalidURLException as e:
-            logger.exception(e)
+            self.logger.exception(e)
             self.interface.error(str(e))
             sys.exit(1)
 
@@ -489,7 +489,7 @@ class Controller:
                 self.request_config, filter_config=self.filter_config
             )
         else:
-            self.requester = Requester(self.request_config)
+            self.requester = Requester(self.request_config, logger=self.logger)
         if self.execution_config.engine is ScanEngine.ASYNC:
             self.loop = asyncio.new_event_loop()
 
@@ -512,6 +512,7 @@ class Controller:
                 match_callbacks=tuple(match_callbacks),
                 not_found_callbacks=not_found_callbacks,
                 error_callbacks=error_callbacks,
+                logger=self.logger,
                 **fuzzer_options,
             )
 
@@ -872,7 +873,7 @@ class Controller:
                 options["save_response_jsonl"],
             )
         except (OSError, ValueError) as error:
-            logger.exception(error)
+            self.logger.exception(error)
             self.interface.error(
                 f"Couldn't prepare response storage: {error}"
             )
@@ -911,7 +912,7 @@ class Controller:
         artifact: ResponseArtifact,
         error: OSError | ValueError,
     ) -> None:
-        logger.exception(error)
+        self.logger.exception(error)
         self.interface.error(
             f"Couldn't save response for {artifact.url} to "
             f"{store.name} store at {store.destination}: {error}"
@@ -922,7 +923,7 @@ class Controller:
             try:
                 store.close()
             except OSError as error:
-                logger.exception(error)
+                self.logger.exception(error)
                 self.interface.error(
                     f"Couldn't close {store.name} response store at "
                     f"{store.destination}: {error}"
@@ -1029,7 +1030,7 @@ class Controller:
             raise SkipTargetInterrupt("Too many request errors")
 
     def append_error_log(self, exception: RequestException) -> None:
-        logger.exception(exception)
+        self.logger.exception(exception)
 
     def _force_exit(self) -> None:
         """Force process termination, stopping asyncio loop if running."""

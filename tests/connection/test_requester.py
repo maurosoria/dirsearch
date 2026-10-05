@@ -31,7 +31,7 @@ import threading
 from types import SimpleNamespace
 from urllib.parse import urlsplit
 from unittest import IsolatedAsyncioTestCase, TestCase
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import httpx
 import requests
@@ -903,6 +903,7 @@ class TestRequesterErrorClassification(BaseRequesterTestCase):
 class TestRequesterElapsed(TestCase):
     def test_random_agent_is_request_local(self):
         requester = object.__new__(Requester)
+        requester.logger = Mock()
         requester.config = RequestConfig()
         requester._rate_limiter = RequestRateLimiter()
         requester._url = "https://example.com/"
@@ -918,7 +919,6 @@ class TestRequesterElapsed(TestCase):
                 "choice",
                 side_effect=[IndexError, "random-agent"],
             ),
-            patch.object(requester_module.logger, "info"),
         ):
             requester.request("admin")
 
@@ -930,6 +930,7 @@ class TestRequesterElapsed(TestCase):
 
     def test_request_elapsed_includes_stream_read(self):
         requester = object.__new__(Requester)
+        requester.logger = Mock()
         requester.config = RequestConfig()
         requester._rate_limiter = RequestRateLimiter()
         requester._url = "https://example.com/"
@@ -940,13 +941,13 @@ class TestRequesterElapsed(TestCase):
         requester.session = DummySyncSession(DummySyncResponse())
 
         with patch.object(requester_module.time, "perf_counter", side_effect=[10.0, 10.25]):
-            with patch.object(requester_module.logger, "info"):
-                response = requester.request("admin")
+            response = requester.request("admin")
 
         self.assertEqual(response.elapsed, 0.25, "Sync elapsed should measure the full streamed request lifecycle")
 
     def test_retry_elapsed_reports_only_the_successful_attempt(self):
         requester = object.__new__(Requester)
+        requester.logger = Mock()
         requester.config = RequestConfig(max_retries=1)
         requester._rate_limiter = RequestRateLimiter()
         requester._url = "https://example.com/"
@@ -971,8 +972,6 @@ class TestRequesterElapsed(TestCase):
                 "perf_counter",
                 side_effect=[1.0, 10.0, 10.25],
             ),
-            patch.object(requester_module.logger, "info"),
-            patch.object(requester_module.logger, "exception"),
         ):
             response = requester.request("admin")
 
@@ -1697,6 +1696,7 @@ class TestAsyncRequesterSSLHandling(BaseRequesterTestCase, IsolatedAsyncioTestCa
 class TestAsyncRequesterElapsed(IsolatedAsyncioTestCase):
     async def test_random_agent_is_request_local(self):
         requester = object.__new__(AsyncRequester)
+        requester.logger = Mock()
         requester.config = RequestConfig()
         requester._rate_limiter = RequestRateLimiter()
         requester._url = "https://example.com/"
@@ -1713,7 +1713,6 @@ class TestAsyncRequesterElapsed(IsolatedAsyncioTestCase):
                 "choice",
                 return_value="random-agent",
             ),
-            patch.object(requester_module.logger, "info"),
         ):
             await requester.request("admin")
 
@@ -1725,6 +1724,7 @@ class TestAsyncRequesterElapsed(IsolatedAsyncioTestCase):
 
     async def test_request_elapsed_waits_for_stream_close(self):
         requester = object.__new__(AsyncRequester)
+        requester.logger = Mock()
         requester.config = RequestConfig()
         requester._rate_limiter = RequestRateLimiter()
         requester._url = "https://example.com/"
@@ -1735,14 +1735,14 @@ class TestAsyncRequesterElapsed(IsolatedAsyncioTestCase):
         requester.session = DummyAsyncSession(DummyAsyncResponse())
 
         with patch.object(requester_module.time, "perf_counter", side_effect=[20.0, 20.5]):
-            with patch.object(requester_module.logger, "info"):
-                response = await requester.request("admin")
+            response = await requester.request("admin")
 
         self.assertEqual(response.elapsed, 0.5, "Async elapsed should measure the full streamed request lifecycle")
         self.assertTrue(requester.session.response.closed, "Streamed async responses should be closed before elapsed is used")
 
     async def test_retry_elapsed_reports_only_the_successful_attempt(self):
         requester = object.__new__(AsyncRequester)
+        requester.logger = Mock()
         requester.config = RequestConfig(max_retries=1)
         requester._rate_limiter = RequestRateLimiter()
         requester._url = "https://example.com/"
@@ -1762,8 +1762,6 @@ class TestAsyncRequesterElapsed(IsolatedAsyncioTestCase):
                 "perf_counter",
                 side_effect=[1.0, 10.0, 10.25],
             ),
-            patch.object(requester_module.logger, "info"),
-            patch.object(requester_module.logger, "exception"),
         ):
             response = await requester.request("admin")
 

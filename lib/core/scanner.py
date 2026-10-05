@@ -26,7 +26,7 @@ from typing import Any
 from lib.connection.requester import AsyncRequester, BaseRequester, Requester
 from lib.connection.response import BaseResponse
 from lib.core.filter_config import FilterConfig
-from lib.core.logger import logger
+from lib.core.logger import RunLogger
 from lib.core.settings import (
     REFLECTED_PATH_MARKER,
     WILDCARD_TEST_POINT_MARKER,
@@ -55,7 +55,9 @@ class BaseScanner:
         path: str = "",
         tested: dict[str, Any] | None = None,
         context: str = "all cases",
+        logger: RunLogger | None = None,
     ) -> None:
+        self.logger = logger if logger is not None else RunLogger()
         self.path = path
         self.tested = tested if tested is not None else {}
         self.filter_config = filter_config
@@ -96,7 +98,7 @@ class BaseScanner:
 
             # If redirection doesn't match the rule, mark as found
             if not re.match(self.wildcard_redirect_regex, redirect, re.IGNORECASE):
-                logger.debug(
+                self.logger.debug(
                     f'"{redirect}" doesn\'t match the regular expression "{self.wildcard_redirect_regex}", passing'
                 )
                 self.reason = "redirect differs from wildcard profile"
@@ -108,7 +110,7 @@ class BaseScanner:
 
         if self.is_probable_wildcard(path, response):
             self.reason = "matches ambiguous wildcard profile"
-            logger.debug(
+            self.logger.debug(
                 f'"{path}" filtered by ambiguous wildcard heuristic in "{self.context}"'
             )
             return "wildcard"
@@ -223,10 +225,11 @@ class Scanner(BaseScanner):
         path: str = "",
         tested: dict[str, dict[str, BaseScanner]] | None = None,
         context: str = "all cases",
+        logger: RunLogger | None = None,
     ) -> None:
         super().__init__(
             requester, filter_config=filter_config, delay=delay,
-            path=path, tested=tested, context=context,
+            path=path, tested=tested, context=context, logger=logger,
         )
         self.setup()
 
@@ -249,7 +252,7 @@ class Scanner(BaseScanner):
         if duplicate := self.get_duplicate(first_response):
             self.content_parser = duplicate.content_parser
             self.wildcard_redirect_regex = duplicate.wildcard_redirect_regex
-            logger.debug(f'Skipped the second test for "{self.context}"')
+            self.logger.debug(f'Skipped the second test for "{self.context}"')
             return
 
         second_path = self.path.replace(
@@ -269,7 +272,7 @@ class Scanner(BaseScanner):
                 clean_path(second_response.redirect),
                 second_path,
             )
-            logger.debug(
+            self.logger.debug(
                 f'Pattern (regex) to detect wildcard redirects for "{self.context}": {self.wildcard_redirect_regex}'
             )
 
@@ -304,10 +307,11 @@ class AsyncScanner(BaseScanner):
         path: str = "",
         tested: dict[str, dict[str, BaseScanner]] | None = None,
         context: str = "all cases",
+        logger: RunLogger | None = None,
     ) -> None:
         super().__init__(
             requester, filter_config=filter_config, delay=delay,
-            path=path, tested=tested, context=context,
+            path=path, tested=tested, context=context, logger=logger,
         )
 
     @classmethod
@@ -320,10 +324,11 @@ class AsyncScanner(BaseScanner):
         path: str = "",
         tested: dict[str, dict[str, BaseScanner]] | None = None,
         context: str = "all cases",
+        logger: RunLogger | None = None,
     ) -> AsyncScanner:
         self = cls(
             requester, filter_config=filter_config, delay=delay,
-            path=path, tested=tested, context=context,
+            path=path, tested=tested, context=context, logger=logger,
         )
         await self.setup()
         return self
@@ -348,7 +353,7 @@ class AsyncScanner(BaseScanner):
         if duplicate:
             self.content_parser = duplicate.content_parser
             self.wildcard_redirect_regex = duplicate.wildcard_redirect_regex
-            logger.debug(f'Skipped the second test for "{self.context}"')
+            self.logger.debug(f'Skipped the second test for "{self.context}"')
             return
 
         second_path = self.path.replace(
@@ -366,7 +371,7 @@ class AsyncScanner(BaseScanner):
                 clean_path(second_response.redirect),
                 second_path,
             )
-            logger.debug(
+            self.logger.debug(
                 f'Pattern (regex) to detect wildcard redirects for "{self.context}": {self.wildcard_redirect_regex}'
             )
 

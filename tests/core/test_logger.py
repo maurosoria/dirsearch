@@ -2,33 +2,18 @@ import os
 import tempfile
 from unittest import TestCase
 
-from lib.core.data import options
-from lib.core.logger import enable_logging, logger, redact_log_text
+from lib.core.log_config import LogConfig
+from lib.core.logger import RunLogger, redact_log_text
 
 
 class TestLogger(TestCase):
-    def setUp(self):
-        self.original_options = dict(options)
-        self.original_handlers = tuple(logger.handlers)
-        self.original_disabled = logger.disabled
-        for handler in self.original_handlers:
-            logger.removeHandler(handler)
-
-    def tearDown(self):
-        self.close_handlers()
-        for handler in self.original_handlers:
-            logger.addHandler(handler)
-        logger.disabled = self.original_disabled
-        options.clear()
-        options.update(self.original_options)
-
-    def close_handlers(self):
-        for handler in tuple(logger.handlers):
-            handler.close()
-            logger.removeHandler(handler)
+    def make_logger(self, path, *, max_bytes=0, proxy_auth=None):
+        logger = RunLogger(LogConfig(path, max_bytes=max_bytes, proxy_auth=proxy_auth))
+        self.addCleanup(logger.close)
+        return logger
 
     def test_redacts_url_secrets_without_hiding_request_metadata(self):
-        options["proxy_auth"] = "proxy-user:scheme-less-password"
+        proxy_auth = "proxy-user:scheme-less-password"
         message = (
             '"GET https://alice:target-password@example.test/admin'
             '?=empty-key-secret&token=query-secret&mode=debug&bare-secret" '
@@ -39,7 +24,7 @@ class TestLogger(TestCase):
         )
 
         self.assertEqual(
-            redact_log_text(message),
+            redact_log_text(message, proxy_auth=proxy_auth),
             '"GET https://<redacted>@example.test/admin'
             '?=<redacted>&token=<redacted>&mode=<redacted>&<redacted>" '
             "200 - 42B - "
@@ -52,10 +37,7 @@ class TestLogger(TestCase):
         proxy_auth = "proxy-user:proxy-password/segment"
         with tempfile.TemporaryDirectory() as root:
             log_path = os.path.join(root, "dirsearch.log")
-            options["log_file"] = log_path
-            options["log_file_size"] = 0
-            options["proxy_auth"] = proxy_auth
-            enable_logging()
+            logger = self.make_logger(log_path, proxy_auth=proxy_auth)
 
             logger.info(
                 '"GET https://target-user:target-password@target.example.test/path'
@@ -70,7 +52,7 @@ class TestLogger(TestCase):
                 logger.exception(error)
             logger.info('THREAD-7 started')
 
-            self.close_handlers()
+            logger.close()
             with open(log_path, encoding="utf-8") as log_file:
                 contents = log_file.read()
 
@@ -96,15 +78,13 @@ class TestLogger(TestCase):
     def test_rotates_log_file_at_configured_size(self):
         with tempfile.TemporaryDirectory() as root:
             log_path = os.path.join(root, "dirsearch.log")
-            options["log_file"] = log_path
-            options["log_file_size"] = 256
-            enable_logging()
+            logger = self.make_logger(log_path, max_bytes=256)
 
             for index in range(20):
                 logger.info("entry-%02d-%s", index, "x" * 40)
             for handler in logger.handlers:
                 handler.flush()
-            self.close_handlers()
+            logger.close()
 
             self.assertTrue(os.path.exists(f"{log_path}.1"))
             self.assertFalse(os.path.exists(f"{log_path}.2"))
@@ -113,22 +93,20 @@ class TestLogger(TestCase):
             with open(log_path, encoding="utf-8") as log_file:
                 self.assertIn("entry-19-", log_file.read())
 
-    def test_enabling_logging_twice_does_not_duplicate_records(self):
+    def test_closing_and_reopening_logging_does_not_duplicate_records(self):
         with tempfile.TemporaryDirectory() as root:
             log_path = os.path.join(root, "dirsearch.log")
-            options["log_file"] = log_path
-            options["log_file_size"] = 0
-
-            enable_logging()
+            logger = self.make_logger(log_path)
             first_handler = logger.handlers[0]
-            enable_logging()
+            logger.close()
+            logger = self.make_logger(log_path)
             logger.info("single-record")
             for handler in logger.handlers:
                 handler.flush()
 
             handler_count = len(logger.handlers)
             first_handler_closed = first_handler.stream is None
-            self.close_handlers()
+            logger.close()
 
             self.assertEqual(handler_count, 1)
             self.assertTrue(first_handler_closed)

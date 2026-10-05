@@ -47,6 +47,7 @@ class RecordingAsyncFuzzer(RecordingFuzzer):
 class TestSessionResumeQueue(TestCase):
     def _controller(self):
         controller = object.__new__(Controller)
+        controller.logger = Mock()
         controller.interface = Mock()
         controller.start_time = 0
         controller.passed_urls = set()
