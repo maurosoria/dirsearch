@@ -104,7 +104,8 @@ added; existing saved start-time semantics are unchanged.
 
 [ReportConfig](report-configuration.md) now owns report destinations and SQLite
 batch policy, and [ScanRunState](scan-run-state.md) owns pending and active
-targets. Target routing, terminal and raw-response output, replay
+targets. [TargetConfig](target-configuration.md) freezes target preparation
+hints. Terminal and raw-response output, replay
 destinations and remaining controller/logging globals are separate migration
 steps. This does not make complete controllers safe to run concurrently, even though individual fuzzers
 no longer read global options.

@@ -59,6 +59,7 @@ from lib.core.options import (
 )
 from lib.core.request_backend import get_native_request_backend_error
 from lib.core.scan_run_state import ScanRunState
+from lib.core.target_config import TargetConfig
 from lib.core.settings import (
     BANNER,
     DEFAULT_HEADERS,
@@ -449,6 +450,7 @@ class Controller:
         # setup() has parsed raw requests, or _import() has restored the session.
         # Snapshot once, before any requester or lazy native engine is created.
         self.run_state = ScanRunState(options["urls"])
+        self.target_config = TargetConfig.from_options(options)
         self.request_config = RequestConfig.from_options(options)
         self.discovery_config = DiscoveryConfig.from_options(options)
         self.filter_config = FilterConfig.from_options(
@@ -728,13 +730,14 @@ class Controller:
             break
 
     def set_target(self, url: str) -> None:
+        target_config = self.target_config
         # If no scheme specified, unset it first
         if "://" not in url:
-            url = f'{options["scheme"] or UNKNOWN}://{url}'
+            url = f'{target_config.default_scheme or UNKNOWN}://{url}'
         url = ensure_trailing_path_slash(url)
 
         parsed = urlparse(url)
-        if parsed.scheme == UNKNOWN and (options["proxies"] or options["tor"]):
+        if parsed.scheme == UNKNOWN and target_config.proxy_configured:
             raise InvalidURLException(
                 "Cannot auto-detect the scheme when using a proxy or Tor. "
                 "Specify http:// or https:// in the target, or use --scheme"
@@ -772,7 +775,7 @@ class Controller:
                 else detect_scheme(
                     parsed.hostname,
                     port,
-                    connect_host=options["ip"],
+                    connect_host=target_config.connect_host,
                 )
             )
         except ValueError:
@@ -781,12 +784,12 @@ class Controller:
             scheme = detect_scheme(
                 parsed.hostname,
                 443,
-                connect_host=options["ip"],
+                connect_host=target_config.connect_host,
             )
             port = STANDARD_PORTS[scheme]
 
-        if options["ip"]:
-            self.requester.set_ip(parsed.hostname, port, options["ip"])
+        if target_config.connect_host:
+            self.requester.set_ip(parsed.hostname, port, target_config.connect_host)
 
         hostname = parsed.hostname
         url_hostname = f"[{hostname}]" if hostname and ":" in hostname else hostname

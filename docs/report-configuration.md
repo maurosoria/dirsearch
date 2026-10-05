@@ -73,8 +73,10 @@ Sessions still store normalized options, not `ReportConfig` objects. Resume
 merges saved options at the existing controller boundary and rebuilds the
 manager; no checkpoint schema or engine-specific format is introduced.
 
-Raw response capture destinations, terminal presentation, replay destinations,
-logging and target queues/routing remain separate ownership work. Complete
+Target progress now belongs to [ScanRunState](scan-run-state.md), and target
+preparation hints to [TargetConfig](target-configuration.md). Raw response capture
+destinations, terminal presentation, replay destinations and logging remain
+separate ownership work. Complete
 concurrent controllers are not yet supported. There is no Rust change, new
 batch default, extra Python/Rust call or claimed throughput improvement.
 

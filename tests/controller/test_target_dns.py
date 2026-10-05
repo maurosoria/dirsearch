@@ -22,6 +22,7 @@ from unittest.mock import Mock, call, patch
 from lib.controller.controller import Controller
 from lib.core.data import options
 from lib.core.exceptions import InvalidURLException
+from lib.core.target_config import TargetConfig
 
 
 class TestControllerTargetDNS(TestCase):
@@ -37,6 +38,7 @@ class TestControllerTargetDNS(TestCase):
             }
         )
         self.controller = object.__new__(Controller)
+        self.controller.target_config = TargetConfig.from_options(options)
         self.controller.requester = Mock()
 
     def tearDown(self):
@@ -84,6 +86,7 @@ class TestControllerTargetDNS(TestCase):
             with self.subTest(routing=routing):
                 options.update({"ip": None, "proxies": [], "tor": False})
                 options.update(routing)
+                self.controller.target_config = TargetConfig.from_options(options)
                 self.controller.requester.reset_mock()
 
                 with patch(
@@ -106,6 +109,7 @@ class TestControllerTargetDNS(TestCase):
                 "proxies": ["http://127.0.0.1:8080"],
             }
         )
+        self.controller.target_config = TargetConfig.from_options(options)
 
         with patch("lib.controller.controller.detect_scheme") as detect_scheme:
             self.controller.set_target("https://example.test")
@@ -123,6 +127,7 @@ class TestControllerTargetDNS(TestCase):
                 "scheme": "https",
             }
         )
+        self.controller.target_config = TargetConfig.from_options(options)
 
         with patch("lib.controller.controller.detect_scheme") as detect_scheme:
             self.controller.set_target("example.test")

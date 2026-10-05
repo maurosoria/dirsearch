@@ -9,6 +9,10 @@ Global `options["urls"]` is now input only: running, skipping and completing
 targets do not consume the caller's list. Later changes to that list do not
 replace work already copied into the run state.
 
+[TargetConfig](target-configuration.md) separately freezes run-wide target
+preparation hints such as the default scheme and explicit connection-host
+override. Neither these hints nor parsed target details belong in the queue.
+
 ## Pending versus active
 
 The state separates pending targets from one optional active target. An immutable
