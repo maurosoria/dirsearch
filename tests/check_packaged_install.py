@@ -39,6 +39,8 @@ def main() -> None:
     from dirsearch.lib.core.execution_config import ExecutionConfig, ScanEngine
     from dirsearch.lib.core.filter_config import FilterConfig
     from dirsearch.lib.core.filter_state import FilterState
+    from dirsearch.lib.core.log_config import LogConfig
+    from dirsearch.lib.core.logger import RunLogger
     from dirsearch.lib.core.request_config import RequestConfig
     from dirsearch.lib.core.report_config import ReportConfig
     from dirsearch.lib.core.scan_run_state import ScanRunState
@@ -78,6 +80,14 @@ def main() -> None:
     finally:
         terminal.close()
     assert not output.closed
+    log_path = Path(temp_dir, "run.log")
+    logger = RunLogger(LogConfig(str(log_path), proxy_auth="user:private/value"))
+    try:
+        logger.info("installed logger user:private/value@proxy.example.test")
+    finally:
+        logger.close()
+    assert not logger.handlers
+    assert "installed logger <redacted>@proxy.example.test" in log_path.read_text()
     assert ReportConfig(formats=["json"]).formats == ("json",)
     assert DiscoveryConfig(subdirs=[""]).subdirs == ("",)
     assert FilterConfig(include_status_codes={200}).native_options()["include_status_codes"] == [200]

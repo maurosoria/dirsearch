@@ -132,6 +132,7 @@ class TestControllerExecutionConfig(TestCase):
                         controller.directories = []
 
                     def start(controller):
+                        self.assertIs(controller.fuzzer.logger, controller.logger)
                         policies.append(controller.fuzzer.execution_config)
                         self.assertIs(policies[-1], controller.execution_config)
                         expected_fuzzer = {
@@ -202,7 +203,8 @@ class TestControllerExecutionConfig(TestCase):
                     self.assertEqual(transport.delay, controller.execution_config.delay)
                     self.assertEqual(factory.call_count, 1)
                     self.assertEqual(factory.call_args.kwargs, (
-                        {"filter_config": controller.filter_config} if engine is ScanEngine.NATIVE else {}
+                        {"filter_config": controller.filter_config}
+                        if engine is ScanEngine.NATIVE else {"logger": controller.logger}
                     ))
                     if async_mode:
                         requester.close.assert_awaited_once_with()

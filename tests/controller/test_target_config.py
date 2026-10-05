@@ -23,6 +23,7 @@ class TestControllerTargetConfig(TestCase):
         ):
             with self.subTest(engine=engine):
                 controller = object.__new__(Controller)
+                controller.logger = Mock()
                 controller.interface = Mock()
                 controller.wordlist_config = WordlistConfig()
                 controller.dictionary = Mock()

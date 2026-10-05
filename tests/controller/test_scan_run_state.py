@@ -19,6 +19,7 @@ from lib.core.wordlist_config import WordlistConfig
 class TestControllerRunState(TestCase):
     def _controller(self):
         controller = object.__new__(Controller)
+        controller.logger = Mock()
         controller.interface = Mock(buffer="")
         controller._terminal_stream = StringIO()
         self.addCleanup(lambda: controller.interface.close())

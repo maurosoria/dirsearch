@@ -22,7 +22,6 @@ from dataclasses import dataclass
 from urllib.parse import urlsplit, urlunsplit
 
 from lib.core.exceptions import InvalidRawRequest
-from lib.core.logger import logger
 from lib.parse.headers import HeadersParser
 from lib.utils.file import FileUtils
 
@@ -104,7 +103,6 @@ def parse_raw_content(
         )
         url = _target_from_request_line(target, headers, scheme=scheme)
     except (IndexError, UnicodeError, ValueError) as e:
-        logger.exception(e)
         raise InvalidRawRequest("The raw request is formatively invalid") from e
 
     return RawRequest(url, method, dict(headers), body)

@@ -58,7 +58,7 @@ from lib.connection.rate_limiter import RequestRateLimiter
 from lib.connection.response import AsyncResponse, Response
 from lib.core.request_config import RequestConfig
 from lib.core.exceptions import RequestException
-from lib.core.logger import logger
+from lib.core.logger import RunLogger
 from lib.core.settings import (
     MAX_REDIRECTS,
     PROXY_SCHEMES,
@@ -376,7 +376,9 @@ def _is_ssl_error(exc: Exception) -> bool:
     return isinstance(exc, requests.exceptions.SSLError) or _find_ssl_error(exc) is not None
 
 
-def _format_ssl_error(exc: Exception, url: str = "") -> str:
+def _format_ssl_error(
+    exc: Exception, url: str = "", *, logger: RunLogger | None = None,
+) -> str:
     """Format SSL error with specific, actionable error messages.
 
     Provides detailed error messages based on the specific type of SSL error
@@ -402,7 +404,8 @@ def _format_ssl_error(exc: Exception, url: str = "") -> str:
             msg = f"SSL certificate verification failed (hostname mismatch): {url}"
         else:
             msg = f"SSL certificate verification failed: {err_detail}"
-        logger.warning(f"SSL certificate error: {err_detail}")
+        if logger is not None:
+            logger.warning(f"SSL certificate error: {err_detail}")
         return msg
 
     # SSL handshake / protocol errors
@@ -423,7 +426,8 @@ def _format_ssl_error(exc: Exception, url: str = "") -> str:
         else:
             msg = f"SSL error ({err_reason or err_lib or 'unknown'}): {err_detail}"
 
-        logger.warning(f"SSL error for {url}: library={err_lib}, reason={err_reason}, detail={err_detail}")
+        if logger is not None:
+            logger.warning(f"SSL error for {url}: library={err_lib}, reason={err_reason}, detail={err_detail}")
         return msg
 
     # Fallback for wrapped SSL errors where we can't get the underlying exception
@@ -434,12 +438,14 @@ def _format_ssl_error(exc: Exception, url: str = "") -> str:
     else:
         msg = f"SSL error: {err_detail}"
 
-    logger.warning(f"SSL error for {url}: {err_detail}")
+    if logger is not None:
+        logger.warning(f"SSL error for {url}: {err_detail}")
     return msg
 
 
 class BaseRequester:
-    def __init__(self, config: RequestConfig) -> None:
+    def __init__(self, config: RequestConfig, *, logger: RunLogger | None = None) -> None:
+        self.logger = logger if logger is not None else RunLogger()
         self.config = config
         self._url: str = ""
         self._query: str = ""
@@ -538,8 +544,8 @@ class HTTPBearerAuth(AuthBase):
 
 
 class Requester(BaseRequester):
-    def __init__(self, config: RequestConfig) -> None:
-        super().__init__(config)
+    def __init__(self, config: RequestConfig, *, logger: RunLogger | None = None) -> None:
+        super().__init__(config, logger=logger)
 
         self.session = requests.Session()
         self.session.max_redirects = MAX_REDIRECTS
@@ -652,21 +658,21 @@ class Requester(BaseRequester):
                 if response.redirect:
                     log_msg += f" - LOCATION: {response.redirect}"
 
-                logger.info(log_msg)
+                self.logger.info(log_msg)
 
                 return response
 
             except RequestException:
                 raise
             except Exception as e:
-                logger.exception(e)
+                self.logger.exception(e)
 
                 if _is_dns_error(e):
                     err_msg = "Couldn't resolve DNS"
                 elif _is_timeout_error(e):
                     err_msg = f"Request timeout: {url}"
                 elif _is_ssl_error(e):
-                    err_msg = _format_ssl_error(e, url)
+                    err_msg = _format_ssl_error(e, url, logger=self.logger)
                 elif isinstance(e, requests.exceptions.TooManyRedirects):
                     err_msg = f"Too many redirects: {url}"
                 elif isinstance(e, requests.exceptions.ProxyError):
@@ -807,8 +813,8 @@ class ProxyRoatingTransport(httpx.AsyncBaseTransport):
 
 
 class AsyncRequester(BaseRequester):
-    def __init__(self, config: RequestConfig) -> None:
-        super().__init__(config)
+    def __init__(self, config: RequestConfig, *, logger: RunLogger | None = None) -> None:
+        super().__init__(config, logger=logger)
 
         tpargs = {
             "verify": False,
@@ -990,14 +996,14 @@ class AsyncRequester(BaseRequester):
                 if response.redirect:
                     log_msg += f" - LOCATION: {response.redirect}"
 
-                logger.info(log_msg)
+                self.logger.info(log_msg)
 
                 return response
 
             except RequestException:
                 raise
             except Exception as e:
-                logger.exception(e)
+                self.logger.exception(e)
 
                 if _is_dns_error(e):
                     err_msg = "Couldn't resolve DNS"
@@ -1006,7 +1012,7 @@ class AsyncRequester(BaseRequester):
                 elif isinstance(e, httpx.ConnectError) and not _is_ssl_error(e):
                     err_msg = f"Cannot connect to: {urlparse(url).netloc}"
                 elif _is_ssl_error(e):
-                    err_msg = _format_ssl_error(e, url)
+                    err_msg = _format_ssl_error(e, url, logger=self.logger)
                 elif isinstance(e, httpx.TooManyRedirects):
                     err_msg = f"Too many redirects: {url}"
                 elif isinstance(e, httpx.ProxyError):

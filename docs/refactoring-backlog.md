@@ -1,7 +1,7 @@
 # Local state ownership backlog
 
-This is the state-isolation backlog following PR #1739, including the
-terminal-ownership refactor. It is not a list of all product issues, nor
+This is the state-isolation backlog following PR #1740, including the
+logging-ownership refactor in this branch. It is not a list of all product issues, nor
 a claim that multiple complete controllers can already share a process safely.
 Keep subsequent steps independently reviewable, with explicit contracts and
 regressions before replacing their callers.
@@ -9,7 +9,8 @@ regressions before replacing their callers.
 ## Completed boundaries
 
 - Immutable `WordlistConfig`, `RequestConfig`, `FilterConfig`, `DiscoveryConfig`,
-  `ExecutionConfig`, `ReportConfig`, `TargetConfig` and `TerminalConfig` snapshots.
+  `ExecutionConfig`, `ReportConfig`, `TargetConfig`, `TerminalConfig` and
+  `LogConfig` snapshots.
 - Instance-owned mutable `FilterState` and explicit `ScanEngine` selection.
 - `ScanRunState` separates pending targets from the active target, preserving
   the existing engine-independent checkpoint representation.
@@ -18,22 +19,23 @@ regressions before replacing their callers.
 - [Terminal configuration](terminal-configuration.md), output history and stream
   adaptation are controller-owned; color tables are read-only. No terminal is
   created at module import and cleanup no longer depends on a global `atexit` hook.
+- [Logging](logging-ownership.md) is controller-owned, with a detached redaction
+  policy, no named global logger, and handler cleanup after its borrowers.
 
 ## Remaining work, in suggested order
 
 | Order | Boundary | Completion criterion |
 | --- | --- | --- |
-| 1 | Logging and redaction | Explicit logging/redaction policy and handler lifetime; no ambient `options` reads or handler replacement affecting another run. |
-| 2 | Response capture and result presentation | Snapshot response destinations, full-URL presentation and replay policy; preserve capture completeness, write draining and existing replay behavior. |
-| 3 | Session preparation and persistence | Export prepared configuration plus owned progress, not the process-wide options map; preserve cross-engine resume and the current schema contract. |
-| 4 | Aggregate configuration and local context | Group prepared policies without a giant parameter list; separate configuration, live resources and mutable progress, with explicit cleanup ownership. |
-| 5 | CLI options boundary | Keep mutable normalization local to one invocation; remove the global `options` dictionary once its last consumers are migrated. |
-| 6 | Constant tables | Make read-only intent enforceable where compatible, and review the duplicate default-port mappings. |
-| 7 | Isolation acceptance tests | Prove independent local lifecycles, output, failure cleanup and resume without process-global patching; address process signal ownership. Passing component tests alone is insufficient. |
+| 1 | Response capture and result presentation | Snapshot response destinations, full-URL presentation and replay policy; preserve capture completeness, write draining and existing replay behavior. |
+| 2 | Session preparation and persistence | Export prepared configuration plus owned progress, not the process-wide options map; preserve cross-engine resume and the current schema contract. |
+| 3 | Aggregate configuration and local context | Group prepared policies without a giant parameter list; separate configuration, live resources and mutable progress. Assign ownership to run metadata and generator state without changing generation behavior. |
+| 4 | CLI options boundary | Keep mutable normalization local to one invocation; remove the global `options` dictionary once its last consumers are migrated. |
+| 5 | Constant tables | Make read-only intent enforceable where compatible, including `TEXT_CHARS`, and review the duplicate default-port mappings. |
+| 6 | Isolation acceptance tests | Prove independent local lifecycles, output, failure cleanup and resume without process-global patching; address signal ownership and ambient raw-target context. Passing component tests alone is insufficient. |
 
-Steps 1-3 have separate ownership concerns and can be scoped independently.
-Steps 4-5 depend on making those boundaries explicit; add isolation tests along
-the way, with step 7 as the final acceptance gate. Any future public task/context
+Steps 1-2 have separate ownership concerns and can be scoped independently.
+Steps 3-4 depend on making those boundaries explicit; add isolation tests along
+the way, with step 6 as the final acceptance gate. Any future public task/context
 API must distinguish serializable task data from live handles and Rust's existing
 internal `ScanTask`; no parallel-target, GUI or remote scheduling is added here.
 
@@ -69,15 +71,27 @@ runtime progress:
 | `_DEFAULT_PORTS` | `lib/parse/url.py` |
 | `output_handlers` | `lib/report/manager.py` |
 
-The remaining direct importers of global `options` are `dirsearch.py`,
-`lib/controller/controller.py` and `lib/core/logger.py`.
-In particular, logging still reads `options.get("proxy_auth")` during redaction;
-searching only for `options[...]` misses this dependency.
+The remaining direct importers of global `options` are `dirsearch.py` and
+`lib/controller/controller.py`. Logging no longer reads it, including through
+`options.get(...)`, or owns a process-global handler.
 
-Other shared state is not a dictionary: logging `logger`/handlers, process signal
-handlers, requester thread-local raw-target context and import-time
-`COMMAND`/`START_TIME` run metadata also need explicit ownership decisions.
-Thread-local context is not shared between threads, but is still ambient rather
-than explicitly passed. The run metadata strings are immutable but process-wide.
-Inspected native maps and wordlist indexes are session/instance-owned, not
-additional process-global mutable dictionaries.
+## Other global state and import-time values
+
+This inventory distinguishes mutable state from read-only data; it does not list
+every scalar constant, compiled regex, imported module or third-party singleton.
+
+| Name / mechanism | Location | Ownership concern |
+| --- | --- | --- |
+| `_stealth_word_generator` | `lib/utils/random.py` | Holds a mutable RNG and growing `_seen` set for the entire process; choose explicit ownership without changing generation behavior. |
+| `_request_target_state` | `lib/connection/requester.py` | `threading.local()` raw-target context: separate per thread, but still ambient. |
+| Signal registrations | `Controller.run()` | Process-wide handlers; installation/restoration needs an explicit owner. |
+| `COMMAND`, `START_TIME` | `lib/core/settings.py` | Immutable strings captured at import rather than per invocation. |
+| `TEXT_CHARS` | `lib/core/settings.py` | Mutable `bytearray` used as a read-only binary-detection table; no production writes identified. |
+| `__all__` lists | `lib/core/api.py`, `dirsearch.py` | Static export metadata, not run progress. |
+
+Import-time platform/path constants also remain, but are not mutable progress.
+The generator uses its own `random.Random`; other utility calls additionally
+borrow the standard library's default RNG. None of these are changed by the
+logging refactor. Inspected native maps and wordlist indexes are
+session/instance-owned, not additional process-global mutable dictionaries;
+native task-local contexts likewise are not shared global progress maps.

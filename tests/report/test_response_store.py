@@ -676,7 +676,8 @@ class TestControllerResponseStores(TestCase):
         controller.interface = Mock()
         controller.response_stores = (failing, recording)
 
-        with patch("lib.controller.controller.logger.exception"), patch.object(controller.interface, "error") as report_error:
+        controller.logger = Mock()
+        with patch.object(controller.interface, "error") as report_error:
             controller.save_response(make_response())
 
         report_error.assert_called_once()
@@ -709,7 +710,8 @@ class TestControllerResponseStores(TestCase):
         controller.interface = Mock()
         controller.response_stores = (FailingCloseStore("failure"), recording)
 
-        with patch("lib.controller.controller.logger.exception"), patch.object(controller.interface, "error") as report_error:
+        controller.logger = Mock()
+        with patch.object(controller.interface, "error") as report_error:
             controller._close_response_stores()
 
         report_error.assert_called_once()
@@ -887,7 +889,8 @@ class TestAsyncResponseStores(IsolatedAsyncioTestCase):
         controller.interface = Mock()
         controller.response_stores = (FailingStore("failure"), recording)
 
-        with patch("lib.controller.controller.logger.exception"), patch.object(controller.interface, "error") as report_error:
+        controller.logger = Mock()
+        with patch.object(controller.interface, "error") as report_error:
             await controller.save_response_async(make_response())
 
         report_error.assert_called_once()

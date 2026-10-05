@@ -35,7 +35,7 @@ from lib.core.execution_config import ExecutionConfig
 from lib.core.filter_config import FilterConfig
 from lib.core.filter_state import FilterState
 from lib.core.filters import matches_numeric_ranges, matches_time_filters
-from lib.core.logger import logger
+from lib.core.logger import RunLogger
 from lib.core.scanner import AsyncScanner, BaseScanner, Scanner
 from lib.core.settings import (
     DEFAULT_TEST_PREFIXES,
@@ -78,7 +78,9 @@ class BaseFuzzer:
         match_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         not_found_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         error_callbacks: tuple[Callable[[RequestException], Any], ...],
+        logger: RunLogger | None = None,
     ) -> None:
+        self.logger = logger if logger is not None else RunLogger()
         self._requester = requester
         self._dictionary = dictionary
         self._base_path: str = ""
@@ -245,9 +247,9 @@ class BaseFuzzer:
                 state.auto_calibrated_fingerprints.add(fingerprint)
 
         if repeated_fingerprint:
-            logger.debug(f'"{resp.url}" filtered by auto-calibration fingerprint')
+            self.logger.debug(f'"{resp.url}" filtered by auto-calibration fingerprint')
         else:
-            logger.debug(
+            self.logger.debug(
                 f'"{resp.url}" filtered by repeated response auto-calibration '
                 f'(threshold={threshold})'
             )
@@ -354,6 +356,7 @@ class Fuzzer(BaseFuzzer):
         match_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         not_found_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         error_callbacks: tuple[Callable[[RequestException], Any], ...],
+        logger: RunLogger | None = None,
     ) -> None:
         super().__init__(
             requester,
@@ -364,6 +367,7 @@ class Fuzzer(BaseFuzzer):
             match_callbacks=match_callbacks,
             not_found_callbacks=not_found_callbacks,
             error_callbacks=error_callbacks,
+            logger=logger,
         )
         self._exc: Exception | None = None
         self._exc_lock = threading.Lock()
@@ -379,6 +383,7 @@ class Fuzzer(BaseFuzzer):
             self._requester,
             filter_config=self.filter_config,
             delay=self.execution_config.delay,
+            logger=self.logger,
             path=self._base_path + WILDCARD_TEST_POINT_MARKER,
         )
 
@@ -387,6 +392,7 @@ class Fuzzer(BaseFuzzer):
                 self._requester,
                 filter_config=self.filter_config,
                 delay=self.execution_config.delay,
+                logger=self.logger,
                 tested=scanners,
                 path=self.filter_config.exclude_response,
             )
@@ -396,6 +402,7 @@ class Fuzzer(BaseFuzzer):
                 self._requester,
                 filter_config=self.filter_config,
                 delay=self.execution_config.delay,
+                logger=self.logger,
                 tested=scanners,
                 path=f"{self._base_path}{prefix}{WILDCARD_TEST_POINT_MARKER}",
                 context=f"/{self._base_path}{prefix}***",
@@ -406,6 +413,7 @@ class Fuzzer(BaseFuzzer):
                 self._requester,
                 filter_config=self.filter_config,
                 delay=self.execution_config.delay,
+                logger=self.logger,
                 tested=scanners,
                 path=f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}{suffix}",
                 context=f"/{self._base_path}***{suffix}",
@@ -417,6 +425,7 @@ class Fuzzer(BaseFuzzer):
                     self._requester,
                     filter_config=self.filter_config,
                     delay=self.execution_config.delay,
+                    logger=self.logger,
                     tested=scanners,
                     path=f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}.{extension}",
                     context=f"/{self._base_path}***.{extension}",
@@ -503,7 +512,7 @@ class Fuzzer(BaseFuzzer):
         self.process_response(path, response)
 
     def thread_proc(self) -> None:
-        logger.info(f'THREAD-{threading.get_ident()} started"')
+        self.logger.info(f'THREAD-{threading.get_ident()} started"')
 
         while True:
             should_quit = False
@@ -524,10 +533,10 @@ class Fuzzer(BaseFuzzer):
                 time.sleep(self.execution_config.delay)
 
                 if not self._play_event.is_set():
-                    logger.info(f'THREAD-{threading.get_ident()} paused"')
+                    self.logger.info(f'THREAD-{threading.get_ident()} paused"')
                     self._pause_semaphore.release()
                     self._play_event.wait()
-                    logger.info(f'THREAD-{threading.get_ident()} continued"')
+                    self.logger.info(f'THREAD-{threading.get_ident()} continued"')
 
                 if self._quit_event.is_set():
                     should_quit = True
@@ -548,6 +557,7 @@ class NativeFuzzer(Fuzzer):
         match_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         not_found_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         error_callbacks: tuple[Callable[[RequestException], Any], ...],
+        logger: RunLogger | None = None,
         filtered_chunk_callbacks: tuple[Callable[[int], Any], ...] = (),
     ) -> None:
         super().__init__(
@@ -559,6 +569,7 @@ class NativeFuzzer(Fuzzer):
             match_callbacks=match_callbacks,
             not_found_callbacks=not_found_callbacks,
             error_callbacks=error_callbacks,
+            logger=logger,
         )
         self._finished = False
         self.filtered_chunk_callbacks = filtered_chunk_callbacks
@@ -781,6 +792,7 @@ class AsyncFuzzer(BaseFuzzer):
         match_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         not_found_callbacks: tuple[Callable[[BaseResponse], Any], ...],
         error_callbacks: tuple[Callable[[RequestException], Any], ...],
+        logger: RunLogger | None = None,
     ) -> None:
         super().__init__(
             requester,
@@ -791,6 +803,7 @@ class AsyncFuzzer(BaseFuzzer):
             match_callbacks=match_callbacks,
             not_found_callbacks=not_found_callbacks,
             error_callbacks=error_callbacks,
+            logger=logger,
         )
         self._play_event = asyncio.Event()
         self._background_tasks = set()
@@ -802,6 +815,7 @@ class AsyncFuzzer(BaseFuzzer):
             self._requester,
             filter_config=self.filter_config,
             delay=self.execution_config.delay,
+            logger=self.logger,
             path=self._base_path + WILDCARD_TEST_POINT_MARKER,
         )
 
@@ -810,6 +824,7 @@ class AsyncFuzzer(BaseFuzzer):
                 self._requester,
                 filter_config=self.filter_config,
                 delay=self.execution_config.delay,
+                logger=self.logger,
                 tested=scanners,
                 path=self.filter_config.exclude_response,
             )
@@ -819,6 +834,7 @@ class AsyncFuzzer(BaseFuzzer):
                 self._requester,
                 filter_config=self.filter_config,
                 delay=self.execution_config.delay,
+                logger=self.logger,
                 tested=scanners,
                 path=f"{self._base_path}{prefix}{WILDCARD_TEST_POINT_MARKER}",
                 context=f"/{self._base_path}{prefix}***",
@@ -829,6 +845,7 @@ class AsyncFuzzer(BaseFuzzer):
                 self._requester,
                 filter_config=self.filter_config,
                 delay=self.execution_config.delay,
+                logger=self.logger,
                 tested=scanners,
                 path=f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}{suffix}",
                 context=f"/{self._base_path}***{suffix}",
@@ -840,6 +857,7 @@ class AsyncFuzzer(BaseFuzzer):
                     self._requester,
                     filter_config=self.filter_config,
                     delay=self.execution_config.delay,
+                    logger=self.logger,
                     tested=scanners,
                     path=f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}.{extension}",
                     context=f"/{self._base_path}***.{extension}",

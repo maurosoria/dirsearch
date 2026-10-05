@@ -46,6 +46,8 @@ class TestControllerRequestConfig(TestCase):
                         options["http_method"] = "DELETE"
 
                     factory.assert_called_once()
+                    if backend == "python":
+                        self.assertIs(factory.call_args.kwargs["logger"], controller.logger)
                     config = factory.call_args.args[0]
                     self.assertIs(config, controller.request_config)
                     self.assertEqual(config.method, "PATCH")

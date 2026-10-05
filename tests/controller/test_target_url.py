@@ -190,6 +190,7 @@ class TestControllerTargetURL(TestCase):
         for stack, async_mode, request_backend in stack_cases:
             with self.subTest(stack=stack):
                 controller = object.__new__(Controller)
+                controller.logger = Mock()
                 controller.interface = Mock()
                 controller.loop = None
                 controller.start_time = 0
