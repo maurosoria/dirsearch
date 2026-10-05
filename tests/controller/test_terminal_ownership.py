@@ -3,11 +3,13 @@
 from io import StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from types import SimpleNamespace
 from unittest import TestCase
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, sentinel
 
 from lib.controller.controller import (
     Controller, PyInstallerLinuxForceQuitHandler, StandardForceQuitHandler,
+    _create_force_quit_handler,
 )
 from lib.core.data import options
 from lib.core.exceptions import InvalidURLException
@@ -154,7 +156,11 @@ class TestControllerTerminalOwnership(TestCase):
         terminal.reset_mock()
         handler = PyInstallerLinuxForceQuitHandler()
         with (
+            # Exercise Linux strategy with an explicit platform boundary even
+            # on Windows, where the real signal module has no SIGKILL.
+            patch("lib.controller.controller.signal", SimpleNamespace(SIGKILL=sentinel.sigkill)),
             patch("lib.controller.controller.time.monotonic", return_value=10),
+            patch("lib.controller.controller.os.getpid", return_value=123),
             patch("lib.controller.controller.os.kill") as kill,
             patch("lib.controller.controller.os._exit") as exit_process,
         ):
@@ -162,5 +168,19 @@ class TestControllerTerminalOwnership(TestCase):
             for _ in range(SIGINT_FORCE_QUIT_THRESHOLD - 1):
                 handler.check_force_quit(terminal)
         terminal.warning.assert_called_once_with("\nForce quit!", do_save=False)
-        kill.assert_called_once()
+        kill.assert_called_once_with(123, sentinel.sigkill)
         exit_process.assert_called_once_with(1)
+
+    def test_force_quit_factory_selects_linux_strategy_only_for_frozen_linux(self):
+        for platform, frozen, expected in (
+            ("win32", False, StandardForceQuitHandler),
+            ("win32", True, StandardForceQuitHandler),
+            ("linux", False, StandardForceQuitHandler),
+            ("linux", True, PyInstallerLinuxForceQuitHandler),
+            ("darwin", True, StandardForceQuitHandler),
+        ):
+            with (
+                self.subTest(platform=platform, frozen=frozen),
+                patch("lib.controller.controller.sys", SimpleNamespace(platform=platform, frozen=frozen)),
+            ):
+                self.assertIsInstance(_create_force_quit_handler(), expected)
