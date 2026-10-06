@@ -36,6 +36,7 @@ def main() -> None:
     )
     from dirsearch.lib.core import settings
     from dirsearch.lib.controller.session import SessionStore
+    from dirsearch.lib.controller.controller import Controller
     from dirsearch.lib.controller.session_snapshot import RunCheckpoint, SessionSnapshot
     from dirsearch.lib.core.discovery_config import DiscoveryConfig
     from dirsearch.lib.core.execution_config import ExecutionConfig, ScanEngine
@@ -50,6 +51,7 @@ def main() -> None:
     from dirsearch.lib.core.target_config import TargetConfig
     from dirsearch.lib.core.target_progress import TargetProgress
     from dirsearch.lib.core.task_checkpoint import DictionaryCheckpoint, TaskCheckpoint
+    from dirsearch.lib.core.task_spec import TaskSpec
     from dirsearch.lib.core.terminal_config import TerminalConfig
     from dirsearch.lib.core.wordlist_config import WordlistConfig
     from dirsearch.lib.report.directory_response_store import DirectoryResponseStore
@@ -72,8 +74,9 @@ def main() -> None:
     assert WordlistTemplate
     snapshot = SessionSnapshot(
         run=RunCheckpoint(0),
-        task=TaskCheckpoint(DictionaryCheckpoint((), 0)),
-        options={"urls": [], "data": b"\x80\r\n"},
+        task_checkpoint=TaskCheckpoint(DictionaryCheckpoint((), 0)),
+        options={"data": b"\x80\r\n"},
+        remaining_tasks=(TaskSpec("http://example.test/?a=1"),),
     )
     session_path = str(Path(temp_dir, "checkpoint"))
     store = SessionStore()
@@ -81,9 +84,21 @@ def main() -> None:
     restored = store.load(session_path)
     assert isinstance(restored, SessionSnapshot)
     assert isinstance(restored.run, RunCheckpoint)
-    assert isinstance(restored.task, TaskCheckpoint)
-    assert isinstance(restored.task.dictionary, DictionaryCheckpoint)
+    assert isinstance(restored.task_checkpoint, TaskCheckpoint)
+    assert isinstance(restored.task_checkpoint.dictionary, DictionaryCheckpoint)
+    assert isinstance(restored.remaining_tasks[0], TaskSpec)
     assert restored == snapshot
+    # Exercise controller reconstruction too: its imports must not create task
+    # values from the alternate source-tree namespace in an installed package.
+    resumed = object.__new__(Controller)
+    resumed.wordlist_config = WordlistConfig()
+    resumed.output_history = []
+    resumed._restore_session(restored, ReportConfig())
+    try:
+        assert resumed.run_state.snapshot_tasks() == snapshot.remaining_tasks
+        assert resumed._snapshot_session(restored.options, "") == snapshot
+    finally:
+        resumed.reporter.finish()
     assert WordlistConfig(extensions=["html"]).extensions == ("html",)
     assert ExecutionConfig(engine=ScanEngine.NATIVE).engine is ScanEngine.NATIVE
     assert ExecutionConfig(skip_on_status=[429]).skip_on_status == frozenset({429})
@@ -116,14 +131,14 @@ def main() -> None:
     assert FilterConfig(include_status_codes={200}).native_options()["include_status_codes"] == [200]
     assert FilterState().scanners == {"default": {}, "prefixes": {}, "suffixes": {}}
     run_state = ScanRunState(["http://example.test/", "http://next.test/"])
-    assert run_state.activate_next() == "http://example.test/"
+    assert run_state.activate_next() == TaskSpec("http://example.test/")
     assert run_state.pending_count == 1
-    assert run_state.snapshot_targets() == ["http://example.test/", "http://next.test/"]
+    assert [task.target for task in run_state.snapshot_tasks()] == ["http://example.test/", "http://next.test/"]
     run_state.finish_active()
     run_state.jobs_processed = 3
     run_state.prepare_targets(["http://resumed.test/"])
     assert run_state.jobs_processed == 3
-    assert run_state.snapshot_targets() == ["http://resumed.test/"]
+    assert [task.target for task in run_state.snapshot_tasks()] == ["http://resumed.test/"]
     assert issubclass(DirectoryResponseStore, BaseResponseStore), (
         DirectoryResponseStore.__mro__
     )

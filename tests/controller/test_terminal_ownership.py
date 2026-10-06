@@ -140,7 +140,7 @@ class TestControllerTerminalOwnership(TestCase):
         ):
             store = store_factory.return_value
             store.load.return_value = SessionSnapshot(
-                run=RunCheckpoint(0), task=TaskCheckpoint(DictionaryCheckpoint((), 0)), options={},
+                run=RunCheckpoint(0), task_checkpoint=TaskCheckpoint(DictionaryCheckpoint((), 0)), options={},
             )
             with self.assertRaises(SystemExit) as stopped:
                 Controller(output=output)

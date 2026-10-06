@@ -1,7 +1,7 @@
 # Local state ownership backlog
 
-This is the state-isolation backlog following PR #1744, including the
-typed checkpoint boundary in this branch. It is not a list of all product issues, nor
+This is the state-isolation backlog following PR #1745, including the
+task-input boundary in this branch. It is not a list of all product issues, nor
 a claim that multiple complete controllers can already share a process safely.
 Keep subsequent steps independently reviewable, with explicit contracts and
 regressions before replacing their callers.
@@ -40,19 +40,23 @@ regressions before replacing their callers.
   Progress values are immutable, restoration creates fresh mutable containers,
   and the JSON schema is unchanged. `TaskCheckpoint` is not a runnable descriptor
   or an independently portable session.
+- Immutable `TaskSpec` entries now retain original target input separately from
+  prepared origin/progress. `ScanRunState` owns descriptor ordering;
+  `SessionSnapshot.remaining_tasks` associates its head with `task_checkpoint`.
+  Only storage maps the queue to version-1 `options.urls`. Duplicates retain
+  their positions; no globally unique IDs or independently runnable tasks exist.
 
 ## Remaining work, in suggested order
 
 | Order | Boundary | Completion criterion |
 | --- | --- | --- |
-| 1 | Task descriptor and checkpoint association | Define input identity and its association with the existing `TaskCheckpoint`, without conflating prepared origin with the original target or run-wide policy. Keep live resources separate and preserve cross-engine resume. |
-| 2 | Aggregate configuration and local context | Group prepared policies without a giant parameter list; replace the transitional session options mapping. Separate configuration, live resources and mutable progress. Assign ownership to run metadata and generator state without changing generation behavior. |
-| 3 | CLI options boundary | Keep mutable normalization local to one invocation; remove the global `options` dictionary once its last consumers are migrated. |
-| 4 | Constant tables | Make read-only intent enforceable where compatible, including `TEXT_CHARS`, and review the duplicate default-port mappings. |
-| 5 | Isolation acceptance tests | Prove independent local lifecycles, output, failure cleanup and resume without process-global patching; address signal ownership and ambient raw-target context. Passing component tests alone is insufficient. |
+| 1 | Aggregate configuration and local context | Group prepared policies without a giant parameter list; replace the transitional session options mapping. Separate configuration, live resources and mutable progress. Assign ownership to run metadata and generator state without changing generation behavior. |
+| 2 | CLI options boundary | Keep mutable normalization local to one invocation; remove the global `options` dictionary once its last consumers are migrated. |
+| 3 | Constant tables | Make read-only intent enforceable where compatible, including `TEXT_CHARS`, and review the duplicate default-port mappings. |
+| 4 | Isolation acceptance tests | Prove independent local lifecycles, output, failure cleanup and resume without process-global patching; address signal ownership and ambient raw-target context. Passing component tests alone is insufficient. |
 
-Steps 1-3 build on the explicit component boundaries; add isolation tests along
-the way, with step 5 as the final acceptance gate. Any future public task/context
+Steps 1-2 build on the explicit component boundaries; add isolation tests along
+the way, with step 4 as the final acceptance gate. Any future public task/context
 API must distinguish serializable task data from live handles and Rust's existing
 internal `ScanTask`; no parallel-target, GUI or remote scheduling is added here.
 
@@ -63,7 +67,8 @@ The following stages are proposals, not implemented features or release promises
 
 1. Complete the task/progress/checkpoint and aggregate-configuration boundaries
    above. The current `TaskCheckpoint` is only one part of a run-level
-   `SessionSnapshot`; independent task identity/configuration is still missing.
+   `SessionSnapshot`. Input descriptors exist, but independent execution
+   identity, per-task policy and resource ownership are still missing.
 2. Separate construction, preparation, execution and closure. Keep live resources
    in explicit contexts with owned cleanup; put process signals in the CLI adapter.
 3. Prove independent lifecycle, cancellation, persistence and output isolation

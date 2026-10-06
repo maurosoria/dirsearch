@@ -62,6 +62,7 @@ class TestControllerWordlistConfig(TestCase):
                 patch("lib.core.wordlist_backend.FileUtils.get_lines", return_value=["done", "pending"]),
             ):
                 original = Controller()
+                original.run_state.prepare_targets(options["urls"])
                 original.target_progress.base_path = ""
                 original.target_progress.url = "http://example.test/"
                 self.assertEqual(next(original.dictionary), "done")
@@ -75,7 +76,7 @@ class TestControllerWordlistConfig(TestCase):
                 store = SessionStore()
                 store.save(original._snapshot_session(options, ""), checkpoint)
                 payload = store.load(checkpoint)
-                self.assertEqual(payload.task.dictionary.to_state(), (
+                self.assertEqual(payload.task_checkpoint.dictionary.to_state(), (
                     ["done", "pending"], 2, ["pending", "dynamic.html"], 0,
                 ))
                 options.update(

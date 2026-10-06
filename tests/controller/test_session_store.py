@@ -39,6 +39,7 @@ from lib.core.exceptions import UnpicklingError
 class TestSessionStore(TestCase):
     def _snapshot(self, options, last_output="", controller=None):
         controller = self._controller() if controller is None else controller
+        controller.run_state.prepare_targets(options.get("urls", []))
         return Controller._snapshot_session(controller, options, last_output)
 
     def _write_json(self, path: str, payload: dict) -> None:
@@ -258,7 +259,7 @@ class TestSessionStore(TestCase):
             )
             self.assertEqual(restored.run.jobs_processed, 7)
             self.assertEqual(
-                restored.options["urls"],
+                [task.target for task in restored.remaining_tasks],
                 ["https://current.example/"],
             )
             self.assertEqual(restored.last_output, "current output")
@@ -314,7 +315,7 @@ class TestSessionStore(TestCase):
 
         self.assertEqual(resumed.target_progress.directories, ["current/", "next/"])
         self.assertEqual(resumed.run_state.jobs_processed, 3)
-        self.assertEqual(restored_options["urls"], target_urls)
+        self.assertEqual([task.target for task in payload.remaining_tasks], target_urls)
 
         self.assertEqual(
             [next(resumed.dictionary), next(resumed.dictionary)],
@@ -372,8 +373,8 @@ class TestSessionStore(TestCase):
             restored = store.load(session_dir)
 
         self.assertEqual(restored.run.jobs_processed, 1)
-        self.assertEqual(restored.task.dictionary.index, 1)
-        self.assertEqual(restored.options["urls"], old_urls)
+        self.assertEqual(restored.task_checkpoint.dictionary.index, 1)
+        self.assertEqual([task.target for task in restored.remaining_tasks], old_urls)
         self.assertEqual(restored.last_output, "old output")
         self.assertEqual(
             controller.output_history,
@@ -458,7 +459,7 @@ class TestSessionStore(TestCase):
                 )
             self.assertEqual(restored.run.jobs_processed, 7)
             self.assertEqual(
-                restored.options["urls"],
+                [task.target for task in restored.remaining_tasks],
                 ["https://current.example/"],
             )
             self.assertEqual(restored.last_output, "current output")
@@ -491,11 +492,11 @@ class TestSessionStore(TestCase):
                 )
             )
             self.assertEqual(
-                restored.task.url,
+                restored.task_checkpoint.url,
                 "https://legacy.example/",
             )
             self.assertEqual(
-                restored.options["urls"],
+                [task.target for task in restored.remaining_tasks],
                 ["https://example.com"],
             )
 

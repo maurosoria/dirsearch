@@ -113,7 +113,7 @@ class TestNumericOptionValidation(TestCase):
 
     def test_invalid_restored_session_value_is_rejected(self):
         payload = SessionSnapshot(
-            run=RunCheckpoint(0), task=TaskCheckpoint(DictionaryCheckpoint((), 0)), options={"delay": -1},
+            run=RunCheckpoint(0), task_checkpoint=TaskCheckpoint(DictionaryCheckpoint((), 0)), options={"delay": -1},
         )
         output = io.StringIO()
         controller = object.__new__(Controller)

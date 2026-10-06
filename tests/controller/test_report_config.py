@@ -31,7 +31,7 @@ class TestSessionReportConfiguration(TestCase):
             "sqlite_commit_batch_size": 3,
         }
         payload = SessionSnapshot(
-            run=RunCheckpoint(0), task=TaskCheckpoint(DictionaryCheckpoint((), 0)), options={},
+            run=RunCheckpoint(0), task_checkpoint=TaskCheckpoint(DictionaryCheckpoint((), 0)), options={},
         )
         controller = object.__new__(Controller)
         controller.wordlist_config = WordlistConfig()
@@ -67,7 +67,7 @@ class TestSessionReportConfiguration(TestCase):
                     checkpoint = str(Path(directory, "checkpoint.json"))
                     if resumed:
                         saved_controller = SimpleNamespace(
-                            start_time=0, run_state=ScanRunState(),
+                            start_time=0, run_state=ScanRunState(saved_options["urls"]),
                             target_progress=TargetProgress(), output_history=[],
                             dictionary=Dictionary(WordlistConfig()),
                         )

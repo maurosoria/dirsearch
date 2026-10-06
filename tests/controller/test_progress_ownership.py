@@ -80,4 +80,4 @@ class TestProgressOwnership(TestCase):
                 self.assertEqual(controller.run_state.consecutive_errors, 2)
                 self.assertFalse(controller.run_state.old_session)
                 self.assertEqual(controller.target_progress.directories, [])
-                self.assertEqual(controller.run_state.snapshot_targets(), [])
+                self.assertEqual([task.target for task in controller.run_state.snapshot_tasks()], [])

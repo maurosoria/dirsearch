@@ -169,7 +169,7 @@ class TestControllerTargetConfig(TestCase):
                     save_response=None, save_response_jsonl=None, session_file=None,
                 )
                 saved_controller = SimpleNamespace(
-                    start_time=0, run_state=ScanRunState(), target_progress=TargetProgress(),
+                    start_time=0, run_state=ScanRunState(saved_options["urls"]), target_progress=TargetProgress(),
                     output_history=[], dictionary=Dictionary(WordlistConfig()),
                 )
                 saved_controller.run_state.old_session = True
