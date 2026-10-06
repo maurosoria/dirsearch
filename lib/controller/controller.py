@@ -63,6 +63,7 @@ from lib.core.options import (
 )
 from lib.core.request_backend import get_native_request_backend_error
 from ..core.scan_run_state import ScanRunState
+from ..core.run_metadata import RunMetadata
 from lib.core.target_config import TargetConfig
 from lib.core.target_progress import TargetProgress
 from lib.core.terminal_config import TerminalConfig
@@ -78,7 +79,6 @@ from lib.core.settings import (
     SIGINT_FORCE_QUIT_THRESHOLD,
     SIGINT_WINDOW_SECONDS,
     STANDARD_PORTS,
-    START_TIME,
     THREADED_WORKER_SHUTDOWN_TIMEOUT,
     UNKNOWN,
 )
@@ -186,14 +186,17 @@ def _create_force_quit_handler() -> ForceQuitHandler:
     return StandardForceQuitHandler()
 
 
-def format_session_path(path: str) -> str:
-    date_token = START_TIME.split()[0]
-    datetime_token = FileUtils.format_datetime_for_path(START_TIME)
+def format_session_path(path: str, start_time: str) -> str:
+    date_token = start_time.split()[0]
+    datetime_token = FileUtils.format_datetime_for_path(start_time)
     return path.replace("{date}", date_token).replace("{datetime}", datetime_token)
 
 
 class Controller:
-    def __init__(self, *, output: TextIO | None = None) -> None:
+    def __init__(
+        self, *, output: TextIO | None = None, metadata: RunMetadata | None = None
+    ) -> None:
+        self.metadata = RunMetadata.capture() if metadata is None else metadata
         self._terminal_stream = sys.stdout if output is None else output
         # Bootstrap presentation handles errors before input preparation finishes.
         self.interface = create_terminal(
@@ -366,7 +369,7 @@ class Controller:
         self.run_state.old_session = progress.old_session
         self.dictionary = Dictionary(self.wordlist_config)
         self.dictionary.__setstate__(task.dictionary.to_state())
-        self.reporter = ReportManager(report_config)
+        self.reporter = ReportManager(report_config, metadata=self.metadata)
 
     def _snapshot_session(
         self, session_options: dict[str, Any], last_output: str
@@ -431,7 +434,7 @@ class Controller:
     def _export(self, session_file: str) -> None:
         # Save written output
         last_output = self.interface.buffer.rstrip()
-        session_file = format_session_path(session_file)
+        session_file = format_session_path(session_file, self.metadata.start_time)
         parent_dir = FileUtils.parent(session_file)
         if parent_dir:
             FileUtils.create_dir(parent_dir)
@@ -486,7 +489,9 @@ class Controller:
         self.interface.print_config(len(self.dictionary))
 
         try:
-            self.reporter = ReportManager(ReportConfig.from_options(options))
+            self.reporter = ReportManager(
+                ReportConfig.from_options(options), metadata=self.metadata
+            )
         except InvalidURLException as e:
             self.logger.exception(e)
             self.interface.error(str(e))
@@ -1161,13 +1166,16 @@ class Controller:
 
                     if option.lower() == "s":
                         default_session_path = format_session_path(
-                            options["session_file"] or DEFAULT_SESSION_FILE
+                            options["session_file"] or DEFAULT_SESSION_FILE,
+                            self.metadata.start_time,
                         )
                         msg = f"Save to file [{default_session_path}]: "
 
                         self.interface.in_line(msg)
 
-                        session_file = format_session_path(input() or default_session_path)
+                        session_file = format_session_path(
+                            input() or default_session_path, self.metadata.start_time
+                        )
 
                         self._export(session_file)
                         quitexc = QuitInterrupt(f"Session saved to: {session_file}")

@@ -47,6 +47,7 @@ def main() -> None:
     from dirsearch.lib.core.request_config import RequestConfig
     from dirsearch.lib.core.report_config import ReportConfig
     from dirsearch.lib.core.result_config import ResultConfig
+    from dirsearch.lib.core.run_metadata import RunMetadata
     from dirsearch.lib.core.scan_run_state import ScanRunState
     from dirsearch.lib.core.target_config import TargetConfig
     from dirsearch.lib.core.target_progress import TargetProgress
@@ -91,10 +92,14 @@ def main() -> None:
     # Exercise controller reconstruction too: its imports must not create task
     # values from the alternate source-tree namespace in an installed package.
     resumed = object.__new__(Controller)
+    resumed.metadata = RunMetadata.capture(["dirsearch", "--auth", "private-value"])
     resumed.wordlist_config = WordlistConfig()
     resumed.output_history = []
     resumed._restore_session(restored, ReportConfig())
     try:
+        assert resumed.reporter.metadata is resumed.metadata
+        assert isinstance(resumed.metadata, RunMetadata)
+        assert resumed.metadata.command == "dirsearch --auth <redacted>"
         assert resumed.run_state.snapshot_tasks() == snapshot.remaining_tasks
         assert resumed._snapshot_session(restored.options, "") == snapshot
     finally:

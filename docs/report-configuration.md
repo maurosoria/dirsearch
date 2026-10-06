@@ -61,6 +61,11 @@ or clearing the original options cannot reroute an existing manager or change
 its batch policy. Independent managers must still use independent destinations;
 this does not add multi-process coordination for shared files or databases.
 
+[RunMetadata](run-metadata.md) separately supplies the redacted command and start
+label. The controller shares one immutable value with the manager and reporters;
+standalone managers can receive `metadata=` or capture a new value at construction.
+Headers and date tokens no longer read import-time `COMMAND` / `START_TIME` values.
+
 The async executor handoff and cancellation drain are unchanged. SQLite still
 commits at its configured boundary and flushes partial batches at explicit
 flush, destination changes and finish. Controller checkpoint export continues

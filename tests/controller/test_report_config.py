@@ -17,6 +17,7 @@ from lib.core.task_checkpoint import DictionaryCheckpoint, TaskCheckpoint
 from lib.core.data import options
 from lib.core.dictionary import Dictionary
 from lib.core.report_config import ReportConfig
+from lib.core.run_metadata import RunMetadata
 from lib.core.wordlist_config import WordlistConfig
 
 
@@ -34,6 +35,7 @@ class TestSessionReportConfiguration(TestCase):
             run=RunCheckpoint(0), task_checkpoint=TaskCheckpoint(DictionaryCheckpoint((), 0)), options={},
         )
         controller = object.__new__(Controller)
+        controller.metadata = RunMetadata("dirsearch", "2026-10-06 12:00:00")
         controller.wordlist_config = WordlistConfig()
         with patch.dict(options, {
             "output_file": "other.sqlite",
@@ -53,6 +55,9 @@ class TestSessionReportConfiguration(TestCase):
         for backend, async_mode in (("python", False), ("python", True), ("native", False)):
             for resumed in (False, True):
                 with self.subTest(backend=backend, async_mode=async_mode, resumed=resumed), TemporaryDirectory() as directory:
+                    metadata = RunMetadata(
+                        "dirsearch --auth <redacted>", "2026-10-06 12:34:56"
+                    )
                     saved_options = dict(options)
                     saved_options.update(
                         request_backend=backend, async_mode=async_mode,
@@ -76,6 +81,12 @@ class TestSessionReportConfiguration(TestCase):
                         )
 
                     def run(controller):
+                        self.assertIs(controller.metadata, metadata)
+                        self.assertIs(controller.reporter.metadata, metadata)
+                        for reporter, _ in controller.reporter.reports:
+                            self.assertIs(reporter.metadata, metadata)
+                        if resumed:
+                            self.assertEqual(controller.start_time, 0)
                         self.assertEqual(controller.reporter.config, ReportConfig.from_options(saved_options))
                         options.update(
                             output_formats=[], output_file=str(Path(directory, "wrong")),
@@ -103,11 +114,15 @@ class TestSessionReportConfiguration(TestCase):
                         patch("lib.controller.controller.Dictionary", return_value=Dictionary(WordlistConfig())),
                         patch("lib.controller.controller.create_terminal"),
                     ):
-                        controller = Controller()
+                        controller = Controller(metadata=metadata)
                     for host in ("first.test", "second.test"):
                         expected_url = "https://" + host + "/item"
                         json_path = Path(directory, f"report-{host}-json.json")
-                        rows = json.loads(json_path.read_text(encoding="utf-8"))["results"]
+                        report = json.loads(json_path.read_text(encoding="utf-8"))
+                        self.assertEqual(report["info"], {
+                            "args": metadata.command, "time": metadata.start_time,
+                        })
+                        rows = report["results"]
                         self.assertEqual([row["url"] for row in rows], [expected_url])
                         with closing(sqlite3.connect(Path(directory, f"report-{host}-sql.sqlite"))) as connection:
                             self.assertEqual(

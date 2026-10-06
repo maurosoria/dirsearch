@@ -1,7 +1,7 @@
 # Local state ownership backlog
 
-This is the state-isolation backlog following PR #1745, including the
-task-input boundary in this branch. It is not a list of all product issues, nor
+This is the state-isolation backlog following PR #1746, including the
+invocation-metadata boundary in this branch. It is not a list of all product issues, nor
 a claim that multiple complete controllers can already share a process safely.
 Keep subsequent steps independently reviewable, with explicit contracts and
 regressions before replacing their callers.
@@ -45,12 +45,16 @@ regressions before replacing their callers.
   `SessionSnapshot.remaining_tasks` associates its head with `task_checkpoint`.
   Only storage maps the queue to version-1 `options.urls`. Duplicates retain
   their positions; no globally unique IDs or independently runnable tasks exist.
+- [Invocation metadata](run-metadata.md) now captures the redacted command and
+  date per invocation and shares one immutable `RunMetadata` with reports and
+  session path formatting. `COMMAND` and `START_TIME` import-time captures are
+  removed. Numeric checkpoint/deadline start times and report schemas are unchanged.
 
 ## Remaining work, in suggested order
 
 | Order | Boundary | Completion criterion |
 | --- | --- | --- |
-| 1 | Aggregate configuration and local context | Group prepared policies without a giant parameter list; replace the transitional session options mapping. Separate configuration, live resources and mutable progress. Assign ownership to run metadata and generator state without changing generation behavior. |
+| 1 | Aggregate configuration and local context | Group prepared policies without a giant parameter list; replace the transitional session options mapping. Separate configuration, live resources and mutable progress. Assign ownership to generator state without changing generation behavior; invocation metadata is now owned. |
 | 2 | CLI options boundary | Keep mutable normalization local to one invocation; remove the global `options` dictionary once its last consumers are migrated. |
 | 3 | Constant tables | Make read-only intent enforceable where compatible, including `TEXT_CHARS`, and review the duplicate default-port mappings. |
 | 4 | Isolation acceptance tests | Prove independent local lifecycles, output, failure cleanup and resume without process-global patching; address signal ownership and ambient raw-target context. Passing component tests alone is insufficient. |
@@ -131,11 +135,11 @@ every scalar constant, compiled regex, imported module or third-party singleton.
 | `_stealth_word_generator` | `lib/utils/random.py` | Holds a mutable RNG and growing `_seen` set for the entire process; choose explicit ownership without changing generation behavior. |
 | `_request_target_state` | `lib/connection/requester.py` | `threading.local()` raw-target context: separate per thread, but still ambient. |
 | Signal registrations | `Controller.run()` | Process-wide handlers; installation/restoration needs an explicit owner. |
-| `COMMAND`, `START_TIME` | `lib/core/settings.py` | Immutable strings captured at import rather than per invocation. |
 | `TEXT_CHARS` | `lib/core/settings.py` | Mutable `bytearray` used as a read-only binary-detection table; no production writes identified. |
 | `__all__` lists | `lib/core/api.py`, `dirsearch.py` | Static export metadata, not run progress. |
 
 Import-time platform/path constants also remain, but are not mutable progress.
+Invocation command/date metadata no longer comes from module-level constants.
 The generator uses its own `random.Random`; other utility calls additionally
 borrow the standard library's default RNG. None of these are changed by the
 logging refactor. Inspected native maps and wordlist indexes are

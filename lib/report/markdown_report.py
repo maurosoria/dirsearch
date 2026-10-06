@@ -17,11 +17,7 @@
 #  Author: Mauro Soria
 
 from lib.core.decorators import locked
-from lib.core.settings import (
-    COMMAND,
-    NEW_LINE,
-    START_TIME,
-)
+from lib.core.settings import NEW_LINE
 from lib.report.factory import BaseReport, FileReportMixin
 
 
@@ -31,9 +27,9 @@ class MarkdownReport(FileReportMixin, BaseReport):
 
     def new(self):
         header = "### Information" + NEW_LINE
-        header += f"Command: {COMMAND}"
+        header += f"Command: {self.metadata.command}"
         header += NEW_LINE
-        header += f"Time: {START_TIME}"
+        header += f"Time: {self.metadata.start_time}"
         header += NEW_LINE * 2
         header += "URL | Status | Size | Content Type | Redirection | Elapsed (ms)" + NEW_LINE
         header += "----|--------|------|--------------|-------------|-------------" + NEW_LINE

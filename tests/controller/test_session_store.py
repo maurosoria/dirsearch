@@ -32,6 +32,7 @@ from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
 from lib.core.dictionary import Dictionary
 from lib.core.report_config import ReportConfig
+from lib.core.run_metadata import RunMetadata
 from lib.core.wordlist_config import WordlistConfig
 from lib.core.exceptions import UnpicklingError
 
@@ -307,6 +308,7 @@ class TestSessionStore(TestCase):
             payload = store.load(session_dir)
             restored_options = payload.options
             resumed = object.__new__(Controller)
+            resumed.metadata = RunMetadata("dirsearch", "2026-10-06 12:00:00")
             resumed.run_state = ScanRunState()
             resumed.target_progress = TargetProgress()
             resumed.wordlist_config = WordlistConfig()

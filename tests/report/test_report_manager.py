@@ -12,6 +12,7 @@ from unittest.mock import Mock, patch
 from lib.controller.session import SessionStore
 from lib.core.data import options
 from lib.core.report_config import ReportConfig
+from lib.core.run_metadata import RunMetadata
 from lib.report.html_report import HTMLReport
 from lib.report.manager import ReportManager
 from lib.report.xml_report import XMLReport
@@ -21,8 +22,9 @@ class DummyReport:
     __format__ = "dummy"
     __extension__ = "txt"
 
-    def __init__(self, commit_batch_size=1):
+    def __init__(self, commit_batch_size=1, *, metadata=None):
         self.commit_batch_size = commit_batch_size
+        self.metadata = metadata
 
 
 class BlockingReport(DummyReport):
@@ -96,9 +98,10 @@ class TestReportManagerDestinations(TestCase):
 
         self.assertEqual(manager.reports[0][0]._commit_batch_size, 25)
 
-    @patch("lib.report.manager.START_TIME", "2026-09-13 07:30:45")
     def test_datetime_token_is_safe_for_windows_paths(self):
-        manager = ReportManager(ReportConfig())
+        manager = ReportManager(
+            ReportConfig(), metadata=RunMetadata("dirsearch", "2026-09-13 07:30:45")
+        )
 
         destination = manager.format(
             "report-{datetime}.{extension}",
@@ -180,7 +183,7 @@ class TestReportManagerDestinations(TestCase):
                 ):
                     manager = ReportManager(config)
                 import_module.assert_called_once_with(module_name)
-                factory.assert_called_once_with()
+                factory.assert_called_once_with(metadata=manager.metadata)
                 self.assertEqual(manager.reports[0][1][-1], "results")
 
     def test_missing_optional_driver_is_not_silently_skipped(self):

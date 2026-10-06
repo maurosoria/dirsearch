@@ -19,7 +19,7 @@
 import json
 
 from lib.core.decorators import locked
-from lib.core.settings import COMMAND, DEFAULT_ENCODING, START_TIME
+from lib.core.settings import DEFAULT_ENCODING
 from lib.report.factory import BaseReport, StructuredFileReportMixin
 
 
@@ -29,7 +29,7 @@ class JSONReport(StructuredFileReportMixin, BaseReport):
 
     def new(self):
         return {
-            "info": {"args": COMMAND, "time": START_TIME},
+            "info": {"args": self.metadata.command, "time": self.metadata.start_time},
             "results": [],
         }
 

@@ -31,6 +31,7 @@ from lib.core.exceptions import (
     InvalidURLException,
 )
 from lib.core.settings import DEFAULT_ENCODING
+from ..core.run_metadata import RunMetadata
 from lib.utils import safe_xml
 from lib.utils.file import FileUtils
 
@@ -55,7 +56,8 @@ SQL_CONNECTION_ERRORS = (
 
 
 class BaseReport(ABC):
-    def __init__(self):
+    def __init__(self, *, metadata: RunMetadata | None = None):
+        self.metadata = RunMetadata.capture() if metadata is None else metadata
         self._operation_lock = threading.Lock()
 
     @abstractmethod
@@ -127,8 +129,8 @@ class StructuredFileReportMixin(FileReportMixin):
 
     _journal_version = 1
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *, metadata: RunMetadata | None = None):
+        super().__init__(metadata=metadata)
         self._report_states: dict[str, _StructuredReportState] = {}
 
     @staticmethod

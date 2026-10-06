@@ -9,6 +9,7 @@ from lib.core.data import options
 from lib.core.exceptions import QuitInterrupt, SkipTargetInterrupt
 from lib.core.execution_config import ExecutionConfig, ScanEngine
 from lib.core.scan_run_state import ScanRunState
+from lib.core.run_metadata import RunMetadata
 
 
 class RecordingForceQuitHandler:
@@ -43,6 +44,7 @@ class TestPauseState(TestCase):
 
     def reset_controller(self):
         self.controller = object.__new__(Controller)
+        self.controller.metadata = RunMetadata("dirsearch", "2026-10-05 23:59:59")
         self.controller.run_state = ScanRunState()
         self.controller.target_progress = TargetProgress()
         self.controller.interface = Mock()
@@ -141,6 +143,31 @@ class TestPauseState(TestCase):
 
                 self.assert_pause_state_was_rearmed()
                 self.controller.fuzzer.quit.assert_not_called()
+
+    def test_save_prompt_and_typed_path_share_invocation_date_for_every_engine(self):
+        for engine in ScanEngine:
+            for entered in ("", "custom-{datetime}"):
+                with (
+                    self.subTest(engine=engine, entered=entered),
+                    patch.dict(options, {"session_file": "checkpoint-{datetime}"}),
+                    patch("builtins.input", side_effect=("q", "s", entered)),
+                    patch("time.strftime", return_value="2026-10-06 00:00:01"),
+                ):
+                    self.reset_controller()
+                    self.controller.execution_config = ExecutionConfig(engine=engine)
+                    self.controller.pause_future = RecordingPauseFuture()
+                    self.controller._export = Mock()
+                    if engine is ScanEngine.ASYNC:
+                        self.controller.handle_pause()
+                        self.assertIsInstance(self.controller.pause_future.error, QuitInterrupt)
+                    else:
+                        with self.assertRaises(QuitInterrupt):
+                            self.controller.handle_pause()
+                    self.controller.interface.in_line.assert_any_call(
+                        "Save to file [checkpoint-2026-10-05_23-59-59]: "
+                    )
+                    prefix = "custom" if entered else "checkpoint"
+                    self.controller._export.assert_called_once_with(prefix + "-2026-10-05_23-59-59")
 
     def test_skip_target_rearms_pause_for_async_engine(self):
         with patch.dict(
