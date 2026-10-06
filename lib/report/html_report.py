@@ -22,7 +22,7 @@ import os
 from jinja2 import Environment, FileSystemLoader
 
 from lib.core.decorators import locked
-from lib.core.settings import COMMAND, DEFAULT_ENCODING, START_TIME
+from lib.core.settings import DEFAULT_ENCODING
 from lib.report.factory import BaseReport, StructuredFileReportMixin
 
 
@@ -72,6 +72,6 @@ class HTMLReport(StructuredFileReportMixin, BaseReport):
         env = Environment(loader=file_loader)
         template = env.get_template("html_report_template.html")
         return template.render(
-            metadata={"command": COMMAND, "date": START_TIME},
+            metadata={"command": self.metadata.command, "date": self.metadata.start_time},
             results=results,
         )

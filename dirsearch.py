@@ -31,6 +31,7 @@ from lib.core.api import (
 from lib.core.data import options
 from lib.core.exceptions import WordlistLimitError
 from lib.core.options import parse_options
+from lib.core.run_metadata import RunMetadata
 from lib.utils.cli import fail
 
 __all__ = [
@@ -49,6 +50,7 @@ if sys.version_info < (3, 11):
 
 
 def main():
+    metadata = RunMetadata.capture()
     options.update(parse_options())
 
     if options["wordlist_status"]:
@@ -77,7 +79,7 @@ def main():
 
     from lib.controller.controller import Controller
 
-    Controller()
+    Controller(metadata=metadata)
 
 
 if __name__ == "__main__":

@@ -17,6 +17,7 @@ from lib.core.dictionary import Dictionary
 from lib.core.execution_config import ScanEngine
 from lib.core.native_runtime import is_native_backend_available
 from lib.core.report_config import ReportConfig
+from lib.core.run_metadata import RunMetadata
 from lib.core.scan_run_state import ScanRunState
 from lib.core.task_spec import TaskSpec
 from lib.core.wordlist_backend import NativeWordlistChunk
@@ -26,6 +27,7 @@ from lib.core.wordlist_config import WordlistConfig
 class TestSessionSnapshot(TestCase):
     def _controller(self):
         controller = object.__new__(Controller)
+        controller.metadata = RunMetadata("dirsearch", "2026-10-06 12:00:00")
         controller.run_state = ScanRunState()
         controller.target_progress = TargetProgress()
         controller.start_time = 123.5
@@ -125,6 +127,20 @@ class TestSessionSnapshot(TestCase):
             checkpoint = Path(directory, SessionStore.CHECKPOINT_FILE)
             payload = json.loads(checkpoint.read_text(encoding="utf-8"))
         self.assertEqual(payload["options"]["headers"], {"X-Test": "prepared"})
+
+    def test_export_uses_invocation_date_without_changing_checkpoint_clock(self):
+        controller = self._controller()
+        controller.metadata = RunMetadata("dirsearch", "2026-10-05 23:59:59")
+        with TemporaryDirectory() as directory:
+            path = str(Path(directory, "session-{date}-{datetime}"))
+            with patch("time.strftime", return_value="2026-10-06 00:00:01"):
+                controller._export(path)
+            expected = Path(directory, "session-2026-10-05-2026-10-05_23-59-59")
+            snapshot = SessionStore().load(str(expected))
+            wire = json.loads((expected / SessionStore.CHECKPOINT_FILE).read_text(encoding="utf-8"))
+        self.assertEqual(snapshot.run.start_time, 123.5)
+        self.assertEqual(snapshot.task_checkpoint.dictionary.index, 1)
+        self.assertNotIn("metadata", wire)
 
     def test_restore_keeps_legacy_output_and_detaches_runtime_containers(self):
         for history in (None, [], [{"start_time": 90, "output": "older"}]):

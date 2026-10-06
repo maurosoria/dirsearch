@@ -20,7 +20,8 @@ import asyncio
 from urllib.parse import urlparse
 
 from lib.core.report_config import ReportConfig
-from lib.core.settings import STANDARD_PORTS, START_TIME
+from lib.core.settings import STANDARD_PORTS
+from ..core.run_metadata import RunMetadata
 from lib.report.csv_report import CSVReport
 from lib.report.html_report import HTMLReport
 from lib.report.json_report import JSONReport
@@ -56,8 +57,9 @@ output_handlers = {
 
 
 class ReportManager:
-    def __init__(self, config: ReportConfig):
+    def __init__(self, config: ReportConfig, *, metadata: RunMetadata | None = None):
         self.config = config
+        self.metadata = RunMetadata.capture() if metadata is None else metadata
         self.reports = []
         # Reporters share files and database connections. Queue async saves
         # before entering the executor instead of occupying worker threads on
@@ -78,9 +80,12 @@ class ReportManager:
                 continue
             report_class = self._load_report(handler)
             if format == "sqlite":
-                reporter = report_class(commit_batch_size=config.sqlite_commit_batch_size)
+                reporter = report_class(
+                    commit_batch_size=config.sqlite_commit_batch_size,
+                    metadata=self.metadata,
+                )
             else:
-                reporter = report_class()
+                reporter = report_class(metadata=self.metadata)
             self.reports.append((reporter, sources))
 
     def _load_report(self, handler):
@@ -154,8 +159,8 @@ class ReportManager:
         parsed = urlparse(target)
 
         return string.format(
-            datetime=FileUtils.format_datetime_for_path(START_TIME),
-            date=START_TIME.split()[0],
+            datetime=FileUtils.format_datetime_for_path(self.metadata.start_time),
+            date=self.metadata.start_time.split()[0],
             host=parsed.hostname,
             scheme=parsed.scheme,
             port=parsed.port or STANDARD_PORTS[parsed.scheme],

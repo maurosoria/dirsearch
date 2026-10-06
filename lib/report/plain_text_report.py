@@ -17,11 +17,7 @@
 #  Author: Mauro Soria
 
 from lib.core.decorators import locked
-from lib.core.settings import (
-    COMMAND,
-    NEW_LINE,
-    START_TIME,
-)
+from lib.core.settings import NEW_LINE
 from lib.report.factory import BaseReport, FileReportMixin
 from lib.utils.common import get_readable_size
 
@@ -31,7 +27,7 @@ class PlainTextReport(FileReportMixin, BaseReport):
     __extension__ = "txt"
 
     def new(self):
-        return f"# Dirsearch started at {START_TIME} as: {COMMAND}" + NEW_LINE
+        return f"# Dirsearch started at {self.metadata.start_time} as: {self.metadata.command}" + NEW_LINE
 
     @locked
     def save(self, file, result):

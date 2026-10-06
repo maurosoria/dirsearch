@@ -16,12 +16,14 @@ from lib.core.discovery_config import DiscoveryConfig
 from lib.core.exceptions import InvalidURLException, QuitInterrupt, SkipTargetInterrupt
 from lib.core.execution_config import ScanEngine
 from lib.core.scan_run_state import ScanRunState
+from lib.core.run_metadata import RunMetadata
 from lib.core.wordlist_config import WordlistConfig
 
 
 class TestControllerRunState(TestCase):
     def _controller(self):
         controller = object.__new__(Controller)
+        controller.metadata = RunMetadata("dirsearch", "2026-10-06 12:00:00")
         controller.run_state = ScanRunState()
         controller.target_progress = TargetProgress()
         controller.result_config = ResultConfig()

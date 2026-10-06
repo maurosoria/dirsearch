@@ -19,11 +19,7 @@
 from xml.etree import ElementTree as ET
 
 from lib.core.decorators import locked
-from lib.core.settings import (
-    COMMAND,
-    DEFAULT_ENCODING,
-    START_TIME,
-)
+from lib.core.settings import DEFAULT_ENCODING
 from lib.report.factory import BaseReport, StructuredFileReportMixin
 
 
@@ -32,7 +28,7 @@ class XMLReport(StructuredFileReportMixin, BaseReport):
     __extension__ = "xml"
 
     def new(self):
-        return ET.Element("dirsearchscan", args=COMMAND, time=START_TIME)
+        return ET.Element("dirsearchscan", args=self.metadata.command, time=self.metadata.start_time)
 
     def parse(self, file):
         return ET.parse(file).getroot()

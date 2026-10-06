@@ -27,8 +27,8 @@ class SQLiteReport(SQLReportMixin, BaseReport):
     __extension__ = "sqlite"
     _reuse = True
 
-    def __init__(self, commit_batch_size=1):
-        super().__init__()
+    def __init__(self, commit_batch_size=1, *, metadata=None):
+        super().__init__(metadata=metadata)
         if not isinstance(commit_batch_size, int) or commit_batch_size < 1:
             raise ValueError("SQLite commit batch size must be a positive integer")
 

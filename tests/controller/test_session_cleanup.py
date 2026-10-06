@@ -12,6 +12,7 @@ from lib.core.target_progress import TargetProgress
 from lib.controller.session import SessionStore
 from lib.core.data import options
 from lib.core.result_config import ResultConfig
+from lib.core.run_metadata import RunMetadata
 from lib.core.scan_run_state import ScanRunState
 from lib.core.wordlist_config import WordlistConfig
 from lib.report.json_report import JSONReport
@@ -115,6 +116,7 @@ class TestSessionCleanup(TestCase):
 
     def test_session_export_flushes_reports_before_saving_checkpoint(self):
         controller = object.__new__(Controller)
+        controller.metadata = RunMetadata("dirsearch", "2026-10-06 12:00:00")
         controller.run_state = ScanRunState()
         controller.target_progress = TargetProgress()
         controller._session_options = {}
