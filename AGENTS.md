@@ -8,7 +8,7 @@
 - `python -m unittest discover -s tests -t .`: canonical unit/integration test runner used by CI.
 - `python3 -m unittest tests.connection.test_requester tests.connection.test_dns tests.core.test_scanner`: focused regression pass.
 - `python3 -m pip install .`: validate packaged install and console entrypoints.
-- `docker compose -f - build dirsearch` with `build.network: host`: verify Docker release images, matching the GitHub workflow.
+- Generate the build plan with `docker compose -f - build --print dirsearch` and pass it to `docker buildx bake --file - --allow=network.host --load dirsearch`: verify Docker release images with host networking, matching the GitHub workflow.
 - `pyinstaller --clean pyinstaller/dirsearch.spec`: build the standalone binary using the checked-in spec.
 
 ## Coding Style & Naming Conventions
@@ -20,12 +20,13 @@ Prefer explicit, initialized attributes and typed protocols over `getattr()` or 
 Tests use `unittest`. Add new coverage under `tests/` with filenames like `test_requester.py` and methods named `test_*`. When changing request, packaging, or report behavior, add message-level or artifact-level assertions rather than only smoke checks. For compatibility-sensitive changes, prefer Docker validation on supported Python versions.
 
 ## Docker Release Validation
-When changing `Dockerfile`, Docker workflows, release packaging, dependencies, or stack defaults, build through `docker compose` with host networking instead of plain `docker build`, because CI relies on `build.network: host` for dependency resolution. Validate every release stack, not just the default one: `threaded`, `async`, and `native-rust`.
+When changing `Dockerfile`, Docker workflows, release packaging, dependencies, or stack defaults, build through the Compose-generated Bake plan with host networking instead of plain `docker build`, because CI relies on `build.network: host` for dependency resolution. Compose declares the required entitlement; Bake must also receive `--allow=network.host` to authorize it non-interactively. Validate every release stack, not just the default one: `threaded`, `async`, and `native-rust`.
 
 Use this pattern for each stack, replacing `STACK` and image tag as needed:
 
 ```sh
-docker compose -f - build dirsearch <<'YAML'
+set -o pipefail
+docker compose -f - build --print dirsearch <<'YAML' | docker buildx bake --file - --allow=network.host --load dirsearch
 services:
   dirsearch:
     image: dirsearch:test-STACK
@@ -33,6 +34,8 @@ services:
       context: .
       dockerfile: Dockerfile
       network: host
+      entitlements:
+        - network.host
       args:
         DIRSEARCH_STACK: STACK
 YAML
