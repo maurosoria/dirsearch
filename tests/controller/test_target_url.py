@@ -1,3 +1,4 @@
+from dataclasses import replace
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import asyncio
 import os
@@ -8,6 +9,7 @@ from unittest.mock import Mock, patch
 
 from lib.connection.native import NativeHTTPBackend
 from lib.connection.requester import AsyncRequester, Requester
+from lib.core.run_config import RunConfig
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
@@ -15,8 +17,6 @@ from lib.core.filter_config import FilterConfig
 from lib.core.request_config import RequestConfig
 from lib.core.target_config import TargetConfig
 from lib.core.data import options
-from lib.core.result_config import ResultConfig
-from lib.core.wordlist_config import WordlistConfig
 from lib.core.exceptions import InvalidURLException, RequestException
 
 
@@ -91,10 +91,10 @@ class TestControllerTargetURL(TestCase):
             }
         )
         self.controller = object.__new__(Controller)
+        self.controller.config = RunConfig(target=TargetConfig.from_options(options))
         self.controller.run_state = ScanRunState()
         self.controller.target_progress = TargetProgress()
         self.controller.interface = Mock()
-        self.controller.target_config = TargetConfig.from_options(options)
         self.controller.requester = Mock()
 
     def tearDown(self):
@@ -154,7 +154,7 @@ class TestControllerTargetURL(TestCase):
 
     def test_scheme_option_keeps_ipv6_literal_brackets(self):
         options["scheme"] = "https"
-        self.controller.target_config = TargetConfig.from_options(options)
+        self.controller.config = replace(self.controller.config, target=TargetConfig.from_options(options))
 
         self.controller.set_target("[2001:db8::1]:8443/private")
 
@@ -195,9 +195,9 @@ class TestControllerTargetURL(TestCase):
         for stack, async_mode, request_backend in stack_cases:
             with self.subTest(stack=stack):
                 controller = object.__new__(Controller)
+                controller.config = RunConfig()
                 controller.run_state = ScanRunState()
                 controller.target_progress = TargetProgress()
-                controller.result_config = ResultConfig()
                 controller.logger = Mock()
                 controller.interface = Mock()
                 controller.loop = None
@@ -245,7 +245,7 @@ class TestControllerTargetURL(TestCase):
                     patch.object(controller, "interface") as interface,
                 ):
                     try:
-                        controller.wordlist_config = WordlistConfig.from_options(options)
+                        controller._prepare_config(options)
                         controller.run()
                     finally:
                         if isinstance(controller.loop, asyncio.AbstractEventLoop):
@@ -317,10 +317,10 @@ class TestAsyncControllerTargetURL(IsolatedAsyncioTestCase):
             }
         )
         self.controller = object.__new__(Controller)
+        self.controller.config = RunConfig(target=TargetConfig.from_options(options))
         self.controller.run_state = ScanRunState()
         self.controller.target_progress = TargetProgress()
         self.controller.interface = Mock()
-        self.controller.target_config = TargetConfig.from_options(options)
 
     def tearDown(self):
         options.clear()

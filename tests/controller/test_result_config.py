@@ -10,13 +10,13 @@ from unittest import IsolatedAsyncioTestCase, TestCase
 from unittest.mock import AsyncMock, Mock, patch
 
 from lib.connection.response import NativeResponse
+from lib.core.run_config import RunConfig
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
 from lib.controller.session import SessionStore
 from lib.core.data import options
 from lib.core.dictionary import Dictionary
-from lib.core.discovery_config import DiscoveryConfig
 from lib.core.execution_config import ExecutionConfig, ScanEngine
 from lib.core.fuzzer import AsyncFuzzer
 from lib.core.result_config import ResultConfig
@@ -25,11 +25,9 @@ from lib.core.wordlist_config import WordlistConfig
 
 def controller_for(config, engine=ScanEngine.THREADED):
     controller = object.__new__(Controller)
+    controller.config = RunConfig(results=config, execution=ExecutionConfig(engine=engine))
     controller.run_state = ScanRunState()
     controller.target_progress = TargetProgress()
-    controller.result_config = config
-    controller.execution_config = ExecutionConfig(engine=engine)
-    controller.discovery_config = DiscoveryConfig()
     controller.interface = Mock()
     controller.logger = Mock()
     controller.requester = Mock()
@@ -164,7 +162,7 @@ class TestResultPreparation(TestCase):
                         policies = []
 
                         def run(controller):
-                            self.assertEqual(controller.result_config, expected)
+                            self.assertEqual(controller.config.results, expected)
                             # Contradict capture between store creation and
                             # transport composition, then again between targets.
                             options.update(
@@ -179,8 +177,8 @@ class TestResultPreparation(TestCase):
                             controller.target_progress.base_path = ""
 
                         def start(controller):
-                            policies.append(controller.result_config)
-                            self.assertIs(controller.request_config.capture_full_body, capture)
+                            policies.append(controller.config.results)
+                            self.assertIs(controller.config.request.capture_full_body, capture)
                             response = NativeResponse(controller.target_progress.url + "item", 200, [], b"\x00body")
                             replay = controller.match_callback(response)
                             if engine is ScanEngine.ASYNC:
@@ -242,7 +240,7 @@ class TestResultPreparation(TestCase):
             patch.object(Controller, "run"),
         ):
             controller = Controller(output=StringIO())
-        self.assertEqual(controller.result_config, expected)
+        self.assertEqual(controller.config.results, expected)
 
     def test_store_preparation_failure_aborts_before_transport_creation(self):
         with TemporaryDirectory() as root:

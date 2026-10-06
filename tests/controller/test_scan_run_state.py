@@ -1,3 +1,4 @@
+from dataclasses import replace
 import os
 import tempfile
 from io import StringIO
@@ -9,24 +10,21 @@ from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.controller.session import SessionStore
 from lib.core.data import options
-from lib.core.result_config import ResultConfig
-from lib.core.report_config import ReportConfig
 from lib.core.dictionary import Dictionary
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.exceptions import InvalidURLException, QuitInterrupt, SkipTargetInterrupt
 from lib.core.execution_config import ScanEngine
 from lib.core.scan_run_state import ScanRunState
 from lib.core.run_metadata import RunMetadata
-from lib.core.wordlist_config import WordlistConfig
 
 
 class TestControllerRunState(TestCase):
     def _controller(self):
         controller = object.__new__(Controller)
+        controller._prepare_config(options)
         controller.metadata = RunMetadata("dirsearch", "2026-10-06 12:00:00")
         controller.run_state = ScanRunState()
         controller.target_progress = TargetProgress()
-        controller.result_config = ResultConfig()
         controller.logger = Mock()
         controller.interface = Mock(buffer="")
         controller._terminal_stream = StringIO()
@@ -40,10 +38,8 @@ class TestControllerRunState(TestCase):
         controller.target_progress.base_path = ""
         controller.target_progress.url = ""
         controller.run_state.old_session = False
-        controller.wordlist_config = WordlistConfig()
-        controller.dictionary = Dictionary(controller.wordlist_config)
+        controller.dictionary = Dictionary(controller.config.wordlist)
         controller.output_history = []
-        controller._session_options = dict(options)
         controller.response_stores = ()
         controller._native_worker = None
         controller._reporter_finished = False
@@ -164,7 +160,7 @@ class TestControllerRunState(TestCase):
         controller.run_state.activate_next()
         controller.run_state.finish_active()
         controller.run_state.activate_next()
-        controller.discovery_config = DiscoveryConfig(subdirs=["", "api/"])
+        controller.config = replace(controller.config, discovery=DiscoveryConfig(subdirs=["", "api/"]))
         controller.target_progress.directories = ["current/", "queued/"]
         controller.run_state.jobs_processed = 3
         controller.requester = Mock(rate=7)
@@ -214,7 +210,8 @@ class TestControllerRunState(TestCase):
                         resumed = self._controller()
                         restored_targets = [task.target for task in payload.remaining_tasks]
                         with self._environment(resume_engine, restored_targets):
-                            resumed._restore_session(payload, ReportConfig.from_options(options))
+                            resumed._prepare_config(options)
+                            resumed._restore_session(payload)
                             self.addCleanup(resumed.reporter.finish)
                             resumed.run()
                             self.assertEqual(

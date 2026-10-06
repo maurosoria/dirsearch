@@ -27,6 +27,7 @@ from unittest import TestCase, skipIf
 from unittest.mock import patch
 
 from lib.controller.session import SessionStore
+from lib.core.run_config import RunConfig
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
@@ -308,11 +309,11 @@ class TestSessionStore(TestCase):
             payload = store.load(session_dir)
             restored_options = payload.options
             resumed = object.__new__(Controller)
+            resumed.config = RunConfig(reports=ReportConfig.from_options(restored_options))
             resumed.metadata = RunMetadata("dirsearch", "2026-10-06 12:00:00")
             resumed.run_state = ScanRunState()
             resumed.target_progress = TargetProgress()
-            resumed.wordlist_config = WordlistConfig()
-            resumed._restore_session(payload, ReportConfig.from_options(restored_options))
+            resumed._restore_session(payload)
             self.addCleanup(resumed.reporter.finish)
 
         self.assertEqual(resumed.target_progress.directories, ["current/", "next/"])

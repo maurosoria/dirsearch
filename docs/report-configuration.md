@@ -10,9 +10,10 @@ commit batch size. It contains no connections, locks, pending rows or journals.
 | `output_file`, `output_table`, `mysql_url`, `postgres_url` in `ReportManager` | Frozen destination fields | Per-target formatting and report creation |
 | `sqlite_commit_batch_size` in `SQLiteReport` | Explicit constructor argument from the config | Existing SQLite commit/flush policy |
 
-`Controller.setup()` snapshots normalized options when creating the manager.
-`Controller._restore_session()` receives an explicit report policy prepared from
-validated restored options. Session storage does not construct report managers.
+`Controller.setup()` and session import prepare [RunConfig](run-configuration.md)
+before constructing resources. `Controller._restore_session()` uses its report
+policy prepared from validated restored options. The manager still receives only
+`ReportConfig`; session storage does not construct report managers.
 `lib/report` Python modules no longer import the global options dictionary.
 
 ## Constructing a manager

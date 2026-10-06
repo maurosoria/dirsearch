@@ -2,25 +2,23 @@ from functools import partial
 from unittest import TestCase
 from unittest.mock import Mock, patch
 
+from lib.core.run_config import RunConfig
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.data import options
 from lib.core.dictionary import Dictionary
 from lib.core.execution_config import ScanEngine
-from lib.core.result_config import ResultConfig
 from lib.core.scan_run_state import ScanRunState
-from lib.core.wordlist_config import WordlistConfig
 from tests.controller.test_session_resume_queue import RecordingAsyncFuzzer, RecordingFuzzer
 
 
 class TestProgressOwnership(TestCase):
     def _controller(self):
         controller = object.__new__(Controller)
+        controller.config = RunConfig()
         controller.run_state = ScanRunState()
         controller.target_progress = TargetProgress()
-        controller.result_config = ResultConfig()
-        controller.wordlist_config = WordlistConfig()
-        controller.dictionary = Dictionary(controller.wordlist_config)
+        controller.dictionary = Dictionary(controller.config.wordlist)
         controller.dictionary.__setstate__((["one", "two"], 0, [], 0))
         controller.start_time = 0
         controller.run_state.jobs_processed = 3
@@ -65,6 +63,7 @@ class TestProgressOwnership(TestCase):
                     patch("lib.controller.controller.signal.signal"),
                 ):
                     try:
+                        controller._prepare_config(options)
                         controller.run()
                     finally:
                         if controller.loop is not None:

@@ -3,12 +3,11 @@ from unittest import TestCase
 from unittest.mock import AsyncMock, Mock, patch
 
 from lib.connection.response import NativeResponse
+from lib.core.run_config import RunConfig
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
 from lib.core.data import options
-from lib.core.result_config import ResultConfig
-from lib.core.wordlist_config import WordlistConfig
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.exceptions import RequestException
 from lib.core.execution_config import ExecutionConfig, ScanEngine
@@ -62,13 +61,11 @@ def resolved_html_response():
 
 def create_controller(requester, *, crawl=False, engine=ScanEngine.THREADED):
     controller = object.__new__(Controller)
+    controller.config = RunConfig(execution=ExecutionConfig(engine=engine), discovery=DiscoveryConfig(crawl=crawl))
     controller.run_state = ScanRunState()
     controller.target_progress = TargetProgress()
-    controller.result_config = ResultConfig()
     controller.logger = Mock()
     controller.interface = Mock()
-    controller.execution_config = ExecutionConfig(engine=engine)
-    controller.discovery_config = DiscoveryConfig(crawl=crawl)
     controller.requester = requester
     controller.dictionary = RecordingDictionary()
     controller.target_progress.base_path = "base/"
@@ -116,7 +113,7 @@ class TestRootCrawl(TestCase):
             patch("lib.core.fuzzer.Fuzzer", DummyFuzzer),
             patch("lib.controller.controller.signal.signal"),
         ):
-            controller.wordlist_config = WordlistConfig.from_options(options)
+            controller._prepare_config(options)
             controller.run()
 
         requester.request.assert_called_once_with("base/")

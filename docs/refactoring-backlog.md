@@ -1,7 +1,7 @@
 # Local state ownership backlog
 
-This is the state-isolation backlog following PR #1746, including the
-invocation-metadata boundary in this branch. It is not a list of all product issues, nor
+This is the state-isolation backlog following PR #1748, including the
+prepared-configuration aggregate in this branch. It is not a list of all product issues, nor
 a claim that multiple complete controllers can already share a process safely.
 Keep subsequent steps independently reviewable, with explicit contracts and
 regressions before replacing their callers.
@@ -49,12 +49,18 @@ regressions before replacing their callers.
   date per invocation and shares one immutable `RunMetadata` with reports and
   session path formatting. `COMMAND` and `START_TIME` import-time captures are
   removed. Numeric checkpoint/deadline start times and report schemas are unchanged.
+- [Run configuration](run-configuration.md) now groups all ten policies, prepared
+  from one detached normalized input after raw parsing or validated resume.
+  Consumers still receive narrow policies. Blacklist attachment preserves other
+  policy identities; metadata, input, resources and progress remain separate.
+  `_session_options` is still transitional, and complete controller isolation is
+  not claimed.
 
 ## Remaining work, in suggested order
 
 | Order | Boundary | Completion criterion |
 | --- | --- | --- |
-| 1 | Aggregate configuration and local context | Group prepared policies without a giant parameter list; replace the transitional session options mapping. Separate configuration, live resources and mutable progress. Assign ownership to generator state without changing generation behavior; invocation metadata is now owned. |
+| 1 | Local context and persistence input | Aggregate configuration is now owned. Replace the transitional session options mapping; separate resource preparation/cleanup from configuration and progress. Assign ownership to generator state without changing generation behavior. |
 | 2 | CLI options boundary | Keep mutable normalization local to one invocation; remove the global `options` dictionary once its last consumers are migrated. |
 | 3 | Constant tables | Make read-only intent enforceable where compatible, including `TEXT_CHARS`, and review the duplicate default-port mappings. |
 | 4 | Isolation acceptance tests | Prove independent local lifecycles, output, failure cleanup and resume without process-global patching; address signal ownership and ambient raw-target context. Passing component tests alone is insufficient. |

@@ -2,11 +2,11 @@ import asyncio
 from unittest import TestCase
 from unittest.mock import Mock, patch
 
+from lib.core.run_config import RunConfig
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
 from lib.core.data import options
-from lib.core.result_config import ResultConfig
 from lib.core.dictionary import Dictionary
 from lib.core.wordlist_config import WordlistConfig
 
@@ -50,9 +50,9 @@ class RecordingAsyncFuzzer(RecordingFuzzer):
 class TestSessionResumeQueue(TestCase):
     def _controller(self):
         controller = object.__new__(Controller)
+        controller.config = RunConfig()
         controller.run_state = ScanRunState()
         controller.target_progress = TargetProgress()
-        controller.result_config = ResultConfig()
         controller.logger = Mock()
         controller.interface = Mock()
         controller.start_time = 0
@@ -132,7 +132,7 @@ class TestSessionResumeQueue(TestCase):
                     patch("lib.controller.controller.signal.signal"),
                 ):
                     try:
-                        controller.wordlist_config = WordlistConfig.from_options(options)
+                        controller._prepare_config(options)
                         controller.run()
                     finally:
                         if isinstance(controller.loop, asyncio.AbstractEventLoop):

@@ -13,7 +13,8 @@ preparation boundary as `RequestConfig`, before constructing requesters.
 Changing global options after preparation cannot change these hints for the
 current or later targets. The options adapter uses only its supplied mapping;
 `set_target()` no longer reads global options. Internal callers that prepare
-targets directly must supply `controller.target_config` explicitly.
+targets directly must supply `controller.config.target` through an explicit
+[RunConfig](run-configuration.md).
 
 ## Policy versus state
 

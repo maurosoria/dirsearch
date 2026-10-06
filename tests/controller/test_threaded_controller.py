@@ -2,6 +2,7 @@ import threading
 from unittest import TestCase
 from unittest.mock import Mock, patch
 
+from lib.core.run_config import RunConfig
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
@@ -23,6 +24,7 @@ def create_dictionary():
 
 def create_controller(fuzzer, dictionary):
     controller = object.__new__(Controller)
+    controller.config = RunConfig(execution=fuzzer.execution_config)
     controller.run_state = ScanRunState()
     controller.target_progress = TargetProgress()
     controller.start_time = 90
@@ -30,7 +32,6 @@ def create_controller(fuzzer, dictionary):
     controller.run_state.old_session = True
     controller.dictionary = dictionary
     controller.fuzzer = fuzzer
-    controller.execution_config = fuzzer.execution_config
     controller.run_state.jobs_processed = 0
     controller._native_worker = None
     return controller

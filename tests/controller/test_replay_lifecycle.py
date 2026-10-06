@@ -3,6 +3,7 @@ from unittest import IsolatedAsyncioTestCase, TestCase
 from unittest.mock import Mock
 
 from lib.connection.response import NativeResponse
+from lib.core.run_config import RunConfig
 from lib.controller.controller import Controller
 from lib.core.data import options
 from lib.core.result_config import ResultConfig
@@ -83,10 +84,12 @@ class TestAsyncReplayLifecycle(ReplayOptionsMixin, IsolatedAsyncioTestCase):
         options["async_mode"] = False
         requester = RecordingAsyncRequester()
         controller = object.__new__(Controller)
-        controller.result_config = ResultConfig(replay_proxy="http://replay.test:8080")
+        controller.config = RunConfig(
+            results=ResultConfig(replay_proxy="http://replay.test:8080"),
+            execution=ExecutionConfig(engine=ScanEngine.ASYNC),
+            discovery=DiscoveryConfig.from_options(options),
+        )
         controller.interface = Mock()
-        controller.execution_config = ExecutionConfig(engine=ScanEngine.ASYNC)
-        controller.discovery_config = DiscoveryConfig.from_options(options)
         controller.loop = asyncio.get_running_loop()
         controller.requester = requester
 
@@ -108,10 +111,12 @@ class TestAsyncReplayLifecycle(ReplayOptionsMixin, IsolatedAsyncioTestCase):
         options["async_mode"] = False
         requester = BlockingAsyncRequester()
         controller = object.__new__(Controller)
-        controller.result_config = ResultConfig(replay_proxy="http://replay.test:8080")
+        controller.config = RunConfig(
+            results=ResultConfig(replay_proxy="http://replay.test:8080"),
+            execution=ExecutionConfig(engine=ScanEngine.ASYNC),
+            discovery=DiscoveryConfig.from_options(options),
+        )
         controller.interface = Mock()
-        controller.execution_config = ExecutionConfig(engine=ScanEngine.ASYNC)
-        controller.discovery_config = DiscoveryConfig.from_options(options)
         controller.loop = asyncio.get_running_loop()
         controller.requester = requester
 
@@ -135,10 +140,12 @@ class TestAsyncReplayLifecycle(ReplayOptionsMixin, IsolatedAsyncioTestCase):
     async def test_replay_failure_is_observed_by_callback_runner(self):
         options["async_mode"] = False
         controller = object.__new__(Controller)
-        controller.result_config = ResultConfig(replay_proxy="http://replay.test:8080")
+        controller.config = RunConfig(
+            results=ResultConfig(replay_proxy="http://replay.test:8080"),
+            execution=ExecutionConfig(engine=ScanEngine.ASYNC),
+            discovery=DiscoveryConfig.from_options(options),
+        )
         controller.interface = Mock()
-        controller.execution_config = ExecutionConfig(engine=ScanEngine.ASYNC)
-        controller.discovery_config = DiscoveryConfig.from_options(options)
         controller.loop = asyncio.get_running_loop()
         controller.requester = FailingAsyncRequester()
 
@@ -158,10 +165,12 @@ class TestSyncReplayLifecycle(ReplayOptionsMixin, TestCase):
                 options["async_mode"] = True
                 requester = Mock()
                 controller = object.__new__(Controller)
-                controller.result_config = ResultConfig(replay_proxy="http://replay.test:8080")
+                controller.config = RunConfig(
+                    results=ResultConfig(replay_proxy="http://replay.test:8080"),
+                    execution=ExecutionConfig(engine=engine),
+                    discovery=DiscoveryConfig.from_options(options),
+                )
                 controller.interface = Mock()
-                controller.execution_config = ExecutionConfig(engine=engine)
-                controller.discovery_config = DiscoveryConfig.from_options(options)
                 controller.requester = requester
 
                 result = controller.match_callback(matched_response())

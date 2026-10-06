@@ -3,7 +3,6 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from lib.controller.controller import Controller
 from lib.core.data import options
-from lib.core.result_config import ResultConfig
 from lib.core.wordlist_config import WordlistConfig
 from lib.core.fuzzer import AsyncFuzzer, Fuzzer, NativeFuzzer
 from tests.core.test_advanced_filters import response
@@ -29,8 +28,7 @@ class TestControllerFilterConfig(TestCase):
                             exclude_texts=[], session_file=None, subdirs=[],
                             urls=["http://first.test/", "http://second.test/"],
                         )
-                        controller.wordlist_config = WordlistConfig.from_options(options)
-                        controller.result_config = ResultConfig.from_options(options)
+                        controller._prepare_config(options)
                         controller.reporter = Mock(reports=())
                         controller.dictionary = Mock()
                         controller.target_progress.directories = []
@@ -47,7 +45,7 @@ class TestControllerFilterConfig(TestCase):
                         fuzzer = controller.fuzzer
                         fuzzers.append(fuzzer)
                         self.assertIsInstance(fuzzer, fuzzer_class)
-                        self.assertIs(fuzzer.filter_config, controller.filter_config)
+                        self.assertIs(fuzzer.filter_config, controller.config.filters)
                         # Changing option storage and the original source must
                         # not alter an already configured run or its next target.
                         options["include_status_codes"].clear()
@@ -80,8 +78,8 @@ class TestControllerFilterConfig(TestCase):
                     ):
                         controller = Controller()
 
-                    loader.assert_called_once_with(controller.wordlist_config)
+                    loader.assert_called_once_with(controller.config.wordlist)
                     self.assertEqual(len(fuzzers), 2)
                     self.assertIsNot(fuzzers[0].filter_state, fuzzers[1].filter_state)
                     if backend == "native":
-                        self.assertIs(factory.call_args.kwargs["filter_config"], controller.filter_config)
+                        self.assertIs(factory.call_args.kwargs["filter_config"], controller.config.filters)

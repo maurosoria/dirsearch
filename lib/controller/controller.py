@@ -26,8 +26,8 @@ import sys
 import re
 import threading
 import time
+from collections.abc import Mapping
 from copy import deepcopy
-from dataclasses import replace
 from types import SimpleNamespace
 from typing import Any, Awaitable, TextIO
 
@@ -37,7 +37,6 @@ from lib.connection.response import BaseResponse
 from lib.core.data import options
 from lib.core.decorators import locked
 from lib.core.dictionary import Dictionary, get_blacklists
-from lib.core.discovery_config import DiscoveryConfig
 from lib.core.exceptions import (
     CannotConnectException,
     FileExistsException,
@@ -49,12 +48,8 @@ from lib.core.exceptions import (
     UnpicklingError,
     WordlistLimitError,
 )
-from lib.core.execution_config import ExecutionConfig, ScanEngine
-from lib.core.filter_config import FilterConfig
-from lib.core.request_config import RequestConfig
-from lib.core.report_config import ReportConfig
-from lib.core.result_config import ResultConfig
-from lib.core.log_config import LogConfig
+from ..core.execution_config import ScanEngine
+from ..core.run_config import RunConfig
 from lib.core.logger import RunLogger
 from lib.core.options import (
     validate_numeric_options,
@@ -64,7 +59,6 @@ from lib.core.options import (
 from lib.core.request_backend import get_native_request_backend_error
 from ..core.scan_run_state import ScanRunState
 from ..core.run_metadata import RunMetadata
-from lib.core.target_config import TargetConfig
 from lib.core.target_progress import TargetProgress
 from lib.core.terminal_config import TerminalConfig
 from lib.core.settings import (
@@ -82,7 +76,6 @@ from lib.core.settings import (
     THREADED_WORKER_SHUTDOWN_TIMEOUT,
     UNKNOWN,
 )
-from lib.core.wordlist_config import WordlistConfig
 from lib.core.wordlist_template import generate_backup_paths
 from lib.parse.rawrequest import parse_raw
 from lib.parse.url import (
@@ -240,6 +233,21 @@ class Controller:
                         finally:
                             self.logger.close()
 
+    def _prepare_config(self, values: Mapping[str, Any]) -> None:
+        """Detach one effective input for all policies and session persistence.
+
+        Only call after raw parsing or restored-option validation. Capture before
+        constructing resources so their callbacks cannot change later policies.
+        The normalized mapping remains a transitional session representation.
+        """
+        prepared_options = deepcopy(dict(values))
+        try:
+            config = RunConfig.from_options(prepared_options)
+        except ValueError as error:
+            fail(error)
+        self.config = config
+        self._session_options = prepared_options
+
     def _refresh_terminal(self) -> None:
         """Replace bootstrap policy after raw parsing or restored session options.
 
@@ -247,7 +255,7 @@ class Controller:
         a creation failure leaves a valid terminal for error reporting/cleanup.
         """
         terminal = create_terminal(
-            TerminalConfig.from_options(options), stream=self._terminal_stream
+            self.config.terminal, stream=self._terminal_stream
         )
         previous = self.interface
         self.interface = terminal
@@ -255,7 +263,7 @@ class Controller:
 
     def _prepare_logging(self) -> None:
         """Replace bootstrap logging only after effective options are available."""
-        config = LogConfig.from_options(options)
+        config = self.config.logging
         try:
             if config.file_path:
                 FileUtils.create_dir(FileUtils.parent(config.file_path))
@@ -315,6 +323,7 @@ class Controller:
             validate_random_agent_headers(SimpleNamespace(**options))
             validate_numeric_options(SimpleNamespace(**options))
             validate_regex_options(SimpleNamespace(**options))
+            self._prepare_config(options)
             self._refresh_terminal()
             self._prepare_logging()
             output_history = snapshot.output_history
@@ -330,12 +339,11 @@ class Controller:
                 last_output = self._format_output_history(output_history)
             else:
                 last_output = ""
-            self.wordlist_config = WordlistConfig.from_options(options)
-            self._restore_session(snapshot, ReportConfig.from_options(options))
-            self.result_config = ResultConfig.from_options(options)
+            self._restore_session(snapshot)
             self._prepare_response_stores()
             self._confirm_session_overwrite(session_file)
-            self._session_options = deepcopy(options)
+            # This interactive choice changes the save destination, not policy.
+            self._session_options["session_file"] = options["session_file"]
         except InvalidURLException as error:
             self.logger.exception(error)
             self.interface.error(str(error))
@@ -347,9 +355,7 @@ class Controller:
             sys.exit(1)
         self.interface.new_line(last_output, do_save=False)
 
-    def _restore_session(
-        self, snapshot: SessionSnapshot, report_config: ReportConfig
-    ) -> None:
+    def _restore_session(self, snapshot: SessionSnapshot) -> None:
         """Rebuild owned runtime objects from already validated session data.
 
         Storage does not construct resources. Keep their ownership here so the
@@ -367,9 +373,9 @@ class Controller:
         self.run_state.errors = progress.errors
         self.run_state.consecutive_errors = progress.consecutive_errors
         self.run_state.old_session = progress.old_session
-        self.dictionary = Dictionary(self.wordlist_config)
+        self.dictionary = Dictionary(self.config.wordlist)
         self.dictionary.__setstate__(task.dictionary.to_state())
-        self.reporter = ReportManager(report_config, metadata=self.metadata)
+        self.reporter = ReportManager(self.config.reports, metadata=self.metadata)
 
     def _snapshot_session(
         self, session_options: dict[str, Any], last_output: str
@@ -467,11 +473,11 @@ class Controller:
         else:
             options["headers"] = {**DEFAULT_HEADERS, **options["headers"]}
 
+        self._prepare_config(options)
         self._refresh_terminal()
-        self.wordlist_config = WordlistConfig.from_options(options)
         try:
             self.dictionary = Dictionary(
-                self.wordlist_config, files=options["wordlists"]
+                self.config.wordlist, files=self._session_options["wordlists"]
             )
         except WordlistLimitError as e:
             self.interface.error(str(e))
@@ -482,7 +488,6 @@ class Controller:
 
         self._prepare_logging()
 
-        self.result_config = ResultConfig.from_options(options)
         self._prepare_response_stores()
 
         self.interface.header(BANNER)
@@ -490,30 +495,21 @@ class Controller:
 
         try:
             self.reporter = ReportManager(
-                ReportConfig.from_options(options), metadata=self.metadata
+                self.config.reports, metadata=self.metadata
             )
         except InvalidURLException as e:
             self.logger.exception(e)
             self.interface.error(str(e))
             sys.exit(1)
 
-        if options["log_file"]:
-            self.interface.log_file(options["log_file"])
-        self._session_options = deepcopy(options)
+        if self.config.logging.file_path:
+            self.interface.log_file(self.config.logging.file_path)
 
     def run(self) -> None:
-        # Resolve only after setup/session restoration, before imports, callbacks
-        # or workers can choose an execution model. A restored invalid pair of
-        # flags must fail here rather than dispatch through conflicting branches.
-        try:
-            self.execution_config = ExecutionConfig.from_options(options)
-        except ValueError as error:
-            fail(error)
-
-        if self.execution_config.engine is ScanEngine.NATIVE:
+        if self.config.execution.engine is ScanEngine.NATIVE:
             from lib.connection.native import NativeRequester as Requester
             from lib.core.fuzzer import NativeFuzzer as Fuzzer
-        elif self.execution_config.engine is ScanEngine.ASYNC:
+        elif self.config.execution.engine is ScanEngine.ASYNC:
             from lib.connection.requester import AsyncRequester as Requester
             from lib.core.fuzzer import AsyncFuzzer as Fuzzer
 
@@ -535,7 +531,7 @@ class Controller:
         if self.response_stores:
             match_callbacks.append(
                 self.save_response_async
-                if self.execution_config.engine is ScanEngine.ASYNC
+                if self.config.execution.engine is ScanEngine.ASYNC
                 else self.save_response
             )
         match_callbacks.append(self.reset_consecutive_errors)
@@ -544,28 +540,17 @@ class Controller:
         )
         error_callbacks = (self.raise_error, self.append_error_log)
 
-        # setup() has parsed raw requests, or _import() has restored the session.
-        # Snapshot once, before any requester or lazy native engine is created.
+        # Target input still comes from the transitional CLI boundary. Policies
+        # are already frozen; loading blacklist data never rereads options.
         self.run_state.prepare_targets(options["urls"])
-        self.target_config = TargetConfig.from_options(options)
-        # Stores were prepared before run(). Their frozen policy determines
-        # body capture even if composition options have changed in between.
-        # Keep destination paths out of the transport's configuration.
-        self.request_config = replace(
-            RequestConfig.from_options(options),
-            capture_full_body=self.result_config.capture_full_body,
-        )
-        self.discovery_config = DiscoveryConfig.from_options(options)
-        self.filter_config = FilterConfig.from_options(
-            options, blacklists=get_blacklists(self.wordlist_config)
-        )
-        if self.execution_config.engine is ScanEngine.NATIVE:
+        self.config = self.config.with_blacklists(get_blacklists(self.config.wordlist))
+        if self.config.execution.engine is ScanEngine.NATIVE:
             self.requester = Requester(
-                self.request_config, filter_config=self.filter_config
+                self.config.request, filter_config=self.config.filters
             )
         else:
-            self.requester = Requester(self.request_config, logger=self.logger)
-        if self.execution_config.engine is ScanEngine.ASYNC:
+            self.requester = Requester(self.config.request, logger=self.logger)
+        if self.config.execution.engine is ScanEngine.ASYNC:
             self.loop = asyncio.new_event_loop()
 
         signal.signal(signal.SIGINT, lambda *_: self.handle_pause())
@@ -573,7 +558,7 @@ class Controller:
 
         while (task := self.run_state.activate_next()) is not None:
             fuzzer_options = {}
-            if self.execution_config.engine is ScanEngine.NATIVE:
+            if self.config.execution.engine is ScanEngine.NATIVE:
                 fuzzer_options["filtered_chunk_callbacks"] = (
                     self.update_progress_bar_batch,
                     self.reset_consecutive_errors_batch,
@@ -581,9 +566,9 @@ class Controller:
             self.fuzzer = Fuzzer(
                 self.requester,
                 self.dictionary,
-                filter_config=self.filter_config,
-                discovery_config=self.discovery_config,
-                execution_config=self.execution_config,
+                filter_config=self.config.filters,
+                discovery_config=self.config.discovery,
+                execution_config=self.config.execution,
                 match_callbacks=tuple(match_callbacks),
                 not_found_callbacks=not_found_callbacks,
                 error_callbacks=error_callbacks,
@@ -595,7 +580,7 @@ class Controller:
                 self.set_target(task.target)
 
                 if not self.target_progress.directories:
-                    for subdir in self.discovery_config.subdirs:
+                    for subdir in self.config.discovery.subdirs:
                         self.add_directory(self.target_progress.base_path + subdir)
 
                 if not self.run_state.old_session:
@@ -639,7 +624,7 @@ class Controller:
     def _report_match_callback(self):
         if (
             self.reporter.reports
-            and self.execution_config.engine is ScanEngine.ASYNC
+            and self.config.execution.engine is ScanEngine.ASYNC
         ):
             return self.reporter.save_async
         return self.reporter.save
@@ -660,12 +645,12 @@ class Controller:
                     self.interface.warning(msg)
 
                 self.fuzzer.set_base_path(current_directory)
-                if self.execution_config.engine is ScanEngine.ASYNC:
+                if self.config.execution.engine is ScanEngine.ASYNC:
                     # use a future to get exceptions from handle_pause
                     # https://stackoverflow.com/a/64230941
                     self.pause_future = self.loop.create_future()
                     self.loop.run_until_complete(self.start_coroutines(start_time))
-                elif self.execution_config.engine is ScanEngine.NATIVE:
+                elif self.config.execution.engine is ScanEngine.NATIVE:
                     self.start_native_fuzzer(start_time)
                 else:
                     self.fuzzer.start()
@@ -676,7 +661,7 @@ class Controller:
 
             finally:
                 if (
-                    self.execution_config.engine is ScanEngine.THREADED
+                    self.config.execution.engine is ScanEngine.THREADED
                     and not self.fuzzer.stop(THREADED_WORKER_SHUTDOWN_TIMEOUT)
                 ):
                     raise QuitInterrupt("Threaded scan did not stop safely")
@@ -699,17 +684,17 @@ class Controller:
         now = time.time()
         time_limits = []
 
-        if self.execution_config.max_time > 0:
+        if self.config.execution.max_time > 0:
             time_limits.append(
                 (
-                    self.execution_config.max_time - (now - self.start_time),
+                    self.config.execution.max_time - (now - self.start_time),
                     QuitInterrupt("Runtime exceeded the maximum set by the user"),
                 )
             )
-        if self.execution_config.target_max_time > 0:
+        if self.config.execution.target_max_time > 0:
             time_limits.append(
                 (
-                    self.execution_config.target_max_time - (now - start_time),
+                    self.config.execution.target_max_time - (now - start_time),
                     SkipTargetInterrupt(
                         "Runtime for target exceeded the maximum set by the user"
                     ),
@@ -820,11 +805,11 @@ class Controller:
         while True:
             while not self.fuzzer.is_finished():
                 now = time.time()
-                if now - self.start_time > self.execution_config.max_time > 0:
+                if now - self.start_time > self.config.execution.max_time > 0:
                     raise QuitInterrupt(
                         "Runtime exceeded the maximum set by the user"
                     )
-                if now - start_time > self.execution_config.target_max_time > 0:
+                if now - start_time > self.config.execution.target_max_time > 0:
                     raise SkipTargetInterrupt(
                         "Runtime for target exceeded the maximum set by the user"
                     )
@@ -834,7 +819,7 @@ class Controller:
             break
 
     def set_target(self, url: str) -> None:
-        target_config = self.target_config
+        target_config = self.config.target
         # If no scheme specified, unset it first
         if "://" not in url:
             url = f'{target_config.default_scheme or UNKNOWN}://{url}'
@@ -911,11 +896,11 @@ class Controller:
         self.requester.set_query(parsed.query)
 
     def crawl_target(self) -> None:
-        if not self.discovery_config.crawl:
+        if not self.config.discovery.crawl:
             return
 
         try:
-            if self.execution_config.engine is ScanEngine.ASYNC:
+            if self.config.execution.engine is ScanEngine.ASYNC:
                 response = self.loop.run_until_complete(
                     self.requester.request(self.target_progress.base_path)
                 )
@@ -944,8 +929,8 @@ class Controller:
         self.response_stores = ()
         try:
             self.response_stores = create_response_stores(
-                self.result_config.response_directory,
-                self.result_config.response_jsonl_file,
+                self.config.results.response_directory,
+                self.config.results.response_jsonl_file,
             )
         except (OSError, ValueError) as error:
             self.logger.exception(error)
@@ -1007,15 +992,15 @@ class Controller:
     def match_callback(
         self, response: BaseResponse
     ) -> Awaitable[BaseResponse] | None:
-        discovery = self.discovery_config
+        discovery = self.config.discovery
         replay = None
 
-        if response.status in self.execution_config.skip_on_status:
+        if response.status in self.config.execution.skip_on_status:
             raise SkipTargetInterrupt(
                 f"Skipped the target due to {response.status} status code"
             )
 
-        self.interface.status_report(response, self.result_config.full_url)
+        self.interface.status_report(response, self.config.results.full_url)
 
         if response.status in discovery.recursion_status_codes and any(
             (
@@ -1047,19 +1032,19 @@ class Controller:
             if added_to_queue:
                 self.interface.new_directories(added_to_queue)
 
-        if self.result_config.replay_proxy:
+        if self.config.results.replay_proxy:
             # Replay the request with new proxy
-            if self.execution_config.engine is ScanEngine.ASYNC:
+            if self.config.execution.engine is ScanEngine.ASYNC:
                 # AsyncFuzzer awaits callback results, so replay remains inside
                 # the scan lifecycle and receives cancellation with its worker.
                 replay = self.requester.replay_request(
                     response.full_path,
-                    proxy=self.result_config.replay_proxy,
+                    proxy=self.config.results.replay_proxy,
                 )
             else:
                 self.requester.request(
                     response.full_path,
-                    proxy=self.result_config.replay_proxy,
+                    proxy=self.config.results.replay_proxy,
                 )
 
         if discovery.crawl:
@@ -1075,7 +1060,7 @@ class Controller:
     def update_progress_bar(self, response: BaseResponse | None) -> None:
         jobs_count = (
             # Jobs left for unscanned targets
-            len(self.discovery_config.subdirs) * self.run_state.pending_count
+            len(self.config.discovery.subdirs) * self.run_state.pending_count
             # Jobs left for the current target
             + len(self.target_progress.directories)
             # Finished jobs
@@ -1095,7 +1080,7 @@ class Controller:
         self.update_progress_bar(None)
 
     def raise_error(self, exception: RequestException) -> None:
-        if self.execution_config.exit_on_error:
+        if self.config.execution.exit_on_error:
             raise QuitInterrupt("Canceled due to an error")
 
         self.run_state.errors += 1
@@ -1179,14 +1164,14 @@ class Controller:
 
                         self._export(session_file)
                         quitexc = QuitInterrupt(f"Session saved to: {session_file}")
-                        if self.execution_config.engine is ScanEngine.ASYNC:
+                        if self.config.execution.engine is ScanEngine.ASYNC:
                             self.pause_future.set_exception(quitexc)
                             break
                         else:
                             raise quitexc
                     elif option.lower() == "q":
                         quitexc = QuitInterrupt("Canceled by the user")
-                        if self.execution_config.engine is ScanEngine.ASYNC:
+                        if self.config.execution.engine is ScanEngine.ASYNC:
                             self.pause_future.set_exception(quitexc)
                             break
                         else:
@@ -1205,7 +1190,7 @@ class Controller:
                 elif option.lower() == "s" and self.run_state.pending_count:
                     self._reset_pause_state()
                     skipexc = SkipTargetInterrupt("Target skipped by the user")
-                    if self.execution_config.engine is ScanEngine.ASYNC:
+                    if self.config.execution.engine is ScanEngine.ASYNC:
                         self.pause_future.set_exception(skipexc)
                         break
                     else:
@@ -1221,7 +1206,7 @@ class Controller:
             return
 
         url = self.target_progress.url + path
-        depth_limit = self.discovery_config.recursion_depth
+        depth_limit = self.config.discovery.recursion_depth
 
         if (
             path.count("/") - self.target_progress.base_path.count("/") > depth_limit > 0
@@ -1236,7 +1221,7 @@ class Controller:
         resource_path = path.split("?", 1)[0].lstrip("/")
         return any(
             resource_path.startswith(subdir) or f"/{subdir}" in resource_path
-            for subdir in self.discovery_config.exclude_subdirs
+            for subdir in self.config.discovery.exclude_subdirs
         )
 
     @locked
@@ -1244,16 +1229,16 @@ class Controller:
         dirs_count = len(self.target_progress.directories)
         path = clean_path(path)
 
-        if self.discovery_config.force_recursive and not path.endswith("/"):
+        if self.config.discovery.force_recursive and not path.endswith("/"):
             path += "/"
 
-        if self.discovery_config.deep_recursive:
+        if self.config.discovery.deep_recursive:
             i = 0
             for _ in range(path.count("/")):
                 i = path.index("/", i) + 1
                 self.add_directory(path[:i])
         elif (
-            self.discovery_config.recursive
+            self.config.discovery.recursive
             and path.endswith("/")
             and re.search(EXTENSION_RECOGNITION_REGEX, path[:-1]) is None
         ):

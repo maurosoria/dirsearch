@@ -8,6 +8,7 @@ from tempfile import TemporaryDirectory
 from unittest import TestCase, skipUnless
 from unittest.mock import Mock, patch
 
+from lib.core.run_config import RunConfig
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.controller.session import SessionStore
@@ -16,7 +17,6 @@ from lib.core.data import options
 from lib.core.dictionary import Dictionary
 from lib.core.execution_config import ScanEngine
 from lib.core.native_runtime import is_native_backend_available
-from lib.core.report_config import ReportConfig
 from lib.core.run_metadata import RunMetadata
 from lib.core.scan_run_state import ScanRunState
 from lib.core.task_spec import TaskSpec
@@ -27,6 +27,7 @@ from lib.core.wordlist_config import WordlistConfig
 class TestSessionSnapshot(TestCase):
     def _controller(self):
         controller = object.__new__(Controller)
+        controller.config = RunConfig()
         controller.metadata = RunMetadata("dirsearch", "2026-10-06 12:00:00")
         controller.run_state = ScanRunState()
         controller.target_progress = TargetProgress()
@@ -39,8 +40,7 @@ class TestSessionSnapshot(TestCase):
         controller.target_progress.base_path = "/"
         controller.target_progress.url = "http://active.test/"
         controller.run_state.old_session = True
-        controller.wordlist_config = WordlistConfig()
-        controller.dictionary = Dictionary(controller.wordlist_config)
+        controller.dictionary = Dictionary(controller.config.wordlist)
         controller.dictionary.__setstate__((["done", "pending"], 1, ["extra"], 0))
         controller.output_history = [{"start_time": 100, "output": "previous"}]
         controller.run_state.prepare_targets([controller.target_progress.url, "http://next.test/"])
@@ -322,7 +322,7 @@ class TestSessionSnapshot(TestCase):
         restored = []
         for _ in range(2):
             controller = self._controller()
-            controller._restore_session(snapshot, ReportConfig())
+            controller._restore_session(snapshot)
             self.addCleanup(controller.reporter.finish)
             restored.append(controller)
         restored[0].target_progress.directories.clear()

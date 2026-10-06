@@ -4,12 +4,12 @@ from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import AsyncMock, Mock, call, patch
 
+from lib.core.run_config import RunConfig
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
 from lib.controller.session import SessionStore
 from lib.core.data import options
-from lib.core.result_config import ResultConfig
 from lib.core.dictionary import Dictionary
 from lib.core.exceptions import InvalidURLException
 from lib.core.execution_config import ScanEngine
@@ -26,12 +26,11 @@ class TestControllerTargetConfig(TestCase):
         ):
             with self.subTest(engine=engine):
                 controller = object.__new__(Controller)
+                controller.config = RunConfig()
                 controller.run_state = ScanRunState()
                 controller.target_progress = TargetProgress()
-                controller.result_config = ResultConfig()
                 controller.logger = Mock()
                 controller.interface = Mock()
-                controller.wordlist_config = WordlistConfig()
                 controller.dictionary = Mock()
                 controller.target_progress.directories = []
                 controller.run_state.old_session = False
@@ -68,6 +67,7 @@ class TestControllerTargetConfig(TestCase):
                     patch("lib.controller.controller.signal.signal"),
                 ):
                     try:
+                        controller._prepare_config(options)
                         controller.run()
                     finally:
                         if controller.loop is not None:
@@ -86,16 +86,16 @@ class TestControllerTargetConfig(TestCase):
 
     def test_independent_target_policies_work_with_global_options_empty(self):
         first = object.__new__(Controller)
+        first.config = RunConfig(target=TargetConfig("https", "192.0.2.7", True))
         first.run_state = ScanRunState()
         first.target_progress = TargetProgress()
         first.interface = Mock()
-        first.target_config = TargetConfig("https", "192.0.2.7", True)
         first.requester = Mock()
         second = object.__new__(Controller)
+        second.config = RunConfig(target=TargetConfig("http"))
         second.run_state = ScanRunState()
         second.target_progress = TargetProgress()
         second.interface = Mock()
-        second.target_config = TargetConfig("http")
         second.requester = Mock()
         with patch.dict(options, {}, clear=True):
             first.set_target("example.test/private?next=%2Fhome")
@@ -115,10 +115,10 @@ class TestControllerTargetConfig(TestCase):
 
     def test_frozen_proxy_guard_rejects_before_probe_or_requester_mutation(self):
         controller = object.__new__(Controller)
+        controller.config = RunConfig(target=TargetConfig(proxy_configured=True))
         controller.run_state = ScanRunState()
         controller.target_progress = TargetProgress()
         controller.interface = Mock()
-        controller.target_config = TargetConfig(proxy_configured=True)
         controller.requester = Mock()
         with (
             patch.dict(options, {"scheme": "https", "proxies": [], "tor": False}, clear=True),
@@ -136,10 +136,10 @@ class TestControllerTargetConfig(TestCase):
         ):
             with self.subTest(target=target):
                 controller = object.__new__(Controller)
+                controller.config = RunConfig(target=TargetConfig(connect_host="2001:db8::7"))
                 controller.run_state = ScanRunState()
                 controller.target_progress = TargetProgress()
                 controller.interface = Mock()
-                controller.target_config = TargetConfig(connect_host="2001:db8::7")
                 controller.requester = Mock()
                 with (
                     patch.dict(options, {}, clear=True),
@@ -199,8 +199,8 @@ class TestControllerTargetConfig(TestCase):
                     patch("lib.controller.controller.create_terminal"),
                 ):
                     controller = Controller()
-                self.assertEqual(controller.target_config, TargetConfig("https", "2001:db8::7", True))
-                self.assertEqual(controller.request_config.proxies, ("http://proxy.test:8080",))
+                self.assertEqual(controller.config.target, TargetConfig("https", "2001:db8::7", True))
+                self.assertEqual(controller.config.request.proxies, ("http://proxy.test:8080",))
                 self.assertEqual(requester.set_url.call_args_list, [
                     call("https://first.test/"), call("https://second.test:8443/"),
                 ])

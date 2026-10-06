@@ -1,8 +1,10 @@
+from dataclasses import replace
 # -*- coding: utf-8 -*-
 
 from unittest import TestCase
 from unittest.mock import Mock, patch
 
+from lib.core.run_config import RunConfig
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.data import options
@@ -44,11 +46,11 @@ class TestPauseState(TestCase):
 
     def reset_controller(self):
         self.controller = object.__new__(Controller)
+        self.controller.config = RunConfig(execution=ExecutionConfig.from_options(options))
         self.controller.metadata = RunMetadata("dirsearch", "2026-10-05 23:59:59")
         self.controller.run_state = ScanRunState()
         self.controller.target_progress = TargetProgress()
         self.controller.interface = Mock()
-        self.controller.execution_config = ExecutionConfig.from_options(options)
         self.controller.run_state.prepare_targets(options["urls"])
         self.controller.run_state.activate_next()
         self.controller._handling_pause = False
@@ -107,7 +109,7 @@ class TestPauseState(TestCase):
                     patch("builtins.input", side_effect=answers),
                 ):
                     self.reset_controller()
-                    self.controller.execution_config = ExecutionConfig(engine=engine)
+                    self.controller.config = replace(self.controller.config, execution=ExecutionConfig(engine=engine))
                     self.controller.pause_future = RecordingPauseFuture()
                     self.controller._export = Mock()
                     options.update(request_backend="python", async_mode=engine is not ScanEngine.ASYNC)
@@ -154,7 +156,7 @@ class TestPauseState(TestCase):
                     patch("time.strftime", return_value="2026-10-06 00:00:01"),
                 ):
                     self.reset_controller()
-                    self.controller.execution_config = ExecutionConfig(engine=engine)
+                    self.controller.config = replace(self.controller.config, execution=ExecutionConfig(engine=engine))
                     self.controller.pause_future = RecordingPauseFuture()
                     self.controller._export = Mock()
                     if engine is ScanEngine.ASYNC:
@@ -180,7 +182,7 @@ class TestPauseState(TestCase):
         ):
             self.reset_controller()
             self.controller.pause_future = RecordingPauseFuture()
-            self.controller.execution_config = ExecutionConfig(engine=ScanEngine.ASYNC)
+            self.controller.config = replace(self.controller.config, execution=ExecutionConfig(engine=ScanEngine.ASYNC))
             self.exercise_second_pause("s")
 
         self.assertIsInstance(
@@ -198,7 +200,7 @@ class TestPauseState(TestCase):
                 patch("builtins.input", return_value="s"),
             ):
                 self.reset_controller()
-                self.controller.execution_config = ExecutionConfig(engine=engine)
+                self.controller.config = replace(self.controller.config, execution=ExecutionConfig(engine=engine))
                 self.controller.pause_future = RecordingPauseFuture()
                 self.controller.run_state = ScanRunState(["first", "pending"])
                 self.controller.run_state.activate_next()
@@ -220,7 +222,7 @@ class TestPauseState(TestCase):
                 patch("builtins.input", side_effect=("s", "c")),
             ):
                 self.reset_controller()
-                self.controller.execution_config = ExecutionConfig(engine=engine)
+                self.controller.config = replace(self.controller.config, execution=ExecutionConfig(engine=engine))
                 self.controller.run_state = ScanRunState(["last"])
                 self.controller.run_state.activate_next()
                 self.controller.handle_pause()
