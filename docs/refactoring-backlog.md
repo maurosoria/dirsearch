@@ -1,7 +1,7 @@
 # Local state ownership backlog
 
-This is the state-isolation backlog following PR #1743, including the
-run/target progress separation in this branch. It is not a list of all product issues, nor
+This is the state-isolation backlog following PR #1744, including the
+typed checkpoint boundary in this branch. It is not a list of all product issues, nor
 a claim that multiple complete controllers can already share a process safely.
 Keep subsequent steps independently reviewable, with explicit contracts and
 regressions before replacing their callers.
@@ -34,12 +34,18 @@ regressions before replacing their callers.
   controllers. Export uses prepared options plus owned progress; storage no
   longer creates runtime resources. Version-1 JSON and cross-engine resume stay
   unchanged. The prepared options mapping remains a transitional representation.
+- Typed `RunCheckpoint`, `TaskCheckpoint` and `DictionaryCheckpoint` values now
+  separate cumulative run data from current-target continuation. Both save and
+  load use `SessionSnapshot`; storage owns wire names and legacy defaults.
+  Progress values are immutable, restoration creates fresh mutable containers,
+  and the JSON schema is unchanged. `TaskCheckpoint` is not a runnable descriptor
+  or an independently portable session.
 
 ## Remaining work, in suggested order
 
 | Order | Boundary | Completion criterion |
 | --- | --- | --- |
-| 1 | Task descriptor and checkpoint model | Build on the separated progress owners to define a data-only task descriptor and checkpoint, including dictionary progress, without changing cross-engine resume. Keep live resources separate. |
+| 1 | Task descriptor and checkpoint association | Define input identity and its association with the existing `TaskCheckpoint`, without conflating prepared origin with the original target or run-wide policy. Keep live resources separate and preserve cross-engine resume. |
 | 2 | Aggregate configuration and local context | Group prepared policies without a giant parameter list; replace the transitional session options mapping. Separate configuration, live resources and mutable progress. Assign ownership to run metadata and generator state without changing generation behavior. |
 | 3 | CLI options boundary | Keep mutable normalization local to one invocation; remove the global `options` dictionary once its last consumers are migrated. |
 | 4 | Constant tables | Make read-only intent enforceable where compatible, including `TEXT_CHARS`, and review the duplicate default-port mappings. |
@@ -56,7 +62,8 @@ Removing globals is a prerequisite, not completion of the architecture work.
 The following stages are proposals, not implemented features or release promises:
 
 1. Complete the task/progress/checkpoint and aggregate-configuration boundaries
-   above. A future `TaskCheckpoint` is not the current run-level `SessionSnapshot`.
+   above. The current `TaskCheckpoint` is only one part of a run-level
+   `SessionSnapshot`; independent task identity/configuration is still missing.
 2. Separate construction, preparation, execution and closure. Keep live resources
    in explicit contexts with owned cleanup; put process signals in the CLI adapter.
 3. Prove independent lifecycle, cancellation, persistence and output isolation

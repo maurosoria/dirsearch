@@ -25,8 +25,9 @@ import json
 import os
 from typing import Any
 
-from lib.controller.session_snapshot import SessionSnapshot
+from .session_snapshot import RunCheckpoint, SessionSnapshot
 from lib.core.exceptions import UnpicklingError
+from ..core.task_checkpoint import DictionaryCheckpoint, TaskCheckpoint
 from lib.utils.file import FileUtils
 
 
@@ -96,14 +97,15 @@ class SessionStore:
         sessions.sort(key=lambda item: item["path"])
         return sessions
 
-    def load(self, session_path: str) -> dict[str, Any]:
+    def load(self, session_path: str) -> SessionSnapshot:
+        """Validate stored data and return owned, engine-independent values."""
         session_dir, checkpoint_path, _ = self._resolve_session_paths(
             session_path
         )
         if os.path.isfile(checkpoint_path):
             payload = self._read_json(checkpoint_path)
             self._validate_payload(payload)
-            return payload
+            return self._decode_snapshot(payload)
 
         meta_payload = self._read_json(
             FileUtils.build_path(session_dir, self.FILES["meta"])
@@ -123,7 +125,40 @@ class SessionStore:
             ),
         }
         self._validate_payload(payload)
-        return payload
+        return self._decode_snapshot(payload)
+
+    def _decode_snapshot(self, payload: dict[str, Any]) -> SessionSnapshot:
+        """Adapt validated version-1 fields, including omitted legacy defaults.
+
+        Wire names and compatibility defaults stay here, not in the controller
+        or checkpoint value objects. Explicit null progress is invalid; only
+        absent optional fields receive historical defaults.
+        """
+        progress = payload["controller"]
+        dictionary = payload["dictionary"]
+        return SessionSnapshot(
+            run=RunCheckpoint(
+                start_time=progress["start_time"],
+                passed_urls=progress.get("passed_urls", ()),
+                jobs_processed=progress.get("jobs_processed", 0),
+                errors=progress.get("errors", 0),
+                consecutive_errors=progress.get("consecutive_errors", 0),
+                old_session=progress.get("old_session", True),
+            ),
+            task=TaskCheckpoint(
+                url=progress.get("url", ""),
+                base_path=progress.get("base_path", ""),
+                directories=progress.get("directories", ()),
+                dictionary=DictionaryCheckpoint(
+                    items=dictionary["items"], index=dictionary["index"],
+                    extra=dictionary.get("extra", ()),
+                    extra_index=dictionary.get("extra_index", 0),
+                ),
+            ),
+            options=self.restore_options(payload["options"]),
+            last_output=payload.get("last_output") or "",
+            output_history=payload.get("output_history") or [],
+        )
 
     def save(self, snapshot: SessionSnapshot, session_path: str) -> None:
         """Persist detached data; resource and history ownership stay with callers."""
@@ -132,8 +167,24 @@ class SessionStore:
         )
         payload = {
             "version": self.SESSION_VERSION,
-            "controller": snapshot.controller,
-            "dictionary": snapshot.dictionary,
+            # Preserve the on-disk layout while the in-memory owners evolve.
+            "controller": {
+                "start_time": snapshot.run.start_time,
+                "passed_urls": snapshot.run.passed_urls,
+                "directories": snapshot.task.directories,
+                "jobs_processed": snapshot.run.jobs_processed,
+                "errors": snapshot.run.errors,
+                "consecutive_errors": snapshot.run.consecutive_errors,
+                "base_path": snapshot.task.base_path,
+                "url": snapshot.task.url,
+                "old_session": snapshot.run.old_session,
+            },
+            "dictionary": {
+                "items": snapshot.task.dictionary.items,
+                "index": snapshot.task.dictionary.index,
+                "extra": snapshot.task.dictionary.extra,
+                "extra_index": snapshot.task.dictionary.extra_index,
+            },
             "options": self._serialize_options(snapshot.options),
             "last_output": snapshot.last_output,
             "output_history": snapshot.output_history,
@@ -269,12 +320,12 @@ class SessionStore:
     def _validate_controller_state(controller: dict[str, Any]) -> None:
         for key in ("url", "base_path"):
             value = controller.get(key)
-            if value is not None and not isinstance(value, str):
+            if key in controller and not isinstance(value, str):
                 raise UnpicklingError(f"Invalid controller.{key} session data")
 
         for key in ("directories", "passed_urls"):
             value = controller.get(key)
-            if value is not None and (
+            if key in controller and (
                 not isinstance(value, list)
                 or any(not isinstance(item, str) for item in value)
             ):
@@ -282,20 +333,20 @@ class SessionStore:
 
         for key in ("jobs_processed", "errors", "consecutive_errors"):
             value = controller.get(key)
-            if value is not None and (
+            if key in controller and (
                 not isinstance(value, int) or isinstance(value, bool) or value < 0
             ):
                 raise UnpicklingError(f"Invalid controller.{key} session data")
 
         start_time = controller.get("start_time")
-        if start_time is not None and (
+        if (
             not isinstance(start_time, (int, float))
             or isinstance(start_time, bool)
         ):
             raise UnpicklingError("Invalid controller.start_time session data")
 
         old_session = controller.get("old_session")
-        if old_session is not None and not isinstance(old_session, bool):
+        if "old_session" in controller and not isinstance(old_session, bool):
             raise UnpicklingError("Invalid controller.old_session session data")
 
     @staticmethod

@@ -53,7 +53,7 @@ class TestSessionStore(TestCase):
         )
         self._write_json(
             os.path.join(session_dir, SessionStore.FILES["controller"]),
-            {"url": url, "directories": [], "jobs_processed": 1, "errors": 0},
+            {"start_time": 0, "url": url, "directories": [], "jobs_processed": 1, "errors": 0},
         )
         self._write_json(
             os.path.join(session_dir, SessionStore.FILES["dictionary"]),
@@ -67,7 +67,7 @@ class TestSessionStore(TestCase):
     def _write_session_file(self, session_file: str, url: str) -> None:
         payload = {
             "version": SessionStore.SESSION_VERSION,
-            "controller": {"url": url, "directories": [], "jobs_processed": 2, "errors": 0},
+            "controller": {"start_time": 0, "url": url, "directories": [], "jobs_processed": 2, "errors": 0},
             "dictionary": {"items": [], "index": 0, "extra": [], "extra_index": 0},
             "options": {"urls": ["https://example.com"]},
         }
@@ -148,13 +148,13 @@ class TestSessionStore(TestCase):
             [],
             {
                 "version": SessionStore.SESSION_VERSION,
-                "controller": {},
+                "controller": {"start_time": 0},
                 "dictionary": [],
                 "options": {},
             },
             {
                 "version": SessionStore.SESSION_VERSION,
-                "controller": {"directories": 7},
+                "controller": {"start_time": 0, "directories": 7},
                 "dictionary": {
                     "items": [],
                     "index": 0,
@@ -165,7 +165,7 @@ class TestSessionStore(TestCase):
             },
             {
                 "version": SessionStore.SESSION_VERSION,
-                "controller": {},
+                "controller": {"start_time": 0},
                 "dictionary": {
                     "items": [],
                     "index": 1,
@@ -176,7 +176,7 @@ class TestSessionStore(TestCase):
             },
             {
                 "version": SessionStore.SESSION_VERSION,
-                "controller": {},
+                "controller": {"start_time": 0},
                 "dictionary": {
                     "items": [],
                     "index": 0,
@@ -207,9 +207,31 @@ class TestSessionStore(TestCase):
             store = SessionStore()
             store.save(self._snapshot(session_options, controller=controller), session_dir)
             payload = store.load(session_dir)
-            restored = store.restore_options(payload["options"])
+            restored = payload.options
 
         self.assertEqual(restored["data"], body)
+
+    def test_load_and_listing_reject_incomplete_or_null_progress(self):
+        controller = {
+            "start_time": 123.5, "url": "https://example.test/",
+            "base_path": "", "directories": [], "passed_urls": [],
+            "jobs_processed": 0, "errors": 0, "consecutive_errors": 0,
+            "old_session": False,
+        }
+        invalid_states = [{key: value for key, value in controller.items() if key != "start_time"}]
+        invalid_states.extend({**controller, key: None} for key in controller)
+        for state in invalid_states:
+            with self.subTest(state=state), tempfile.TemporaryDirectory() as directory:
+                path = os.path.join(directory, "invalid.json")
+                self._write_json(path, {
+                    "version": 1, "controller": state,
+                    "dictionary": {"items": [], "index": 0}, "options": {},
+                })
+                store = SessionStore()
+                with self.assertRaises(UnpicklingError):
+                    store.load(path)
+                self.assertEqual(store.list_sessions(directory), [])
+                self.assertEqual(len(store.invalid_sessions), 1)
 
     def test_loaded_checkpoint_file_can_be_overwritten_in_place(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -234,12 +256,12 @@ class TestSessionStore(TestCase):
                 os.listdir(tmpdir),
                 ["checkpoint.json"],
             )
-            self.assertEqual(restored["controller"]["jobs_processed"], 7)
+            self.assertEqual(restored.run.jobs_processed, 7)
             self.assertEqual(
-                restored["options"]["urls"],
+                restored.options["urls"],
                 ["https://current.example/"],
             )
-            self.assertEqual(restored["last_output"], "current output")
+            self.assertEqual(restored.last_output, "current output")
 
     @skipIf(os.name == "nt", "POSIX mode bits are unavailable on Windows")
     def test_overwriting_checkpoint_file_tightens_its_permissions(self):
@@ -282,7 +304,7 @@ class TestSessionStore(TestCase):
             store = SessionStore()
             store.save(self._snapshot(session_options, controller=controller), session_dir)
             payload = store.load(session_dir)
-            restored_options = store.restore_options(payload["options"])
+            restored_options = payload.options
             resumed = object.__new__(Controller)
             resumed.run_state = ScanRunState()
             resumed.target_progress = TargetProgress()
@@ -349,10 +371,10 @@ class TestSessionStore(TestCase):
 
             restored = store.load(session_dir)
 
-        self.assertEqual(restored["controller"]["jobs_processed"], 1)
-        self.assertEqual(restored["dictionary"]["index"], 1)
-        self.assertEqual(restored["options"]["urls"], old_urls)
-        self.assertEqual(restored["last_output"], "old output")
+        self.assertEqual(restored.run.jobs_processed, 1)
+        self.assertEqual(restored.task.dictionary.index, 1)
+        self.assertEqual(restored.options["urls"], old_urls)
+        self.assertEqual(restored.last_output, "old output")
         self.assertEqual(
             controller.output_history,
             [],
@@ -434,12 +456,12 @@ class TestSessionStore(TestCase):
                 self.assertFalse(
                     os.path.exists(os.path.join(session_dir, file_name))
                 )
-            self.assertEqual(restored["controller"]["jobs_processed"], 7)
+            self.assertEqual(restored.run.jobs_processed, 7)
             self.assertEqual(
-                restored["options"]["urls"],
+                restored.options["urls"],
                 ["https://current.example/"],
             )
-            self.assertEqual(restored["last_output"], "current output")
+            self.assertEqual(restored.last_output, "current output")
 
     def test_failed_legacy_migration_leaves_legacy_checkpoint_loadable(self):
         with tempfile.TemporaryDirectory() as root:
@@ -469,11 +491,11 @@ class TestSessionStore(TestCase):
                 )
             )
             self.assertEqual(
-                restored["controller"]["url"],
+                restored.task.url,
                 "https://legacy.example/",
             )
             self.assertEqual(
-                restored["options"]["urls"],
+                restored.options["urls"],
                 ["https://example.com"],
             )
 

@@ -12,6 +12,8 @@ from lib.controller.controller import Controller
 from lib.core.scan_run_state import ScanRunState
 from lib.core.target_progress import TargetProgress
 from lib.controller.session import SessionStore
+from lib.controller.session_snapshot import RunCheckpoint, SessionSnapshot
+from lib.core.task_checkpoint import DictionaryCheckpoint, TaskCheckpoint
 from lib.core.data import options
 from lib.core.dictionary import Dictionary
 from lib.core.report_config import ReportConfig
@@ -28,10 +30,9 @@ class TestSessionReportConfiguration(TestCase):
             "postgres_url": None,
             "sqlite_commit_batch_size": 3,
         }
-        payload = {
-            "controller": {"start_time": 0},
-            "dictionary": {"items": [], "index": 0},
-        }
+        payload = SessionSnapshot(
+            run=RunCheckpoint(0), task=TaskCheckpoint(DictionaryCheckpoint((), 0)), options={},
+        )
         controller = object.__new__(Controller)
         controller.wordlist_config = WordlistConfig()
         with patch.dict(options, {

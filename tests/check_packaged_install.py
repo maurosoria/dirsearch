@@ -36,7 +36,7 @@ def main() -> None:
     )
     from dirsearch.lib.core import settings
     from dirsearch.lib.controller.session import SessionStore
-    from dirsearch.lib.controller.session_snapshot import SessionSnapshot
+    from dirsearch.lib.controller.session_snapshot import RunCheckpoint, SessionSnapshot
     from dirsearch.lib.core.discovery_config import DiscoveryConfig
     from dirsearch.lib.core.execution_config import ExecutionConfig, ScanEngine
     from dirsearch.lib.core.filter_config import FilterConfig
@@ -49,6 +49,7 @@ def main() -> None:
     from dirsearch.lib.core.scan_run_state import ScanRunState
     from dirsearch.lib.core.target_config import TargetConfig
     from dirsearch.lib.core.target_progress import TargetProgress
+    from dirsearch.lib.core.task_checkpoint import DictionaryCheckpoint, TaskCheckpoint
     from dirsearch.lib.core.terminal_config import TerminalConfig
     from dirsearch.lib.core.wordlist_config import WordlistConfig
     from dirsearch.lib.report.directory_response_store import DirectoryResponseStore
@@ -70,18 +71,19 @@ def main() -> None:
     assert WordlistState
     assert WordlistTemplate
     snapshot = SessionSnapshot(
-        controller={
-            "start_time": 0, "passed_urls": [], "directories": [],
-            "jobs_processed": 0, "errors": 0, "consecutive_errors": 0,
-            "base_path": "", "url": "", "old_session": False,
-        },
-        dictionary={"items": [], "index": 0, "extra": [], "extra_index": 0},
+        run=RunCheckpoint(0),
+        task=TaskCheckpoint(DictionaryCheckpoint((), 0)),
         options={"urls": [], "data": b"\x80\r\n"},
     )
     session_path = str(Path(temp_dir, "checkpoint"))
     store = SessionStore()
     store.save(snapshot, session_path)
-    assert store.restore_options(store.load(session_path)["options"]) == snapshot.options
+    restored = store.load(session_path)
+    assert isinstance(restored, SessionSnapshot)
+    assert isinstance(restored.run, RunCheckpoint)
+    assert isinstance(restored.task, TaskCheckpoint)
+    assert isinstance(restored.task.dictionary, DictionaryCheckpoint)
+    assert restored == snapshot
     assert WordlistConfig(extensions=["html"]).extensions == ("html",)
     assert ExecutionConfig(engine=ScanEngine.NATIVE).engine is ScanEngine.NATIVE
     assert ExecutionConfig(skip_on_status=[429]).skip_on_status == frozenset({429})

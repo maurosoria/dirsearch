@@ -7,6 +7,8 @@ from unittest import TestCase
 from unittest.mock import Mock, patch
 
 from lib.controller.controller import Controller
+from lib.controller.session_snapshot import RunCheckpoint, SessionSnapshot
+from lib.core.task_checkpoint import DictionaryCheckpoint, TaskCheckpoint
 from lib.core.data import options
 from lib.core.options import parse_options
 from lib.core.settings import COMMON_EXTENSIONS
@@ -43,12 +45,14 @@ class TestOptions(TestCase):
     def test_random_agent_rejects_fixed_user_agent_from_session(self):
         original_options = dict(options)
         session_store = Mock()
-        session_store.load.return_value = {"options": {}}
-        session_store.restore_options.return_value = {
-            "headers": {"User-Agent": "fixed-from-session"},
-            "random_agents": True,
-            "session_file": "session.json",
-        }
+        session_store.load.return_value = SessionSnapshot(
+            run=RunCheckpoint(0), task=TaskCheckpoint(DictionaryCheckpoint((), 0)),
+            options={
+                "headers": {"User-Agent": "fixed-from-session"},
+                "random_agents": True,
+                "session_file": "session.json",
+            },
+        )
         output = io.StringIO()
 
         try:

@@ -198,9 +198,8 @@ class TestControllerRunState(TestCase):
                     controller.run()
                 self.assertEqual(stopped.exception.code, 0)
                 payload = SessionStore().load(checkpoint)
-                self.assertEqual(payload["version"], SessionStore.SESSION_VERSION)
-                self.assertEqual(payload["options"]["urls"], targets[1:])
-                self.assertEqual(payload["controller"]["url"], targets[1])
+                self.assertEqual(payload.options["urls"], targets[1:])
+                self.assertEqual(payload.task.url, targets[1])
                 self.assertEqual(controller.set_target.call_args_list, list(map(call, targets[:2])))
                 self.assertEqual(options["urls"], ["http://unrelated.test/"])
                 self.assertIsNone(controller.run_state.active_target)
@@ -211,7 +210,7 @@ class TestControllerRunState(TestCase):
                 for resume_engine in ScanEngine:
                     with self.subTest(resume_engine=resume_engine):
                         resumed = self._controller()
-                        restored = SessionStore().restore_options(payload["options"])
+                        restored = payload.options
                         with self._environment(resume_engine, restored["urls"]):
                             resumed._restore_session(payload, ReportConfig.from_options(options))
                             self.addCleanup(resumed.reporter.finish)
