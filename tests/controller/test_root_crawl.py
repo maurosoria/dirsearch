@@ -4,6 +4,8 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from lib.connection.response import NativeResponse
 from lib.controller.controller import Controller
+from lib.core.target_progress import TargetProgress
+from lib.core.scan_run_state import ScanRunState
 from lib.core.data import options
 from lib.core.result_config import ResultConfig
 from lib.core.wordlist_config import WordlistConfig
@@ -60,6 +62,8 @@ def resolved_html_response():
 
 def create_controller(requester, *, crawl=False, engine=ScanEngine.THREADED):
     controller = object.__new__(Controller)
+    controller.run_state = ScanRunState()
+    controller.target_progress = TargetProgress()
     controller.result_config = ResultConfig()
     controller.logger = Mock()
     controller.interface = Mock()
@@ -67,7 +71,7 @@ def create_controller(requester, *, crawl=False, engine=ScanEngine.THREADED):
     controller.discovery_config = DiscoveryConfig(crawl=crawl)
     controller.requester = requester
     controller.dictionary = RecordingDictionary()
-    controller.base_path = "base/"
+    controller.target_progress.base_path = "base/"
     controller.raise_error = Mock()
     controller.append_error_log = Mock()
     return controller
@@ -87,9 +91,9 @@ class TestRootCrawl(TestCase):
         controller = create_controller(requester)
         controller.response_stores = ()
         controller.reporter = Mock()
-        controller.directories = []
-        controller.passed_urls = set()
-        controller.old_session = True
+        controller.target_progress.directories = []
+        controller.run_state.passed_urls = set()
+        controller.run_state.old_session = True
         controller.start = Mock()
 
         options.update(

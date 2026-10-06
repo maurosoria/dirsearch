@@ -70,8 +70,8 @@ class TestControllerTerminalOwnership(TestCase):
                 original_output = StringIO()
 
                 def save(controller):
-                    controller.base_path = ""
-                    controller.url = ""
+                    controller.target_progress.base_path = ""
+                    controller.target_progress.url = ""
                     controller.interface.new_line("first run")
                     controller._export(checkpoint)
 

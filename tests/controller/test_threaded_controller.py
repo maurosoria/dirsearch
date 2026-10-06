@@ -3,6 +3,8 @@ from unittest import TestCase
 from unittest.mock import Mock, patch
 
 from lib.controller.controller import Controller
+from lib.core.target_progress import TargetProgress
+from lib.core.scan_run_state import ScanRunState
 from lib.core.data import options
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.execution_config import ExecutionConfig
@@ -21,13 +23,15 @@ def create_dictionary():
 
 def create_controller(fuzzer, dictionary):
     controller = object.__new__(Controller)
+    controller.run_state = ScanRunState()
+    controller.target_progress = TargetProgress()
     controller.start_time = 90
-    controller.directories = [""]
-    controller.old_session = True
+    controller.target_progress.directories = [""]
+    controller.run_state.old_session = True
     controller.dictionary = dictionary
     controller.fuzzer = fuzzer
     controller.execution_config = fuzzer.execution_config
-    controller.jobs_processed = 0
+    controller.run_state.jobs_processed = 0
     controller._native_worker = None
     return controller
 
@@ -171,4 +175,4 @@ class TestThreadedControllerDeadlines(TestCase):
 
         self.assertFalse(any(worker.is_alive() for worker in fuzzer._threads))
         controller.dictionary.reset.assert_not_called()
-        self.assertEqual(controller.directories, [""])
+        self.assertEqual(controller.target_progress.directories, [""])

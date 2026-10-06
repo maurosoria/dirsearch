@@ -5,6 +5,10 @@ reads, validates and writes the existing version-1 JSON representation; it does
 not read a live controller, retain run options, construct dictionaries/reporters,
 or mutate the caller's output history.
 
+The controller now composes its progress from `ScanRunState` (queue and run-wide
+totals) and `TargetProgress` (origin, starting path and directories). Snapshot
+capture still exports the same flat JSON fields; no state class is serialized.
+
 ## Ownership and ordering
 
 | Stage | Owner | Contract |

@@ -4,6 +4,8 @@ from unittest import TestCase
 from unittest.mock import AsyncMock, Mock, patch
 
 from lib.controller.controller import Controller
+from lib.core.target_progress import TargetProgress
+from lib.core.scan_run_state import ScanRunState
 from lib.core.data import options
 from lib.core.execution_config import ExecutionConfig, ScanEngine
 from lib.core.settings import THREADED_WORKER_SHUTDOWN_TIMEOUT
@@ -41,14 +43,16 @@ class TestEngineSelection(TestCase):
         for engine in ScanEngine:
             with self.subTest(engine=engine):
                 controller = object.__new__(Controller)
+                controller.run_state = ScanRunState()
+                controller.target_progress = TargetProgress()
                 controller.interface = Mock()
                 controller.execution_config = ExecutionConfig(engine=engine)
-                controller.directories = ["first/", "second/"]
-                controller.old_session = True
+                controller.target_progress.directories = ["first/", "second/"]
+                controller.run_state.old_session = True
                 controller.fuzzer = Mock()
                 controller.dictionary = Mock()
                 controller._native_worker = None
-                controller.jobs_processed = 0
+                controller.run_state.jobs_processed = 0
                 controller.process = Mock()
                 controller.start_native_fuzzer = Mock()
                 controller.start_coroutines = AsyncMock()
@@ -57,8 +61,8 @@ class TestEngineSelection(TestCase):
                     with patch.dict(options, {}, clear=True):
                         controller.start()
                     self.assertEqual(controller.dictionary.reset.call_count, 2)
-                    self.assertEqual(controller.jobs_processed, 2)
-                    self.assertEqual(controller.directories, [])
+                    self.assertEqual(controller.run_state.jobs_processed, 2)
+                    self.assertEqual(controller.target_progress.directories, [])
                     self.assertEqual(
                         [call.args[0] for call in controller.fuzzer.set_base_path.call_args_list],
                         ["first/", "second/"],

@@ -48,6 +48,7 @@ def main() -> None:
     from dirsearch.lib.core.result_config import ResultConfig
     from dirsearch.lib.core.scan_run_state import ScanRunState
     from dirsearch.lib.core.target_config import TargetConfig
+    from dirsearch.lib.core.target_progress import TargetProgress
     from dirsearch.lib.core.terminal_config import TerminalConfig
     from dirsearch.lib.core.wordlist_config import WordlistConfig
     from dirsearch.lib.report.directory_response_store import DirectoryResponseStore
@@ -86,6 +87,10 @@ def main() -> None:
     assert ExecutionConfig(skip_on_status=[429]).skip_on_status == frozenset({429})
     assert RequestConfig(method="POST").method == "POST"
     assert TargetConfig(default_scheme="https").default_scheme == "https"
+    pending_directories = ["current/", "next/"]
+    target_progress = TargetProgress(directories=pending_directories)
+    pending_directories.clear()
+    assert target_progress.directories == ["current/", "next/"]
     assert TerminalConfig(extensions=["html"]).extensions == ("html",)
     output = StringIO()
     terminal = create_terminal(TerminalConfig(color=False), stream=output)
@@ -112,6 +117,11 @@ def main() -> None:
     assert run_state.activate_next() == "http://example.test/"
     assert run_state.pending_count == 1
     assert run_state.snapshot_targets() == ["http://example.test/", "http://next.test/"]
+    run_state.finish_active()
+    run_state.jobs_processed = 3
+    run_state.prepare_targets(["http://resumed.test/"])
+    assert run_state.jobs_processed == 3
+    assert run_state.snapshot_targets() == ["http://resumed.test/"]
     assert issubclass(DirectoryResponseStore, BaseResponseStore), (
         DirectoryResponseStore.__mro__
     )

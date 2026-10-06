@@ -9,6 +9,8 @@ from unittest.mock import Mock, patch
 from lib.connection.native import NativeHTTPBackend
 from lib.connection.requester import AsyncRequester, Requester
 from lib.controller.controller import Controller
+from lib.core.target_progress import TargetProgress
+from lib.core.scan_run_state import ScanRunState
 from lib.core.filter_config import FilterConfig
 from lib.core.request_config import RequestConfig
 from lib.core.target_config import TargetConfig
@@ -89,6 +91,8 @@ class TestControllerTargetURL(TestCase):
             }
         )
         self.controller = object.__new__(Controller)
+        self.controller.run_state = ScanRunState()
+        self.controller.target_progress = TargetProgress()
         self.controller.interface = Mock()
         self.controller.target_config = TargetConfig.from_options(options)
         self.controller.requester = Mock()
@@ -143,7 +147,7 @@ class TestControllerTargetURL(TestCase):
 
                 self.controller.set_target(target)
 
-                self.assertEqual(self.controller.url, expected_url)
+                self.assertEqual(self.controller.target_progress.url, expected_url)
                 self.controller.requester.set_url.assert_called_once_with(
                     expected_url
                 )
@@ -154,7 +158,7 @@ class TestControllerTargetURL(TestCase):
 
         self.controller.set_target("[2001:db8::1]:8443/private")
 
-        self.assertEqual(self.controller.url, "https://[2001:db8::1]:8443/")
+        self.assertEqual(self.controller.target_progress.url, "https://[2001:db8::1]:8443/")
         self.controller.requester.set_url.assert_called_once_with(
             "https://[2001:db8::1]:8443/"
         )
@@ -191,17 +195,19 @@ class TestControllerTargetURL(TestCase):
         for stack, async_mode, request_backend in stack_cases:
             with self.subTest(stack=stack):
                 controller = object.__new__(Controller)
+                controller.run_state = ScanRunState()
+                controller.target_progress = TargetProgress()
                 controller.result_config = ResultConfig()
                 controller.logger = Mock()
                 controller.interface = Mock()
                 controller.loop = None
                 controller.start_time = 0
-                controller.passed_urls = set()
-                controller.directories = []
-                controller.jobs_processed = 0
-                controller.errors = 0
-                controller.consecutive_errors = 0
-                controller.old_session = False
+                controller.run_state.passed_urls = set()
+                controller.target_progress.directories = []
+                controller.run_state.jobs_processed = 0
+                controller.run_state.errors = 0
+                controller.run_state.consecutive_errors = 0
+                controller.run_state.old_session = False
                 controller.dictionary = Mock()
                 controller.output_history = []
                 controller.response_stores = ()
@@ -311,6 +317,8 @@ class TestAsyncControllerTargetURL(IsolatedAsyncioTestCase):
             }
         )
         self.controller = object.__new__(Controller)
+        self.controller.run_state = ScanRunState()
+        self.controller.target_progress = TargetProgress()
         self.controller.interface = Mock()
         self.controller.target_config = TargetConfig.from_options(options)
 

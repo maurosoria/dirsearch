@@ -1,7 +1,7 @@
 # Local state ownership backlog
 
-This is the state-isolation backlog following PR #1742, including the
-session-snapshot boundary in this branch. It is not a list of all product issues, nor
+This is the state-isolation backlog following PR #1743, including the
+run/target progress separation in this branch. It is not a list of all product issues, nor
 a claim that multiple complete controllers can already share a process safely.
 Keep subsequent steps independently reviewable, with explicit contracts and
 regressions before replacing their callers.
@@ -14,6 +14,11 @@ regressions before replacing their callers.
 - Instance-owned mutable `FilterState` and explicit `ScanEngine` selection.
 - `ScanRunState` separates pending targets from the active target, preserving
   the existing engine-independent checkpoint representation.
+- [Run/target progress](scan-run-state.md) now separates cumulative counters and
+  scheduled-directory history (`ScanRunState`) from the current origin, starting
+  path and directory queue (`TargetProgress`). Preparation preserves restored
+  totals. Existing sequential lifetimes and the flat session schema are unchanged;
+  this is not yet an independently executable task model.
 - Python display-rate caching is now requester-owned. The 150 ms interval,
   request pacing and Rust rate accounting are unchanged.
 - [Terminal configuration](terminal-configuration.md), output history and stream
@@ -34,7 +39,7 @@ regressions before replacing their callers.
 
 | Order | Boundary | Completion criterion |
 | --- | --- | --- |
-| 1 | Per-task progress and checkpoint model | Separate one target's mutable progress from run-wide progress; define a data-only task descriptor and checkpoint without changing sequential execution or cross-engine resume. |
+| 1 | Task descriptor and checkpoint model | Build on the separated progress owners to define a data-only task descriptor and checkpoint, including dictionary progress, without changing cross-engine resume. Keep live resources separate. |
 | 2 | Aggregate configuration and local context | Group prepared policies without a giant parameter list; replace the transitional session options mapping. Separate configuration, live resources and mutable progress. Assign ownership to run metadata and generator state without changing generation behavior. |
 | 3 | CLI options boundary | Keep mutable normalization local to one invocation; remove the global `options` dictionary once its last consumers are migrated. |
 | 4 | Constant tables | Make read-only intent enforceable where compatible, including `TEXT_CHARS`, and review the duplicate default-port mappings. |

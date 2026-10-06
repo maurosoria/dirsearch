@@ -11,6 +11,8 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from lib.connection.response import NativeResponse
 from lib.controller.controller import Controller
+from lib.core.target_progress import TargetProgress
+from lib.core.scan_run_state import ScanRunState
 from lib.controller.session import SessionStore
 from lib.core.data import options
 from lib.core.dictionary import Dictionary
@@ -23,6 +25,8 @@ from lib.core.wordlist_config import WordlistConfig
 
 def controller_for(config, engine=ScanEngine.THREADED):
     controller = object.__new__(Controller)
+    controller.run_state = ScanRunState()
+    controller.target_progress = TargetProgress()
     controller.result_config = config
     controller.execution_config = ExecutionConfig(engine=engine)
     controller.discovery_config = DiscoveryConfig()
@@ -138,9 +142,8 @@ class TestResultPreparation(TestCase):
                         checkpoint = str(directory / "checkpoint.json")
                         if resumed:
                             saved_controller = SimpleNamespace(
-                                start_time=0, passed_urls=set(), directories=[],
-                                jobs_processed=0, errors=0, consecutive_errors=0,
-                                base_path="", url="", old_session=False, output_history=[],
+                                start_time=0, run_state=ScanRunState(),
+                                target_progress=TargetProgress(), output_history=[],
                                 dictionary=Dictionary(WordlistConfig()),
                             )
                             SessionStore().save(
@@ -172,13 +175,13 @@ class TestResultPreparation(TestCase):
                             original_run(controller)
 
                         def set_target(controller, url):
-                            controller.url = url
-                            controller.base_path = ""
+                            controller.target_progress.url = url
+                            controller.target_progress.base_path = ""
 
                         def start(controller):
                             policies.append(controller.result_config)
                             self.assertIs(controller.request_config.capture_full_body, capture)
-                            response = NativeResponse(controller.url + "item", 200, [], b"\x00body")
+                            response = NativeResponse(controller.target_progress.url + "item", 200, [], b"\x00body")
                             replay = controller.match_callback(response)
                             if engine is ScanEngine.ASYNC:
                                 controller.loop.run_until_complete(replay)

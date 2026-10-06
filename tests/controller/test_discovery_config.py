@@ -3,6 +3,8 @@ from unittest import TestCase
 from unittest.mock import AsyncMock, Mock, patch
 
 from lib.controller.controller import Controller
+from lib.core.target_progress import TargetProgress
+from lib.core.scan_run_state import ScanRunState
 from lib.core.data import options
 from lib.core.result_config import ResultConfig
 from lib.core.wordlist_config import WordlistConfig
@@ -13,15 +15,17 @@ from tests.core.test_backup_discovery import response_for
 
 def policy_controller(policy):
     controller = object.__new__(Controller)
+    controller.run_state = ScanRunState()
+    controller.target_progress = TargetProgress()
     controller.result_config = ResultConfig()
     controller.interface = Mock()
     controller.execution_config = ExecutionConfig()
     controller.discovery_config = policy
     controller._operation_lock = threading.Lock()
-    controller.url = "http://example.test/"
-    controller.base_path = ""
-    controller.directories = []
-    controller.passed_urls = set()
+    controller.target_progress.url = "http://example.test/"
+    controller.target_progress.base_path = ""
+    controller.target_progress.directories = []
+    controller.run_state.passed_urls = set()
     controller.dictionary = Mock()
     return controller
 
@@ -43,7 +47,7 @@ class TestControllerDiscoveryConfig(TestCase):
         controller = policy_controller(DiscoveryConfig(
             recursive=True, force_recursive=True, recursion_depth=1,
         ))
-        controller.base_path = "base/"
+        controller.target_progress.base_path = "base/"
         with patch.dict(options, {}, clear=True):
             self.assertEqual(controller.recur("base/child"), ["base/child/"])
             self.assertEqual(controller.recur("base/child/deeper"), [])
@@ -86,18 +90,18 @@ class TestControllerDiscoveryConfig(TestCase):
                         controller.result_config = ResultConfig.from_options(options)
                         controller.reporter = Mock(reports=())
                         controller.dictionary = Mock()
-                        controller.directories = []
-                        controller.passed_urls = set()
+                        controller.target_progress.directories = []
+                        controller.run_state.passed_urls = set()
 
                     def set_target(controller, url):
-                        controller.url = url
-                        controller.base_path = ""
+                        controller.target_progress.url = url
+                        controller.target_progress.base_path = ""
 
                     def start(controller):
                         fuzzers.append(controller.fuzzer)
                         self.assertIs(controller.fuzzer.discovery_config, controller.discovery_config)
-                        self.assertEqual(controller.directories, ["base/"])
-                        controller.directories.clear()
+                        self.assertEqual(controller.target_progress.directories, ["base/"])
+                        controller.target_progress.directories.clear()
                         options["subdirs"].clear()
                         options["prefixes"].clear()
                         options["recursion_depth"] = 99

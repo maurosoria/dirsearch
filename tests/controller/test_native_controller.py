@@ -4,6 +4,8 @@ from unittest import TestCase
 from unittest.mock import Mock, patch
 
 from lib.controller.controller import Controller
+from lib.core.target_progress import TargetProgress
+from lib.core.scan_run_state import ScanRunState
 from lib.core.data import options
 from lib.core.execution_config import ExecutionConfig
 from lib.core.exceptions import QuitInterrupt, SkipTargetInterrupt
@@ -65,13 +67,15 @@ class UncooperativeNativeFuzzer(BlockingNativeFuzzer):
 
 def create_controller(fuzzer):
     controller = object.__new__(Controller)
+    controller.run_state = ScanRunState()
+    controller.target_progress = TargetProgress()
     controller.start_time = time.time()
-    controller.directories = [""]
-    controller.old_session = True
+    controller.target_progress.directories = [""]
+    controller.run_state.old_session = True
     controller.fuzzer = fuzzer
     controller.execution_config = ExecutionConfig()
     controller.dictionary = Mock()
-    controller.jobs_processed = 0
+    controller.run_state.jobs_processed = 0
     controller._native_worker = None
     return controller
 
@@ -266,4 +270,4 @@ class TestNativeControllerDeadlines(TestCase):
                 native_worker.join(timeout=1)
 
         controller.dictionary.reset.assert_not_called()
-        self.assertEqual(controller.directories, [""])
+        self.assertEqual(controller.target_progress.directories, [""])

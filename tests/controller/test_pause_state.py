@@ -4,6 +4,7 @@ from unittest import TestCase
 from unittest.mock import Mock, patch
 
 from lib.controller.controller import Controller
+from lib.core.target_progress import TargetProgress
 from lib.core.data import options
 from lib.core.exceptions import QuitInterrupt, SkipTargetInterrupt
 from lib.core.execution_config import ExecutionConfig, ScanEngine
@@ -42,15 +43,17 @@ class TestPauseState(TestCase):
 
     def reset_controller(self):
         self.controller = object.__new__(Controller)
+        self.controller.run_state = ScanRunState()
+        self.controller.target_progress = TargetProgress()
         self.controller.interface = Mock()
         self.controller.execution_config = ExecutionConfig.from_options(options)
-        self.controller.run_state = ScanRunState(options["urls"])
+        self.controller.run_state.prepare_targets(options["urls"])
         self.controller.run_state.activate_next()
         self.controller._handling_pause = False
         self.controller._force_quit_handler = RecordingForceQuitHandler()
         self.controller.fuzzer = Mock()
         self.controller.fuzzer.pause.return_value = True
-        self.controller.directories = ["first/", "second/"]
+        self.controller.target_progress.directories = ["first/", "second/"]
 
     def tearDown(self):
         options.clear()

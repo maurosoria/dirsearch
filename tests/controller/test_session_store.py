@@ -28,6 +28,8 @@ from unittest.mock import patch
 
 from lib.controller.session import SessionStore
 from lib.controller.controller import Controller
+from lib.core.target_progress import TargetProgress
+from lib.core.scan_run_state import ScanRunState
 from lib.core.dictionary import Dictionary
 from lib.core.report_config import ReportConfig
 from lib.core.wordlist_config import WordlistConfig
@@ -74,14 +76,8 @@ class TestSessionStore(TestCase):
     def _controller(self) -> SimpleNamespace:
         return SimpleNamespace(
             start_time=1767225600.0,
-            passed_urls=set(),
-            directories=[],
-            jobs_processed=0,
-            errors=0,
-            consecutive_errors=0,
-            base_path="",
-            url="https://example.com/",
-            old_session=False,
+            run_state=ScanRunState(),
+            target_progress=TargetProgress(url="https://example.com/"),
             dictionary=Dictionary(WordlistConfig()),
             output_history=[],
         )
@@ -227,7 +223,7 @@ class TestSessionStore(TestCase):
                 "urls": ["https://current.example/"], "output_formats": [],
             }
             controller = self._controller()
-            controller.jobs_processed = 7
+            controller.run_state.jobs_processed = 7
 
             store.load(session_file)
             store.save(self._snapshot(session_options, "current output", controller), session_file)
@@ -274,8 +270,8 @@ class TestSessionStore(TestCase):
             "sqlite_commit_batch_size": 1,
         }
         controller = self._controller()
-        controller.directories = ["current/", "next/"]
-        controller.jobs_processed = 3
+        controller.target_progress.directories = ["current/", "next/"]
+        controller.run_state.jobs_processed = 3
         controller.dictionary = Dictionary(WordlistConfig())
         controller.dictionary.__setstate__(
             (["done", "in-flight", "later"], 1, [], 0)
@@ -288,12 +284,14 @@ class TestSessionStore(TestCase):
             payload = store.load(session_dir)
             restored_options = store.restore_options(payload["options"])
             resumed = object.__new__(Controller)
+            resumed.run_state = ScanRunState()
+            resumed.target_progress = TargetProgress()
             resumed.wordlist_config = WordlistConfig()
             resumed._restore_session(payload, ReportConfig.from_options(restored_options))
             self.addCleanup(resumed.reporter.finish)
 
-        self.assertEqual(resumed.directories, ["current/", "next/"])
-        self.assertEqual(resumed.jobs_processed, 3)
+        self.assertEqual(resumed.target_progress.directories, ["current/", "next/"])
+        self.assertEqual(resumed.run_state.jobs_processed, 3)
         self.assertEqual(restored_options["urls"], target_urls)
 
         self.assertEqual(
@@ -322,7 +320,7 @@ class TestSessionStore(TestCase):
         new_urls = ["https://new.example/"]
         session_options = {"urls": old_urls, "output_formats": []}
         controller = self._controller()
-        controller.jobs_processed = 1
+        controller.run_state.jobs_processed = 1
         controller.dictionary = Dictionary(WordlistConfig())
         controller.dictionary.__setstate__((["one", "two"], 1, [], 0))
 
@@ -330,7 +328,7 @@ class TestSessionStore(TestCase):
             store = SessionStore()
             store.save(self._snapshot(session_options, "old output", controller), session_dir)
 
-            controller.jobs_processed = 2
+            controller.run_state.jobs_processed = 2
             controller.dictionary.__setstate__((["one", "two"], 2, [], 0))
             session_options["urls"] = new_urls
             original_dump = json.dump
@@ -419,7 +417,7 @@ class TestSessionStore(TestCase):
             session_dir = os.path.join(root, "session")
             self._write_session_dir(session_dir, "https://legacy.example/")
             controller = self._controller()
-            controller.jobs_processed = 7
+            controller.run_state.jobs_processed = 7
             store = SessionStore()
 
             store.save(self._snapshot(

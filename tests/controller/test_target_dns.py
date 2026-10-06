@@ -20,6 +20,7 @@ from unittest import TestCase
 from unittest.mock import Mock, call, patch
 
 from lib.controller.controller import Controller
+from lib.core.target_progress import TargetProgress
 from lib.core.data import options
 from lib.core.exceptions import InvalidURLException
 from lib.core.target_config import TargetConfig
@@ -38,6 +39,7 @@ class TestControllerTargetDNS(TestCase):
             }
         )
         self.controller = object.__new__(Controller)
+        self.controller.target_progress = TargetProgress()
         self.controller.target_config = TargetConfig.from_options(options)
         self.controller.requester = Mock()
 

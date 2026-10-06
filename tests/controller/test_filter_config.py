@@ -33,7 +33,7 @@ class TestControllerFilterConfig(TestCase):
                         controller.result_config = ResultConfig.from_options(options)
                         controller.reporter = Mock(reports=())
                         controller.dictionary = Mock()
-                        controller.directories = []
+                        controller.target_progress.directories = []
 
                     def load_blacklists(wordlist_config):
                         self.assertEqual(prepared, [True])
@@ -41,7 +41,7 @@ class TestControllerFilterConfig(TestCase):
                         return blacklists
 
                     def set_target(controller, url):
-                        controller.url = url
+                        controller.target_progress.url = url
 
                     def start(controller):
                         fuzzer = controller.fuzzer

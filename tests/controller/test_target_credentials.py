@@ -5,6 +5,8 @@ import requests
 
 from lib.connection.requester import AsyncRequester, Requester
 from lib.controller.controller import Controller
+from lib.core.target_progress import TargetProgress
+from lib.core.scan_run_state import ScanRunState
 from lib.core.request_config import RequestConfig
 from lib.core.target_config import TargetConfig
 from lib.core.data import options
@@ -22,6 +24,8 @@ class TestControllerTargetCredentials(TestCase):
             }
         )
         self.controller = object.__new__(Controller)
+        self.controller.run_state = ScanRunState()
+        self.controller.target_progress = TargetProgress()
         self.controller.target_config = TargetConfig.from_options(options)
         self.controller.requester = Mock()
 
@@ -60,7 +64,7 @@ class TestControllerTargetCredentials(TestCase):
             "https://user:pass@example.test/private?debug=true"
         )
 
-        self.assertEqual(self.controller.base_path, "private/")
+        self.assertEqual(self.controller.target_progress.base_path, "private/")
         self.controller.requester.reset_auth.assert_called_once_with()
         self.controller.requester.set_url.assert_called_once_with(
             "https://example.test/"
@@ -132,6 +136,8 @@ class TargetAuthenticationIntegrationMixin:
     @staticmethod
     def controller_for(requester):
         controller = object.__new__(Controller)
+        controller.run_state = ScanRunState()
+        controller.target_progress = TargetProgress()
         controller.target_config = TargetConfig.from_options(options)
         controller.requester = requester
         return controller
