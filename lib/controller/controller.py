@@ -62,7 +62,7 @@ from lib.core.options import (
     validate_regex_options,
 )
 from lib.core.request_backend import get_native_request_backend_error
-from lib.core.scan_run_state import ScanRunState
+from ..core.scan_run_state import ScanRunState
 from lib.core.target_config import TargetConfig
 from lib.core.target_progress import TargetProgress
 from lib.core.terminal_config import TerminalConfig
@@ -307,6 +307,7 @@ class Controller:
             # Keep the explicit session path so resume/overwrite works as expected.
             loaded_session_file = session_file
             options.update(deepcopy(snapshot.options))
+            options["urls"] = [task.target for task in snapshot.remaining_tasks]
             options["session_file"] = loaded_session_file
             validate_random_agent_headers(SimpleNamespace(**options))
             validate_numeric_options(SimpleNamespace(**options))
@@ -352,8 +353,8 @@ class Controller:
         normal controller cleanup also covers partial restoration failures.
         """
         progress = snapshot.run
-        task = snapshot.task
-        self.run_state = ScanRunState()
+        task = snapshot.task_checkpoint
+        self.run_state = ScanRunState(spec.target for spec in snapshot.remaining_tasks)
         self.target_progress = TargetProgress(
             url=task.url, base_path=task.base_path, directories=task.directories,
         )
@@ -380,6 +381,7 @@ class Controller:
         if last_output:
             history.append({"start_time": self.start_time, "output": last_output})
         return SessionSnapshot(
+            remaining_tasks=self.run_state.snapshot_tasks(),
             run=RunCheckpoint(
                 start_time=self.start_time,
                 passed_urls=sorted(self.run_state.passed_urls),
@@ -388,13 +390,13 @@ class Controller:
                 consecutive_errors=self.run_state.consecutive_errors,
                 old_session=self.run_state.old_session,
             ),
-            task=TaskCheckpoint(
+            task_checkpoint=TaskCheckpoint(
                 url=self.target_progress.url,
                 base_path=self.target_progress.base_path,
                 directories=self.target_progress.directories,
                 dictionary=dictionary,
             ),
-            options=session_options,
+            options={key: value for key, value in session_options.items() if key != "urls"},
             last_output=last_output,
             output_history=history,
         )
@@ -436,11 +438,9 @@ class Controller:
 
         # A saved session must never advance beyond durable report rows.
         self.reporter.flush()
-        # Progress overlays the prepared input, never the process-wide options.
-        session_options = {
-            **self._session_options, "urls": self.run_state.snapshot_targets()
-        }
-        snapshot = self._snapshot_session(session_options, last_output)
+        # Owned task input and progress are captured together, never reread from
+        # process-wide URLs. Storage alone maps task input to version-1 options.
+        snapshot = self._snapshot_session(self._session_options, last_output)
         SessionStore().save(snapshot, session_file)
         self.output_history = snapshot.output_history
 
@@ -566,7 +566,7 @@ class Controller:
         signal.signal(signal.SIGINT, lambda *_: self.handle_pause())
         signal.signal(signal.SIGTERM, lambda *_: self.handle_pause())
 
-        while (url := self.run_state.activate_next()) is not None:
+        while (task := self.run_state.activate_next()) is not None:
             fuzzer_options = {}
             if self.execution_config.engine is ScanEngine.NATIVE:
                 fuzzer_options["filtered_chunk_callbacks"] = (
@@ -587,7 +587,7 @@ class Controller:
             )
 
             try:
-                self.set_target(url)
+                self.set_target(task.target)
 
                 if not self.target_progress.directories:
                     for subdir in self.discovery_config.subdirs:

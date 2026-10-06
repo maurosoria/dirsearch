@@ -37,8 +37,10 @@ class TaskCheckpoint:
     it. Later directories start with reset cursors. Before target preparation,
     the slot may be empty; an empty queue is not a successful-completion marker.
 
-    This is not a runnable task descriptor: original target ordering, run-wide
-    deduplication, counters and prepared options remain in the enclosing session.
+    The enclosing session's first remaining TaskSpec retains original target
+    input. Its prepared origin here is not a replacement for that input. This
+    is not a runnable task descriptor: ordering, run-wide deduplication, counters
+    and prepared options remain in the enclosing session.
     It contains no engine choice, requester, reporter, lock or worker, and is
     unrelated to Rust's internal ScanTask. Capture still requires paused workers.
     """

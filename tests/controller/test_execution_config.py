@@ -236,7 +236,7 @@ class TestControllerExecutionConfig(TestCase):
                     save_response=None, save_response_jsonl=None,
                 )
                 saved_controller = SimpleNamespace(
-                    start_time=100, run_state=ScanRunState(),
+                    start_time=100, run_state=ScanRunState(saved_options["urls"]),
                     target_progress=TargetProgress(), output_history=[],
                     dictionary=Dictionary(WordlistConfig()),
                 )

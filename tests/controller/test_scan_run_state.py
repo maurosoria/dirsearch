@@ -93,9 +93,9 @@ class TestControllerRunState(TestCase):
 
                 def start():
                     observations.append((
-                        controller.run_state.active_target,
+                        controller.run_state.active_task.target,
                         controller.run_state.pending_count,
-                        controller.run_state.snapshot_targets(),
+                        [task.target for task in controller.run_state.snapshot_tasks()],
                     ))
                     options["urls"] = ["http://unrelated.test/"]
 
@@ -108,8 +108,8 @@ class TestControllerRunState(TestCase):
                 ])
                 self.assertEqual(targets, expected)
                 self.assertEqual(options["urls"], ["http://unrelated.test/"])
-                self.assertIsNone(controller.run_state.active_target)
-                self.assertEqual(controller.run_state.snapshot_targets(), [])
+                self.assertIsNone(controller.run_state.active_task)
+                self.assertEqual([task.target for task in controller.run_state.snapshot_tasks()], [])
 
     def test_empty_run_never_activates_a_target(self):
         for engine in ScanEngine:
@@ -119,7 +119,7 @@ class TestControllerRunState(TestCase):
                 controller.set_target.assert_not_called()
                 controller.start.assert_not_called()
                 controller.reporter.finish.assert_called_once_with()
-                self.assertEqual(controller.run_state.snapshot_targets(), [])
+                self.assertEqual([task.target for task in controller.run_state.snapshot_tasks()], [])
 
     def test_handled_target_exit_advances_once(self):
         for engine in ScanEngine:
@@ -134,7 +134,7 @@ class TestControllerRunState(TestCase):
                     controller.run()
                     self.assertEqual(controller.set_target.call_args_list, list(map(call, targets)))
                     self.assertEqual(controller.start.call_count, 2)
-                    self.assertEqual(controller.run_state.snapshot_targets(), [])
+                    self.assertEqual([task.target for task in controller.run_state.snapshot_tasks()], [])
 
     def test_fuzzer_setup_failure_does_not_activate_later_targets(self):
         for engine, fuzzer_name in (
@@ -152,9 +152,9 @@ class TestControllerRunState(TestCase):
                 with self.assertRaisesRegex(RuntimeError, "setup failed"):
                     controller.run()
                 controller.set_target.assert_not_called()
-                self.assertEqual(controller.run_state.active_target, targets[0])
+                self.assertEqual(controller.run_state.active_task.target, targets[0])
                 self.assertEqual(controller.run_state.pending_count, 1)
-                self.assertEqual(controller.run_state.snapshot_targets(), targets)
+                self.assertEqual([task.target for task in controller.run_state.snapshot_tasks()], targets)
 
     def test_progress_counts_pending_targets_without_global_urls(self):
         controller = self._controller()
@@ -187,7 +187,7 @@ class TestControllerRunState(TestCase):
                 checkpoint = os.path.join(directory, "checkpoint.json")
 
                 def start():
-                    if controller.run_state.active_target == targets[1]:
+                    if controller.run_state.active_task.target == targets[1]:
                         # Changing global input must not leak into persistence.
                         options["urls"] = ["http://unrelated.test/"]
                         controller._export(checkpoint)
@@ -198,27 +198,27 @@ class TestControllerRunState(TestCase):
                     controller.run()
                 self.assertEqual(stopped.exception.code, 0)
                 payload = SessionStore().load(checkpoint)
-                self.assertEqual(payload.options["urls"], targets[1:])
-                self.assertEqual(payload.task.url, targets[1])
+                self.assertEqual([task.target for task in payload.remaining_tasks], targets[1:])
+                self.assertEqual(payload.task_checkpoint.url, targets[1])
                 self.assertEqual(controller.set_target.call_args_list, list(map(call, targets[:2])))
                 self.assertEqual(options["urls"], ["http://unrelated.test/"])
-                self.assertIsNone(controller.run_state.active_target)
-                self.assertEqual(controller.run_state.snapshot_targets(), targets[2:])
+                self.assertIsNone(controller.run_state.active_task)
+                self.assertEqual([task.target for task in controller.run_state.snapshot_tasks()], targets[2:])
 
                 # A real JSON checkpoint can resume through any engine. Engine
                 # overrides belong to the caller, not the serialized queue.
                 for resume_engine in ScanEngine:
                     with self.subTest(resume_engine=resume_engine):
                         resumed = self._controller()
-                        restored = payload.options
-                        with self._environment(resume_engine, restored["urls"]):
+                        restored_targets = [task.target for task in payload.remaining_tasks]
+                        with self._environment(resume_engine, restored_targets):
                             resumed._restore_session(payload, ReportConfig.from_options(options))
                             self.addCleanup(resumed.reporter.finish)
                             resumed.run()
                             self.assertEqual(
                                 resumed.set_target.call_args_list, list(map(call, targets[1:]))
                             )
-                            self.assertEqual(restored["urls"], targets[1:])
+                            self.assertEqual(restored_targets, targets[1:])
 
     def test_failed_save_changes_neither_input_nor_progress(self):
         targets = ["http://first.test/", "http://next.test/"]
@@ -242,8 +242,8 @@ class TestControllerRunState(TestCase):
             ):
                 controller._export(checkpoint)
             self.assertEqual(SessionStore().load(checkpoint), before)
-            self.assertEqual(controller.run_state.active_target, targets[1])
-            self.assertEqual(controller.run_state.snapshot_targets(), targets[1:])
+            self.assertEqual(controller.run_state.active_task.target, targets[1])
+            self.assertEqual([task.target for task in controller.run_state.snapshot_tasks()], targets[1:])
             self.assertEqual(options["urls"], targets)
 
     def test_import_rebuilds_remaining_work_from_checkpoint_not_cli_input(self):
@@ -271,4 +271,4 @@ class TestControllerRunState(TestCase):
                 resumed.run()
                 self.assertEqual(resumed.set_target.call_args_list, list(map(call, targets[1:])))
                 self.assertEqual(options["urls"], targets[1:])
-                self.assertEqual(resumed.run_state.snapshot_targets(), [])
+                self.assertEqual([task.target for task in resumed.run_state.snapshot_tasks()], [])

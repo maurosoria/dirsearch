@@ -18,6 +18,7 @@ from lib.core.execution_config import ScanEngine
 from lib.core.native_runtime import is_native_backend_available
 from lib.core.report_config import ReportConfig
 from lib.core.scan_run_state import ScanRunState
+from lib.core.task_spec import TaskSpec
 from lib.core.wordlist_backend import NativeWordlistChunk
 from lib.core.wordlist_config import WordlistConfig
 
@@ -50,13 +51,16 @@ class TestSessionSnapshot(TestCase):
     def test_snapshot_detaches_all_mutable_inputs_before_storage(self):
         controller = self._controller()
         prepared = {
-            "headers": {"X-Test": "original"}, "urls": [controller.target_progress.url],
+            "headers": {"X-Test": "original"},
+            "urls": ["http://unrelated-input.test/"],
             "data": b"\x80\r\n", "extensions": ("html",),
             "include_status_codes": {200}, "proxies": ["http://proxy.test/"],
         }
         snapshot = controller._snapshot_session(prepared, "current")
         controller.target_progress.directories.clear()
         controller.run_state.passed_urls.clear()
+        controller.run_state.finish_active()
+        controller.run_state.prepare_targets([])
         controller.dictionary.reset()
         controller.output_history[0]["output"] = "changed"
         prepared["headers"]["X-Test"] = "changed"
@@ -69,12 +73,13 @@ class TestSessionSnapshot(TestCase):
             store.save(snapshot, directory)
             payload = store.load(directory)
         restored_options = payload.options
-        self.assertEqual(payload.task.directories, ("current/", "next/"))
+        self.assertEqual(payload.task_checkpoint.directories, ("current/", "next/"))
         self.assertEqual(payload.run.passed_urls, ("http://done.test/",))
-        self.assertEqual(payload.task.dictionary.index, 1)
-        self.assertEqual(payload.task.dictionary.extra, ("extra",))
+        self.assertEqual(payload.task_checkpoint.dictionary.index, 1)
+        self.assertEqual(payload.task_checkpoint.dictionary.extra, ("extra",))
+        self.assertEqual([task.target for task in payload.remaining_tasks], ["http://active.test/", "http://next.test/"])
         self.assertEqual(restored_options, {
-            "headers": {"X-Test": "original"}, "urls": [controller.target_progress.url],
+            "headers": {"X-Test": "original"},
             "data": b"\x80\r\n", "extensions": ("html",),
             "include_status_codes": {200}, "proxies": ["http://proxy.test/"],
         })
@@ -86,8 +91,8 @@ class TestSessionSnapshot(TestCase):
     def test_snapshot_can_be_changed_without_mutating_the_controller(self):
         controller = self._controller()
         snapshot = controller._snapshot_session(controller._session_options, "")
-        snapshot.task = replace(snapshot.task, directories=())
-        snapshot.task = replace(snapshot.task, dictionary=replace(snapshot.task.dictionary, items=()))
+        snapshot.task_checkpoint = replace(snapshot.task_checkpoint, directories=())
+        snapshot.task_checkpoint = replace(snapshot.task_checkpoint, dictionary=replace(snapshot.task_checkpoint.dictionary, items=()))
         snapshot.options["headers"].clear()
         snapshot.output_history[0]["output"] = "changed"
         self.assertEqual(controller.target_progress.directories, ["current/", "next/"])
@@ -149,8 +154,8 @@ class TestSessionSnapshot(TestCase):
                 ):
                     restored = Controller(output=StringIO())
                 self.assertEqual(restored.output_history, expected_history)
-                snapshot.task = replace(snapshot.task, directories=())
-                snapshot.task = replace(snapshot.task, dictionary=replace(snapshot.task.dictionary, items=(), extra=()))
+                snapshot.task_checkpoint = replace(snapshot.task_checkpoint, directories=())
+                snapshot.task_checkpoint = replace(snapshot.task_checkpoint, dictionary=replace(snapshot.task_checkpoint.dictionary, items=(), extra=()))
                 if history:
                     snapshot.output_history[0]["output"] = "changed"
                 self.assertEqual(restored.target_progress.directories, ["current/", "next/"])
@@ -179,7 +184,7 @@ class TestSessionSnapshot(TestCase):
                 "url": "http://active.test/", "old_session": True,
             },
             "dictionary": {"items": ["done", "pending"], "index": 1, "extra": ["extra"], "extra_index": 0},
-            "options": {"urls": ["http://active.test/"]},
+            "options": {"urls": ["http://active.test/", "http://next.test/"]},
             "last_output": "current",
             "output_history": [{"start_time": 100, "output": "previous"}, {"start_time": 123.5, "output": "current"}],
         })
@@ -247,7 +252,7 @@ class TestSessionSnapshot(TestCase):
             self.assertEqual(restored["headers"], {"X-Raw": "prepared"})
             self.assertEqual(restored["data"], b"\x80\r\n")
             self.assertEqual(restored["http_method"], "POST")
-            self.assertEqual(restored["urls"], ["http://raw.test/"])
+            self.assertEqual([task.target for task in payload.remaining_tasks], ["http://raw.test/"])
             self.assertNotIn("unrelated history", str(payload.output_history))
 
     def test_export_uses_prepared_options_after_fresh_setup_or_resume_for_each_engine(self):
@@ -290,7 +295,7 @@ class TestSessionSnapshot(TestCase):
                     self.assertEqual(restored_options["headers"]["X-Test"], "prepared")
                     self.assertEqual(restored_options["auth"], "user:prepared-value")
                     self.assertEqual(restored_options["data"], b"\x80\r\n")
-                    self.assertEqual(restored_options["urls"], saved["urls"])
+                    self.assertEqual([task.target for task in restored.remaining_tasks], saved["urls"])
                     self.assertEqual(restored_options["request_backend"], saved["request_backend"])
                     self.assertEqual(restored_options["async_mode"], saved["async_mode"])
 
@@ -314,7 +319,9 @@ class TestSessionSnapshot(TestCase):
         self.assertEqual(restored[1].target_progress.directories, ["current/", "next/"])
         self.assertEqual(restored[1].run_state.passed_urls, {"http://done.test/"})
         self.assertEqual(restored[1].run_state.jobs_processed, 2)
+        self.assertEqual(restored[1].run_state.snapshot_tasks(), snapshot.remaining_tasks)
         self.assertEqual(restored[1].dictionary.__getstate__(), (["done", "pending"], 1, ["extra"], 0))
+        self.assertEqual(restored[1]._snapshot_session(snapshot.options, ""), snapshot)
 
     def test_load_returns_typed_values_and_legacy_defaults(self):
         with TemporaryDirectory() as directory:
@@ -327,13 +334,64 @@ class TestSessionSnapshot(TestCase):
             snapshot = SessionStore().load(str(checkpoint))
         self.assertIsInstance(snapshot, SessionSnapshot)
         self.assertEqual(snapshot.run, RunCheckpoint(12, old_session=True))
-        self.assertEqual(snapshot.task.url, "")
-        self.assertEqual(snapshot.task.base_path, "")
-        self.assertEqual(snapshot.task.directories, ())
-        self.assertEqual(snapshot.task.dictionary.to_state(), (["a", "a", "b"], 1, [], 0))
+        self.assertEqual(snapshot.task_checkpoint.url, "")
+        self.assertEqual(snapshot.task_checkpoint.base_path, "")
+        self.assertEqual(snapshot.task_checkpoint.directories, ())
+        self.assertEqual(snapshot.task_checkpoint.dictionary.to_state(), (["a", "a", "b"], 1, [], 0))
         self.assertEqual(snapshot.options, {"extensions": ("html",), "include_status_codes": {200}})
         self.assertEqual(snapshot.last_output, "")
         self.assertEqual(snapshot.output_history, [])
+
+    def test_task_input_round_trip_is_distinct_from_prepared_origin(self):
+        targets = [
+            "https://user:p%40ss@[2001:db8::1]:8443/a%2Fb?next=/home",
+            "https://example.test/café", "", "https://example.test/café",
+        ]
+        source = self._controller()
+        source.run_state = ScanRunState(targets)
+        source.run_state.activate_next()
+        source.target_progress.url = "https://[2001:db8::1]:8443/"
+        source.target_progress.base_path = "a%2Fb"
+        source.target_progress.directories = ["a%2Fb"]
+        snapshot = source._snapshot_session({"urls": ["unrelated"], "headers": {}}, "")
+        self.assertNotIn("urls", snapshot.options)
+        self.assertEqual(snapshot.remaining_tasks, tuple(TaskSpec(target) for target in targets))
+        with TemporaryDirectory() as directory:
+            store = SessionStore()
+            store.save(snapshot, directory)
+            payload = json.loads(Path(directory, store.CHECKPOINT_FILE).read_text(encoding="utf-8"))
+            self.assertEqual(payload["options"]["urls"], targets)
+            self.assertEqual(payload["controller"]["url"], "https://[2001:db8::1]:8443/")
+            restored = store.load(directory)
+            self.assertEqual(restored, snapshot)
+        self.assertEqual(restored.task_checkpoint.base_path, "a%2Fb")
+        self.assertEqual(restored.task_checkpoint.directories, ("a%2Fb",))
+        self.assertEqual(restored.task_checkpoint.dictionary.index, 1)
+
+    def test_snapshot_owns_task_sequence_and_rejects_ambiguous_input(self):
+        original = self._controller()._snapshot_session({}, "")
+        tasks = [TaskSpec("first"), TaskSpec("first"), TaskSpec("last")]
+        snapshot = replace(original, remaining_tasks=tasks)
+        tasks.clear()
+        self.assertEqual(snapshot.remaining_tasks, (TaskSpec("first"), TaskSpec("first"), TaskSpec("last")))
+        with self.assertRaisesRegex(ValueError, "remaining_tasks"):
+            replace(snapshot, options={"urls": ["conflicting"]})
+
+    def test_legacy_task_input_is_decoded_from_options_only(self):
+        for targets in (None, [], ["first?x=1", "first?x=1", ""]):
+            with self.subTest(targets=targets), TemporaryDirectory() as directory:
+                path = Path(directory, "legacy.json")
+                path.write_text(json.dumps({
+                    "version": 1,
+                    "controller": {"start_time": 0, "url": "https://prepared.test/"},
+                    "dictionary": {"items": [], "index": 0},
+                    "options": {"urls": targets, "data": "body"},
+                }), encoding="utf-8")
+                snapshot = SessionStore().load(str(path))
+                self.assertEqual([task.target for task in snapshot.remaining_tasks], targets or [])
+                self.assertEqual(snapshot.options, {"data": "body"})
+                # A prepared origin must never be invented as missing input.
+                self.assertEqual(snapshot.task_checkpoint.url, "https://prepared.test/")
 
     @skipUnless(is_native_backend_available(), "native extension is not installed")
     def test_real_native_partial_claim_round_trips_without_retaining_handles(self):
@@ -355,12 +413,12 @@ class TestSessionSnapshot(TestCase):
             store.save(captured, str(Path(directory, "checkpoint")))
             loaded = store.load(str(Path(directory, "checkpoint")))
         self.assertEqual(loaded, captured)
-        self.assertEqual(loaded.task.dictionary.index, 1)
+        self.assertEqual(loaded.task_checkpoint.dictionary.index, 1)
         for native_corpus in (False, True):
             with self.subTest(native_corpus=native_corpus):
                 # Resume does not regenerate the corpus or need its source file.
                 dictionary = Dictionary(WordlistConfig(native_corpus=native_corpus))
-                dictionary.__setstate__(loaded.task.dictionary.to_state())
+                dictionary.__setstate__(loaded.task_checkpoint.dictionary.to_state())
                 self.assertEqual([next(dictionary) for _ in range(4)], ["dynamic", "one", "two", "later"])
                 with self.assertRaises(StopIteration):
                     next(dictionary)

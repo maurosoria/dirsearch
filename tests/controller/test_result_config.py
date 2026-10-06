@@ -142,7 +142,7 @@ class TestResultPreparation(TestCase):
                         checkpoint = str(directory / "checkpoint.json")
                         if resumed:
                             saved_controller = SimpleNamespace(
-                                start_time=0, run_state=ScanRunState(),
+                                start_time=0, run_state=ScanRunState(saved["urls"]),
                                 target_progress=TargetProgress(), output_history=[],
                                 dictionary=Dictionary(WordlistConfig()),
                             )

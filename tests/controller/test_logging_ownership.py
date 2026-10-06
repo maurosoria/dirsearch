@@ -70,7 +70,7 @@ class TestControllerLoggingOwnership(TestCase):
                 patch.object(Controller, "_restore_session"),
             ):
                 store.return_value.load.return_value = SessionSnapshot(
-                    run=RunCheckpoint(0), task=TaskCheckpoint(DictionaryCheckpoint((), 0)),
+                    run=RunCheckpoint(0), task_checkpoint=TaskCheckpoint(DictionaryCheckpoint((), 0)),
                     options={"log_file": str(restored), "proxy_auth": "user:restored/secret"},
                 )
                 controller = Controller(output=StringIO())

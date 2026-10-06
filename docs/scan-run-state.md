@@ -37,10 +37,18 @@ override. Neither these hints nor parsed target details belong in the queue.
 
 ## Pending versus active
 
-The state separates pending targets from one optional active target. An immutable
-tuple holds the input URLs; a cursor identifies the pending suffix. URLs retain
-their original spelling, order and duplicates; URL parsing and validation still
-belong to the controller.
+The state separates pending targets from one optional `active_task`. An immutable
+tuple holds `TaskSpec` descriptors; a cursor identifies the pending suffix.
+`prepare_targets()` adapts raw strings into these values, and `activate_next()`
+returns the descriptor. The controller passes its `target` field to existing
+target preparation. URLs retain their original spelling, order and duplicates;
+URL parsing and validation still belong to the controller.
+
+`TaskSpec.target` is original input, not the prepared origin in
+`TargetProgress.url`. It can contain credentials, query text, a starting path,
+or even invalid/empty input. Its repr excludes the target. Two identical inputs
+produce equal descriptors but remain separate queue occurrences; these are not
+globally unique execution IDs or messages for independent workers.
 
 | Operation | Active target | Pending targets | Checkpoint URL list |
 | --- | --- | --- | --- |
@@ -71,14 +79,16 @@ Progress uses `pending_count` for future targets, `TargetProgress.directories`
 for current work and `ScanRunState.jobs_processed` for completed jobs. The pause menu
 offers skip only when another target is pending. Neither path reads the global
 URL list. Queue activation and pending counts are constant-time operations; a
-full list is copied only for a checkpoint snapshot.
+remaining descriptor references are copied only for a checkpoint snapshot.
 
 ## Sessions
 
-`snapshot_targets()` returns a detached list containing the active target first,
-followed by pending targets. Saving overlays this list on prepared options in a
-[SessionSnapshot](session-snapshots.md), after flushing reports. It does not temporarily overwrite
-global options or consume queue entries, including if saving fails.
+`snapshot_tasks()` returns an immutable tuple containing the active descriptor
+first, followed by pending descriptors. Saving captures this as
+`SessionSnapshot.remaining_tasks`, alongside its `task_checkpoint`, after
+flushing reports. Target input is separate from the snapshot's options;
+`SessionStore` alone maps it to the existing `options.urls` wire field. Saving
+does not overwrite global options or consume queue entries, including on failure.
 
 Quit-and-save writes the checkpoint **before** unwinding the active attempt.
 Completed targets are absent; the interrupted target remains first. Resume
@@ -103,9 +113,9 @@ lock or Python/Rust crossing is introduced. No throughput gain is claimed.
 This refactor does not introduce scheduling policy, remote workers or a GUI API,
 and does not make complete controllers safe to run concurrently. Requesters,
 dictionary progress and output resources still need task-level lifecycle
-boundaries before independent tasks can execute concurrently. A public task
-descriptor remains future work. `TaskCheckpoint` now records the current slot's
-data, but cannot execute independently of the enclosing session. Rust's internal
+boundaries before independent tasks can execute concurrently. The internal
+`TaskSpec` captures target input and `TaskCheckpoint` captures continuation, but
+neither can execute independently of the enclosing run's policy. Rust's internal
 `ScanTask` and its Python interface are unchanged.
 
 ## Validation

@@ -28,6 +28,7 @@ from typing import Any
 from .session_snapshot import RunCheckpoint, SessionSnapshot
 from lib.core.exceptions import UnpicklingError
 from ..core.task_checkpoint import DictionaryCheckpoint, TaskCheckpoint
+from ..core.task_spec import TaskSpec
 from lib.utils.file import FileUtils
 
 
@@ -136,7 +137,10 @@ class SessionStore:
         """
         progress = payload["controller"]
         dictionary = payload["dictionary"]
+        restored_options = self.restore_options(payload["options"])
+        targets = restored_options.pop("urls", None) or ()
         return SessionSnapshot(
+            remaining_tasks=tuple(TaskSpec(target) for target in targets),
             run=RunCheckpoint(
                 start_time=progress["start_time"],
                 passed_urls=progress.get("passed_urls", ()),
@@ -145,7 +149,7 @@ class SessionStore:
                 consecutive_errors=progress.get("consecutive_errors", 0),
                 old_session=progress.get("old_session", True),
             ),
-            task=TaskCheckpoint(
+            task_checkpoint=TaskCheckpoint(
                 url=progress.get("url", ""),
                 base_path=progress.get("base_path", ""),
                 directories=progress.get("directories", ()),
@@ -155,7 +159,7 @@ class SessionStore:
                     extra_index=dictionary.get("extra_index", 0),
                 ),
             ),
-            options=self.restore_options(payload["options"]),
+            options=restored_options,
             last_output=payload.get("last_output") or "",
             output_history=payload.get("output_history") or [],
         )
@@ -171,21 +175,24 @@ class SessionStore:
             "controller": {
                 "start_time": snapshot.run.start_time,
                 "passed_urls": snapshot.run.passed_urls,
-                "directories": snapshot.task.directories,
+                "directories": snapshot.task_checkpoint.directories,
                 "jobs_processed": snapshot.run.jobs_processed,
                 "errors": snapshot.run.errors,
                 "consecutive_errors": snapshot.run.consecutive_errors,
-                "base_path": snapshot.task.base_path,
-                "url": snapshot.task.url,
+                "base_path": snapshot.task_checkpoint.base_path,
+                "url": snapshot.task_checkpoint.url,
                 "old_session": snapshot.run.old_session,
             },
             "dictionary": {
-                "items": snapshot.task.dictionary.items,
-                "index": snapshot.task.dictionary.index,
-                "extra": snapshot.task.dictionary.extra,
-                "extra_index": snapshot.task.dictionary.extra_index,
+                "items": snapshot.task_checkpoint.dictionary.items,
+                "index": snapshot.task_checkpoint.dictionary.index,
+                "extra": snapshot.task_checkpoint.dictionary.extra,
+                "extra_index": snapshot.task_checkpoint.dictionary.extra_index,
             },
-            "options": self._serialize_options(snapshot.options),
+            "options": self._serialize_options({
+                **snapshot.options,
+                "urls": [task.target for task in snapshot.remaining_tasks],
+            }),
             "last_output": snapshot.last_output,
             "output_history": snapshot.output_history,
         }

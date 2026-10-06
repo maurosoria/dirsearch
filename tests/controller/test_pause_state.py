@@ -183,7 +183,7 @@ class TestPauseState(TestCase):
                         self.controller.handle_pause()
                 self.assertIn("[s]kip target", self.controller.interface.in_line.call_args.args[0])
                 # The menu signals the exit; only run() finishes the attempt.
-                self.assertEqual(self.controller.run_state.active_target, "first")
+                self.assertEqual(self.controller.run_state.active_task.target, "first")
 
     def test_last_active_target_cannot_skip_to_stale_global_urls(self):
         for engine in ScanEngine:

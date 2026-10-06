@@ -61,7 +61,7 @@ class TestRegexOptionValidation(TestCase):
                 output = io.StringIO()
                 controller = object.__new__(Controller)
                 payload = SessionSnapshot(
-                    run=RunCheckpoint(0), task=TaskCheckpoint(DictionaryCheckpoint((), 0)), options={option_key: "["},
+                    run=RunCheckpoint(0), task_checkpoint=TaskCheckpoint(DictionaryCheckpoint((), 0)), options={option_key: "["},
                 )
 
                 with (

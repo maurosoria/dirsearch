@@ -46,7 +46,7 @@ class TestOptions(TestCase):
         original_options = dict(options)
         session_store = Mock()
         session_store.load.return_value = SessionSnapshot(
-            run=RunCheckpoint(0), task=TaskCheckpoint(DictionaryCheckpoint((), 0)),
+            run=RunCheckpoint(0), task_checkpoint=TaskCheckpoint(DictionaryCheckpoint((), 0)),
             options={
                 "headers": {"User-Agent": "fixed-from-session"},
                 "random_agents": True,
