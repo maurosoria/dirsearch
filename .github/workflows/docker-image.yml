@@ -59,8 +59,10 @@ jobs:
           echo "tag=${image_tag}" >> "$GITHUB_OUTPUT"
 
       - name: Build Docker image
+        shell: bash
         run: |
-          docker compose -f - build dirsearch <<'YAML'
+          # Compose describes the build; Bake also needs explicit authorization.
+          docker compose -f - build --print dirsearch <<'YAML' | docker buildx bake --file - --allow=network.host --load dirsearch
           services:
             dirsearch:
               image: ${{ steps.image.outputs.tag }}
@@ -68,6 +70,8 @@ jobs:
                 context: .
                 dockerfile: Dockerfile
                 network: host
+                entitlements:
+                  - network.host
                 args:
                   DIRSEARCH_STACK: ${{ matrix.stack }}
           YAML
