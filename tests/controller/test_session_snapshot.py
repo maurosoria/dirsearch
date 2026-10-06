@@ -1,19 +1,24 @@
 import json
 import weakref
 from copy import deepcopy
+from dataclasses import replace
 from io import StringIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from unittest import TestCase
+from unittest import TestCase, skipUnless
 from unittest.mock import Mock, patch
 
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.controller.session import SessionStore
+from lib.controller.session_snapshot import RunCheckpoint, SessionSnapshot
 from lib.core.data import options
 from lib.core.dictionary import Dictionary
 from lib.core.execution_config import ScanEngine
+from lib.core.native_runtime import is_native_backend_available
+from lib.core.report_config import ReportConfig
 from lib.core.scan_run_state import ScanRunState
+from lib.core.wordlist_backend import NativeWordlistChunk
 from lib.core.wordlist_config import WordlistConfig
 
 
@@ -63,17 +68,17 @@ class TestSessionSnapshot(TestCase):
             store = SessionStore()
             store.save(snapshot, directory)
             payload = store.load(directory)
-        restored_options = store.restore_options(payload["options"])
-        self.assertEqual(payload["controller"]["directories"], ["current/", "next/"])
-        self.assertEqual(payload["controller"]["passed_urls"], ["http://done.test/"])
-        self.assertEqual(payload["dictionary"]["index"], 1)
-        self.assertEqual(payload["dictionary"]["extra"], ["extra"])
+        restored_options = payload.options
+        self.assertEqual(payload.task.directories, ("current/", "next/"))
+        self.assertEqual(payload.run.passed_urls, ("http://done.test/",))
+        self.assertEqual(payload.task.dictionary.index, 1)
+        self.assertEqual(payload.task.dictionary.extra, ("extra",))
         self.assertEqual(restored_options, {
             "headers": {"X-Test": "original"}, "urls": [controller.target_progress.url],
             "data": b"\x80\r\n", "extensions": ("html",),
             "include_status_codes": {200}, "proxies": ["http://proxy.test/"],
         })
-        self.assertEqual(payload["output_history"], [
+        self.assertEqual(payload.output_history, [
             {"start_time": 100, "output": "previous"},
             {"start_time": 123.5, "output": "current"},
         ])
@@ -81,8 +86,8 @@ class TestSessionSnapshot(TestCase):
     def test_snapshot_can_be_changed_without_mutating_the_controller(self):
         controller = self._controller()
         snapshot = controller._snapshot_session(controller._session_options, "")
-        snapshot.controller["directories"].clear()
-        snapshot.dictionary["items"].clear()
+        snapshot.task = replace(snapshot.task, directories=())
+        snapshot.task = replace(snapshot.task, dictionary=replace(snapshot.task.dictionary, items=()))
         snapshot.options["headers"].clear()
         snapshot.output_history[0]["output"] = "changed"
         self.assertEqual(controller.target_progress.directories, ["current/", "next/"])
@@ -103,7 +108,7 @@ class TestSessionSnapshot(TestCase):
         with TemporaryDirectory() as directory, patch("lib.controller.controller.ReportManager") as reports:
             store = SessionStore()
             store.save(snapshot, directory)
-            self.assertEqual(store.load(directory)["controller"], snapshot.controller)
+            self.assertEqual(store.load(directory), snapshot)
             reports.assert_not_called()
 
     def test_export_does_not_read_global_options(self):
@@ -127,25 +132,27 @@ class TestSessionSnapshot(TestCase):
                 )
                 store = SessionStore()
                 store.save(self._controller()._snapshot_session(saved, "previous output"), directory)
-                payload = store.load(directory)
+                checkpoint = Path(directory, SessionStore.CHECKPOINT_FILE)
+                payload = json.loads(checkpoint.read_text(encoding="utf-8"))
                 if history is None:
                     payload.pop("output_history")
                 else:
                     payload["output_history"] = deepcopy(history)
+                checkpoint.write_text(json.dumps(payload), encoding="utf-8")
+                snapshot = store.load(directory)
                 expected_history = history or [{"start_time": 123.5, "output": "previous output"}]
                 with (
                     patch.dict(options, {"session_file": directory}),
-                    patch.object(SessionStore, "load", return_value=payload),
+                    patch.object(SessionStore, "load", return_value=snapshot),
                     patch.object(Controller, "_confirm_session_overwrite"),
                     patch.object(Controller, "run"),
                 ):
                     restored = Controller(output=StringIO())
                 self.assertEqual(restored.output_history, expected_history)
-                payload["controller"]["directories"].clear()
-                payload["dictionary"]["items"].clear()
-                payload["dictionary"]["extra"].clear()
+                snapshot.task = replace(snapshot.task, directories=())
+                snapshot.task = replace(snapshot.task, dictionary=replace(snapshot.task.dictionary, items=(), extra=()))
                 if history:
-                    payload["output_history"][0]["output"] = "changed"
+                    snapshot.output_history[0]["output"] = "changed"
                 self.assertEqual(restored.target_progress.directories, ["current/", "next/"])
                 self.assertEqual(restored.dictionary.__getstate__(), (["done", "pending"], 1, ["extra"], 0))
                 self.assertEqual(restored.output_history, expected_history)
@@ -195,7 +202,7 @@ class TestSessionSnapshot(TestCase):
             self.assertEqual(controller.output_history, history + [
                 {"start_time": 123.5, "output": "next output"},
             ])
-            self.assertEqual(SessionStore().load(directory)["output_history"], controller.output_history)
+            self.assertEqual(SessionStore().load(directory).output_history, controller.output_history)
 
     def test_report_flush_failure_prevents_checkpoint_write(self):
         controller = self._controller()
@@ -236,12 +243,12 @@ class TestSessionSnapshot(TestCase):
             ):
                 Controller(output=StringIO())
             payload = store.load(directory)
-            restored = store.restore_options(payload["options"])
+            restored = payload.options
             self.assertEqual(restored["headers"], {"X-Raw": "prepared"})
             self.assertEqual(restored["data"], b"\x80\r\n")
             self.assertEqual(restored["http_method"], "POST")
             self.assertEqual(restored["urls"], ["http://raw.test/"])
-            self.assertNotIn("unrelated history", str(payload["output_history"]))
+            self.assertNotIn("unrelated history", str(payload.output_history))
 
     def test_export_uses_prepared_options_after_fresh_setup_or_resume_for_each_engine(self):
         for engine in ScanEngine:
@@ -279,10 +286,83 @@ class TestSessionSnapshot(TestCase):
                     ):
                         Controller(output=StringIO())
                     restored = SessionStore().load(str(Path(directory, "output")))
-                    restored_options = SessionStore().restore_options(restored["options"])
+                    restored_options = restored.options
                     self.assertEqual(restored_options["headers"]["X-Test"], "prepared")
                     self.assertEqual(restored_options["auth"], "user:prepared-value")
                     self.assertEqual(restored_options["data"], b"\x80\r\n")
                     self.assertEqual(restored_options["urls"], saved["urls"])
                     self.assertEqual(restored_options["request_backend"], saved["request_backend"])
                     self.assertEqual(restored_options["async_mode"], saved["async_mode"])
+
+    def test_restoring_twice_does_not_share_runtime_progress(self):
+        source = self._controller()
+        snapshot = source._snapshot_session({}, "")
+        before = deepcopy(snapshot)
+        restored = []
+        for _ in range(2):
+            controller = self._controller()
+            controller._restore_session(snapshot, ReportConfig())
+            self.addCleanup(controller.reporter.finish)
+            restored.append(controller)
+        restored[0].target_progress.directories.clear()
+        restored[0].run_state.passed_urls.clear()
+        restored[0].run_state.jobs_processed = 99
+        restored[0].dictionary.add_extra("new")
+        restored[0].dictionary.reset()
+
+        self.assertEqual(snapshot, before)
+        self.assertEqual(restored[1].target_progress.directories, ["current/", "next/"])
+        self.assertEqual(restored[1].run_state.passed_urls, {"http://done.test/"})
+        self.assertEqual(restored[1].run_state.jobs_processed, 2)
+        self.assertEqual(restored[1].dictionary.__getstate__(), (["done", "pending"], 1, ["extra"], 0))
+
+    def test_load_returns_typed_values_and_legacy_defaults(self):
+        with TemporaryDirectory() as directory:
+            checkpoint = Path(directory, "legacy.json")
+            checkpoint.write_text(json.dumps({
+                "version": 1, "controller": {"start_time": 12},
+                "dictionary": {"items": ["a", "a", "b"], "index": 1},
+                "options": {"extensions": ["html"], "include_status_codes": [200]},
+            }), encoding="utf-8")
+            snapshot = SessionStore().load(str(checkpoint))
+        self.assertIsInstance(snapshot, SessionSnapshot)
+        self.assertEqual(snapshot.run, RunCheckpoint(12, old_session=True))
+        self.assertEqual(snapshot.task.url, "")
+        self.assertEqual(snapshot.task.base_path, "")
+        self.assertEqual(snapshot.task.directories, ())
+        self.assertEqual(snapshot.task.dictionary.to_state(), (["a", "a", "b"], 1, [], 0))
+        self.assertEqual(snapshot.options, {"extensions": ("html",), "include_status_codes": {200}})
+        self.assertEqual(snapshot.last_output, "")
+        self.assertEqual(snapshot.output_history, [])
+
+    @skipUnless(is_native_backend_available(), "native extension is not installed")
+    def test_real_native_partial_claim_round_trips_without_retaining_handles(self):
+        with TemporaryDirectory() as directory:
+            wordlist = Path(directory, "words.txt")
+            wordlist.write_text("zero\none\ntwo\nlater\n", encoding="utf-8")
+            source = self._controller()
+            source.dictionary = Dictionary(
+                WordlistConfig(backend="native", native_corpus=True), files=[str(wordlist)],
+            )
+            chunk = source.dictionary.claim_native_many(3, "current/")
+            self.assertIsInstance(chunk, NativeWordlistChunk)
+            source.dictionary.release_native_claims(chunk, 1)
+            source.dictionary.add_extra("dynamic")
+            captured = source._snapshot_session({}, "")
+            source.dictionary.release_native_claims(chunk, 2)
+            source.dictionary.reset()
+            store = SessionStore()
+            store.save(captured, str(Path(directory, "checkpoint")))
+            loaded = store.load(str(Path(directory, "checkpoint")))
+        self.assertEqual(loaded, captured)
+        self.assertEqual(loaded.task.dictionary.index, 1)
+        for native_corpus in (False, True):
+            with self.subTest(native_corpus=native_corpus):
+                # Resume does not regenerate the corpus or need its source file.
+                dictionary = Dictionary(WordlistConfig(native_corpus=native_corpus))
+                dictionary.__setstate__(loaded.task.dictionary.to_state())
+                self.assertEqual([next(dictionary) for _ in range(4)], ["dynamic", "one", "two", "later"])
+                with self.assertRaises(StopIteration):
+                    next(dictionary)
+                dictionary.reset()
+                self.assertEqual([next(dictionary) for _ in range(4)], ["zero", "one", "two", "later"])

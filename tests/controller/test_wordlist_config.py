@@ -75,9 +75,9 @@ class TestControllerWordlistConfig(TestCase):
                 store = SessionStore()
                 store.save(original._snapshot_session(options, ""), checkpoint)
                 payload = store.load(checkpoint)
-                self.assertEqual(set(payload["dictionary"]), {
-                    "items", "index", "extra", "extra_index",
-                })
+                self.assertEqual(payload.task.dictionary.to_state(), (
+                    ["done", "pending"], 2, ["pending", "dynamic.html"], 0,
+                ))
                 options.update(
                     session_file=checkpoint, extensions=("json",),
                     exclude_extensions=("html",), request_backend="python",

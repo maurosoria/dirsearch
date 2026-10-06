@@ -8,6 +8,8 @@ from unittest.mock import patch
 
 from lib.controller.controller import Controller
 from lib.controller.session import SessionStore
+from lib.controller.session_snapshot import RunCheckpoint, SessionSnapshot
+from lib.core.task_checkpoint import DictionaryCheckpoint, TaskCheckpoint
 from lib.core.data import options as runtime_options
 from lib.core.options import parse_options
 
@@ -58,7 +60,9 @@ class TestRegexOptionValidation(TestCase):
             with self.subTest(option_key=option_key):
                 output = io.StringIO()
                 controller = object.__new__(Controller)
-                payload = {"options": {option_key: "["}}
+                payload = SessionSnapshot(
+                    run=RunCheckpoint(0), task=TaskCheckpoint(DictionaryCheckpoint((), 0)), options={option_key: "["},
+                )
 
                 with (
                     patch.dict(runtime_options),

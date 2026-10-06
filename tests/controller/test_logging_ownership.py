@@ -8,6 +8,8 @@ from unittest import TestCase
 from unittest.mock import AsyncMock, Mock, patch
 
 from lib.controller.controller import Controller
+from lib.controller.session_snapshot import RunCheckpoint, SessionSnapshot
+from lib.core.task_checkpoint import DictionaryCheckpoint, TaskCheckpoint
 from lib.core.data import options
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.execution_config import ExecutionConfig
@@ -67,10 +69,10 @@ class TestControllerLoggingOwnership(TestCase):
                 patch.object(Controller, "run", new=run),
                 patch.object(Controller, "_restore_session"),
             ):
-                store.return_value.load.return_value = {"options": {}}
-                store.return_value.restore_options.return_value = {
-                    "log_file": str(restored), "proxy_auth": "user:restored/secret",
-                }
+                store.return_value.load.return_value = SessionSnapshot(
+                    run=RunCheckpoint(0), task=TaskCheckpoint(DictionaryCheckpoint((), 0)),
+                    options={"log_file": str(restored), "proxy_auth": "user:restored/secret"},
+                )
                 controller = Controller(output=StringIO())
             self.assertFalse(cli.exists())
             self.assertIn("restored <redacted>@proxy.example.test", restored.read_text())

@@ -85,8 +85,9 @@ Completed targets are absent; the interrupted target remains first. Resume
 reconstructs the queue from this list and restores the dictionary and directory
 progress through the existing session code. The version-1 JSON schema is
 unchanged: no cursor, state object or engine-specific queue is serialized.
-`Controller._snapshot_session()` maps the two owners to the same flat
-`controller` JSON fields. Restoration reconstructs their owned containers; there
+`Controller._snapshot_session()` captures `RunCheckpoint` and `TaskCheckpoint`
+values; `SessionStore` maps them to the same flat `controller` JSON fields.
+Restoration reconstructs their owned containers; there
 are no compatibility properties or dynamic fallbacks for the former flat
 controller attributes.
 
@@ -103,8 +104,9 @@ This refactor does not introduce scheduling policy, remote workers or a GUI API,
 and does not make complete controllers safe to run concurrently. Requesters,
 dictionary progress and output resources still need task-level lifecycle
 boundaries before independent tasks can execute concurrently. A public task
-descriptor and `TaskCheckpoint` remain future work. Rust's internal `ScanTask` and its
-Python interface are unchanged.
+descriptor remains future work. `TaskCheckpoint` now records the current slot's
+data, but cannot execute independently of the enclosing session. Rust's internal
+`ScanTask` and its Python interface are unchanged.
 
 ## Validation
 

@@ -102,8 +102,9 @@ from lib.utils.crawl import Crawler
 from lib.utils.file import FileUtils
 from lib.utils.schemedet import detect_scheme
 from lib.view.terminal import CLI, create_terminal
-from lib.controller.session import SessionStore
-from lib.controller.session_snapshot import SessionSnapshot
+from .session import SessionStore
+from .session_snapshot import RunCheckpoint, SessionSnapshot
+from ..core.task_checkpoint import DictionaryCheckpoint, TaskCheckpoint
 
 
 class ForceQuitHandler:
@@ -302,21 +303,21 @@ class Controller:
                 )
                 sys.exit(1)
             session_store = SessionStore()
-            payload = session_store.load(session_file)
+            snapshot = session_store.load(session_file)
             # Keep the explicit session path so resume/overwrite works as expected.
             loaded_session_file = session_file
-            options.update(session_store.restore_options(payload["options"]))
+            options.update(deepcopy(snapshot.options))
             options["session_file"] = loaded_session_file
             validate_random_agent_headers(SimpleNamespace(**options))
             validate_numeric_options(SimpleNamespace(**options))
             validate_regex_options(SimpleNamespace(**options))
             self._refresh_terminal()
             self._prepare_logging()
-            output_history = payload.get("output_history") or []
+            output_history = snapshot.output_history
             if not output_history:
-                legacy_output = payload.get("last_output", "")
+                legacy_output = snapshot.last_output
                 if legacy_output:
-                    start_time = payload.get("controller", {}).get("start_time")
+                    start_time = snapshot.run.start_time
                     output_history = [
                         {"start_time": start_time, "output": legacy_output}
                     ]
@@ -326,7 +327,7 @@ class Controller:
             else:
                 last_output = ""
             self.wordlist_config = WordlistConfig.from_options(options)
-            self._restore_session(payload, ReportConfig.from_options(options))
+            self._restore_session(snapshot, ReportConfig.from_options(options))
             self.result_config = ResultConfig.from_options(options)
             self._prepare_response_stores()
             self._confirm_session_overwrite(session_file)
@@ -343,31 +344,27 @@ class Controller:
         self.interface.new_line(last_output, do_save=False)
 
     def _restore_session(
-        self, payload: dict[str, Any], report_config: ReportConfig
+        self, snapshot: SessionSnapshot, report_config: ReportConfig
     ) -> None:
         """Rebuild owned runtime objects from already validated session data.
 
         Storage does not construct resources. Keep their ownership here so the
         normal controller cleanup also covers partial restoration failures.
         """
-        progress = payload["controller"]
+        progress = snapshot.run
+        task = snapshot.task
         self.run_state = ScanRunState()
-        self.target_progress = TargetProgress()
-        self.start_time = progress["start_time"]
-        self.run_state.passed_urls = set(progress.get("passed_urls", []))
-        self.target_progress.directories = list(progress.get("directories", []))
-        self.run_state.jobs_processed = progress.get("jobs_processed", 0)
-        self.run_state.errors = progress.get("errors", 0)
-        self.run_state.consecutive_errors = progress.get("consecutive_errors", 0)
-        self.target_progress.base_path = progress.get("base_path", "")
-        self.target_progress.url = progress.get("url", "")
-        self.run_state.old_session = progress.get("old_session", True)
+        self.target_progress = TargetProgress(
+            url=task.url, base_path=task.base_path, directories=task.directories,
+        )
+        self.start_time = progress.start_time
+        self.run_state.passed_urls = set(progress.passed_urls)
+        self.run_state.jobs_processed = progress.jobs_processed
+        self.run_state.errors = progress.errors
+        self.run_state.consecutive_errors = progress.consecutive_errors
+        self.run_state.old_session = progress.old_session
         self.dictionary = Dictionary(self.wordlist_config)
-        dictionary = payload["dictionary"]
-        self.dictionary.__setstate__((
-            list(dictionary["items"]), dictionary["index"],
-            list(dictionary.get("extra", [])), dictionary.get("extra_index", 0),
-        ))
+        self.dictionary.__setstate__(task.dictionary.to_state())
         self.reporter = ReportManager(report_config)
 
     def _snapshot_session(
@@ -378,26 +375,25 @@ class Controller:
         Dictionary serialization retains outstanding claims for cross-engine
         resume. History is committed to this controller only after save succeeds.
         """
-        items, index, extra, extra_index = self.dictionary.__getstate__()
+        dictionary = DictionaryCheckpoint(*self.dictionary.__getstate__())
         history = list(self.output_history)
         if last_output:
             history.append({"start_time": self.start_time, "output": last_output})
         return SessionSnapshot(
-            controller={
-                "start_time": self.start_time,
-                "passed_urls": sorted(self.run_state.passed_urls),
-                "directories": self.target_progress.directories,
-                "jobs_processed": self.run_state.jobs_processed,
-                "errors": self.run_state.errors,
-                "consecutive_errors": self.run_state.consecutive_errors,
-                "base_path": self.target_progress.base_path,
-                "url": self.target_progress.url,
-                "old_session": self.run_state.old_session,
-            },
-            dictionary={
-                "items": items, "index": index,
-                "extra": extra, "extra_index": extra_index,
-            },
+            run=RunCheckpoint(
+                start_time=self.start_time,
+                passed_urls=sorted(self.run_state.passed_urls),
+                jobs_processed=self.run_state.jobs_processed,
+                errors=self.run_state.errors,
+                consecutive_errors=self.run_state.consecutive_errors,
+                old_session=self.run_state.old_session,
+            ),
+            task=TaskCheckpoint(
+                url=self.target_progress.url,
+                base_path=self.target_progress.base_path,
+                directories=self.target_progress.directories,
+                dictionary=dictionary,
+            ),
             options=session_options,
             last_output=last_output,
             output_history=history,

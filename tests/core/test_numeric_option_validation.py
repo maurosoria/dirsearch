@@ -11,6 +11,8 @@ from unittest.mock import patch
 
 from lib.controller.controller import Controller
 from lib.controller.session import SessionStore
+from lib.controller.session_snapshot import RunCheckpoint, SessionSnapshot
+from lib.core.task_checkpoint import DictionaryCheckpoint, TaskCheckpoint
 from lib.core.data import options as runtime_options
 from lib.core.options import parse_options
 
@@ -110,7 +112,9 @@ class TestNumericOptionValidation(TestCase):
         self.assertEqual(options["recursion_depth"], 0)
 
     def test_invalid_restored_session_value_is_rejected(self):
-        payload = {"options": {"delay": -1}}
+        payload = SessionSnapshot(
+            run=RunCheckpoint(0), task=TaskCheckpoint(DictionaryCheckpoint((), 0)), options={"delay": -1},
+        )
         output = io.StringIO()
         controller = object.__new__(Controller)
 

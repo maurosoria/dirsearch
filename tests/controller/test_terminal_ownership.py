@@ -7,6 +7,8 @@ from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import Mock, patch, sentinel
 
+from lib.controller.session_snapshot import RunCheckpoint, SessionSnapshot
+from lib.core.task_checkpoint import DictionaryCheckpoint, TaskCheckpoint
 from lib.controller.controller import (
     Controller, PyInstallerLinuxForceQuitHandler, StandardForceQuitHandler,
     _create_force_quit_handler,
@@ -137,8 +139,9 @@ class TestControllerTerminalOwnership(TestCase):
             patch.object(Controller, "_restore_session", side_effect=InvalidURLException("invalid report URL")),
         ):
             store = store_factory.return_value
-            store.load.return_value = {"options": {}}
-            store.restore_options.return_value = {}
+            store.load.return_value = SessionSnapshot(
+                run=RunCheckpoint(0), task=TaskCheckpoint(DictionaryCheckpoint((), 0)), options={},
+            )
             with self.assertRaises(SystemExit) as stopped:
                 Controller(output=output)
         self.assertEqual(stopped.exception.code, 1)
