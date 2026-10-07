@@ -37,6 +37,7 @@ def main() -> None:
     )
     from dirsearch.lib.core import settings
     from dirsearch.lib.controller.session import SessionStore
+    from dirsearch.lib.controller.session_options import SessionOptions
     from dirsearch.lib.controller.controller import Controller
     from dirsearch.lib.controller.session_snapshot import RunCheckpoint, SessionSnapshot
     from dirsearch.lib.core.run_config import RunConfig
@@ -79,7 +80,7 @@ def main() -> None:
     snapshot = SessionSnapshot(
         run=RunCheckpoint(0),
         task_checkpoint=TaskCheckpoint(DictionaryCheckpoint((), 0)),
-        options={"data": b"\x80\r\n"},
+        options=SessionOptions({"data": b"\x80\r\n"}),
         remaining_tasks=(TaskSpec("http://example.test/?a=1"),),
     )
     session_path = str(Path(temp_dir, "checkpoint"))
@@ -87,6 +88,8 @@ def main() -> None:
     store.save(snapshot, session_path)
     restored = store.load(session_path)
     assert isinstance(restored, SessionSnapshot)
+    assert isinstance(restored.options, SessionOptions)
+    assert restored.options.to_options() == {"data": b"\x80\r\n"}
     assert isinstance(restored.run, RunCheckpoint)
     assert isinstance(restored.task_checkpoint, TaskCheckpoint)
     assert isinstance(restored.task_checkpoint.dictionary, DictionaryCheckpoint)

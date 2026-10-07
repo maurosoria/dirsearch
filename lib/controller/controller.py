@@ -96,6 +96,7 @@ from lib.utils.file import FileUtils
 from lib.utils.schemedet import detect_scheme
 from lib.view.terminal import CLI, create_terminal
 from .session import SessionStore
+from .session_options import SessionOptions
 from .session_snapshot import RunCheckpoint, SessionSnapshot
 from ..core.task_checkpoint import DictionaryCheckpoint, TaskCheckpoint
 
@@ -233,20 +234,24 @@ class Controller:
                         finally:
                             self.logger.close()
 
-    def _prepare_config(self, values: Mapping[str, Any]) -> None:
+    def _prepare_config(self, values: Mapping[str, Any]) -> dict[str, Any]:
         """Detach one effective input for all policies and session persistence.
 
         Only call after raw parsing or restored-option validation. Capture before
         constructing resources so their callbacks cannot change later policies.
-        The normalized mapping remains a transitional session representation.
+        SessionOptions owns persistence input separately from runtime policy.
+        Return detached input for setup's local wordlist filenames; callers must
+        not use the persistence value as runtime configuration storage.
         """
         prepared_options = deepcopy(dict(values))
         try:
             config = RunConfig.from_options(prepared_options)
         except ValueError as error:
             fail(error)
+        session_options = SessionOptions.from_options(prepared_options)
         self.config = config
-        self._session_options = prepared_options
+        self.session_options = session_options
+        return prepared_options
 
     def _refresh_terminal(self) -> None:
         """Replace bootstrap policy after raw parsing or restored session options.
@@ -317,7 +322,7 @@ class Controller:
             snapshot = session_store.load(session_file)
             # Keep the explicit session path so resume/overwrite works as expected.
             loaded_session_file = session_file
-            options.update(deepcopy(snapshot.options))
+            options.update(snapshot.options.to_options())
             options["urls"] = [task.target for task in snapshot.remaining_tasks]
             options["session_file"] = loaded_session_file
             validate_random_agent_headers(SimpleNamespace(**options))
@@ -343,7 +348,9 @@ class Controller:
             self._prepare_response_stores()
             self._confirm_session_overwrite(session_file)
             # This interactive choice changes the save destination, not policy.
-            self._session_options["session_file"] = options["session_file"]
+            self.session_options = self.session_options.with_session_file(
+                options["session_file"]
+            )
         except InvalidURLException as error:
             self.logger.exception(error)
             self.interface.error(str(error))
@@ -378,7 +385,7 @@ class Controller:
         self.reporter = ReportManager(self.config.reports, metadata=self.metadata)
 
     def _snapshot_session(
-        self, session_options: dict[str, Any], last_output: str
+        self, session_options: SessionOptions, last_output: str
     ) -> SessionSnapshot:
         """Capture data at the paused save boundary, without advancing progress.
 
@@ -405,7 +412,7 @@ class Controller:
                 directories=self.target_progress.directories,
                 dictionary=dictionary,
             ),
-            options={key: value for key, value in session_options.items() if key != "urls"},
+            options=session_options,
             last_output=last_output,
             output_history=history,
         )
@@ -449,7 +456,7 @@ class Controller:
         self.reporter.flush()
         # Owned task input and progress are captured together, never reread from
         # process-wide URLs. Storage alone maps task input to version-1 options.
-        snapshot = self._snapshot_session(self._session_options, last_output)
+        snapshot = self._snapshot_session(self.session_options, last_output)
         SessionStore().save(snapshot, session_file)
         self.output_history = snapshot.output_history
 
@@ -473,11 +480,11 @@ class Controller:
         else:
             options["headers"] = {**DEFAULT_HEADERS, **options["headers"]}
 
-        self._prepare_config(options)
+        prepared_options = self._prepare_config(options)
         self._refresh_terminal()
         try:
             self.dictionary = Dictionary(
-                self.config.wordlist, files=self._session_options["wordlists"]
+                self.config.wordlist, files=prepared_options["wordlists"]
             )
         except WordlistLimitError as e:
             self.interface.error(str(e))

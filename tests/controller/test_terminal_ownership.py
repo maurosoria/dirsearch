@@ -8,6 +8,7 @@ from unittest import TestCase
 from unittest.mock import Mock, patch, sentinel
 
 from lib.controller.session_snapshot import RunCheckpoint, SessionSnapshot
+from lib.controller.session_options import SessionOptions
 from lib.core.task_checkpoint import DictionaryCheckpoint, TaskCheckpoint
 from lib.controller.controller import (
     Controller, PyInstallerLinuxForceQuitHandler, StandardForceQuitHandler,
@@ -140,7 +141,7 @@ class TestControllerTerminalOwnership(TestCase):
         ):
             store = store_factory.return_value
             store.load.return_value = SessionSnapshot(
-                run=RunCheckpoint(0), task_checkpoint=TaskCheckpoint(DictionaryCheckpoint((), 0)), options={},
+                run=RunCheckpoint(0), task_checkpoint=TaskCheckpoint(DictionaryCheckpoint((), 0)), options=SessionOptions(),
             )
             with self.assertRaises(SystemExit) as stopped:
                 Controller(output=output)

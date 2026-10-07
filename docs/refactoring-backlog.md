@@ -1,7 +1,7 @@
 # Local state ownership backlog
 
-This is the state-isolation backlog following PR #1748, including the
-prepared-configuration aggregate in this branch. It is not a list of all product issues, nor
+This is the state-isolation backlog following PR #1749, including the
+session-options ownership boundary in this branch. It is not a list of all product issues, nor
 a claim that multiple complete controllers can already share a process safely.
 Keep subsequent steps independently reviewable, with explicit contracts and
 regressions before replacing their callers.
@@ -33,7 +33,7 @@ regressions before replacing their callers.
 - [Session snapshots](session-snapshots.md) detach persistence input from live
   controllers. Export uses prepared options plus owned progress; storage no
   longer creates runtime resources. Version-1 JSON and cross-engine resume stay
-  unchanged. The prepared options mapping remains a transitional representation.
+  unchanged. Persistence input now has an explicit owner described below.
 - Typed `RunCheckpoint`, `TaskCheckpoint` and `DictionaryCheckpoint` values now
   separate cumulative run data from current-target continuation. Both save and
   load use `SessionSnapshot`; storage owns wire names and legacy defaults.
@@ -53,14 +53,18 @@ regressions before replacing their callers.
   from one detached normalized input after raw parsing or validated resume.
   Consumers still receive narrow policies. Blacklist attachment preserves other
   policy identities; metadata, input, resources and progress remain separate.
-  `_session_options` is still transitional, and complete controller isolation is
-  not claimed.
+  Complete controller isolation is not claimed.
+- [SessionOptions](session-options.md) now encapsulates persistence input with
+  copy-in/copy-out access, preserving normalized types, unknown fields and absent
+  values. Snapshots share the opaque value, not an editable options dictionary;
+  save-destination changes replace it. JSON encoding stays in storage. Runtime
+  policies are not reverse-serialized, and CLI normalization remains global.
 
 ## Remaining work, in suggested order
 
 | Order | Boundary | Completion criterion |
 | --- | --- | --- |
-| 1 | Local context and persistence input | Aggregate configuration is now owned. Replace the transitional session options mapping; separate resource preparation/cleanup from configuration and progress. Assign ownership to generator state without changing generation behavior. |
+| 1 | Local resource context | Configuration and persistence input are now owned. Separate resource preparation/cleanup from configuration and progress. Assign ownership to generator state without changing generation behavior. |
 | 2 | CLI options boundary | Keep mutable normalization local to one invocation; remove the global `options` dictionary once its last consumers are migrated. |
 | 3 | Constant tables | Make read-only intent enforceable where compatible, including `TEXT_CHARS`, and review the duplicate default-port mappings. |
 | 4 | Isolation acceptance tests | Prove independent local lifecycles, output, failure cleanup and resume without process-global patching; address signal ownership and ambient raw-target context. Passing component tests alone is insufficient. |

@@ -14,8 +14,8 @@ the prepared terminal, dictionary, logger, response stores or report manager.
 The bootstrap terminal and logger still exist to handle preparation failures.
 An invalid engine selection exits before constructing the prepared resources.
 
-The detached mapping remains `_session_options`, the transitional representation
-for session persistence. Changing global options during resource construction
+The same mapping is captured in [SessionOptions](session-options.md) for
+persistence, separately from runtime policy. Changing global options during resource construction
 cannot change the remaining policies or saved configuration. On resume, the
 overwrite/new prompt only updates the saved session destination; it does not
 recapture the other options. JSON schema, field names and cross-engine resume
@@ -59,8 +59,8 @@ the CLI mapping. Learned target-specific filters remain outside configuration.
 This is not full process isolation. CLI normalization, initial target input,
 session-path interaction, process signals and other items in the
 [refactoring backlog](refactoring-backlog.md) still need separate work. Local
-resource contexts and replacement of the transitional session mapping are not
-implemented here. No target scheduler, Rust engine change or new concurrency
+resource contexts and local CLI normalization are not implemented yet.
+No target scheduler, Rust engine change or new concurrency
 capability is included.
 
 Construction/copying happens at preparation and run start, not per request or

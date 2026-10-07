@@ -27,6 +27,7 @@ from unittest import TestCase, skipIf
 from unittest.mock import patch
 
 from lib.controller.session import SessionStore
+from lib.controller.session_options import SessionOptions
 from lib.core.run_config import RunConfig
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
@@ -42,7 +43,7 @@ class TestSessionStore(TestCase):
     def _snapshot(self, options, last_output="", controller=None):
         controller = self._controller() if controller is None else controller
         controller.run_state.prepare_targets(options.get("urls", []))
-        return Controller._snapshot_session(controller, options, last_output)
+        return Controller._snapshot_session(controller, SessionOptions.from_options(options), last_output)
 
     def _write_json(self, path: str, payload: dict) -> None:
         with open(path, "w", encoding="utf-8") as handle:
@@ -210,7 +211,7 @@ class TestSessionStore(TestCase):
             store = SessionStore()
             store.save(self._snapshot(session_options, controller=controller), session_dir)
             payload = store.load(session_dir)
-            restored = payload.options
+            restored = payload.options.to_options()
 
         self.assertEqual(restored["data"], body)
 
@@ -307,7 +308,7 @@ class TestSessionStore(TestCase):
             store = SessionStore()
             store.save(self._snapshot(session_options, controller=controller), session_dir)
             payload = store.load(session_dir)
-            restored_options = payload.options
+            restored_options = payload.options.to_options()
             resumed = object.__new__(Controller)
             resumed.config = RunConfig(reports=ReportConfig.from_options(restored_options))
             resumed.metadata = RunMetadata("dirsearch", "2026-10-06 12:00:00")

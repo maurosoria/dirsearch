@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from lib.controller.controller import Controller
 from lib.controller.session import SessionStore
+from lib.controller.session_options import SessionOptions
 from lib.controller.session_snapshot import RunCheckpoint, SessionSnapshot
 from lib.core.data import options
 from lib.core.execution_config import ScanEngine
@@ -73,7 +74,7 @@ class TestControllerRunConfig(TestCase):
                 ):
                     controller = Controller(output=StringIO())
                 self.assertEqual(controller.config, RunConfig.from_options(prepared[0]))
-                self.assertEqual(controller._session_options, prepared[0])
+                self.assertEqual(controller.session_options, SessionOptions.from_options(prepared[0]))
                 self.assertIs(controller.dictionary.config, controller.config.wordlist)
                 self.assertIs(controller.interface.config, controller.config.terminal)
                 self.assertIs(controller.reporter.config, controller.config.reports)
@@ -109,9 +110,11 @@ class TestControllerRunConfig(TestCase):
         self.assertEqual(controller.config.terminal.method, "POST")
         self.assertEqual(controller.config.request.body, b"\x80body\r\n")
         self.assertIn(("authorization", "Bearer private-value"), controller.config.request.headers)
-        self.assertEqual(controller._session_options["http_method"], "POST")
-        self.assertEqual(controller._session_options["data"], b"\x80body\r\n")
-        self.assertEqual(controller._session_options["urls"], ["example.test/api?next=%2Fhome"])
+        saved_options = controller.session_options.to_options()
+        self.assertEqual(saved_options["http_method"], "POST")
+        self.assertEqual(saved_options["data"], b"\x80body\r\n")
+        self.assertNotIn("urls", saved_options)
+        self.assertEqual(options["urls"], ["example.test/api?next=%2Fhome"])
 
     def test_resume_prepares_saved_policy_once_and_keeps_overwrite_choice(self):
         for engine in ScanEngine:
@@ -132,7 +135,7 @@ class TestControllerRunConfig(TestCase):
                     SessionStore().save(SessionSnapshot(
                         run=RunCheckpoint(0),
                         task_checkpoint=TaskCheckpoint(DictionaryCheckpoint((), 0)),
-                        options=saved,
+                        options=SessionOptions(saved),
                     ), checkpoint)
                     options.update(session_file=checkpoint, http_method="DELETE", thread_count=99)
 
@@ -147,10 +150,11 @@ class TestControllerRunConfig(TestCase):
                     self.assertIs(controller.config.execution.engine, engine)
                     self.assertIs(controller.reporter.config, controller.config.reports)
                     self.assertIs(controller.interface.config, controller.config.terminal)
-                    self.assertEqual(controller._session_options["headers"], {"X-Saved": "yes"})
-                    self.assertEqual(controller._session_options["http_method"], "POST")
-                    self.assertEqual(controller._session_options["thread_count"], 3)
-                    self.assertEqual(controller._session_options["session_file"], checkpoint if choice == "o" else None)
+                    prepared = controller.session_options.to_options()
+                    self.assertEqual(prepared["headers"], {"X-Saved": "yes"})
+                    self.assertEqual(prepared["http_method"], "POST")
+                    self.assertEqual(prepared["thread_count"], 3)
+                    self.assertEqual(prepared["session_file"], checkpoint if choice == "o" else None)
 
     def test_invalid_engine_stops_before_opening_prepared_resources(self):
         options.update(request_backend="native", async_mode=True)
@@ -181,10 +185,26 @@ class TestControllerRunConfig(TestCase):
     def test_failed_preparation_does_not_publish_a_partial_configuration(self):
         controller = object.__new__(Controller)
         controller._prepare_config(options)
-        previous, previous_options = controller.config, controller._session_options
+        previous, previous_options = controller.config, controller.session_options
         invalid = deepcopy(options)
         invalid.update(request_backend="unknown")
         with patch("sys.stderr", new_callable=StringIO), self.assertRaises(SystemExit):
             controller._prepare_config(invalid)
         self.assertIs(controller.config, previous)
-        self.assertIs(controller._session_options, previous_options)
+        self.assertIs(controller.session_options, previous_options)
+
+    def test_local_preparation_input_cannot_mutate_policies_or_persistence(self):
+        values = deepcopy(options)
+        values.update(headers={"X-Test": "prepared"}, wordlists=["words.txt"], urls=["target"])
+        controller = object.__new__(Controller)
+        local_input = controller._prepare_config(values)
+        values["headers"].clear()
+        values["wordlists"].clear()
+        self.assertEqual(local_input["wordlists"], ["words.txt"])
+        local_input["headers"].clear()
+        local_input["wordlists"].clear()
+        local_input["http_method"] = "DELETE"
+        self.assertEqual(controller.config.request.headers, (("X-Test", "prepared"),))
+        self.assertEqual(controller.session_options.to_options()["headers"], {"X-Test": "prepared"})
+        self.assertEqual(controller.session_options.to_options()["wordlists"], ["words.txt"])
+        self.assertNotIn("urls", controller.session_options.to_options())
