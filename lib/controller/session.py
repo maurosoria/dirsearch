@@ -26,6 +26,7 @@ import os
 from typing import Any
 
 from .session_snapshot import RunCheckpoint, SessionSnapshot
+from .session_options import SessionOptions
 from lib.core.exceptions import UnpicklingError
 from ..core.task_checkpoint import DictionaryCheckpoint, TaskCheckpoint
 from ..core.task_spec import TaskSpec
@@ -159,7 +160,7 @@ class SessionStore:
                     extra_index=dictionary.get("extra_index", 0),
                 ),
             ),
-            options=restored_options,
+            options=SessionOptions(restored_options),
             last_output=payload.get("last_output") or "",
             output_history=payload.get("output_history") or [],
         )
@@ -190,7 +191,7 @@ class SessionStore:
                 "extra_index": snapshot.task_checkpoint.dictionary.extra_index,
             },
             "options": self._serialize_options({
-                **snapshot.options,
+                **snapshot.options.to_options(),
                 "urls": [task.target for task in snapshot.remaining_tasks],
             }),
             "last_output": snapshot.last_output,

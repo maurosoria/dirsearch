@@ -8,6 +8,7 @@ from unittest.mock import Mock, patch
 
 from lib.controller.controller import Controller
 from lib.controller.session_snapshot import RunCheckpoint, SessionSnapshot
+from lib.controller.session_options import SessionOptions
 from lib.core.task_checkpoint import DictionaryCheckpoint, TaskCheckpoint
 from lib.core.data import options
 from lib.core.options import parse_options
@@ -47,11 +48,11 @@ class TestOptions(TestCase):
         session_store = Mock()
         session_store.load.return_value = SessionSnapshot(
             run=RunCheckpoint(0), task_checkpoint=TaskCheckpoint(DictionaryCheckpoint((), 0)),
-            options={
+            options=SessionOptions({
                 "headers": {"User-Agent": "fixed-from-session"},
                 "random_agents": True,
                 "session_file": "session.json",
-            },
+            }),
         )
         output = io.StringIO()
 

@@ -11,6 +11,7 @@ from lib.core.run_config import RunConfig
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.controller.session import SessionStore
+from lib.controller.session_options import SessionOptions
 from lib.core.data import options
 from lib.core.run_metadata import RunMetadata
 from lib.core.scan_run_state import ScanRunState
@@ -119,7 +120,7 @@ class TestSessionCleanup(TestCase):
         controller.metadata = RunMetadata("dirsearch", "2026-10-06 12:00:00")
         controller.run_state = ScanRunState()
         controller.target_progress = TargetProgress()
-        controller._session_options = {}
+        controller.session_options = SessionOptions()
         controller._snapshot_session = Mock(return_value=SimpleNamespace(output_history=[]))
         controller.interface = Mock()
         controller.reporter = Mock()

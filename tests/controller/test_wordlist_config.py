@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from lib.controller.controller import Controller
 from lib.controller.session import SessionStore
+from lib.controller.session_options import SessionOptions
 from lib.core.data import options
 from lib.core.dictionary import Dictionary
 
@@ -74,7 +75,7 @@ class TestControllerWordlistConfig(TestCase):
                 options["wordlist_max_size"] = 1
                 checkpoint = os.path.join(directory, "session")
                 store = SessionStore()
-                store.save(original._snapshot_session(options, ""), checkpoint)
+                store.save(original._snapshot_session(SessionOptions.from_options(options), ""), checkpoint)
                 payload = store.load(checkpoint)
                 self.assertEqual(payload.task_checkpoint.dictionary.to_state(), (
                     ["done", "pending"], 2, ["pending", "dynamic.html"], 0,

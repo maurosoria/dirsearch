@@ -15,6 +15,7 @@ from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
 from lib.controller.session import SessionStore
+from lib.controller.session_options import SessionOptions
 from lib.core.data import options
 from lib.core.dictionary import Dictionary
 from lib.core.execution_config import ExecutionConfig, ScanEngine
@@ -145,7 +146,7 @@ class TestResultPreparation(TestCase):
                                 dictionary=Dictionary(WordlistConfig()),
                             )
                             SessionStore().save(
-                                Controller._snapshot_session(saved_controller, saved, ""), checkpoint
+                                Controller._snapshot_session(saved_controller, SessionOptions.from_options(saved), ""), checkpoint
                             )
 
                         current = dict(saved)

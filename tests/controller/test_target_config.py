@@ -9,6 +9,7 @@ from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
 from lib.controller.session import SessionStore
+from lib.controller.session_options import SessionOptions
 from lib.core.data import options
 from lib.core.dictionary import Dictionary
 from lib.core.exceptions import InvalidURLException
@@ -175,7 +176,7 @@ class TestControllerTargetConfig(TestCase):
                 saved_controller.run_state.old_session = True
                 checkpoint = os.path.join(directory, "checkpoint")
                 SessionStore().save(
-                    Controller._snapshot_session(saved_controller, saved_options, ""), checkpoint
+                    Controller._snapshot_session(saved_controller, SessionOptions.from_options(saved_options), ""), checkpoint
                 )
                 requester = Mock(backend=None)
                 if engine is ScanEngine.ASYNC:

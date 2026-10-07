@@ -13,6 +13,7 @@ from lib.controller.controller import Controller
 from lib.core.scan_run_state import ScanRunState
 from lib.core.target_progress import TargetProgress
 from lib.controller.session import SessionStore
+from lib.controller.session_options import SessionOptions
 from lib.controller.session_snapshot import RunCheckpoint, SessionSnapshot
 from lib.core.task_checkpoint import DictionaryCheckpoint, TaskCheckpoint
 from lib.core.data import options
@@ -33,7 +34,7 @@ class TestSessionReportConfiguration(TestCase):
             "sqlite_commit_batch_size": 3,
         }
         payload = SessionSnapshot(
-            run=RunCheckpoint(0), task_checkpoint=TaskCheckpoint(DictionaryCheckpoint((), 0)), options={},
+            run=RunCheckpoint(0), task_checkpoint=TaskCheckpoint(DictionaryCheckpoint((), 0)), options=SessionOptions(),
         )
         controller = object.__new__(Controller)
         controller.config = RunConfig(reports=ReportConfig.from_options(saved_options))
@@ -78,7 +79,7 @@ class TestSessionReportConfiguration(TestCase):
                             dictionary=Dictionary(WordlistConfig()),
                         )
                         SessionStore().save(
-                            Controller._snapshot_session(saved_controller, saved_options, ""), checkpoint
+                            Controller._snapshot_session(saved_controller, SessionOptions.from_options(saved_options), ""), checkpoint
                         )
 
                     def run(controller):

@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from lib.controller.controller import Controller
 from lib.controller.session_snapshot import RunCheckpoint, SessionSnapshot
+from lib.controller.session_options import SessionOptions
 from lib.core.task_checkpoint import DictionaryCheckpoint, TaskCheckpoint
 from lib.core.data import options
 from lib.core.discovery_config import DiscoveryConfig
@@ -71,7 +72,7 @@ class TestControllerLoggingOwnership(TestCase):
             ):
                 store.return_value.load.return_value = SessionSnapshot(
                     run=RunCheckpoint(0), task_checkpoint=TaskCheckpoint(DictionaryCheckpoint((), 0)),
-                    options={"log_file": str(restored), "proxy_auth": "user:restored/secret"},
+                    options=SessionOptions({"log_file": str(restored), "proxy_auth": "user:restored/secret"}),
                 )
                 controller = Controller(output=StringIO())
             self.assertFalse(cli.exists())

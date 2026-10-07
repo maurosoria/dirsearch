@@ -14,9 +14,9 @@ JSON fields; no state class or engine handle is serialized.
 
 | Stage | Owner | Contract |
 | --- | --- | --- |
-| Preparation | Controller | Copy normalized options after raw-request setup or validated session restore. |
+| Preparation | Controller | Capture `RunConfig` and opaque `SessionOptions` after raw-request setup or validated session restore. |
 | Save preparation | Controller | Flush report rows, capture active/pending `TaskSpec` entries from `ScanRunState`, and capture dictionary progress including outstanding claims. |
-| Snapshot | `SessionSnapshot` | Group `remaining_tasks`, immutable run/task checkpoints, detached normalized options and output history. |
+| Snapshot | `SessionSnapshot` | Group `remaining_tasks`, immutable run/task checkpoints, `SessionOptions` and copied output history. |
 | Persistence | `SessionStore.save(snapshot, path)` | Encode options and atomically replace the existing JSON checkpoint. |
 | Commit history | Controller | Adopt the snapshot's history only after a successful save. |
 | Load | `SessionStore.load(path)` | Validate JSON, decode normalized option types and apply historical defaults into a `SessionSnapshot`; no live resources. |
@@ -38,10 +38,11 @@ restored dictionary. Reusing one snapshot to reconstruct two owners cannot share
 their mutable progress. The old internal `controller`/`dictionary` mappings are
 removed; there are no dictionary-shaped compatibility fallbacks.
 
-Options and output history remain detached mutable data. The enclosing snapshot
-is therefore not deeply immutable or a thread-safe capture algorithm. Capture
-still uses the existing paused save boundary. Callers must not mutate a snapshot
-while another operation serializes it.
+[SessionOptions](session-options.md) provides copy-in/copy-out access to prepared
+input; it exposes no mutable mapping. Output history and the enclosing snapshot
+remain mutable, so this is not a thread-safe capture algorithm. Capture still
+uses the existing paused save boundary. Callers must not mutate a snapshot while
+another operation serializes it.
 
 The constructors copy input containers; changing live headers, targets,
 directory lists or output entries afterward cannot alter the pending write.
@@ -57,8 +58,8 @@ from `TaskCheckpoint.url`: for example, a target with credentials, path and quer
 may share its prepared origin with many different inputs. Duplicate specs stay
 as separate positions; equality of descriptors does not identify one execution.
 
-Target input no longer belongs in the snapshot's `options` mapping. Construction
-rejects a second `urls` input there. Only the storage adapter writes
+Target input does not belong in the snapshot's `SessionOptions`. Direct option
+construction rejects a second `urls` input there. Only the storage adapter writes
 `[task.target for task in snapshot.remaining_tasks]` into the legacy
 `options.urls` JSON field. Load extracts that field into descriptors and removes
 it from the returned options. Missing/null legacy URL lists produce no tasks;
@@ -73,19 +74,19 @@ an empty directory queue does not prove successful completion. Independent
 contexts, stable execution IDs and explicit resource lifecycle remain future
 work. Rust's internal `ScanTask` is unrelated and unchanged.
 
-The controller's `_session_options` is a transitional, detached copy of normalized
-input. Export no longer rereads process-global options. The same preparation
-boundary now creates [RunConfig](run-configuration.md) for runtime composition;
-the mapping remains the session representation, not a serialization of that
-aggregate. Setup and restore still use the CLI options boundary. Complete
-controllers are not yet safe to run concurrently in one process.
+The controller's `session_options` is an opaque value, separate from
+[RunConfig](run-configuration.md). Export never rereads process-global options.
+Only restoration and storage request disposable normalized mappings with
+`to_options()`. An overwrite/new choice replaces the value without changing
+earlier snapshots. Setup and restore still use the CLI options boundary;
+complete controllers are not yet safe to run concurrently in one process.
 
 ## Compatibility and cost
 
 - JSON field names, schema version, bytes encoding, active-first target ordering,
   wordlist claims and cross-engine resume are unchanged.
-- `load()` now returns a `SessionSnapshot`, with bytes, sets and tuples already
-  decoded in its options. Runtime reconstruction is explicit in
+- `load()` returns a `SessionSnapshot`, whose `SessionOptions.to_options()`
+  provides decoded bytes, sets and tuples. Runtime reconstruction is explicit in
   `Controller._restore_session()`; loading alone opens no runtime resources.
 - Historical defaults for absent optional progress fields stay in storage.
   Missing/invalid `start_time` and explicit null progress are rejected by both
