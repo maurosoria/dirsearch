@@ -649,7 +649,7 @@ class TestControllerResponseStores(TestCase):
         with patch.dict("lib.controller.controller.options", {"session_file": None}):
             with patch.object(Controller, "setup", failing_setup):
                 with self.assertRaisesRegex(RuntimeError, "setup failed"):
-                    Controller()
+                    Controller().run()
 
         self.assertTrue(store.close_called)
 

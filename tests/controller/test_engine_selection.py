@@ -34,7 +34,7 @@ class TestEngineSelection(TestCase):
                 patch("sys.stderr", new_callable=io.StringIO) as stderr,
                 self.assertRaises(SystemExit) as stopped,
             ):
-                Controller()
+                Controller().run()
             self.assertEqual(stopped.exception.code, 1)
             self.assertEqual(stderr.getvalue(), message + "\n")
             threaded.assert_not_called()

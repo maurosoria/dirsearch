@@ -2,7 +2,7 @@ import importlib.util
 import sys
 from pathlib import Path
 from unittest import TestCase
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from lib.core.data import options
 from lib.core.run_metadata import RunMetadata
@@ -23,10 +23,11 @@ class TestCLIRunMetadata(TestCase):
             return {"wordlist_status": False, "session_file": None}
 
         # main() still writes the transitional global options dictionary.
+        executions = [Mock(), Mock()]
         with (
             patch.dict(options, {}, clear=True),
             patch.object(cli, "parse_options", side_effect=prepare_options),
-            patch("lib.controller.controller.Controller") as controller,
+            patch("lib.controller.controller.Controller", side_effect=executions) as controller,
         ):
             for name in ("first", "second"):
                 with (
@@ -35,6 +36,8 @@ class TestCLIRunMetadata(TestCase):
                 ):
                     cli.main()
         self.assertEqual(controller.call_count, 2)
+        for execution in executions:
+            execution.run.assert_called_once_with()
         for call, name in zip(controller.call_args_list, ("first", "second")):
             metadata = call.kwargs["metadata"]
             self.assertEqual(metadata.command, "dirsearch --auth <redacted> -w " + name)

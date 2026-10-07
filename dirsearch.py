@@ -79,7 +79,7 @@ def main():
 
     from lib.controller.controller import Controller
 
-    Controller(metadata=metadata)
+    Controller(metadata=metadata).run()
 
 
 if __name__ == "__main__":

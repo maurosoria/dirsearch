@@ -95,7 +95,7 @@ class TestControllerRunState(TestCase):
                     options["urls"] = ["http://unrelated.test/"]
 
                 controller.start.side_effect = start
-                controller.run()
+                controller._run_targets()
                 self.assertEqual(controller.set_target.call_args_list, list(map(call, expected)))
                 self.assertEqual(observations, [
                     (target, len(expected) - index - 1, expected[index:])
@@ -110,7 +110,7 @@ class TestControllerRunState(TestCase):
         for engine in ScanEngine:
             with self.subTest(engine=engine), self._environment(engine, []):
                 controller = self._controller()
-                controller.run()
+                controller._run_targets()
                 controller.set_target.assert_not_called()
                 controller.start.assert_not_called()
                 controller.resources.reporter.finish.assert_called_once_with()
@@ -126,7 +126,7 @@ class TestControllerRunState(TestCase):
                 ):
                     controller = self._controller()
                     controller.start.side_effect = [error("interrupted"), None]
-                    controller.run()
+                    controller._run_targets()
                     self.assertEqual(controller.set_target.call_args_list, list(map(call, targets)))
                     self.assertEqual(controller.start.call_count, 2)
                     self.assertEqual([task.target for task in controller.run_state.snapshot_tasks()], [])
@@ -145,7 +145,7 @@ class TestControllerRunState(TestCase):
             ):
                 controller = self._controller()
                 with self.assertRaisesRegex(RuntimeError, "setup failed"):
-                    controller.run()
+                    controller._run_targets()
                 controller.set_target.assert_not_called()
                 self.assertEqual(controller.run_state.active_task.target, targets[0])
                 self.assertEqual(controller.run_state.pending_count, 1)
@@ -190,7 +190,7 @@ class TestControllerRunState(TestCase):
 
                 controller.start.side_effect = start
                 with self.assertRaises(SystemExit) as stopped:
-                    controller.run()
+                    controller._run_targets()
                 self.assertEqual(stopped.exception.code, 0)
                 payload = SessionStore().load(checkpoint)
                 self.assertEqual([task.target for task in payload.remaining_tasks], targets[1:])
@@ -210,7 +210,7 @@ class TestControllerRunState(TestCase):
                             resumed._prepare_config(options)
                             resumed._restore_session(payload)
                             self.addCleanup(resumed.resources.reporter.finish)
-                            resumed.run()
+                            resumed._run_targets()
                             self.assertEqual(
                                 resumed.set_target.call_args_list, list(map(call, targets[1:]))
                             )
@@ -264,7 +264,7 @@ class TestControllerRunState(TestCase):
                 options["urls"] = ["http://unrelated.test/"]
                 resumed = self._controller()
                 resumed._import(checkpoint)
-                resumed.run()
+                resumed._run_targets()
                 self.assertEqual(resumed.set_target.call_args_list, list(map(call, targets[1:])))
                 self.assertEqual(options["urls"], targets[1:])
                 self.assertEqual([task.target for task in resumed.run_state.snapshot_tasks()], [])

@@ -113,12 +113,13 @@ class TestSessionReportConfiguration(TestCase):
                         )
                     with (
                         patch.dict(options, current_options),
-                        patch.object(Controller, "run", new=run),
+                        patch.object(Controller, "_run_targets", new=run),
                         patch.object(Controller, "_confirm_session_overwrite"),
                         patch("lib.controller.controller.Dictionary", return_value=Dictionary(WordlistConfig())),
                         patch("lib.controller.controller.create_terminal"),
                     ):
                         controller = Controller(metadata=metadata)
+                        controller.run()
                     for host in ("first.test", "second.test"):
                         expected_url = "https://" + host + "/item"
                         json_path = Path(directory, f"report-{host}-json.json")
