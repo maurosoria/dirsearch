@@ -10,6 +10,7 @@ from unittest.mock import Mock, patch
 from lib.connection.native import NativeHTTPBackend
 from lib.connection.requester import AsyncRequester, Requester
 from lib.core.run_config import RunConfig
+from lib.controller.run_resources import RunResources
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
@@ -91,11 +92,11 @@ class TestControllerTargetURL(TestCase):
             }
         )
         self.controller = object.__new__(Controller)
+        self.controller.resources = RunResources(interface=Mock(), logger=Mock())
         self.controller.config = RunConfig(target=TargetConfig.from_options(options))
         self.controller.run_state = ScanRunState()
         self.controller.target_progress = TargetProgress()
-        self.controller.interface = Mock()
-        self.controller.requester = Mock()
+        self.controller.resources.requester = Mock()
 
     def tearDown(self):
         options.clear()
@@ -143,12 +144,12 @@ class TestControllerTargetURL(TestCase):
 
         for target, expected_url in cases:
             with self.subTest(target=target):
-                self.controller.requester.reset_mock()
+                self.controller.resources.requester.reset_mock()
 
                 self.controller.set_target(target)
 
                 self.assertEqual(self.controller.target_progress.url, expected_url)
-                self.controller.requester.set_url.assert_called_once_with(
+                self.controller.resources.requester.set_url.assert_called_once_with(
                     expected_url
                 )
 
@@ -159,7 +160,7 @@ class TestControllerTargetURL(TestCase):
         self.controller.set_target("[2001:db8::1]:8443/private")
 
         self.assertEqual(self.controller.target_progress.url, "https://[2001:db8::1]:8443/")
-        self.controller.requester.set_url.assert_called_once_with(
+        self.controller.resources.requester.set_url.assert_called_once_with(
             "https://[2001:db8::1]:8443/"
         )
 
@@ -195,12 +196,10 @@ class TestControllerTargetURL(TestCase):
         for stack, async_mode, request_backend in stack_cases:
             with self.subTest(stack=stack):
                 controller = object.__new__(Controller)
+                controller.resources = RunResources(interface=Mock(), logger=Mock())
                 controller.config = RunConfig()
                 controller.run_state = ScanRunState()
                 controller.target_progress = TargetProgress()
-                controller.logger = Mock()
-                controller.interface = Mock()
-                controller.loop = None
                 controller.start_time = 0
                 controller.run_state.passed_urls = set()
                 controller.target_progress.directories = []
@@ -210,8 +209,7 @@ class TestControllerTargetURL(TestCase):
                 controller.run_state.old_session = False
                 controller.dictionary = Mock()
                 controller.output_history = []
-                controller.response_stores = ()
-                controller.reporter = Mock()
+                controller.resources.reporter = Mock()
                 controller.crawl_target = Mock()
                 controller.start = Mock()
                 requester = Mock()
@@ -242,17 +240,17 @@ class TestControllerTargetURL(TestCase):
                     patch("lib.core.fuzzer.AsyncFuzzer", return_value=Mock()),
                     patch("lib.core.fuzzer.NativeFuzzer", return_value=Mock()),
                     patch("lib.controller.controller.signal.signal"),
-                    patch.object(controller, "interface") as interface,
+                    patch.object(controller.resources, "interface") as interface,
                 ):
                     try:
                         controller._prepare_config(options)
                         controller.run()
                     finally:
-                        if isinstance(controller.loop, asyncio.AbstractEventLoop):
-                            controller.loop.close()
+                        if isinstance(controller.resources.loop, asyncio.AbstractEventLoop):
+                            controller.resources.loop.close()
 
                 controller.start.assert_called_once_with()
-                controller.reporter.prepare.assert_called_once_with(
+                controller.resources.reporter.prepare.assert_called_once_with(
                     "https://good.example/"
                 )
                 interface.error.assert_called_once()
@@ -265,7 +263,7 @@ class TestControllerTargetURL(TestCase):
         with patch.dict(os.environ, PROXY_ENVIRONMENT):
             with LocalIPv6HTTPServer() as server:
                 requester = Requester(RequestConfig.from_options(options))
-                self.controller.requester = requester
+                self.controller.resources.requester = requester
                 try:
                     for hostname in IPV6_LOOPBACK_FORMS:
                         with self.subTest(hostname=hostname):
@@ -290,7 +288,7 @@ class TestControllerTargetURL(TestCase):
         with patch.dict(os.environ, PROXY_ENVIRONMENT):
             with LocalIPv6HTTPServer() as server:
                 requester = Requester(RequestConfig.from_options(options))
-                self.controller.requester = requester
+                self.controller.resources.requester = requester
                 try:
                     for hostname in IPV6_LOOPBACK_FORMS:
                         with self.subTest(hostname=hostname):
@@ -317,10 +315,10 @@ class TestAsyncControllerTargetURL(IsolatedAsyncioTestCase):
             }
         )
         self.controller = object.__new__(Controller)
+        self.controller.resources = RunResources(interface=Mock(), logger=Mock())
         self.controller.config = RunConfig(target=TargetConfig.from_options(options))
         self.controller.run_state = ScanRunState()
         self.controller.target_progress = TargetProgress()
-        self.controller.interface = Mock()
 
     def tearDown(self):
         options.clear()
@@ -330,7 +328,7 @@ class TestAsyncControllerTargetURL(IsolatedAsyncioTestCase):
         with patch.dict(os.environ, PROXY_ENVIRONMENT):
             with LocalIPv6HTTPServer() as server:
                 requester = AsyncRequester(RequestConfig.from_options(options))
-                self.controller.requester = requester
+                self.controller.resources.requester = requester
                 try:
                     for hostname in IPV6_LOOPBACK_FORMS:
                         with self.subTest(hostname=hostname):

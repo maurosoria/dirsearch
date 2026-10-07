@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from unittest import TestCase
 from unittest.mock import Mock, call, patch
 
+from lib.controller.run_resources import RunResources
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.controller.session import SessionStore
@@ -21,14 +22,13 @@ from lib.core.run_metadata import RunMetadata
 class TestControllerRunState(TestCase):
     def _controller(self):
         controller = object.__new__(Controller)
+        controller.resources = RunResources(interface=Mock(buffer=""), logger=Mock())
         controller._prepare_config(options)
         controller.metadata = RunMetadata("dirsearch", "2026-10-06 12:00:00")
         controller.run_state = ScanRunState()
         controller.target_progress = TargetProgress()
-        controller.logger = Mock()
-        controller.interface = Mock(buffer="")
         controller._terminal_stream = StringIO()
-        self.addCleanup(lambda: controller.interface.close())
+        self.addCleanup(lambda: controller.resources.interface.close())
         controller.start_time = 0
         controller.run_state.passed_urls = set()
         controller.target_progress.directories = []
@@ -40,18 +40,15 @@ class TestControllerRunState(TestCase):
         controller.run_state.old_session = False
         controller.dictionary = Dictionary(controller.config.wordlist)
         controller.output_history = []
-        controller.response_stores = ()
         controller._native_worker = None
-        controller._reporter_finished = False
-        controller.loop = None
-        controller.reporter = Mock()
+        controller.resources.reporter = Mock()
         controller.set_target = Mock(side_effect=lambda url: setattr(controller.target_progress, "url", url))
         controller.crawl_target = Mock()
         controller.start = Mock()
 
         def close_loop():
-            if controller.loop is not None:
-                controller.loop.close()
+            if controller.resources.loop is not None:
+                controller.resources.loop.close()
 
         self.addCleanup(close_loop)
         return controller
@@ -116,7 +113,7 @@ class TestControllerRunState(TestCase):
                 controller.run()
                 controller.set_target.assert_not_called()
                 controller.start.assert_not_called()
-                controller.reporter.finish.assert_called_once_with()
+                controller.resources.reporter.finish.assert_called_once_with()
                 self.assertEqual([task.target for task in controller.run_state.snapshot_tasks()], [])
 
     def test_handled_target_exit_advances_once(self):
@@ -163,12 +160,12 @@ class TestControllerRunState(TestCase):
         controller.config = replace(controller.config, discovery=DiscoveryConfig(subdirs=["", "api/"]))
         controller.target_progress.directories = ["current/", "queued/"]
         controller.run_state.jobs_processed = 3
-        controller.requester = Mock(rate=7)
+        controller.resources.requester = Mock(rate=7)
         for callback in (controller.update_progress_bar, controller.update_progress_bar_batch):
             with (
                 self.subTest(callback=callback.__name__),
                 patch.dict(options, {}, clear=True),
-                patch.object(controller, "interface") as interface,
+                patch.object(controller.resources, "interface") as interface,
             ):
                 callback(None)
                 interface.last_path.assert_called_once_with(0, 0, 4, 9, 7, 0)
@@ -212,7 +209,7 @@ class TestControllerRunState(TestCase):
                         with self._environment(resume_engine, restored_targets):
                             resumed._prepare_config(options)
                             resumed._restore_session(payload)
-                            self.addCleanup(resumed.reporter.finish)
+                            self.addCleanup(resumed.resources.reporter.finish)
                             resumed.run()
                             self.assertEqual(
                                 resumed.set_target.call_args_list, list(map(call, targets[1:]))

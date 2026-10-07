@@ -5,6 +5,7 @@ from unittest import TestCase
 from unittest.mock import Mock, patch
 
 from lib.core.run_config import RunConfig
+from lib.controller.run_resources import RunResources
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.data import options
@@ -46,11 +47,11 @@ class TestPauseState(TestCase):
 
     def reset_controller(self):
         self.controller = object.__new__(Controller)
+        self.controller.resources = RunResources(interface=Mock(), logger=Mock())
         self.controller.config = RunConfig(execution=ExecutionConfig.from_options(options))
         self.controller.metadata = RunMetadata("dirsearch", "2026-10-05 23:59:59")
         self.controller.run_state = ScanRunState()
         self.controller.target_progress = TargetProgress()
-        self.controller.interface = Mock()
         self.controller.run_state.prepare_targets(options["urls"])
         self.controller.run_state.activate_next()
         self.controller._handling_pause = False
@@ -165,7 +166,7 @@ class TestPauseState(TestCase):
                     else:
                         with self.assertRaises(QuitInterrupt):
                             self.controller.handle_pause()
-                    self.controller.interface.in_line.assert_any_call(
+                    self.controller.resources.interface.in_line.assert_any_call(
                         "Save to file [checkpoint-2026-10-05_23-59-59]: "
                     )
                     prefix = "custom" if entered else "checkpoint"
@@ -210,7 +211,7 @@ class TestPauseState(TestCase):
                 else:
                     with self.assertRaises(SkipTargetInterrupt):
                         self.controller.handle_pause()
-                self.assertIn("[s]kip target", self.controller.interface.in_line.call_args.args[0])
+                self.assertIn("[s]kip target", self.controller.resources.interface.in_line.call_args.args[0])
                 # The menu signals the exit; only run() finishes the attempt.
                 self.assertEqual(self.controller.run_state.active_task.target, "first")
 
@@ -226,6 +227,6 @@ class TestPauseState(TestCase):
                 self.controller.run_state = ScanRunState(["last"])
                 self.controller.run_state.activate_next()
                 self.controller.handle_pause()
-                for call in self.controller.interface.in_line.call_args_list:
+                for call in self.controller.resources.interface.in_line.call_args_list:
                     self.assertNotIn("[s]kip target", call.args[0])
                 self.controller.fuzzer.play.assert_called_once_with()

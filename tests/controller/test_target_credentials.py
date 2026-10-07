@@ -5,6 +5,7 @@ import requests
 
 from lib.connection.requester import AsyncRequester, Requester
 from lib.core.run_config import RunConfig
+from lib.controller.run_resources import RunResources
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
@@ -25,10 +26,11 @@ class TestControllerTargetCredentials(TestCase):
             }
         )
         self.controller = object.__new__(Controller)
+        self.controller.resources = RunResources(interface=Mock(), logger=Mock())
         self.controller.config = RunConfig(target=TargetConfig.from_options(options))
         self.controller.run_state = ScanRunState()
         self.controller.target_progress = TargetProgress()
-        self.controller.requester = Mock()
+        self.controller.resources.requester = Mock()
 
     def tearDown(self):
         options.clear()
@@ -48,15 +50,15 @@ class TestControllerTargetCredentials(TestCase):
 
         for target, credential in cases:
             with self.subTest(target=target):
-                self.controller.requester.reset_mock()
+                self.controller.resources.requester.reset_mock()
 
                 self.controller.set_target(target)
 
-                self.controller.requester.reset_auth.assert_called_once_with()
-                self.controller.requester.set_auth.assert_called_once_with(
+                self.controller.resources.requester.reset_auth.assert_called_once_with()
+                self.controller.resources.requester.set_auth.assert_called_once_with(
                     "basic", credential
                 )
-                self.controller.requester.set_url.assert_called_once_with(
+                self.controller.resources.requester.set_url.assert_called_once_with(
                     "http://example.test/"
                 )
 
@@ -66,11 +68,11 @@ class TestControllerTargetCredentials(TestCase):
         )
 
         self.assertEqual(self.controller.target_progress.base_path, "private/")
-        self.controller.requester.reset_auth.assert_called_once_with()
-        self.controller.requester.set_url.assert_called_once_with(
+        self.controller.resources.requester.reset_auth.assert_called_once_with()
+        self.controller.resources.requester.set_url.assert_called_once_with(
             "https://example.test/"
         )
-        self.controller.requester.set_query.assert_called_once_with("debug=true")
+        self.controller.resources.requester.set_query.assert_called_once_with("debug=true")
 
     def test_scheme_less_target_supports_embedded_credentials(self):
         with patch(
@@ -79,20 +81,20 @@ class TestControllerTargetCredentials(TestCase):
         ):
             self.controller.set_target("user:p%40ss@example.test")
 
-        self.controller.requester.set_auth.assert_called_once_with(
+        self.controller.resources.requester.set_auth.assert_called_once_with(
             "basic", "user:p@ss"
         )
-        self.controller.requester.reset_auth.assert_called_once_with()
-        self.controller.requester.set_url.assert_called_once_with(
+        self.controller.resources.requester.reset_auth.assert_called_once_with()
+        self.controller.resources.requester.set_url.assert_called_once_with(
             "https://example.test/"
         )
 
     def test_target_without_credentials_restores_configured_authentication(self):
         self.controller.set_target("https://example.test/")
 
-        self.controller.requester.reset_auth.assert_called_once_with()
-        self.controller.requester.set_auth.assert_not_called()
-        self.controller.requester.set_url.assert_called_once_with(
+        self.controller.resources.requester.reset_auth.assert_called_once_with()
+        self.controller.resources.requester.set_auth.assert_not_called()
+        self.controller.resources.requester.set_url.assert_called_once_with(
             "https://example.test/"
         )
 
@@ -102,8 +104,8 @@ class TestControllerTargetCredentials(TestCase):
                 "ftp://target-user:target-password@example.test/"
             )
 
-        self.controller.requester.reset_auth.assert_not_called()
-        self.controller.requester.set_auth.assert_not_called()
+        self.controller.resources.requester.reset_auth.assert_not_called()
+        self.controller.resources.requester.set_auth.assert_not_called()
 
 
 class TargetAuthenticationIntegrationMixin:
@@ -137,10 +139,11 @@ class TargetAuthenticationIntegrationMixin:
     @staticmethod
     def controller_for(requester):
         controller = object.__new__(Controller)
+        controller.resources = RunResources(interface=Mock(), logger=Mock())
         controller.config = RunConfig(target=TargetConfig.from_options(options))
         controller.run_state = ScanRunState()
         controller.target_progress = TargetProgress()
-        controller.requester = requester
+        controller.resources.requester = requester
         return controller
 
 

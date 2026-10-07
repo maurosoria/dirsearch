@@ -3,6 +3,7 @@ from unittest import TestCase
 from unittest.mock import Mock, patch
 
 from lib.core.run_config import RunConfig
+from lib.controller.run_resources import RunResources
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
@@ -50,11 +51,10 @@ class RecordingAsyncFuzzer(RecordingFuzzer):
 class TestSessionResumeQueue(TestCase):
     def _controller(self):
         controller = object.__new__(Controller)
+        controller.resources = RunResources(interface=Mock(), logger=Mock())
         controller.config = RunConfig()
         controller.run_state = ScanRunState()
         controller.target_progress = TargetProgress()
-        controller.logger = Mock()
-        controller.interface = Mock()
         controller.start_time = 0
         controller.run_state.passed_urls = set()
         controller.target_progress.directories = ["current/", "next/"]
@@ -69,10 +69,8 @@ class TestSessionResumeQueue(TestCase):
             (["done", "in-flight", "later"], 2, ["in-flight"], 0)
         )
         controller.output_history = []
-        controller.response_stores = ()
         controller._native_worker = None
-        controller.loop = None
-        controller.reporter = Mock()
+        controller.resources.reporter = Mock()
         controller.crawl_target = Mock()
 
         def set_target(url):
@@ -135,8 +133,8 @@ class TestSessionResumeQueue(TestCase):
                         controller._prepare_config(options)
                         controller.run()
                     finally:
-                        if isinstance(controller.loop, asyncio.AbstractEventLoop):
-                            controller.loop.close()
+                        if isinstance(controller.resources.loop, asyncio.AbstractEventLoop):
+                            controller.resources.loop.close()
 
                 self.assertEqual(
                     records,

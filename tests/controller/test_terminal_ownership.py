@@ -9,6 +9,7 @@ from unittest.mock import Mock, patch, sentinel
 
 from lib.controller.session_snapshot import RunCheckpoint, SessionSnapshot
 from lib.controller.session_options import SessionOptions
+from lib.controller.run_resources import RunResources
 from lib.core.task_checkpoint import DictionaryCheckpoint, TaskCheckpoint
 from lib.controller.controller import (
     Controller, PyInstallerLinuxForceQuitHandler, StandardForceQuitHandler,
@@ -56,7 +57,7 @@ class TestControllerTerminalOwnership(TestCase):
             patch.object(Controller, "run"),
         ):
             controller = Controller(output=output)
-        self.assertEqual(controller.interface.config.method, "POST")
+        self.assertEqual(controller.resources.interface.config.method, "POST")
         self.assertIn("HTTP method: POST", output.getvalue())
         self.assertNotIn("HTTP method: GET", output.getvalue())
         self.assert_all_terminals_closed()
@@ -75,7 +76,7 @@ class TestControllerTerminalOwnership(TestCase):
                 def save(controller):
                     controller.target_progress.base_path = ""
                     controller.target_progress.url = ""
-                    controller.interface.new_line("first run")
+                    controller.resources.interface.new_line("first run")
                     controller._export(checkpoint)
 
                 with patch.object(Controller, "run", new=save):
@@ -84,18 +85,18 @@ class TestControllerTerminalOwnership(TestCase):
                 resumed_output = StringIO()
 
                 def resume(controller):
-                    self.assertIsInstance(controller.interface, QuietCLI)
-                    self.assertTrue(controller.interface.config.verbose)
-                    self.assertEqual(controller.interface.buffer, "")
-                    controller.interface.new_line("resumed run")
-                    self.assertEqual(controller.interface.buffer, "resumed run\n")
+                    self.assertIsInstance(controller.resources.interface, QuietCLI)
+                    self.assertTrue(controller.resources.interface.config.verbose)
+                    self.assertEqual(controller.resources.interface.buffer, "")
+                    controller.resources.interface.new_line("resumed run")
+                    self.assertEqual(controller.resources.interface.buffer, "resumed run\n")
 
                 with (
                     patch.object(Controller, "run", new=resume),
                     patch.object(Controller, "_confirm_session_overwrite"),
                 ):
                     resumed = Controller(output=resumed_output)
-                self.assertIsNot(original.interface, resumed.interface)
+                self.assertIsNot(original.resources.interface, resumed.resources.interface)
                 self.assertEqual(original_output.getvalue(), "first run\n")
                 self.assertIn("first run", resumed_output.getvalue())
                 self.assertIn("resumed run", resumed_output.getvalue())
@@ -111,12 +112,12 @@ class TestControllerTerminalOwnership(TestCase):
                 self.assertFalse(output.closed)
 
     def test_history_is_closed_even_when_another_cleanup_raises(self):
-        for cleanup in ("_close_reporter", "_close_requester", "_close_response_stores"):
+        for cleanup in ("finish_reports", "_close_requester", "_close_response_stores"):
             with (
                 self.subTest(cleanup=cleanup),
                 patch.object(Controller, "setup"),
                 patch.object(Controller, "run"),
-                patch.object(Controller, cleanup, side_effect=OSError("cleanup failed")),
+                patch.object(RunResources, cleanup, side_effect=OSError("cleanup failed")),
             ):
                 with self.assertRaisesRegex(OSError, "cleanup failed"):
                     Controller(output=StringIO())

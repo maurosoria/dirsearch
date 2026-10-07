@@ -29,7 +29,7 @@ class TestControllerFilterConfig(TestCase):
                             urls=["http://first.test/", "http://second.test/"],
                         )
                         controller._prepare_config(options)
-                        controller.reporter = Mock(reports=())
+                        controller.resources.reporter = Mock(reports=())
                         controller.dictionary = Mock()
                         controller.target_progress.directories = []
 

@@ -10,7 +10,7 @@ mapping; neither the terminal nor color helpers import global options.
 | Selecting normal, quiet or disabled output | `create_terminal()` |
 | Output history, inline state and serialization of writes | Each `CLI` instance |
 | Stream lifetime | Caller; the terminal borrows it |
-| Terminal lifetime during a run | `Controller.interface`, closed in controller cleanup |
+| Terminal lifetime during a run | `Controller.resources.interface`, owned and closed by `RunResources` |
 | Color/style lookup | Read-only palettes; enabling color is instance-specific |
 
 The internal terminal constructor now requires a config. `print_config()` renders
@@ -62,7 +62,8 @@ coordinate that shared destination themselves.
 
 `close()` is idempotent, closes only the owned history and never closes the
 borrowed stream. Writes after close fail before emitting text. Controller cleanup
-closes the terminal even if report, requester or response-store cleanup raises.
+delegates to [RunResources](run-resources.md), which closes the terminal even if
+report, requester or response-store cleanup raises.
 Low-level force-quit paths still terminate the process immediately.
 
 ## Scope and verification

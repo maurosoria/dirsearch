@@ -8,6 +8,7 @@ from unittest import TestCase
 from unittest.mock import AsyncMock, Mock, patch
 
 from lib.controller.controller import Controller
+from lib.controller.run_resources import RunResources
 from lib.controller.session_snapshot import RunCheckpoint, SessionSnapshot
 from lib.controller.session_options import SessionOptions
 from lib.core.task_checkpoint import DictionaryCheckpoint, TaskCheckpoint
@@ -45,7 +46,7 @@ class TestControllerLoggingOwnership(TestCase):
 
             def run(controller):
                 options.update(log_file=None, proxy_auth="user:unrelated")
-                controller.logger.info("raw user:raw/secret@proxy.example.test")
+                controller.resources.logger.info("raw user:raw/secret@proxy.example.test")
 
             with (
                 patch("lib.controller.controller.parse_raw", side_effect=parse),
@@ -53,7 +54,7 @@ class TestControllerLoggingOwnership(TestCase):
             ):
                 controller = Controller(output=StringIO())
             self.assertIn("raw <redacted>@proxy.example.test", path.read_text())
-            self.assertFalse(controller.logger.handlers)
+            self.assertFalse(controller.resources.logger.handlers)
 
     def test_restored_logging_policy_replaces_current_cli_policy(self):
         with TemporaryDirectory() as directory:
@@ -62,7 +63,7 @@ class TestControllerLoggingOwnership(TestCase):
             options.update(session_file="checkpoint.json", log_file=str(cli))
 
             def run(controller):
-                controller.logger.info("restored user:restored/secret@proxy.example.test")
+                controller.resources.logger.info("restored user:restored/secret@proxy.example.test")
 
             with (
                 patch("lib.controller.controller.SessionStore") as store,
@@ -77,23 +78,29 @@ class TestControllerLoggingOwnership(TestCase):
                 controller = Controller(output=StringIO())
             self.assertFalse(cli.exists())
             self.assertIn("restored <redacted>@proxy.example.test", restored.read_text())
-            self.assertFalse(controller.logger.handlers)
+            self.assertFalse(controller.resources.logger.handlers)
 
     def test_handler_closes_on_execution_and_cleanup_failures(self):
-        for phase in ("run", "_close_reporter", "_close_requester", "_close_response_stores"):
+        for owner, phase in (
+            (Controller, "run"), (RunResources, "finish_reports"),
+            (RunResources, "_close_requester"), (RunResources, "_close_response_stores"),
+        ):
             with self.subTest(phase=phase), TemporaryDirectory() as directory:
                 path = Path(directory, "run.log")
                 options["log_file"] = str(path)
                 handlers = []
 
-                def fail(controller):
-                    handlers.extend(controller.logger.handlers)
-                    controller.logger.info("failure boundary")
+                def fail(resources):
+                    handlers.extend(resources.logger.handlers)
+                    resources.logger.info("failure boundary")
                     raise RuntimeError("injected failure")
+
+                def fail_run(controller):
+                    fail(controller.resources)
 
                 with (
                     patch.object(Controller, "run"),
-                    patch.object(Controller, phase, new=fail),
+                    patch.object(owner, phase, new=fail_run if owner is Controller else fail),
                     self.assertRaisesRegex(RuntimeError, "injected failure"),
                 ):
                     Controller(output=StringIO())
@@ -107,10 +114,10 @@ class TestControllerLoggingOwnership(TestCase):
             handlers = []
 
             def run(controller):
-                handlers.extend(controller.logger.handlers)
-                close = controller.interface.close
+                handlers.extend(controller.resources.logger.handlers)
+                close = controller.resources.interface.close
                 self.addCleanup(close)
-                controller.interface.close = Mock(side_effect=RuntimeError("terminal failure"))
+                controller.resources.interface.close = Mock(side_effect=RuntimeError("terminal failure"))
 
             with patch.object(Controller, "run", new=run), self.assertRaisesRegex(RuntimeError, "terminal failure"):
                 Controller(output=StringIO())

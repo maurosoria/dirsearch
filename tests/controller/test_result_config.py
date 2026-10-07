@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from lib.connection.response import NativeResponse
 from lib.core.run_config import RunConfig
+from lib.controller.run_resources import RunResources
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
@@ -26,14 +27,12 @@ from lib.core.wordlist_config import WordlistConfig
 
 def controller_for(config, engine=ScanEngine.THREADED):
     controller = object.__new__(Controller)
+    controller.resources = RunResources(interface=Mock(), logger=Mock())
     controller.config = RunConfig(results=config, execution=ExecutionConfig(engine=engine))
     controller.run_state = ScanRunState()
     controller.target_progress = TargetProgress()
-    controller.interface = Mock()
-    controller.logger = Mock()
-    controller.requester = Mock()
-    controller.requester.replay_request = AsyncMock()
-    controller.response_stores = ()
+    controller.resources.requester = Mock()
+    controller.resources.requester.replay_request = AsyncMock()
     return controller
 
 
@@ -59,16 +58,16 @@ class TestControllerResultConfig(IsolatedAsyncioTestCase):
                             await AsyncFuzzer.run_callbacks((controller.match_callback,), response)
                         else:
                             self.assertIsNone(controller.match_callback(response))
-                    controller.interface.status_report.assert_called_once_with(response, enabled)
+                    controller.resources.interface.status_report.assert_called_once_with(response, enabled)
                     if enabled and engine is ScanEngine.ASYNC:
-                        controller.requester.replay_request.assert_awaited_once_with(response.full_path, proxy=proxy)
-                        controller.requester.request.assert_not_called()
+                        controller.resources.requester.replay_request.assert_awaited_once_with(response.full_path, proxy=proxy)
+                        controller.resources.requester.request.assert_not_called()
                     elif enabled:
-                        controller.requester.request.assert_called_once_with(response.full_path, proxy=proxy)
-                        controller.requester.replay_request.assert_not_called()
+                        controller.resources.requester.request.assert_called_once_with(response.full_path, proxy=proxy)
+                        controller.resources.requester.replay_request.assert_not_called()
                     else:
-                        controller.requester.request.assert_not_called()
-                        controller.requester.replay_request.assert_not_called()
+                        controller.resources.requester.request.assert_not_called()
+                        controller.resources.requester.replay_request.assert_not_called()
 
     async def test_independent_capture_destinations_work_with_global_options_empty(self):
         directory = Path(self.enterContext(TemporaryDirectory()))
@@ -78,7 +77,7 @@ class TestControllerResultConfig(IsolatedAsyncioTestCase):
             config = ResultConfig(str(directory / label), str(directory / f"{label}.jsonl"))
             controller = controller_for(config, engine)
             controllers.append(controller)
-            self.addCleanup(controller._close_response_stores)
+            self.addCleanup(controller.resources.close)
             with patch.dict(options, {}, clear=True):
                 controller._prepare_response_stores()
                 if engine is ScanEngine.ASYNC:
@@ -86,9 +85,9 @@ class TestControllerResultConfig(IsolatedAsyncioTestCase):
                 else:
                     controller.save_response(response)
 
-        controllers[0]._close_response_stores()
+        controllers[0].resources.close()
         await controllers[1].save_response_async(response)
-        controllers[1]._close_response_stores()
+        controllers[1].resources.close()
         for label, expected in (("sync", 1), ("async", 2)):
             files = list((directory / label).iterdir())
             self.assertEqual(len(files), expected)
@@ -108,7 +107,7 @@ class TestControllerResultConfig(IsolatedAsyncioTestCase):
         ):
             controller._prepare_response_stores()
         factory.assert_called_once_with(None, None)
-        self.assertEqual(controller.response_stores, ())
+        self.assertEqual(controller.resources.response_stores, ())
 
 
 class TestResultPreparation(TestCase):
@@ -183,8 +182,8 @@ class TestResultPreparation(TestCase):
                             response = NativeResponse(controller.target_progress.url + "item", 200, [], b"\x00body")
                             replay = controller.match_callback(response)
                             if engine is ScanEngine.ASYNC:
-                                controller.loop.run_until_complete(replay)
-                                controller.loop.run_until_complete(controller.save_response_async(response))
+                                controller.resources.loop.run_until_complete(replay)
+                                controller.resources.loop.run_until_complete(controller.save_response_async(response))
                             else:
                                 self.assertIsNone(replay)
                                 controller.save_response(response)
@@ -206,7 +205,7 @@ class TestResultPreparation(TestCase):
                         self.assertIs(policies[0], policies[1])
                         self.assertIs(factory.call_args.args[0].capture_full_body, capture)
                         self.assertEqual(
-                            [call.args[1] for call in controller.interface.status_report.call_args_list],
+                            [call.args[1] for call in controller.resources.interface.status_report.call_args_list],
                             [True, True],
                         )
                         replay_calls = (
@@ -214,7 +213,7 @@ class TestResultPreparation(TestCase):
                             else requester.request.call_args_list
                         )
                         self.assertEqual([call.kwargs["proxy"] for call in replay_calls], [expected.replay_proxy] * 2)
-                        self.assertTrue(all(store.closed for store in controller.response_stores))
+                        self.assertTrue(all(store.closed for store in controller.resources.response_stores))
                         self.assertFalse((directory / "wrong").exists())
                         if capture:
                             self.assertEqual(len(list(raw_directory.iterdir())), 2)

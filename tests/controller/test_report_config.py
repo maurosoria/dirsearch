@@ -5,10 +5,11 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest import TestCase
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from lib.connection.response import NativeResponse
 from lib.core.run_config import RunConfig
+from lib.controller.run_resources import RunResources
 from lib.controller.controller import Controller
 from lib.core.scan_run_state import ScanRunState
 from lib.core.target_progress import TargetProgress
@@ -37,6 +38,7 @@ class TestSessionReportConfiguration(TestCase):
             run=RunCheckpoint(0), task_checkpoint=TaskCheckpoint(DictionaryCheckpoint((), 0)), options=SessionOptions(),
         )
         controller = object.__new__(Controller)
+        controller.resources = RunResources(interface=Mock(), logger=Mock())
         controller.config = RunConfig(reports=ReportConfig.from_options(saved_options))
         controller.metadata = RunMetadata("dirsearch", "2026-10-06 12:00:00")
         with patch.dict(options, {
@@ -46,12 +48,12 @@ class TestSessionReportConfiguration(TestCase):
         }):
             controller._restore_session(payload)
         try:
-            self.assertEqual(len(controller.reporter.reports), 1)
-            reporter, sources = controller.reporter.reports[0]
+            self.assertEqual(len(controller.resources.reporter.reports), 1)
+            reporter, sources = controller.resources.reporter.reports[0]
             self.assertEqual(sources, ["saved.sqlite", "saved_results"])
             self.assertEqual(reporter._commit_batch_size, 3)
         finally:
-            controller.reporter.finish()
+            controller.resources.reporter.finish()
 
     def test_setup_and_real_checkpoint_restore_keep_report_policy_across_targets(self):
         for backend, async_mode in (("python", False), ("python", True), ("native", False)):
@@ -84,23 +86,23 @@ class TestSessionReportConfiguration(TestCase):
 
                     def run(controller):
                         self.assertIs(controller.metadata, metadata)
-                        self.assertIs(controller.reporter.metadata, metadata)
-                        for reporter, _ in controller.reporter.reports:
+                        self.assertIs(controller.resources.reporter.metadata, metadata)
+                        for reporter, _ in controller.resources.reporter.reports:
                             self.assertIs(reporter.metadata, metadata)
                         if resumed:
                             self.assertEqual(controller.start_time, 0)
-                        self.assertEqual(controller.reporter.config, ReportConfig.from_options(saved_options))
+                        self.assertEqual(controller.resources.reporter.config, ReportConfig.from_options(saved_options))
                         options.update(
                             output_formats=[], output_file=str(Path(directory, "wrong")),
                             output_table="wrong_table", sqlite_commit_batch_size=99,
                         )
                         for host in ("first.test", "second.test"):
                             target = "https://" + host + "/"
-                            controller.reporter.prepare(target)
-                            controller.reporter.save(NativeResponse(
+                            controller.resources.reporter.prepare(target)
+                            controller.resources.reporter.save(NativeResponse(
                                 target + "item", 200, [("Content-Type", "text/plain")], b"found",
                             ))
-                        controller.reporter.flush()
+                        controller.resources.reporter.flush()
 
                     current_options = dict(saved_options)
                     if resumed:
@@ -132,4 +134,4 @@ class TestSessionReportConfiguration(TestCase):
                                 [(expected_url,)],
                             )
                     self.assertFalse(Path(directory, "wrong").exists())
-                    self.assertIsNone(controller.reporter.reports[1][0]._conn)
+                    self.assertIsNone(controller.resources.reporter.reports[1][0]._conn)

@@ -5,6 +5,7 @@ from unittest import TestCase
 from unittest.mock import AsyncMock, Mock, call, patch
 
 from lib.core.run_config import RunConfig
+from lib.controller.run_resources import RunResources
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
@@ -27,19 +28,16 @@ class TestControllerTargetConfig(TestCase):
         ):
             with self.subTest(engine=engine):
                 controller = object.__new__(Controller)
+                controller.resources = RunResources(interface=Mock(), logger=Mock())
                 controller.config = RunConfig()
                 controller.run_state = ScanRunState()
                 controller.target_progress = TargetProgress()
-                controller.logger = Mock()
-                controller.interface = Mock()
                 controller.dictionary = Mock()
                 controller.target_progress.directories = []
                 controller.run_state.old_session = False
-                controller.response_stores = ()
-                controller.reporter = Mock()
+                controller.resources.reporter = Mock()
                 controller.crawl_target = Mock()
                 controller.start = Mock()
-                controller.loop = None
                 requester = Mock()
 
                 def create_requester(*args, **kwargs):
@@ -71,8 +69,8 @@ class TestControllerTargetConfig(TestCase):
                         controller._prepare_config(options)
                         controller.run()
                     finally:
-                        if controller.loop is not None:
-                            controller.loop.close()
+                        if controller.resources.loop is not None:
+                            controller.resources.loop.close()
 
                 self.assertEqual(requester.set_url.call_args_list, [
                     call("https://first.test/"), call("http://second.test:8080/"),
@@ -87,17 +85,17 @@ class TestControllerTargetConfig(TestCase):
 
     def test_independent_target_policies_work_with_global_options_empty(self):
         first = object.__new__(Controller)
+        first.resources = RunResources(interface=Mock(), logger=Mock())
         first.config = RunConfig(target=TargetConfig("https", "192.0.2.7", True))
         first.run_state = ScanRunState()
         first.target_progress = TargetProgress()
-        first.interface = Mock()
-        first.requester = Mock()
+        first.resources.requester = Mock()
         second = object.__new__(Controller)
+        second.resources = RunResources(interface=Mock(), logger=Mock())
         second.config = RunConfig(target=TargetConfig("http"))
         second.run_state = ScanRunState()
         second.target_progress = TargetProgress()
-        second.interface = Mock()
-        second.requester = Mock()
+        second.resources.requester = Mock()
         with patch.dict(options, {}, clear=True):
             first.set_target("example.test/private?next=%2Fhome")
             second.set_target("example.test/public")
@@ -107,20 +105,20 @@ class TestControllerTargetConfig(TestCase):
         self.assertEqual(second.target_progress.url, "http://example.test/")
         self.assertEqual(first.target_progress.base_path, "other/")
         self.assertEqual(second.target_progress.base_path, "public/")
-        self.assertEqual(first.requester.set_ip.call_args_list, [
+        self.assertEqual(first.resources.requester.set_ip.call_args_list, [
             call("example.test", 443, "192.0.2.7"),
             call("example.test", 443, "192.0.2.7"),
         ])
-        self.assertEqual(first.requester.set_query.call_args_list, [call("next=%2Fhome"), call("")])
-        second.requester.set_ip.assert_not_called()
+        self.assertEqual(first.resources.requester.set_query.call_args_list, [call("next=%2Fhome"), call("")])
+        second.resources.requester.set_ip.assert_not_called()
 
     def test_frozen_proxy_guard_rejects_before_probe_or_requester_mutation(self):
         controller = object.__new__(Controller)
+        controller.resources = RunResources(interface=Mock(), logger=Mock())
         controller.config = RunConfig(target=TargetConfig(proxy_configured=True))
         controller.run_state = ScanRunState()
         controller.target_progress = TargetProgress()
-        controller.interface = Mock()
-        controller.requester = Mock()
+        controller.resources.requester = Mock()
         with (
             patch.dict(options, {"scheme": "https", "proxies": [], "tor": False}, clear=True),
             patch("lib.controller.controller.detect_scheme") as detect,
@@ -128,7 +126,7 @@ class TestControllerTargetConfig(TestCase):
         ):
             controller.set_target("user:password@example.test")
         detect.assert_not_called()
-        self.assertEqual(controller.requester.mock_calls, [])
+        self.assertEqual(controller.resources.requester.mock_calls, [])
 
     def test_autodetection_and_ip_override_use_the_same_frozen_connect_host(self):
         for target, answers, probes, port in (
@@ -137,11 +135,11 @@ class TestControllerTargetConfig(TestCase):
         ):
             with self.subTest(target=target):
                 controller = object.__new__(Controller)
+                controller.resources = RunResources(interface=Mock(), logger=Mock())
                 controller.config = RunConfig(target=TargetConfig(connect_host="2001:db8::7"))
                 controller.run_state = ScanRunState()
                 controller.target_progress = TargetProgress()
-                controller.interface = Mock()
-                controller.requester = Mock()
+                controller.resources.requester = Mock()
                 with (
                     patch.dict(options, {}, clear=True),
                     patch("lib.controller.controller.detect_scheme", side_effect=answers) as detect,
@@ -150,7 +148,7 @@ class TestControllerTargetConfig(TestCase):
                 self.assertEqual(detect.call_args_list, [
                     call("example.test", probe, connect_host="2001:db8::7") for probe in probes
                 ])
-                controller.requester.set_ip.assert_called_once_with("example.test", port, "2001:db8::7")
+                controller.resources.requester.set_ip.assert_called_once_with("example.test", port, "2001:db8::7")
 
     def test_real_checkpoint_restoration_precedes_target_policy_snapshot(self):
         for engine, requester_path in (

@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from lib.connection.response import NativeResponse
 from lib.core.run_config import RunConfig
+from lib.controller.run_resources import RunResources
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
@@ -22,10 +23,10 @@ from lib.core.wordlist_config import WordlistConfig
 
 def make_controller(config):
     controller = object.__new__(Controller)
+    controller.resources = RunResources(interface=Mock(), logger=Mock())
     controller.config = RunConfig(execution=config)
     controller.run_state = ScanRunState()
     controller.target_progress = TargetProgress()
-    controller.interface = Mock()
     controller.start_time = 0
     controller.run_state.errors = 0
     controller.run_state.consecutive_errors = 0
@@ -106,7 +107,7 @@ class TestControllerExecutionConfig(TestCase):
             continuing.raise_error(error)
         with (
             patch.dict(options, {"skip_on_status": {429}}, clear=True),
-            patch.object(continuing, "interface") as interface,
+            patch.object(continuing.resources, "interface") as interface,
         ):
             self.assertIsNone(continuing.match_callback(response))
         interface.status_report.assert_called_once_with(response, False)
@@ -130,13 +131,13 @@ class TestControllerExecutionConfig(TestCase):
                             urls=["http://first.test/", "http://second.test/"], subdirs=[],
                         )
                         controller._prepare_config(options)
-                        controller.reporter = Mock(reports=(object(),))
-                        controller.response_stores = (Mock(),)
+                        controller.resources.reporter = Mock(reports=(object(),))
+                        controller.resources.response_stores = (Mock(),)
                         controller.dictionary = Mock()
                         controller.target_progress.directories = []
 
                     def start(controller):
-                        self.assertIs(controller.fuzzer.logger, controller.logger)
+                        self.assertIs(controller.fuzzer.logger, controller.resources.logger)
                         policies.append(controller.fuzzer.execution_config)
                         self.assertIs(policies[-1], controller.config.execution)
                         expected_fuzzer = {
@@ -147,7 +148,7 @@ class TestControllerExecutionConfig(TestCase):
                         self.assertIs(type(controller.fuzzer), expected_fuzzer)
                         self.assertEqual(controller.fuzzer.match_callbacks, (
                             controller.match_callback,
-                            controller.reporter.save_async if async_mode else controller.reporter.save,
+                            controller.resources.reporter.save_async if async_mode else controller.resources.reporter.save,
                             controller.save_response_async if async_mode else controller.save_response,
                             controller.reset_consecutive_errors,
                         ))
@@ -208,14 +209,14 @@ class TestControllerExecutionConfig(TestCase):
                     self.assertEqual(factory.call_count, 1)
                     self.assertEqual(factory.call_args.kwargs, (
                         {"filter_config": controller.config.filters}
-                        if engine is ScanEngine.NATIVE else {"logger": controller.logger}
+                        if engine is ScanEngine.NATIVE else {"logger": controller.resources.logger}
                     ))
                     if async_mode:
                         requester.close.assert_awaited_once_with()
-                        self.assertTrue(controller.loop.is_closed())
+                        self.assertTrue(controller.resources.loop.is_closed())
                     else:
                         requester.close.assert_called_once_with()
-                        self.assertIsNone(controller.loop)
+                        self.assertIsNone(controller.resources.loop)
 
     def test_real_checkpoint_restore_uses_saved_execution_policy(self):
         for backend, async_mode, engine, requester_path in (

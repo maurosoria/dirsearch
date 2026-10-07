@@ -4,6 +4,7 @@ from unittest import TestCase
 from unittest.mock import AsyncMock, Mock, patch
 
 from lib.core.run_config import RunConfig
+from lib.controller.run_resources import RunResources
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
@@ -45,10 +46,10 @@ class TestEngineSelection(TestCase):
         for engine in ScanEngine:
             with self.subTest(engine=engine):
                 controller = object.__new__(Controller)
+                controller.resources = RunResources(interface=Mock(), logger=Mock())
                 controller.config = RunConfig(execution=ExecutionConfig(engine=engine))
                 controller.run_state = ScanRunState()
                 controller.target_progress = TargetProgress()
-                controller.interface = Mock()
                 controller.target_progress.directories = ["first/", "second/"]
                 controller.run_state.old_session = True
                 controller.fuzzer = Mock()
@@ -58,7 +59,7 @@ class TestEngineSelection(TestCase):
                 controller.process = Mock()
                 controller.start_native_fuzzer = Mock()
                 controller.start_coroutines = AsyncMock()
-                controller.loop = asyncio.new_event_loop() if engine is ScanEngine.ASYNC else None
+                controller.resources.loop = asyncio.new_event_loop() if engine is ScanEngine.ASYNC else None
                 try:
                     with patch.dict(options, {}, clear=True):
                         controller.start()
@@ -77,5 +78,5 @@ class TestEngineSelection(TestCase):
                     self.assertEqual(controller.start_native_fuzzer.call_count, 2 if engine is ScanEngine.NATIVE else 0)
                     self.assertEqual(controller.start_coroutines.await_count, 2 if engine is ScanEngine.ASYNC else 0)
                 finally:
-                    if controller.loop is not None:
-                        controller.loop.close()
+                    if controller.resources.loop is not None:
+                        controller.resources.loop.close()

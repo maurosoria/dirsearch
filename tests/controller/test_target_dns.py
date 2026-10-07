@@ -21,6 +21,7 @@ from unittest import TestCase
 from unittest.mock import Mock, call, patch
 
 from lib.core.run_config import RunConfig
+from lib.controller.run_resources import RunResources
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.data import options
@@ -41,9 +42,10 @@ class TestControllerTargetDNS(TestCase):
             }
         )
         self.controller = object.__new__(Controller)
+        self.controller.resources = RunResources(interface=Mock(), logger=Mock())
         self.controller.config = RunConfig(target=TargetConfig.from_options(options))
         self.controller.target_progress = TargetProgress()
-        self.controller.requester = Mock()
+        self.controller.resources.requester = Mock()
 
     def tearDown(self):
         options.clear()
@@ -71,12 +73,12 @@ class TestControllerTargetDNS(TestCase):
                 ),
             ],
         )
-        self.controller.requester.set_ip.assert_called_once_with(
+        self.controller.resources.requester.set_ip.assert_called_once_with(
             "forced-origin.invalid",
             443,
             "192.0.2.10",
         )
-        self.controller.requester.set_url.assert_called_once_with(
+        self.controller.resources.requester.set_url.assert_called_once_with(
             "https://forced-origin.invalid/"
         )
 
@@ -91,7 +93,7 @@ class TestControllerTargetDNS(TestCase):
                 options.update({"ip": None, "proxies": [], "tor": False})
                 options.update(routing)
                 self.controller.config = replace(self.controller.config, target=TargetConfig.from_options(options))
-                self.controller.requester.reset_mock()
+                self.controller.resources.requester.reset_mock()
 
                 with patch(
                     "lib.controller.controller.detect_scheme",
@@ -103,8 +105,8 @@ class TestControllerTargetDNS(TestCase):
                     self.controller.set_target("user:secret@private.example")
 
                 detect_scheme.assert_not_called()
-                self.controller.requester.set_auth.assert_not_called()
-                self.controller.requester.set_url.assert_not_called()
+                self.controller.resources.requester.set_auth.assert_not_called()
+                self.controller.resources.requester.set_url.assert_not_called()
 
     def test_proxy_accepts_an_explicit_url_scheme(self):
         options.update(
@@ -119,7 +121,7 @@ class TestControllerTargetDNS(TestCase):
             self.controller.set_target("https://example.test")
 
         detect_scheme.assert_not_called()
-        self.controller.requester.set_url.assert_called_once_with(
+        self.controller.resources.requester.set_url.assert_called_once_with(
             "https://example.test/"
         )
 
@@ -137,6 +139,6 @@ class TestControllerTargetDNS(TestCase):
             self.controller.set_target("example.test")
 
         detect_scheme.assert_not_called()
-        self.controller.requester.set_url.assert_called_once_with(
+        self.controller.resources.requester.set_url.assert_called_once_with(
             "https://example.test/"
         )

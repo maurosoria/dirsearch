@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from lib.connection.response import NativeResponse
 from lib.core.run_config import RunConfig
+from lib.controller.run_resources import RunResources
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
@@ -61,12 +62,11 @@ def resolved_html_response():
 
 def create_controller(requester, *, crawl=False, engine=ScanEngine.THREADED):
     controller = object.__new__(Controller)
+    controller.resources = RunResources(interface=Mock(), logger=Mock())
     controller.config = RunConfig(execution=ExecutionConfig(engine=engine), discovery=DiscoveryConfig(crawl=crawl))
     controller.run_state = ScanRunState()
     controller.target_progress = TargetProgress()
-    controller.logger = Mock()
-    controller.interface = Mock()
-    controller.requester = requester
+    controller.resources.requester = requester
     controller.dictionary = RecordingDictionary()
     controller.target_progress.base_path = "base/"
     controller.raise_error = Mock()
@@ -86,8 +86,7 @@ class TestRootCrawl(TestCase):
         requester = Mock()
         requester.request.return_value = root_response()
         controller = create_controller(requester)
-        controller.response_stores = ()
-        controller.reporter = Mock()
+        controller.resources.reporter = Mock()
         controller.target_progress.directories = []
         controller.run_state.passed_urls = set()
         controller.run_state.old_session = True
@@ -124,13 +123,13 @@ class TestRootCrawl(TestCase):
         requester = Mock()
         requester.request = AsyncMock(return_value=root_response())
         controller = create_controller(requester, crawl=True, engine=ScanEngine.ASYNC)
-        controller.loop = asyncio.new_event_loop()
+        controller.resources.loop = asyncio.new_event_loop()
 
         try:
             with patch.dict(options, {}, clear=True):
                 controller.crawl_target()
         finally:
-            controller.loop.close()
+            controller.resources.loop.close()
 
         requester.request.assert_awaited_once_with("base/")
         self.assertEqual(controller.dictionary.extra, ["root-only"])

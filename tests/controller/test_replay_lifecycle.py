@@ -4,6 +4,7 @@ from unittest.mock import Mock
 
 from lib.connection.response import NativeResponse
 from lib.core.run_config import RunConfig
+from lib.controller.run_resources import RunResources
 from lib.controller.controller import Controller
 from lib.core.data import options
 from lib.core.result_config import ResultConfig
@@ -84,14 +85,14 @@ class TestAsyncReplayLifecycle(ReplayOptionsMixin, IsolatedAsyncioTestCase):
         options["async_mode"] = False
         requester = RecordingAsyncRequester()
         controller = object.__new__(Controller)
+        controller.resources = RunResources(interface=Mock(), logger=Mock())
         controller.config = RunConfig(
             results=ResultConfig(replay_proxy="http://replay.test:8080"),
             execution=ExecutionConfig(engine=ScanEngine.ASYNC),
             discovery=DiscoveryConfig.from_options(options),
         )
-        controller.interface = Mock()
-        controller.loop = asyncio.get_running_loop()
-        controller.requester = requester
+        controller.resources.loop = asyncio.get_running_loop()
+        controller.resources.requester = requester
 
         await AsyncFuzzer.run_callbacks(
             (controller.match_callback,),
@@ -111,14 +112,14 @@ class TestAsyncReplayLifecycle(ReplayOptionsMixin, IsolatedAsyncioTestCase):
         options["async_mode"] = False
         requester = BlockingAsyncRequester()
         controller = object.__new__(Controller)
+        controller.resources = RunResources(interface=Mock(), logger=Mock())
         controller.config = RunConfig(
             results=ResultConfig(replay_proxy="http://replay.test:8080"),
             execution=ExecutionConfig(engine=ScanEngine.ASYNC),
             discovery=DiscoveryConfig.from_options(options),
         )
-        controller.interface = Mock()
-        controller.loop = asyncio.get_running_loop()
-        controller.requester = requester
+        controller.resources.loop = asyncio.get_running_loop()
+        controller.resources.requester = requester
 
         callback_task = asyncio.create_task(
             AsyncFuzzer.run_callbacks(
@@ -140,14 +141,14 @@ class TestAsyncReplayLifecycle(ReplayOptionsMixin, IsolatedAsyncioTestCase):
     async def test_replay_failure_is_observed_by_callback_runner(self):
         options["async_mode"] = False
         controller = object.__new__(Controller)
+        controller.resources = RunResources(interface=Mock(), logger=Mock())
         controller.config = RunConfig(
             results=ResultConfig(replay_proxy="http://replay.test:8080"),
             execution=ExecutionConfig(engine=ScanEngine.ASYNC),
             discovery=DiscoveryConfig.from_options(options),
         )
-        controller.interface = Mock()
-        controller.loop = asyncio.get_running_loop()
-        controller.requester = FailingAsyncRequester()
+        controller.resources.loop = asyncio.get_running_loop()
+        controller.resources.requester = FailingAsyncRequester()
 
         with (
             self.assertRaisesRegex(RequestException, "replay failed"),
@@ -165,13 +166,13 @@ class TestSyncReplayLifecycle(ReplayOptionsMixin, TestCase):
                 options["async_mode"] = True
                 requester = Mock()
                 controller = object.__new__(Controller)
+                controller.resources = RunResources(interface=Mock(), logger=Mock())
                 controller.config = RunConfig(
                     results=ResultConfig(replay_proxy="http://replay.test:8080"),
                     execution=ExecutionConfig(engine=engine),
                     discovery=DiscoveryConfig.from_options(options),
                 )
-                controller.interface = Mock()
-                controller.requester = requester
+                controller.resources.requester = requester
 
                 result = controller.match_callback(matched_response())
 

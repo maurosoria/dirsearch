@@ -3,6 +3,7 @@ from unittest import TestCase
 from unittest.mock import Mock, patch
 
 from lib.core.run_config import RunConfig
+from lib.controller.run_resources import RunResources
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.data import options
@@ -15,6 +16,7 @@ from tests.controller.test_session_resume_queue import RecordingAsyncFuzzer, Rec
 class TestProgressOwnership(TestCase):
     def _controller(self):
         controller = object.__new__(Controller)
+        controller.resources = RunResources(interface=Mock(), logger=Mock())
         controller.config = RunConfig()
         controller.run_state = ScanRunState()
         controller.target_progress = TargetProgress()
@@ -24,12 +26,7 @@ class TestProgressOwnership(TestCase):
         controller.run_state.jobs_processed = 3
         controller.run_state.errors = 7
         controller.run_state.consecutive_errors = 2
-        controller.logger = Mock()
-        controller.interface = Mock()
-        controller.reporter = Mock()
-        controller._reporter_finished = False
-        controller.response_stores = ()
-        controller.loop = None
+        controller.resources.reporter = Mock()
         controller._native_worker = None
         return controller
 
@@ -66,8 +63,8 @@ class TestProgressOwnership(TestCase):
                         controller._prepare_config(options)
                         controller.run()
                     finally:
-                        if controller.loop is not None:
-                            controller.loop.close()
+                        if controller.resources.loop is not None:
+                            controller.resources.loop.close()
                 self.assertEqual(records, [("base/", ["one", "two"]), ("other/", ["one", "two"])])
                 self.assertEqual(observed_targets, [
                     ("http://first.test/", "base/"), ("http://first.test/", "base/"),
