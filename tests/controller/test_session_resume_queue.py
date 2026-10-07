@@ -131,7 +131,7 @@ class TestSessionResumeQueue(TestCase):
                 ):
                     try:
                         controller._prepare_config(options)
-                        controller.run()
+                        controller._run_targets()
                     finally:
                         if isinstance(controller.resources.loop, asyncio.AbstractEventLoop):
                             controller.resources.loop.close()

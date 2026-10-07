@@ -54,9 +54,10 @@ class TestControllerTerminalOwnership(TestCase):
             patch("lib.controller.controller.parse_raw", return_value=(
                 ["http://example.test/"], "POST", {}, "body",
             )),
-            patch.object(Controller, "run"),
+            patch.object(Controller, "_run_targets"),
         ):
             controller = Controller(output=output)
+            controller.run()
         self.assertEqual(controller.resources.interface.config.method, "POST")
         self.assertIn("HTTP method: POST", output.getvalue())
         self.assertNotIn("HTTP method: GET", output.getvalue())
@@ -79,8 +80,9 @@ class TestControllerTerminalOwnership(TestCase):
                     controller.resources.interface.new_line("first run")
                     controller._export(checkpoint)
 
-                with patch.object(Controller, "run", new=save):
+                with patch.object(Controller, "_run_targets", new=save):
                     original = Controller(output=original_output)
+                    original.run()
                 options.update(session_file=checkpoint, quiet=False, verbose=False)
                 resumed_output = StringIO()
 
@@ -92,10 +94,11 @@ class TestControllerTerminalOwnership(TestCase):
                     self.assertEqual(controller.resources.interface.buffer, "resumed run\n")
 
                 with (
-                    patch.object(Controller, "run", new=resume),
+                    patch.object(Controller, "_run_targets", new=resume),
                     patch.object(Controller, "_confirm_session_overwrite"),
                 ):
                     resumed = Controller(output=resumed_output)
+                    resumed.run()
                 self.assertIsNot(original.resources.interface, resumed.resources.interface)
                 self.assertEqual(original_output.getvalue(), "first run\n")
                 self.assertIn("first run", resumed_output.getvalue())
@@ -103,11 +106,11 @@ class TestControllerTerminalOwnership(TestCase):
                 self.assert_all_terminals_closed()
 
     def test_history_is_closed_when_preparation_or_execution_fails(self):
-        for phase in ("setup", "run"):
+        for phase in ("setup", "_run_targets"):
             with self.subTest(phase=phase), patch.object(Controller, phase, side_effect=RuntimeError(phase)):
                 output = StringIO()
                 with self.assertRaisesRegex(RuntimeError, phase):
-                    Controller(output=output)
+                    Controller(output=output).run()
                 self.assert_all_terminals_closed()
                 self.assertFalse(output.closed)
 
@@ -116,11 +119,11 @@ class TestControllerTerminalOwnership(TestCase):
             with (
                 self.subTest(cleanup=cleanup),
                 patch.object(Controller, "setup"),
-                patch.object(Controller, "run"),
+                patch.object(Controller, "_run_targets"),
                 patch.object(RunResources, cleanup, side_effect=OSError("cleanup failed")),
             ):
                 with self.assertRaisesRegex(OSError, "cleanup failed"):
-                    Controller(output=StringIO())
+                    Controller(output=StringIO()).run()
                 self.assert_all_terminals_closed()
 
     def test_failed_replacement_keeps_bootstrap_available_for_cleanup(self):
@@ -129,7 +132,7 @@ class TestControllerTerminalOwnership(TestCase):
             bootstrap, OSError("terminal failed"),
         ]):
             with self.assertRaisesRegex(OSError, "terminal failed"):
-                Controller(output=StringIO())
+                Controller(output=StringIO()).run()
         bootstrap.close.assert_called_once_with()
 
     def test_restore_report_error_is_rendered_by_the_owning_controller(self):
@@ -137,7 +140,7 @@ class TestControllerTerminalOwnership(TestCase):
         output = StringIO()
         with (
             patch("lib.controller.controller.SessionStore") as store_factory,
-            patch.object(Controller, "run") as run,
+            patch.object(Controller, "_run_targets") as run,
             patch.object(Controller, "_restore_session", side_effect=InvalidURLException("invalid report URL")),
         ):
             store = store_factory.return_value
@@ -145,7 +148,7 @@ class TestControllerTerminalOwnership(TestCase):
                 run=RunCheckpoint(0), task_checkpoint=TaskCheckpoint(DictionaryCheckpoint((), 0)), options=SessionOptions(),
             )
             with self.assertRaises(SystemExit) as stopped:
-                Controller(output=output)
+                Controller(output=output).run()
         self.assertEqual(stopped.exception.code, 1)
         self.assertIn("invalid report URL", output.getvalue())
         run.assert_not_called()

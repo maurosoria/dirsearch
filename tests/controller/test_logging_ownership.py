@@ -50,9 +50,10 @@ class TestControllerLoggingOwnership(TestCase):
 
             with (
                 patch("lib.controller.controller.parse_raw", side_effect=parse),
-                patch.object(Controller, "run", new=run),
+                patch.object(Controller, "_run_targets", new=run),
             ):
                 controller = Controller(output=StringIO())
+                controller.run()
             self.assertIn("raw <redacted>@proxy.example.test", path.read_text())
             self.assertFalse(controller.resources.logger.handlers)
 
@@ -68,7 +69,7 @@ class TestControllerLoggingOwnership(TestCase):
             with (
                 patch("lib.controller.controller.SessionStore") as store,
                 patch.object(Controller, "_confirm_session_overwrite"),
-                patch.object(Controller, "run", new=run),
+                patch.object(Controller, "_run_targets", new=run),
                 patch.object(Controller, "_restore_session"),
             ):
                 store.return_value.load.return_value = SessionSnapshot(
@@ -76,13 +77,14 @@ class TestControllerLoggingOwnership(TestCase):
                     options=SessionOptions({"log_file": str(restored), "proxy_auth": "user:restored/secret"}),
                 )
                 controller = Controller(output=StringIO())
+                controller.run()
             self.assertFalse(cli.exists())
             self.assertIn("restored <redacted>@proxy.example.test", restored.read_text())
             self.assertFalse(controller.resources.logger.handlers)
 
     def test_handler_closes_on_execution_and_cleanup_failures(self):
         for owner, phase in (
-            (Controller, "run"), (RunResources, "finish_reports"),
+            (Controller, "_run_targets"), (RunResources, "finish_reports"),
             (RunResources, "_close_requester"), (RunResources, "_close_response_stores"),
         ):
             with self.subTest(phase=phase), TemporaryDirectory() as directory:
@@ -99,11 +101,11 @@ class TestControllerLoggingOwnership(TestCase):
                     fail(controller.resources)
 
                 with (
-                    patch.object(Controller, "run"),
+                    patch.object(Controller, "_run_targets"),
                     patch.object(owner, phase, new=fail_run if owner is Controller else fail),
                     self.assertRaisesRegex(RuntimeError, "injected failure"),
                 ):
-                    Controller(output=StringIO())
+                    Controller(output=StringIO()).run()
                 self.assertEqual(len(handlers), 1)
                 self.assertIsNone(handlers[0].stream)
                 self.assertIn("failure boundary", path.read_text())
@@ -119,8 +121,8 @@ class TestControllerLoggingOwnership(TestCase):
                 self.addCleanup(close)
                 controller.resources.interface.close = Mock(side_effect=RuntimeError("terminal failure"))
 
-            with patch.object(Controller, "run", new=run), self.assertRaisesRegex(RuntimeError, "terminal failure"):
-                Controller(output=StringIO())
+            with patch.object(Controller, "_run_targets", new=run), self.assertRaisesRegex(RuntimeError, "terminal failure"):
+                Controller(output=StringIO()).run()
             self.assertEqual(len(handlers), 1)
             self.assertIsNone(handlers[0].stream)
 
@@ -128,8 +130,8 @@ class TestControllerLoggingOwnership(TestCase):
         with TemporaryDirectory() as directory:
             options["log_file"] = directory  # A directory cannot be the log file.
             output = StringIO()
-            with patch.object(Controller, "run") as run, self.assertRaises(SystemExit) as stopped:
-                Controller(output=output)
+            with patch.object(Controller, "_run_targets") as run, self.assertRaises(SystemExit) as stopped:
+                Controller(output=output).run()
             self.assertEqual(stopped.exception.code, 1)
             self.assertIn("Couldn't create log file", output.getvalue())
             run.assert_not_called()

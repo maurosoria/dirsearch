@@ -73,6 +73,7 @@ class TestControllerRunConfig(TestCase):
                     patch("lib.connection.native.NativeRequester", return_value=requester) as native,
                 ):
                     controller = Controller(output=StringIO())
+                    controller.run()
                 self.assertEqual(controller.config, RunConfig.from_options(prepared[0]))
                 self.assertEqual(controller.session_options, SessionOptions.from_options(prepared[0]))
                 self.assertIs(controller.dictionary.config, controller.config.wordlist)
@@ -104,8 +105,9 @@ class TestControllerRunConfig(TestCase):
                 b"Authorization: Bearer private-value\r\n\r\n\x80body\r\n"
             )
             options.update(raw_file=str(raw), http_method="GET", data="ignored")
-            with patch.object(Controller, "run"):
+            with patch.object(Controller, "_run_targets"):
                 controller = Controller(output=StringIO())
+                controller.run()
         self.assertEqual(controller.config.request.method, "POST")
         self.assertEqual(controller.config.terminal.method, "POST")
         self.assertEqual(controller.config.request.body, b"\x80body\r\n")
@@ -144,8 +146,9 @@ class TestControllerRunConfig(TestCase):
                         options["headers"].clear()
                         return choice
 
-                    with patch("builtins.input", side_effect=answer), patch.object(Controller, "run"):
+                    with patch("builtins.input", side_effect=answer), patch.object(Controller, "_run_targets"):
                         controller = Controller(output=StringIO())
+                        controller.run()
                     self.assertEqual(controller.config, RunConfig.from_options(saved))
                     self.assertIs(controller.config.execution.engine, engine)
                     self.assertIs(controller.resources.reporter.config, controller.config.reports)
@@ -171,11 +174,11 @@ class TestControllerRunConfig(TestCase):
             patch("lib.controller.controller.ReportManager") as reports,
             patch.object(Controller, "_prepare_logging") as logging,
             patch.object(Controller, "_prepare_response_stores") as stores,
-            patch.object(Controller, "run") as run,
+            patch.object(Controller, "_run_targets") as run,
             patch("sys.stderr", new_callable=StringIO),
             self.assertRaises(SystemExit) as stopped,
         ):
-            Controller(output=StringIO())
+            Controller(output=StringIO()).run()
         self.assertEqual(stopped.exception.code, 1)
         for resource in (dictionary, reports, logging, stores, run):
             resource.assert_not_called()

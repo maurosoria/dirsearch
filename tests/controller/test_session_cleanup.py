@@ -65,7 +65,7 @@ class TestSessionCleanup(TestCase):
             patch("lib.controller.controller.signal.signal"),
         ):
             controller._prepare_config(options)
-            controller.run()
+            controller._run_targets()
 
     def test_completed_session_preserves_unrelated_directory_entries(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -167,10 +167,10 @@ class TestSessionCleanup(TestCase):
                 with (
                     patch.dict(options, {"session_file": None}),
                     patch.object(Controller, "setup", new=setup),
-                    patch.object(Controller, "run", new=fail_run),
+                    patch.object(Controller, "_run_targets", new=fail_run),
                     self.assertRaisesRegex(RuntimeError, "scan failed"),
                 ):
-                    Controller()
+                    Controller().run()
 
                 with closing(sqlite3.connect(database)) as connection:
                     rows = connection.execute(
@@ -208,10 +208,10 @@ class TestSessionCleanup(TestCase):
             with (
                 patch.dict(options, {"session_file": None}),
                 patch.object(Controller, "setup", new=setup),
-                patch.object(Controller, "run", new=fail_run),
+                patch.object(Controller, "_run_targets", new=fail_run),
                 self.assertRaisesRegex(RuntimeError, "scan failed"),
             ):
-                Controller()
+                Controller().run()
 
             with open(destination, encoding="utf-8") as file_handle:
                 urls = [entry["url"] for entry in json.load(file_handle)["results"]]

@@ -61,7 +61,7 @@ class TestProgressOwnership(TestCase):
                 ):
                     try:
                         controller._prepare_config(options)
-                        controller.run()
+                        controller._run_targets()
                     finally:
                         if controller.resources.loop is not None:
                             controller.resources.loop.close()

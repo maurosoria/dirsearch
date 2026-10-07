@@ -122,6 +122,7 @@ class TestControllerDiscoveryConfig(TestCase):
                         patch("lib.controller.controller.create_terminal"),
                     ):
                         controller = Controller()
+                        controller.run()
 
                     self.assertEqual(len(fuzzers), 2)
                     self.assertEqual(controller.config.discovery.prefixes, ("restored-",))

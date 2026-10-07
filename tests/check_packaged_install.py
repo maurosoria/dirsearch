@@ -84,9 +84,11 @@ def main() -> None:
     with (
         patch.dict(options, {"session_file": None}),
         patch.object(Controller, "setup"),
-        patch.object(Controller, "run"),
+        patch.object(Controller, "_run_targets"),
     ):
         composed = Controller(output=output)
+        assert composed.resources is None
+        composed.run()
     assert isinstance(composed.resources, RunResources)
     assert composed.resources.interface._output_buffer.closed
     assert not output.closed
