@@ -30,7 +30,7 @@ class TestControllerWordlistConfig(TestCase):
                 patch("lib.core.wordlist_backend.FileUtils.get_lines", return_value=["page.%EXT%"]),
             ):
                 controller = Controller()
-                config = controller.wordlist_config
+                config = controller.config.wordlist
                 options["extensions"] = ("json",)
                 options["exclude_extensions"] = ("html",)
                 self.assertIs(controller.dictionary.config, config)
@@ -85,9 +85,9 @@ class TestControllerWordlistConfig(TestCase):
                 )
                 with patch.object(Dictionary, "generate", side_effect=AssertionError("regenerated")):
                     resumed = Controller()
-                config = resumed.wordlist_config
+                config = resumed.config.wordlist
                 self.assertIs(resumed.dictionary.config, config)
-                self.assertIsNot(config, original.wordlist_config)
+                self.assertIsNot(config, original.config.wordlist)
                 self.assertEqual(config.extensions, ("html",))
                 self.assertEqual(config.exclude_extensions, ("zip",))
                 self.assertEqual(config.native_corpus, backend == "native")

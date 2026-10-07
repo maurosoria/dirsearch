@@ -56,6 +56,7 @@ from lib.connection.requester import (
 from lib.core.filter_config import FilterConfig
 from lib.core.request_config import RequestConfig
 from lib.core.target_config import TargetConfig
+from lib.core.run_config import RunConfig
 from lib.core.target_progress import TargetProgress
 from lib.core.data import options
 from lib.core.exceptions import RequestException
@@ -2482,7 +2483,7 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
             requester = self.native_requester_or_skip()
             controller = object.__new__(Controller)
             controller.target_progress = TargetProgress()
-            controller.target_config = TargetConfig.from_options(options)
+            controller.config = RunConfig(target=TargetConfig.from_options(options))
             controller.requester = requester
             target_with_credentials = server.url.replace(
                 "http://",

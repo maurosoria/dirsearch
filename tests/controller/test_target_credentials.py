@@ -4,6 +4,7 @@ from unittest.mock import Mock, patch
 import requests
 
 from lib.connection.requester import AsyncRequester, Requester
+from lib.core.run_config import RunConfig
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
@@ -24,9 +25,9 @@ class TestControllerTargetCredentials(TestCase):
             }
         )
         self.controller = object.__new__(Controller)
+        self.controller.config = RunConfig(target=TargetConfig.from_options(options))
         self.controller.run_state = ScanRunState()
         self.controller.target_progress = TargetProgress()
-        self.controller.target_config = TargetConfig.from_options(options)
         self.controller.requester = Mock()
 
     def tearDown(self):
@@ -136,9 +137,9 @@ class TargetAuthenticationIntegrationMixin:
     @staticmethod
     def controller_for(requester):
         controller = object.__new__(Controller)
+        controller.config = RunConfig(target=TargetConfig.from_options(options))
         controller.run_state = ScanRunState()
         controller.target_progress = TargetProgress()
-        controller.target_config = TargetConfig.from_options(options)
         controller.requester = requester
         return controller
 

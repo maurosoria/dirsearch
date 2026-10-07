@@ -8,6 +8,7 @@ from unittest import TestCase
 from unittest.mock import patch
 
 from lib.connection.response import NativeResponse
+from lib.core.run_config import RunConfig
 from lib.controller.controller import Controller
 from lib.core.scan_run_state import ScanRunState
 from lib.core.target_progress import TargetProgress
@@ -35,14 +36,14 @@ class TestSessionReportConfiguration(TestCase):
             run=RunCheckpoint(0), task_checkpoint=TaskCheckpoint(DictionaryCheckpoint((), 0)), options={},
         )
         controller = object.__new__(Controller)
+        controller.config = RunConfig(reports=ReportConfig.from_options(saved_options))
         controller.metadata = RunMetadata("dirsearch", "2026-10-06 12:00:00")
-        controller.wordlist_config = WordlistConfig()
         with patch.dict(options, {
             "output_file": "other.sqlite",
             "output_table": "other_results",
             "sqlite_commit_batch_size": 99,
         }):
-            controller._restore_session(payload, ReportConfig.from_options(saved_options))
+            controller._restore_session(payload)
         try:
             self.assertEqual(len(controller.reporter.reports), 1)
             reporter, sources = controller.reporter.reports[0]

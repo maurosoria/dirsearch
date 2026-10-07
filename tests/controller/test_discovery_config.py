@@ -2,25 +2,21 @@ import threading
 from unittest import TestCase
 from unittest.mock import AsyncMock, Mock, patch
 
+from lib.core.run_config import RunConfig
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
 from lib.core.data import options
-from lib.core.result_config import ResultConfig
-from lib.core.wordlist_config import WordlistConfig
 from lib.core.discovery_config import DiscoveryConfig
-from lib.core.execution_config import ExecutionConfig
 from tests.core.test_backup_discovery import response_for
 
 
 def policy_controller(policy):
     controller = object.__new__(Controller)
+    controller.config = RunConfig(discovery=policy)
     controller.run_state = ScanRunState()
     controller.target_progress = TargetProgress()
-    controller.result_config = ResultConfig()
     controller.interface = Mock()
-    controller.execution_config = ExecutionConfig()
-    controller.discovery_config = policy
     controller._operation_lock = threading.Lock()
     controller.target_progress.url = "http://example.test/"
     controller.target_progress.base_path = ""
@@ -86,8 +82,7 @@ class TestControllerDiscoveryConfig(TestCase):
                             urls=["http://first.test/", "http://second.test/"],
                             session_file=None,
                         )
-                        controller.wordlist_config = WordlistConfig.from_options(options)
-                        controller.result_config = ResultConfig.from_options(options)
+                        controller._prepare_config(options)
                         controller.reporter = Mock(reports=())
                         controller.dictionary = Mock()
                         controller.target_progress.directories = []
@@ -99,7 +94,7 @@ class TestControllerDiscoveryConfig(TestCase):
 
                     def start(controller):
                         fuzzers.append(controller.fuzzer)
-                        self.assertIs(controller.fuzzer.discovery_config, controller.discovery_config)
+                        self.assertIs(controller.fuzzer.discovery_config, controller.config.discovery)
                         self.assertEqual(controller.target_progress.directories, ["base/"])
                         controller.target_progress.directories.clear()
                         options["subdirs"].clear()
@@ -128,5 +123,5 @@ class TestControllerDiscoveryConfig(TestCase):
                         controller = Controller()
 
                     self.assertEqual(len(fuzzers), 2)
-                    self.assertEqual(controller.discovery_config.prefixes, ("restored-",))
-                    self.assertEqual(controller.discovery_config.recursion_depth, 2)
+                    self.assertEqual(controller.config.discovery.prefixes, ("restored-",))
+                    self.assertEqual(controller.config.discovery.recursion_depth, 2)

@@ -11,6 +11,7 @@ from lib.core.data import options
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.execution_config import ExecutionConfig
 from lib.core.filter_config import FilterConfig
+from lib.core.run_config import RunConfig
 from lib.core.dictionary import Dictionary
 from lib.core.wordlist_config import WordlistConfig
 from lib.core.fuzzer import AsyncFuzzer, Fuzzer, NativeFuzzer
@@ -49,7 +50,7 @@ def add_crawled_paths(dictionary: Dictionary) -> None:
     controller = object.__new__(Controller)
     controller.run_state = ScanRunState()
     controller.target_progress = TargetProgress()
-    controller.discovery_config = DiscoveryConfig.from_options(options)
+    controller.config = RunConfig(discovery=DiscoveryConfig.from_options(options))
     controller.target_progress.base_path = ""
     controller.dictionary = dictionary
     controller.add_crawled_paths(crawled_paths_response())

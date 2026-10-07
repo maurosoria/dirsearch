@@ -3,6 +3,7 @@ import io
 from unittest import TestCase
 from unittest.mock import AsyncMock, Mock, patch
 
+from lib.core.run_config import RunConfig
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
@@ -19,6 +20,7 @@ class TestEngineSelection(TestCase):
         ):
             def restore(_controller, _path):
                 options.update(request_backend=backend, async_mode=async_mode)
+                _controller._prepare_config(options)
 
             with (
                 self.subTest(backend=backend),
@@ -43,10 +45,10 @@ class TestEngineSelection(TestCase):
         for engine in ScanEngine:
             with self.subTest(engine=engine):
                 controller = object.__new__(Controller)
+                controller.config = RunConfig(execution=ExecutionConfig(engine=engine))
                 controller.run_state = ScanRunState()
                 controller.target_progress = TargetProgress()
                 controller.interface = Mock()
-                controller.execution_config = ExecutionConfig(engine=engine)
                 controller.target_progress.directories = ["first/", "second/"]
                 controller.run_state.old_session = True
                 controller.fuzzer = Mock()

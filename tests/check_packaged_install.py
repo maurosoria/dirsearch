@@ -6,6 +6,7 @@ import sys
 import tempfile
 from io import StringIO
 from pathlib import Path
+from unittest.mock import Mock
 
 
 def read_source_version() -> str:
@@ -38,6 +39,8 @@ def main() -> None:
     from dirsearch.lib.controller.session import SessionStore
     from dirsearch.lib.controller.controller import Controller
     from dirsearch.lib.controller.session_snapshot import RunCheckpoint, SessionSnapshot
+    from dirsearch.lib.core.run_config import RunConfig
+    from dirsearch.lib.core.data import options
     from dirsearch.lib.core.discovery_config import DiscoveryConfig
     from dirsearch.lib.core.execution_config import ExecutionConfig, ScanEngine
     from dirsearch.lib.core.filter_config import FilterConfig
@@ -92,10 +95,10 @@ def main() -> None:
     # Exercise controller reconstruction too: its imports must not create task
     # values from the alternate source-tree namespace in an installed package.
     resumed = object.__new__(Controller)
+    resumed.config = RunConfig()
     resumed.metadata = RunMetadata.capture(["dirsearch", "--auth", "private-value"])
-    resumed.wordlist_config = WordlistConfig()
     resumed.output_history = []
-    resumed._restore_session(restored, ReportConfig())
+    resumed._restore_session(restored)
     try:
         assert resumed.reporter.metadata is resumed.metadata
         assert isinstance(resumed.metadata, RunMetadata)
@@ -107,6 +110,19 @@ def main() -> None:
     assert WordlistConfig(extensions=["html"]).extensions == ("html",)
     assert ExecutionConfig(engine=ScanEngine.NATIVE).engine is ScanEngine.NATIVE
     assert ExecutionConfig(skip_on_status=[429]).skip_on_status == frozenset({429})
+    # Installed composition must use the same engine enum as dispatch. A second
+    # lib/dirsearch.lib class identity would silently select threaded behavior.
+    for engine in ScanEngine:
+        values = dict(options, request_backend="native" if engine is ScanEngine.NATIVE else "python",
+                      async_mode=engine is ScanEngine.ASYNC)
+        resumed._prepare_config(values)
+        assert isinstance(resumed.config, RunConfig)
+        assert isinstance(resumed.config.request, RequestConfig)
+        assert isinstance(resumed.config.execution, ExecutionConfig)
+        assert resumed.config.execution.engine is engine
+        resumed.reporter = Mock(reports=[object()])
+        callback = resumed._report_match_callback()
+        assert callback is (resumed.reporter.save_async if engine is ScanEngine.ASYNC else resumed.reporter.save)
     assert RequestConfig(method="POST").method == "POST"
     assert TargetConfig(default_scheme="https").default_scheme == "https"
     pending_directories = ["current/", "next/"]

@@ -74,10 +74,11 @@ contexts, stable execution IDs and explicit resource lifecycle remain future
 work. Rust's internal `ScanTask` is unrelated and unchanged.
 
 The controller's `_session_options` is a transitional, detached copy of normalized
-input. Export no longer rereads process-global options. It is not yet the planned
-aggregate of prepared component policies: setup, restore and engine composition
-still use the CLI options boundary. Complete controllers are not yet safe to run
-concurrently in one process.
+input. Export no longer rereads process-global options. The same preparation
+boundary now creates [RunConfig](run-configuration.md) for runtime composition;
+the mapping remains the session representation, not a serialization of that
+aggregate. Setup and restore still use the CLI options boundary. Complete
+controllers are not yet safe to run concurrently in one process.
 
 ## Compatibility and cost
 

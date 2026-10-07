@@ -1,3 +1,4 @@
+from dataclasses import replace
 # -*- coding: utf-8 -*-
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -19,6 +20,7 @@
 from unittest import TestCase
 from unittest.mock import Mock, call, patch
 
+from lib.core.run_config import RunConfig
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.data import options
@@ -39,8 +41,8 @@ class TestControllerTargetDNS(TestCase):
             }
         )
         self.controller = object.__new__(Controller)
+        self.controller.config = RunConfig(target=TargetConfig.from_options(options))
         self.controller.target_progress = TargetProgress()
-        self.controller.target_config = TargetConfig.from_options(options)
         self.controller.requester = Mock()
 
     def tearDown(self):
@@ -88,7 +90,7 @@ class TestControllerTargetDNS(TestCase):
             with self.subTest(routing=routing):
                 options.update({"ip": None, "proxies": [], "tor": False})
                 options.update(routing)
-                self.controller.target_config = TargetConfig.from_options(options)
+                self.controller.config = replace(self.controller.config, target=TargetConfig.from_options(options))
                 self.controller.requester.reset_mock()
 
                 with patch(
@@ -111,7 +113,7 @@ class TestControllerTargetDNS(TestCase):
                 "proxies": ["http://127.0.0.1:8080"],
             }
         )
-        self.controller.target_config = TargetConfig.from_options(options)
+        self.controller.config = replace(self.controller.config, target=TargetConfig.from_options(options))
 
         with patch("lib.controller.controller.detect_scheme") as detect_scheme:
             self.controller.set_target("https://example.test")
@@ -129,7 +131,7 @@ class TestControllerTargetDNS(TestCase):
                 "scheme": "https",
             }
         )
-        self.controller.target_config = TargetConfig.from_options(options)
+        self.controller.config = replace(self.controller.config, target=TargetConfig.from_options(options))
 
         with patch("lib.controller.controller.detect_scheme") as detect_scheme:
             self.controller.set_target("example.test")

@@ -1,3 +1,4 @@
+from dataclasses import replace
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import threading
 from unittest import IsolatedAsyncioTestCase, TestCase
@@ -6,15 +7,14 @@ from unittest.mock import Mock
 from lib.connection.native import NativeHTTPBackend
 from lib.connection.requester import AsyncRequester, Requester
 from lib.connection.response import NativeResponse
+from lib.core.run_config import RunConfig
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
 from lib.core.filter_config import FilterConfig
 from lib.core.request_config import RequestConfig
 from lib.core.data import options
-from lib.core.result_config import ResultConfig
 from lib.core.discovery_config import DiscoveryConfig
-from lib.core.execution_config import ExecutionConfig
 from lib.core.exceptions import RequestException
 from lib.parse.url import same_origin
 
@@ -48,12 +48,11 @@ class TestRedirectRecursionOrigin(TestCase):
         )
 
         self.controller = object.__new__(Controller)
+
+        self.controller.config = RunConfig(discovery=DiscoveryConfig.from_options(options))
         self.controller.run_state = ScanRunState()
         self.controller.target_progress = TargetProgress()
-        self.controller.result_config = ResultConfig()
         self.controller.interface = Mock()
-        self.controller.execution_config = ExecutionConfig()
-        self.controller.discovery_config = DiscoveryConfig.from_options(options)
         self.controller._operation_lock = threading.Lock()
         self.controller.target_progress.url = "https://example.test/"
         self.controller.target_progress.base_path = ""
@@ -98,7 +97,7 @@ class TestRedirectRecursionOrigin(TestCase):
                 self.assertEqual(self.queued_directories(location), ["admin/"])
 
     def test_excluded_subdirectory_matching_is_segment_aware(self):
-        self.controller.discovery_config = DiscoveryConfig(exclude_subdirs=("admin/",))
+        self.controller.config = replace(self.controller.config, discovery=DiscoveryConfig(exclude_subdirs=("admin/",)))
 
         for path in ("admin/", "nested/admin/"):
             with self.subTest(path=path):
@@ -203,12 +202,10 @@ class FollowedRedirectRecursionContract:
     @staticmethod
     def queued_directories(response) -> list[str]:
         controller = object.__new__(Controller)
+        controller.config = RunConfig(discovery=DiscoveryConfig.from_options(options))
         controller.run_state = ScanRunState()
         controller.target_progress = TargetProgress()
-        controller.result_config = ResultConfig()
         controller.interface = Mock()
-        controller.execution_config = ExecutionConfig()
-        controller.discovery_config = DiscoveryConfig.from_options(options)
         controller._operation_lock = threading.Lock()
         controller.target_progress.url = response.url.rsplit("/", 1)[0] + "/"
         controller.target_progress.base_path = ""

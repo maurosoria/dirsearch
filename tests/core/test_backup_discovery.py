@@ -2,13 +2,12 @@ from unittest import TestCase
 from unittest.mock import Mock
 
 from lib.connection.response import NativeResponse
+from lib.core.run_config import RunConfig
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
 from lib.core.data import options
-from lib.core.result_config import ResultConfig
 from lib.core.discovery_config import DiscoveryConfig
-from lib.core.execution_config import ExecutionConfig
 from lib.core.dictionary import Dictionary
 from lib.core.wordlist_config import WordlistConfig
 from lib.core.settings import ARCHIVE_EXTENSIONS, BACKUP_EXTENSIONS
@@ -102,12 +101,10 @@ class TestBackupDiscoveryCallback(TestCase):
 
     def _controller(self) -> Controller:
         controller = object.__new__(Controller)
+        controller.config = RunConfig(discovery=DiscoveryConfig.from_options(options))
         controller.run_state = ScanRunState()
         controller.target_progress = TargetProgress()
-        controller.result_config = ResultConfig()
         controller.interface = Mock()
-        controller.execution_config = ExecutionConfig()
-        controller.discovery_config = DiscoveryConfig.from_options(options)
         controller.target_progress.base_path = "app/"
         controller.dictionary = make_dictionary()
         return controller

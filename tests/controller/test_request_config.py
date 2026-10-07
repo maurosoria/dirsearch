@@ -3,8 +3,6 @@ from unittest.mock import AsyncMock, Mock, patch
 
 from lib.controller.controller import Controller
 from lib.core.data import options
-from lib.core.result_config import ResultConfig
-from lib.core.wordlist_config import WordlistConfig
 
 
 class TestControllerRequestConfig(TestCase):
@@ -24,8 +22,7 @@ class TestControllerRequestConfig(TestCase):
                             headers={"X-Prepared": "yes"}, timeout=3,
                             session_file=None, urls=[],
                         )
-                        controller.wordlist_config = WordlistConfig.from_options(options)
-                        controller.result_config = ResultConfig.from_options(options)
+                        controller._prepare_config(options)
                         controller.reporter = Mock(reports=())
 
                     requester = Mock()
@@ -51,7 +48,7 @@ class TestControllerRequestConfig(TestCase):
                     if backend == "python":
                         self.assertIs(factory.call_args.kwargs["logger"], controller.logger)
                     config = factory.call_args.args[0]
-                    self.assertIs(config, controller.request_config)
+                    self.assertIs(config, controller.config.request)
                     self.assertEqual(config.method, "PATCH")
                     self.assertEqual(config.body, b"prepared-body")
                     self.assertEqual(config.headers, (("X-Prepared", "yes"),))

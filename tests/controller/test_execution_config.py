@@ -5,14 +5,13 @@ from unittest import TestCase
 from unittest.mock import AsyncMock, Mock, patch
 
 from lib.connection.response import NativeResponse
+from lib.core.run_config import RunConfig
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
 from lib.controller.session import SessionStore
 from lib.core.data import options
-from lib.core.result_config import ResultConfig
 from lib.core.dictionary import Dictionary
-from lib.core.discovery_config import DiscoveryConfig
 from lib.core.exceptions import QuitInterrupt, RequestException, SkipTargetInterrupt
 from lib.core.execution_config import ExecutionConfig, ScanEngine
 from lib.core.fuzzer import AsyncFuzzer, Fuzzer, NativeFuzzer
@@ -22,12 +21,10 @@ from lib.core.wordlist_config import WordlistConfig
 
 def make_controller(config):
     controller = object.__new__(Controller)
+    controller.config = RunConfig(execution=config)
     controller.run_state = ScanRunState()
     controller.target_progress = TargetProgress()
-    controller.result_config = ResultConfig()
     controller.interface = Mock()
-    controller.execution_config = config
-    controller.discovery_config = DiscoveryConfig()
     controller.start_time = 0
     controller.run_state.errors = 0
     controller.run_state.consecutive_errors = 0
@@ -131,8 +128,7 @@ class TestControllerExecutionConfig(TestCase):
                             skip_on_status={429}, exit_on_error=True, session_file=None,
                             urls=["http://first.test/", "http://second.test/"], subdirs=[],
                         )
-                        controller.wordlist_config = WordlistConfig.from_options(options)
-                        controller.result_config = ResultConfig.from_options(options)
+                        controller._prepare_config(options)
                         controller.reporter = Mock(reports=(object(),))
                         controller.response_stores = (Mock(),)
                         controller.dictionary = Mock()
@@ -141,7 +137,7 @@ class TestControllerExecutionConfig(TestCase):
                     def start(controller):
                         self.assertIs(controller.fuzzer.logger, controller.logger)
                         policies.append(controller.fuzzer.execution_config)
-                        self.assertIs(policies[-1], controller.execution_config)
+                        self.assertIs(policies[-1], controller.config.execution)
                         expected_fuzzer = {
                             ScanEngine.THREADED: Fuzzer,
                             ScanEngine.ASYNC: AsyncFuzzer,
@@ -200,17 +196,17 @@ class TestControllerExecutionConfig(TestCase):
                     self.assertEqual(len(policies), 2)
                     self.assertEqual(targets, ["http://first.test/", "http://second.test/"])
                     self.assertIs(policies[0], policies[1])
-                    self.assertEqual(controller.execution_config, ExecutionConfig(
+                    self.assertEqual(controller.config.execution, ExecutionConfig(
                         engine=engine,
                         concurrency=3, delay=0.125, max_time=30, target_max_time=4,
                         skip_on_status={429}, exit_on_error=True,
                     ))
                     transport = factory.call_args.args[0]
-                    self.assertEqual(transport.concurrency, controller.execution_config.concurrency)
-                    self.assertEqual(transport.delay, controller.execution_config.delay)
+                    self.assertEqual(transport.concurrency, controller.config.execution.concurrency)
+                    self.assertEqual(transport.delay, controller.config.execution.delay)
                     self.assertEqual(factory.call_count, 1)
                     self.assertEqual(factory.call_args.kwargs, (
-                        {"filter_config": controller.filter_config}
+                        {"filter_config": controller.config.filters}
                         if engine is ScanEngine.NATIVE else {"logger": controller.logger}
                     ))
                     if async_mode:
@@ -263,10 +259,10 @@ class TestControllerExecutionConfig(TestCase):
                     patch("lib.controller.controller.create_terminal"),
                 ):
                     controller = Controller()
-                self.assertEqual(controller.execution_config, ExecutionConfig(
+                self.assertEqual(controller.config.execution, ExecutionConfig(
                     engine=engine,
                     concurrency=3, delay=0.125, max_time=30, target_max_time=4,
                     skip_on_status={429}, exit_on_error=True,
                 ))
-                self.assertEqual(controller.request_config.concurrency, 3)
-                self.assertEqual(controller.request_config.delay, 0.125)
+                self.assertEqual(controller.config.request.concurrency, 3)
+                self.assertEqual(controller.config.request.delay, 0.125)
