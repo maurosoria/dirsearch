@@ -23,7 +23,7 @@ class TestControllerRequestConfig(TestCase):
                             session_file=None, urls=[],
                         )
                         controller._prepare_config(options)
-                        controller.reporter = Mock(reports=())
+                        controller.resources.reporter = Mock(reports=())
 
                     requester = Mock()
                     if async_mode:
@@ -46,7 +46,7 @@ class TestControllerRequestConfig(TestCase):
 
                     factory.assert_called_once()
                     if backend == "python":
-                        self.assertIs(factory.call_args.kwargs["logger"], controller.logger)
+                        self.assertIs(factory.call_args.kwargs["logger"], controller.resources.logger)
                     config = factory.call_args.args[0]
                     self.assertIs(config, controller.config.request)
                     self.assertEqual(config.method, "PATCH")

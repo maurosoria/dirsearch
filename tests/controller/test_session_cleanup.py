@@ -8,6 +8,7 @@ from unittest import TestCase
 from unittest.mock import Mock, patch
 
 from lib.core.run_config import RunConfig
+from lib.controller.run_resources import RunResources
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.controller.session import SessionStore
@@ -34,13 +35,11 @@ class TestSessionCleanup(TestCase):
 
     def _complete_scan(self, session_path):
         controller = object.__new__(Controller)
+        controller.resources = RunResources(interface=Mock(), logger=Mock())
         controller.config = RunConfig()
         controller.run_state = ScanRunState()
         controller.target_progress = TargetProgress()
-        controller.logger = Mock()
-        controller.interface = Mock()
-        controller.response_stores = ()
-        controller.reporter = Mock()
+        controller.resources.reporter = Mock()
         controller.dictionary = Mock()
         controller.target_progress.directories = []
         controller.target_progress.base_path = ""
@@ -116,16 +115,16 @@ class TestSessionCleanup(TestCase):
 
     def test_session_export_flushes_reports_before_saving_checkpoint(self):
         controller = object.__new__(Controller)
+        controller.resources = RunResources(interface=Mock(), logger=Mock())
         controller.config = RunConfig()
         controller.metadata = RunMetadata("dirsearch", "2026-10-06 12:00:00")
         controller.run_state = ScanRunState()
         controller.target_progress = TargetProgress()
         controller.session_options = SessionOptions()
         controller._snapshot_session = Mock(return_value=SimpleNamespace(output_history=[]))
-        controller.interface = Mock()
-        controller.reporter = Mock()
+        controller.resources.reporter = Mock()
         events = []
-        controller.reporter.flush.side_effect = lambda: events.append("report")
+        controller.resources.reporter.flush.side_effect = lambda: events.append("report")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             session_path = os.path.join(tmpdir, "session")
@@ -146,7 +145,7 @@ class TestSessionCleanup(TestCase):
             report = SQLiteReport(commit_batch_size=10)
 
             def setup(controller):
-                controller.reporter = report
+                controller.resources.reporter = report
                 report.initiate(database, "results")
                 report.save(
                     database,
@@ -188,7 +187,7 @@ class TestSessionCleanup(TestCase):
             report = JSONReport()
 
             def setup(controller):
-                controller.reporter = report
+                controller.resources.reporter = report
                 report.initiate(destination)
                 report.save(
                     destination,

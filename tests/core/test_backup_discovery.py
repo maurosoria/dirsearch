@@ -3,6 +3,7 @@ from unittest.mock import Mock
 
 from lib.connection.response import NativeResponse
 from lib.core.run_config import RunConfig
+from lib.controller.run_resources import RunResources
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
@@ -101,10 +102,10 @@ class TestBackupDiscoveryCallback(TestCase):
 
     def _controller(self) -> Controller:
         controller = object.__new__(Controller)
+        controller.resources = RunResources(interface=Mock(), logger=Mock())
         controller.config = RunConfig(discovery=DiscoveryConfig.from_options(options))
         controller.run_state = ScanRunState()
         controller.target_progress = TargetProgress()
-        controller.interface = Mock()
         controller.target_progress.base_path = "app/"
         controller.dictionary = make_dictionary()
         return controller

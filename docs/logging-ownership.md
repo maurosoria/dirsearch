@@ -7,7 +7,7 @@ its representation, and never reads global options during formatting.
 | Responsibility | Owner |
 | --- | --- |
 | File and redaction policy | Immutable `LogConfig` |
-| Handler and formatter lifetime | `RunLogger`, owned by the controller |
+| Handler and formatter lifetime | `RunLogger`, owned by the controller's `RunResources` |
 | Emitting existing messages | Requesters, fuzzers and scanners borrow the logger |
 | Early raw-request parse errors | Parser raises; controller handles diagnostics |
 
@@ -31,8 +31,9 @@ Each formatter keeps its own credential snapshot, including credentials with
 slashes that cannot be inferred reliably from a generic URL pattern. It is not
 a general-purpose scrubber for arbitrary secrets or HTTP headers.
 
-Controller cleanup closes logging after reports, requesters, response stores and
-terminal cleanup, including their failure paths. Borrowers do not close it.
+Controller cleanup delegates to [RunResources](run-resources.md), closing logging
+after reports, requesters, response stores and terminal cleanup, including their
+failure paths. Borrowers do not close it.
 `close()` disables new records, detaches the owned handler and acquires the
 standard handler lock to drain a current local file write. The file handler also
 rejects records dispatched before close but arriving at emission afterwards;

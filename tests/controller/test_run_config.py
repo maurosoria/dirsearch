@@ -76,8 +76,8 @@ class TestControllerRunConfig(TestCase):
                 self.assertEqual(controller.config, RunConfig.from_options(prepared[0]))
                 self.assertEqual(controller.session_options, SessionOptions.from_options(prepared[0]))
                 self.assertIs(controller.dictionary.config, controller.config.wordlist)
-                self.assertIs(controller.interface.config, controller.config.terminal)
-                self.assertIs(controller.reporter.config, controller.config.reports)
+                self.assertIs(controller.resources.interface.config, controller.config.terminal)
+                self.assertIs(controller.resources.reporter.config, controller.config.reports)
                 self.assertIs(logger.call_args.args[0], controller.config.logging)
                 for selected, factory in (
                     (ScanEngine.THREADED, threaded), (ScanEngine.ASYNC, asynchronous),
@@ -93,7 +93,7 @@ class TestControllerRunConfig(TestCase):
                 requester.close.assert_called_once_with()
                 if engine is ScanEngine.ASYNC:
                     requester.close.assert_awaited_once_with()
-                    self.assertTrue(controller.loop.is_closed())
+                    self.assertTrue(controller.resources.loop.is_closed())
                 self.assertTrue(all(terminal._output_buffer.closed for terminal in terminals))
 
     def test_raw_file_precedes_all_policy_and_session_capture(self):
@@ -148,8 +148,8 @@ class TestControllerRunConfig(TestCase):
                         controller = Controller(output=StringIO())
                     self.assertEqual(controller.config, RunConfig.from_options(saved))
                     self.assertIs(controller.config.execution.engine, engine)
-                    self.assertIs(controller.reporter.config, controller.config.reports)
-                    self.assertIs(controller.interface.config, controller.config.terminal)
+                    self.assertIs(controller.resources.reporter.config, controller.config.reports)
+                    self.assertIs(controller.resources.interface.config, controller.config.terminal)
                     prepared = controller.session_options.to_options()
                     self.assertEqual(prepared["headers"], {"X-Saved": "yes"})
                     self.assertEqual(prepared["http_method"], "POST")

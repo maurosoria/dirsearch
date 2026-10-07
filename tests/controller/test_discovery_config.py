@@ -3,6 +3,7 @@ from unittest import TestCase
 from unittest.mock import AsyncMock, Mock, patch
 
 from lib.core.run_config import RunConfig
+from lib.controller.run_resources import RunResources
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
@@ -13,10 +14,10 @@ from tests.core.test_backup_discovery import response_for
 
 def policy_controller(policy):
     controller = object.__new__(Controller)
+    controller.resources = RunResources(interface=Mock(), logger=Mock())
     controller.config = RunConfig(discovery=policy)
     controller.run_state = ScanRunState()
     controller.target_progress = TargetProgress()
-    controller.interface = Mock()
     controller._operation_lock = threading.Lock()
     controller.target_progress.url = "http://example.test/"
     controller.target_progress.base_path = ""
@@ -83,7 +84,7 @@ class TestControllerDiscoveryConfig(TestCase):
                             session_file=None,
                         )
                         controller._prepare_config(options)
-                        controller.reporter = Mock(reports=())
+                        controller.resources.reporter = Mock(reports=())
                         controller.dictionary = Mock()
                         controller.target_progress.directories = []
                         controller.run_state.passed_urls = set()

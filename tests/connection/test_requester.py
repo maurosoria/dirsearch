@@ -61,6 +61,7 @@ from lib.core.target_progress import TargetProgress
 from lib.core.data import options
 from lib.core.exceptions import RequestException
 from lib.core.settings import MAX_REDIRECTS
+from lib.controller.run_resources import RunResources
 from lib.controller.controller import Controller
 from lib.report.jsonl_response_store import JsonlResponseStore
 from lib.report.response_store import ResponseArtifact
@@ -2482,9 +2483,10 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
         with RequestTargetServer() as server:
             requester = self.native_requester_or_skip()
             controller = object.__new__(Controller)
+            controller.resources = RunResources(interface=Mock(), logger=Mock())
             controller.target_progress = TargetProgress()
             controller.config = RunConfig(target=TargetConfig.from_options(options))
-            controller.requester = requester
+            controller.resources.requester = requester
             target_with_credentials = server.url.replace(
                 "http://",
                 "http://target-user:p%40ss%3Atail@",

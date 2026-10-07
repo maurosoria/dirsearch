@@ -9,6 +9,7 @@ from unittest import TestCase, skipUnless
 from unittest.mock import Mock, patch
 
 from lib.core.run_config import RunConfig
+from lib.controller.run_resources import RunResources
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.controller.session import SessionStore
@@ -28,6 +29,7 @@ from lib.core.wordlist_config import WordlistConfig
 class TestSessionSnapshot(TestCase):
     def _controller(self):
         controller = object.__new__(Controller)
+        controller.resources = RunResources(interface=Mock(buffer="current\n"), logger=Mock())
         controller.config = RunConfig()
         controller.metadata = RunMetadata("dirsearch", "2026-10-06 12:00:00")
         controller.run_state = ScanRunState()
@@ -47,8 +49,7 @@ class TestSessionSnapshot(TestCase):
         controller.run_state.prepare_targets([controller.target_progress.url, "http://next.test/"])
         controller.run_state.activate_next()
         controller.session_options = SessionOptions({"headers": {"X-Test": "prepared"}})
-        controller.interface = Mock(buffer="current\n")
-        controller.reporter = Mock()
+        controller.resources.reporter = Mock()
         return controller
 
     def test_snapshot_detaches_all_mutable_inputs_before_storage(self):
@@ -269,7 +270,7 @@ class TestSessionSnapshot(TestCase):
             checkpoint = Path(directory, SessionStore.CHECKPOINT_FILE)
             before = checkpoint.read_bytes()
             history = deepcopy(controller.output_history)
-            controller.interface.buffer = "next output"
+            controller.resources.interface.buffer = "next output"
             for boundary in ("lib.controller.session.json.dump", "lib.utils.file.os.replace"):
                 with self.subTest(boundary=boundary), patch(boundary, side_effect=OSError("write failed")):
                     with self.assertRaisesRegex(OSError, "write failed"):
@@ -284,7 +285,7 @@ class TestSessionSnapshot(TestCase):
 
     def test_report_flush_failure_prevents_checkpoint_write(self):
         controller = self._controller()
-        controller.reporter.flush.side_effect = OSError("flush failed")
+        controller.resources.reporter.flush.side_effect = OSError("flush failed")
         with TemporaryDirectory() as directory, patch.object(SessionStore, "save") as save:
             with self.assertRaisesRegex(OSError, "flush failed"):
                 controller._export(directory)
@@ -380,7 +381,7 @@ class TestSessionSnapshot(TestCase):
         for _ in range(2):
             controller = self._controller()
             controller._restore_session(snapshot)
-            self.addCleanup(controller.reporter.finish)
+            self.addCleanup(controller.resources.reporter.finish)
             restored.append(controller)
         restored[0].target_progress.directories.clear()
         restored[0].run_state.passed_urls.clear()

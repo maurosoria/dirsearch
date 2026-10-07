@@ -6,7 +6,7 @@ import sys
 import tempfile
 from io import StringIO
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 
 def read_source_version() -> str:
@@ -38,6 +38,7 @@ def main() -> None:
     from dirsearch.lib.core import settings
     from dirsearch.lib.controller.session import SessionStore
     from dirsearch.lib.controller.session_options import SessionOptions
+    from dirsearch.lib.controller.run_resources import RunResources
     from dirsearch.lib.controller.controller import Controller
     from dirsearch.lib.controller.session_snapshot import RunCheckpoint, SessionSnapshot
     from dirsearch.lib.core.run_config import RunConfig
@@ -77,6 +78,18 @@ def main() -> None:
     assert WordlistLimitError
     assert WordlistState
     assert WordlistTemplate
+    # Real composition must instantiate the installed resource-owner class,
+    # without optional engine imports, requests, or process signal changes.
+    output = StringIO()
+    with (
+        patch.dict(options, {"session_file": None}),
+        patch.object(Controller, "setup"),
+        patch.object(Controller, "run"),
+    ):
+        composed = Controller(output=output)
+    assert isinstance(composed.resources, RunResources)
+    assert composed.resources.interface._output_buffer.closed
+    assert not output.closed
     snapshot = SessionSnapshot(
         run=RunCheckpoint(0),
         task_checkpoint=TaskCheckpoint(DictionaryCheckpoint((), 0)),
@@ -98,18 +111,19 @@ def main() -> None:
     # Exercise controller reconstruction too: its imports must not create task
     # values from the alternate source-tree namespace in an installed package.
     resumed = object.__new__(Controller)
+    resumed.resources = RunResources(interface=Mock(), logger=Mock())
     resumed.config = RunConfig()
     resumed.metadata = RunMetadata.capture(["dirsearch", "--auth", "private-value"])
     resumed.output_history = []
     resumed._restore_session(restored)
     try:
-        assert resumed.reporter.metadata is resumed.metadata
+        assert resumed.resources.reporter.metadata is resumed.metadata
         assert isinstance(resumed.metadata, RunMetadata)
         assert resumed.metadata.command == "dirsearch --auth <redacted>"
         assert resumed.run_state.snapshot_tasks() == snapshot.remaining_tasks
         assert resumed._snapshot_session(restored.options, "") == snapshot
     finally:
-        resumed.reporter.finish()
+        resumed.resources.close()
     assert WordlistConfig(extensions=["html"]).extensions == ("html",)
     assert ExecutionConfig(engine=ScanEngine.NATIVE).engine is ScanEngine.NATIVE
     assert ExecutionConfig(skip_on_status=[429]).skip_on_status == frozenset({429})
@@ -123,9 +137,12 @@ def main() -> None:
         assert isinstance(resumed.config.request, RequestConfig)
         assert isinstance(resumed.config.execution, ExecutionConfig)
         assert resumed.config.execution.engine is engine
-        resumed.reporter = Mock(reports=[object()])
-        callback = resumed._report_match_callback()
-        assert callback is (resumed.reporter.save_async if engine is ScanEngine.ASYNC else resumed.reporter.save)
+        resumed.resources = RunResources(interface=Mock(), logger=Mock(), reporter=Mock(reports=[object()]))
+        try:
+            callback = resumed._report_match_callback()
+            assert callback is (resumed.resources.reporter.save_async if engine is ScanEngine.ASYNC else resumed.resources.reporter.save)
+        finally:
+            resumed.resources.close()
     assert RequestConfig(method="POST").method == "POST"
     assert TargetConfig(default_scheme="https").default_scheme == "https"
     pending_directories = ["current/", "next/"]

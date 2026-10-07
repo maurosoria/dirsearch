@@ -12,6 +12,7 @@ from unittest import IsolatedAsyncioTestCase, TestCase, skipUnless
 from unittest.mock import Mock, patch
 
 from lib.connection.response import NativeResponse
+from lib.controller.run_resources import RunResources
 from lib.controller.controller import Controller
 from lib.report.directory_response_store import (
     DirectoryResponseStore,
@@ -607,14 +608,14 @@ class TestResponseStoreFactory(TestCase):
             response_directory = os.path.join(directory, "responses")
             jsonl_file = os.path.join(directory, "responses.jsonl")
             controller = object.__new__(Controller)
-            controller.interface = Mock()
-            controller.response_stores = create_response_stores(
+            controller.resources = RunResources(interface=Mock(), logger=Mock())
+            controller.resources.response_stores = create_response_stores(
                 response_directory,
                 jsonl_file,
             )
 
             controller.save_response(make_response(body=b"\x00both stores"))
-            controller._close_response_stores()
+            controller.resources.close()
 
             raw_files = os.listdir(response_directory)
             self.assertEqual(len(raw_files), 1)
@@ -642,7 +643,7 @@ class TestControllerResponseStores(TestCase):
         store = RecordingCloseStore()
 
         def failing_setup(controller):
-            controller.response_stores = (store,)
+            controller.resources.response_stores = (store,)
             raise RuntimeError("setup failed")
 
         with patch.dict("lib.controller.controller.options", {"session_file": None}):
@@ -673,11 +674,10 @@ class TestControllerResponseStores(TestCase):
         failing = FailingStore("failure")
         recording = RecordingStore()
         controller = object.__new__(Controller)
-        controller.interface = Mock()
-        controller.response_stores = (failing, recording)
+        controller.resources = RunResources(interface=Mock(), logger=Mock())
+        controller.resources.response_stores = (failing, recording)
 
-        controller.logger = Mock()
-        with patch.object(controller.interface, "error") as report_error:
+        with patch.object(controller.resources.interface, "error") as report_error:
             controller.save_response(make_response())
 
         report_error.assert_called_once()
@@ -707,12 +707,11 @@ class TestControllerResponseStores(TestCase):
 
         recording = RecordingCloseStore()
         controller = object.__new__(Controller)
-        controller.interface = Mock()
-        controller.response_stores = (FailingCloseStore("failure"), recording)
+        controller.resources = RunResources(interface=Mock(), logger=Mock())
+        controller.resources.response_stores = (FailingCloseStore("failure"), recording)
 
-        controller.logger = Mock()
-        with patch.object(controller.interface, "error") as report_error:
-            controller._close_response_stores()
+        with patch.object(controller.resources.interface, "error") as report_error:
+            controller.resources.close()
 
         report_error.assert_called_once()
         self.assertTrue(recording.close_called)
@@ -818,8 +817,8 @@ class TestAsyncResponseStores(IsolatedAsyncioTestCase):
                 return self.destination
 
         controller = object.__new__(Controller)
-        controller.interface = Mock()
-        controller.response_stores = (BlockingStore("memory"),)
+        controller.resources = RunResources(interface=Mock(), logger=Mock())
+        controller.resources.response_stores = (BlockingStore("memory"),)
         task = asyncio.create_task(controller.save_response_async(make_response()))
 
         self.assertTrue(await asyncio.to_thread(started.wait, 2))
@@ -848,8 +847,8 @@ class TestAsyncResponseStores(IsolatedAsyncioTestCase):
 
         stores = (AsyncStore("first"), AsyncStore("second"))
         controller = object.__new__(Controller)
-        controller.interface = Mock()
-        controller.response_stores = stores
+        controller.resources = RunResources(interface=Mock(), logger=Mock())
+        controller.resources.response_stores = stores
         task = asyncio.create_task(controller.save_response_async(make_response()))
 
         await asyncio.wait_for(
@@ -886,11 +885,10 @@ class TestAsyncResponseStores(IsolatedAsyncioTestCase):
 
         recording = RecordingStore()
         controller = object.__new__(Controller)
-        controller.interface = Mock()
-        controller.response_stores = (FailingStore("failure"), recording)
+        controller.resources = RunResources(interface=Mock(), logger=Mock())
+        controller.resources.response_stores = (FailingStore("failure"), recording)
 
-        controller.logger = Mock()
-        with patch.object(controller.interface, "error") as report_error:
+        with patch.object(controller.resources.interface, "error") as report_error:
             await controller.save_response_async(make_response())
 
         report_error.assert_called_once()

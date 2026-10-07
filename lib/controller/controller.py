@@ -95,6 +95,7 @@ from lib.utils.crawl import Crawler
 from lib.utils.file import FileUtils
 from lib.utils.schemedet import detect_scheme
 from lib.view.terminal import CLI, create_terminal
+from .run_resources import RunResources
 from .session import SessionStore
 from .session_options import SessionOptions
 from .session_snapshot import RunCheckpoint, SessionSnapshot
@@ -193,18 +194,15 @@ class Controller:
         self.metadata = RunMetadata.capture() if metadata is None else metadata
         self._terminal_stream = sys.stdout if output is None else output
         # Bootstrap presentation handles errors before input preparation finishes.
-        self.interface = create_terminal(
-            TerminalConfig.from_options(options), stream=self._terminal_stream
+        self.resources = RunResources(
+            interface=create_terminal(
+                TerminalConfig.from_options(options), stream=self._terminal_stream
+            ),
+            logger=RunLogger(),
         )
-        self.logger = RunLogger()
         self._operation_lock = threading.Lock()
         self._handling_pause = False
         self._force_quit_handler = _create_force_quit_handler()
-        self.requester = None
-        self.loop = None  # Will be set if async mode is used
-        self.reporter = None
-        self._reporter_finished = False
-        self.response_stores = ()
         self._native_worker = None
         self.run_state = ScanRunState()
         self.target_progress = TargetProgress()
@@ -220,19 +218,7 @@ class Controller:
 
             self.run()
         finally:
-            try:
-                self._close_reporter()
-            finally:
-                try:
-                    self._close_requester()
-                finally:
-                    try:
-                        self._close_response_stores()
-                    finally:
-                        try:
-                            self.interface.close()
-                        finally:
-                            self.logger.close()
+            self.resources.close()
 
     def _prepare_config(self, values: Mapping[str, Any]) -> dict[str, Any]:
         """Detach one effective input for all policies and session persistence.
@@ -262,9 +248,7 @@ class Controller:
         terminal = create_terminal(
             self.config.terminal, stream=self._terminal_stream
         )
-        previous = self.interface
-        self.interface = terminal
-        previous.close()
+        self.resources.replace_terminal(terminal)
 
     def _prepare_logging(self) -> None:
         """Replace bootstrap logging only after effective options are available."""
@@ -276,44 +260,14 @@ class Controller:
                     raise OSError(f"Cannot write log file: {config.file_path}")
             logger = RunLogger(config)
         except OSError:
-            self.interface.error(f"Couldn't create log file at {config.file_path}")
+            self.resources.interface.error(f"Couldn't create log file at {config.file_path}")
             sys.exit(1)
-        previous = self.logger
-        self.logger = logger
-        previous.close()
-
-    def _close_reporter(self) -> None:
-        reporter = self.reporter
-        if reporter is None or getattr(self, "_reporter_finished", False):
-            return
-
-        try:
-            reporter.finish()
-        finally:
-            self._reporter_finished = True
-
-    def _close_requester(self) -> None:
-        requester = self.requester
-        loop = self.loop
-
-        if requester is None:
-            if loop is not None:
-                loop.close()
-            return
-
-        if loop is None:
-            requester.close()
-            return
-
-        try:
-            loop.run_until_complete(requester.close())
-        finally:
-            loop.close()
+        self.resources.replace_logger(logger)
 
     def _import(self, session_file: str) -> None:
         try:
             if os.path.isfile(session_file) and session_file.endswith((".pickle", ".pkl")):
-                self.interface.warning(
+                self.resources.interface.warning(
                     "Pickle session files are no longer supported. "
                     "Please start a new scan to create a JSON session."
                 )
@@ -352,15 +306,15 @@ class Controller:
                 options["session_file"]
             )
         except InvalidURLException as error:
-            self.logger.exception(error)
-            self.interface.error(str(error))
+            self.resources.logger.exception(error)
+            self.resources.interface.error(str(error))
             sys.exit(1)
         except (OSError, KeyError, TypeError, UnpicklingError):
-            self.interface.error(
+            self.resources.interface.error(
                 f"{session_file} is not a valid session file or it's in an old format"
             )
             sys.exit(1)
-        self.interface.new_line(last_output, do_save=False)
+        self.resources.interface.new_line(last_output, do_save=False)
 
     def _restore_session(self, snapshot: SessionSnapshot) -> None:
         """Rebuild owned runtime objects from already validated session data.
@@ -382,7 +336,7 @@ class Controller:
         self.run_state.old_session = progress.old_session
         self.dictionary = Dictionary(self.config.wordlist)
         self.dictionary.__setstate__(task.dictionary.to_state())
-        self.reporter = ReportManager(self.config.reports, metadata=self.metadata)
+        self.resources.reporter = ReportManager(self.config.reports, metadata=self.metadata)
 
     def _snapshot_session(
         self, session_options: SessionOptions, last_output: str
@@ -437,7 +391,7 @@ class Controller:
         return "\n".join(formatted).rstrip()
 
     def _confirm_session_overwrite(self, session_file: str) -> None:
-        self.interface.in_line(
+        self.resources.interface.in_line(
             f"Resume session from {session_file}. Overwrite on save? [o]verwrite/[n]ew: "
         )
         choice = input().strip().lower()
@@ -446,14 +400,14 @@ class Controller:
 
     def _export(self, session_file: str) -> None:
         # Save written output
-        last_output = self.interface.buffer.rstrip()
+        last_output = self.resources.interface.buffer.rstrip()
         session_file = format_session_path(session_file, self.metadata.start_time)
         parent_dir = FileUtils.parent(session_file)
         if parent_dir:
             FileUtils.create_dir(parent_dir)
 
         # A saved session must never advance beyond durable report rows.
-        self.reporter.flush()
+        self.resources.reporter.flush()
         # Owned task input and progress are captured together, never reread from
         # process-wide URLs. Storage alone maps task input to version-1 options.
         snapshot = self._snapshot_session(self.session_options, last_output)
@@ -471,7 +425,7 @@ class Controller:
                 )
                 validate_random_agent_headers(SimpleNamespace(**options))
             except InvalidRawRequest as e:
-                self.logger.exception(e)
+                self.resources.logger.exception(e)
                 fail(e)
 
             if options["request_backend"] == "native":
@@ -487,7 +441,7 @@ class Controller:
                 self.config.wordlist, files=prepared_options["wordlists"]
             )
         except WordlistLimitError as e:
-            self.interface.error(str(e))
+            self.resources.interface.error(str(e))
             sys.exit(1)
         self.start_time = time.time()
         self.run_state = ScanRunState()
@@ -497,20 +451,20 @@ class Controller:
 
         self._prepare_response_stores()
 
-        self.interface.header(BANNER)
-        self.interface.print_config(len(self.dictionary))
+        self.resources.interface.header(BANNER)
+        self.resources.interface.print_config(len(self.dictionary))
 
         try:
-            self.reporter = ReportManager(
+            self.resources.reporter = ReportManager(
                 self.config.reports, metadata=self.metadata
             )
         except InvalidURLException as e:
-            self.logger.exception(e)
-            self.interface.error(str(e))
+            self.resources.logger.exception(e)
+            self.resources.interface.error(str(e))
             sys.exit(1)
 
         if self.config.logging.file_path:
-            self.interface.log_file(self.config.logging.file_path)
+            self.resources.interface.log_file(self.config.logging.file_path)
 
     def run(self) -> None:
         if self.config.execution.engine is ScanEngine.NATIVE:
@@ -535,7 +489,7 @@ class Controller:
         # error_callbacks callback values:
         #  - *args[0]: exception
         match_callbacks = [self.match_callback, self._report_match_callback()]
-        if self.response_stores:
+        if self.resources.response_stores:
             match_callbacks.append(
                 self.save_response_async
                 if self.config.execution.engine is ScanEngine.ASYNC
@@ -552,13 +506,13 @@ class Controller:
         self.run_state.prepare_targets(options["urls"])
         self.config = self.config.with_blacklists(get_blacklists(self.config.wordlist))
         if self.config.execution.engine is ScanEngine.NATIVE:
-            self.requester = Requester(
+            self.resources.requester = Requester(
                 self.config.request, filter_config=self.config.filters
             )
         else:
-            self.requester = Requester(self.config.request, logger=self.logger)
+            self.resources.requester = Requester(self.config.request, logger=self.resources.logger)
         if self.config.execution.engine is ScanEngine.ASYNC:
-            self.loop = asyncio.new_event_loop()
+            self.resources.loop = asyncio.new_event_loop()
 
         signal.signal(signal.SIGINT, lambda *_: self.handle_pause())
         signal.signal(signal.SIGTERM, lambda *_: self.handle_pause())
@@ -571,7 +525,7 @@ class Controller:
                     self.reset_consecutive_errors_batch,
                 )
             self.fuzzer = Fuzzer(
-                self.requester,
+                self.resources.requester,
                 self.dictionary,
                 filter_config=self.config.filters,
                 discovery_config=self.config.discovery,
@@ -579,7 +533,7 @@ class Controller:
                 match_callbacks=tuple(match_callbacks),
                 not_found_callbacks=not_found_callbacks,
                 error_callbacks=error_callbacks,
-                logger=self.logger,
+                logger=self.resources.logger,
                 **fuzzer_options,
             )
 
@@ -591,9 +545,9 @@ class Controller:
                         self.add_directory(self.target_progress.base_path + subdir)
 
                 if not self.run_state.old_session:
-                    self.interface.target(self.target_progress.url)
+                    self.resources.interface.target(self.target_progress.url)
 
-                self.reporter.prepare(self.target_progress.url)
+                self.resources.reporter.prepare(self.target_progress.url)
                 self.crawl_target()
                 self.start()
 
@@ -609,32 +563,32 @@ class Controller:
                 self.dictionary.reset()
 
                 if e.args:
-                    self.interface.error(str(e))
+                    self.resources.interface.error(str(e))
 
             except QuitInterrupt as e:
-                self._close_reporter()
-                self.interface.error(e.args[0])
+                self.resources.finish_reports()
+                self.resources.interface.error(e.args[0])
                 sys.exit(0)
 
             finally:
                 self.run_state.finish_active()
 
-        self.interface.warning("\nTask Completed")
-        self._close_reporter()
+        self.resources.interface.warning("\nTask Completed")
+        self.resources.finish_reports()
 
         if options["session_file"]:
             try:
                 SessionStore().delete(options["session_file"])
             except OSError:
-                self.interface.error("Failed to delete old session file, remove it to free some space")
+                self.resources.interface.error("Failed to delete old session file, remove it to free some space")
 
     def _report_match_callback(self):
         if (
-            self.reporter.reports
+            self.resources.reporter.reports
             and self.config.execution.engine is ScanEngine.ASYNC
         ):
-            return self.reporter.save_async
-        return self.reporter.save
+            return self.resources.reporter.save_async
+        return self.resources.reporter.save
 
     def start(self) -> None:
         start_time = time.time()
@@ -649,14 +603,14 @@ class Controller:
                     current_time = time.strftime("%H:%M:%S")
                     msg = f"{NEW_LINE}[{current_time}] Scanning: {current_directory}"
 
-                    self.interface.warning(msg)
+                    self.resources.interface.warning(msg)
 
                 self.fuzzer.set_base_path(current_directory)
                 if self.config.execution.engine is ScanEngine.ASYNC:
                     # use a future to get exceptions from handle_pause
                     # https://stackoverflow.com/a/64230941
-                    self.pause_future = self.loop.create_future()
-                    self.loop.run_until_complete(self.start_coroutines(start_time))
+                    self.pause_future = self.resources.loop.create_future()
+                    self.resources.loop.run_until_complete(self.start_coroutines(start_time))
                 elif self.config.execution.engine is ScanEngine.NATIVE:
                     self.start_native_fuzzer(start_time)
                 else:
@@ -782,7 +736,7 @@ class Controller:
     async def start_coroutines(self, start_time: float) -> None:
         timeout, timeout_error = self.get_time_limit(start_time)
 
-        task = self.loop.create_task(self.fuzzer.start())
+        task = self.resources.loop.create_task(self.fuzzer.start())
 
         try:
             try:
@@ -885,7 +839,7 @@ class Controller:
             port = STANDARD_PORTS[scheme]
 
         if target_config.connect_host:
-            self.requester.set_ip(parsed.hostname, port, target_config.connect_host)
+            self.resources.requester.set_ip(parsed.hostname, port, target_config.connect_host)
 
         hostname = parsed.hostname
         url_hostname = f"[{hostname}]" if hostname and ":" in hostname else hostname
@@ -896,11 +850,11 @@ class Controller:
 
         self.target_progress.url += "/"
 
-        self.requester.reset_auth()
+        self.resources.requester.reset_auth()
         if credential is not None:
-            self.requester.set_auth("basic", credential)
-        self.requester.set_url(self.target_progress.url)
-        self.requester.set_query(parsed.query)
+            self.resources.requester.set_auth("basic", credential)
+        self.resources.requester.set_url(self.target_progress.url)
+        self.resources.requester.set_query(parsed.query)
 
     def crawl_target(self) -> None:
         if not self.config.discovery.crawl:
@@ -908,11 +862,11 @@ class Controller:
 
         try:
             if self.config.execution.engine is ScanEngine.ASYNC:
-                response = self.loop.run_until_complete(
-                    self.requester.request(self.target_progress.base_path)
+                response = self.resources.loop.run_until_complete(
+                    self.resources.requester.request(self.target_progress.base_path)
                 )
             else:
-                response = self.requester.request(self.target_progress.base_path)
+                response = self.resources.requester.request(self.target_progress.base_path)
         except RequestException as error:
             self.raise_error(error)
             self.append_error_log(error)
@@ -933,22 +887,22 @@ class Controller:
         self.run_state.consecutive_errors = 0
 
     def _prepare_response_stores(self) -> None:
-        self.response_stores = ()
+        self.resources.response_stores = ()
         try:
-            self.response_stores = create_response_stores(
+            self.resources.response_stores = create_response_stores(
                 self.config.results.response_directory,
                 self.config.results.response_jsonl_file,
             )
         except (OSError, ValueError) as error:
-            self.logger.exception(error)
-            self.interface.error(
+            self.resources.logger.exception(error)
+            self.resources.interface.error(
                 f"Couldn't prepare response storage: {error}"
             )
             sys.exit(1)
 
     def save_response(self, response: BaseResponse) -> None:
         artifact = ResponseArtifact.from_response(response)
-        for store in self.response_stores:
+        for store in self.resources.response_stores:
             try:
                 store.save(artifact)
             except (OSError, ValueError) as error:
@@ -959,7 +913,7 @@ class Controller:
         await asyncio.gather(
             *(
                 self._save_response_to_store_async(store, artifact)
-                for store in self.response_stores
+                for store in self.resources.response_stores
             )
         )
 
@@ -979,22 +933,11 @@ class Controller:
         artifact: ResponseArtifact,
         error: OSError | ValueError,
     ) -> None:
-        self.logger.exception(error)
-        self.interface.error(
+        self.resources.logger.exception(error)
+        self.resources.interface.error(
             f"Couldn't save response for {artifact.url} to "
             f"{store.name} store at {store.destination}: {error}"
         )
-
-    def _close_response_stores(self) -> None:
-        for store in self.response_stores:
-            try:
-                store.close()
-            except OSError as error:
-                self.logger.exception(error)
-                self.interface.error(
-                    f"Couldn't close {store.name} response store at "
-                    f"{store.destination}: {error}"
-                )
 
     def match_callback(
         self, response: BaseResponse
@@ -1007,7 +950,7 @@ class Controller:
                 f"Skipped the target due to {response.status} status code"
             )
 
-        self.interface.status_report(response, self.config.results.full_url)
+        self.resources.interface.status_report(response, self.config.results.full_url)
 
         if response.status in discovery.recursion_status_codes and any(
             (
@@ -1037,19 +980,19 @@ class Controller:
                 added_to_queue = self.recur(response.path)
 
             if added_to_queue:
-                self.interface.new_directories(added_to_queue)
+                self.resources.interface.new_directories(added_to_queue)
 
         if self.config.results.replay_proxy:
             # Replay the request with new proxy
             if self.config.execution.engine is ScanEngine.ASYNC:
                 # AsyncFuzzer awaits callback results, so replay remains inside
                 # the scan lifecycle and receives cancellation with its worker.
-                replay = self.requester.replay_request(
+                replay = self.resources.requester.replay_request(
                     response.full_path,
                     proxy=self.config.results.replay_proxy,
                 )
             else:
-                self.requester.request(
+                self.resources.requester.request(
                     response.full_path,
                     proxy=self.config.results.replay_proxy,
                 )
@@ -1074,12 +1017,12 @@ class Controller:
             + self.run_state.jobs_processed
         )
 
-        self.interface.last_path(
+        self.resources.interface.last_path(
             self.dictionary.index,
             len(self.dictionary),
             self.run_state.jobs_processed + 1,
             jobs_count,
-            self.requester.rate,
+            self.resources.requester.rate,
             self.run_state.errors,
         )
 
@@ -1097,15 +1040,15 @@ class Controller:
             raise SkipTargetInterrupt("Too many request errors")
 
     def append_error_log(self, exception: RequestException) -> None:
-        self.logger.exception(exception)
+        self.resources.logger.exception(exception)
 
     def _force_exit(self) -> None:
         """Force process termination, stopping asyncio loop if running."""
-        self.interface.warning("\nForce quit!", do_save=False)
+        self.resources.interface.warning("\nForce quit!", do_save=False)
         # Stop asyncio loop first if running (prevents hang in async mode)
-        if self.loop and self.loop.is_running():
+        if self.resources.loop and self.resources.loop.is_running():
             try:
-                self.loop.stop()
+                self.resources.loop.stop()
             except Exception:
                 pass
         os._exit(1)
@@ -1117,7 +1060,7 @@ class Controller:
     def handle_pause(self) -> None:
         """Handle SIGINT (Ctrl+C) by pausing execution and showing options."""
         if self._handling_pause:
-            self._force_quit_handler.check_force_quit(self.interface)
+            self._force_quit_handler.check_force_quit(self.resources.interface)
             return
 
         self._handling_pause = True
@@ -1125,11 +1068,11 @@ class Controller:
 
         try:
             try:
-                self.interface.warning(
+                self.resources.interface.warning(
                     "CTRL+C detected: Pausing threads, please wait...", do_save=False
                 )
                 if not self.fuzzer.pause():
-                    self.interface.warning(
+                    self.resources.interface.warning(
                         "Could not pause all threads (some may be blocked on I/O). "
                         "Press CTRL+C again to force quit.",
                         do_save=False
@@ -1147,12 +1090,12 @@ class Controller:
                 if self.run_state.pending_count:
                     msg += " / [s]kip target"
 
-                self.interface.in_line(msg + ": ")
+                self.resources.interface.in_line(msg + ": ")
 
                 option = input()
 
                 if option.lower() == "q":
-                    self.interface.in_line("[s]ave / [q]uit without saving: ")
+                    self.resources.interface.in_line("[s]ave / [q]uit without saving: ")
 
                     option = input()
 
@@ -1163,7 +1106,7 @@ class Controller:
                         )
                         msg = f"Save to file [{default_session_path}]: "
 
-                        self.interface.in_line(msg)
+                        self.resources.interface.in_line(msg)
 
                         session_file = format_session_path(
                             input() or default_session_path, self.metadata.start_time

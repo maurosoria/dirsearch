@@ -6,6 +6,7 @@ from unittest import IsolatedAsyncioTestCase, TestCase
 from unittest.mock import Mock, patch
 
 from lib.core.run_config import RunConfig
+from lib.controller.run_resources import RunResources
 from lib.controller.controller import Controller
 from lib.core.data import options
 from lib.core.execution_config import ExecutionConfig, ScanEngine
@@ -33,9 +34,10 @@ class RecordingAsyncFuzzer:
 
 def create_controller(fuzzer):
     controller = object.__new__(Controller)
+    controller.resources = RunResources(interface=Mock(), logger=Mock())
     controller.config = RunConfig(execution=ExecutionConfig(engine=ScanEngine.ASYNC))
-    controller.loop = asyncio.get_running_loop()
-    controller.pause_future = controller.loop.create_future()
+    controller.resources.loop = asyncio.get_running_loop()
+    controller.pause_future = controller.resources.loop.create_future()
     controller.fuzzer = fuzzer
     return controller
 
@@ -64,7 +66,7 @@ class TestControllerCleanup(TestCase):
         requester = Mock()
 
         def fail_run(controller):
-            controller.requester = requester
+            controller.resources.requester = requester
             raise RuntimeError("scan failed")
 
         with (
@@ -82,8 +84,8 @@ class TestControllerCleanup(TestCase):
         loop = RecordingLoop()
 
         def fail_run(controller):
-            controller.requester = requester
-            controller.loop = loop
+            controller.resources.requester = requester
+            controller.resources.loop = loop
             raise RuntimeError("scan failed")
 
         with (
@@ -104,9 +106,9 @@ class TestControllerCleanup(TestCase):
         reporter.finish.side_effect = OSError("report close failed")
 
         def setup(controller):
-            controller.reporter = reporter
-            controller.requester = requester
-            controller.response_stores = (response_store,)
+            controller.resources.reporter = reporter
+            controller.resources.requester = requester
+            controller.resources.response_stores = (response_store,)
 
         with (
             patch.dict(options, {"session_file": None}),
@@ -126,8 +128,9 @@ class TestAsyncController(IsolatedAsyncioTestCase):
         sync_callback = object()
         async_callback = object()
         controller = object.__new__(Controller)
+        controller.resources = RunResources(interface=Mock(), logger=Mock())
         controller.config = RunConfig(execution=ExecutionConfig(engine=ScanEngine.ASYNC))
-        controller.reporter = SimpleNamespace(
+        controller.resources.reporter = SimpleNamespace(
             reports=[object()],
             save=sync_callback,
             save_async=async_callback,
@@ -141,8 +144,9 @@ class TestAsyncController(IsolatedAsyncioTestCase):
     async def test_async_python_without_reports_keeps_noop_sync_callback(self):
         sync_callback = object()
         controller = object.__new__(Controller)
+        controller.resources = RunResources(interface=Mock(), logger=Mock())
         controller.config = RunConfig(execution=ExecutionConfig(engine=ScanEngine.ASYNC))
-        controller.reporter = SimpleNamespace(
+        controller.resources.reporter = SimpleNamespace(
             reports=[],
             save=sync_callback,
             save_async=object(),
@@ -156,8 +160,9 @@ class TestAsyncController(IsolatedAsyncioTestCase):
     async def test_sync_and_native_scans_keep_synchronous_report_callback(self):
         sync_callback = object()
         controller = object.__new__(Controller)
+        controller.resources = RunResources(interface=Mock(), logger=Mock())
         controller.config = RunConfig()
-        controller.reporter = SimpleNamespace(
+        controller.resources.reporter = SimpleNamespace(
             reports=[object()],
             save=sync_callback,
             save_async=object(),
@@ -175,7 +180,7 @@ class TestAsyncController(IsolatedAsyncioTestCase):
         controller.start_time = time.time()
 
         with patch.dict(options, {"max_time": 0, "target_max_time": 0}):
-            run_task = controller.loop.create_task(
+            run_task = controller.resources.loop.create_task(
                 controller.start_coroutines(time.time())
             )
             await controller.fuzzer.started.wait()

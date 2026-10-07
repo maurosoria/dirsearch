@@ -46,7 +46,7 @@ Only the controller owns the aggregate. Dictionary, requester, fuzzer, report
 manager, terminal and logger still receive their narrow policies; they do not
 receive a controller or a catch-all context. Metadata stays in `RunMetadata`,
 input in `TaskSpec`, mutable progress in `ScanRunState`/`TargetProgress`, and live
-resources retain their existing owners and cleanup order.
+handles in [RunResources](run-resources.md), with the existing cleanup order.
 
 Blacklist files are loaded at the existing run-start boundary.
 `with_blacklists(data)` returns a new aggregate with a detached `FilterConfig`;
@@ -59,7 +59,8 @@ the CLI mapping. Learned target-specific filters remain outside configuration.
 This is not full process isolation. CLI normalization, initial target input,
 session-path interaction, process signals and other items in the
 [refactoring backlog](refactoring-backlog.md) still need separate work. Local
-resource contexts and local CLI normalization are not implemented yet.
+resource ownership is explicit; separate execution entrypoints and local CLI
+normalization are not implemented yet.
 No target scheduler, Rust engine change or new concurrency
 capability is included.
 
