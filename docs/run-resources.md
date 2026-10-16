@@ -17,9 +17,10 @@ components continue to borrow individual requesters, loggers and other handles.
 | `RunResources` | Terminal, logger, report manager, requester, event loop and response stores |
 | `Controller` | Construction, execution, worker draining and composition of these boundaries |
 
-The controller still creates handles at the existing preparation points. A
-bootstrap terminal and disabled logger exist before effective input is ready;
-the resource owner starts with those handles and explicit empty optional fields.
+The controller creates handles only inside its explicit `run()` lifecycle, at
+the existing preparation points. A bootstrap terminal and disabled logger exist
+before effective input is ready; the resource owner starts with those handles
+and explicit empty optional fields.
 After raw parsing or validated resume, the controller constructs replacements
 from prepared policies. `replace_terminal()` and `replace_logger()` adopt the
 new handle before closing the bootstrap handle. If construction fails, the
@@ -67,8 +68,9 @@ CLI flags, checkpoint/report formats, request dispatch, Rust ABI, native chunk
 boundaries and batch defaults are unchanged. There is no throughput claim.
 Global CLI normalization, process signals and ambient contexts remain;
 independent resource owners alone do not prove complete concurrent-controller
-safety. The constructor still prepares and runs immediately. Separating those
-entrypoints is a later step in the [refactoring backlog](refactoring-backlog.md).
+safety. The [controller lifecycle](controller-lifecycle.md) now separates
+construction from execution; the constructor opens no handles. Further isolation
+remains in the [refactoring backlog](refactoring-backlog.md).
 
 Run `python -m unittest discover -s tests -t .`. Resource tests cover cleanup
 order, early report completion, partial preparation, repeated closure, independent
@@ -79,6 +81,6 @@ draining and all three engines. Unit fixtures explicitly construct `RunResources
 instead of relying on undeclared controller fields.
 
 The installed-package smoke verifies resource-owner identity during controller
-construction and report callback selection. Setuptools package discovery and
+execution and report callback selection. Setuptools package discovery and
 PyInstaller's `collect_submodules('lib')` include the module without new
 dependencies or packaging rules.

@@ -158,7 +158,7 @@ class TestResultPreparation(TestCase):
                         requester.replay_request = AsyncMock()
                         if engine is ScanEngine.ASYNC:
                             requester.close = AsyncMock()
-                        original_run = Controller.run
+                        original_run = Controller._run_targets
                         policies = []
 
                         def run(controller):
@@ -191,7 +191,7 @@ class TestResultPreparation(TestCase):
 
                         with (
                             patch.dict(options, current),
-                            patch.object(Controller, "run", new=run),
+                            patch.object(Controller, "_run_targets", new=run),
                             patch.object(Controller, "start", new=start),
                             patch.object(Controller, "set_target", new=set_target),
                             patch.object(Controller, "crawl_target"),
@@ -201,6 +201,7 @@ class TestResultPreparation(TestCase):
                             patch("lib.controller.controller.create_terminal"),
                         ):
                             controller = Controller()
+                            controller.run()
                         self.assertEqual(len(policies), 2)
                         self.assertIs(policies[0], policies[1])
                         self.assertIs(factory.call_args.args[0].capture_full_body, capture)
@@ -237,9 +238,10 @@ class TestResultPreparation(TestCase):
                 "save_response_jsonl": None, "full_url": False, "replay_proxy": None,
             }),
             patch("lib.controller.controller.parse_raw", side_effect=parse),
-            patch.object(Controller, "run"),
+            patch.object(Controller, "_run_targets"),
         ):
             controller = Controller(output=StringIO())
+            controller.run()
         self.assertEqual(controller.config.results, expected)
 
     def test_store_preparation_failure_aborts_before_transport_creation(self):
@@ -254,10 +256,10 @@ class TestResultPreparation(TestCase):
                     "save_response": str(Path(root, "responses")), "save_response_jsonl": root,
                 }),
                 patch("lib.report.directory_response_store.DirectoryResponseStore", return_value=first_store),
-                patch.object(Controller, "run") as run,
+                patch.object(Controller, "_run_targets") as run,
                 self.assertRaises(SystemExit) as stopped,
             ):
-                Controller(output=StringIO())
+                Controller(output=StringIO()).run()
             self.assertEqual(stopped.exception.code, 1)
             first_store.close.assert_called_once_with()
             run.assert_not_called()

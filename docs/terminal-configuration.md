@@ -21,8 +21,8 @@ session and controller modules creates no history buffer and does not replace
 
 ## Preparation and sessions
 
-The controller initially creates a bootstrap terminal for errors that can happen
-before preparation completes. Once raw-request parsing or session restoration
+At `run()` entry, the controller creates a bootstrap terminal for errors before
+preparation completes. Once raw-request parsing or session restoration
 has produced validated options, it constructs the effective terminal and closes
 the bootstrap buffer. The replacement is constructed first, so allocation failure
 leaves the bootstrap available for error handling and final cleanup. No scan

@@ -67,7 +67,7 @@ class TestControllerTargetConfig(TestCase):
                 ):
                     try:
                         controller._prepare_config(options)
-                        controller.run()
+                        controller._run_targets()
                     finally:
                         if controller.resources.loop is not None:
                             controller.resources.loop.close()
@@ -198,6 +198,7 @@ class TestControllerTargetConfig(TestCase):
                     patch("lib.controller.controller.create_terminal"),
                 ):
                     controller = Controller()
+                    controller.run()
                 self.assertEqual(controller.config.target, TargetConfig("https", "2001:db8::7", True))
                 self.assertEqual(controller.config.request.proxies, ("http://proxy.test:8080",))
                 self.assertEqual(requester.set_url.call_args_list, [

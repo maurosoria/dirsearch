@@ -77,6 +77,7 @@ class TestControllerFilterConfig(TestCase):
                         patch("lib.controller.controller.create_terminal"),
                     ):
                         controller = Controller()
+                        controller.run()
 
                     loader.assert_called_once_with(controller.config.wordlist)
                     self.assertEqual(len(fuzzers), 2)

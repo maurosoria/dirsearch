@@ -168,9 +168,10 @@ class TestSessionSnapshot(TestCase):
                     patch.dict(options, {"session_file": directory}),
                     patch.object(SessionStore, "load", return_value=snapshot),
                     patch.object(Controller, "_confirm_session_overwrite"),
-                    patch.object(Controller, "run"),
+                    patch.object(Controller, "_run_targets"),
                 ):
                     restored = Controller(output=StringIO())
+                    restored.run()
                 self.assertEqual(restored.output_history, expected_history)
                 snapshot.task_checkpoint = replace(snapshot.task_checkpoint, directories=())
                 snapshot.task_checkpoint = replace(snapshot.task_checkpoint, dictionary=replace(snapshot.task_checkpoint.dictionary, items=(), extra=()))
@@ -318,9 +319,9 @@ class TestSessionSnapshot(TestCase):
                 patch("lib.controller.controller.parse_raw", return_value=(
                     ["http://raw.test/"], "POST", raw_headers, b"\x80\r\n",
                 )),
-                patch.object(Controller, "run", new=run),
+                patch.object(Controller, "_run_targets", new=run),
             ):
-                Controller(output=StringIO())
+                Controller(output=StringIO()).run()
             payload = store.load(directory)
             restored = payload.options.to_options()
             self.assertEqual(restored["headers"], {"X-Raw": "prepared"})
@@ -360,10 +361,10 @@ class TestSessionSnapshot(TestCase):
 
                     with (
                         patch.dict(options, current, clear=True),
-                        patch.object(Controller, "run", new=run),
+                        patch.object(Controller, "_run_targets", new=run),
                         patch.object(Controller, "_confirm_session_overwrite"),
                     ):
-                        Controller(output=StringIO())
+                        Controller(output=StringIO()).run()
                     restored = SessionStore().load(str(Path(directory, "output")))
                     restored_options = restored.options.to_options()
                     self.assertEqual(restored_options["headers"]["X-Test"], "prepared")

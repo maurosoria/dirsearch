@@ -188,18 +188,20 @@ def format_session_path(path: str, start_time: str) -> str:
 
 
 class Controller:
+    """Single-use local lifecycle; construction does not prepare or execute work.
+
+    The CLI calls run() after normalizing its input. This remains an internal,
+    synchronous controller, not a concurrent-task API: global options and
+    process signal ownership still belong to the existing CLI lifecycle.
+    """
+
     def __init__(
         self, *, output: TextIO | None = None, metadata: RunMetadata | None = None
     ) -> None:
         self.metadata = RunMetadata.capture() if metadata is None else metadata
         self._terminal_stream = sys.stdout if output is None else output
-        # Bootstrap presentation handles errors before input preparation finishes.
-        self.resources = RunResources(
-            interface=create_terminal(
-                TerminalConfig.from_options(options), stream=self._terminal_stream
-            ),
-            logger=RunLogger(),
-        )
+        self.resources: RunResources | None = None
+        self._execution_started = False
         self._operation_lock = threading.Lock()
         self._handling_pause = False
         self._force_quit_handler = _create_force_quit_handler()
@@ -208,17 +210,44 @@ class Controller:
         self.target_progress = TargetProgress()
         self.output_history: list[dict[str, Any]] = []
 
-        try:
-            if options["session_file"]:
-                self.run_state.old_session = True
-                self._import(options["session_file"])
-            else:
-                self.setup()
-                self.run_state.old_session = False
+    def run(self) -> None:
+        """Prepare, execute and close once, including failed startup attempts.
 
-            self.run()
+        Construction captures metadata and the borrowed stream, not CLI options
+        or open handles. Consume this lifecycle before acquiring anything so a
+        repeated/reentrant call cannot reuse partially prepared or closed state.
+        This guard is not synchronization for concurrent calls.
+        """
+        if self._execution_started:
+            raise RuntimeError("Controller.run() can only be called once")
+        self._execution_started = True
+
+        # Bootstrap diagnostics remain available during input preparation. If
+        # logging construction fails before ownership transfer, close the terminal.
+        terminal = create_terminal(
+            TerminalConfig.from_options(options), stream=self._terminal_stream
+        )
+        try:
+            logger = RunLogger()
+        except BaseException:
+            terminal.close()
+            raise
+        self.resources = RunResources(interface=terminal, logger=logger)
+
+        try:
+            self._prepare()
+            self._run_targets()
         finally:
             self.resources.close()
+
+    def _prepare(self) -> None:
+        """Select fresh setup or restoration before entering the target loop."""
+        if options["session_file"]:
+            self.run_state.old_session = True
+            self._import(options["session_file"])
+        else:
+            self.setup()
+            self.run_state.old_session = False
 
     def _prepare_config(self, values: Mapping[str, Any]) -> dict[str, Any]:
         """Detach one effective input for all policies and session persistence.
@@ -466,7 +495,7 @@ class Controller:
         if self.config.logging.file_path:
             self.resources.interface.log_file(self.config.logging.file_path)
 
-    def run(self) -> None:
+    def _run_targets(self) -> None:
         if self.config.execution.engine is ScanEngine.NATIVE:
             from lib.connection.native import NativeRequester as Requester
             from lib.core.fuzzer import NativeFuzzer as Fuzzer

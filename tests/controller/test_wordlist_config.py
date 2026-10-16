@@ -24,13 +24,14 @@ class TestControllerWordlistConfig(TestCase):
                     "lowercase": False, "uppercase": False, "capitalization": False,
                     "raw_file": None, "log_file": None,
                 }),
-                patch.object(Controller, "run"),
+                patch.object(Controller, "_run_targets"),
                 patch.object(Controller, "_prepare_response_stores"),
                 patch("lib.controller.controller.create_terminal"),
                 patch("lib.controller.controller.ReportManager"),
                 patch("lib.core.wordlist_backend.FileUtils.get_lines", return_value=["page.%EXT%"]),
             ):
                 controller = Controller()
+                controller.run()
                 config = controller.config.wordlist
                 options["extensions"] = ("json",)
                 options["exclude_extensions"] = ("html",)
@@ -55,7 +56,7 @@ class TestControllerWordlistConfig(TestCase):
                     "uppercase": False, "capitalization": False,
                     "raw_file": None, "log_file": None, "output_formats": [],
                 }),
-                patch.object(Controller, "run"),
+                patch.object(Controller, "_run_targets"),
                 patch.object(Controller, "_prepare_response_stores"),
                 patch.object(Controller, "_confirm_session_overwrite"),
                 patch("lib.controller.controller.create_terminal"),
@@ -63,6 +64,7 @@ class TestControllerWordlistConfig(TestCase):
                 patch("lib.core.wordlist_backend.FileUtils.get_lines", return_value=["done", "pending"]),
             ):
                 original = Controller()
+                original.run()
                 original.run_state.prepare_targets(options["urls"])
                 original.target_progress.base_path = ""
                 original.target_progress.url = "http://example.test/"
@@ -86,6 +88,7 @@ class TestControllerWordlistConfig(TestCase):
                 )
                 with patch.object(Dictionary, "generate", side_effect=AssertionError("regenerated")):
                     resumed = Controller()
+                    resumed.run()
                 config = resumed.config.wordlist
                 self.assertIs(resumed.dictionary.config, config)
                 self.assertIsNot(config, original.config.wordlist)

@@ -11,8 +11,8 @@ its representation, and never reads global options during formatting.
 | Emitting existing messages | Requesters, fuzzers and scanners borrow the logger |
 | Early raw-request parse errors | Parser raises; controller handles diagnostics |
 
-The controller starts with disabled logging and prepares its effective logger
-after raw input preparation or session restoration. Target transitions reuse
+The controller's explicit `run()` starts with disabled logging and prepares its
+effective logger after raw input preparation or session restoration. Target transitions reuse
 that logger. Checkpoints still store the existing normalized options; no live
 logger is serialized and the engine-independent session schema is unchanged.
 Errors before the logging preparation boundary remain terminal diagnostics.

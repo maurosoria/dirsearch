@@ -195,6 +195,7 @@ class TestControllerExecutionConfig(TestCase):
                         patch("lib.controller.controller.create_terminal"),
                     ):
                         controller = Controller()
+                        controller.run()
                     self.assertEqual(len(policies), 2)
                     self.assertEqual(targets, ["http://first.test/", "http://second.test/"])
                     self.assertIs(policies[0], policies[1])
@@ -261,6 +262,7 @@ class TestControllerExecutionConfig(TestCase):
                     patch("lib.controller.controller.create_terminal"),
                 ):
                     controller = Controller()
+                    controller.run()
                 self.assertEqual(controller.config.execution, ExecutionConfig(
                     engine=engine,
                     concurrency=3, delay=0.125, max_time=30, target_max_time=4,

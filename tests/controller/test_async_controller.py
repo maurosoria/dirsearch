@@ -72,10 +72,10 @@ class TestControllerCleanup(TestCase):
         with (
             patch.dict(options, {"session_file": None}),
             patch.object(Controller, "setup"),
-            patch.object(Controller, "run", new=fail_run),
+            patch.object(Controller, "_run_targets", new=fail_run),
             self.assertRaisesRegex(RuntimeError, "scan failed"),
         ):
-            Controller()
+            Controller().run()
 
         requester.close.assert_called_once_with()
 
@@ -91,10 +91,10 @@ class TestControllerCleanup(TestCase):
         with (
             patch.dict(options, {"session_file": None}),
             patch.object(Controller, "setup"),
-            patch.object(Controller, "run", new=fail_run),
+            patch.object(Controller, "_run_targets", new=fail_run),
             self.assertRaisesRegex(RuntimeError, "scan failed"),
         ):
-            Controller()
+            Controller().run()
 
         self.assertTrue(requester.closed)
         self.assertTrue(loop.closed)
@@ -113,10 +113,10 @@ class TestControllerCleanup(TestCase):
         with (
             patch.dict(options, {"session_file": None}),
             patch.object(Controller, "setup", new=setup),
-            patch.object(Controller, "run"),
+            patch.object(Controller, "_run_targets"),
             self.assertRaisesRegex(OSError, "report close failed"),
         ):
-            Controller()
+            Controller().run()
 
         reporter.finish.assert_called_once_with()
         requester.close.assert_called_once_with()

@@ -59,8 +59,8 @@ the CLI mapping. Learned target-specific filters remain outside configuration.
 This is not full process isolation. CLI normalization, initial target input,
 session-path interaction, process signals and other items in the
 [refactoring backlog](refactoring-backlog.md) still need separate work. Local
-resource ownership is explicit; separate execution entrypoints and local CLI
-normalization are not implemented yet.
+resource ownership and [controller execution phases](controller-lifecycle.md)
+are explicit; local CLI normalization is not implemented yet.
 No target scheduler, Rust engine change or new concurrency
 capability is included.
 

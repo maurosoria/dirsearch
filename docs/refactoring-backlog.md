@@ -1,7 +1,7 @@
 # Local state ownership backlog
 
-This is the state-isolation backlog following PR #1750, including the
-run-resource ownership boundary in this branch. It is not a list of all product issues, nor
+This is the state-isolation backlog following PR #1751, including the
+explicit controller lifecycle in this branch. It is not a list of all product issues, nor
 a claim that multiple complete controllers can already share a process safely.
 Keep subsequent steps independently reviewable, with explicit contracts and
 regressions before replacing their callers.
@@ -64,13 +64,19 @@ regressions before replacing their callers.
   them; teardown preserves report/requester/store/terminal/logger ordering and
   attempts downstream phases after failure. Early report finishing and final
   cleanup do not retry failed releases. Configuration, progress, worker draining
-  and persistence stay separate; construction still immediately prepares/runs.
+  and persistence stay separate.
+- [Controller lifecycle](controller-lifecycle.md) now separates construction from
+  execution. `Controller()` captures metadata/stream and initializes local state
+  without opening handles or reading CLI options. Explicit, single-use `run()`
+  owns bootstrap, fresh/resume preparation, the unchanged target loop and final
+  cleanup. Failures cannot silently reuse the same owner. Global options and
+  process signals still prevent claiming complete controller isolation.
 
 ## Remaining work, in suggested order
 
 | Order | Boundary | Completion criterion |
 | --- | --- | --- |
-| 1 | Local lifecycle boundaries | Configuration, persistence input and live-resource cleanup are now owned. Separate construction, preparation and execution entrypoints. Assign ownership to generator state without changing generation behavior. |
+| 1 | Generator state ownership | Configuration, persistence input, live-resource cleanup and execution phases are now explicit. Assign ownership to generator state without changing generation behavior. |
 | 2 | CLI options boundary | Keep mutable normalization local to one invocation; remove the global `options` dictionary once its last consumers are migrated. |
 | 3 | Constant tables | Make read-only intent enforceable where compatible, including `TEXT_CHARS`, and review the duplicate default-port mappings. |
 | 4 | Isolation acceptance tests | Prove independent local lifecycles, output, failure cleanup and resume without process-global patching; address signal ownership and ambient raw-target context. Passing component tests alone is insufficient. |
@@ -83,14 +89,16 @@ internal `ScanTask`; no parallel-target, GUI or remote scheduling is added here.
 ## Broader architectural roadmap
 
 Removing globals is a prerequisite, not completion of the architecture work.
-The following stages are proposals, not implemented features or release promises:
+The stages below retain completed foundations; their remaining capabilities are
+proposals, not implemented features or release promises:
 
 1. Complete the task/progress/checkpoint and aggregate-configuration boundaries
    above. The current `TaskCheckpoint` is only one part of a run-level
    `SessionSnapshot`. Input descriptors exist, but independent execution
    identity, per-task policy and resource ownership are still missing.
-2. Separate construction, preparation, execution and closure. Keep live resources
-   in explicit contexts with owned cleanup; put process signals in the CLI adapter.
+2. Complete local lifecycle isolation. Construction, preparation, execution and
+   closure are now separate phases with owned live resources; process signals
+   and event-loop policy still need an explicit owner at the CLI boundary.
 3. Prove independent lifecycle, cancellation, persistence and output isolation
    before allowing complete concurrent executions.
 4. Define backend-independent result/lifecycle events for CLI and future UI
@@ -150,7 +158,8 @@ every scalar constant, compiled regex, imported module or third-party singleton.
 | --- | --- | --- |
 | `_stealth_word_generator` | `lib/utils/random.py` | Holds a mutable RNG and growing `_seen` set for the entire process; choose explicit ownership without changing generation behavior. |
 | `_request_target_state` | `lib/connection/requester.py` | `threading.local()` raw-target context: separate per thread, but still ambient. |
-| Signal registrations | `Controller.run()` | Process-wide handlers; installation/restoration needs an explicit owner. |
+| Signal registrations | `Controller._run_targets()` | Process-wide handlers; installation/restoration needs an explicit owner. |
+| Async event-loop policy | `Controller._run_targets()` | Optional uvloop policy selection is still process-wide; explicit lifecycle entry does not isolate it. |
 | `TEXT_CHARS` | `lib/core/settings.py` | Mutable `bytearray` used as a read-only binary-detection table; no production writes identified. |
 | `__all__` lists | `lib/core/api.py`, `dirsearch.py` | Static export metadata, not run progress. |
 

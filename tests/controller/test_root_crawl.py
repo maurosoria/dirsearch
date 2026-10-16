@@ -113,7 +113,7 @@ class TestRootCrawl(TestCase):
             patch("lib.controller.controller.signal.signal"),
         ):
             controller._prepare_config(options)
-            controller.run()
+            controller._run_targets()
 
         requester.request.assert_called_once_with("base/")
         self.assertEqual(controller.dictionary.extra, ["root-only"])

@@ -25,8 +25,8 @@ Global `options["urls"]` is now input only: running, skipping and completing
 targets do not consume the caller's list. Later changes to that list do not
 replace work already copied into the run state.
 
-`Controller.run()` calls `prepare_targets()` after setup or restoration and before
-starting workers/installing signal handlers. Preparation replaces only the input
+`Controller._run_targets()` calls `prepare_targets()` after setup or restoration,
+before starting workers/installing signal handlers. Preparation replaces only the input
 ordering, preserving restored counters, scheduled URLs and presentation state.
 It rejects active work, and a failing input iterable leaves the prior state
 unchanged. It is not a live scheduling/reconfiguration API.

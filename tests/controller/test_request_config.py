@@ -41,6 +41,7 @@ class TestControllerRequestConfig(TestCase):
                         patch("lib.controller.controller.create_terminal"),
                     ):
                         controller = Controller()
+                        controller.run()
                         options["headers"]["X-Prepared"] = "changed"
                         options["http_method"] = "DELETE"
 
