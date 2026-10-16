@@ -37,7 +37,7 @@ from lib.utils.diff import (
     DynamicContentParser,
     generate_matching_regex,
 )
-from lib.utils.random import rand_stealth_word
+from lib.utils.random import StealthWordGenerator
 
 
 AUTO_CALIBRATION_EXTRA_SAMPLES = 2
@@ -56,8 +56,12 @@ class BaseScanner:
         tested: dict[str, Any] | None = None,
         context: str = "all cases",
         logger: RunLogger | None = None,
+        word_generator: StealthWordGenerator | None = None,
     ) -> None:
         self.logger = logger if logger is not None else RunLogger()
+        # Fuzzer profiles borrow one target-owned generator. A standalone
+        # scanner owns its own RNG and seen-word history instead of global state.
+        self.word_generator = word_generator if word_generator is not None else StealthWordGenerator()
         self.path = path
         self.tested = tested if tested is not None else {}
         self.filter_config = filter_config
@@ -226,10 +230,12 @@ class Scanner(BaseScanner):
         tested: dict[str, dict[str, BaseScanner]] | None = None,
         context: str = "all cases",
         logger: RunLogger | None = None,
+        word_generator: StealthWordGenerator | None = None,
     ) -> None:
         super().__init__(
             requester, filter_config=filter_config, delay=delay,
             path=path, tested=tested, context=context, logger=logger,
+            word_generator=word_generator,
         )
         self.setup()
 
@@ -241,7 +247,7 @@ class Scanner(BaseScanner):
 
         first_path = self.path.replace(
             WILDCARD_TEST_POINT_MARKER,
-            rand_stealth_word(),
+            self.word_generator.generate(),
         )
         first_response = self.requester.request(first_path)
         self.response = first_response
@@ -257,7 +263,7 @@ class Scanner(BaseScanner):
 
         second_path = self.path.replace(
             WILDCARD_TEST_POINT_MARKER,
-            rand_stealth_word(omit=first_path),
+            self.word_generator.generate(omit=first_path),
         )
         second_response = self.requester.request(second_path)
         self.sample_count += 1
@@ -289,7 +295,7 @@ class Scanner(BaseScanner):
         for _ in range(AUTO_CALIBRATION_EXTRA_SAMPLES):
             sample_path = self.path.replace(
                 WILDCARD_TEST_POINT_MARKER,
-                rand_stealth_word(omit=omitted),
+                self.word_generator.generate(omit=omitted),
             )
             omitted.add(sample_path)
             sample_response = self.requester.request(sample_path)
@@ -308,10 +314,12 @@ class AsyncScanner(BaseScanner):
         tested: dict[str, dict[str, BaseScanner]] | None = None,
         context: str = "all cases",
         logger: RunLogger | None = None,
+        word_generator: StealthWordGenerator | None = None,
     ) -> None:
         super().__init__(
             requester, filter_config=filter_config, delay=delay,
             path=path, tested=tested, context=context, logger=logger,
+            word_generator=word_generator,
         )
 
     @classmethod
@@ -325,10 +333,12 @@ class AsyncScanner(BaseScanner):
         tested: dict[str, dict[str, BaseScanner]] | None = None,
         context: str = "all cases",
         logger: RunLogger | None = None,
+        word_generator: StealthWordGenerator | None = None,
     ) -> AsyncScanner:
         self = cls(
             requester, filter_config=filter_config, delay=delay,
             path=path, tested=tested, context=context, logger=logger,
+            word_generator=word_generator,
         )
         await self.setup()
         return self
@@ -341,7 +351,7 @@ class AsyncScanner(BaseScanner):
 
         first_path = self.path.replace(
             WILDCARD_TEST_POINT_MARKER,
-            rand_stealth_word(),
+            self.word_generator.generate(),
         )
         first_response = await self.requester.request(first_path)
         self.response = first_response
@@ -358,7 +368,7 @@ class AsyncScanner(BaseScanner):
 
         second_path = self.path.replace(
             WILDCARD_TEST_POINT_MARKER,
-            rand_stealth_word(omit=first_path),
+            self.word_generator.generate(omit=first_path),
         )
         second_response = await self.requester.request(second_path)
         self.sample_count += 1
@@ -388,7 +398,7 @@ class AsyncScanner(BaseScanner):
         for _ in range(AUTO_CALIBRATION_EXTRA_SAMPLES):
             sample_path = self.path.replace(
                 WILDCARD_TEST_POINT_MARKER,
-                rand_stealth_word(omit=omitted),
+                self.word_generator.generate(omit=omitted),
             )
             omitted.add(sample_path)
             sample_response = await self.requester.request(sample_path)

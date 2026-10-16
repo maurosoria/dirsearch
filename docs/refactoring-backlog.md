@@ -1,7 +1,7 @@
 # Local state ownership backlog
 
-This is the state-isolation backlog following PR #1751, including the
-explicit controller lifecycle in this branch. It is not a list of all product issues, nor
+This is the state-isolation backlog following PR #1752, including
+target-owned calibration words in this branch. It is not a list of all product issues, nor
 a claim that multiple complete controllers can already share a process safely.
 Keep subsequent steps independently reviewable, with explicit contracts and
 regressions before replacing their callers.
@@ -71,18 +71,22 @@ regressions before replacing their callers.
   owns bootstrap, fresh/resume preparation, the unchanged target loop and final
   cleanup. Failures cannot silently reuse the same owner. Global options and
   process signals still prevent claiming complete controller isolation.
+- [Calibration words](calibration-word-ownership.md) now belong to each fuzzer,
+  shared by all its profiles and recursive directories across the three engines.
+  Standalone scanners own a generator unless one is injected. The global RNG
+  and seen-word history are removed; generation rules and native chunk scanning
+  are unchanged. History is no longer retained across unrelated targets.
 
 ## Remaining work, in suggested order
 
 | Order | Boundary | Completion criterion |
 | --- | --- | --- |
-| 1 | Generator state ownership | Configuration, persistence input, live-resource cleanup and execution phases are now explicit. Assign ownership to generator state without changing generation behavior. |
-| 2 | CLI options boundary | Keep mutable normalization local to one invocation; remove the global `options` dictionary once its last consumers are migrated. |
-| 3 | Constant tables | Make read-only intent enforceable where compatible, including `TEXT_CHARS`, and review the duplicate default-port mappings. |
-| 4 | Isolation acceptance tests | Prove independent local lifecycles, output, failure cleanup and resume without process-global patching; address signal ownership and ambient raw-target context. Passing component tests alone is insufficient. |
+| 1 | CLI options boundary | Keep mutable normalization local to one invocation; remove the global `options` dictionary once its last consumers are migrated. |
+| 2 | Constant tables | Make read-only intent enforceable where compatible, including `TEXT_CHARS`, and review the duplicate default-port mappings. |
+| 3 | Isolation acceptance tests | Prove independent local lifecycles, output, failure cleanup and resume without process-global patching; address signal ownership and ambient raw-target context. Passing component tests alone is insufficient. |
 
-Steps 1-2 build on the explicit component boundaries; add isolation tests along
-the way, with step 4 as the final acceptance gate. Any future public task/context
+Step 1 builds on the explicit component boundaries; add isolation tests along
+the way, with step 3 as the final acceptance gate. Any future public task/context
 API must distinguish serializable task data from live handles and Rust's existing
 internal `ScanTask`; no parallel-target, GUI or remote scheduling is added here.
 
@@ -156,7 +160,6 @@ every scalar constant, compiled regex, imported module or third-party singleton.
 
 | Name / mechanism | Location | Ownership concern |
 | --- | --- | --- |
-| `_stealth_word_generator` | `lib/utils/random.py` | Holds a mutable RNG and growing `_seen` set for the entire process; choose explicit ownership without changing generation behavior. |
 | `_request_target_state` | `lib/connection/requester.py` | `threading.local()` raw-target context: separate per thread, but still ambient. |
 | Signal registrations | `Controller._run_targets()` | Process-wide handlers; installation/restoration needs an explicit owner. |
 | Async event-loop policy | `Controller._run_targets()` | Optional uvloop policy selection is still process-wide; explicit lifecycle entry does not isolate it. |
@@ -165,8 +168,9 @@ every scalar constant, compiled regex, imported module or third-party singleton.
 
 Import-time platform/path constants also remain, but are not mutable progress.
 Invocation command/date metadata no longer comes from module-level constants.
-The generator uses its own `random.Random`; other utility calls additionally
-borrow the standard library's default RNG. None of these are changed by the
-logging refactor. Inspected native maps and wordlist indexes are
+`_stealth_word_generator` and `rand_stealth_word()` were removed; calibration
+generators now use an instance-owned `random.Random`. Other utility calls still
+borrow the standard library's default RNG and are outside this ownership step.
+Inspected native maps and wordlist indexes are
 session/instance-owned, not additional process-global mutable dictionaries;
 native task-local contexts likewise are not shared global progress maps.

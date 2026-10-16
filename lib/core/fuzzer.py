@@ -46,6 +46,7 @@ from lib.core.settings import (
 from lib.core.wordlist_backend import NativeWordlistChunk
 from lib.parse.url import clean_path
 from lib.utils.common import lstrip_once
+from lib.utils.random import StealthWordGenerator
 
 
 AUTO_CALIBRATION_DUPLICATE_THRESHOLD = 8
@@ -88,6 +89,9 @@ class BaseFuzzer:
         self.discovery_config = discovery_config
         self.execution_config = execution_config
         self.filter_state = FilterState()
+        # One generator per target/fuzzer, shared across profiles and recursive
+        # directories. Calibration precedes workers in all three engines.
+        self._word_generator = StealthWordGenerator()
         self.match_callbacks = match_callbacks
         self.not_found_callbacks = not_found_callbacks
         self.error_callbacks = error_callbacks
@@ -383,6 +387,7 @@ class Fuzzer(BaseFuzzer):
             self._requester,
             filter_config=self.filter_config,
             delay=self.execution_config.delay,
+            word_generator=self._word_generator,
             logger=self.logger,
             path=self._base_path + WILDCARD_TEST_POINT_MARKER,
         )
@@ -392,6 +397,7 @@ class Fuzzer(BaseFuzzer):
                 self._requester,
                 filter_config=self.filter_config,
                 delay=self.execution_config.delay,
+                word_generator=self._word_generator,
                 logger=self.logger,
                 tested=scanners,
                 path=self.filter_config.exclude_response,
@@ -402,6 +408,7 @@ class Fuzzer(BaseFuzzer):
                 self._requester,
                 filter_config=self.filter_config,
                 delay=self.execution_config.delay,
+                word_generator=self._word_generator,
                 logger=self.logger,
                 tested=scanners,
                 path=f"{self._base_path}{prefix}{WILDCARD_TEST_POINT_MARKER}",
@@ -413,6 +420,7 @@ class Fuzzer(BaseFuzzer):
                 self._requester,
                 filter_config=self.filter_config,
                 delay=self.execution_config.delay,
+                word_generator=self._word_generator,
                 logger=self.logger,
                 tested=scanners,
                 path=f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}{suffix}",
@@ -425,6 +433,7 @@ class Fuzzer(BaseFuzzer):
                     self._requester,
                     filter_config=self.filter_config,
                     delay=self.execution_config.delay,
+                    word_generator=self._word_generator,
                     logger=self.logger,
                     tested=scanners,
                     path=f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}.{extension}",
@@ -815,6 +824,7 @@ class AsyncFuzzer(BaseFuzzer):
             self._requester,
             filter_config=self.filter_config,
             delay=self.execution_config.delay,
+            word_generator=self._word_generator,
             logger=self.logger,
             path=self._base_path + WILDCARD_TEST_POINT_MARKER,
         )
@@ -824,6 +834,7 @@ class AsyncFuzzer(BaseFuzzer):
                 self._requester,
                 filter_config=self.filter_config,
                 delay=self.execution_config.delay,
+                word_generator=self._word_generator,
                 logger=self.logger,
                 tested=scanners,
                 path=self.filter_config.exclude_response,
@@ -834,6 +845,7 @@ class AsyncFuzzer(BaseFuzzer):
                 self._requester,
                 filter_config=self.filter_config,
                 delay=self.execution_config.delay,
+                word_generator=self._word_generator,
                 logger=self.logger,
                 tested=scanners,
                 path=f"{self._base_path}{prefix}{WILDCARD_TEST_POINT_MARKER}",
@@ -845,6 +857,7 @@ class AsyncFuzzer(BaseFuzzer):
                 self._requester,
                 filter_config=self.filter_config,
                 delay=self.execution_config.delay,
+                word_generator=self._word_generator,
                 logger=self.logger,
                 tested=scanners,
                 path=f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}{suffix}",
@@ -857,6 +870,7 @@ class AsyncFuzzer(BaseFuzzer):
                     self._requester,
                     filter_config=self.filter_config,
                     delay=self.execution_config.delay,
+                    word_generator=self._word_generator,
                     logger=self.logger,
                     tested=scanners,
                     path=f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}.{extension}",
