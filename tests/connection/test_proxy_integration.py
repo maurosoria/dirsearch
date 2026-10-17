@@ -13,7 +13,7 @@ from lib.connection.native import NativeHTTPBackend, NativeRequester
 from lib.connection.requester import AsyncRequester, Requester
 from lib.core.filter_config import FilterConfig
 from lib.core.request_config import RequestConfig
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.exceptions import RequestException
 from tests.connection.proxy_server import ProxyTestStack
 
@@ -63,8 +63,8 @@ class TestProxyIntegration(TestCase):
         cls.stack_context.__exit__(None, None, None)
 
     def setUp(self):
-        self.original_options = dict(options)
-        options.update(
+        self.options = default_options()
+        self.options.update(
             {
                 "proxies": [],
                 "headers": {},
@@ -84,10 +84,6 @@ class TestProxyIntegration(TestCase):
                 "proxy_auth": None,
             }
         )
-
-    def tearDown(self):
-        options.clear()
-        options.update(self.original_options)
 
     def test_sync_engine_uses_http_and_https_proxies_for_both_targets(self):
         for proxy, target in self._cases():
@@ -129,7 +125,7 @@ class TestProxyIntegration(TestCase):
                 with self.subTest(settings=settings, scheme=target.scheme):
                     self._prepare_case(proxy, target)
                     with patch("httpx._utils.getproxies", return_value=settings):
-                        requester = AsyncRequester(RequestConfig.from_options(options))
+                        requester = AsyncRequester(RequestConfig.from_options(self.options))
                     requester.set_url(target.url)
                     try:
                         response = await requester.request(path)
@@ -161,7 +157,7 @@ class TestProxyIntegration(TestCase):
                         "no": forced_host,
                     },
                 ):
-                    requester = AsyncRequester(RequestConfig.from_options(options))
+                    requester = AsyncRequester(RequestConfig.from_options(self.options))
                 requester.set_ip(forced_host, port, "127.0.0.1")
                 requester.set_url(f"{target.scheme}://{forced_host}:{port}/")
                 try:
@@ -180,12 +176,12 @@ class TestProxyIntegration(TestCase):
         proxy = self.stack.http_proxy
         target = self.stack.http_target
         self._prepare_authenticated_case(proxy, target)
-        options["max_retries"] = 0
+        self.options["max_retries"] = 0
         with patch(
             "httpx._utils.getproxies",
             return_value={"http": proxy.url},
         ):
-            requester = AsyncRequester(RequestConfig.from_options(options))
+            requester = AsyncRequester(RequestConfig.from_options(self.options))
         requester.set_url(target.url)
         try:
             with self.assertRaisesRegex(
@@ -210,7 +206,7 @@ class TestProxyIntegration(TestCase):
             "httpx._utils.getproxies",
             return_value={"http": proxy.url, "no": "127.0.0.1"},
         ):
-            requester = AsyncRequester(RequestConfig.from_options(options))
+            requester = AsyncRequester(RequestConfig.from_options(self.options))
         requester.set_url(target.url)
         try:
             response = await requester.request("origin-407")
@@ -249,8 +245,8 @@ class TestProxyIntegration(TestCase):
             with self.subTest(scheme=scheme):
                 proxy.clear_events()
                 target.clear_events()
-                options["proxies"] = [proxy.url_for(scheme)]
-                requester = AsyncRequester(RequestConfig.from_options(options))
+                self.options["proxies"] = [proxy.url_for(scheme)]
+                requester = AsyncRequester(RequestConfig.from_options(self.options))
                 requester.set_url(f"http://{target_host}:{port}/")
                 try:
                     response = await requester.request(f"async-{scheme}")
@@ -344,7 +340,7 @@ class TestProxyIntegration(TestCase):
                 with self.subTest(scheme=scheme, target=target.scheme):
                     proxy.clear_events()
                     target.clear_events()
-                    options["proxy_auth"] = None
+                    self.options["proxy_auth"] = None
                     target_host = (
                         "localhost" if scheme in ("socks4a", "socks5h")
                         else "127.0.0.1"
@@ -389,7 +385,7 @@ class TestProxyIntegration(TestCase):
                     proxy.clear_events()
                     target.clear_events()
                     proxy.configure_authentication((username, password))
-                    options["proxy_auth"] = credential
+                    self.options["proxy_auth"] = credential
                     target_host = (
                         "localhost" if scheme == "socks5h" else "127.0.0.1"
                     )
@@ -428,8 +424,8 @@ class TestProxyIntegration(TestCase):
         proxy.clear_events()
         target.clear_events()
         proxy.configure_authentication((required_username, required_password))
-        options["proxy_auth"] = INVALID_PROXY_CREDENTIAL
-        options["max_retries"] = 1
+        self.options["proxy_auth"] = INVALID_PROXY_CREDENTIAL
+        self.options["max_retries"] = 1
         try:
             response, error, elapsed = self._native_request(
                 proxy,
@@ -459,10 +455,10 @@ class TestProxyIntegration(TestCase):
         target = self.stack.http_target
         proxy.clear_events()
         target.clear_events()
-        options["proxies"] = []
+        self.options["proxies"] = []
         requester = NativeRequester(
-            RequestConfig.from_options(options),
-            filter_config=FilterConfig.from_options(options),
+            RequestConfig.from_options(self.options),
+            filter_config=FilterConfig.from_options(self.options),
         )
         requester.set_url(target.url)
 
@@ -490,7 +486,7 @@ class TestProxyIntegration(TestCase):
                         target,
                         credential,
                     )
-                    options["proxy_auth"] = credential
+                    self.options["proxy_auth"] = credential
                     try:
                         response, error, _ = self._sync_request(proxy, target, path)
                     finally:
@@ -520,7 +516,7 @@ class TestProxyIntegration(TestCase):
                         target,
                         credential,
                     )
-                    options["proxy_auth"] = credential
+                    self.options["proxy_auth"] = credential
                     try:
                         response, error, _ = await self._async_request(
                             proxy, target, path
@@ -554,7 +550,7 @@ class TestProxyIntegration(TestCase):
                         target,
                         credential,
                     )
-                    options["proxy_auth"] = credential
+                    self.options["proxy_auth"] = credential
                     try:
                         response, error, _ = self._native_request(
                             proxy,
@@ -581,7 +577,7 @@ class TestProxyIntegration(TestCase):
                 ):
                     path = f"sync-rejected-auth-{proxy.scheme}-{target.scheme}"
                     self._prepare_authenticated_case(proxy, target)
-                    options["proxy_auth"] = credential
+                    self.options["proxy_auth"] = credential
                     try:
                         response, error, _ = self._sync_request(proxy, target, path)
                     finally:
@@ -604,7 +600,7 @@ class TestProxyIntegration(TestCase):
                 ):
                     path = f"async-rejected-auth-{proxy.scheme}-{target.scheme}"
                     self._prepare_authenticated_case(proxy, target)
-                    options["proxy_auth"] = credential
+                    self.options["proxy_auth"] = credential
                     try:
                         response, error, _ = await self._async_request(
                             proxy, target, path
@@ -631,7 +627,7 @@ class TestProxyIntegration(TestCase):
                 ):
                     path = f"native-rejected-auth-{proxy.scheme}-{target.scheme}"
                     self._prepare_authenticated_case(proxy, target)
-                    options["proxy_auth"] = credential
+                    self.options["proxy_auth"] = credential
                     try:
                         response, error, _ = self._native_request(
                             proxy, target, path
@@ -718,12 +714,11 @@ class TestProxyIntegration(TestCase):
             for proxy, target in self._cases():
                 yield behavior, proxy, target
 
-    @staticmethod
-    def _prepare_case(proxy, target):
+    def _prepare_case(self, proxy, target):
         proxy.configure_proxy()
         proxy.clear_events()
         target.clear_events()
-        options["proxy_auth"] = None
+        self.options["proxy_auth"] = None
 
     def _prepare_authenticated_case(
         self,
@@ -732,21 +727,20 @@ class TestProxyIntegration(TestCase):
         credential=PROXY_CREDENTIAL,
     ):
         self._prepare_case(proxy, target)
-        options["max_retries"] = 1
+        self.options["max_retries"] = 1
         authorization = "Basic " + base64.b64encode(credential.encode()).decode()
         proxy.configure_proxy(required_authorization=authorization)
         return authorization
 
     def _prepare_failure_case(self, proxy, target, behavior):
         self._prepare_case(proxy, target)
-        options["timeout"] = PROXY_FAILURE_TIMEOUT
-        options["max_retries"] = 1
+        self.options["timeout"] = PROXY_FAILURE_TIMEOUT
+        self.options["max_retries"] = 1
         proxy.configure_proxy(behavior=behavior)
 
-    @staticmethod
-    def _sync_request(proxy, target, path):
-        options["proxies"] = [proxy.url]
-        requester = Requester(RequestConfig.from_options(options))
+    def _sync_request(self, proxy, target, path):
+        self.options["proxies"] = [proxy.url]
+        requester = Requester(RequestConfig.from_options(self.options))
         requester.set_url(target.url)
         started = time.monotonic()
         try:
@@ -759,10 +753,9 @@ class TestProxyIntegration(TestCase):
         finally:
             requester.session.close()
 
-    @staticmethod
-    async def _async_request(proxy, target, path):
-        options["proxies"] = [proxy.url]
-        requester = AsyncRequester(RequestConfig.from_options(options))
+    async def _async_request(self, proxy, target, path):
+        self.options["proxies"] = [proxy.url]
+        requester = AsyncRequester(RequestConfig.from_options(self.options))
         requester.set_url(target.url)
         started = time.monotonic()
         try:
@@ -774,10 +767,9 @@ class TestProxyIntegration(TestCase):
         finally:
             await requester.session.aclose()
 
-    @staticmethod
-    async def _async_replay_request(proxy, target, path):
-        options["proxies"] = []
-        requester = AsyncRequester(RequestConfig.from_options(options))
+    async def _async_replay_request(self, proxy, target, path):
+        self.options["proxies"] = []
+        requester = AsyncRequester(RequestConfig.from_options(self.options))
         requester.set_url(target.url)
         try:
             try:
@@ -787,8 +779,8 @@ class TestProxyIntegration(TestCase):
         finally:
             await requester.close()
 
-    @staticmethod
     def _native_request(
+        self,
         proxy,
         target,
         path,
@@ -796,10 +788,10 @@ class TestProxyIntegration(TestCase):
         proxy_url=None,
         target_url=None,
     ):
-        options["proxies"] = [proxy_url or proxy.url]
+        self.options["proxies"] = [proxy_url or proxy.url]
         backend = NativeHTTPBackend(
-            RequestConfig.from_options(options),
-            filter_config=FilterConfig.from_options(options),
+            RequestConfig.from_options(self.options),
+            filter_config=FilterConfig.from_options(self.options),
         )
         started = time.monotonic()
         rows = list(backend.scan(target_url or target.url, [path]))

@@ -17,7 +17,7 @@ from lib.controller.session import SessionStore
 from lib.controller.session_options import SessionOptions
 from lib.controller.session_snapshot import RunCheckpoint, SessionSnapshot
 from lib.core.task_checkpoint import DictionaryCheckpoint, TaskCheckpoint
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.dictionary import Dictionary
 from lib.core.report_config import ReportConfig
 from lib.core.run_metadata import RunMetadata
@@ -25,6 +25,9 @@ from lib.core.wordlist_config import WordlistConfig
 
 
 class TestSessionReportConfiguration(TestCase):
+    def setUp(self):
+        self.options = default_options()
+
     def test_restore_uses_supplied_report_policy_not_process_globals(self):
         saved_options = {
             "output_formats": ["sqlite"],
@@ -38,10 +41,11 @@ class TestSessionReportConfiguration(TestCase):
             run=RunCheckpoint(0), task_checkpoint=TaskCheckpoint(DictionaryCheckpoint((), 0)), options=SessionOptions(),
         )
         controller = object.__new__(Controller)
+        controller._options = self.options
         controller.resources = RunResources(interface=Mock(), logger=Mock())
         controller.config = RunConfig(reports=ReportConfig.from_options(saved_options))
         controller.metadata = RunMetadata("dirsearch", "2026-10-06 12:00:00")
-        with patch.dict(options, {
+        with patch.dict(self.options, {
             "output_file": "other.sqlite",
             "output_table": "other_results",
             "sqlite_commit_batch_size": 99,
@@ -62,7 +66,7 @@ class TestSessionReportConfiguration(TestCase):
                     metadata = RunMetadata(
                         "dirsearch --auth <redacted>", "2026-10-06 12:34:56"
                     )
-                    saved_options = dict(options)
+                    saved_options = dict(self.options)
                     saved_options.update(
                         request_backend=backend, async_mode=async_mode,
                         session_file=None, wordlist_backend="python", wordlists=[],
@@ -92,7 +96,7 @@ class TestSessionReportConfiguration(TestCase):
                         if resumed:
                             self.assertEqual(controller.start_time, 0)
                         self.assertEqual(controller.resources.reporter.config, ReportConfig.from_options(saved_options))
-                        options.update(
+                        self.options.update(
                             output_formats=[], output_file=str(Path(directory, "wrong")),
                             output_table="wrong_table", sqlite_commit_batch_size=99,
                         )
@@ -112,13 +116,13 @@ class TestSessionReportConfiguration(TestCase):
                             output_table="wrong_table", sqlite_commit_batch_size=99,
                         )
                     with (
-                        patch.dict(options, current_options),
+                        patch.dict(self.options, current_options),
                         patch.object(Controller, "_run_targets", new=run),
                         patch.object(Controller, "_confirm_session_overwrite"),
                         patch("lib.controller.controller.Dictionary", return_value=Dictionary(WordlistConfig())),
                         patch("lib.controller.controller.create_terminal"),
                     ):
-                        controller = Controller(metadata=metadata)
+                        controller = Controller(self.options, metadata=metadata)
                         controller.run()
                     for host in ("first.test", "second.test"):
                         expected_url = "https://" + host + "/item"

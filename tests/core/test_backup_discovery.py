@@ -7,7 +7,7 @@ from lib.controller.run_resources import RunResources
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.dictionary import Dictionary
 from lib.core.wordlist_config import WordlistConfig
@@ -15,7 +15,7 @@ from lib.core.settings import ARCHIVE_EXTENSIONS, BACKUP_EXTENSIONS
 from lib.core.wordlist_template import generate_backup_paths
 
 
-def make_dictionary() -> Dictionary:
+def make_dictionary(*, options) -> Dictionary:
     dictionary = Dictionary(WordlistConfig.from_options(options))
     dictionary.__setstate__(([], 0, [], 0))
     return dictionary
@@ -80,8 +80,8 @@ class TestBackupPathGeneration(TestCase):
 
 class TestBackupDiscoveryCallback(TestCase):
     def setUp(self):
-        self._original_options = dict(options)
-        options.update(
+        self.options = default_options()
+        self.options.update(
             {
                 "find_backup": True,
                 "skip_on_status": set(),
@@ -96,18 +96,15 @@ class TestBackupDiscoveryCallback(TestCase):
             }
         )
 
-    def tearDown(self):
-        options.clear()
-        options.update(self._original_options)
-
     def _controller(self) -> Controller:
         controller = object.__new__(Controller)
+        controller._options = self.options
         controller.resources = RunResources(interface=Mock(), logger=Mock())
-        controller.config = RunConfig(discovery=DiscoveryConfig.from_options(options))
+        controller.config = RunConfig(discovery=DiscoveryConfig.from_options(self.options))
         controller.run_state = ScanRunState()
         controller.target_progress = TargetProgress()
         controller.target_progress.base_path = "app/"
-        controller.dictionary = make_dictionary()
+        controller.dictionary = make_dictionary(options=self.options)
         return controller
 
     def test_adds_generated_candidates_to_shared_dictionary(self):
@@ -120,7 +117,7 @@ class TestBackupDiscoveryCallback(TestCase):
         self.assertIn("test.php~", controller.dictionary._extra)
 
     def test_honors_excluded_extensions_for_dynamic_candidates(self):
-        options["exclude_extensions"] = ("bak", "zip")
+        self.options["exclude_extensions"] = ("bak", "zip")
         controller = self._controller()
 
         controller.match_callback(response_for("app/test.php"))

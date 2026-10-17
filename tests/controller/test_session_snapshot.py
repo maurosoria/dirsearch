@@ -15,7 +15,7 @@ from lib.core.target_progress import TargetProgress
 from lib.controller.session import SessionStore
 from lib.controller.session_options import SessionOptions
 from lib.controller.session_snapshot import RunCheckpoint, SessionSnapshot
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.dictionary import Dictionary
 from lib.core.execution_config import ScanEngine
 from lib.core.native_runtime import is_native_backend_available
@@ -27,8 +27,12 @@ from lib.core.wordlist_config import WordlistConfig
 
 
 class TestSessionSnapshot(TestCase):
+    def setUp(self):
+        self.options = default_options()
+
     def _controller(self):
         controller = object.__new__(Controller)
+        controller._options = self.options
         controller.resources = RunResources(interface=Mock(buffer="current\n"), logger=Mock())
         controller.config = RunConfig()
         controller.metadata = RunMetadata("dirsearch", "2026-10-06 12:00:00")
@@ -120,9 +124,9 @@ class TestSessionSnapshot(TestCase):
             self.assertEqual(store.load(directory), snapshot)
             reports.assert_not_called()
 
-    def test_export_does_not_read_global_options(self):
+    def test_export_uses_captured_options_not_mutable_input(self):
         controller = self._controller()
-        with TemporaryDirectory() as directory, patch.dict(options, {
+        with TemporaryDirectory() as directory, patch.dict(self.options, {
             "headers": {"X-Test": "unrelated"},
         }):
             controller._export(directory)
@@ -147,7 +151,7 @@ class TestSessionSnapshot(TestCase):
     def test_restore_keeps_legacy_output_and_detaches_runtime_containers(self):
         for history in (None, [], [{"start_time": 90, "output": "older"}]):
             with self.subTest(history=history), TemporaryDirectory() as directory:
-                saved = deepcopy(options)
+                saved = deepcopy(self.options)
                 saved.update(
                     wordlists=[], wordlist_backend="python", raw_file=None,
                     log_file=None, output_formats=[], session_file=None,
@@ -165,12 +169,12 @@ class TestSessionSnapshot(TestCase):
                 snapshot = store.load(directory)
                 expected_history = history or [{"start_time": 123.5, "output": "previous output"}]
                 with (
-                    patch.dict(options, {"session_file": directory}),
+                    patch.dict(self.options, {"session_file": directory}),
                     patch.object(SessionStore, "load", return_value=snapshot),
                     patch.object(Controller, "_confirm_session_overwrite"),
                     patch.object(Controller, "_run_targets"),
                 ):
-                    restored = Controller(output=StringIO())
+                    restored = Controller(self.options, output=StringIO())
                     restored.run()
                 self.assertEqual(restored.output_history, expected_history)
                 snapshot.task_checkpoint = replace(snapshot.task_checkpoint, directories=())
@@ -302,7 +306,7 @@ class TestSessionSnapshot(TestCase):
 
             def run(controller):
                 self.assertEqual(controller.output_history, [])
-                controller.run_state.prepare_targets(options["urls"])
+                controller.run_state.prepare_targets(controller._options["urls"])
                 controller.run_state.activate_next()
                 controller.target_progress.url = "http://raw.test/"
                 controller.target_progress.base_path = "/"
@@ -310,7 +314,7 @@ class TestSessionSnapshot(TestCase):
                 controller._export(directory)
 
             with (
-                patch.dict(options, {
+                patch.dict(self.options, {
                     "session_file": None, "raw_file": "request.txt", "wordlists": [],
                     "wordlist_backend": "python", "request_backend": "python",
                     "log_file": None, "output_formats": [],
@@ -321,7 +325,7 @@ class TestSessionSnapshot(TestCase):
                 )),
                 patch.object(Controller, "_run_targets", new=run),
             ):
-                Controller(output=StringIO()).run()
+                Controller(self.options, output=StringIO()).run()
             payload = store.load(directory)
             restored = payload.options.to_options()
             self.assertEqual(restored["headers"], {"X-Raw": "prepared"})
@@ -335,7 +339,7 @@ class TestSessionSnapshot(TestCase):
             for resume in (False, True):
                 with self.subTest(engine=engine, resume=resume), TemporaryDirectory() as directory:
                     checkpoint = str(Path(directory, "input"))
-                    saved = deepcopy(options)
+                    saved = deepcopy(self.options)
                     saved.update(
                         request_backend="native" if engine is ScanEngine.NATIVE else "python",
                         async_mode=engine is ScanEngine.ASYNC, wordlist_backend="python",
@@ -355,16 +359,16 @@ class TestSessionSnapshot(TestCase):
                         controller.run_state.activate_next()
                         controller.target_progress.url = saved["urls"][0]
                         controller.target_progress.base_path = "/"
-                        options["headers"]["X-Test"] = "unrelated"
-                        options.update(auth="wrong:value", data="wrong", urls=["http://unrelated.test/"])
+                        self.options["headers"]["X-Test"] = "unrelated"
+                        self.options.update(auth="wrong:value", data="wrong", urls=["http://unrelated.test/"])
                         controller._export(str(Path(directory, "output")))
 
                     with (
-                        patch.dict(options, current, clear=True),
+                        patch.dict(self.options, current, clear=True),
                         patch.object(Controller, "_run_targets", new=run),
                         patch.object(Controller, "_confirm_session_overwrite"),
                     ):
-                        Controller(output=StringIO()).run()
+                        Controller(self.options, output=StringIO()).run()
                     restored = SessionStore().load(str(Path(directory, "output")))
                     restored_options = restored.options.to_options()
                     self.assertEqual(restored_options["headers"]["X-Test"], "prepared")

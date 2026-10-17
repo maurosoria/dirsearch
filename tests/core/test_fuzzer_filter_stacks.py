@@ -4,7 +4,7 @@ from unittest import IsolatedAsyncioTestCase, TestCase
 
 from lib.connection.native import NativeScanChunk, NativeScanEvent
 from lib.connection.response import NativeResponse
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.execution_config import ExecutionConfig
 from lib.core.filter_config import FilterConfig
@@ -112,8 +112,8 @@ class FilteringNativeBackend:
 
 class FilterStackOptionsMixin:
     def setUp(self):
-        self.original_options = dict(options)
-        options.update(
+        self.options = default_options()
+        self.options.update(
             {
                 "thread_count": 1,
                 "delay": 0,
@@ -148,22 +148,18 @@ class FilterStackOptionsMixin:
             }
         )
 
-    def tearDown(self):
-        options.clear()
-        options.update(self.original_options)
-
 
 class TestSyncFuzzerFilterStack(FilterStackOptionsMixin, TestCase):
     def test_filter_threshold_groups_path_reflections(self):
-        options["filter_threshold"] = 1
+        self.options["filter_threshold"] = 1
         matches = []
         misses = []
         fuzzer = Fuzzer(
             DummySyncRequester(),
             DummyDictionary([]),
-            filter_config=FilterConfig.from_options(options),
-            discovery_config=DiscoveryConfig.from_options(options),
-            execution_config=ExecutionConfig.from_options(options),
+            filter_config=FilterConfig.from_options(self.options),
+            discovery_config=DiscoveryConfig.from_options(self.options),
+            execution_config=ExecutionConfig.from_options(self.options),
             match_callbacks=(matches.append,),
             not_found_callbacks=(misses.append,),
             error_callbacks=(),
@@ -175,15 +171,15 @@ class TestSyncFuzzerFilterStack(FilterStackOptionsMixin, TestCase):
         self.assertEqual(fuzzer.response_callbacks("second", second), (misses.append,))
 
     def test_filter_threshold_is_atomic_across_threaded_responses(self):
-        options["filter_threshold"] = 1
+        self.options["filter_threshold"] = 1
         matches = []
         misses = []
         fuzzer = Fuzzer(
             DummySyncRequester(),
             DummyDictionary([]),
-            filter_config=FilterConfig.from_options(options),
-            discovery_config=DiscoveryConfig.from_options(options),
-            execution_config=ExecutionConfig.from_options(options),
+            filter_config=FilterConfig.from_options(self.options),
+            discovery_config=DiscoveryConfig.from_options(self.options),
+            execution_config=ExecutionConfig.from_options(self.options),
             match_callbacks=(matches.append,),
             not_found_callbacks=(misses.append,),
             error_callbacks=(),
@@ -233,9 +229,9 @@ class TestSyncFuzzerFilterStack(FilterStackOptionsMixin, TestCase):
         fuzzer = Fuzzer(
             DummySyncRequester(),
             dictionary,
-            filter_config=FilterConfig.from_options(options),
-            discovery_config=DiscoveryConfig.from_options(options),
-            execution_config=ExecutionConfig.from_options(options),
+            filter_config=FilterConfig.from_options(self.options),
+            discovery_config=DiscoveryConfig.from_options(self.options),
+            execution_config=ExecutionConfig.from_options(self.options),
             match_callbacks=(matches.append,),
             not_found_callbacks=(misses.append,),
             error_callbacks=(errors.append,),
@@ -265,9 +261,9 @@ class TestAsyncFuzzerFilterStack(FilterStackOptionsMixin, IsolatedAsyncioTestCas
         fuzzer = AsyncFuzzer(
             DummyAsyncRequester(),
             dictionary,
-            filter_config=FilterConfig.from_options(options),
-            discovery_config=DiscoveryConfig.from_options(options),
-            execution_config=ExecutionConfig.from_options(options),
+            filter_config=FilterConfig.from_options(self.options),
+            discovery_config=DiscoveryConfig.from_options(self.options),
+            execution_config=ExecutionConfig.from_options(self.options),
             match_callbacks=(matches.append,),
             not_found_callbacks=(misses.append,),
             error_callbacks=(errors.append,),
@@ -291,9 +287,9 @@ class TestNativeFuzzerFilterStack(FilterStackOptionsMixin, TestCase):
         fuzzer = NativeFuzzer(
             DummyNativeRequester(backend),
             dictionary,
-            filter_config=FilterConfig.from_options(options),
-            discovery_config=DiscoveryConfig.from_options(options),
-            execution_config=ExecutionConfig.from_options(options),
+            filter_config=FilterConfig.from_options(self.options),
+            discovery_config=DiscoveryConfig.from_options(self.options),
+            execution_config=ExecutionConfig.from_options(self.options),
             match_callbacks=(matches.append,),
             not_found_callbacks=(misses.append,),
             error_callbacks=(errors.append,),
@@ -315,7 +311,7 @@ class TestAdvancedRegexFilterParity(
     IsolatedAsyncioTestCase,
 ):
     async def test_lookahead_filter_has_parity_across_all_stacks(self):
-        options["filter_regex"] = r"(?=not found)not found"
+        self.options["filter_regex"] = r"(?=not found)not found"
         stack_results = {}
 
         sync_matches = []
@@ -324,9 +320,9 @@ class TestAdvancedRegexFilterParity(
         sync_fuzzer = Fuzzer(
             DummySyncRequester(),
             DummyDictionary(["keep", "drop"]),
-            filter_config=FilterConfig.from_options(options),
-            discovery_config=DiscoveryConfig.from_options(options),
-            execution_config=ExecutionConfig.from_options(options),
+            filter_config=FilterConfig.from_options(self.options),
+            discovery_config=DiscoveryConfig.from_options(self.options),
+            execution_config=ExecutionConfig.from_options(self.options),
             match_callbacks=(sync_matches.append,),
             not_found_callbacks=(sync_misses.append,),
             error_callbacks=(sync_errors.append,),
@@ -345,9 +341,9 @@ class TestAdvancedRegexFilterParity(
         async_fuzzer = AsyncFuzzer(
             DummyAsyncRequester(),
             DummyDictionary(["keep", "drop"]),
-            filter_config=FilterConfig.from_options(options),
-            discovery_config=DiscoveryConfig.from_options(options),
-            execution_config=ExecutionConfig.from_options(options),
+            filter_config=FilterConfig.from_options(self.options),
+            discovery_config=DiscoveryConfig.from_options(self.options),
+            execution_config=ExecutionConfig.from_options(self.options),
             match_callbacks=(async_matches.append,),
             not_found_callbacks=(async_misses.append,),
             error_callbacks=(async_errors.append,),
@@ -366,9 +362,9 @@ class TestAdvancedRegexFilterParity(
         native_fuzzer = NativeFuzzer(
             DummyNativeRequester(FilteringNativeBackend()),
             DummyDictionary(["keep", "drop"]),
-            filter_config=FilterConfig.from_options(options),
-            discovery_config=DiscoveryConfig.from_options(options),
-            execution_config=ExecutionConfig.from_options(options),
+            filter_config=FilterConfig.from_options(self.options),
+            discovery_config=DiscoveryConfig.from_options(self.options),
+            execution_config=ExecutionConfig.from_options(self.options),
             match_callbacks=(native_matches.append,),
             not_found_callbacks=(native_misses.append,),
             error_callbacks=(native_errors.append,),

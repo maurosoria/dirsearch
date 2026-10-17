@@ -6,7 +6,7 @@ from lib.core.run_config import RunConfig
 from lib.controller.run_resources import RunResources
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.dictionary import Dictionary
 from lib.core.execution_config import ScanEngine
 from lib.core.scan_run_state import ScanRunState
@@ -14,8 +14,12 @@ from tests.controller.test_session_resume_queue import RecordingAsyncFuzzer, Rec
 
 
 class TestProgressOwnership(TestCase):
+    def setUp(self):
+        self.options = default_options()
+
     def _controller(self):
         controller = object.__new__(Controller)
+        controller._options = self.options
         controller.resources = RunResources(interface=Mock(), logger=Mock())
         controller.config = RunConfig()
         controller.run_state = ScanRunState()
@@ -44,7 +48,7 @@ class TestProgressOwnership(TestCase):
 
                 controller.set_target = observe_target
                 with (
-                    patch.dict(options, {
+                    patch.dict(self.options, {
                         "urls": ["http://first.test/base/", "http://first.test/base/", "http://second.test/other/"],
                         "request_backend": "native" if engine is ScanEngine.NATIVE else "python",
                         "async_mode": engine is ScanEngine.ASYNC,
@@ -60,7 +64,7 @@ class TestProgressOwnership(TestCase):
                     patch("lib.controller.controller.signal.signal"),
                 ):
                     try:
-                        controller._prepare_config(options)
+                        controller._prepare_config(self.options)
                         controller._run_targets()
                     finally:
                         if controller.resources.loop is not None:

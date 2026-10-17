@@ -34,7 +34,6 @@ from typing import Any, Awaitable, TextIO
 from urllib.parse import unquote, urlparse
 
 from lib.connection.response import BaseResponse
-from lib.core.data import options
 from lib.core.decorators import locked
 from lib.core.dictionary import Dictionary, get_blacklists
 from lib.core.exceptions import (
@@ -191,13 +190,17 @@ class Controller:
     """Single-use local lifecycle; construction does not prepare or execute work.
 
     The CLI calls run() after normalizing its input. This remains an internal,
-    synchronous controller, not a concurrent-task API: global options and
-    process signal ownership still belong to the existing CLI lifecycle.
+    synchronous controller, not a concurrent-task API: process signals and
+    event-loop policy still belong to the existing CLI lifecycle.
     """
 
     def __init__(
-        self, *, output: TextIO | None = None, metadata: RunMetadata | None = None
+        self, options: Mapping[str, Any], *,
+        output: TextIO | None = None, metadata: RunMetadata | None = None,
     ) -> None:
+        # Normalization during raw parsing/resume belongs to this invocation.
+        # Detach nested containers before the caller can reuse or edit its input.
+        self._options = deepcopy(dict(options))
         self.metadata = RunMetadata.capture() if metadata is None else metadata
         self._terminal_stream = sys.stdout if output is None else output
         self.resources: RunResources | None = None
@@ -213,8 +216,8 @@ class Controller:
     def run(self) -> None:
         """Prepare, execute and close once, including failed startup attempts.
 
-        Construction captures metadata and the borrowed stream, not CLI options
-        or open handles. Consume this lifecycle before acquiring anything so a
+        Construction captures input, metadata and the borrowed stream, not open
+        handles. Consume this lifecycle before acquiring anything so a
         repeated/reentrant call cannot reuse partially prepared or closed state.
         This guard is not synchronization for concurrent calls.
         """
@@ -225,7 +228,7 @@ class Controller:
         # Bootstrap diagnostics remain available during input preparation. If
         # logging construction fails before ownership transfer, close the terminal.
         terminal = create_terminal(
-            TerminalConfig.from_options(options), stream=self._terminal_stream
+            TerminalConfig.from_options(self._options), stream=self._terminal_stream
         )
         try:
             logger = RunLogger()
@@ -242,6 +245,7 @@ class Controller:
 
     def _prepare(self) -> None:
         """Select fresh setup or restoration before entering the target loop."""
+        options = self._options
         if options["session_file"]:
             self.run_state.old_session = True
             self._import(options["session_file"])
@@ -294,6 +298,7 @@ class Controller:
         self.resources.replace_logger(logger)
 
     def _import(self, session_file: str) -> None:
+        options = self._options
         try:
             if os.path.isfile(session_file) and session_file.endswith((".pickle", ".pkl")):
                 self.resources.interface.warning(
@@ -425,7 +430,7 @@ class Controller:
         )
         choice = input().strip().lower()
         if choice == "n":
-            options["session_file"] = None
+            self._options["session_file"] = None
 
     def _export(self, session_file: str) -> None:
         # Save written output
@@ -444,6 +449,7 @@ class Controller:
         self.output_history = snapshot.output_history
 
     def setup(self) -> None:
+        options = self._options
         if options["raw_file"]:
             try:
                 options.update(
@@ -530,9 +536,9 @@ class Controller:
         )
         error_callbacks = (self.raise_error, self.append_error_log)
 
-        # Target input still comes from the transitional CLI boundary. Policies
-        # are already frozen; loading blacklist data never rereads options.
-        self.run_state.prepare_targets(options["urls"])
+        # Target input is owned by this invocation; live queue/progress belong
+        # to run_state. Loading blacklist data uses the already frozen policy.
+        self.run_state.prepare_targets(self._options["urls"])
         self.config = self.config.with_blacklists(get_blacklists(self.config.wordlist))
         if self.config.execution.engine is ScanEngine.NATIVE:
             self.resources.requester = Requester(
@@ -605,9 +611,9 @@ class Controller:
         self.resources.interface.warning("\nTask Completed")
         self.resources.finish_reports()
 
-        if options["session_file"]:
+        if self._options["session_file"]:
             try:
-                SessionStore().delete(options["session_file"])
+                SessionStore().delete(self._options["session_file"])
             except OSError:
                 self.resources.interface.error("Failed to delete old session file, remove it to free some space")
 
@@ -1130,7 +1136,7 @@ class Controller:
 
                     if option.lower() == "s":
                         default_session_path = format_session_path(
-                            options["session_file"] or DEFAULT_SESSION_FILE,
+                            self._options["session_file"] or DEFAULT_SESSION_FILE,
                             self.metadata.start_time,
                         )
                         msg = f"Save to file [{default_session_path}]: "

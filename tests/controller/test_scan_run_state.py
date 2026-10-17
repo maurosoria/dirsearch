@@ -10,7 +10,7 @@ from lib.controller.run_resources import RunResources
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.controller.session import SessionStore
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.dictionary import Dictionary
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.exceptions import InvalidURLException, QuitInterrupt, SkipTargetInterrupt
@@ -20,10 +20,14 @@ from lib.core.run_metadata import RunMetadata
 
 
 class TestControllerRunState(TestCase):
+    def setUp(self):
+        self.options = default_options()
+
     def _controller(self):
         controller = object.__new__(Controller)
+        controller._options = self.options
         controller.resources = RunResources(interface=Mock(buffer=""), logger=Mock())
-        controller._prepare_config(options)
+        controller._prepare_config(self.options)
         controller.metadata = RunMetadata("dirsearch", "2026-10-06 12:00:00")
         controller.run_state = ScanRunState()
         controller.target_progress = TargetProgress()
@@ -57,7 +61,7 @@ class TestControllerRunState(TestCase):
     def _environment(self, engine, targets):
         # The controller lifecycle is real; no requests or worker threads run.
         with (
-            patch.dict(options, {
+            patch.dict(self.options, {
                 "urls": targets,
                 "request_backend": "native" if engine is ScanEngine.NATIVE else "python",
                 "async_mode": engine is ScanEngine.ASYNC,
@@ -78,7 +82,7 @@ class TestControllerRunState(TestCase):
         ):
             yield
 
-    def test_later_global_changes_cannot_replace_pending_targets(self):
+    def test_later_input_changes_cannot_replace_pending_targets(self):
         for engine in ScanEngine:
             targets = ["http://first.test/", "http://next.test/", "http://first.test/"]
             expected = list(targets)
@@ -92,7 +96,7 @@ class TestControllerRunState(TestCase):
                         controller.run_state.pending_count,
                         [task.target for task in controller.run_state.snapshot_tasks()],
                     ))
-                    options["urls"] = ["http://unrelated.test/"]
+                    self.options["urls"] = ["http://unrelated.test/"]
 
                 controller.start.side_effect = start
                 controller._run_targets()
@@ -102,7 +106,7 @@ class TestControllerRunState(TestCase):
                     for index, target in enumerate(expected)
                 ])
                 self.assertEqual(targets, expected)
-                self.assertEqual(options["urls"], ["http://unrelated.test/"])
+                self.assertEqual(self.options["urls"], ["http://unrelated.test/"])
                 self.assertIsNone(controller.run_state.active_task)
                 self.assertEqual([task.target for task in controller.run_state.snapshot_tasks()], [])
 
@@ -151,7 +155,7 @@ class TestControllerRunState(TestCase):
                 self.assertEqual(controller.run_state.pending_count, 1)
                 self.assertEqual([task.target for task in controller.run_state.snapshot_tasks()], targets)
 
-    def test_progress_counts_pending_targets_without_global_urls(self):
+    def test_progress_counts_pending_targets_without_source_urls(self):
         controller = self._controller()
         controller.run_state = ScanRunState(["done", "active", "next", "last"])
         controller.run_state.activate_next()
@@ -164,7 +168,6 @@ class TestControllerRunState(TestCase):
         for callback in (controller.update_progress_bar, controller.update_progress_bar_batch):
             with (
                 self.subTest(callback=callback.__name__),
-                patch.dict(options, {}, clear=True),
                 patch.object(controller.resources, "interface") as interface,
             ):
                 callback(None)
@@ -183,8 +186,8 @@ class TestControllerRunState(TestCase):
 
                 def start():
                     if controller.run_state.active_task.target == targets[1]:
-                        # Changing global input must not leak into persistence.
-                        options["urls"] = ["http://unrelated.test/"]
+                        # Changing source input must not leak into persistence.
+                        self.options["urls"] = ["http://unrelated.test/"]
                         controller._export(checkpoint)
                         raise QuitInterrupt("saved")
 
@@ -196,7 +199,7 @@ class TestControllerRunState(TestCase):
                 self.assertEqual([task.target for task in payload.remaining_tasks], targets[1:])
                 self.assertEqual(payload.task_checkpoint.url, targets[1])
                 self.assertEqual(controller.set_target.call_args_list, list(map(call, targets[:2])))
-                self.assertEqual(options["urls"], ["http://unrelated.test/"])
+                self.assertEqual(self.options["urls"], ["http://unrelated.test/"])
                 self.assertIsNone(controller.run_state.active_task)
                 self.assertEqual([task.target for task in controller.run_state.snapshot_tasks()], targets[2:])
 
@@ -207,7 +210,7 @@ class TestControllerRunState(TestCase):
                         resumed = self._controller()
                         restored_targets = [task.target for task in payload.remaining_tasks]
                         with self._environment(resume_engine, restored_targets):
-                            resumed._prepare_config(options)
+                            resumed._prepare_config(self.options)
                             resumed._restore_session(payload)
                             self.addCleanup(resumed.resources.reporter.finish)
                             resumed._run_targets()
@@ -240,7 +243,7 @@ class TestControllerRunState(TestCase):
             self.assertEqual(SessionStore().load(checkpoint), before)
             self.assertEqual(controller.run_state.active_task.target, targets[1])
             self.assertEqual([task.target for task in controller.run_state.snapshot_tasks()], targets[1:])
-            self.assertEqual(options["urls"], targets)
+            self.assertEqual(self.options["urls"], targets)
 
     def test_import_rebuilds_remaining_work_from_checkpoint_not_cli_input(self):
         for engine in ScanEngine:
@@ -261,10 +264,10 @@ class TestControllerRunState(TestCase):
                 checkpoint = os.path.join(directory, "checkpoint.json")
                 saved._export(checkpoint)
 
-                options["urls"] = ["http://unrelated.test/"]
+                self.options["urls"] = ["http://unrelated.test/"]
                 resumed = self._controller()
                 resumed._import(checkpoint)
                 resumed._run_targets()
                 self.assertEqual(resumed.set_target.call_args_list, list(map(call, targets[1:])))
-                self.assertEqual(options["urls"], targets[1:])
+                self.assertEqual(self.options["urls"], targets[1:])
                 self.assertEqual([task.target for task in resumed.run_state.snapshot_tasks()], [])

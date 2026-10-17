@@ -1,8 +1,6 @@
 from dataclasses import FrozenInstanceError
 from unittest import TestCase
-from unittest.mock import patch
 
-from lib.core.data import options
 from lib.core.report_config import ReportConfig
 
 
@@ -17,8 +15,7 @@ class TestReportConfig(TestCase):
             "postgres_url": "postgresql://user:secret@example.test/db",
             "sqlite_commit_batch_size": 25,
         }
-        with patch.dict(options, {}, clear=True):
-            config = ReportConfig.from_options(values)
+        config = ReportConfig.from_options(values)
         formats.clear()
         values.update(output_file="changed", output_table="other", sqlite_commit_batch_size=1)
         self.assertEqual(config, ReportConfig(

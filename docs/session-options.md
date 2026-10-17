@@ -47,8 +47,8 @@ prepared target origin.
 
 The existing numeric, regex, header and engine validation still runs during
 controller preparation. `SessionOptions` establishes ownership, not complete
-semantic validation of all CLI fields. CLI normalization still uses the global
-`options` dictionary and remains a separate backlog item.
+semantic validation of all CLI fields. CLI normalization and restoration now use
+[invocation-local options](invocation-options.md), not a process-wide dictionary.
 
 Copies occur at preparation, restoration and explicit export boundaries, not per
 request or native chunk. Session capture still takes place at the existing paused

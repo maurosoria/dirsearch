@@ -11,7 +11,7 @@ from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
 from lib.controller.session import SessionStore
 from lib.controller.session_options import SessionOptions
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.dictionary import Dictionary
 from lib.core.exceptions import InvalidURLException
 from lib.core.execution_config import ScanEngine
@@ -20,7 +20,10 @@ from lib.core.wordlist_config import WordlistConfig
 
 
 class TestControllerTargetConfig(TestCase):
-    def test_prepared_routing_survives_global_changes_for_all_engines(self):
+    def setUp(self):
+        self.options = default_options()
+
+    def test_prepared_routing_survives_input_changes_for_all_engines(self):
         for engine, requester_path in (
             (ScanEngine.THREADED, "lib.connection.requester.Requester"),
             (ScanEngine.ASYNC, "lib.connection.requester.AsyncRequester"),
@@ -28,6 +31,7 @@ class TestControllerTargetConfig(TestCase):
         ):
             with self.subTest(engine=engine):
                 controller = object.__new__(Controller)
+                controller._options = self.options
                 controller.resources = RunResources(interface=Mock(), logger=Mock())
                 controller.config = RunConfig()
                 controller.run_state = ScanRunState()
@@ -41,13 +45,13 @@ class TestControllerTargetConfig(TestCase):
                 requester = Mock()
 
                 def create_requester(*args, **kwargs):
-                    options.update(
+                    self.options.update(
                         scheme="http", ip="198.51.100.9", proxies=[], tor=False,
                     )
                     return requester
 
                 with (
-                    patch.dict(options, {
+                    patch.dict(self.options, {
                         "urls": ["first.test/path?one=1", "http://second.test:8080/"],
                         "scheme": "https",
                         "ip": "192.0.2.7",
@@ -66,7 +70,7 @@ class TestControllerTargetConfig(TestCase):
                     patch("lib.controller.controller.signal.signal"),
                 ):
                     try:
-                        controller._prepare_config(options)
+                        controller._prepare_config(self.options)
                         controller._run_targets()
                     finally:
                         if controller.resources.loop is not None:
@@ -83,23 +87,24 @@ class TestControllerTargetConfig(TestCase):
                 self.assertEqual(controller.start.call_count, 2)
                 detect.assert_not_called()
 
-    def test_independent_target_policies_work_with_global_options_empty(self):
+    def test_independent_target_policies_work_without_ambient_options(self):
         first = object.__new__(Controller)
+        first._options = self.options
         first.resources = RunResources(interface=Mock(), logger=Mock())
         first.config = RunConfig(target=TargetConfig("https", "192.0.2.7", True))
         first.run_state = ScanRunState()
         first.target_progress = TargetProgress()
         first.resources.requester = Mock()
         second = object.__new__(Controller)
+        second._options = self.options
         second.resources = RunResources(interface=Mock(), logger=Mock())
         second.config = RunConfig(target=TargetConfig("http"))
         second.run_state = ScanRunState()
         second.target_progress = TargetProgress()
         second.resources.requester = Mock()
-        with patch.dict(options, {}, clear=True):
-            first.set_target("example.test/private?next=%2Fhome")
-            second.set_target("example.test/public")
-            first.set_target("example.test/other")
+        first.set_target("example.test/private?next=%2Fhome")
+        second.set_target("example.test/public")
+        first.set_target("example.test/other")
 
         self.assertEqual(first.target_progress.url, "https://example.test/")
         self.assertEqual(second.target_progress.url, "http://example.test/")
@@ -114,13 +119,14 @@ class TestControllerTargetConfig(TestCase):
 
     def test_frozen_proxy_guard_rejects_before_probe_or_requester_mutation(self):
         controller = object.__new__(Controller)
+        controller._options = self.options
         controller.resources = RunResources(interface=Mock(), logger=Mock())
         controller.config = RunConfig(target=TargetConfig(proxy_configured=True))
         controller.run_state = ScanRunState()
         controller.target_progress = TargetProgress()
         controller.resources.requester = Mock()
         with (
-            patch.dict(options, {"scheme": "https", "proxies": [], "tor": False}, clear=True),
+            patch.dict(self.options, {"scheme": "https", "proxies": [], "tor": False}, clear=True),
             patch("lib.controller.controller.detect_scheme") as detect,
             self.assertRaisesRegex(InvalidURLException, "Cannot auto-detect the scheme"),
         ):
@@ -135,13 +141,13 @@ class TestControllerTargetConfig(TestCase):
         ):
             with self.subTest(target=target):
                 controller = object.__new__(Controller)
+                controller._options = self.options
                 controller.resources = RunResources(interface=Mock(), logger=Mock())
                 controller.config = RunConfig(target=TargetConfig(connect_host="2001:db8::7"))
                 controller.run_state = ScanRunState()
                 controller.target_progress = TargetProgress()
                 controller.resources.requester = Mock()
                 with (
-                    patch.dict(options, {}, clear=True),
                     patch("lib.controller.controller.detect_scheme", side_effect=answers) as detect,
                 ):
                     controller.set_target(target)
@@ -157,7 +163,7 @@ class TestControllerTargetConfig(TestCase):
             (ScanEngine.NATIVE, "lib.connection.native.NativeRequester"),
         ):
             with self.subTest(engine=engine), tempfile.TemporaryDirectory() as directory:
-                saved_options = dict(options)
+                saved_options = dict(self.options)
                 saved_options.update(
                     urls=["first.test/private?one=1", "second.test:8443/"],
                     scheme="https", ip="2001:db8::7",
@@ -181,7 +187,7 @@ class TestControllerTargetConfig(TestCase):
                     requester.close = AsyncMock()
 
                 with (
-                    patch.dict(options, {
+                    patch.dict(self.options, {
                         "session_file": checkpoint, "scheme": "http", "ip": None,
                         "proxies": [], "tor": False,
                     }),
@@ -197,7 +203,7 @@ class TestControllerTargetConfig(TestCase):
                     patch("lib.controller.controller.signal.signal"),
                     patch("lib.controller.controller.create_terminal"),
                 ):
-                    controller = Controller()
+                    controller = Controller(self.options)
                     controller.run()
                 self.assertEqual(controller.config.target, TargetConfig("https", "2001:db8::7", True))
                 self.assertEqual(controller.config.request.proxies, ("http://proxy.test:8080",))

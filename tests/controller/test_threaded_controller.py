@@ -6,7 +6,7 @@ from lib.core.run_config import RunConfig
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.execution_config import ExecutionConfig
 from lib.core.filter_config import FilterConfig
@@ -16,7 +16,7 @@ from lib.core.exceptions import QuitInterrupt, RequestException
 from lib.core.fuzzer import Fuzzer
 
 
-def create_dictionary():
+def create_dictionary(*, options):
     dictionary = Dictionary(WordlistConfig.from_options(options))
     dictionary.__setstate__((["one", "two"], 0, [], 0))
     return dictionary
@@ -24,6 +24,7 @@ def create_dictionary():
 
 def create_controller(fuzzer, dictionary):
     controller = object.__new__(Controller)
+    controller._options = default_options()
     controller.config = RunConfig(execution=fuzzer.execution_config)
     controller.run_state = ScanRunState()
     controller.target_progress = TargetProgress()
@@ -38,9 +39,12 @@ def create_controller(fuzzer, dictionary):
 
 
 class TestThreadedControllerDeadlines(TestCase):
+    def setUp(self):
+        self.options = default_options()
+
     def test_deadline_drains_workers_before_resetting_dictionary(self):
         entered = threading.Event()
-        dictionary = create_dictionary()
+        dictionary = create_dictionary(options=self.options)
         requester = Mock()
 
         def request(_path):
@@ -53,8 +57,8 @@ class TestThreadedControllerDeadlines(TestCase):
         fuzzer = Fuzzer(
             requester,
             dictionary,
-            filter_config=FilterConfig.from_options(options),
-            discovery_config=DiscoveryConfig.from_options(options),
+            filter_config=FilterConfig.from_options(self.options),
+            discovery_config=DiscoveryConfig.from_options(self.options),
             execution_config=ExecutionConfig(concurrency=1, max_time=5),
             match_callbacks=(),
             not_found_callbacks=(),
@@ -83,7 +87,7 @@ class TestThreadedControllerDeadlines(TestCase):
 
         with (
             patch.dict(
-                options,
+                self.options,
                 {
                     "async_mode": False,
                     "request_backend": "python",
@@ -112,7 +116,7 @@ class TestThreadedControllerDeadlines(TestCase):
     def test_uncooperative_worker_preserves_live_dictionary_state(self):
         entered = threading.Event()
         release = threading.Event()
-        dictionary = create_dictionary()
+        dictionary = create_dictionary(options=self.options)
         dictionary.reset = Mock(wraps=dictionary.reset)
         requester = Mock()
 
@@ -126,8 +130,8 @@ class TestThreadedControllerDeadlines(TestCase):
         fuzzer = Fuzzer(
             requester,
             dictionary,
-            filter_config=FilterConfig.from_options(options),
-            discovery_config=DiscoveryConfig.from_options(options),
+            filter_config=FilterConfig.from_options(self.options),
+            discovery_config=DiscoveryConfig.from_options(self.options),
             execution_config=ExecutionConfig(concurrency=1, max_time=5),
             match_callbacks=(),
             not_found_callbacks=(),
@@ -147,7 +151,7 @@ class TestThreadedControllerDeadlines(TestCase):
         try:
             with (
                 patch.dict(
-                    options,
+                    self.options,
                     {
                         "async_mode": False,
                         "request_backend": "python",

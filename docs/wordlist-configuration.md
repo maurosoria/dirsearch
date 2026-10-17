@@ -90,7 +90,7 @@ replay destinations and other controller/logging globals remain separate migrati
 make complete controllers safe to run concurrently.
 
 Run `python -m unittest discover -s tests -t .`. New coverage checks immutable
-input copies, independent dictionaries with global options empty, blacklist and
+input copies, independent dictionaries without ambient options, blacklist and
 generation-limit behavior, native argument/corpus ownership, and real controller
 setup/session restoration for all three request-stack configurations. Existing
 generation parity, dictionary concurrency, resume and loopback CLI contracts

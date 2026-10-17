@@ -8,24 +8,27 @@ from lib.controller.run_resources import RunResources
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.execution_config import ExecutionConfig, ScanEngine
 from lib.core.settings import THREADED_WORKER_SHUTDOWN_TIMEOUT
 
 
 class TestEngineSelection(TestCase):
+    def setUp(self):
+        self.options = default_options()
+
     def test_invalid_restored_engine_fails_before_requester_or_loop_creation(self):
         for backend, async_mode, message in (
             ("native", True, "--request-backend native cannot be combined with --async"),
             ("unknown", False, "--request-backend must be one of: python, native"),
         ):
             def restore(_controller, _path):
-                options.update(request_backend=backend, async_mode=async_mode)
-                _controller._prepare_config(options)
+                self.options.update(request_backend=backend, async_mode=async_mode)
+                _controller._prepare_config(self.options)
 
             with (
                 self.subTest(backend=backend),
-                patch.dict(options, {"session_file": "checkpoint.json"}),
+                patch.dict(self.options, {"session_file": "checkpoint.json"}),
                 patch.object(Controller, "_import", new=restore),
                 patch("lib.connection.requester.Requester") as threaded,
                 patch("lib.connection.requester.AsyncRequester") as asynchronous,
@@ -34,7 +37,7 @@ class TestEngineSelection(TestCase):
                 patch("sys.stderr", new_callable=io.StringIO) as stderr,
                 self.assertRaises(SystemExit) as stopped,
             ):
-                Controller().run()
+                Controller(self.options).run()
             self.assertEqual(stopped.exception.code, 1)
             self.assertEqual(stderr.getvalue(), message + "\n")
             threaded.assert_not_called()
@@ -42,10 +45,11 @@ class TestEngineSelection(TestCase):
             native.assert_not_called()
             make_loop.assert_not_called()
 
-    def test_directory_dispatch_and_worker_drain_ignore_global_flags(self):
+    def test_directory_dispatch_and_worker_drain_ignore_source_flags(self):
         for engine in ScanEngine:
             with self.subTest(engine=engine):
                 controller = object.__new__(Controller)
+                controller._options = self.options
                 controller.resources = RunResources(interface=Mock(), logger=Mock())
                 controller.config = RunConfig(execution=ExecutionConfig(engine=engine))
                 controller.run_state = ScanRunState()
@@ -61,8 +65,7 @@ class TestEngineSelection(TestCase):
                 controller.start_coroutines = AsyncMock()
                 controller.resources.loop = asyncio.new_event_loop() if engine is ScanEngine.ASYNC else None
                 try:
-                    with patch.dict(options, {}, clear=True):
-                        controller.start()
+                    controller.start()
                     self.assertEqual(controller.dictionary.reset.call_count, 2)
                     self.assertEqual(controller.run_state.jobs_processed, 2)
                     self.assertEqual(controller.target_progress.directories, [])

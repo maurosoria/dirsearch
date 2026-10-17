@@ -1,7 +1,7 @@
 # Local state ownership backlog
 
-This is the state-isolation backlog following PR #1752, including
-target-owned calibration words in this branch. It is not a list of all product issues, nor
+This is the state-isolation backlog following PR #1753, including
+invocation-local options in this branch. It is not a list of all product issues, nor
 a claim that multiple complete controllers can already share a process safely.
 Keep subsequent steps independently reviewable, with explicit contracts and
 regressions before replacing their callers.
@@ -58,7 +58,7 @@ regressions before replacing their callers.
   copy-in/copy-out access, preserving normalized types, unknown fields and absent
   values. Snapshots share the opaque value, not an editable options dictionary;
   save-destination changes replace it. JSON encoding stays in storage. Runtime
-  policies are not reverse-serialized, and CLI normalization remains global.
+  policies are not reverse-serialized. CLI normalization is now invocation-local.
 - [RunResources](run-resources.md) now owns live terminal, logger, report manager,
   requester, event loop and response stores. The controller still constructs
   them; teardown preserves report/requester/store/terminal/logger ordering and
@@ -66,27 +66,31 @@ regressions before replacing their callers.
   cleanup do not retry failed releases. Configuration, progress, worker draining
   and persistence stay separate.
 - [Controller lifecycle](controller-lifecycle.md) now separates construction from
-  execution. `Controller()` captures metadata/stream and initializes local state
-  without opening handles or reading CLI options. Explicit, single-use `run()`
+  execution. `Controller(options)` captures input/metadata/stream and initializes
+  local state without opening handles. Explicit, single-use `run()`
   owns bootstrap, fresh/resume preparation, the unchanged target loop and final
-  cleanup. Failures cannot silently reuse the same owner. Global options and
-  process signals still prevent claiming complete controller isolation.
+  cleanup. Failures cannot silently reuse the same owner. Process signals still
+  prevent claiming complete controller isolation.
 - [Calibration words](calibration-word-ownership.md) now belong to each fuzzer,
   shared by all its profiles and recursive directories across the three engines.
   Standalone scanners own a generator unless one is injected. The global RNG
   and seen-word history are removed; generation rules and native chunk scanning
   are unchanged. History is no longer retained across unrelated targets.
+- [Invocation-local options](invocation-options.md) replace the final actively
+  mutated module-level options dictionary. Each CLI entry gets fresh defaults;
+  controllers deep-copy input before raw parsing or session restoration. Tests
+  own their fixtures, and the old data module is removed without a global shim.
+  Session wire formats, normalization precedence and the public API are unchanged.
 
 ## Remaining work, in suggested order
 
 | Order | Boundary | Completion criterion |
 | --- | --- | --- |
-| 1 | CLI options boundary | Keep mutable normalization local to one invocation; remove the global `options` dictionary once its last consumers are migrated. |
-| 2 | Constant tables | Make read-only intent enforceable where compatible, including `TEXT_CHARS`, and review the duplicate default-port mappings. |
-| 3 | Isolation acceptance tests | Prove independent local lifecycles, output, failure cleanup and resume without process-global patching; address signal ownership and ambient raw-target context. Passing component tests alone is insufficient. |
+| 1 | Constant tables | Make read-only intent enforceable where compatible, including `TEXT_CHARS`, and review the duplicate default-port mappings. |
+| 2 | Isolation acceptance tests | Prove independent local lifecycles, output, failure cleanup and resume without process-global patching; address signal ownership and ambient raw-target context. Passing component tests alone is insufficient. |
 
-Step 1 builds on the explicit component boundaries; add isolation tests along
-the way, with step 3 as the final acceptance gate. Any future public task/context
+Constant-table cleanup can proceed independently; add isolation tests along
+the way, with step 2 as the final acceptance gate. Any future public task/context
 API must distinguish serializable task data from live handles and Rust's existing
 internal `ScanTask`; no parallel-target, GUI or remote scheduling is added here.
 
@@ -124,11 +128,9 @@ module-level dictionary literals, comprehensions and dictionary constructors.
 Tests, third-party internals, per-instance fields and dynamically created aliases
 are not counted. Writes were checked separately from the declared types.
 
-One remaining module-level dictionary is modified by production code:
-
-| Name | Location | Remaining responsibility |
-| --- | --- | --- |
-| `options` | `lib/core/data.py` | CLI normalization, controller composition and session integration. |
+No dictionaries in this inventory have identified production writes after the
+options migration. `lib/core/data.py` is removed; `default_options()` constructs
+new per-invocation containers rather than exposing a mutable module-level value.
 
 `BACK_COLORS`, `FORE_COLORS` and `STYLES` are now read-only mapping proxies;
 `disable_color()` was removed. `lib/core/decorators.py::_cache` was removed with
@@ -149,9 +151,8 @@ runtime progress:
 | `_DEFAULT_PORTS` | `lib/parse/url.py` |
 | `output_handlers` | `lib/report/manager.py` |
 
-The remaining direct importers of global `options` are `dirsearch.py` and
-`lib/controller/controller.py`. Logging no longer reads it, including through
-`options.get(...)`, or owns a process-global handler.
+Neither `dirsearch.py` nor `lib/controller/controller.py` imports global options.
+Logging likewise has no global option dependency or process-global handler.
 
 ## Other global state and import-time values
 

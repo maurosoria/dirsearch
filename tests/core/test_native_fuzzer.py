@@ -4,7 +4,7 @@ from unittest import TestCase
 from unittest.mock import patch
 from lib.connection.native import NativeScanChunk, NativeScanEvent
 from lib.connection.response import NativeResponse
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.execution_config import ExecutionConfig
 from lib.core.filter_config import FilterConfig
@@ -214,13 +214,13 @@ class IncompleteNativeBackend:
         return None
 
 
-def make_dictionary(paths):
+def make_dictionary(paths, *, options):
     dictionary = Dictionary(WordlistConfig.from_options(options))
     dictionary.__setstate__((list(paths), 0, [], 0))
     return dictionary
 
 
-def restored_paths(state):
+def restored_paths(state, *, options):
     dictionary = Dictionary(WordlistConfig.from_options(options))
     dictionary.__setstate__(state)
     paths = []
@@ -240,8 +240,8 @@ def run_fuzzer(fuzzer, errors):
 
 class TestNativeFuzzer(TestCase):
     def setUp(self):
-        self.original_options = dict(options)
-        options.update(
+        self.options = default_options()
+        self.options.update(
             {
                 "thread_count": 2,
                 "exclude_status_codes": set(),
@@ -274,10 +274,6 @@ class TestNativeFuzzer(TestCase):
             }
         )
 
-    def tearDown(self):
-        options.clear()
-        options.update(self.original_options)
-
     def make_fuzzer(
         self,
         backend,
@@ -290,9 +286,9 @@ class TestNativeFuzzer(TestCase):
         fuzzer = NativeFuzzer(
             DummyRequester(backend),
             dictionary,
-            filter_config=FilterConfig.from_options(options),
-            discovery_config=DiscoveryConfig.from_options(options),
-            execution_config=ExecutionConfig.from_options(options),
+            filter_config=FilterConfig.from_options(self.options),
+            discovery_config=DiscoveryConfig.from_options(self.options),
+            execution_config=ExecutionConfig.from_options(self.options),
             match_callbacks=(matches.append,),
             not_found_callbacks=(misses.append,),
             error_callbacks=(errors.append,),
@@ -366,7 +362,7 @@ class TestNativeFuzzer(TestCase):
         self.assertEqual(response.length, 64)
 
     def test_native_fuzzer_processes_filtered_results_as_one_chunk(self):
-        dictionary = make_dictionary(["zero", "one", "two"])
+        dictionary = make_dictionary(["zero", "one", "two"], options=self.options)
         backend = FakeChunkNativeBackend(NativeScanChunk(0, 3, ()))
         filtered_chunks = []
 
@@ -381,10 +377,10 @@ class TestNativeFuzzer(TestCase):
         fuzzer.start()
 
         self.assertEqual(filtered_chunks, [3])
-        self.assertEqual(restored_paths(dictionary.__getstate__()), [])
+        self.assertEqual(restored_paths(dictionary.__getstate__(), options=self.options), [])
 
     def test_native_fuzzer_passes_its_owned_list_to_scan_chunks(self):
-        dictionary = make_dictionary(["zero", "one"])
+        dictionary = make_dictionary(["zero", "one"], options=self.options)
         backend = FakeChunkNativeBackend(NativeScanChunk(0, 2, ()))
         fuzzer = self.make_fuzzer(backend, dictionary, [], [], [])
 
@@ -410,7 +406,7 @@ class TestNativeFuzzer(TestCase):
                 NativeScanEvent(3, "three", match, None),
             ),
         )
-        dictionary = make_dictionary(["zero", "one", "two", "three"])
+        dictionary = make_dictionary(["zero", "one", "two", "three"], options=self.options)
         matches = []
         errors = []
         filtered_chunks = []
@@ -428,17 +424,17 @@ class TestNativeFuzzer(TestCase):
         self.assertEqual(filtered_chunks, [1, 1])
         self.assertEqual(errors, [error])
         self.assertEqual(matches, [match])
-        self.assertEqual(restored_paths(dictionary.__getstate__()), [])
+        self.assertEqual(restored_paths(dictionary.__getstate__(), options=self.options), [])
 
     def test_saved_state_retries_unreturned_chunk_paths(self):
-        dictionary = make_dictionary(["admin", "login"])
+        dictionary = make_dictionary(["admin", "login"], options=self.options)
         backend = FakeNativeBackend([])
         fuzzer = self.make_fuzzer(backend, dictionary, [], [], [])
 
         fuzzer.start()
         saved_state = dictionary.__getstate__()
 
-        resumed = Dictionary(WordlistConfig.from_options(options))
+        resumed = Dictionary(WordlistConfig.from_options(self.options))
         resumed.__setstate__(saved_state)
         self.assertEqual([next(resumed), next(resumed)], ["admin", "login"])
         with self.assertRaises(StopIteration):
@@ -450,7 +446,7 @@ class TestNativeFuzzer(TestCase):
             next(resumed)
 
     def test_native_fuzzer_requires_the_batch_contract(self):
-        dictionary = make_dictionary(["admin"])
+        dictionary = make_dictionary(["admin"], options=self.options)
         fuzzer = self.make_fuzzer(
             IncompleteNativeBackend(),
             dictionary,
@@ -462,10 +458,10 @@ class TestNativeFuzzer(TestCase):
         with self.assertRaisesRegex(AttributeError, "scan_chunks"):
             fuzzer.start()
 
-        self.assertEqual(restored_paths(dictionary.__getstate__()), ["admin"])
+        self.assertEqual(restored_paths(dictionary.__getstate__(), options=self.options), ["admin"])
 
     def test_incremental_batch_updates_session_state_before_scan_returns(self):
-        dictionary = make_dictionary(["zero", "one", "two"])
+        dictionary = make_dictionary(["zero", "one", "two"], options=self.options)
         backend = IncrementalNativeBackend()
         filtered_chunks = []
         callback_errors = []
@@ -485,7 +481,7 @@ class TestNativeFuzzer(TestCase):
             self.assertTrue(backend.first_delivered.wait(timeout=1))
             self.assertEqual(filtered_chunks, [1])
             self.assertEqual(
-                restored_paths(dictionary.__getstate__()),
+                restored_paths(dictionary.__getstate__(), options=self.options),
                 ["one", "two"],
             )
             backend.release.set()
@@ -498,10 +494,10 @@ class TestNativeFuzzer(TestCase):
         self.assertFalse(worker.is_alive())
         self.assertEqual(worker_errors, [])
         self.assertEqual([str(error) for error in callback_errors], ["one", "two"])
-        self.assertEqual(restored_paths(dictionary.__getstate__()), [])
+        self.assertEqual(restored_paths(dictionary.__getstate__(), options=self.options), [])
 
     def test_batch_failure_requeues_only_the_undelivered_suffix(self):
-        dictionary = make_dictionary(["zero", "one", "two"])
+        dictionary = make_dictionary(["zero", "one", "two"], options=self.options)
         backend = IncrementalNativeBackend(fail_after_first=True)
         fuzzer = self.make_fuzzer(backend, dictionary, [], [], [])
 
@@ -509,7 +505,7 @@ class TestNativeFuzzer(TestCase):
             fuzzer.start()
 
         self.assertEqual(
-            restored_paths(dictionary.__getstate__()),
+            restored_paths(dictionary.__getstate__(), options=self.options),
             ["one", "two"],
         )
 
@@ -522,7 +518,7 @@ class TestNativeFuzzer(TestCase):
         self.assertTrue(backend.cancelled)
 
     def test_pause_retries_the_in_flight_batch_before_acknowledgement(self):
-        dictionary = make_dictionary(["admin", "login"])
+        dictionary = make_dictionary(["admin", "login"], options=self.options)
         backend = CoordinatedNativeBackend()
         callback_errors = []
 
@@ -532,9 +528,9 @@ class TestNativeFuzzer(TestCase):
         fuzzer = NativeFuzzer(
             DummyRequester(backend),
             dictionary,
-            filter_config=FilterConfig.from_options(options),
-            discovery_config=DiscoveryConfig.from_options(options),
-            execution_config=ExecutionConfig.from_options(options),
+            filter_config=FilterConfig.from_options(self.options),
+            discovery_config=DiscoveryConfig.from_options(self.options),
+            execution_config=ExecutionConfig.from_options(self.options),
             match_callbacks=(),
             not_found_callbacks=(),
             error_callbacks=(record_error,),
@@ -550,7 +546,7 @@ class TestNativeFuzzer(TestCase):
             self.assertTrue(backend.cancelled.is_set())
 
             saved_state = dictionary.__getstate__()
-            self.assertEqual(restored_paths(saved_state), ["admin", "login"])
+            self.assertEqual(restored_paths(saved_state, options=self.options), ["admin", "login"])
             self.assertEqual(callback_errors, [])
 
             fuzzer.play()
@@ -567,10 +563,10 @@ class TestNativeFuzzer(TestCase):
             [["admin", "login"], ["admin", "login"]],
         )
         self.assertEqual(callback_errors, ["admin", "login"])
-        self.assertEqual(restored_paths(dictionary.__getstate__()), [])
+        self.assertEqual(restored_paths(dictionary.__getstate__(), options=self.options), [])
 
     def test_pause_reports_timeout_when_native_scan_does_not_acknowledge(self):
-        dictionary = make_dictionary(["blocked"])
+        dictionary = make_dictionary(["blocked"], options=self.options)
         backend = UncooperativeNativeBackend()
         fuzzer = self.make_fuzzer(backend, dictionary, [], [], [])
         worker_errors = []
@@ -597,7 +593,7 @@ class TestNativeFuzzer(TestCase):
         self.assertEqual(worker_errors, [])
 
     def test_pause_during_startup_is_not_overwritten_by_fuzzer_initialization(self):
-        dictionary = make_dictionary(["admin"])
+        dictionary = make_dictionary(["admin"], options=self.options)
         backend = CancelAwareNativeBackend()
         setup_started = threading.Event()
         release_setup = threading.Event()

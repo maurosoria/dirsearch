@@ -33,7 +33,7 @@ from lib.connection.native import NativeRequester
 from lib.connection.requester import AsyncRequester, Requester
 from lib.core.filter_config import FilterConfig
 from lib.core.request_config import RequestConfig
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.native_runtime import NATIVE_EXTENSION_VERSION
 from tests.connection.proxy_server import ProxyTestStack
 
@@ -134,8 +134,8 @@ class TestIPOverrideIntegration(TestCase):
         cls.stack_context.__exit__(None, None, None)
 
     def setUp(self):
-        self.original_options = dict(options)
-        options.update(
+        self.options = default_options()
+        self.options.update(
             {
                 "proxies": [],
                 "headers": {},
@@ -156,10 +156,6 @@ class TestIPOverrideIntegration(TestCase):
             }
         )
 
-    def tearDown(self):
-        options.clear()
-        options.update(self.original_options)
-
     @staticmethod
     def forced_url(target):
         parsed = urlsplit(target.url)
@@ -169,7 +165,7 @@ class TestIPOverrideIntegration(TestCase):
         for target in self.stack.targets:
             with self.subTest(scheme=target.scheme):
                 target.clear_events()
-                requester = Requester(RequestConfig.from_options(options))
+                requester = Requester(RequestConfig.from_options(self.options))
                 requester.set_ip(FORCED_HOST, urlsplit(target.url).port, "127.0.0.1")
                 requester.set_url(self.forced_url(target))
                 try:
@@ -198,7 +194,7 @@ class TestIPOverrideIntegration(TestCase):
         for target in self.stack.targets:
             with self.subTest(scheme=target.scheme):
                 target.clear_events()
-                requester = AsyncRequester(RequestConfig.from_options(options))
+                requester = AsyncRequester(RequestConfig.from_options(self.options))
                 requester.set_ip(FORCED_HOST, urlsplit(target.url).port, "127.0.0.1")
                 requester.set_url(self.forced_url(target))
                 try:
@@ -227,8 +223,8 @@ class TestIPOverrideIntegration(TestCase):
             with self.subTest(scheme=target.scheme):
                 target.clear_events()
                 requester = NativeRequester(
-                    RequestConfig.from_options(options),
-                    filter_config=FilterConfig.from_options(options),
+                    RequestConfig.from_options(self.options),
+                    filter_config=FilterConfig.from_options(self.options),
                 )
                 requester.set_ip(
                     FORCED_HOST,
@@ -258,8 +254,8 @@ class TestIPOverrideIntegration(TestCase):
         target = next(target for target in self.stack.targets if target.scheme == "http")
         target.clear_events()
         requester = NativeRequester(
-            RequestConfig.from_options(options),
-            filter_config=FilterConfig.from_options(options),
+            RequestConfig.from_options(self.options),
+            filter_config=FilterConfig.from_options(self.options),
         )
         requester.set_ip(FORCED_HOST, urlsplit(target.url).port, "127.0.0.1")
         requester.set_url(self.forced_url(target))
