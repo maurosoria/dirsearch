@@ -26,6 +26,12 @@ import string
 
 
 class StealthWordGenerator:
+    """Mutable calibration RNG/history owned by a fuzzer or standalone scanner.
+
+    Calls within one owner are sequential. Different targets must not share an
+    instance; generated words are not checkpoint state or dictionary entries.
+    """
+
     separators = ("-", "_")
     common_directories = frozenset(("admin", "backup", "api", "test"))
     word_bank = (
@@ -186,13 +192,6 @@ class StealthWordGenerator:
             (count / length) * math.log2(count / length)
             for count in Counter(value).values()
         )
-
-
-_stealth_word_generator = StealthWordGenerator()
-
-
-def rand_stealth_word(omit: str | Iterable[str] | None = None) -> str:
-    return _stealth_word_generator.generate(omit=omit)
 
 
 def rand_string(n, omit=None):
