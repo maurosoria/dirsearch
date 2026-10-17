@@ -7,13 +7,14 @@ from lib.controller.run_resources import RunResources
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.discovery_config import DiscoveryConfig
 from tests.core.test_backup_discovery import response_for
 
 
 def policy_controller(policy):
     controller = object.__new__(Controller)
+    controller._options = default_options()
     controller.resources = RunResources(interface=Mock(), logger=Mock())
     controller.config = RunConfig(discovery=policy)
     controller.run_state = ScanRunState()
@@ -28,37 +29,37 @@ def policy_controller(policy):
 
 
 class TestControllerDiscoveryConfig(TestCase):
+    def setUp(self):
+        self.options = default_options()
+
     def test_recursion_depth_exclusions_and_deduplication_are_instance_owned(self):
         first = policy_controller(DiscoveryConfig(
             deep_recursive=True, recursion_depth=2, exclude_subdirs=["private/"],
         ))
         second = policy_controller(DiscoveryConfig(recursive=True, recursion_depth=1))
-        with patch.dict(options, {}, clear=True):
-            self.assertEqual(first.recur("public/nested/deeper/"), ["public/", "public/nested/"])
-            self.assertEqual(first.recur("public/nested/deeper/"), [])
-            self.assertEqual(first.recur("private/nested/"), [])
-            self.assertEqual(second.recur("public/nested/"), [])
-            self.assertEqual(second.recur("private/"), ["private/"])
+        self.assertEqual(first.recur("public/nested/deeper/"), ["public/", "public/nested/"])
+        self.assertEqual(first.recur("public/nested/deeper/"), [])
+        self.assertEqual(first.recur("private/nested/"), [])
+        self.assertEqual(second.recur("public/nested/"), [])
+        self.assertEqual(second.recur("private/"), ["private/"])
 
     def test_forced_recursion_and_relative_depth_keep_existing_behavior(self):
         controller = policy_controller(DiscoveryConfig(
             recursive=True, force_recursive=True, recursion_depth=1,
         ))
         controller.target_progress.base_path = "base/"
-        with patch.dict(options, {}, clear=True):
-            self.assertEqual(controller.recur("base/child"), ["base/child/"])
-            self.assertEqual(controller.recur("base/child/deeper"), [])
-            self.assertEqual(controller.recur("base/child"), [])
+        self.assertEqual(controller.recur("base/child"), ["base/child/"])
+        self.assertEqual(controller.recur("base/child/deeper"), [])
+        self.assertEqual(controller.recur("base/child"), [])
 
-    def test_match_discovery_flags_ignore_later_global_mutations(self):
+    def test_match_discovery_flags_ignore_later_input_mutations(self):
         enabled = policy_controller(DiscoveryConfig(crawl=True, find_backup=True))
         disabled = policy_controller(DiscoveryConfig())
         enabled.add_crawled_paths = Mock()
         disabled.add_crawled_paths = Mock()
         response = response_for("file.txt")
-        with patch.dict(options, {}, clear=True):
-            enabled.match_callback(response)
-            disabled.match_callback(response)
+        enabled.match_callback(response)
+        disabled.match_callback(response)
 
         enabled.add_crawled_paths.assert_called_once_with(response)
         enabled.dictionary.add_extra.assert_any_call("file.txt.bak")
@@ -76,14 +77,14 @@ class TestControllerDiscoveryConfig(TestCase):
                     fuzzers = []
 
                     def prepare(controller, *_args):
-                        options.update(
+                        controller._options.update(
                             prefixes=["restored-"], subdirs=["base/"],
                             recursive=True, recursion_depth=2,
                             exclude_subdirs=["private/"],
                             urls=["http://first.test/", "http://second.test/"],
                             session_file=None,
                         )
-                        controller._prepare_config(options)
+                        controller._prepare_config(controller._options)
                         controller.resources.reporter = Mock(reports=())
                         controller.dictionary = Mock()
                         controller.target_progress.directories = []
@@ -98,15 +99,15 @@ class TestControllerDiscoveryConfig(TestCase):
                         self.assertIs(controller.fuzzer.discovery_config, controller.config.discovery)
                         self.assertEqual(controller.target_progress.directories, ["base/"])
                         controller.target_progress.directories.clear()
-                        options["subdirs"].clear()
-                        options["prefixes"].clear()
-                        options["recursion_depth"] = 99
+                        controller._options["subdirs"].clear()
+                        controller._options["prefixes"].clear()
+                        controller._options["recursion_depth"] = 99
 
                     requester = Mock(backend=None)
                     if async_mode:
                         requester.close = AsyncMock()
                     with (
-                        patch.dict(options, {
+                        patch.dict(self.options, {
                             "request_backend": backend, "async_mode": async_mode,
                             "session_file": "session.json" if resumed else None,
                             "prefixes": [], "crawl": False,
@@ -121,7 +122,7 @@ class TestControllerDiscoveryConfig(TestCase):
                         patch("lib.controller.controller.signal.signal"),
                         patch("lib.controller.controller.create_terminal"),
                     ):
-                        controller = Controller()
+                        controller = Controller(self.options)
                         controller.run()
 
                     self.assertEqual(len(fuzzers), 2)

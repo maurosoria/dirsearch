@@ -3,7 +3,6 @@ from unittest import IsolatedAsyncioTestCase, TestCase
 from unittest.mock import AsyncMock, Mock, patch
 
 from lib.connection.response import NativeResponse
-from lib.core.data import options
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.execution_config import ExecutionConfig
 from lib.core.filter_config import FilterConfig
@@ -44,8 +43,7 @@ class TestDiscoveryConfig(TestCase):
             "extensions": ["txt"], "subdirs": ["", "base/"],
             "exclude_subdirs": ["private/"],
         }
-        with patch.dict(options, {}, clear=True):
-            actual = DiscoveryConfig.from_options(supplied)
+        actual = DiscoveryConfig.from_options(supplied)
         self.assertEqual(actual, DiscoveryConfig(**supplied))
         # This adapter freezes normalized input; it does not reorder, deduplicate
         # or reinterpret paths and therefore does not replace CLI validation.
@@ -73,39 +71,38 @@ class TestCalibrationDiscoveryConfig(IsolatedAsyncioTestCase):
         policy = DiscoveryConfig(
             prefixes=("first-", "first-"), suffixes=(".txt",), extensions=("txt",),
         )
-        with patch.dict(options, {}, clear=True):
-            for engine in (Fuzzer, AsyncFuzzer, NativeFuzzer):
-                with self.subTest(engine=engine.__name__):
-                    fuzzer = engine(
-                        CalibrationRequester(), None, filter_config=FilterConfig(),
-                        discovery_config=policy,
-                        execution_config=ExecutionConfig(),
-                        match_callbacks=(), not_found_callbacks=(), error_callbacks=(),
-                    )
-                    fuzzer.set_base_path("base/")
-                    asynchronous = engine is AsyncFuzzer
-                    factory = AsyncMock() if asynchronous else Mock()
-                    factory_path = (
-                        "lib.core.fuzzer.AsyncScanner.create"
-                        if asynchronous else "lib.core.fuzzer.Scanner"
-                    )
-                    with patch(factory_path, factory):
-                        if asynchronous:
-                            await fuzzer.setup_scanners()
-                        else:
-                            fuzzer.setup_scanners()
+        for engine in (Fuzzer, AsyncFuzzer, NativeFuzzer):
+            with self.subTest(engine=engine.__name__):
+                fuzzer = engine(
+                    CalibrationRequester(), None, filter_config=FilterConfig(),
+                    discovery_config=policy,
+                    execution_config=ExecutionConfig(),
+                    match_callbacks=(), not_found_callbacks=(), error_callbacks=(),
+                )
+                fuzzer.set_base_path("base/")
+                asynchronous = engine is AsyncFuzzer
+                factory = AsyncMock() if asynchronous else Mock()
+                factory_path = (
+                    "lib.core.fuzzer.AsyncScanner.create"
+                    if asynchronous else "lib.core.fuzzer.Scanner"
+                )
+                with patch(factory_path, factory):
+                    if asynchronous:
+                        await fuzzer.setup_scanners()
+                    else:
+                        fuzzer.setup_scanners()
 
-                    paths = [call.kwargs["path"] for call in factory.call_args_list]
-                    # Threaded/native deduplicate explicit profile prefixes;
-                    # async currently iterates them. This refactor preserves both.
-                    self.assertEqual(
-                        sum(path.startswith("base/first-") for path in paths),
-                        2 if asynchronous else 1,
-                    )
-                    # An explicit .txt suffix already provides this profile;
-                    # the extension loop must not create another one.
-                    self.assertEqual(sum(path.endswith(".txt") for path in paths), 1)
-                    self.assertEqual(len(paths), 8 if asynchronous else 7)
+                paths = [call.kwargs["path"] for call in factory.call_args_list]
+                # Threaded/native deduplicate explicit profile prefixes;
+                # async currently iterates them. This refactor preserves both.
+                self.assertEqual(
+                    sum(path.startswith("base/first-") for path in paths),
+                    2 if asynchronous else 1,
+                )
+                # An explicit .txt suffix already provides this profile;
+                # the extension loop must not create another one.
+                self.assertEqual(sum(path.endswith(".txt") for path in paths), 1)
+                self.assertEqual(len(paths), 8 if asynchronous else 7)
 
     async def test_profile_variants_are_owned_by_each_fuzzer(self):
         policies = (
@@ -113,37 +110,36 @@ class TestCalibrationDiscoveryConfig(IsolatedAsyncioTestCase):
             DiscoveryConfig(prefixes=["second-"], suffixes=[".old"], extensions=["html"]),
         )
         # Both discovery and execution policy are explicit; no globals are needed.
-        with patch.dict(options, {}, clear=True):
-            for engine in (Fuzzer, AsyncFuzzer, NativeFuzzer):
-                with self.subTest(engine=engine.__name__):
-                    fuzzers = []
-                    for policy in policies:
-                        requester = (
-                            AsyncCalibrationRequester()
-                            if engine is AsyncFuzzer else CalibrationRequester()
-                        )
-                        fuzzer = engine(
-                            requester, None, filter_config=FilterConfig(),
-                            discovery_config=policy,
-                            execution_config=ExecutionConfig(),
-                            match_callbacks=(), not_found_callbacks=(), error_callbacks=(),
-                        )
-                        fuzzer.set_base_path("base/")
-                        if engine is AsyncFuzzer:
-                            await fuzzer.setup_scanners()
-                        else:
-                            fuzzer.setup_scanners()
-                        fuzzers.append(fuzzer)
+        for engine in (Fuzzer, AsyncFuzzer, NativeFuzzer):
+            with self.subTest(engine=engine.__name__):
+                fuzzers = []
+                for policy in policies:
+                    requester = (
+                        AsyncCalibrationRequester()
+                        if engine is AsyncFuzzer else CalibrationRequester()
+                    )
+                    fuzzer = engine(
+                        requester, None, filter_config=FilterConfig(),
+                        discovery_config=policy,
+                        execution_config=ExecutionConfig(),
+                        match_callbacks=(), not_found_callbacks=(), error_callbacks=(),
+                    )
+                    fuzzer.set_base_path("base/")
+                    if engine is AsyncFuzzer:
+                        await fuzzer.setup_scanners()
+                    else:
+                        fuzzer.setup_scanners()
+                    fuzzers.append(fuzzer)
 
-                    for fuzzer, policy in zip(fuzzers, policies):
-                        profiles = fuzzer.filter_state.scanners
-                        self.assertEqual(
-                            set(profiles["prefixes"]),
-                            set(DEFAULT_TEST_PREFIXES) | set(policy.prefixes),
-                        )
-                        self.assertEqual(
-                            set(profiles["suffixes"]),
-                            set(DEFAULT_TEST_SUFFIXES) | set(policy.suffixes)
-                            | {f".{extension}" for extension in policy.extensions},
-                        )
-                    self.assertIsNot(fuzzers[0].filter_state, fuzzers[1].filter_state)
+                for fuzzer, policy in zip(fuzzers, policies):
+                    profiles = fuzzer.filter_state.scanners
+                    self.assertEqual(
+                        set(profiles["prefixes"]),
+                        set(DEFAULT_TEST_PREFIXES) | set(policy.prefixes),
+                    )
+                    self.assertEqual(
+                        set(profiles["suffixes"]),
+                        set(DEFAULT_TEST_SUFFIXES) | set(policy.suffixes)
+                        | {f".{extension}" for extension in policy.extensions},
+                    )
+                self.assertIsNot(fuzzers[0].filter_state, fuzzers[1].filter_state)

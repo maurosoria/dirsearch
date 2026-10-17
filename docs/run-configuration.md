@@ -15,7 +15,7 @@ The bootstrap terminal and logger still exist to handle preparation failures.
 An invalid engine selection exits before constructing the prepared resources.
 
 The same mapping is captured in [SessionOptions](session-options.md) for
-persistence, separately from runtime policy. Changing global options during resource construction
+persistence, separately from runtime policy. Changing owned preparation input during resource construction
 cannot change the remaining policies or saved configuration. On resume, the
 overwrite/new prompt only updates the saved session destination; it does not
 recapture the other options. JSON schema, field names and cross-engine resume

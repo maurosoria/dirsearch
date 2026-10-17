@@ -2,13 +2,16 @@ from copy import deepcopy
 from dataclasses import FrozenInstanceError, replace
 from unittest import TestCase
 
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.request_config import RequestConfig
 
 
 class TestRequestConfig(TestCase):
+    def setUp(self):
+        self.options = default_options()
+
     def test_snapshot_detaches_headers_proxies_and_body(self):
-        values = deepcopy(options)
+        values = deepcopy(self.options)
         values.update(
             headers={"X-Run": "first"},
             proxies=["http://proxy.example:8080"],
@@ -50,7 +53,7 @@ class TestRequestConfig(TestCase):
                 self.assertIs(type(config.body), type(body))
 
     def test_options_adapter_keeps_transport_fields(self):
-        values = deepcopy(options)
+        values = deepcopy(self.options)
         values.update(
             http_method="PATCH", data=b"data", headers={"X-Run": "first"},
             auth_type="digest", auth="user:password",
@@ -75,7 +78,7 @@ class TestRequestConfig(TestCase):
         )
 
     def test_capture_policy_does_not_include_output_destinations(self):
-        values = deepcopy(options)
+        values = deepcopy(self.options)
         for directory, jsonl, expected in (
             (None, None, False),
             ("responses", None, True),

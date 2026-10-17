@@ -3,7 +3,7 @@
 `ResultConfig` is the immutable policy for presenting, capturing and replaying
 matched results. The controller snapshots it after raw-input preparation or
 session restoration and before opening response stores. Every target in that
-run uses the same snapshot; later changes to global options cannot redirect a
+run uses the same snapshot; later changes to source options cannot redirect a
 capture, change full-URL presentation or enable/disable/change replay.
 
 | Normalized input | Frozen field | Consumer |

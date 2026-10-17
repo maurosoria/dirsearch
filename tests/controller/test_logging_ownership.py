@@ -12,7 +12,7 @@ from lib.controller.run_resources import RunResources
 from lib.controller.session_snapshot import RunCheckpoint, SessionSnapshot
 from lib.controller.session_options import SessionOptions
 from lib.core.task_checkpoint import DictionaryCheckpoint, TaskCheckpoint
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.execution_config import ExecutionConfig
 from lib.core.filter_config import FilterConfig
@@ -25,34 +25,33 @@ class TestControllerLoggingOwnership(TestCase):
     def setUp(self):
         # Only composition still adapts CLI/session options. The logger itself
         # is covered without patching globals in tests/core/test_run_logger.py.
-        self.options_patch = patch.dict(options, {
+        self.options = default_options()
+        self.options.update({
             "session_file": None, "raw_file": None, "wordlists": [], "urls": [],
             "wordlist_backend": "python", "color": False, "quiet": True,
             "disable_cli": False, "log_file": None, "log_file_size": 0,
             "proxy_auth": None, "save_response": None, "save_response_jsonl": None,
             "output_formats": [],
         })
-        self.options_patch.start()
-        self.addCleanup(self.options_patch.stop)
 
     def test_raw_preparation_precedes_logging_snapshot(self):
         with TemporaryDirectory() as directory:
             path = Path(directory, "raw.log")
-            options["raw_file"] = "request.txt"
+            self.options["raw_file"] = "request.txt"
 
             def parse(_path):
-                options.update(log_file=str(path), proxy_auth="user:raw/secret")
+                controller._options.update(log_file=str(path), proxy_auth="user:raw/secret")
                 return ["http://example.test/"], "POST", {}, b""
 
             def run(controller):
-                options.update(log_file=None, proxy_auth="user:unrelated")
+                self.options.update(log_file=None, proxy_auth="user:unrelated")
                 controller.resources.logger.info("raw user:raw/secret@proxy.example.test")
 
             with (
                 patch("lib.controller.controller.parse_raw", side_effect=parse),
                 patch.object(Controller, "_run_targets", new=run),
             ):
-                controller = Controller(output=StringIO())
+                controller = Controller(self.options, output=StringIO())
                 controller.run()
             self.assertIn("raw <redacted>@proxy.example.test", path.read_text())
             self.assertFalse(controller.resources.logger.handlers)
@@ -61,7 +60,7 @@ class TestControllerLoggingOwnership(TestCase):
         with TemporaryDirectory() as directory:
             restored = Path(directory, "restored.log")
             cli = Path(directory, "cli.log")
-            options.update(session_file="checkpoint.json", log_file=str(cli))
+            self.options.update(session_file="checkpoint.json", log_file=str(cli))
 
             def run(controller):
                 controller.resources.logger.info("restored user:restored/secret@proxy.example.test")
@@ -76,7 +75,7 @@ class TestControllerLoggingOwnership(TestCase):
                     run=RunCheckpoint(0), task_checkpoint=TaskCheckpoint(DictionaryCheckpoint((), 0)),
                     options=SessionOptions({"log_file": str(restored), "proxy_auth": "user:restored/secret"}),
                 )
-                controller = Controller(output=StringIO())
+                controller = Controller(self.options, output=StringIO())
                 controller.run()
             self.assertFalse(cli.exists())
             self.assertIn("restored <redacted>@proxy.example.test", restored.read_text())
@@ -89,7 +88,7 @@ class TestControllerLoggingOwnership(TestCase):
         ):
             with self.subTest(phase=phase), TemporaryDirectory() as directory:
                 path = Path(directory, "run.log")
-                options["log_file"] = str(path)
+                self.options["log_file"] = str(path)
                 handlers = []
 
                 def fail(resources):
@@ -105,14 +104,14 @@ class TestControllerLoggingOwnership(TestCase):
                     patch.object(owner, phase, new=fail_run if owner is Controller else fail),
                     self.assertRaisesRegex(RuntimeError, "injected failure"),
                 ):
-                    Controller(output=StringIO()).run()
+                    Controller(self.options, output=StringIO()).run()
                 self.assertEqual(len(handlers), 1)
                 self.assertIsNone(handlers[0].stream)
                 self.assertIn("failure boundary", path.read_text())
 
     def test_terminal_close_failure_still_closes_logging(self):
         with TemporaryDirectory() as directory:
-            options["log_file"] = str(Path(directory, "run.log"))
+            self.options["log_file"] = str(Path(directory, "run.log"))
             handlers = []
 
             def run(controller):
@@ -122,16 +121,16 @@ class TestControllerLoggingOwnership(TestCase):
                 controller.resources.interface.close = Mock(side_effect=RuntimeError("terminal failure"))
 
             with patch.object(Controller, "_run_targets", new=run), self.assertRaisesRegex(RuntimeError, "terminal failure"):
-                Controller(output=StringIO()).run()
+                Controller(self.options, output=StringIO()).run()
             self.assertEqual(len(handlers), 1)
             self.assertIsNone(handlers[0].stream)
 
     def test_log_open_failure_reports_error_and_never_runs(self):
         with TemporaryDirectory() as directory:
-            options["log_file"] = directory  # A directory cannot be the log file.
+            self.options["log_file"] = directory  # A directory cannot be the log file.
             output = StringIO()
             with patch.object(Controller, "_run_targets") as run, self.assertRaises(SystemExit) as stopped:
-                Controller(output=output).run()
+                Controller(self.options, output=output).run()
             self.assertEqual(stopped.exception.code, 1)
             self.assertIn("Couldn't create log file", output.getvalue())
             run.assert_not_called()

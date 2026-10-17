@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest import TestCase
 from unittest.mock import patch
 
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.wordlist_config import WordlistConfig
 from lib.core.exceptions import WordlistBackendUnavailableError
 from lib.core.native_runtime import NATIVE_EXTENSION_VERSION
@@ -67,13 +67,9 @@ class FakeNativeModule:
 
 class TestWordlistBackend(TestCase):
     def setUp(self):
-        self._original_options = dict(options)
-        options["wordlist_backend"] = "auto"
-        options["request_backend"] = "python"
-
-    def tearDown(self):
-        options.clear()
-        options.update(self._original_options)
+        self.options = default_options()
+        self.options["wordlist_backend"] = "auto"
+        self.options["request_backend"] = "python"
 
     def test_auto_selects_python_backend(self):
         self.assertIsInstance(get_wordlist_backend(WordlistConfig()), PythonWordlistBackend)
@@ -83,14 +79,14 @@ class TestWordlistBackend(TestCase):
         self.assertIsInstance(get_wordlist_backend(config), PythonWordlistBackend)
 
     def test_auto_keeps_native_request_wordlist_owned_by_rust(self):
-        options["request_backend"] = "native"
+        self.options["request_backend"] = "native"
         with (
             patch.dict("sys.modules", {"dirsearch_native": FakeNativeModule()}),
             tempfile.TemporaryDirectory() as temp_dir,
         ):
             wordlist = Path(temp_dir) / "wordlist.txt"
             wordlist.write_text("admin\nlogin\n", encoding="utf-8")
-            backend = get_wordlist_backend(WordlistConfig.from_options(options))
+            backend = get_wordlist_backend(WordlistConfig.from_options(self.options))
             corpus = backend.generate([str(wordlist)])
 
         self.assertIsInstance(corpus, NativeWordlistCorpus)
@@ -127,7 +123,7 @@ class TestWordlistBackend(TestCase):
                 rf"expected {re.escape(NATIVE_EXTENSION_VERSION)}, found 0\.2\.7",
             ),
         ):
-            NativeWordlistBackend(WordlistConfig.from_options(options))
+            NativeWordlistBackend(WordlistConfig.from_options(self.options))
 
     def test_percent_encoded_paths_do_not_force_python_expansion(self):
         backend = object.__new__(NativeWordlistBackend)
@@ -159,8 +155,8 @@ class TestWordlistBackend(TestCase):
             return
 
         files = ["tests/static/wordlist.txt"]
-        original = dict(options)
-        options.update(
+        original = dict(self.options)
+        self.options.update(
             {
                 "extensions": ("php", "json"),
                 "exclude_extensions": (),
@@ -175,7 +171,7 @@ class TestWordlistBackend(TestCase):
             }
         )
         try:
-            config = WordlistConfig.from_options(options)
+            config = WordlistConfig.from_options(self.options)
             native = get_wordlist_backend(replace(config, backend="native"))
             python = get_wordlist_backend(replace(config, backend="python"))
             self.assertEqual(
@@ -183,8 +179,8 @@ class TestWordlistBackend(TestCase):
                 python.generate(files),
             )
         finally:
-            options.clear()
-            options.update(original)
+            self.options.clear()
+            self.options.update(original)
 
     def test_native_matches_python_for_generation_options_when_available(self):
         try:
@@ -238,17 +234,17 @@ class TestWordlistBackend(TestCase):
             "capitalization": False,
             "wordlist_max_size": 500000,
         }
-        original = dict(options)
+        original = dict(self.options)
         try:
             for test_case in test_cases:
                 with tempfile.TemporaryDirectory() as temp_dir:
                     wordlist = Path(temp_dir) / "wordlist.txt"
                     wordlist.write_text("\n".join(test_case["lines"]), encoding="utf-8")
 
-                    options.update(default_options)
-                    options.update(test_case["options"])
+                    self.options.update(default_options)
+                    self.options.update(test_case["options"])
 
-                    config = WordlistConfig.from_options(options)
+                    config = WordlistConfig.from_options(self.options)
                     native = get_wordlist_backend(replace(config, backend="native"))
                     python = get_wordlist_backend(replace(config, backend="python"))
                     self.assertEqual(
@@ -256,5 +252,5 @@ class TestWordlistBackend(TestCase):
                         python.generate([str(wordlist)]),
                     )
         finally:
-            options.clear()
-            options.update(original)
+            self.options.clear()
+            self.options.update(original)

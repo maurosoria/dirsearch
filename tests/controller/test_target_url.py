@@ -17,7 +17,7 @@ from lib.core.scan_run_state import ScanRunState
 from lib.core.filter_config import FilterConfig
 from lib.core.request_config import RequestConfig
 from lib.core.target_config import TargetConfig
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.exceptions import InvalidURLException, RequestException
 
 
@@ -81,8 +81,8 @@ class LocalIPv6HTTPServer:
 
 class TestControllerTargetURL(TestCase):
     def setUp(self):
-        self.original_options = dict(options)
-        options.update(
+        self.options = default_options()
+        self.options.update(
             {
                 "request_backend": "python",
                 "scheme": None,
@@ -92,15 +92,12 @@ class TestControllerTargetURL(TestCase):
             }
         )
         self.controller = object.__new__(Controller)
+        self.controller._options = self.options
         self.controller.resources = RunResources(interface=Mock(), logger=Mock())
-        self.controller.config = RunConfig(target=TargetConfig.from_options(options))
+        self.controller.config = RunConfig(target=TargetConfig.from_options(self.options))
         self.controller.run_state = ScanRunState()
         self.controller.target_progress = TargetProgress()
         self.controller.resources.requester = Mock()
-
-    def tearDown(self):
-        options.clear()
-        options.update(self.original_options)
 
     def test_ipv6_target_authority_keeps_literal_brackets(self):
         cases = (
@@ -154,8 +151,8 @@ class TestControllerTargetURL(TestCase):
                 )
 
     def test_scheme_option_keeps_ipv6_literal_brackets(self):
-        options["scheme"] = "https"
-        self.controller.config = replace(self.controller.config, target=TargetConfig.from_options(options))
+        self.options["scheme"] = "https"
+        self.controller.config = replace(self.controller.config, target=TargetConfig.from_options(self.options))
 
         self.controller.set_target("[2001:db8::1]:8443/private")
 
@@ -174,7 +171,7 @@ class TestControllerTargetURL(TestCase):
         )
 
         for request_backend in ("python", "native"):
-            options["request_backend"] = request_backend
+            self.options["request_backend"] = request_backend
             for target in targets:
                 with self.subTest(
                     request_backend=request_backend,
@@ -196,6 +193,7 @@ class TestControllerTargetURL(TestCase):
         for stack, async_mode, request_backend in stack_cases:
             with self.subTest(stack=stack):
                 controller = object.__new__(Controller)
+                controller._options = self.options
                 controller.resources = RunResources(interface=Mock(), logger=Mock())
                 controller.config = RunConfig()
                 controller.run_state = ScanRunState()
@@ -226,7 +224,7 @@ class TestControllerTargetURL(TestCase):
                 }
 
                 with (
-                    patch.dict(options, run_options),
+                    patch.dict(self.options, run_options),
                     patch.dict("sys.modules", {"dirsearch_native": None}),
                     patch(
                         "lib.connection.requester.Requester",
@@ -243,7 +241,7 @@ class TestControllerTargetURL(TestCase):
                     patch.object(controller.resources, "interface") as interface,
                 ):
                     try:
-                        controller._prepare_config(options)
+                        controller._prepare_config(self.options)
                         controller._run_targets()
                     finally:
                         if isinstance(controller.resources.loop, asyncio.AbstractEventLoop):
@@ -262,7 +260,7 @@ class TestControllerTargetURL(TestCase):
     def test_threaded_requester_reaches_ipv6_literal(self):
         with patch.dict(os.environ, PROXY_ENVIRONMENT):
             with LocalIPv6HTTPServer() as server:
-                requester = Requester(RequestConfig.from_options(options))
+                requester = Requester(RequestConfig.from_options(self.options))
                 self.controller.resources.requester = requester
                 try:
                     for hostname in IPV6_LOOPBACK_FORMS:
@@ -276,18 +274,18 @@ class TestControllerTargetURL(TestCase):
         self.assertEqual(server.targets, ["/ipv6-check", "/ipv6-check"])
 
     def test_native_requester_reaches_ipv6_literal(self):
-        options["request_backend"] = "native"
+        self.options["request_backend"] = "native"
         try:
             backend = NativeHTTPBackend(
-                RequestConfig.from_options(options),
-                filter_config=FilterConfig.from_options(options),
+                RequestConfig.from_options(self.options),
+                filter_config=FilterConfig.from_options(self.options),
             )
         except RequestException as error:
             self.skipTest(str(error))
 
         with patch.dict(os.environ, PROXY_ENVIRONMENT):
             with LocalIPv6HTTPServer() as server:
-                requester = Requester(RequestConfig.from_options(options))
+                requester = Requester(RequestConfig.from_options(self.options))
                 self.controller.resources.requester = requester
                 try:
                     for hostname in IPV6_LOOPBACK_FORMS:
@@ -304,8 +302,8 @@ class TestControllerTargetURL(TestCase):
 
 class TestAsyncControllerTargetURL(IsolatedAsyncioTestCase):
     def setUp(self):
-        self.original_options = dict(options)
-        options.update(
+        self.options = default_options()
+        self.options.update(
             {
                 "request_backend": "python",
                 "scheme": None,
@@ -315,19 +313,16 @@ class TestAsyncControllerTargetURL(IsolatedAsyncioTestCase):
             }
         )
         self.controller = object.__new__(Controller)
+        self.controller._options = self.options
         self.controller.resources = RunResources(interface=Mock(), logger=Mock())
-        self.controller.config = RunConfig(target=TargetConfig.from_options(options))
+        self.controller.config = RunConfig(target=TargetConfig.from_options(self.options))
         self.controller.run_state = ScanRunState()
         self.controller.target_progress = TargetProgress()
-
-    def tearDown(self):
-        options.clear()
-        options.update(self.original_options)
 
     async def test_async_requester_reaches_ipv6_literal(self):
         with patch.dict(os.environ, PROXY_ENVIRONMENT):
             with LocalIPv6HTTPServer() as server:
-                requester = AsyncRequester(RequestConfig.from_options(options))
+                requester = AsyncRequester(RequestConfig.from_options(self.options))
                 self.controller.resources.requester = requester
                 try:
                     for hostname in IPV6_LOOPBACK_FORMS:

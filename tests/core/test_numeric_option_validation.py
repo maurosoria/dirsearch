@@ -14,11 +14,14 @@ from lib.controller.session import SessionStore
 from lib.controller.session_snapshot import RunCheckpoint, SessionSnapshot
 from lib.controller.session_options import SessionOptions
 from lib.core.task_checkpoint import DictionaryCheckpoint, TaskCheckpoint
-from lib.core.data import options as runtime_options
+from lib.core.option_defaults import default_options
 from lib.core.options import parse_options
 
 
 class TestNumericOptionValidation(TestCase):
+    def setUp(self):
+        self.options = default_options()
+
     BASE_ARGUMENTS = ["dirsearch.py", "--wordlist-status", "-e", "php"]
 
     def parse(self, *arguments):
@@ -119,9 +122,10 @@ class TestNumericOptionValidation(TestCase):
         )
         output = io.StringIO()
         controller = object.__new__(Controller)
+        controller._options = self.options
 
         with (
-            patch.dict(runtime_options),
+            patch.dict(self.options),
             patch.object(SessionStore, "load", return_value=payload),
             redirect_stderr(output),
             self.assertRaises(SystemExit) as raised,

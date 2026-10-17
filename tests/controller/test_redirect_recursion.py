@@ -14,7 +14,7 @@ from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
 from lib.core.filter_config import FilterConfig
 from lib.core.request_config import RequestConfig
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.exceptions import RequestException
 from lib.parse.url import same_origin
@@ -31,8 +31,8 @@ def redirect_response(location: str) -> NativeResponse:
 
 class TestRedirectRecursionOrigin(TestCase):
     def setUp(self):
-        self.original_options = dict(options)
-        options.update(
+        self.options = default_options()
+        self.options.update(
             {
                 "skip_on_status": set(),
                 "full_url": False,
@@ -49,18 +49,15 @@ class TestRedirectRecursionOrigin(TestCase):
         )
 
         self.controller = object.__new__(Controller)
+        self.controller._options = self.options
         self.controller.resources = RunResources(interface=Mock(), logger=Mock())
 
-        self.controller.config = RunConfig(discovery=DiscoveryConfig.from_options(options))
+        self.controller.config = RunConfig(discovery=DiscoveryConfig.from_options(self.options))
         self.controller.run_state = ScanRunState()
         self.controller.target_progress = TargetProgress()
         self.controller._operation_lock = threading.Lock()
         self.controller.target_progress.url = "https://example.test/"
         self.controller.target_progress.base_path = ""
-
-    def tearDown(self):
-        options.clear()
-        options.update(self.original_options)
 
     def queued_directories(self, location: str) -> list[str]:
         self.controller.target_progress.directories = []
@@ -163,8 +160,8 @@ class DirectoryRedirectServer:
 
 class FollowedRedirectRecursionContract:
     def setUp(self):
-        self.original_options = dict(options)
-        options.update(
+        self.options = default_options()
+        self.options.update(
             {
                 "proxies": [],
                 "headers": {},
@@ -196,15 +193,11 @@ class FollowedRedirectRecursionContract:
             }
         )
 
-    def tearDown(self):
-        options.clear()
-        options.update(self.original_options)
-
-    @staticmethod
-    def queued_directories(response) -> list[str]:
+    def queued_directories(self, response) -> list[str]:
         controller = object.__new__(Controller)
+        controller._options = self.options
         controller.resources = RunResources(interface=Mock(), logger=Mock())
-        controller.config = RunConfig(discovery=DiscoveryConfig.from_options(options))
+        controller.config = RunConfig(discovery=DiscoveryConfig.from_options(self.options))
         controller.run_state = ScanRunState()
         controller.target_progress = TargetProgress()
         controller._operation_lock = threading.Lock()
@@ -235,7 +228,7 @@ class TestThreadedFollowedRedirectRecursion(
     TestCase,
 ):
     def request(self, server: DirectoryRedirectServer):
-        requester = Requester(RequestConfig.from_options(options))
+        requester = Requester(RequestConfig.from_options(self.options))
         requester.set_url(server.url)
         try:
             return requester.request("directory")
@@ -260,7 +253,7 @@ class TestAsyncFollowedRedirectRecursion(
     IsolatedAsyncioTestCase,
 ):
     async def request(self, server: DirectoryRedirectServer):
-        requester = AsyncRequester(RequestConfig.from_options(options))
+        requester = AsyncRequester(RequestConfig.from_options(self.options))
         requester.set_url(server.url)
         try:
             return await requester.request("directory")
@@ -289,8 +282,8 @@ class TestNativeFollowedRedirectRecursion(
     def request(self, server: DirectoryRedirectServer):
         try:
             backend = NativeHTTPBackend(
-                RequestConfig.from_options(options),
-                filter_config=FilterConfig.from_options(options),
+                RequestConfig.from_options(self.options),
+                filter_config=FilterConfig.from_options(self.options),
             )
         except RequestException as error:
             self.skipTest(str(error))

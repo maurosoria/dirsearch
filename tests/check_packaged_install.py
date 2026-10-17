@@ -42,7 +42,7 @@ def main() -> None:
     from dirsearch.lib.controller.controller import Controller
     from dirsearch.lib.controller.session_snapshot import RunCheckpoint, SessionSnapshot
     from dirsearch.lib.core.run_config import RunConfig
-    from dirsearch.lib.core.data import options
+    from dirsearch.lib.core.option_defaults import default_options
     from dirsearch.lib.core.discovery_config import DiscoveryConfig
     from dirsearch.lib.core.execution_config import ExecutionConfig, ScanEngine
     from dirsearch.lib.core.filter_config import FilterConfig
@@ -82,11 +82,10 @@ def main() -> None:
     # without optional engine imports, requests, or process signal changes.
     output = StringIO()
     with (
-        patch.dict(options, {"session_file": None}),
         patch.object(Controller, "setup"),
         patch.object(Controller, "_run_targets"),
     ):
-        composed = Controller(output=output)
+        composed = Controller(default_options(), output=output)
         assert composed.resources is None
         composed.run()
     assert isinstance(composed.resources, RunResources)
@@ -132,7 +131,7 @@ def main() -> None:
     # Installed composition must use the same engine enum as dispatch. A second
     # lib/dirsearch.lib class identity would silently select threaded behavior.
     for engine in ScanEngine:
-        values = dict(options, request_backend="native" if engine is ScanEngine.NATIVE else "python",
+        values = dict(default_options(), request_backend="native" if engine is ScanEngine.NATIVE else "python",
                       async_mode=engine is ScanEngine.ASYNC)
         resumed._prepare_config(values)
         assert isinstance(resumed.config, RunConfig)

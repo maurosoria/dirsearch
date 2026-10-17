@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 from lib.core.run_config import RunConfig
 from lib.controller.run_resources import RunResources
 from lib.controller.controller import Controller
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.execution_config import ExecutionConfig, ScanEngine
 from lib.core.exceptions import QuitInterrupt, SkipTargetInterrupt
 
@@ -34,6 +34,7 @@ class RecordingAsyncFuzzer:
 
 def create_controller(fuzzer):
     controller = object.__new__(Controller)
+    controller._options = default_options()
     controller.resources = RunResources(interface=Mock(), logger=Mock())
     controller.config = RunConfig(execution=ExecutionConfig(engine=ScanEngine.ASYNC))
     controller.resources.loop = asyncio.get_running_loop()
@@ -62,6 +63,9 @@ class RecordingAsyncRequester:
 
 
 class TestControllerCleanup(TestCase):
+    def setUp(self):
+        self.options = default_options()
+
     def test_sync_requester_closes_after_run_failure(self):
         requester = Mock()
 
@@ -70,12 +74,12 @@ class TestControllerCleanup(TestCase):
             raise RuntimeError("scan failed")
 
         with (
-            patch.dict(options, {"session_file": None}),
+            patch.dict(self.options, {"session_file": None}),
             patch.object(Controller, "setup"),
             patch.object(Controller, "_run_targets", new=fail_run),
             self.assertRaisesRegex(RuntimeError, "scan failed"),
         ):
-            Controller().run()
+            Controller(self.options).run()
 
         requester.close.assert_called_once_with()
 
@@ -89,12 +93,12 @@ class TestControllerCleanup(TestCase):
             raise RuntimeError("scan failed")
 
         with (
-            patch.dict(options, {"session_file": None}),
+            patch.dict(self.options, {"session_file": None}),
             patch.object(Controller, "setup"),
             patch.object(Controller, "_run_targets", new=fail_run),
             self.assertRaisesRegex(RuntimeError, "scan failed"),
         ):
-            Controller().run()
+            Controller(self.options).run()
 
         self.assertTrue(requester.closed)
         self.assertTrue(loop.closed)
@@ -111,12 +115,12 @@ class TestControllerCleanup(TestCase):
             controller.resources.response_stores = (response_store,)
 
         with (
-            patch.dict(options, {"session_file": None}),
+            patch.dict(self.options, {"session_file": None}),
             patch.object(Controller, "setup", new=setup),
             patch.object(Controller, "_run_targets"),
             self.assertRaisesRegex(OSError, "report close failed"),
         ):
-            Controller().run()
+            Controller(self.options).run()
 
         reporter.finish.assert_called_once_with()
         requester.close.assert_called_once_with()
@@ -124,10 +128,14 @@ class TestControllerCleanup(TestCase):
 
 
 class TestAsyncController(IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.options = default_options()
+
     async def test_async_python_scan_uses_non_blocking_report_callback(self):
         sync_callback = object()
         async_callback = object()
         controller = object.__new__(Controller)
+        controller._options = self.options
         controller.resources = RunResources(interface=Mock(), logger=Mock())
         controller.config = RunConfig(execution=ExecutionConfig(engine=ScanEngine.ASYNC))
         controller.resources.reporter = SimpleNamespace(
@@ -136,14 +144,14 @@ class TestAsyncController(IsolatedAsyncioTestCase):
             save_async=async_callback,
         )
 
-        with patch.dict(options, {}, clear=True):
-            callback = controller._report_match_callback()
+        callback = controller._report_match_callback()
 
         self.assertIs(callback, async_callback)
 
     async def test_async_python_without_reports_keeps_noop_sync_callback(self):
         sync_callback = object()
         controller = object.__new__(Controller)
+        controller._options = self.options
         controller.resources = RunResources(interface=Mock(), logger=Mock())
         controller.config = RunConfig(execution=ExecutionConfig(engine=ScanEngine.ASYNC))
         controller.resources.reporter = SimpleNamespace(
@@ -152,14 +160,14 @@ class TestAsyncController(IsolatedAsyncioTestCase):
             save_async=object(),
         )
 
-        with patch.dict(options, {}, clear=True):
-            callback = controller._report_match_callback()
+        callback = controller._report_match_callback()
 
         self.assertIs(callback, sync_callback)
 
     async def test_sync_and_native_scans_keep_synchronous_report_callback(self):
         sync_callback = object()
         controller = object.__new__(Controller)
+        controller._options = self.options
         controller.resources = RunResources(interface=Mock(), logger=Mock())
         controller.config = RunConfig()
         controller.resources.reporter = SimpleNamespace(
@@ -170,7 +178,7 @@ class TestAsyncController(IsolatedAsyncioTestCase):
 
         for engine in (ScanEngine.THREADED, ScanEngine.NATIVE):
             controller.config = replace(controller.config, execution=ExecutionConfig(engine=engine))
-            with self.subTest(engine=engine), patch.dict(options, {}, clear=True):
+            with self.subTest(engine=engine):
                 callback = controller._report_match_callback()
 
             self.assertIs(callback, sync_callback)
@@ -179,7 +187,7 @@ class TestAsyncController(IsolatedAsyncioTestCase):
         controller = create_controller(BlockingAsyncFuzzer())
         controller.start_time = time.time()
 
-        with patch.dict(options, {"max_time": 0, "target_max_time": 0}):
+        with patch.dict(self.options, {"max_time": 0, "target_max_time": 0}):
             run_task = controller.resources.loop.create_task(
                 controller.start_coroutines(time.time())
             )
@@ -198,13 +206,13 @@ class TestAsyncController(IsolatedAsyncioTestCase):
         controller.start_time = 90
 
         with (
-            patch.dict(options, {"max_time": 5, "target_max_time": 0}),
+            patch.dict(self.options, {"max_time": 5, "target_max_time": 0}),
             patch("lib.controller.controller.time.time", return_value=100),
         ):
             with self.assertRaisesRegex(
                 QuitInterrupt, "Runtime exceeded the maximum set by the user"
             ):
-                controller.config = replace(controller.config, execution=ExecutionConfig.from_options(options))
+                controller.config = replace(controller.config, execution=ExecutionConfig.from_options(self.options))
                 await controller.start_coroutines(start_time=100)
 
         self.assertFalse(fuzzer.started)
@@ -215,14 +223,14 @@ class TestAsyncController(IsolatedAsyncioTestCase):
         controller.start_time = 100
 
         with (
-            patch.dict(options, {"max_time": 0, "target_max_time": 5}),
+            patch.dict(self.options, {"max_time": 0, "target_max_time": 5}),
             patch("lib.controller.controller.time.time", return_value=100),
         ):
             with self.assertRaisesRegex(
                 SkipTargetInterrupt,
                 "Runtime for target exceeded the maximum set by the user",
             ):
-                controller.config = replace(controller.config, execution=ExecutionConfig.from_options(options))
+                controller.config = replace(controller.config, execution=ExecutionConfig.from_options(self.options))
                 await controller.start_coroutines(start_time=90)
 
         self.assertFalse(fuzzer.started)
@@ -233,11 +241,11 @@ class TestAsyncController(IsolatedAsyncioTestCase):
         controller.start_time = 90
 
         with (
-            patch.dict(options, {"max_time": 5, "target_max_time": 20}),
+            patch.dict(self.options, {"max_time": 5, "target_max_time": 20}),
             patch("lib.controller.controller.time.time", return_value=100),
         ):
             with self.assertRaises(QuitInterrupt):
-                controller.config = replace(controller.config, execution=ExecutionConfig.from_options(options))
+                controller.config = replace(controller.config, execution=ExecutionConfig.from_options(self.options))
                 await controller.start_coroutines(start_time=95)
 
         self.assertFalse(fuzzer.started)

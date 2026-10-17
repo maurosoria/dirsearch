@@ -17,7 +17,7 @@ from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
 from lib.controller.session import SessionStore
 from lib.controller.session_options import SessionOptions
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.dictionary import Dictionary
 from lib.core.execution_config import ExecutionConfig, ScanEngine
 from lib.core.fuzzer import AsyncFuzzer
@@ -27,6 +27,7 @@ from lib.core.wordlist_config import WordlistConfig
 
 def controller_for(config, engine=ScanEngine.THREADED):
     controller = object.__new__(Controller)
+    controller._options = default_options()
     controller.resources = RunResources(interface=Mock(), logger=Mock())
     controller.config = RunConfig(results=config, execution=ExecutionConfig(engine=engine))
     controller.run_state = ScanRunState()
@@ -44,6 +45,9 @@ def response_for():
 
 
 class TestControllerResultConfig(IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.options = default_options()
+
     async def test_prepared_presentation_and_replay_ignore_later_options_in_all_engines(self):
         response = response_for()
         for engine in ScanEngine:
@@ -51,7 +55,7 @@ class TestControllerResultConfig(IsolatedAsyncioTestCase):
                 with self.subTest(engine=engine, enabled=enabled):
                     proxy = "http://prepared.example.test:8080" if enabled else None
                     controller = controller_for(ResultConfig(full_url=enabled, replay_proxy=proxy), engine)
-                    with patch.dict(options, {
+                    with patch.dict(self.options, {
                         "full_url": not enabled, "replay_proxy": "http://unrelated.example.test:8080",
                     }, clear=True):
                         if engine is ScanEngine.ASYNC:
@@ -69,7 +73,7 @@ class TestControllerResultConfig(IsolatedAsyncioTestCase):
                         controller.resources.requester.request.assert_not_called()
                         controller.resources.requester.replay_request.assert_not_called()
 
-    async def test_independent_capture_destinations_work_with_global_options_empty(self):
+    async def test_independent_capture_destinations_work_without_ambient_options(self):
         directory = Path(self.enterContext(TemporaryDirectory()))
         controllers = []
         response = response_for()
@@ -78,12 +82,11 @@ class TestControllerResultConfig(IsolatedAsyncioTestCase):
             controller = controller_for(config, engine)
             controllers.append(controller)
             self.addCleanup(controller.resources.close)
-            with patch.dict(options, {}, clear=True):
-                controller._prepare_response_stores()
-                if engine is ScanEngine.ASYNC:
-                    await controller.save_response_async(response)
-                else:
-                    controller.save_response(response)
+            controller._prepare_response_stores()
+            if engine is ScanEngine.ASYNC:
+                await controller.save_response_async(response)
+            else:
+                controller.save_response(response)
 
         controllers[0].resources.close()
         await controllers[1].save_response_async(response)
@@ -99,10 +102,10 @@ class TestControllerResultConfig(IsolatedAsyncioTestCase):
                 self.assertEqual(record["bodyComplete"], response.body_complete)
                 self.assertEqual(record["bodyTruncated"], response.body_truncated)
 
-    def test_disabled_capture_does_not_create_stores_from_global_destinations(self):
+    def test_disabled_capture_does_not_create_stores_from_source_destinations(self):
         controller = controller_for(ResultConfig())
         with (
-            patch.dict(options, {"save_response": "unrelated", "save_response_jsonl": "unrelated.jsonl"}),
+            patch.dict(self.options, {"save_response": "unrelated", "save_response_jsonl": "unrelated.jsonl"}),
             patch("lib.controller.controller.create_response_stores", return_value=()) as factory,
         ):
             controller._prepare_response_stores()
@@ -111,6 +114,9 @@ class TestControllerResultConfig(IsolatedAsyncioTestCase):
 
 
 class TestResultPreparation(TestCase):
+    def setUp(self):
+        self.options = default_options()
+
     def test_setup_and_real_resume_share_policy_with_transport_across_targets(self):
         for engine, requester_path in (
             (ScanEngine.THREADED, "lib.connection.requester.Requester"),
@@ -123,7 +129,7 @@ class TestResultPreparation(TestCase):
                         directory = Path(root)
                         raw_directory = directory / "responses"
                         jsonl_file = directory / "responses.jsonl"
-                        saved = dict(options)
+                        saved = dict(self.options)
                         saved.update(
                             session_file=None, raw_file=None, log_file=None,
                             wordlist_backend="python", wordlists=[], output_formats=[],
@@ -165,7 +171,7 @@ class TestResultPreparation(TestCase):
                             self.assertEqual(controller.config.results, expected)
                             # Contradict capture between store creation and
                             # transport composition, then again between targets.
-                            options.update(
+                            self.options.update(
                                 save_response=None if capture else str(directory / "wrong"),
                                 save_response_jsonl=None, full_url=False,
                                 replay_proxy="http://unrelated.example.test:8080",
@@ -187,10 +193,10 @@ class TestResultPreparation(TestCase):
                             else:
                                 self.assertIsNone(replay)
                                 controller.save_response(response)
-                            options.update(full_url=False, replay_proxy=None)
+                            self.options.update(full_url=False, replay_proxy=None)
 
                         with (
-                            patch.dict(options, current),
+                            patch.dict(self.options, current),
                             patch.object(Controller, "_run_targets", new=run),
                             patch.object(Controller, "start", new=start),
                             patch.object(Controller, "set_target", new=set_target),
@@ -200,7 +206,7 @@ class TestResultPreparation(TestCase):
                             patch("lib.controller.controller.signal.signal"),
                             patch("lib.controller.controller.create_terminal"),
                         ):
-                            controller = Controller()
+                            controller = Controller(self.options)
                             controller.run()
                         self.assertEqual(len(policies), 2)
                         self.assertIs(policies[0], policies[1])
@@ -228,11 +234,11 @@ class TestResultPreparation(TestCase):
         expected = ResultConfig(full_url=True, replay_proxy="http://prepared.example.test:8080")
 
         def parse(_path):
-            options.update(full_url=True, replay_proxy=expected.replay_proxy)
+            controller._options.update(full_url=True, replay_proxy=expected.replay_proxy)
             return ["http://example.test/"], "POST", {}, b""
 
         with (
-            patch.dict(options, {
+            patch.dict(self.options, {
                 "session_file": None, "raw_file": "request.txt", "wordlists": [],
                 "log_file": None, "output_formats": [], "save_response": None,
                 "save_response_jsonl": None, "full_url": False, "replay_proxy": None,
@@ -240,7 +246,7 @@ class TestResultPreparation(TestCase):
             patch("lib.controller.controller.parse_raw", side_effect=parse),
             patch.object(Controller, "_run_targets"),
         ):
-            controller = Controller(output=StringIO())
+            controller = Controller(self.options, output=StringIO())
             controller.run()
         self.assertEqual(controller.config.results, expected)
 
@@ -250,7 +256,7 @@ class TestResultPreparation(TestCase):
             # a directory. The existing factory must close the first resource.
             first_store = Mock()
             with (
-                patch.dict(options, {
+                patch.dict(self.options, {
                     "session_file": None, "raw_file": None, "wordlists": [],
                     "log_file": None, "output_formats": [],
                     "save_response": str(Path(root, "responses")), "save_response_jsonl": root,
@@ -259,7 +265,7 @@ class TestResultPreparation(TestCase):
                 patch.object(Controller, "_run_targets") as run,
                 self.assertRaises(SystemExit) as stopped,
             ):
-                Controller(output=StringIO()).run()
+                Controller(self.options, output=StringIO()).run()
             self.assertEqual(stopped.exception.code, 1)
             first_store.close.assert_called_once_with()
             run.assert_not_called()

@@ -8,7 +8,7 @@ import threading
 from unittest import TestCase
 from unittest.mock import patch
 
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.terminal_config import TerminalConfig
 from lib.view.colors import BACK_COLORS, FORE_COLORS, STYLES, clean_color
 from lib.view.terminal import CLI, EmptyCLI, QuietCLI, create_terminal
@@ -23,6 +23,9 @@ def response_for(status=200):
 
 
 class TestTerminalOwnership(TestCase):
+    def setUp(self):
+        self.options = default_options()
+
     def make_terminal(self, **settings):
         terminal = CLI(TerminalConfig(**settings), stream=StringIO())
         self.addCleanup(terminal.close)
@@ -42,7 +45,7 @@ class TestTerminalOwnership(TestCase):
 
     def test_verbose_policy_is_captured_by_the_instance(self):
         verbose = self.make_terminal(color=False, verbose=True)
-        with patch.dict(options, verbose=False), patch.object(verbose, "new_line") as line:
+        with patch.dict(self.options, verbose=False), patch.object(verbose, "new_line") as line:
             verbose.status_report(response_for(), False)
         self.assertIn("(123ms, text/plain)", line.call_args.args[0])
 
@@ -51,8 +54,7 @@ class TestTerminalOwnership(TestCase):
             color=False, extensions=["html"], prefixes=["api/"], suffixes=["~"],
             method="POST", concurrency=7,
         )
-        with patch.dict(options, {}, clear=True):
-            terminal.print_config(12)
+        terminal.print_config(12)
         self.assertIn("Extensions: html", terminal.buffer)
         self.assertIn("Prefixes: api/", terminal.buffer)
         self.assertIn("Suffixes: ~", terminal.buffer)

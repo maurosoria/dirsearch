@@ -12,7 +12,7 @@ from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
 from lib.controller.session import SessionStore
 from lib.controller.session_options import SessionOptions
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.dictionary import Dictionary
 from lib.core.exceptions import QuitInterrupt, RequestException, SkipTargetInterrupt
 from lib.core.execution_config import ExecutionConfig, ScanEngine
@@ -23,6 +23,7 @@ from lib.core.wordlist_config import WordlistConfig
 
 def make_controller(config):
     controller = object.__new__(Controller)
+    controller._options = default_options()
     controller.resources = RunResources(interface=Mock(), logger=Mock())
     controller.config = RunConfig(execution=config)
     controller.run_state = ScanRunState()
@@ -34,6 +35,9 @@ def make_controller(config):
 
 
 class TestControllerExecutionConfig(TestCase):
+    def setUp(self):
+        self.options = default_options()
+
     def test_time_limits_keep_zero_disabled_and_earliest_deadline_semantics(self):
         cases = (
             (0, 0, None, None),
@@ -43,7 +47,7 @@ class TestControllerExecutionConfig(TestCase):
             (4, 10, 3, QuitInterrupt),
             (4, 4, 3, QuitInterrupt),
         )
-        with patch.dict(options, {}, clear=True), patch("lib.controller.controller.time.time", return_value=1):
+        with patch("lib.controller.controller.time.time", return_value=1):
             for total, target, remaining, error_type in cases:
                 with self.subTest(total=total, target=target):
                     controller = make_controller(ExecutionConfig(max_time=total, target_max_time=target))
@@ -55,7 +59,7 @@ class TestControllerExecutionConfig(TestCase):
                         self.assertIsInstance(error, error_type)
 
     def test_expired_limit_precedence_does_not_depend_on_global_options(self):
-        with patch.dict(options, {}, clear=True), patch("lib.controller.controller.time.time", return_value=4):
+        with patch("lib.controller.controller.time.time", return_value=4):
             for total, target, error in ((4, 4, QuitInterrupt), (10, 4, SkipTargetInterrupt)):
                 with self.subTest(total=total, target=target):
                     controller = make_controller(ExecutionConfig(max_time=total, target_max_time=target))
@@ -74,7 +78,6 @@ class TestControllerExecutionConfig(TestCase):
                 controller.fuzzer = Mock()
                 controller.fuzzer.is_finished.side_effect = [False, True]
                 with (
-                    patch.dict(options, {}, clear=True),
                     patch("lib.controller.controller.time.time", return_value=now),
                     patch("lib.controller.controller.time.sleep") as sleep,
                 ):
@@ -93,20 +96,19 @@ class TestControllerExecutionConfig(TestCase):
         statuses.clear()
         response = NativeResponse("http://example.test/item", 429, [], b"")
         error = RequestException("synthetic request failure")
-        with patch.dict(options, {}, clear=True):
-            with self.assertRaises(SkipTargetInterrupt):
-                stopped.match_callback(response)
-            with self.assertRaises(QuitInterrupt):
-                stopped.raise_error(error)
-            continuing.raise_error(error)
+        with self.assertRaises(SkipTargetInterrupt):
+            stopped.match_callback(response)
+        with self.assertRaises(QuitInterrupt):
+            stopped.raise_error(error)
+        continuing.raise_error(error)
         self.assertEqual(stopped.run_state.errors, 0)
         self.assertEqual(continuing.run_state.errors, 1)
         self.assertEqual(continuing.run_state.consecutive_errors, 1)
         continuing.run_state.consecutive_errors = MAX_CONSECUTIVE_REQUEST_ERRORS
-        with patch.dict(options, {}, clear=True), self.assertRaises(SkipTargetInterrupt):
+        with self.assertRaises(SkipTargetInterrupt):
             continuing.raise_error(error)
         with (
-            patch.dict(options, {"skip_on_status": {429}}, clear=True),
+            patch.dict(self.options, {"skip_on_status": {429}}, clear=True),
             patch.object(continuing.resources, "interface") as interface,
         ):
             self.assertIsNone(continuing.match_callback(response))
@@ -124,13 +126,13 @@ class TestControllerExecutionConfig(TestCase):
                     targets = []
 
                     def prepare(controller, *_args):
-                        options.update(
+                        controller._options.update(
                             request_backend=backend, async_mode=async_mode,
                             thread_count=3, delay=0.125, max_time=30, target_max_time=4,
                             skip_on_status={429}, exit_on_error=True, session_file=None,
                             urls=["http://first.test/", "http://second.test/"], subdirs=[],
                         )
-                        controller._prepare_config(options)
+                        controller._prepare_config(controller._options)
                         controller.resources.reporter = Mock(reports=(object(),))
                         controller.resources.response_stores = (Mock(),)
                         controller.dictionary = Mock()
@@ -157,8 +159,8 @@ class TestControllerExecutionConfig(TestCase):
                                 controller.update_progress_bar_batch,
                                 controller.reset_consecutive_errors_batch,
                             ))
-                        options.update(thread_count=99, delay=0, max_time=0, target_max_time=0, exit_on_error=False)
-                        options["skip_on_status"].clear()
+                        controller._options.update(thread_count=99, delay=0, max_time=0, target_max_time=0, exit_on_error=False)
+                        controller._options["skip_on_status"].clear()
 
                     def set_target(controller, url):
                         controller.target_progress.url = url
@@ -171,7 +173,7 @@ class TestControllerExecutionConfig(TestCase):
                     def make_requester(*_args, **_kwargs):
                         # Deliberately contradict the prepared flags before loop
                         # creation and before either target's fuzzer is built.
-                        options.update(
+                        self.options.update(
                             request_backend="python" if backend == "native" else "native",
                             async_mode=not async_mode,
                             urls=["http://unrelated.test/"],
@@ -179,7 +181,7 @@ class TestControllerExecutionConfig(TestCase):
                         return requester
 
                     with (
-                        patch.dict(options, {
+                        patch.dict(self.options, {
                             "request_backend": "python" if backend == "native" else "native",
                             "async_mode": False,
                             "session_file": "session.json" if resumed else None,
@@ -194,7 +196,7 @@ class TestControllerExecutionConfig(TestCase):
                         patch("lib.controller.controller.signal.signal"),
                         patch("lib.controller.controller.create_terminal"),
                     ):
-                        controller = Controller()
+                        controller = Controller(self.options)
                         controller.run()
                     self.assertEqual(len(policies), 2)
                     self.assertEqual(targets, ["http://first.test/", "http://second.test/"])
@@ -226,7 +228,7 @@ class TestControllerExecutionConfig(TestCase):
             ("native", False, ScanEngine.NATIVE, "lib.connection.native.NativeRequester"),
         ):
             with self.subTest(backend=backend, async_mode=async_mode), tempfile.TemporaryDirectory() as directory:
-                saved_options = dict(options)
+                saved_options = dict(self.options)
                 saved_options.update(
                     request_backend=backend, async_mode=async_mode, urls=[],
                     thread_count=3, delay=0.125, max_time=30, target_max_time=4,
@@ -247,7 +249,7 @@ class TestControllerExecutionConfig(TestCase):
                 if async_mode:
                     requester.close = AsyncMock()
                 with (
-                    patch.dict(options, {
+                    patch.dict(self.options, {
                         "session_file": checkpoint, "thread_count": 99, "delay": 0,
                         "max_time": 0, "target_max_time": 0, "skip_on_status": set(),
                         "exit_on_error": False,
@@ -261,7 +263,7 @@ class TestControllerExecutionConfig(TestCase):
                     patch("lib.controller.controller.signal.signal"),
                     patch("lib.controller.controller.create_terminal"),
                 ):
-                    controller = Controller()
+                    controller = Controller(self.options)
                     controller.run()
                 self.assertEqual(controller.config.execution, ExecutionConfig(
                     engine=engine,

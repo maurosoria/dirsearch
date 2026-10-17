@@ -2,10 +2,13 @@ from unittest import TestCase
 from unittest.mock import AsyncMock, Mock, patch
 
 from lib.controller.controller import Controller
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 
 
 class TestControllerRequestConfig(TestCase):
+    def setUp(self):
+        self.options = default_options()
+
     def test_requester_is_configured_after_setup_or_session_restore(self):
         for backend, async_mode, requester_path in (
             ("python", False, "lib.connection.requester.Requester"),
@@ -17,19 +20,19 @@ class TestControllerRequestConfig(TestCase):
                     def prepare(controller, *_args):
                         # Raw parsing and session restoration both finish before
                         # run() constructs the transport's immutable baseline.
-                        options.update(
+                        self.options.update(
                             http_method="PATCH", data=b"prepared-body",
                             headers={"X-Prepared": "yes"}, timeout=3,
                             session_file=None, urls=[],
                         )
-                        controller._prepare_config(options)
+                        controller._prepare_config(self.options)
                         controller.resources.reporter = Mock(reports=())
 
                     requester = Mock()
                     if async_mode:
                         requester.close = AsyncMock()
                     with (
-                        patch.dict(options, {
+                        patch.dict(self.options, {
                             "request_backend": backend, "async_mode": async_mode,
                             "session_file": "session.json" if resumed else None,
                             "http_method": "GET", "data": None, "headers": {},
@@ -40,10 +43,10 @@ class TestControllerRequestConfig(TestCase):
                         patch("lib.controller.controller.signal.signal"),
                         patch("lib.controller.controller.create_terminal"),
                     ):
-                        controller = Controller()
+                        controller = Controller(self.options)
                         controller.run()
-                        options["headers"]["X-Prepared"] = "changed"
-                        options["http_method"] = "DELETE"
+                        self.options["headers"]["X-Prepared"] = "changed"
+                        self.options["http_method"] = "DELETE"
 
                     factory.assert_called_once()
                     if backend == "python":

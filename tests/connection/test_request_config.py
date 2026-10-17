@@ -10,7 +10,7 @@ from urllib.parse import urlsplit
 
 from lib.connection.native import NativeHTTPBackend, NativeRequester
 from lib.connection.requester import AsyncRequester, Requester
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.native_runtime import get_native_extension_version_error
 from lib.core.filter_config import FilterConfig
 from lib.core.request_config import RequestConfig
@@ -61,6 +61,7 @@ class ConfigEchoHandler(BaseHTTPRequestHandler):
 
 class TestRequestConfigIsolation(TestCase):
     def setUp(self):
+        self.options = default_options()
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), ConfigEchoHandler)
         self.server.request_barrier = threading.Barrier(2)
         self.server_thread = threading.Thread(
@@ -106,10 +107,9 @@ class TestRequestConfigIsolation(TestCase):
         requester.set_query(f"run={('first', 'second')[index]}")
 
     def run_sync_pair(self, native=False):
-        # An empty global map catches reads during construction, lazy startup,
-        # request dispatch and cleanup. Only the explicit configs are available.
+        # Only explicit per-requester configs are available during construction,
+        # lazy startup, request dispatch and cleanup.
         with (
-            patch.dict(options, {}, clear=True),
             patch.dict(os.environ, {"NO_PROXY": "*", "no_proxy": "*"}),
         ):
             requesters = []
@@ -170,7 +170,6 @@ class TestRequestConfigIsolation(TestCase):
                     await requester.close()
 
         with (
-            patch.dict(options, {}, clear=True),
             patch.dict(os.environ, {"NO_PROXY": "*", "no_proxy": "*"}),
         ):
             asyncio.run(run())
@@ -192,17 +191,16 @@ class TestNativeConfigSnapshot(TestCase):
             requester.set_url("http://example.test/")
             filters["include_status_codes"].append(404)
             filters["match_sizes"][0][1] = 99
-            with patch.dict(options, {}, clear=True):
-                try:
-                    backend = requester.get_backend()
-                    list(backend.scan(requester._url, ["first"]))
-                    list(backend.scan(requester._url, ["second"]))
-                    self.assertEqual(len(fake_native.engines), 1)
-                    requester.request("replay", proxy="http://replay.example:8080")
-                    requester.close()
-                    requester.request("reopened")
-                finally:
-                    requester.close()
+            try:
+                backend = requester.get_backend()
+                list(backend.scan(requester._url, ["first"]))
+                list(backend.scan(requester._url, ["second"]))
+                self.assertEqual(len(fake_native.engines), 1)
+                requester.request("replay", proxy="http://replay.example:8080")
+                requester.close()
+                requester.request("reopened")
+            finally:
+                requester.close()
 
         self.assertEqual(len(fake_native.engines), 3)
         for engine in fake_native.engines:
@@ -231,7 +229,6 @@ class TestNativeConfigSnapshot(TestCase):
         filters = {"filter_sizes": [[5, 10]]}
         with (
             patch.dict("sys.modules", {"dirsearch_native": fake_native}),
-            patch.dict(options, {}, clear=True),
         ):
             backend = NativeHTTPBackend(RequestConfig(), filter_config=FilterConfig(**filters))
             try:

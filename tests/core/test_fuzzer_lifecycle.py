@@ -3,7 +3,7 @@ import threading
 from unittest import IsolatedAsyncioTestCase, TestCase
 from unittest.mock import patch
 
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.execution_config import ExecutionConfig
 from lib.core.filter_config import FilterConfig
@@ -93,15 +93,18 @@ class CoordinatedAsyncRequester:
 
 
 class TestThreadedFuzzerLifecycle(TestCase):
+    def setUp(self):
+        self.options = default_options()
+
     def test_saved_state_retries_in_flight_path(self):
-        dictionary = Dictionary(WordlistConfig.from_options(options))
+        dictionary = Dictionary(WordlistConfig.from_options(self.options))
         dictionary.__setstate__((["blocked", "later"], 0, [], 0))
         requester = BlockingSyncRequester()
         fuzzer = Fuzzer(
             requester,
             dictionary,
-            filter_config=FilterConfig.from_options(options),
-            discovery_config=DiscoveryConfig.from_options(options),
+            filter_config=FilterConfig.from_options(self.options),
+            discovery_config=DiscoveryConfig.from_options(self.options),
             execution_config=ExecutionConfig(concurrency=1),
             match_callbacks=(),
             not_found_callbacks=(),
@@ -109,7 +112,7 @@ class TestThreadedFuzzerLifecycle(TestCase):
         )
         fuzzer.setup_scanners = lambda: None
 
-        with patch.dict(options, {"thread_count": 1, "delay": 0}):
+        with patch.dict(self.options, {"thread_count": 1, "delay": 0}):
             fuzzer.start()
             try:
                 self.assertTrue(requester.started.wait(timeout=2))
@@ -121,7 +124,7 @@ class TestThreadedFuzzerLifecycle(TestCase):
                     worker.join(timeout=2)
 
         self.assertFalse(any(worker.is_alive() for worker in fuzzer._threads))
-        resumed = Dictionary(WordlistConfig.from_options(options))
+        resumed = Dictionary(WordlistConfig.from_options(self.options))
         resumed.__setstate__(saved_state)
         self.assertEqual([next(resumed), next(resumed)], ["blocked", "later"])
         with self.assertRaises(StopIteration):
@@ -132,7 +135,7 @@ class TestThreadedFuzzerLifecycle(TestCase):
         with self.assertRaises(StopIteration):
             next(resumed)
 
-        completed = Dictionary(WordlistConfig.from_options(options))
+        completed = Dictionary(WordlistConfig.from_options(self.options))
         completed.__setstate__(dictionary.__getstate__())
         self.assertEqual(next(completed), "later")
         with self.assertRaises(StopIteration):
@@ -150,8 +153,8 @@ class TestThreadedFuzzerLifecycle(TestCase):
         fuzzer = Fuzzer(
             requester,
             LifecycleDictionary(["fail", "blocked", "after"]),
-            filter_config=FilterConfig.from_options(options),
-            discovery_config=DiscoveryConfig.from_options(options),
+            filter_config=FilterConfig.from_options(self.options),
+            discovery_config=DiscoveryConfig.from_options(self.options),
             execution_config=ExecutionConfig(concurrency=2),
             match_callbacks=(),
             not_found_callbacks=(),
@@ -159,7 +162,7 @@ class TestThreadedFuzzerLifecycle(TestCase):
         )
         fuzzer.setup_scanners = lambda: None
 
-        with patch.dict(options, {"thread_count": 2, "delay": 0}):
+        with patch.dict(self.options, {"thread_count": 2, "delay": 0}):
             fuzzer.start()
             try:
                 self.assertTrue(callback_failed.wait(timeout=2))
@@ -180,6 +183,9 @@ class TestThreadedFuzzerLifecycle(TestCase):
 
 
 class TestAsyncFuzzerLifecycle(IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.options = default_options()
+
     async def test_terminal_callback_failure_cancels_and_drains_siblings(self):
         requester = CoordinatedAsyncRequester()
 
@@ -190,8 +196,8 @@ class TestAsyncFuzzerLifecycle(IsolatedAsyncioTestCase):
         fuzzer = AsyncFuzzer(
             requester,
             LifecycleDictionary(["fail", "blocked"]),
-            filter_config=FilterConfig.from_options(options),
-            discovery_config=DiscoveryConfig.from_options(options),
+            filter_config=FilterConfig.from_options(self.options),
+            discovery_config=DiscoveryConfig.from_options(self.options),
             execution_config=ExecutionConfig(concurrency=2),
             match_callbacks=(),
             not_found_callbacks=(),
@@ -203,7 +209,7 @@ class TestAsyncFuzzerLifecycle(IsolatedAsyncioTestCase):
 
         fuzzer.setup_scanners = skip_scanners
 
-        with patch.dict(options, {"thread_count": 2, "delay": 0}):
+        with patch.dict(self.options, {"thread_count": 2, "delay": 0}):
             with self.assertRaisesRegex(SkipTargetInterrupt, "stop target"):
                 await asyncio.wait_for(fuzzer.start(), timeout=2)
 

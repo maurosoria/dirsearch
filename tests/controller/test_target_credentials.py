@@ -11,14 +11,14 @@ from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
 from lib.core.request_config import RequestConfig
 from lib.core.target_config import TargetConfig
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.exceptions import InvalidURLException
 
 
 class TestControllerTargetCredentials(TestCase):
     def setUp(self):
-        self.original_options = dict(options)
-        options.update(
+        self.options = default_options()
+        self.options.update(
             {
                 "request_backend": "python",
                 "scheme": None,
@@ -26,15 +26,12 @@ class TestControllerTargetCredentials(TestCase):
             }
         )
         self.controller = object.__new__(Controller)
+        self.controller._options = self.options
         self.controller.resources = RunResources(interface=Mock(), logger=Mock())
-        self.controller.config = RunConfig(target=TargetConfig.from_options(options))
+        self.controller.config = RunConfig(target=TargetConfig.from_options(self.options))
         self.controller.run_state = ScanRunState()
         self.controller.target_progress = TargetProgress()
         self.controller.resources.requester = Mock()
-
-    def tearDown(self):
-        options.clear()
-        options.update(self.original_options)
 
     def test_embedded_basic_credentials_are_parsed_and_decoded(self):
         cases = (
@@ -110,8 +107,8 @@ class TestControllerTargetCredentials(TestCase):
 
 class TargetAuthenticationIntegrationMixin:
     def setUp(self):
-        self.original_options = dict(options)
-        options.update(
+        self.options = default_options()
+        self.options.update(
             {
                 "request_backend": "python",
                 "scheme": None,
@@ -132,15 +129,11 @@ class TargetAuthenticationIntegrationMixin:
             }
         )
 
-    def tearDown(self):
-        options.clear()
-        options.update(self.original_options)
-
-    @staticmethod
-    def controller_for(requester):
+    def controller_for(self, requester):
         controller = object.__new__(Controller)
+        controller._options = self.options
         controller.resources = RunResources(interface=Mock(), logger=Mock())
-        controller.config = RunConfig(target=TargetConfig.from_options(options))
+        controller.config = RunConfig(target=TargetConfig.from_options(self.options))
         controller.run_state = ScanRunState()
         controller.target_progress = TargetProgress()
         controller.resources.requester = requester
@@ -151,7 +144,7 @@ class TestSyncTargetAuthenticationIntegration(
     TargetAuthenticationIntegrationMixin, TestCase
 ):
     def test_embedded_authentication_does_not_persist_to_next_target(self):
-        requester = Requester(RequestConfig.from_options(options))
+        requester = Requester(RequestConfig.from_options(self.options))
         controller = self.controller_for(requester)
         try:
             controller.set_target("http://target-user:target-password@first.test/")
@@ -164,13 +157,13 @@ class TestSyncTargetAuthenticationIntegration(
             requester.close()
 
     def test_configured_authentication_is_restored_after_target_override(self):
-        options.update(
+        self.options.update(
             {
                 "auth": "global-user:global-password",
                 "auth_type": "basic",
             }
         )
-        requester = Requester(RequestConfig.from_options(options))
+        requester = Requester(RequestConfig.from_options(self.options))
         configured_auth = requester.session.auth
         controller = self.controller_for(requester)
         try:
@@ -184,8 +177,8 @@ class TestSyncTargetAuthenticationIntegration(
             requester.close()
 
     def test_explicit_authorization_header_survives_target_override(self):
-        options["headers"] = {"Authorization": "Bearer configured-token"}
-        requester = Requester(RequestConfig.from_options(options))
+        self.options["headers"] = {"Authorization": "Bearer configured-token"}
+        requester = Requester(RequestConfig.from_options(self.options))
         controller = self.controller_for(requester)
         try:
             controller.set_target("http://target-user:target-password@first.test/")
@@ -214,7 +207,7 @@ class TestAsyncTargetAuthenticationIntegration(
     TargetAuthenticationIntegrationMixin, IsolatedAsyncioTestCase
 ):
     async def test_embedded_authentication_does_not_persist_to_next_target(self):
-        requester = AsyncRequester(RequestConfig.from_options(options))
+        requester = AsyncRequester(RequestConfig.from_options(self.options))
         controller = self.controller_for(requester)
         try:
             controller.set_target("http://target-user:target-password@first.test/")
@@ -227,13 +220,13 @@ class TestAsyncTargetAuthenticationIntegration(
             await requester.close()
 
     async def test_configured_authentication_is_restored_after_target_override(self):
-        options.update(
+        self.options.update(
             {
                 "auth": "global-user:global-password",
                 "auth_type": "basic",
             }
         )
-        requester = AsyncRequester(RequestConfig.from_options(options))
+        requester = AsyncRequester(RequestConfig.from_options(self.options))
         configured_auth = requester.session.auth
         controller = self.controller_for(requester)
         try:
@@ -247,8 +240,8 @@ class TestAsyncTargetAuthenticationIntegration(
             await requester.close()
 
     async def test_explicit_authorization_header_survives_target_override(self):
-        options["headers"] = {"Authorization": "Bearer configured-token"}
-        requester = AsyncRequester(RequestConfig.from_options(options))
+        self.options["headers"] = {"Authorization": "Bearer configured-token"}
+        requester = AsyncRequester(RequestConfig.from_options(self.options))
         controller = self.controller_for(requester)
         try:
             controller.set_target("http://target-user:target-password@first.test/")

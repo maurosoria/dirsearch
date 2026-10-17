@@ -5,7 +5,7 @@ from dataclasses import FrozenInstanceError
 from unittest import TestCase
 from unittest.mock import patch
 
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.execution_config import ExecutionConfig, ScanEngine
 from lib.core.filter_config import FilterConfig
@@ -20,8 +20,11 @@ from lib.core.wordlist_config import WordlistConfig
 
 
 class TestRunConfig(TestCase):
+    def setUp(self):
+        self.options = default_options()
+
     def values(self, **changes):
-        values = deepcopy(options)
+        values = deepcopy(self.options)
         values.update(changes)
         return values
 
@@ -32,20 +35,19 @@ class TestRunConfig(TestCase):
             thread_count=3, delay=0.125, include_status_codes={200},
             log_file="test.log", scheme="https", full_url=True,
         )
-        with patch.dict(options, {}, clear=True):
-            config = RunConfig.from_options(values)
-            self.assertEqual(config, RunConfig(
-                wordlist=WordlistConfig.from_options(values),
-                request=RequestConfig.from_options(values),
-                filters=FilterConfig.from_options(values),
-                discovery=DiscoveryConfig.from_options(values),
-                execution=ExecutionConfig.from_options(values),
-                reports=ReportConfig.from_options(values),
-                target=TargetConfig.from_options(values),
-                terminal=TerminalConfig.from_options(values),
-                logging=LogConfig.from_options(values),
-                results=ResultConfig.from_options(values),
-            ))
+        config = RunConfig.from_options(values)
+        self.assertEqual(config, RunConfig(
+            wordlist=WordlistConfig.from_options(values),
+            request=RequestConfig.from_options(values),
+            filters=FilterConfig.from_options(values),
+            discovery=DiscoveryConfig.from_options(values),
+            execution=ExecutionConfig.from_options(values),
+            reports=ReportConfig.from_options(values),
+            target=TargetConfig.from_options(values),
+            terminal=TerminalConfig.from_options(values),
+            logging=LogConfig.from_options(values),
+            results=ResultConfig.from_options(values),
+        ))
 
     def test_shared_settings_agree_for_every_engine_and_capture_destination(self):
         for engine in ScanEngine:

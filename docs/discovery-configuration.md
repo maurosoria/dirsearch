@@ -85,7 +85,7 @@ The canonical command is `python -m unittest discover -s tests -t .`.
 
 Coverage includes immutable collections and the complete options adapter,
 different calibration variants across all three fuzzer classes, recursion
-depth/exclusion/deduplication with global options empty, independent match
+depth/exclusion/deduplication without ambient options, independent match
 discovery flags, and setup/session preparation followed by multiple targets.
 The existing loopback CLI contracts, redirect-origin tests, dynamic dictionary
 tests and session-resume queue tests continue to exercise production consumers.

@@ -7,7 +7,7 @@ from lib.controller.run_resources import RunResources
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.dictionary import Dictionary
 from lib.core.wordlist_config import WordlistConfig
 
@@ -49,8 +49,12 @@ class RecordingAsyncFuzzer(RecordingFuzzer):
 
 
 class TestSessionResumeQueue(TestCase):
+    def setUp(self):
+        self.options = default_options()
+
     def _controller(self):
         controller = object.__new__(Controller)
+        controller._options = self.options
         controller.resources = RunResources(interface=Mock(), logger=Mock())
         controller.config = RunConfig()
         controller.run_state = ScanRunState()
@@ -64,7 +68,7 @@ class TestSessionResumeQueue(TestCase):
         controller.target_progress.base_path = "first/"
         controller.target_progress.url = "https://first.example/"
         controller.run_state.old_session = True
-        controller.dictionary = Dictionary(WordlistConfig.from_options(options))
+        controller.dictionary = Dictionary(WordlistConfig.from_options(self.options))
         controller.dictionary.__setstate__(
             (["done", "in-flight", "later"], 2, ["in-flight"], 0)
         )
@@ -114,7 +118,7 @@ class TestSessionResumeQueue(TestCase):
                 original_urls = list(run_options["urls"])
 
                 with (
-                    patch.dict(options, run_options),
+                    patch.dict(self.options, run_options),
                     patch.dict("sys.modules", {"dirsearch_native": None}),
                     patch(
                         "lib.connection.requester.Requester",
@@ -130,7 +134,7 @@ class TestSessionResumeQueue(TestCase):
                     patch("lib.controller.controller.signal.signal"),
                 ):
                     try:
-                        controller._prepare_config(options)
+                        controller._prepare_config(self.options)
                         controller._run_targets()
                     finally:
                         if isinstance(controller.resources.loop, asyncio.AbstractEventLoop):

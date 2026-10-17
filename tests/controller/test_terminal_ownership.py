@@ -15,7 +15,7 @@ from lib.controller.controller import (
     Controller, PyInstallerLinuxForceQuitHandler, StandardForceQuitHandler,
     _create_force_quit_handler,
 )
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.exceptions import InvalidURLException
 from lib.core.settings import SIGINT_FORCE_QUIT_THRESHOLD
 from lib.view.terminal import QuietCLI, create_terminal
@@ -23,14 +23,13 @@ from lib.view.terminal import QuietCLI, create_terminal
 
 class TestControllerTerminalOwnership(TestCase):
     def setUp(self):
-        self.options_patch = patch.dict(options, {
+        self.options = default_options()
+        self.options.update({
             "session_file": None, "raw_file": None, "wordlists": [],
             "wordlist_backend": "python", "color": False, "quiet": False,
             "disable_cli": False, "log_file": None, "save_response": None,
             "save_response_jsonl": None, "output_formats": [], "urls": [],
         })
-        self.options_patch.start()
-        self.addCleanup(self.options_patch.stop)
         self.terminals = []
 
         def record_terminal(*args, **kwargs):
@@ -49,14 +48,14 @@ class TestControllerTerminalOwnership(TestCase):
 
     def test_raw_request_summary_uses_prepared_method(self):
         output = StringIO()
-        options["raw_file"] = "request.txt"
+        self.options["raw_file"] = "request.txt"
         with (
             patch("lib.controller.controller.parse_raw", return_value=(
                 ["http://example.test/"], "POST", {}, "body",
             )),
             patch.object(Controller, "_run_targets"),
         ):
-            controller = Controller(output=output)
+            controller = Controller(self.options, output=output)
             controller.run()
         self.assertEqual(controller.resources.interface.config.method, "POST")
         self.assertIn("HTTP method: POST", output.getvalue())
@@ -68,7 +67,7 @@ class TestControllerTerminalOwnership(TestCase):
         for backend, async_mode in (("python", False), ("python", True), ("native", False)):
             with self.subTest(backend=backend, async_mode=async_mode), TemporaryDirectory() as directory:
                 checkpoint = str(Path(directory, "checkpoint.json"))
-                options.update(
+                self.options.update(
                     session_file=None, quiet=True, verbose=True,
                     request_backend=backend, async_mode=async_mode,
                 )
@@ -81,9 +80,9 @@ class TestControllerTerminalOwnership(TestCase):
                     controller._export(checkpoint)
 
                 with patch.object(Controller, "_run_targets", new=save):
-                    original = Controller(output=original_output)
+                    original = Controller(self.options, output=original_output)
                     original.run()
-                options.update(session_file=checkpoint, quiet=False, verbose=False)
+                self.options.update(session_file=checkpoint, quiet=False, verbose=False)
                 resumed_output = StringIO()
 
                 def resume(controller):
@@ -97,7 +96,7 @@ class TestControllerTerminalOwnership(TestCase):
                     patch.object(Controller, "_run_targets", new=resume),
                     patch.object(Controller, "_confirm_session_overwrite"),
                 ):
-                    resumed = Controller(output=resumed_output)
+                    resumed = Controller(self.options, output=resumed_output)
                     resumed.run()
                 self.assertIsNot(original.resources.interface, resumed.resources.interface)
                 self.assertEqual(original_output.getvalue(), "first run\n")
@@ -110,7 +109,7 @@ class TestControllerTerminalOwnership(TestCase):
             with self.subTest(phase=phase), patch.object(Controller, phase, side_effect=RuntimeError(phase)):
                 output = StringIO()
                 with self.assertRaisesRegex(RuntimeError, phase):
-                    Controller(output=output).run()
+                    Controller(self.options, output=output).run()
                 self.assert_all_terminals_closed()
                 self.assertFalse(output.closed)
 
@@ -123,7 +122,7 @@ class TestControllerTerminalOwnership(TestCase):
                 patch.object(RunResources, cleanup, side_effect=OSError("cleanup failed")),
             ):
                 with self.assertRaisesRegex(OSError, "cleanup failed"):
-                    Controller(output=StringIO()).run()
+                    Controller(self.options, output=StringIO()).run()
                 self.assert_all_terminals_closed()
 
     def test_failed_replacement_keeps_bootstrap_available_for_cleanup(self):
@@ -132,11 +131,11 @@ class TestControllerTerminalOwnership(TestCase):
             bootstrap, OSError("terminal failed"),
         ]):
             with self.assertRaisesRegex(OSError, "terminal failed"):
-                Controller(output=StringIO()).run()
+                Controller(self.options, output=StringIO()).run()
         bootstrap.close.assert_called_once_with()
 
     def test_restore_report_error_is_rendered_by_the_owning_controller(self):
-        options["session_file"] = "checkpoint.json"
+        self.options["session_file"] = "checkpoint.json"
         output = StringIO()
         with (
             patch("lib.controller.controller.SessionStore") as store_factory,
@@ -148,7 +147,7 @@ class TestControllerTerminalOwnership(TestCase):
                 run=RunCheckpoint(0), task_checkpoint=TaskCheckpoint(DictionaryCheckpoint((), 0)), options=SessionOptions(),
             )
             with self.assertRaises(SystemExit) as stopped:
-                Controller(output=output).run()
+                Controller(self.options, output=output).run()
         self.assertEqual(stopped.exception.code, 1)
         self.assertIn("invalid report URL", output.getvalue())
         run.assert_not_called()

@@ -5,7 +5,6 @@ from unittest import TestCase
 from unittest.mock import Mock, patch
 
 from lib.controller.controller import Controller
-from lib.core.data import options
 from lib.core.run_metadata import RunMetadata
 from lib.core.terminal_config import TerminalConfig
 from lib.view.terminal import create_terminal
@@ -15,17 +14,16 @@ class TestControllerLifecycle(TestCase):
     def setUp(self):
         # These tests stop at preparation/target-loop seams, so only bootstrap
         # presentation and the fresh/resume selector need normalized input.
-        self.enterContext(patch.dict(options, {
+        self.options = {
             "color": False, "quiet": False, "disable_cli": False,
             "verbose": False, "extensions": (), "prefixes": (), "suffixes": (),
             "http_method": "GET", "thread_count": 1, "session_file": None,
-        }, clear=True))
+        }
 
-    def test_construction_neither_reads_cli_options_nor_opens_or_runs_resources(self):
+    def test_construction_copies_input_without_preparing_or_opening_resources(self):
         output = StringIO()
         metadata = RunMetadata("dirsearch", "2026-10-07 12:00:00")
         with (
-            patch.dict(options, {}, clear=True),
             patch("lib.controller.controller.create_terminal") as terminal,
             patch("lib.controller.controller.RunLogger") as logger,
             patch.object(Controller, "setup") as setup,
@@ -33,7 +31,7 @@ class TestControllerLifecycle(TestCase):
             patch.object(Controller, "run") as run,
             patch("lib.controller.controller.signal.signal") as register_signal,
         ):
-            controller = Controller(output=output, metadata=metadata)
+            controller = Controller({}, output=output, metadata=metadata)
         self.assertIsNone(controller.resources)
         self.assertIs(controller.metadata, metadata)
         self.assertEqual(output.getvalue(), "")
@@ -47,7 +45,7 @@ class TestControllerLifecycle(TestCase):
                 events = []
                 terminal = Mock(close=lambda: events.append("terminal-close"))
                 logger = Mock(close=lambda: events.append("logger-close"))
-                controller = Controller(output=StringIO())
+                controller = Controller(dict(self.options, session_file=session_file), output=StringIO())
                 controller.run_state.old_session = not bool(session_file)
 
                 def restore(path):
@@ -62,7 +60,6 @@ class TestControllerLifecycle(TestCase):
                     events.append("execute")
 
                 with (
-                    patch.dict(options, session_file=session_file),
                     patch("lib.controller.controller.create_terminal", return_value=terminal) as make_terminal,
                     patch("lib.controller.controller.RunLogger", return_value=logger) as make_logger,
                     patch.object(controller, "setup", side_effect=lambda: events.append("setup")) as setup,
@@ -87,9 +84,9 @@ class TestControllerLifecycle(TestCase):
                     terminal.close.side_effect = error
                 if phase == "logger-close":
                     logger.close.side_effect = error
-                controller = Controller(output=StringIO())
+                values = dict(self.options, session_file="checkpoint.json" if phase == "restore" else None)
+                controller = Controller(values, output=StringIO())
                 with (
-                    patch.dict(options, session_file="checkpoint.json" if phase == "restore" else None),
                     patch("lib.controller.controller.create_terminal", return_value=terminal) as make_terminal,
                     patch("lib.controller.controller.RunLogger", return_value=logger) as make_logger,
                     patch.object(controller, "setup", side_effect=error if phase == "setup" else None) as setup,
@@ -105,7 +102,7 @@ class TestControllerLifecycle(TestCase):
                         execute.assert_not_called()
                     calls_before = (setup.call_count, restore.call_count, execute.call_count)
                     # Rejection must precede even reading options or opening files.
-                    with patch.dict(options, {}, clear=True), self.assertRaisesRegex(RuntimeError, "only be called once"):
+                    with self.assertRaisesRegex(RuntimeError, "only be called once"):
                         controller.run()
                     self.assertEqual(calls_before, (setup.call_count, restore.call_count, execute.call_count))
                     make_terminal.assert_called_once()
@@ -114,7 +111,7 @@ class TestControllerLifecycle(TestCase):
                 logger.close.assert_called_once_with()
 
     def test_terminal_creation_failure_does_not_prepare_or_allow_retry(self):
-        controller = Controller(output=StringIO())
+        controller = Controller(self.options, output=StringIO())
         with (
             patch("lib.controller.controller.create_terminal", side_effect=OSError("terminal failed")) as terminal,
             patch("lib.controller.controller.RunLogger") as logger,
@@ -136,7 +133,7 @@ class TestControllerLifecycle(TestCase):
                 output = StringIO()
                 terminal = create_terminal(TerminalConfig(color=False), stream=output)
                 self.addCleanup(terminal.close)
-                controller = Controller(output=output)
+                controller = Controller(self.options, output=output)
                 with (
                     patch("lib.controller.controller.create_terminal", return_value=terminal) as factory,
                     patch("lib.controller.controller.RunLogger", side_effect=error) as logger,
@@ -167,7 +164,7 @@ class TestControllerLifecycle(TestCase):
                     patch.object(Controller, "_run_targets") as execute,
                 ):
                     with self.assertRaises(type(error)) as raised:
-                        Controller(output=StringIO()).run()
+                        Controller(self.options, output=StringIO()).run()
                 self.assertIs(raised.exception, error)
                 execute.assert_not_called()
                 terminal.close.assert_called_once_with()
@@ -176,7 +173,7 @@ class TestControllerLifecycle(TestCase):
     def test_reentrant_run_cannot_acquire_a_second_set_of_resources(self):
         for phase in ("_prepare", "_run_targets"):
             with self.subTest(phase=phase):
-                controller = Controller(output=StringIO())
+                controller = Controller(self.options, output=StringIO())
                 terminal, logger = Mock(), Mock()
                 with (
                     patch("lib.controller.controller.create_terminal", return_value=terminal) as factory,
@@ -192,7 +189,7 @@ class TestControllerLifecycle(TestCase):
                 terminal.close.assert_called_once_with()
                 logger.close.assert_called_once_with()
 
-    def test_metadata_and_stream_are_captured_at_construction_options_only_at_run(self):
+    def test_metadata_stream_and_input_are_captured_at_construction(self):
         metadata = RunMetadata("dirsearch", "2026-10-07 12:00:00")
         output, unrelated_output = StringIO(), StringIO()
         terminal = Mock()
@@ -200,11 +197,11 @@ class TestControllerLifecycle(TestCase):
             patch("lib.controller.controller.RunMetadata.capture", return_value=metadata) as capture,
             patch("sys.stdout", output),
         ):
-            controller = Controller()
+            controller = Controller(self.options)
             capture.assert_called_once_with()
             with (
                 patch("sys.stdout", unrelated_output),
-                patch.dict(options, quiet=True),
+                patch.dict(self.options, quiet=True),
                 patch("lib.controller.controller.create_terminal", return_value=terminal) as factory,
                 patch.object(controller, "_prepare"),
                 patch.object(controller, "_run_targets"),
@@ -213,11 +210,11 @@ class TestControllerLifecycle(TestCase):
             capture.assert_called_once_with()
         self.assertIs(controller.metadata, metadata)
         self.assertIs(factory.call_args.kwargs["stream"], output)
-        self.assertTrue(factory.call_args.args[0].quiet)
+        self.assertFalse(factory.call_args.args[0].quiet)
 
     def test_failed_owner_does_not_initialize_or_close_another_controller(self):
         first_output, second_output = StringIO(), StringIO()
-        first, second = Controller(output=first_output), Controller(output=second_output)
+        first, second = Controller(self.options, output=first_output), Controller(self.options, output=second_output)
         with (
             patch.object(first, "_prepare"),
             patch.object(first, "_run_targets", side_effect=RuntimeError("first failed")),

@@ -121,7 +121,7 @@ Run `python -m unittest discover -s tests -t .`.
   across two targets even when global selectors change after preparation.
 - Root crawl, replay, directory dispatch and pause quit/save/skip routing follow
   the frozen engine, with empty or deliberately contradictory global selectors.
-- Threaded/async worker counts and pacing with global options empty.
+- Threaded/async worker counts and pacing without ambient options.
 - Simultaneous async fuzzers retaining separate concurrency limits, with bounded
   event coordination and cancellation/drain assertions.
 - Calibration delay for every profile and every engine; native claim-size boundaries.

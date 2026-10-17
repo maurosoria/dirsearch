@@ -28,7 +28,7 @@ from lib.core.api import (
     WordlistState,
     WordlistTemplate,
 )
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.exceptions import WordlistLimitError
 from lib.core.options import parse_options
 from lib.core.run_metadata import RunMetadata
@@ -51,6 +51,7 @@ if sys.version_info < (3, 11):
 
 def main():
     metadata = RunMetadata.capture()
+    options = default_options()
     options.update(parse_options())
 
     if options["wordlist_status"]:
@@ -79,7 +80,7 @@ def main():
 
     from lib.controller.controller import Controller
 
-    Controller(metadata=metadata).run()
+    Controller(options, metadata=metadata).run()
 
 
 if __name__ == "__main__":

@@ -13,7 +13,7 @@ from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.controller.session import SessionStore
 from lib.controller.session_options import SessionOptions
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.run_metadata import RunMetadata
 from lib.core.scan_run_state import ScanRunState
 from lib.report.json_report import JSONReport
@@ -27,14 +27,11 @@ class DummyFuzzer:
 
 class TestSessionCleanup(TestCase):
     def setUp(self):
-        self.original_options = dict(options)
-
-    def tearDown(self):
-        options.clear()
-        options.update(self.original_options)
+        self.options = default_options()
 
     def _complete_scan(self, session_path):
         controller = object.__new__(Controller)
+        controller._options = self.options
         controller.resources = RunResources(interface=Mock(), logger=Mock())
         controller.config = RunConfig()
         controller.run_state = ScanRunState()
@@ -49,7 +46,7 @@ class TestSessionCleanup(TestCase):
         controller.crawl_target = Mock()
         controller.start = Mock()
 
-        options.update(
+        self.options.update(
             {
                 "urls": ["https://example.test/"],
                 "request_backend": "python",
@@ -64,7 +61,7 @@ class TestSessionCleanup(TestCase):
             patch("lib.core.fuzzer.Fuzzer", DummyFuzzer),
             patch("lib.controller.controller.signal.signal"),
         ):
-            controller._prepare_config(options)
+            controller._prepare_config(self.options)
             controller._run_targets()
 
     def test_completed_session_preserves_unrelated_directory_entries(self):
@@ -115,6 +112,7 @@ class TestSessionCleanup(TestCase):
 
     def test_session_export_flushes_reports_before_saving_checkpoint(self):
         controller = object.__new__(Controller)
+        controller._options = self.options
         controller.resources = RunResources(interface=Mock(), logger=Mock())
         controller.config = RunConfig()
         controller.metadata = RunMetadata("dirsearch", "2026-10-06 12:00:00")
@@ -165,12 +163,12 @@ class TestSessionCleanup(TestCase):
 
             try:
                 with (
-                    patch.dict(options, {"session_file": None}),
+                    patch.dict(self.options, {"session_file": None}),
                     patch.object(Controller, "setup", new=setup),
                     patch.object(Controller, "_run_targets", new=fail_run),
                     self.assertRaisesRegex(RuntimeError, "scan failed"),
                 ):
-                    Controller().run()
+                    Controller(self.options).run()
 
                 with closing(sqlite3.connect(database)) as connection:
                     rows = connection.execute(
@@ -206,12 +204,12 @@ class TestSessionCleanup(TestCase):
                 raise RuntimeError("scan failed")
 
             with (
-                patch.dict(options, {"session_file": None}),
+                patch.dict(self.options, {"session_file": None}),
                 patch.object(Controller, "setup", new=setup),
                 patch.object(Controller, "_run_targets", new=fail_run),
                 self.assertRaisesRegex(RuntimeError, "scan failed"),
             ):
-                Controller().run()
+                Controller(self.options).run()
 
             with open(destination, encoding="utf-8") as file_handle:
                 urls = [entry["url"] for entry in json.load(file_handle)["results"]]

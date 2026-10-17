@@ -4,7 +4,6 @@ from types import SimpleNamespace
 from unittest import IsolatedAsyncioTestCase, TestCase
 from unittest.mock import AsyncMock, Mock, patch
 
-from lib.core.data import options
 from lib.core.dictionary import Dictionary
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.execution_config import ExecutionConfig, ScanEngine
@@ -36,8 +35,7 @@ class TestExecutionConfig(TestCase):
             "thread_count": 3, "delay": 0.25, "max_time": 10,
             "target_max_time": 2.5, "skip_on_status": statuses, "exit_on_error": True,
         }
-        with patch.dict(options, {}, clear=True):
-            config = ExecutionConfig.from_options(values)
+        config = ExecutionConfig.from_options(values)
         statuses.clear()
         values["thread_count"] = 99
         values.update(request_backend="native", async_mode=False)
@@ -57,7 +55,7 @@ class TestExecutionConfig(TestCase):
             ("python", True, ScanEngine.ASYNC),
             ("native", False, ScanEngine.NATIVE),
         ):
-            with self.subTest(engine=expected), patch.dict(options, {}, clear=True):
+            with self.subTest(engine=expected):
                 self.assertIs(ScanEngine.from_options({
                     "request_backend": backend, "async_mode": async_mode,
                 }), expected)
@@ -83,7 +81,6 @@ class TestExecutionConfig(TestCase):
                 fuzzer = make_fuzzer(Fuzzer, ExecutionConfig(concurrency=count, delay=delay), dictionary)
                 fuzzer.scan = Mock()
                 with (
-                    patch.dict(options, {}, clear=True),
                     patch("lib.core.fuzzer.time.sleep") as sleep,
                 ):
                     fuzzer.setup_threads()
@@ -103,8 +100,7 @@ class TestExecutionConfig(TestCase):
                 dictionary.claim_native_many.return_value = []
                 fuzzer = make_fuzzer(NativeFuzzer, ExecutionConfig(concurrency=count), dictionary)
                 fuzzer.set_base_path("base/")
-                with patch.dict(options, {}, clear=True):
-                    self.assertEqual(fuzzer._next_chunk(), [])
+                self.assertEqual(fuzzer._next_chunk(), [])
                 dictionary.claim_native_many.assert_called_once_with(expected, "base/")
 
 
@@ -127,7 +123,7 @@ class TestAsyncExecutionConfig(IsolatedAsyncioTestCase):
                         "lib.core.fuzzer.AsyncScanner.create"
                         if engine is AsyncFuzzer else "lib.core.fuzzer.Scanner"
                     )
-                    with patch.dict(options, {}, clear=True), patch(factory_path, factory):
+                    with patch(factory_path, factory):
                         if engine is AsyncFuzzer:
                             await fuzzer.setup_scanners()
                         else:
@@ -149,7 +145,6 @@ class TestAsyncExecutionConfig(IsolatedAsyncioTestCase):
                 worker = AsyncMock(side_effect=original_worker)
                 fuzzer.task_proc = worker
                 with (
-                    patch.dict(options, {}, clear=True),
                     patch("lib.core.fuzzer.asyncio.sleep", new_callable=AsyncMock) as sleep,
                 ):
                     await asyncio.wait_for(fuzzer.start(), timeout=2)
@@ -186,16 +181,15 @@ class TestAsyncExecutionConfig(IsolatedAsyncioTestCase):
             fuzzer.scan = scan
             fuzzers.append(fuzzer)
 
-        with patch.dict(options, {}, clear=True):
-            tasks = [asyncio.create_task(fuzzer.start()) for fuzzer in fuzzers]
-            try:
-                await asyncio.wait_for(asyncio.gather(*(event.wait() for event in ready)), timeout=2)
-                self.assertEqual(peak, [1, 3])
-            finally:
-                release.set()
-                for task in tasks:
-                    task.cancel()
-                await asyncio.wait_for(asyncio.gather(*tasks, return_exceptions=True), timeout=2)
+        tasks = [asyncio.create_task(fuzzer.start()) for fuzzer in fuzzers]
+        try:
+            await asyncio.wait_for(asyncio.gather(*(event.wait() for event in ready)), timeout=2)
+            self.assertEqual(peak, [1, 3])
+        finally:
+            release.set()
+            for task in tasks:
+                task.cancel()
+            await asyncio.wait_for(asyncio.gather(*tasks, return_exceptions=True), timeout=2)
         self.assertEqual(active, [0, 0])
         self.assertTrue(all(task.done() for task in tasks))
         self.assertTrue(all(not fuzzer._background_tasks for fuzzer in fuzzers))
