@@ -16,11 +16,12 @@
 from __future__ import annotations
 
 import re
+from types import MappingProxyType
 
 
 NumericRange = tuple[int, int]
 TimeFilter = tuple[str, float]
-SIZE_UNITS = {
+SIZE_UNITS = MappingProxyType({
     "B": 1,
     "KB": 1024,
     "MB": 1024 ** 2,
@@ -30,7 +31,7 @@ SIZE_UNITS = {
     "EB": 1024 ** 6,
     "ZB": 1024 ** 7,
     "YB": 1024 ** 8,
-}
+})
 SIZE_RE = re.compile(r"^(\d+)\s*([KMGTPEZY]?B)?$", re.IGNORECASE)
 
 

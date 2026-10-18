@@ -126,6 +126,12 @@ class TestAdvancedFilters(TestCase):
         with self.assertRaises(ValueError):
             parse_size("12XB")
 
+    def test_parse_response_sizes_preserves_every_unit(self):
+        for power, unit in enumerate(("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")):
+            with self.subTest(unit=unit):
+                self.assertEqual(parse_size(f"2{unit}"), 2 * 1024 ** power)
+                self.assertEqual(parse_size(f" 2 {unit.lower()} "), 2 * 1024 ** power)
+
     def test_exclude_sizes_match_raw_bytes_and_units(self):
         self.filter_options["exclude_sizes"] = parse_size_list("1024,2KB")
 

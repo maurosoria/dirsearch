@@ -10,6 +10,7 @@ from unittest.mock import Mock, patch
 
 from lib.controller.controller import Controller
 from lib.core.option_defaults import default_options
+from lib.core.settings import DEFAULT_HEADERS
 
 
 class TestInvocationOptions(TestCase):
@@ -86,6 +87,24 @@ class TestInvocationOptions(TestCase):
         self.assertEqual(controller.config.request.method, "POST")
         self.assertEqual(controller.config.request.body, b"body")
         self.assertIn(("host", "raw.test"), controller.config.request.headers)
+
+    def test_header_overrides_leave_defaults_unchanged_for_all_engine_policies(self):
+        for backend, async_mode in (("python", False), ("python", True), ("native", False)):
+            with self.subTest(backend=backend, async_mode=async_mode):
+                values = self.values(
+                    request_backend=backend, async_mode=async_mode,
+                    headers={"accept": "application/json", "x-owner": "first"},
+                )
+                first = Controller(values, output=StringIO())
+                second = Controller({**values, "headers": {}}, output=StringIO())
+                # Preparation is real; transport execution is out of scope here.
+                with patch.object(Controller, "_run_targets"):
+                    first.run()
+                    second.run()
+                self.assertEqual(dict(first.config.request.headers)["accept"], "application/json")
+                self.assertEqual(dict(second.config.request.headers), dict(DEFAULT_HEADERS))
+                self.assertEqual(DEFAULT_HEADERS["accept"], "*/*")
+                self.assertNotIn("x-owner", DEFAULT_HEADERS)
 
     def test_failed_preparation_cannot_contaminate_another_owner(self):
         values = self.values()

@@ -1,7 +1,7 @@
 # Local state ownership backlog
 
-This is the state-isolation backlog following PR #1753, including
-invocation-local options in this branch. It is not a list of all product issues, nor
+This is the state-isolation backlog following PR #1754, including
+immutable constant tables in this branch. It is not a list of all product issues, nor
 a claim that multiple complete controllers can already share a process safely.
 Keep subsequent steps independently reviewable, with explicit contracts and
 regressions before replacing their callers.
@@ -81,17 +81,22 @@ regressions before replacing their callers.
   controllers deep-copy input before raw parsing or session restoration. Tests
   own their fixtures, and the old data module is removed without a global shim.
   Session wire formats, normalization precedence and the public API are unchanged.
+- Shared constant tables now reject item mutation. Default placeholders and
+  report registry entries retain immutable tuple containers; callers still
+  build their own header and placeholder dictionaries. URL origin comparison
+  reuses `STANDARD_PORTS` instead of a duplicate table. `TEXT_CHARS` is immutable
+  `bytes`, preserving the binary classifier's accepted byte values. No native
+  chunk boundary, session schema or request concurrency behavior changes.
 
 ## Remaining work, in suggested order
 
 | Order | Boundary | Completion criterion |
 | --- | --- | --- |
-| 1 | Constant tables | Make read-only intent enforceable where compatible, including `TEXT_CHARS`, and review the duplicate default-port mappings. |
-| 2 | Isolation acceptance tests | Prove independent local lifecycles, output, failure cleanup and resume without process-global patching; address signal ownership and ambient raw-target context. Passing component tests alone is insufficient. |
+| 1 | Isolation acceptance tests | Prove independent local lifecycles, output, failure cleanup and resume without process-global patching; address signal ownership, event-loop policy and ambient raw-target context. Passing component tests alone is insufficient. |
 
-Constant-table cleanup can proceed independently; add isolation tests along
-the way, with step 2 as the final acceptance gate. Any future public task/context
-API must distinguish serializable task data from live handles and Rust's existing
+Add isolation tests along the way, with complete lifecycle isolation as the
+final acceptance gate. Any future public task/context API must distinguish
+serializable task data from live handles and Rust's existing
 internal `ScanTask`; no parallel-target, GUI or remote scheduling is added here.
 
 ## Broader architectural roadmap
@@ -117,9 +122,8 @@ proposals, not implemented features or release promises:
    contracts rather than serialized live runtime objects. Remote scheduling is
    a separate future design, not part of these state-isolation PRs.
 
-Add acceptance tests throughout, not only at the end. Constant-table cleanup can
-proceed independently; persistence and hot-path changes need proportionate
-compatibility and performance validation.
+Add acceptance tests throughout, not only at the end. Persistence and hot-path
+changes need proportionate compatibility and performance validation.
 
 ## Module-level mutable dictionaries
 
@@ -128,18 +132,21 @@ module-level dictionary literals, comprehensions and dictionary constructors.
 Tests, third-party internals, per-instance fields and dynamically created aliases
 are not counted. Writes were checked separately from the declared types.
 
-No dictionaries in this inventory have identified production writes after the
-options migration. `lib/core/data.py` is removed; `default_options()` constructs
-new per-invocation containers rather than exposing a mutable module-level value.
+No mutable module-level dictionaries remain in this inventory. This does not
+claim that all process-global state has been removed. `lib/core/data.py` is
+removed; `default_options()` constructs new per-invocation containers rather
+than exposing a mutable module-level value.
 
 `BACK_COLORS`, `FORE_COLORS` and `STYLES` are now read-only mapping proxies;
 `disable_color()` was removed. `lib/core/decorators.py::_cache` was removed with
 the unused `cached` decorator in PR #1739. The `locked` decorator remains
 and continues to use its instance's operation lock.
 
-Seven other dictionaries are mutable by type but have no identified production
-writes; these are constant tables or a static registry, not equivalent to shared
-runtime progress:
+The remaining six constant tables/static registry use read-only mapping proxies.
+Each proxy wraps an inline dictionary with no separately exposed mutable alias.
+The former `lib/parse/url.py::_DEFAULT_PORTS` was removed in favor of the shared
+`STANDARD_PORTS`; its consumers already depended on settings through common URL
+utilities. No compatibility alias or new dependency layer is needed:
 
 | Name | Location |
 | --- | --- |
@@ -148,8 +155,15 @@ runtime progress:
 | `STANDARD_PORTS` | `lib/core/settings.py` |
 | `DEFAULT_HEADERS` | `lib/core/settings.py` |
 | `DEFAULT_PLACEHOLDERS` | `lib/core/wordlist_template.py` |
-| `_DEFAULT_PORTS` | `lib/parse/url.py` |
 | `output_handlers` | `lib/report/manager.py` |
+
+Headers are merged into a fresh per-run dictionary; template expansion copies
+the default placeholders before applying overrides. Registry values retain
+report classes or lazy optional-driver identifiers, not live report instances.
+These are internal lookup constants, not a global customization API. Lookup
+values and iteration order are unchanged; no locks or per-request copies were
+introduced. `TEXT_CHARS` is now `bytes` rather than `bytearray`, with exhaustive
+single-byte classification regression coverage.
 
 Neither `dirsearch.py` nor `lib/controller/controller.py` imports global options.
 Logging likewise has no global option dependency or process-global handler.
@@ -164,7 +178,6 @@ every scalar constant, compiled regex, imported module or third-party singleton.
 | `_request_target_state` | `lib/connection/requester.py` | `threading.local()` raw-target context: separate per thread, but still ambient. |
 | Signal registrations | `Controller._run_targets()` | Process-wide handlers; installation/restoration needs an explicit owner. |
 | Async event-loop policy | `Controller._run_targets()` | Optional uvloop policy selection is still process-wide; explicit lifecycle entry does not isolate it. |
-| `TEXT_CHARS` | `lib/core/settings.py` | Mutable `bytearray` used as a read-only binary-detection table; no production writes identified. |
 | `__all__` lists | `lib/core/api.py`, `dirsearch.py` | Static export metadata, not run progress. |
 
 Import-time platform/path constants also remain, but are not mutable progress.

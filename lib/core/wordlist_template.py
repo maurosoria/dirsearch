@@ -4,6 +4,7 @@ import itertools
 import re
 from collections.abc import Iterable, Iterator, Mapping
 from datetime import date
+from types import MappingProxyType
 
 from lib.core.settings import (
     ARCHIVE_EXTENSIONS,
@@ -20,7 +21,9 @@ from lib.utils.file import FileUtils
 TOKEN_RE = re.compile(r"%([A-Z0-9_:/-]+)%", re.IGNORECASE)
 
 
-DEFAULT_PLACEHOLDERS: dict[str, tuple[str, ...]] = {
+# Both the mapping and its values are immutable. Expansion overlays custom
+# values on a fresh dictionary in _placeholder_values().
+DEFAULT_PLACEHOLDERS: Mapping[str, tuple[str, ...]] = MappingProxyType({
     "SUBJECT": (
         "user",
         "users",
@@ -82,7 +85,7 @@ DEFAULT_PLACEHOLDERS: dict[str, tuple[str, ...]] = {
     "BACKUP": BACKUP_EXTENSIONS,
     "BACKUP_EXT": BACKUP_EXTENSIONS,
     "API_VERSION": ("v1", "v2", "v3", "v4", "latest", "beta"),
-}
+})
 
 DATE_PLACEHOLDERS = frozenset(
     {"YYYY", "YY", "MM", "DD", "DATE", "DATE_COMPACT"}
