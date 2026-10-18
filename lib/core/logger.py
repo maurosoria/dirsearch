@@ -16,12 +16,17 @@
 #
 #  Author: Mauro Soria
 
+import hashlib
 import logging
 import re
+from typing import TYPE_CHECKING
 from logging.handlers import RotatingFileHandler
 
 from lib.core.log_config import LogConfig
 from lib.utils.command import REDACTED_VALUE
+
+if TYPE_CHECKING:
+    from lib.connection.response import BaseResponse
 
 
 URL_USERINFO_PATTERN = re.compile(
@@ -107,6 +112,39 @@ class RunLogger(logging.Logger):
             self._file_handler = handler
             self.addHandler(handler)
             self.disabled = False
+
+    def response(
+        self, method: str, response: "BaseResponse", *, backend: str,
+        filter_reason: str | None = None,
+    ) -> None:
+        """Log comparable capture metadata, never bodies or arbitrary headers.
+
+        Hash only the retained decoded bytes and only when file logging is on.
+        A partial capture is not evidence that complete responses are identical.
+        Native prefilters discard their body before crossing the Python boundary;
+        do not misrepresent that omission as the digest of an empty response.
+        """
+        if not self.isEnabledFor(logging.INFO):
+            return
+        encoding = response.headers.get("content-encoding", "identity").lower()
+        codings = [part.strip() for part in encoding.split(",")]
+        safe_encoding = ",".join(codings) if all(
+            part in {"identity", "gzip", "x-gzip", "deflate", "br", "zstd"}
+            for part in codings
+        ) else "other"
+        digest = hashlib.sha256(response.body).hexdigest() if filter_reason is None else "unavailable"
+        redirect = response.redirect.split("#", 1)[0].replace("\r", "").replace("\n", "")
+        location = f" - LOCATION: {redirect}" if redirect else ""
+        self.info(
+            '"%s %s" %s - %sB%s - RESPONSE backend=%s http_version=%s '
+            'content_encoding=%s reported_length=%s retained_length=%s body_complete=%s '
+            'retained_sha256=%s redirect_hops=%s final_url=%s native_filter=%s',
+            method, response.url.split("#", 1)[0], response.status, response.length, location, backend,
+            response.http_version or "unknown", safe_encoding, response.length, len(response.body),
+            str(response.body_complete).lower(), digest, len(response.history),
+            response.final_url.split("#", 1)[0],
+            filter_reason or "none",
+        )
 
     def close(self) -> None:
         """Stop intake and drain the handler's active write; safe to repeat.

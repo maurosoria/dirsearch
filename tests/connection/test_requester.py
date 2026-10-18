@@ -543,6 +543,7 @@ def _with_context(exc: Exception, context: Exception) -> Exception:
 
 
 class DummySyncResponse:
+    raw = None
     status_code = 200
     headers = {"content-type": "text/plain"}
     history = []
@@ -601,6 +602,7 @@ class DummySyncSession:
 
 
 class DummyAsyncResponse:
+    http_version = "HTTP/1.1"
     status_code = 200
     headers = httpx.Headers({"content-type": "text/plain"})
     history = []

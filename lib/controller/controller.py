@@ -545,7 +545,8 @@ class Controller:
             self.resources.loop = create_event_loop()
         if self.config.execution.engine is ScanEngine.NATIVE:
             self.resources.requester = Requester(
-                self.config.request, filter_config=self.config.filters
+                self.config.request, filter_config=self.config.filters,
+                logger=self.resources.logger,
             )
         else:
             self.resources.requester = Requester(self.config.request, logger=self.resources.logger)

@@ -93,6 +93,8 @@ pub(crate) struct ScanJob {
     pub(crate) max_retries: usize,
     pub(crate) max_body_size: usize,
     pub(crate) filter_config: Arc<NativeFilterConfig>,
+    /// Diagnostic logs may inspect metadata of otherwise compacted exclusions.
+    pub(crate) include_filtered: bool,
 }
 
 enum ResultDelivery {
@@ -118,6 +120,7 @@ struct ScanTask {
     cancelled: Arc<AtomicBool>,
     max_retries: usize,
     max_body_size: usize,
+    include_filtered: bool,
     delivery: ResultDelivery,
 }
 
@@ -141,6 +144,7 @@ pub(crate) async fn collect_results(
         cancelled: cancelled.clone(),
         max_retries: job.max_retries,
         max_body_size: job.max_body_size,
+        include_filtered: job.include_filtered,
         delivery: ResultDelivery::CollectAll,
     });
     let mut tasks = spawn_workers(scan_task, concurrency.min(result_count));
@@ -220,6 +224,7 @@ pub(crate) async fn deliver_result_chunks(
         cancelled: cancelled.clone(),
         max_retries: job.max_retries,
         max_body_size: job.max_body_size,
+        include_filtered: job.include_filtered,
         delivery: ResultDelivery::Chunks(chunks.writer()),
     });
     let mut tasks = spawn_workers(scan_task, concurrency.min(result_count));
@@ -379,6 +384,7 @@ async fn run_scan_worker(
                 start,
                 filter_config: task.filter_config.as_ref(),
                 skip_status_filtered_body: task.delivery.omits_filtered_results(),
+                capture_filtered_metadata: task.include_filtered,
                 origin_auth: &request_context.origin_auth,
                 random_user_agents: request_context.random_user_agents.as_ref(),
             })
@@ -391,6 +397,7 @@ async fn run_scan_worker(
         result.request_index = request_index;
 
         let omit_result = task.delivery.omits_filtered_results()
+            && !task.include_filtered
             && result.filtered
             && result.error.is_none()
             && result.status != PROXY_AUTHENTICATION_REQUIRED;

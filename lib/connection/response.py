@@ -213,6 +213,7 @@ class BaseResponse:
         elapsed: float = 0.0,
         history: Iterable[str] = (),
         final_url: str | None = None,
+        http_version: str | None = None,
     ) -> None:
         self.datetime = time.strftime("%Y-%m-%d %H:%M:%S")
         self.url = url
@@ -224,6 +225,7 @@ class BaseResponse:
         self.redirect = self.headers.get("location", "")
         self.history = list(history)
         self.elapsed = elapsed
+        self.http_version = http_version
         self.content = ""
         self.body = b""
         self._body_complete = True
@@ -338,6 +340,11 @@ class Response(BaseResponse):
             elapsed,
             (str(item.url) for item in response.history),
             final_url=str(getattr(response, "url", url)),
+            # urllib3 exposes the actual response version as a numeric code.
+            # Test/custom requests adapters may have no raw HTTP response.
+            http_version={10: "HTTP/1.0", 11: "HTTP/1.1", 20: "HTTP/2"}.get(
+                getattr(response.raw, "version", None)
+            ) if response.raw is not None else None,
         )
         declared_charset = _declared_charset(self.headers)
         decode_binary_text = _should_decode_binary_text(
@@ -381,6 +388,7 @@ class AsyncResponse(BaseResponse):
             elapsed,
             (str(item.url) for item in response.history),
             final_url=str(getattr(response, "url", url)),
+            http_version=response.http_version,
         )
         declared_charset = _declared_charset(self.headers)
         decode_binary_text = _should_decode_binary_text(
@@ -423,6 +431,7 @@ class NativeResponse(BaseResponse):
         body_complete: bool | None = None,
         history: Iterable[str] = (),
         final_url: str | None = None,
+        http_version: str | None = None,
     ) -> None:
         # Native previously exposed HTTPX's lowercase header iteration. Keep
         # that stable while using dirsearch's transport-neutral header model.
@@ -433,6 +442,7 @@ class NativeResponse(BaseResponse):
             elapsed,
             history,
             final_url,
+            http_version,
         )
 
         self._length = length

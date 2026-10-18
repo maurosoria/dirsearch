@@ -18,6 +18,7 @@ from lib.connection.proxy import (
 )
 from lib.connection.response import NativeResponse
 from lib.core.filter_config import FilterConfig
+from lib.core.logger import RunLogger
 from lib.core.request_config import RequestConfig
 from lib.core.exceptions import RequestException
 from lib.core.native_runtime import (
@@ -70,6 +71,7 @@ class NativeHTTPBackend:
         session: Any | None = None,
         auth_override: tuple[str, str] | None = None,
         ip_overrides: IPOverrides | None = None,
+        logger: RunLogger | None = None,
     ) -> None:
         try:
             import dirsearch_native
@@ -80,6 +82,7 @@ class NativeHTTPBackend:
             raise RequestException(version_error)
 
         self.config = config
+        self.logger = logger if logger is not None else RunLogger()
         # Filters are supplied by orchestration, independently of request policy.
         self.filter_config = filter_config
         self._native = dirsearch_native
@@ -277,6 +280,7 @@ class NativeHTTPBackend:
             "max_retries": self.config.max_retries,
             "max_body_size": MAX_RESPONSE_SIZE,
             "filter_config": self._get_native_filter_config(True),
+            "include_filtered": not self.logger.disabled,
         }
         try:
             if isinstance(raw_paths, NativeWordlistChunk):
@@ -313,6 +317,8 @@ class NativeHTTPBackend:
                 self._using_proxy
                 and result.status == PROXY_AUTHENTICATION_REQUIRED
             ):
+                if not self.logger.disabled:
+                    self._convert_result(base_url, result)
                 continue
             request_index = result.request_index
             response, error = self._convert_result(base_url, result)
@@ -397,27 +403,30 @@ class NativeHTTPBackend:
         if self._using_proxy and result.status == PROXY_AUTHENTICATION_REQUIRED:
             return None, RequestException("Proxy authentication required")
 
-        return (
-            NativeResponse(
-                base_url + result.path,
-                result.status,
-                result.headers,
-                result.body,
-                result.elapsed_ms / 1000,
-                length=result.length,
-                filtered=result.filtered,
-                filter_reason=result.filter_reason,
-                body_complete=result.body_complete,
-                history=(
-                    result.history
-                    if self._engine_config is not None
-                    and self._engine_config["follow_redirects"]
-                    else ()
-                ),
-                final_url=result.final_url,
+        response = NativeResponse(
+            base_url + result.path,
+            result.status,
+            result.headers,
+            result.body,
+            result.elapsed_ms / 1000,
+            length=result.length,
+            filtered=result.filtered,
+            filter_reason=result.filter_reason,
+            body_complete=result.body_complete,
+            history=(
+                result.history
+                if self._engine_config is not None
+                and self._engine_config["follow_redirects"]
+                else ()
             ),
-            None,
+            final_url=result.final_url,
+            http_version=result.http_version,
         )
+        self.logger.response(
+            self.config.method, response, backend="native",
+            filter_reason=(response.filter_reason or "unknown") if response.filtered else None,
+        )
+        return response, None
 
     @staticmethod
     def _proxy_urls(config: RequestConfig) -> list[str]:
@@ -465,9 +474,11 @@ class NativeRequester:
     """Minimal requester facade used by native scans and calibration."""
 
     def __init__(
-        self, config: RequestConfig, *, filter_config: FilterConfig
+        self, config: RequestConfig, *, filter_config: FilterConfig,
+        logger: RunLogger | None = None,
     ) -> None:
         self.config = config
+        self.logger = logger if logger is not None else RunLogger()
         self.filter_config = filter_config
         self._url = ""
         self._query = ""
@@ -490,6 +501,7 @@ class NativeRequester:
                 filter_config=self.filter_config,
                 auth_override=self._origin_auth,
                 ip_overrides=self._ip_overrides,
+                logger=self.logger,
             )
         return self.backend
 
@@ -531,6 +543,7 @@ class NativeRequester:
                 proxy_override=proxy,
                 session=origin_backend.session,
                 auth_override=self._origin_auth,
+                logger=self.logger,
             )
         else:
             backend = self.get_backend()
