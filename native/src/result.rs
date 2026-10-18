@@ -32,6 +32,8 @@ pub(crate) struct NativeHttpResult {
     pub(crate) history: Vec<String>,
     #[pyo3(get)]
     pub(crate) final_url: String,
+    #[pyo3(get)]
+    pub(crate) http_version: Option<&'static str>,
 }
 
 #[cfg(test)]
@@ -83,6 +85,7 @@ pub(crate) fn native_http_result_with_length(
                     body_complete: false,
                     history: Vec::new(),
                     final_url: String::new(),
+                    http_version: None,
                 };
             }
         };
@@ -103,6 +106,7 @@ pub(crate) fn native_http_result_with_length(
         body_complete,
         history: Vec::new(),
         final_url: String::new(),
+        http_version: None,
     }
 }
 
@@ -125,6 +129,7 @@ pub(crate) fn native_error_result(
         body_complete: false,
         history: Vec::new(),
         final_url: String::new(),
+        http_version: None,
     }
 }
 
@@ -143,6 +148,7 @@ pub(crate) fn native_filtered_marker(status: u16, elapsed_ms: f64) -> NativeHttp
         body_complete: false,
         history: Vec::new(),
         final_url: String::new(),
+        http_version: None,
     }
 }
 

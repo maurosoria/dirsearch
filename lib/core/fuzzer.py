@@ -341,16 +341,20 @@ class BaseFuzzer:
         scanners = self.get_scanners_for(path)
 
         if self.is_excluded(response):
+            self.logger.debug('"%s" decision=excluded', response.url)
             return self.not_found_callbacks
 
         for tester in scanners:
             # Check if the response is unique, not wildcard
             if not tester.check(path, response):
+                self.logger.debug('"%s" decision=wildcard', response.url)
                 return self.not_found_callbacks
 
         if self.is_filter_threshold_reached(response):
+            self.logger.debug('"%s" decision=duplicate', response.url)
             return self.not_found_callbacks
 
+        self.logger.debug('"%s" decision=match', response.url)
         return self.match_callbacks
 
     def process_response(self, path: str, response: BaseResponse) -> None:

@@ -15,6 +15,7 @@ from lib.core.wordlist_backend import NativeWordlistChunk
 
 
 class FakeNativeResult:
+    http_version = "HTTP/2"
     path = "missing%20page"
     status = 404
     length = 64
@@ -106,6 +107,8 @@ class FakeNativeModule:
 
 
 class IndexedNativeResult:
+    http_version = "HTTP/1.1"
+
     def __init__(self, request_index, *, filtered, status=404, error=None):
         self.request_index = request_index
         self.path = f"path-{request_index}"

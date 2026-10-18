@@ -39,6 +39,7 @@ def main() -> None:
     from dirsearch.lib.core import settings
     from dirsearch.lib.connection.request_target import RequestTargetURL, RawRequestTarget
     from dirsearch.lib.connection.requester import Requester
+    from dirsearch.lib.connection.response import NativeResponse
     from dirsearch.lib.controller.session import SessionStore
     from dirsearch.lib.controller.session_options import SessionOptions
     from dirsearch.lib.controller.run_resources import RunResources
@@ -189,10 +190,18 @@ def main() -> None:
     logger = RunLogger(LogConfig(str(log_path), proxy_auth="user:private/value"))
     try:
         logger.info("installed logger user:private/value@proxy.example.test")
+        diagnostic_response = NativeResponse(
+            "https://example.test/item?token=private", 200,
+            [], b"body", http_version="HTTP/2",
+        )
+        logger.response("GET", diagnostic_response, backend="native")
     finally:
         logger.close()
     assert not logger.handlers
     assert "installed logger <redacted>@proxy.example.test" in log_path.read_text()
+    assert "http_version=HTTP/2" in log_path.read_text()
+    assert "retained_length=4 body_complete=true" in log_path.read_text()
+    assert "token=private" not in log_path.read_text()
     assert ReportConfig(formats=["json"]).formats == ("json",)
     assert DiscoveryConfig(subdirs=[""]).subdirs == ("",)
     assert FilterConfig(include_status_codes={200}).native_options()["include_status_codes"] == [200]

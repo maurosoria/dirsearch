@@ -619,6 +619,7 @@ fn run_ntlm_request_with_proxy(
         start: Instant::now(),
         filter_config: &filter_config,
         skip_status_filtered_body: false,
+        capture_filtered_metadata: false,
         origin_auth: &auth,
         random_user_agents: None,
     }));
@@ -771,6 +772,7 @@ async fn run_https_ntlm_request() -> (NativeHttpResult, Result<Vec<Vec<u8>>, Str
         start: Instant::now(),
         filter_config: &filter_config,
         skip_status_filtered_body: false,
+        capture_filtered_metadata: false,
         origin_auth: &auth,
         random_user_agents: None,
     })
@@ -828,6 +830,7 @@ fn run_reqwest_request_with_user_agents(
         start: Instant::now() - Duration::from_secs(5),
         filter_config: &filter_config,
         skip_status_filtered_body: false,
+        capture_filtered_metadata: false,
         origin_auth: &OriginAuth::None,
         random_user_agents,
     }));
@@ -895,6 +898,7 @@ fn run_authenticated_requests_with_cookie(
                     start: Instant::now(),
                     filter_config: &filter_config,
                     skip_status_filtered_body: false,
+                    capture_filtered_metadata: false,
                     origin_auth: &auth,
                     random_user_agents,
                 })
@@ -1405,6 +1409,7 @@ fn reqwest_redirects_preserve_every_requested_url_in_history() {
         start: std::time::Instant::now(),
         filter_config: &filter_config,
         skip_status_filtered_body: false,
+        capture_filtered_metadata: false,
         origin_auth: &OriginAuth::None,
         random_user_agents: None,
     }));
@@ -2381,6 +2386,7 @@ fn proxied_requests_receive_request_local_random_user_agents() {
         start: Instant::now(),
         filter_config: &filter_config,
         skip_status_filtered_body: false,
+        capture_filtered_metadata: false,
         origin_auth: &OriginAuth::None,
         random_user_agents: Some(&pool),
     }));
@@ -2579,6 +2585,7 @@ async fn run_mutual_tls_request(
         start: Instant::now(),
         filter_config: &filter_config,
         skip_status_filtered_body: false,
+        capture_filtered_metadata: false,
         origin_auth: &OriginAuth::None,
         random_user_agents: None,
     })
