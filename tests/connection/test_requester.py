@@ -234,6 +234,12 @@ class RequestTargetHandler(http.server.BaseHTTPRequestHandler):
             self.connection.shutdown(socket.SHUT_WR)
             return
 
+        if route_target == b"/retry-status%1" and attempt == 1:
+            self.send_response(503)
+            self.send_header("content-length", "0")
+            self.end_headers()
+            return
+
         if route_target == b"/cookie/set":
             body = b"cookie stored"
             self.send_response(200)
@@ -332,7 +338,7 @@ class RequestTargetHandler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(body)
             return
 
-        if route_target == b"/redirect":
+        if route_target in (b"/redirect", b"/redirect%1"):
             self.send_response(302)
             self.send_header("location", "/final")
             self.end_headers()
@@ -344,7 +350,7 @@ class RequestTargetHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             return
 
-        if route_target == b"/digest-auth":
+        if route_target in (b"/digest-auth", b"/digest-auth%1"):
             authorization = self.headers.get("Authorization", "")
             if not valid_digest_authorization(
                 authorization,
@@ -452,8 +458,11 @@ class RequestTargetHandler(http.server.BaseHTTPRequestHandler):
 
 
 class RequestTargetServer:
+    def __init__(self, handler_class=RequestTargetHandler):
+        self.handler_class = handler_class
+
     def __enter__(self):
-        self.server = RequestTargetTCPServer(("127.0.0.1", 0), RequestTargetHandler)
+        self.server = RequestTargetTCPServer(("127.0.0.1", 0), self.handler_class)
         self.server.targets = []
         self.server.authorizations = []
         self.server.cookies = []
@@ -473,6 +482,8 @@ class RequestTargetServer:
         self.server.shutdown()
         self.server.server_close()
         self.thread.join(timeout=2)
+        if self.thread.is_alive():
+            raise RuntimeError("Request-target test server did not stop")
 
     @property
     def url(self):

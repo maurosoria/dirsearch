@@ -59,7 +59,8 @@ the CLI mapping. Learned target-specific filters remain outside configuration.
 This is not full process isolation. CLI normalization is invocation-local and
 initial target input has task descriptors. Local resource ownership, scoped CLI
 signals and [controller execution phases](controller-lifecycle.md) are explicit.
-Ambient raw-target context, independent task execution and full isolation
+Raw targets have [explicit request ownership](request-target-ownership.md).
+Independent task execution and full isolation
 acceptance remain in the [refactoring backlog](refactoring-backlog.md).
 No target scheduler, Rust engine change or new concurrency
 capability is included.

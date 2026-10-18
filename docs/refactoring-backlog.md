@@ -1,7 +1,7 @@
 # Local state ownership backlog
 
-This is the state-isolation backlog following PR #1755, including scoped CLI
-signals and policy-free event-loop creation in this branch. It is not a list of
+This is the state-isolation backlog following PR #1756, including explicit
+request-target ownership in this branch. It is not a list of
 all product issues, nor a claim that multiple complete controllers can already
 share a process safely.
 Keep subsequent steps independently reviewable, with explicit contracts and
@@ -95,13 +95,18 @@ regressions before replacing their callers.
   without replacing process policy; acquiring the loop before its requester
   also makes failed startup cleanup safe. No global signal dispatcher or
   concurrent-task API is introduced.
+- [Request targets](request-target-ownership.md) now travel with the prepared
+  URL and through explicit pool-call arguments rather than a shared thread-local.
+  Authentication copies retain the target; redirects replace it. Nested and
+  unmarked requests cannot borrow another request's target. No per-request
+  target lives on a reusable connection or pool. Async/Rust transport ownership
+  and native HTTPS raw-fallback limitations are unchanged.
 
 ## Remaining work, in suggested order
 
 | Order | Boundary | Completion criterion |
 | --- | --- | --- |
-| 1 | Raw-target context ownership | Replace ambient thread-local request-target state with an explicit transport boundary while preserving exact request targets and redirects. |
-| 2 | Isolation acceptance tests | Prove independent local lifecycles, output, cancellation, failure cleanup and resume without process-global patching. CLI signals are scoped and loops no longer replace process policy; passing component tests alone is insufficient. |
+| 1 | Isolation acceptance tests | Prove independent local lifecycles, output, cancellation, failure cleanup and resume without process-global patching. CLI signals are scoped, loops do not replace process policy and raw targets are request-owned; passing component tests alone is insufficient. |
 
 Add isolation tests along the way, with complete lifecycle isolation as the
 final acceptance gate. Any future public task/context API must distinguish
@@ -120,8 +125,8 @@ proposals, not implemented features or release promises:
    identity, per-task policy and resource ownership are still missing.
 2. Complete local lifecycle isolation. Construction, preparation, execution and
    closure are now separate phases with owned live resources. CLI signal scopes
-   and policy-free loop creation are implemented; ambient raw-target context
-   and complete lifecycle acceptance still need work.
+   and policy-free loop creation are implemented, and raw targets have explicit
+   transport ownership. Complete lifecycle acceptance still needs work.
 3. Prove independent lifecycle, cancellation, persistence and output isolation
    before allowing complete concurrent executions.
 4. Define backend-independent result/lifecycle events for CLI and future UI
@@ -185,13 +190,15 @@ every scalar constant, compiled regex, imported module or third-party singleton.
 
 | Name / mechanism | Location | Ownership concern |
 | --- | --- | --- |
-| `_request_target_state` | `lib/connection/requester.py` | `threading.local()` raw-target context: separate per thread, but still ambient. |
 | Signal registrations | `lib/utils/cli.py::cli_interrupts()` | Explicit, temporary main-thread CLI ownership; previous handlers restored on exit. Not a concurrent signal dispatcher. |
 | `__all__` lists | `lib/core/api.py`, `dirsearch.py` | Static export metadata, not run progress. |
 
 Import-time platform/path constants also remain, but are not mutable progress.
 Invocation command/date metadata no longer comes from module-level constants.
 Async loop construction no longer installs a process-global event-loop policy.
+`_request_target_state` was removed; raw-target context is request-owned rather
+than thread-local. Remaining independent-lifecycle acceptance is not replaced
+by these narrower transport tests.
 `_stealth_word_generator` and `rand_stealth_word()` were removed; calibration
 generators now use an instance-owned `random.Random`. Other utility calls still
 borrow the standard library's default RNG and are outside this ownership step.

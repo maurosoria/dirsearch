@@ -37,6 +37,8 @@ def main() -> None:
         WordlistTemplate,
     )
     from dirsearch.lib.core import settings
+    from dirsearch.lib.connection.request_target import RequestTargetURL, RawRequestTarget
+    from dirsearch.lib.connection.requester import Requester
     from dirsearch.lib.controller.session import SessionStore
     from dirsearch.lib.controller.session_options import SessionOptions
     from dirsearch.lib.controller.run_resources import RunResources
@@ -81,6 +83,17 @@ def main() -> None:
     assert WordlistLimitError
     assert WordlistState
     assert WordlistTemplate
+    # Exercise the installed carrier and adapter together, without network I/O.
+    import requests
+    requester = Requester(RequestConfig.from_options(default_options()))
+    try:
+        prepared = requests.Request("GET", "http://example.test/").prepare()
+        prepared.url = RequestTargetURL("http://example.test/raw%1", "/raw%1")
+        target = requester.session.get_adapter(prepared.url).request_url(prepared, {})
+        assert isinstance(target, RawRequestTarget)
+        assert target == "/raw%1"
+    finally:
+        requester.close()
     # Real composition must instantiate the installed resource-owner class,
     # without optional engine imports, requests, or process signal changes.
     output = StringIO()

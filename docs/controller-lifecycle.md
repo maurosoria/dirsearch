@@ -86,7 +86,7 @@ ordering are preserved. The package entrypoint and standalone script use the
 same explicit invocation; the public Python API is unchanged.
 
 Signals now have a bounded CLI owner and loop creation no longer changes global
-policy. Ambient raw-target context still needs separate isolation. This does not
+policy. [Raw targets](request-target-ownership.md) now belong to each request. This does not
 enable concurrent controllers,
 parallel targets, external scheduling, or independently executable checkpoints.
 Those require separate designs and acceptance tests; see the
