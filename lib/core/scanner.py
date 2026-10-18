@@ -110,6 +110,12 @@ class BaseScanner:
 
         if self.is_wildcard(response):
             self.reason = "matches wildcard profile"
+            self.logger.debug(
+                '"%s" filtered by wildcard profile in "%s" '
+                '(status=%s, length=%s, decoded_length=%s, samples=%s)',
+                response.url, self.context, response.status, response.length,
+                len(response.body), self.sample_count,
+            )
             return "wildcard"
 
         if self.is_probable_wildcard(path, response):

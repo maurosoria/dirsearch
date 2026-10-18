@@ -45,6 +45,24 @@ Rotation still keeps one backup at the configured size. Separate destinations
 are isolated; callers must not independently rotate the same physical log file.
 No process-wide destination registry or cross-process file locking is introduced.
 
+## Calibration troubleshooting
+
+Add `--log scan.log` to the failing command. The log includes DEBUG messages
+without `--verbose`; that flag changes terminal presentation. Normal wildcard
+and duplicate-threshold discards now include their cause and response lengths.
+See [calibration safeguards](filter-configuration.md#distinct-content-safeguards)
+for the scope of those messages. Bodies and arbitrary HTTP headers are not logged.
+
+A portable way to package the log for an issue is:
+
+```sh
+python3 -m zipfile -c scan-log.zip scan.log
+```
+
+If rotation is enabled and `scan.log.1` exists, include it as an additional input
+to that command. This packages the existing logs; it does not collect config
+files, sessions or response artifacts automatically.
+
 ## Scope and verification
 
 This is ownership isolation, not a change to logging parity or scan execution.

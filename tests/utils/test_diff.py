@@ -23,6 +23,33 @@ from lib.utils.diff import DynamicContentParser, generate_matching_regex, normal
 
 
 class TestDiff(TestCase):
+    def test_empty_dynamic_patterns_do_not_match_unrelated_content(self):
+        samples = ('{"error":"missing","path":"/alpha"}', '{"error":"missing","path":"/bravo"}')
+        parser = DynamicContentParser(*samples)
+
+        for candidate in ('{"login":"available"}', "dashboard", ""):
+            with self.subTest(candidate=candidate):
+                self.assertFalse(parser.compare_to(candidate))
+
+    def test_empty_dynamic_patterns_still_match_an_observed_sample(self):
+        samples = ('{"error":"missing","path":"/alpha"}', '{"error":"missing","path":"/bravo"}')
+        parser = DynamicContentParser(*samples)
+
+        for sample in samples:
+            with self.subTest(sample=sample):
+                self.assertTrue(parser.compare_to(sample))
+
+    def test_identical_empty_samples_only_match_empty_content(self):
+        parser = DynamicContentParser("", "")
+
+        self.assertTrue(parser.compare_to(""))
+        self.assertFalse(parser.compare_to("login"))
+
+    def test_empty_dynamic_html_patterns_do_not_match_an_unrelated_page(self):
+        parser = DynamicContentParser("<p>missing/alpha</p>", "<p>missing/bravo</p>")
+
+        self.assertFalse(parser.compare_to("<h1>Account</h1>"))
+
     def test_generate_matching_regex(self):
         self.assertEqual(generate_matching_regex("add.php", "abc.php"), "^a.*\\.php$", "Matching regex isn't correct")
 
