@@ -1,3 +1,5 @@
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest import TestCase
 
 from lib.connection.response import NativeResponse
@@ -11,6 +13,8 @@ from lib.core.filters import (
     parse_time_filters,
 )
 from lib.core.fuzzer import BaseFuzzer
+from lib.core.log_config import LogConfig
+from lib.core.logger import RunLogger
 
 
 class DummyDictionary:
@@ -202,3 +206,34 @@ class TestAdvancedFilters(TestCase):
         self.assertFalse(fuzzer.is_excluded(repeated[0]))
         self.assertFalse(fuzzer.is_excluded(repeated[1]))
         self.assertTrue(fuzzer.is_excluded(repeated[2]))
+
+    def test_forced_auto_calibration_keeps_distinct_pages_after_a_shared_prefix(self):
+        self.filter_options["auto_calibration"] = True
+        fuzzer = self.make_fuzzer()
+        prefix = b"shared-layout-word " * 300
+        for path, tail in (("billing", b"Billing information."), ("support", b"Support information."), ("account/login", b"Account credentials.")):
+            with self.subTest(path=path):
+                candidate = response(path=path, body=prefix + tail)
+                self.assertFalse(fuzzer.is_excluded(candidate))
+
+    def test_duplicate_threshold_log_explains_discard_without_exposing_query_or_body(self):
+        self.filter_options["filter_threshold"] = 1
+        fuzzer = self.make_fuzzer()
+        candidate = response(path="account/login?token=query-secret", body=b"private response body")
+        with TemporaryDirectory() as directory:
+            destination = Path(directory) / "scan.log"
+            logger = RunLogger(LogConfig(str(destination)))
+            fuzzer.logger = logger
+            try:
+                self.assertFalse(fuzzer.is_filter_threshold_reached(candidate))
+                self.assertTrue(fuzzer.is_filter_threshold_reached(candidate))
+            finally:
+                logger.close()
+            contents = destination.read_text(encoding="utf-8")
+
+        self.assertIn("filtered by duplicate response threshold", contents)
+        self.assertIn("threshold=1, status=200", contents)
+        self.assertIn("length=21, decoded_length=21", contents)
+        self.assertIn("?token=<redacted>", contents)
+        self.assertNotIn("query-secret", contents)
+        self.assertNotIn("private response body", contents)

@@ -127,6 +127,13 @@ class DynamicContentParser:
                 or normalized_content == self._normalized_contents[0]
             )
 
+        if not self._static_patterns:
+            # Compact JSON/HTML may share no whole whitespace-delimited token.
+            # An empty pattern list is not evidence that every response matches.
+            # Exact observed samples are still known matches; the scanner owns
+            # any further similarity-based fallback.
+            return normalized_content in self._normalized_contents
+
         i = -1
         splitted_content = normalized_content.split()
         # Allow one miss, see https://github.com/maurosoria/dirsearch/issues/1279

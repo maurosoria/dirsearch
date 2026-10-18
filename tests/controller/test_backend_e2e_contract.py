@@ -79,10 +79,10 @@ class BackendContractHandler(BaseHTTPRequestHandler):
 
 
 class BackendContractServer:
-    def __init__(self):
+    def __init__(self, handler_class=BackendContractHandler):
         self.server = ThreadingHTTPServer(
             ("127.0.0.1", 0),
-            BackendContractHandler,
+            handler_class,
         )
         self.server.seen_paths = []
         self.server.seen_lock = threading.Lock()

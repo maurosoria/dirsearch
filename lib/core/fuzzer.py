@@ -268,10 +268,17 @@ class BaseFuzzer:
         fingerprint = resp.filter_fingerprint
         with state.lock:
             count = state.filter_fingerprints.get(fingerprint, 0)
-            if count >= threshold:
-                return True
-            state.filter_fingerprints[fingerprint] = count + 1
-        return False
+            reached = count >= threshold
+            if not reached:
+                state.filter_fingerprints[fingerprint] = count + 1
+
+        if reached:
+            self.logger.debug(
+                '"%s" filtered by duplicate response threshold '
+                '(threshold=%s, status=%s, length=%s, decoded_length=%s)',
+                resp.url, threshold, resp.status, resp.length, len(resp.body),
+            )
+        return reached
 
     def should_record_auto_calibration(self, resp: BaseResponse) -> bool:
         if self.has_advanced_matchers():
@@ -321,8 +328,11 @@ class BaseFuzzer:
             resp.status,
             resp.type,
             redirect,
-            len(body) // 64,
-            hash(body[:4096]),
+            len(body),
+            # Shared layouts can have identical prefixes while their page
+            # content differs later. Hash the complete normalized text; Python
+            # caches string hashes, and no prefix copy is needed here.
+            hash(body),
         )
 
     def response_callbacks(

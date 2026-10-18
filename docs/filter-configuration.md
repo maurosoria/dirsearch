@@ -66,6 +66,29 @@ The Rust ABI, request loop, chunk sizes and callback protocol are unchanged.
 There is no new Python/Rust call per response; this refactor does not claim a
 measured throughput improvement.
 
+## Distinct-content safeguards
+
+Repeated-response calibration fingerprints include the exact length and hash
+of the complete normalized text, along with status, media type and redirect.
+Two pages that share a layout beyond the first 4 KiB no longer become the same
+fingerprint merely because their distinguishing content appears later. Existing
+dynamic-token and reflected-path normalization, repetition thresholds and
+explicit `--filter-threshold` behavior remain in effect. This does not turn a
+repeated response into independent evidence that a resource is missing.
+
+When dynamic samples have no common whitespace-delimited tokens, the parser
+matches only an already observed normalized sample. It no longer treats the
+empty pattern list as a match for every candidate. The scanner's existing
+similarity fallback remains separate, and static/known-negative responses still
+match. This applies to threaded, async and native execution's shared Python
+calibration pipeline.
+
+`--log scan.log` now records normal wildcard-profile and duplicate-threshold
+discards, including status and reported/captured body lengths. Wildcard messages
+also identify the profile context and sample count. Existing auto-calibration
+messages remain available. Logs do not contain response bodies or a complete
+native transport trace, and enabling logging is not a byte-for-byte capture.
+
 ## Sessions and remaining globals
 
 Sessions still persist normalized option data, not these runtime objects. Resume
