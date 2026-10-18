@@ -69,7 +69,7 @@ class TestControllerCleanup(TestCase):
     def test_sync_requester_closes_after_run_failure(self):
         requester = Mock()
 
-        def fail_run(controller):
+        def fail_run(controller, *, interrupts=None):
             controller.resources.requester = requester
             raise RuntimeError("scan failed")
 
@@ -87,7 +87,7 @@ class TestControllerCleanup(TestCase):
         requester = RecordingAsyncRequester()
         loop = RecordingLoop()
 
-        def fail_run(controller):
+        def fail_run(controller, *, interrupts=None):
             controller.resources.requester = requester
             controller.resources.loop = loop
             raise RuntimeError("scan failed")

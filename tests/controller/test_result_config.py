@@ -167,7 +167,7 @@ class TestResultPreparation(TestCase):
                         original_run = Controller._run_targets
                         policies = []
 
-                        def run(controller):
+                        def run(controller, *, interrupts=None):
                             self.assertEqual(controller.config.results, expected)
                             # Contradict capture between store creation and
                             # transport composition, then again between targets.
@@ -176,7 +176,7 @@ class TestResultPreparation(TestCase):
                                 save_response_jsonl=None, full_url=False,
                                 replay_proxy="http://unrelated.example.test:8080",
                             )
-                            original_run(controller)
+                            original_run(controller, interrupts=interrupts)
 
                         def set_target(controller, url):
                             controller.target_progress.url = url
@@ -203,7 +203,6 @@ class TestResultPreparation(TestCase):
                             patch.object(Controller, "crawl_target"),
                             patch.object(Controller, "_confirm_session_overwrite"),
                             patch(requester_path, return_value=requester) as factory,
-                            patch("lib.controller.controller.signal.signal"),
                             patch("lib.controller.controller.create_terminal"),
                         ):
                             controller = Controller(self.options)

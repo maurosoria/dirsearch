@@ -66,7 +66,6 @@ class TestControllerRunConfig(TestCase):
                     patch("lib.controller.controller.create_terminal", side_effect=terminal_factory),
                     patch("lib.controller.controller.RunLogger", wraps=RunLogger) as logger,
                     patch("lib.controller.controller.get_blacklists", return_value={}),
-                    patch("lib.controller.controller.signal.signal"),
                     patch("lib.connection.requester.Requester", return_value=requester) as threaded,
                     patch("lib.connection.requester.AsyncRequester", return_value=requester) as asynchronous,
                     patch("lib.connection.native.NativeRequester", return_value=requester) as native,

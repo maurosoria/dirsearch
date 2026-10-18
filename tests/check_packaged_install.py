@@ -1,6 +1,7 @@
 import ast
 import importlib.metadata
 import os
+import signal
 import subprocess
 import sys
 import tempfile
@@ -40,6 +41,7 @@ def main() -> None:
     from dirsearch.lib.controller.session_options import SessionOptions
     from dirsearch.lib.controller.run_resources import RunResources
     from dirsearch.lib.controller.controller import Controller
+    from dirsearch.lib.controller.event_loop import create_event_loop
     from dirsearch.lib.controller.session_snapshot import RunCheckpoint, SessionSnapshot
     from dirsearch.lib.core.run_config import RunConfig
     from dirsearch.lib.core.option_defaults import default_options
@@ -67,6 +69,7 @@ def main() -> None:
         create_response_stores,
     )
     from dirsearch.lib.view.terminal import create_terminal
+    from dirsearch.lib.utils.cli import cli_interrupts
 
     expected_version = read_source_version()
     installed_version = importlib.metadata.version("dirsearch")
@@ -91,6 +94,15 @@ def main() -> None:
     assert isinstance(composed.resources, RunResources)
     assert composed.resources.interface._output_buffer.closed
     assert not output.closed
+    previous_handlers = {number: signal.getsignal(number) for number in (signal.SIGINT, signal.SIGTERM)}
+    interrupted = Mock()
+    with cli_interrupts(interrupted):
+        signal.getsignal(signal.SIGINT)(signal.SIGINT, None)
+    interrupted.assert_called_once_with()
+    assert all(signal.getsignal(number) is handler for number, handler in previous_handlers.items())
+    loop = create_event_loop()
+    loop.close()
+    assert loop.is_closed()
     snapshot = SessionSnapshot(
         run=RunCheckpoint(0),
         task_checkpoint=TaskCheckpoint(DictionaryCheckpoint((), 0)),

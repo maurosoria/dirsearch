@@ -49,6 +49,7 @@ continue to exercise all three engines. Installed-package smoke tests import the
 factory and pass explicit input to the controller.
 
 This removes the mutable global options dictionary, not all process state.
-Signals, optional event-loop policy and raw-target context still require explicit
-ownership and acceptance coverage before concurrent complete controllers are
-supported. See the [refactoring backlog](refactoring-backlog.md).
+Signals now have a [scoped CLI owner](controller-lifecycle.md), and optional
+uvloop creation no longer changes process-wide policy. Raw-target context and
+complete isolation acceptance remain before concurrent controllers are supported.
+See the [refactoring backlog](refactoring-backlog.md).

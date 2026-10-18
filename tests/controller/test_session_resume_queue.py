@@ -131,7 +131,6 @@ class TestSessionResumeQueue(TestCase):
                     patch("lib.core.fuzzer.Fuzzer", create_fuzzer),
                     patch("lib.core.fuzzer.AsyncFuzzer", create_fuzzer),
                     patch("lib.core.fuzzer.NativeFuzzer", create_fuzzer),
-                    patch("lib.controller.controller.signal.signal"),
                 ):
                     try:
                         controller._prepare_config(self.options)

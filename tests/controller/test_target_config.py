@@ -67,7 +67,6 @@ class TestControllerTargetConfig(TestCase):
                     patch("lib.core.fuzzer.AsyncFuzzer"),
                     patch("lib.core.fuzzer.NativeFuzzer"),
                     patch("lib.controller.controller.detect_scheme") as detect,
-                    patch("lib.controller.controller.signal.signal"),
                 ):
                     try:
                         controller._prepare_config(self.options)
@@ -200,7 +199,6 @@ class TestControllerTargetConfig(TestCase):
                     patch("lib.core.fuzzer.AsyncFuzzer"),
                     patch("lib.core.fuzzer.NativeFuzzer"),
                     patch("lib.controller.controller.detect_scheme") as detect,
-                    patch("lib.controller.controller.signal.signal"),
                     patch("lib.controller.controller.create_terminal"),
                 ):
                     controller = Controller(self.options)

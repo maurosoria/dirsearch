@@ -88,7 +88,7 @@ class TestSessionReportConfiguration(TestCase):
                             Controller._snapshot_session(saved_controller, SessionOptions.from_options(saved_options), ""), checkpoint
                         )
 
-                    def run(controller):
+                    def run(controller, *, interrupts=None):
                         self.assertIs(controller.metadata, metadata)
                         self.assertIs(controller.resources.reporter.metadata, metadata)
                         for reporter, _ in controller.resources.reporter.reports:

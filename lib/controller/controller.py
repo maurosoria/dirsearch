@@ -27,6 +27,7 @@ import re
 import threading
 import time
 from collections.abc import Mapping
+from contextlib import AbstractContextManager, nullcontext
 from copy import deepcopy
 from types import SimpleNamespace
 from typing import Any, Awaitable, TextIO
@@ -94,6 +95,7 @@ from lib.utils.crawl import Crawler
 from lib.utils.file import FileUtils
 from lib.utils.schemedet import detect_scheme
 from lib.view.terminal import CLI, create_terminal
+from .event_loop import create_event_loop
 from .run_resources import RunResources
 from .session import SessionStore
 from .session_options import SessionOptions
@@ -190,8 +192,8 @@ class Controller:
     """Single-use local lifecycle; construction does not prepare or execute work.
 
     The CLI calls run() after normalizing its input. This remains an internal,
-    synchronous controller, not a concurrent-task API: process signals and
-    event-loop policy still belong to the existing CLI lifecycle.
+    synchronous controller, not a concurrent-task API. The CLI explicitly lends
+    an interrupt scope; other callers do not install process signal handlers.
     """
 
     def __init__(
@@ -213,13 +215,16 @@ class Controller:
         self.target_progress = TargetProgress()
         self.output_history: list[dict[str, Any]] = []
 
-    def run(self) -> None:
+    def run(self, *, interrupts: AbstractContextManager[None] | None = None) -> None:
         """Prepare, execute and close once, including failed startup attempts.
 
         Construction captures input, metadata and the borrowed stream, not open
         handles. Consume this lifecycle before acquiring anything so a
         repeated/reentrant call cannot reuse partially prepared or closed state.
         This guard is not synchronization for concurrent calls.
+
+        The optional interrupt scope is entered only after engine setup and
+        unwound before resource cleanup. Without it, process signals are untouched.
         """
         if self._execution_started:
             raise RuntimeError("Controller.run() can only be called once")
@@ -239,7 +244,7 @@ class Controller:
 
         try:
             self._prepare()
-            self._run_targets()
+            self._run_targets(interrupts=interrupts)
         finally:
             self.resources.close()
 
@@ -501,19 +506,13 @@ class Controller:
         if self.config.logging.file_path:
             self.resources.interface.log_file(self.config.logging.file_path)
 
-    def _run_targets(self) -> None:
+    def _run_targets(self, *, interrupts: AbstractContextManager[None] | None = None) -> None:
         if self.config.execution.engine is ScanEngine.NATIVE:
             from lib.connection.native import NativeRequester as Requester
             from lib.core.fuzzer import NativeFuzzer as Fuzzer
         elif self.config.execution.engine is ScanEngine.ASYNC:
             from lib.connection.requester import AsyncRequester as Requester
             from lib.core.fuzzer import AsyncFuzzer as Fuzzer
-
-            try:
-                import uvloop
-                asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
-            except ImportError:
-                pass
         else:
             from lib.connection.requester import Requester
             from lib.core.fuzzer import Fuzzer
@@ -540,82 +539,84 @@ class Controller:
         # to run_state. Loading blacklist data uses the already frozen policy.
         self.run_state.prepare_targets(self._options["urls"])
         self.config = self.config.with_blacklists(get_blacklists(self.config.wordlist))
+        if self.config.execution.engine is ScanEngine.ASYNC:
+            # Acquire the loop first: an async requester always needs it to
+            # close, including when later engine preparation fails.
+            self.resources.loop = create_event_loop()
         if self.config.execution.engine is ScanEngine.NATIVE:
             self.resources.requester = Requester(
                 self.config.request, filter_config=self.config.filters
             )
         else:
             self.resources.requester = Requester(self.config.request, logger=self.resources.logger)
-        if self.config.execution.engine is ScanEngine.ASYNC:
-            self.resources.loop = asyncio.new_event_loop()
 
-        signal.signal(signal.SIGINT, lambda *_: self.handle_pause())
-        signal.signal(signal.SIGTERM, lambda *_: self.handle_pause())
-
-        while (task := self.run_state.activate_next()) is not None:
-            fuzzer_options = {}
-            if self.config.execution.engine is ScanEngine.NATIVE:
-                fuzzer_options["filtered_chunk_callbacks"] = (
-                    self.update_progress_bar_batch,
-                    self.reset_consecutive_errors_batch,
+        # Only the CLI supplies a process-level interrupt owner. Keep its scope
+        # at the original execution boundary, out of preparation and teardown.
+        with nullcontext() if interrupts is None else interrupts:
+            while (task := self.run_state.activate_next()) is not None:
+                fuzzer_options = {}
+                if self.config.execution.engine is ScanEngine.NATIVE:
+                    fuzzer_options["filtered_chunk_callbacks"] = (
+                        self.update_progress_bar_batch,
+                        self.reset_consecutive_errors_batch,
+                    )
+                self.fuzzer = Fuzzer(
+                    self.resources.requester,
+                    self.dictionary,
+                    filter_config=self.config.filters,
+                    discovery_config=self.config.discovery,
+                    execution_config=self.config.execution,
+                    match_callbacks=tuple(match_callbacks),
+                    not_found_callbacks=not_found_callbacks,
+                    error_callbacks=error_callbacks,
+                    logger=self.resources.logger,
+                    **fuzzer_options,
                 )
-            self.fuzzer = Fuzzer(
-                self.resources.requester,
-                self.dictionary,
-                filter_config=self.config.filters,
-                discovery_config=self.config.discovery,
-                execution_config=self.config.execution,
-                match_callbacks=tuple(match_callbacks),
-                not_found_callbacks=not_found_callbacks,
-                error_callbacks=error_callbacks,
-                logger=self.resources.logger,
-                **fuzzer_options,
-            )
 
-            try:
-                self.set_target(task.target)
+                try:
+                    self.set_target(task.target)
 
-                if not self.target_progress.directories:
-                    for subdir in self.config.discovery.subdirs:
-                        self.add_directory(self.target_progress.base_path + subdir)
+                    if not self.target_progress.directories:
+                        for subdir in self.config.discovery.subdirs:
+                            self.add_directory(self.target_progress.base_path + subdir)
 
-                if not self.run_state.old_session:
-                    self.resources.interface.target(self.target_progress.url)
+                    if not self.run_state.old_session:
+                        self.resources.interface.target(self.target_progress.url)
 
-                self.resources.reporter.prepare(self.target_progress.url)
-                self.crawl_target()
-                self.start()
+                    self.resources.reporter.prepare(self.target_progress.url)
+                    self.crawl_target()
+                    self.start()
 
-            except (
-                CannotConnectException,
-                FileExistsException,
-                InvalidURLException,
-                RequestException,
-                SkipTargetInterrupt,
-                KeyboardInterrupt,
-            ) as e:
-                self.target_progress.directories.clear()
-                self.dictionary.reset()
+                except (
+                    CannotConnectException,
+                    FileExistsException,
+                    InvalidURLException,
+                    RequestException,
+                    SkipTargetInterrupt,
+                    KeyboardInterrupt,
+                ) as e:
+                    self.target_progress.directories.clear()
+                    self.dictionary.reset()
 
-                if e.args:
-                    self.resources.interface.error(str(e))
+                    if e.args:
+                        self.resources.interface.error(str(e))
 
-            except QuitInterrupt as e:
-                self.resources.finish_reports()
-                self.resources.interface.error(e.args[0])
-                sys.exit(0)
+                except QuitInterrupt as e:
+                    self.resources.finish_reports()
+                    self.resources.interface.error(e.args[0])
+                    sys.exit(0)
 
-            finally:
-                self.run_state.finish_active()
+                finally:
+                    self.run_state.finish_active()
 
-        self.resources.interface.warning("\nTask Completed")
-        self.resources.finish_reports()
+            self.resources.interface.warning("\nTask Completed")
+            self.resources.finish_reports()
 
-        if self._options["session_file"]:
-            try:
-                SessionStore().delete(self._options["session_file"])
-            except OSError:
-                self.resources.interface.error("Failed to delete old session file, remove it to free some space")
+            if self._options["session_file"]:
+                try:
+                    SessionStore().delete(self._options["session_file"])
+                except OSError:
+                    self.resources.interface.error("Failed to delete old session file, remove it to free some space")
 
     def _report_match_callback(self):
         if (

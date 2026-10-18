@@ -78,7 +78,6 @@ class TestControllerRunState(TestCase):
             patch("lib.core.fuzzer.Fuzzer"),
             patch("lib.core.fuzzer.AsyncFuzzer"),
             patch("lib.core.fuzzer.NativeFuzzer"),
-            patch("lib.controller.controller.signal.signal"),
         ):
             yield
 

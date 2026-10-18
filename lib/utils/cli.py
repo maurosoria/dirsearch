@@ -16,7 +16,10 @@
 #
 #  Author: Mauro Soria
 
+import signal
 import sys
+from collections.abc import Callable, Iterator
+from contextlib import ExitStack, contextmanager
 from typing import NoReturn
 
 
@@ -28,3 +31,22 @@ def fail(*messages: object) -> NoReturn:
     for message in messages:
         print_diagnostic(message)
     raise SystemExit(1)
+
+
+@contextmanager
+def cli_interrupts(on_interrupt: Callable[[], None]) -> Iterator[None]:
+    """Borrow SIGINT/SIGTERM for one CLI execution, then restore their owners.
+
+    Enter only on the main thread, after scan preparation. ExitStack rolls back
+    partial installation and attempts both restorations even if one fails. This
+    is an exclusive CLI scope, not a concurrent-controller signal dispatcher.
+    Force-quit via os._exit still deliberately bypasses normal unwinding.
+    """
+    def handle_interrupt(_number, _frame):
+        on_interrupt()
+
+    with ExitStack() as cleanup:
+        for number in (signal.SIGINT, signal.SIGTERM):
+            previous = signal.signal(number, handle_interrupt)
+            cleanup.callback(signal.signal, number, previous)
+        yield

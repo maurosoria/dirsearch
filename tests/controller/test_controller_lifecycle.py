@@ -53,7 +53,7 @@ class TestControllerLifecycle(TestCase):
                     self.assertTrue(controller.run_state.old_session)
                     events.append("restore")
 
-                def execute():
+                def execute(*, interrupts=None):
                     self.assertEqual(controller.run_state.old_session, bool(session_file))
                     self.assertIs(controller.resources.interface, terminal)
                     self.assertIs(controller.resources.logger, logger)
@@ -226,7 +226,7 @@ class TestControllerLifecycle(TestCase):
         self.assertEqual(second_output.getvalue(), "")
         with patch.object(second, "_prepare"), patch.object(second, "_run_targets") as execute:
             second.run()
-        execute.assert_called_once_with()
+        execute.assert_called_once_with(interrupts=None)
         self.assertIsNot(first.resources, second.resources)
         self.assertTrue(second.resources.interface._output_buffer.closed)
         self.assertFalse(first_output.closed)

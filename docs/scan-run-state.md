@@ -21,12 +21,12 @@ targets, or change error-streak policy. Dictionary claims remain owned by
 `Dictionary`; run timing remains controller-owned.
 
 Configuration describes what to run; mutable state describes what remains.
-Global `options["urls"]` is now input only: running, skipping and completing
+Invocation-local `options["urls"]` is input only: running, skipping and completing
 targets do not consume the caller's list. Later changes to that list do not
 replace work already copied into the run state.
 
 `Controller._run_targets()` calls `prepare_targets()` after setup or restoration,
-before starting workers/installing signal handlers. Preparation replaces only the input
+before starting workers/entering the optional CLI interrupt scope. Preparation replaces only the input
 ordering, preserving restored counters, scheduled URLs and presentation state.
 It rejects active work, and a failing input iterable leaves the prior state
 unchanged. It is not a live scheduling/reconfiguration API.

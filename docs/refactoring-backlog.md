@@ -1,8 +1,9 @@
 # Local state ownership backlog
 
-This is the state-isolation backlog following PR #1754, including
-immutable constant tables in this branch. It is not a list of all product issues, nor
-a claim that multiple complete controllers can already share a process safely.
+This is the state-isolation backlog following PR #1755, including scoped CLI
+signals and policy-free event-loop creation in this branch. It is not a list of
+all product issues, nor a claim that multiple complete controllers can already
+share a process safely.
 Keep subsequent steps independently reviewable, with explicit contracts and
 regressions before replacing their callers.
 
@@ -69,8 +70,8 @@ regressions before replacing their callers.
   execution. `Controller(options)` captures input/metadata/stream and initializes
   local state without opening handles. Explicit, single-use `run()`
   owns bootstrap, fresh/resume preparation, the unchanged target loop and final
-  cleanup. Failures cannot silently reuse the same owner. Process signals still
-  prevent claiming complete controller isolation.
+  cleanup. Failures cannot silently reuse the same owner. Complete controller
+  isolation still requires the acceptance work below.
 - [Calibration words](calibration-word-ownership.md) now belong to each fuzzer,
   shared by all its profiles and recursive directories across the three engines.
   Standalone scanners own a generator unless one is injected. The global RNG
@@ -87,12 +88,20 @@ regressions before replacing their callers.
   reuses `STANDARD_PORTS` instead of a duplicate table. `TEXT_CHARS` is immutable
   `bytes`, preserving the binary classifier's accepted byte values. No native
   chunk boundary, session schema or request concurrency behavior changes.
+- [CLI signal ownership](controller-lifecycle.md) is explicit: only the CLI lends
+  a lazy interrupt scope, entered after engine setup and unwound before resource
+  cleanup. Previous handlers are restored on success/failure and partial
+  registration rolls back. Async execution creates its own optional uvloop loop
+  without replacing process policy; acquiring the loop before its requester
+  also makes failed startup cleanup safe. No global signal dispatcher or
+  concurrent-task API is introduced.
 
 ## Remaining work, in suggested order
 
 | Order | Boundary | Completion criterion |
 | --- | --- | --- |
-| 1 | Isolation acceptance tests | Prove independent local lifecycles, output, failure cleanup and resume without process-global patching; address signal ownership, event-loop policy and ambient raw-target context. Passing component tests alone is insufficient. |
+| 1 | Raw-target context ownership | Replace ambient thread-local request-target state with an explicit transport boundary while preserving exact request targets and redirects. |
+| 2 | Isolation acceptance tests | Prove independent local lifecycles, output, cancellation, failure cleanup and resume without process-global patching. CLI signals are scoped and loops no longer replace process policy; passing component tests alone is insufficient. |
 
 Add isolation tests along the way, with complete lifecycle isolation as the
 final acceptance gate. Any future public task/context API must distinguish
@@ -110,8 +119,9 @@ proposals, not implemented features or release promises:
    `SessionSnapshot`. Input descriptors exist, but independent execution
    identity, per-task policy and resource ownership are still missing.
 2. Complete local lifecycle isolation. Construction, preparation, execution and
-   closure are now separate phases with owned live resources; process signals
-   and event-loop policy still need an explicit owner at the CLI boundary.
+   closure are now separate phases with owned live resources. CLI signal scopes
+   and policy-free loop creation are implemented; ambient raw-target context
+   and complete lifecycle acceptance still need work.
 3. Prove independent lifecycle, cancellation, persistence and output isolation
    before allowing complete concurrent executions.
 4. Define backend-independent result/lifecycle events for CLI and future UI
@@ -176,12 +186,12 @@ every scalar constant, compiled regex, imported module or third-party singleton.
 | Name / mechanism | Location | Ownership concern |
 | --- | --- | --- |
 | `_request_target_state` | `lib/connection/requester.py` | `threading.local()` raw-target context: separate per thread, but still ambient. |
-| Signal registrations | `Controller._run_targets()` | Process-wide handlers; installation/restoration needs an explicit owner. |
-| Async event-loop policy | `Controller._run_targets()` | Optional uvloop policy selection is still process-wide; explicit lifecycle entry does not isolate it. |
+| Signal registrations | `lib/utils/cli.py::cli_interrupts()` | Explicit, temporary main-thread CLI ownership; previous handlers restored on exit. Not a concurrent signal dispatcher. |
 | `__all__` lists | `lib/core/api.py`, `dirsearch.py` | Static export metadata, not run progress. |
 
 Import-time platform/path constants also remain, but are not mutable progress.
 Invocation command/date metadata no longer comes from module-level constants.
+Async loop construction no longer installs a process-global event-loop policy.
 `_stealth_word_generator` and `rand_stealth_word()` were removed; calibration
 generators now use an instance-owned `random.Random`. Other utility calls still
 borrow the standard library's default RNG and are outside this ownership step.
