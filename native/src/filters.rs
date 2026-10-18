@@ -461,69 +461,6 @@ fn has_non_utf8_charset(headers: &[(String, String)]) -> bool {
     })
 }
 
-#[cfg(test)]
-mod static_response_tests {
-    use super::*;
-    use crate::result::native_http_result;
-
-    fn response() -> crate::result::NativeHttpResult {
-        native_http_result(
-            "missing".to_string(),
-            404,
-            vec![("content-type".to_string(), "text/plain".to_string())],
-            b"Missing page.".to_vec(),
-            0.0,
-            &NativeFilterConfig::default(),
-        )
-    }
-
-    #[test]
-    fn static_response_requires_the_complete_body_and_original_context() {
-        let empty = NativeFilterConfig::default();
-        let config = empty
-            .with_static_response_profile(404, "text/plain".to_string(), b"Missing page.".to_vec())
-            .unwrap();
-        assert!(!empty.matches_static_response(&response()));
-        assert!(config.matches_static_response(&response()));
-        let mut changed = response();
-        changed.body_complete = false;
-        assert!(!config.matches_static_response(&changed));
-        let mut changed = response();
-        changed
-            .history
-            .push("http://example.com/redirect".to_string());
-        assert!(!config.matches_static_response(&changed));
-        let mut changed = response();
-        changed
-            .headers
-            .push(("location".to_string(), "/login".to_string()));
-        assert!(!config.matches_static_response(&changed));
-        let mut changed = response();
-        changed.body.push(b'!');
-        assert!(!config.matches_static_response(&changed));
-        let mut changed = response();
-        changed.status = 200;
-        assert!(!config.matches_static_response(&changed));
-        let mut changed = response();
-        changed.headers[0].1 = "application/json".to_string();
-        assert!(!config.matches_static_response(&changed));
-        let mut changed = response();
-        changed.error = Some("incomplete transfer".to_string());
-        assert!(!config.matches_static_response(&changed));
-    }
-
-    #[test]
-    fn static_response_rejects_empty_or_unbounded_templates() {
-        let config = NativeFilterConfig::default();
-        assert!(config
-            .with_static_response_profile(404, String::new(), Vec::new())
-            .is_err());
-        assert!(config
-            .with_static_response_profile(404, String::new(), vec![0; 65537])
-            .is_err());
-    }
-}
-
 fn response_charset(headers: &[(String, String)]) -> Option<&str> {
     let content_type = headers
         .iter()
@@ -626,4 +563,67 @@ fn line_count(text: Option<&str>) -> usize {
     }
 
     text.matches('\n').count() + 1
+}
+
+#[cfg(test)]
+mod static_response_tests {
+    use super::*;
+    use crate::result::native_http_result;
+
+    fn response() -> crate::result::NativeHttpResult {
+        native_http_result(
+            "missing".to_string(),
+            404,
+            vec![("content-type".to_string(), "text/plain".to_string())],
+            b"Missing page.".to_vec(),
+            0.0,
+            &NativeFilterConfig::default(),
+        )
+    }
+
+    #[test]
+    fn static_response_requires_the_complete_body_and_original_context() {
+        let empty = NativeFilterConfig::default();
+        let config = empty
+            .with_static_response_profile(404, "text/plain".to_string(), b"Missing page.".to_vec())
+            .unwrap();
+        assert!(!empty.matches_static_response(&response()));
+        assert!(config.matches_static_response(&response()));
+        let mut changed = response();
+        changed.body_complete = false;
+        assert!(!config.matches_static_response(&changed));
+        let mut changed = response();
+        changed
+            .history
+            .push("http://example.com/redirect".to_string());
+        assert!(!config.matches_static_response(&changed));
+        let mut changed = response();
+        changed
+            .headers
+            .push(("location".to_string(), "/login".to_string()));
+        assert!(!config.matches_static_response(&changed));
+        let mut changed = response();
+        changed.body.push(b'!');
+        assert!(!config.matches_static_response(&changed));
+        let mut changed = response();
+        changed.status = 200;
+        assert!(!config.matches_static_response(&changed));
+        let mut changed = response();
+        changed.headers[0].1 = "application/json".to_string();
+        assert!(!config.matches_static_response(&changed));
+        let mut changed = response();
+        changed.error = Some("incomplete transfer".to_string());
+        assert!(!config.matches_static_response(&changed));
+    }
+
+    #[test]
+    fn static_response_rejects_empty_or_unbounded_templates() {
+        let config = NativeFilterConfig::default();
+        assert!(config
+            .with_static_response_profile(404, String::new(), Vec::new())
+            .is_err());
+        assert!(config
+            .with_static_response_profile(404, String::new(), vec![0; 65537])
+            .is_err());
+    }
 }
