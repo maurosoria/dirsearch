@@ -6,7 +6,7 @@ from lib.connection.response import NativeResponse
 from lib.core.run_config import RunConfig
 from lib.controller.run_resources import RunResources
 from lib.controller.controller import Controller
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.result_config import ResultConfig
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.execution_config import ExecutionConfig, ScanEngine
@@ -25,8 +25,8 @@ def matched_response() -> NativeResponse:
 
 class ReplayOptionsMixin:
     def setUp(self):
-        self.original_options = dict(options)
-        options.update(
+        self.options = default_options()
+        self.options.update(
             {
                 "skip_on_status": set(),
                 "full_url": False,
@@ -39,10 +39,6 @@ class ReplayOptionsMixin:
                 "find_backup": False,
             }
         )
-
-    def tearDown(self):
-        options.clear()
-        options.update(self.original_options)
 
 
 class RecordingAsyncRequester:
@@ -82,14 +78,15 @@ class FailingAsyncRequester:
 
 class TestAsyncReplayLifecycle(ReplayOptionsMixin, IsolatedAsyncioTestCase):
     async def test_match_callback_waits_for_replay_to_finish(self):
-        options["async_mode"] = False
+        self.options["async_mode"] = False
         requester = RecordingAsyncRequester()
         controller = object.__new__(Controller)
+        controller._options = self.options
         controller.resources = RunResources(interface=Mock(), logger=Mock())
         controller.config = RunConfig(
             results=ResultConfig(replay_proxy="http://replay.test:8080"),
             execution=ExecutionConfig(engine=ScanEngine.ASYNC),
-            discovery=DiscoveryConfig.from_options(options),
+            discovery=DiscoveryConfig.from_options(self.options),
         )
         controller.resources.loop = asyncio.get_running_loop()
         controller.resources.requester = requester
@@ -109,14 +106,15 @@ class TestAsyncReplayLifecycle(ReplayOptionsMixin, IsolatedAsyncioTestCase):
         )
 
     async def test_cancelling_callback_cancels_in_progress_replay(self):
-        options["async_mode"] = False
+        self.options["async_mode"] = False
         requester = BlockingAsyncRequester()
         controller = object.__new__(Controller)
+        controller._options = self.options
         controller.resources = RunResources(interface=Mock(), logger=Mock())
         controller.config = RunConfig(
             results=ResultConfig(replay_proxy="http://replay.test:8080"),
             execution=ExecutionConfig(engine=ScanEngine.ASYNC),
-            discovery=DiscoveryConfig.from_options(options),
+            discovery=DiscoveryConfig.from_options(self.options),
         )
         controller.resources.loop = asyncio.get_running_loop()
         controller.resources.requester = requester
@@ -139,13 +137,14 @@ class TestAsyncReplayLifecycle(ReplayOptionsMixin, IsolatedAsyncioTestCase):
         self.assertTrue(cancelled_with_callback)
 
     async def test_replay_failure_is_observed_by_callback_runner(self):
-        options["async_mode"] = False
+        self.options["async_mode"] = False
         controller = object.__new__(Controller)
+        controller._options = self.options
         controller.resources = RunResources(interface=Mock(), logger=Mock())
         controller.config = RunConfig(
             results=ResultConfig(replay_proxy="http://replay.test:8080"),
             execution=ExecutionConfig(engine=ScanEngine.ASYNC),
-            discovery=DiscoveryConfig.from_options(options),
+            discovery=DiscoveryConfig.from_options(self.options),
         )
         controller.resources.loop = asyncio.get_running_loop()
         controller.resources.requester = FailingAsyncRequester()
@@ -163,14 +162,15 @@ class TestSyncReplayLifecycle(ReplayOptionsMixin, TestCase):
     def test_match_callback_replays_inline(self):
         for engine in (ScanEngine.THREADED, ScanEngine.NATIVE):
             with self.subTest(engine=engine):
-                options["async_mode"] = True
+                self.options["async_mode"] = True
                 requester = Mock()
                 controller = object.__new__(Controller)
+                controller._options = self.options
                 controller.resources = RunResources(interface=Mock(), logger=Mock())
                 controller.config = RunConfig(
                     results=ResultConfig(replay_proxy="http://replay.test:8080"),
                     execution=ExecutionConfig(engine=engine),
-                    discovery=DiscoveryConfig.from_options(options),
+                    discovery=DiscoveryConfig.from_options(self.options),
                 )
                 controller.resources.requester = requester
 

@@ -646,10 +646,11 @@ class TestControllerResponseStores(TestCase):
             controller.resources.response_stores = (store,)
             raise RuntimeError("setup failed")
 
-        with patch.dict("lib.controller.controller.options", {"session_file": None}):
-            with patch.object(Controller, "setup", failing_setup):
-                with self.assertRaisesRegex(RuntimeError, "setup failed"):
-                    Controller().run()
+        from lib.core.option_defaults import default_options
+
+        with patch.object(Controller, "setup", failing_setup):
+            with self.assertRaisesRegex(RuntimeError, "setup failed"):
+                Controller(default_options()).run()
 
         self.assertTrue(store.close_called)
 

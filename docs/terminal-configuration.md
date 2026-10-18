@@ -68,8 +68,9 @@ Low-level force-quit paths still terminate the process immediately.
 
 ## Scope and verification
 
-This is presentation isolation, not concurrent-controller support. Global CLI
-options and process signal handlers remain separate concerns. Logging now has
+This is presentation isolation, not concurrent-controller support. CLI input is
+now [invocation-local](invocation-options.md); process signal handlers remain a
+separate concern. Logging now has
 its own [per-run ownership boundary](logging-ownership.md).
 The controller supplies full-URL selection per match from its prepared
 [result policy](result-configuration.md), which also owns response destinations

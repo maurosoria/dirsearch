@@ -8,8 +8,6 @@ from unittest import TestCase
 
 import requests
 
-from lib.core.data import options
-
 
 class APITestHandler(BaseHTTPRequestHandler):
     routes = {
@@ -323,7 +321,6 @@ class TestImportableAPI(TestCase):
     def test_two_configs_do_not_leak_state(self):
         from dirsearch import DirsearchFuzzer, FuzzerConfig, WordlistTemplate
 
-        before = dict(options)
         mutable_wordlist = ["admin.php"]
         mutable_headers = {"x-api-test": "first"}
         frozen_config = FuzzerConfig(
@@ -363,4 +360,3 @@ class TestImportableAPI(TestCase):
         self.assertEqual([result.path for result in second], ["private.txt"])
         self.assertEqual(list(frozen_config.wordlist), ["admin.php"])
         self.assertEqual(frozen_config.headers["x-api-test"], "first")
-        self.assertEqual(options, before)

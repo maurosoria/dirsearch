@@ -2,7 +2,7 @@ import asyncio
 from unittest import IsolatedAsyncioTestCase
 
 from lib.connection.response import NativeResponse
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.execution_config import ExecutionConfig
 from lib.core.filter_config import FilterConfig
@@ -59,7 +59,7 @@ class BlockingAsyncRequester:
         await asyncio.Event().wait()
 
 
-def make_dictionary(paths):
+def make_dictionary(paths, *, options):
     dictionary = Dictionary(WordlistConfig.from_options(options))
     dictionary.__setstate__((list(paths), 0, [], 0))
     return dictionary
@@ -67,8 +67,8 @@ def make_dictionary(paths):
 
 class TestAsyncFuzzer(IsolatedAsyncioTestCase):
     def setUp(self):
-        self.original_options = dict(options)
-        options.update(
+        self.options = default_options()
+        self.options.update(
             {
                 "thread_count": 1,
                 "delay": 0,
@@ -88,10 +88,6 @@ class TestAsyncFuzzer(IsolatedAsyncioTestCase):
             }
         )
 
-    def tearDown(self):
-        options.clear()
-        options.update(self.original_options)
-
     async def test_does_not_filter_response_matching_index_page(self):
         dictionary = DummyDictionary(["home.html"])
         matches = []
@@ -100,9 +96,9 @@ class TestAsyncFuzzer(IsolatedAsyncioTestCase):
         fuzzer = AsyncFuzzer(
             DummyAsyncRequester(),
             dictionary,
-            filter_config=FilterConfig.from_options(options),
-            discovery_config=DiscoveryConfig.from_options(options),
-            execution_config=ExecutionConfig.from_options(options),
+            filter_config=FilterConfig.from_options(self.options),
+            discovery_config=DiscoveryConfig.from_options(self.options),
+            execution_config=ExecutionConfig.from_options(self.options),
             match_callbacks=(matches.append,),
             not_found_callbacks=(misses.append,),
             error_callbacks=(errors.append,),
@@ -116,14 +112,14 @@ class TestAsyncFuzzer(IsolatedAsyncioTestCase):
         self.assertEqual(errors, [])
 
     async def test_saved_state_retries_cancelled_in_flight_path(self):
-        dictionary = make_dictionary(["admin", "login"])
+        dictionary = make_dictionary(["admin", "login"], options=self.options)
         requester = BlockingAsyncRequester()
         fuzzer = AsyncFuzzer(
             requester,
             dictionary,
-            filter_config=FilterConfig.from_options(options),
-            discovery_config=DiscoveryConfig.from_options(options),
-            execution_config=ExecutionConfig.from_options(options),
+            filter_config=FilterConfig.from_options(self.options),
+            discovery_config=DiscoveryConfig.from_options(self.options),
+            execution_config=ExecutionConfig.from_options(self.options),
             match_callbacks=(),
             not_found_callbacks=(),
             error_callbacks=(),
@@ -141,7 +137,7 @@ class TestAsyncFuzzer(IsolatedAsyncioTestCase):
         with self.assertRaises(asyncio.CancelledError):
             await run_task
 
-        resumed = Dictionary(WordlistConfig.from_options(options))
+        resumed = Dictionary(WordlistConfig.from_options(self.options))
         resumed.__setstate__(saved_state)
         self.assertEqual([next(resumed), next(resumed)], ["admin", "login"])
         with self.assertRaises(StopIteration):
@@ -163,9 +159,9 @@ class TestAsyncFuzzer(IsolatedAsyncioTestCase):
         fuzzer = AsyncFuzzer(
             DummyAsyncRequester(),
             dictionary,
-            filter_config=FilterConfig.from_options(options),
-            discovery_config=DiscoveryConfig.from_options(options),
-            execution_config=ExecutionConfig.from_options(options),
+            filter_config=FilterConfig.from_options(self.options),
+            discovery_config=DiscoveryConfig.from_options(self.options),
+            execution_config=ExecutionConfig.from_options(self.options),
             match_callbacks=(save_match,),
             not_found_callbacks=(),
             error_callbacks=(),

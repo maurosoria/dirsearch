@@ -10,7 +10,7 @@ from unittest import IsolatedAsyncioTestCase, TestCase
 from unittest.mock import Mock, patch
 
 from lib.controller.session import SessionStore
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.report_config import ReportConfig
 from lib.core.run_metadata import RunMetadata
 from lib.report.html_report import HTMLReport
@@ -53,6 +53,9 @@ def make_result(url):
 
 
 class TestReportManagerDestinations(TestCase):
+    def setUp(self):
+        self.options = default_options()
+
     def test_uses_destinations_restored_after_report_module_import(self):
         output_file = "/tmp/restored-{format}.{extension}"
         output_table = "restored_results"
@@ -83,7 +86,7 @@ class TestReportManagerDestinations(TestCase):
             for report_format, sources in expected_sources.items():
                 with self.subTest(report_format=report_format):
                     manager = ReportManager(ReportConfig.from_options({
-                        **options, **restored, "output_formats": [report_format],
+                        **self.options, **restored, "output_formats": [report_format],
                     }))
                     self.assertEqual(len(manager.reports), 1)
                     self.assertEqual(manager.reports[0][1], sources)
@@ -93,8 +96,7 @@ class TestReportManagerDestinations(TestCase):
             formats=("sqlite",), output_file="report.sqlite",
             output_table="results", sqlite_commit_batch_size=25,
         )
-        with patch.dict(options, {}, clear=True):
-            manager = ReportManager(config)
+        manager = ReportManager(config)
 
         self.assertEqual(manager.reports[0][0]._commit_batch_size, 25)
 
@@ -118,7 +120,7 @@ class TestReportManagerDestinations(TestCase):
                 "output_formats": ["json", "sqlite"],
                 "output_file": output_file, "output_table": "results",
             })
-            manager = ReportManager(ReportConfig.from_options({**options, **restored}))
+            manager = ReportManager(ReportConfig.from_options({**self.options, **restored}))
 
             self.assertEqual(len(manager.reports), 2)
             manager.prepare("https://example.test/")
@@ -178,7 +180,6 @@ class TestReportManagerDestinations(TestCase):
                     mysql_url="mysql://example.test/db", postgres_url="postgresql://example.test/db",
                 )
                 with (
-                    patch.dict(options, {}, clear=True),
                     patch("importlib.import_module", return_value=module) as import_module,
                 ):
                     manager = ReportManager(config)
@@ -205,15 +206,14 @@ class TestReportManagerDestinations(TestCase):
             managers = []
             try:
                 for name, batch_size in (("first", 1), ("second", 3)):
-                    with patch.dict(options, {}, clear=True):
-                        manager = ReportManager(ReportConfig(
-                            formats=("json", "sqlite"),
-                            output_file=str(Path(directory, name + "-{format}.{extension}")),
-                            output_table="results", sqlite_commit_batch_size=batch_size,
-                        ))
-                        managers.append(manager)
-                        manager.prepare("https://example.test/")
-                        manager.save(make_result("https://example.test/" + name))
+                    manager = ReportManager(ReportConfig(
+                        formats=("json", "sqlite"),
+                        output_file=str(Path(directory, name + "-{format}.{extension}")),
+                        output_table="results", sqlite_commit_batch_size=batch_size,
+                    ))
+                    managers.append(manager)
+                    manager.prepare("https://example.test/")
+                    manager.save(make_result("https://example.test/" + name))
                 for name, expected in (("first", 1), ("second", 0)):
                     with closing(sqlite3.connect(Path(directory, name + "-sql.sqlite"))) as connection:
                         self.assertEqual(connection.execute('SELECT COUNT(*) FROM "results"').fetchone()[0], expected)

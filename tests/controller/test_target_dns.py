@@ -24,15 +24,15 @@ from lib.core.run_config import RunConfig
 from lib.controller.run_resources import RunResources
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.exceptions import InvalidURLException
 from lib.core.target_config import TargetConfig
 
 
 class TestControllerTargetDNS(TestCase):
     def setUp(self):
-        self.original_options = dict(options)
-        options.update(
+        self.options = default_options()
+        self.options.update(
             {
                 "request_backend": "python",
                 "scheme": None,
@@ -42,14 +42,11 @@ class TestControllerTargetDNS(TestCase):
             }
         )
         self.controller = object.__new__(Controller)
+        self.controller._options = self.options
         self.controller.resources = RunResources(interface=Mock(), logger=Mock())
-        self.controller.config = RunConfig(target=TargetConfig.from_options(options))
+        self.controller.config = RunConfig(target=TargetConfig.from_options(self.options))
         self.controller.target_progress = TargetProgress()
         self.controller.resources.requester = Mock()
-
-    def tearDown(self):
-        options.clear()
-        options.update(self.original_options)
 
     def test_ip_override_uses_detected_default_port(self):
         with patch(
@@ -90,9 +87,9 @@ class TestControllerTargetDNS(TestCase):
 
         for routing in routing_options:
             with self.subTest(routing=routing):
-                options.update({"ip": None, "proxies": [], "tor": False})
-                options.update(routing)
-                self.controller.config = replace(self.controller.config, target=TargetConfig.from_options(options))
+                self.options.update({"ip": None, "proxies": [], "tor": False})
+                self.options.update(routing)
+                self.controller.config = replace(self.controller.config, target=TargetConfig.from_options(self.options))
                 self.controller.resources.requester.reset_mock()
 
                 with patch(
@@ -109,13 +106,13 @@ class TestControllerTargetDNS(TestCase):
                 self.controller.resources.requester.set_url.assert_not_called()
 
     def test_proxy_accepts_an_explicit_url_scheme(self):
-        options.update(
+        self.options.update(
             {
                 "ip": None,
                 "proxies": ["http://127.0.0.1:8080"],
             }
         )
-        self.controller.config = replace(self.controller.config, target=TargetConfig.from_options(options))
+        self.controller.config = replace(self.controller.config, target=TargetConfig.from_options(self.options))
 
         with patch("lib.controller.controller.detect_scheme") as detect_scheme:
             self.controller.set_target("https://example.test")
@@ -126,14 +123,14 @@ class TestControllerTargetDNS(TestCase):
         )
 
     def test_proxy_accepts_scheme_option(self):
-        options.update(
+        self.options.update(
             {
                 "ip": None,
                 "proxies": ["http://127.0.0.1:8080"],
                 "scheme": "https",
             }
         )
-        self.controller.config = replace(self.controller.config, target=TargetConfig.from_options(options))
+        self.controller.config = replace(self.controller.config, target=TargetConfig.from_options(self.options))
 
         with patch("lib.controller.controller.detect_scheme") as detect_scheme:
             self.controller.set_target("example.test")

@@ -2,13 +2,16 @@ from unittest import TestCase
 from unittest.mock import AsyncMock, Mock, patch
 
 from lib.controller.controller import Controller
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.wordlist_config import WordlistConfig
 from lib.core.fuzzer import AsyncFuzzer, Fuzzer, NativeFuzzer
 from tests.core.test_advanced_filters import response
 
 
 class TestControllerFilterConfig(TestCase):
+    def setUp(self):
+        self.options = default_options()
+
     def test_preparation_builds_one_policy_and_fresh_state_for_each_target(self):
         for backend, async_mode, requester_path, fuzzer_class in (
             ("python", False, "lib.connection.requester.Requester", Fuzzer),
@@ -23,12 +26,12 @@ class TestControllerFilterConfig(TestCase):
 
                     def prepare(controller, *_args):
                         prepared.append(True)
-                        options.update(
+                        controller._options.update(
                             include_status_codes={200, 403}, filter_threshold=1,
                             exclude_texts=[], session_file=None, subdirs=[],
                             urls=["http://first.test/", "http://second.test/"],
                         )
-                        controller._prepare_config(options)
+                        controller._prepare_config(controller._options)
                         controller.resources.reporter = Mock(reports=())
                         controller.dictionary = Mock()
                         controller.target_progress.directories = []
@@ -48,8 +51,8 @@ class TestControllerFilterConfig(TestCase):
                         self.assertIs(fuzzer.filter_config, controller.config.filters)
                         # Changing option storage and the original source must
                         # not alter an already configured run or its next target.
-                        options["include_status_codes"].clear()
-                        options["filter_threshold"] = 0
+                        controller._options["include_status_codes"].clear()
+                        controller._options["filter_threshold"] = 0
                         blacklists[403].clear()
                         self.assertTrue(fuzzer.is_excluded(response(status=404)))
                         self.assertTrue(fuzzer.is_excluded(response(path="denied", status=403)))
@@ -61,7 +64,7 @@ class TestControllerFilterConfig(TestCase):
                     if async_mode:
                         requester.close = AsyncMock()
                     with (
-                        patch.dict(options, {
+                        patch.dict(self.options, {
                             "request_backend": backend, "async_mode": async_mode,
                             "session_file": "session.json" if resumed else None,
                             "include_status_codes": set(), "filter_threshold": 0,
@@ -76,7 +79,7 @@ class TestControllerFilterConfig(TestCase):
                         patch("lib.controller.controller.signal.signal"),
                         patch("lib.controller.controller.create_terminal"),
                     ):
-                        controller = Controller()
+                        controller = Controller(self.options)
                         controller.run()
 
                     loader.assert_called_once_with(controller.config.wordlist)

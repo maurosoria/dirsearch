@@ -7,7 +7,7 @@ from lib.connection.response import NativeResponse
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.execution_config import ExecutionConfig
 from lib.core.filter_config import FilterConfig
@@ -17,7 +17,7 @@ from lib.core.wordlist_config import WordlistConfig
 from lib.core.fuzzer import AsyncFuzzer, Fuzzer, NativeFuzzer
 
 
-def make_dictionary(paths: list[str]) -> Dictionary:
+def make_dictionary(paths: list[str], *, options) -> Dictionary:
     dictionary = Dictionary(WordlistConfig.from_options(options))
     dictionary.__setstate__((list(paths), 0, [], 0))
     return dictionary
@@ -46,8 +46,9 @@ def crawled_paths_response() -> NativeResponse:
     )
 
 
-def add_crawled_paths(dictionary: Dictionary) -> None:
+def add_crawled_paths(dictionary: Dictionary, *, options) -> None:
     controller = object.__new__(Controller)
+    controller._options = options
     controller.run_state = ScanRunState()
     controller.target_progress = TargetProgress()
     controller.config = RunConfig(discovery=DiscoveryConfig.from_options(options))
@@ -121,8 +122,8 @@ class MembershipTrackingList(list):
 
 class DynamicDictionaryOptionsMixin:
     def setUp(self):
-        self._original_options = dict(options)
-        options.update(
+        self.options = default_options()
+        self.options.update(
             {
                 "thread_count": 1,
                 "delay": 0,
@@ -162,10 +163,6 @@ class DynamicDictionaryOptionsMixin:
             }
         )
 
-    def tearDown(self):
-        options.clear()
-        options.update(self._original_options)
-
     @staticmethod
     def add_dynamic_path(dictionary):
         def callback(response):
@@ -177,7 +174,7 @@ class DynamicDictionaryOptionsMixin:
 
 class TestDynamicDictionaryMembership(DynamicDictionaryOptionsMixin, TestCase):
     def test_wordlist_membership_index_is_lazy_and_reused_after_reset(self):
-        dictionary = make_dictionary(["seed"])
+        dictionary = make_dictionary(["seed"], options=self.options)
 
         self.assertIsNone(dictionary._item_membership)
 
@@ -188,7 +185,7 @@ class TestDynamicDictionaryMembership(DynamicDictionaryOptionsMixin, TestCase):
         self.assertIs(dictionary._item_membership, membership)
 
     def test_add_extra_does_not_scan_wordlist_or_dynamic_queue(self):
-        dictionary = make_dictionary([])
+        dictionary = make_dictionary([], options=self.options)
         dictionary._items = MembershipTrackingList(["seed", "existing"])
         dictionary._extra = MembershipTrackingList()
 
@@ -202,10 +199,10 @@ class TestDynamicDictionaryMembership(DynamicDictionaryOptionsMixin, TestCase):
         self.assertEqual(dictionary._extra, ["dynamic-one", "dynamic-two"])
 
     def test_membership_indexes_follow_session_restore_and_reset(self):
-        dictionary = make_dictionary(["seed"])
+        dictionary = make_dictionary(["seed"], options=self.options)
         dictionary.add_extra("dynamic")
 
-        restored = Dictionary(WordlistConfig.from_options(options))
+        restored = Dictionary(WordlistConfig.from_options(self.options))
         restored.__setstate__(dictionary.__getstate__())
         restored.add_extra("seed")
         restored.add_extra("dynamic")
@@ -221,15 +218,15 @@ class TestDynamicDictionaryMembership(DynamicDictionaryOptionsMixin, TestCase):
 
 class TestSyncDynamicDictionary(DynamicDictionaryOptionsMixin, TestCase):
     def test_excluded_crawled_subdirectories_are_not_scanned(self):
-        dictionary = make_dictionary(["seed"])
-        add_crawled_paths(dictionary)
+        dictionary = make_dictionary(["seed"], options=self.options)
+        add_crawled_paths(dictionary, options=self.options)
         requester = RecordingSyncRequester()
         fuzzer = Fuzzer(
             requester,
             dictionary,
-            filter_config=FilterConfig.from_options(options),
-            discovery_config=DiscoveryConfig.from_options(options),
-            execution_config=ExecutionConfig.from_options(options),
+            filter_config=FilterConfig.from_options(self.options),
+            discovery_config=DiscoveryConfig.from_options(self.options),
+            execution_config=ExecutionConfig.from_options(self.options),
             match_callbacks=(),
             not_found_callbacks=(),
             error_callbacks=(),
@@ -252,14 +249,14 @@ class TestSyncDynamicDictionary(DynamicDictionaryOptionsMixin, TestCase):
         )
 
     def test_scans_path_added_by_match_callback(self):
-        dictionary = make_dictionary(["index.php"])
+        dictionary = make_dictionary(["index.php"], options=self.options)
         requester = RecordingSyncRequester()
         fuzzer = Fuzzer(
             requester,
             dictionary,
-            filter_config=FilterConfig.from_options(options),
-            discovery_config=DiscoveryConfig.from_options(options),
-            execution_config=ExecutionConfig.from_options(options),
+            filter_config=FilterConfig.from_options(self.options),
+            discovery_config=DiscoveryConfig.from_options(self.options),
+            execution_config=ExecutionConfig.from_options(self.options),
             match_callbacks=(self.add_dynamic_path(dictionary),),
             not_found_callbacks=(),
             error_callbacks=(),
@@ -280,15 +277,15 @@ class TestAsyncDynamicDictionary(
     IsolatedAsyncioTestCase,
 ):
     async def test_excluded_crawled_subdirectories_are_not_scanned(self):
-        dictionary = make_dictionary(["seed"])
-        add_crawled_paths(dictionary)
+        dictionary = make_dictionary(["seed"], options=self.options)
+        add_crawled_paths(dictionary, options=self.options)
         requester = RecordingAsyncRequester()
         fuzzer = AsyncFuzzer(
             requester,
             dictionary,
-            filter_config=FilterConfig.from_options(options),
-            discovery_config=DiscoveryConfig.from_options(options),
-            execution_config=ExecutionConfig.from_options(options),
+            filter_config=FilterConfig.from_options(self.options),
+            discovery_config=DiscoveryConfig.from_options(self.options),
+            execution_config=ExecutionConfig.from_options(self.options),
             match_callbacks=(),
             not_found_callbacks=(),
             error_callbacks=(),
@@ -310,14 +307,14 @@ class TestAsyncDynamicDictionary(
         )
 
     async def test_scans_path_added_by_match_callback(self):
-        dictionary = make_dictionary(["index.php"])
+        dictionary = make_dictionary(["index.php"], options=self.options)
         requester = RecordingAsyncRequester()
         fuzzer = AsyncFuzzer(
             requester,
             dictionary,
-            filter_config=FilterConfig.from_options(options),
-            discovery_config=DiscoveryConfig.from_options(options),
-            execution_config=ExecutionConfig.from_options(options),
+            filter_config=FilterConfig.from_options(self.options),
+            discovery_config=DiscoveryConfig.from_options(self.options),
+            execution_config=ExecutionConfig.from_options(self.options),
             match_callbacks=(self.add_dynamic_path(dictionary),),
             not_found_callbacks=(),
             error_callbacks=(),
@@ -334,15 +331,15 @@ class TestAsyncDynamicDictionary(
 
 class TestNativeDynamicDictionary(DynamicDictionaryOptionsMixin, TestCase):
     def test_excluded_crawled_subdirectories_are_not_scanned(self):
-        dictionary = make_dictionary(["seed"])
-        add_crawled_paths(dictionary)
+        dictionary = make_dictionary(["seed"], options=self.options)
+        add_crawled_paths(dictionary, options=self.options)
         backend = RecordingNativeBackend()
         fuzzer = NativeFuzzer(
             DummyNativeRequester(backend),
             dictionary,
-            filter_config=FilterConfig.from_options(options),
-            discovery_config=DiscoveryConfig.from_options(options),
-            execution_config=ExecutionConfig.from_options(options),
+            filter_config=FilterConfig.from_options(self.options),
+            discovery_config=DiscoveryConfig.from_options(self.options),
+            execution_config=ExecutionConfig.from_options(self.options),
             match_callbacks=(),
             not_found_callbacks=(),
             error_callbacks=(),
@@ -361,14 +358,14 @@ class TestNativeDynamicDictionary(DynamicDictionaryOptionsMixin, TestCase):
         )
 
     def test_scans_path_added_by_match_callback_in_next_chunk(self):
-        dictionary = make_dictionary(["index.php"])
+        dictionary = make_dictionary(["index.php"], options=self.options)
         backend = RecordingNativeBackend()
         fuzzer = NativeFuzzer(
             DummyNativeRequester(backend),
             dictionary,
-            filter_config=FilterConfig.from_options(options),
-            discovery_config=DiscoveryConfig.from_options(options),
-            execution_config=ExecutionConfig.from_options(options),
+            filter_config=FilterConfig.from_options(self.options),
+            discovery_config=DiscoveryConfig.from_options(self.options),
+            execution_config=ExecutionConfig.from_options(self.options),
             match_callbacks=(self.add_dynamic_path(dictionary),),
             not_found_callbacks=(),
             error_callbacks=(),

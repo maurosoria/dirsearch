@@ -125,7 +125,7 @@ Run `python -m unittest discover -s tests -t .`.
 Tests cover transitions and invalid transitions, checkpoints between preparation/activation
 instructions, detached inputs/snapshots, duplicates and raw URL spelling,
 independent state instances, preservation of restored totals, progress and pause
-behavior with contradictory global options, handled target exits, startup
+behavior with contradictory source options, handled target exits, startup
 failure, checkpoint writes and failures, and resume across the three engines.
 Existing worker-drain, wordlist-resume and loopback CLI contracts remain in use.
 The new controller characterization exercises repeated targets, cumulative

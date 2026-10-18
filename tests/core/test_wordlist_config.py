@@ -3,7 +3,6 @@ from types import SimpleNamespace
 from unittest import TestCase
 from unittest.mock import Mock, patch
 
-from lib.core.data import options
 from lib.core.dictionary import Dictionary, get_blacklists
 from lib.core.exceptions import WordlistBackendUnavailableError, WordlistLimitError
 from lib.core.native_runtime import NATIVE_EXTENSION_VERSION
@@ -42,8 +41,7 @@ class TestWordlistConfig(TestCase):
             "lowercase": True, "uppercase": True, "capitalization": True,
             "wordlist_max_size": 25,
         }
-        with patch.dict(options, {}, clear=True):
-            config = WordlistConfig.from_options(values)
+        config = WordlistConfig.from_options(values)
         values["extensions"].clear()
         self.assertEqual(config, WordlistConfig(
             backend="native", native_corpus=True,
@@ -61,7 +59,6 @@ class TestWordlistConfig(TestCase):
             extensions=("json",), exclude_extensions=("txt",), uppercase=True,
         ))
         with (
-            patch.dict(options, {}, clear=True),
             patch("lib.core.wordlist_backend.FileUtils.get_lines", return_value=[
                 "Page.%EXT%", "sample.txt", "archive.zip",
             ]),
@@ -74,18 +71,17 @@ class TestWordlistConfig(TestCase):
         config = WordlistConfig(exclude_extensions=["zip"])
         dictionary = Dictionary(config)
         other = Dictionary(WordlistConfig(exclude_extensions=["txt"]))
-        with patch.dict(options, {}, clear=True):
-            for current in (dictionary, other):
-                current.add_extra("archive.zip?download=1")
-                current.add_extra("file.txt#section")
-            self.assertEqual(next(dictionary), "file.txt#section")
-            self.assertEqual(next(other), "archive.zip?download=1")
-            dictionary.reset()
-            dictionary.add_extra("archive.zip")
-            dictionary.add_extra("fresh.txt")
-            self.assertEqual(next(dictionary), "fresh.txt")
-            with self.assertRaises(StopIteration):
-                next(dictionary)
+        for current in (dictionary, other):
+            current.add_extra("archive.zip?download=1")
+            current.add_extra("file.txt#section")
+        self.assertEqual(next(dictionary), "file.txt#section")
+        self.assertEqual(next(other), "archive.zip?download=1")
+        dictionary.reset()
+        dictionary.add_extra("archive.zip")
+        dictionary.add_extra("fresh.txt")
+        self.assertEqual(next(dictionary), "fresh.txt")
+        with self.assertRaises(StopIteration):
+            next(dictionary)
         self.assertIs(dictionary.config, config)
 
     def test_blacklists_share_policy_but_skip_generation_variants(self):
@@ -95,7 +91,6 @@ class TestWordlistConfig(TestCase):
             exclude_extensions=("zip",),
         )
         with (
-            patch.dict(options, {}, clear=True),
             patch("lib.core.dictionary.FileUtils.can_read", return_value=True),
             patch("lib.core.wordlist_backend.FileUtils.get_lines", return_value=[
                 "Page.%EXT%", "Archive.zip", "Plain",
@@ -111,7 +106,6 @@ class TestWordlistConfig(TestCase):
         limited = PythonWordlistBackend(WordlistConfig(max_size=1))
         unlimited = PythonWordlistBackend(WordlistConfig(max_size=0))
         with (
-            patch.dict(options, {}, clear=True),
             patch("lib.core.wordlist_backend.FileUtils.get_lines", return_value=["one", "two"]),
         ):
             with self.assertRaisesRegex(WordlistLimitError, r"max-size \(1\)"):
@@ -134,7 +128,6 @@ class TestWordlistConfig(TestCase):
         with (
             patch.dict("sys.modules", {"dirsearch_native": native}),
             patch.object(NativeWordlistBackend, "_requires_python_template_expansion", return_value=False),
-            patch.dict(options, {}, clear=True),
         ):
             backend = get_wordlist_backend(config)
             corpus = backend.generate(["fixture"])
@@ -162,7 +155,6 @@ class TestWordlistConfig(TestCase):
                 patch.dict("sys.modules", {"dirsearch_native": native}),
                 patch.object(NativeWordlistBackend, "_requires_python_template_expansion", return_value=True),
                 patch("lib.core.wordlist_backend.FileUtils.get_lines", return_value=["Page.%EXT%"]),
-                patch.dict(options, {}, clear=True),
             ):
                 backend = NativeWordlistBackend(config)
                 self.assertEqual(backend.generate(["fixture"], is_blacklist=blacklist), ["page.html"])
@@ -170,7 +162,6 @@ class TestWordlistConfig(TestCase):
     def test_backend_selection_preserves_optional_native_error_contract(self):
         with (
             patch.dict("sys.modules", {"dirsearch_native": None}),
-            patch.dict(options, {}, clear=True),
         ):
             config = WordlistConfig(native_corpus=True)
             for policy in (config, replace(config, backend="python")):

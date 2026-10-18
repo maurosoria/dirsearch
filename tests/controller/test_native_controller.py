@@ -8,7 +8,7 @@ from lib.core.run_config import RunConfig
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.execution_config import ExecutionConfig
 from lib.core.exceptions import QuitInterrupt, SkipTargetInterrupt
 
@@ -69,6 +69,7 @@ class UncooperativeNativeFuzzer(BlockingNativeFuzzer):
 
 def create_controller(fuzzer):
     controller = object.__new__(Controller)
+    controller._options = default_options()
     controller.config = RunConfig()
     controller.run_state = ScanRunState()
     controller.target_progress = TargetProgress()
@@ -83,6 +84,9 @@ def create_controller(fuzzer):
 
 
 class TestNativeControllerDeadlines(TestCase):
+    def setUp(self):
+        self.options = default_options()
+
     def assert_deadline_stops_native_fuzzer(
         self, *, max_time, target_max_time, error_type, message
     ):
@@ -92,14 +96,14 @@ class TestNativeControllerDeadlines(TestCase):
 
         def run_controller():
             try:
-                controller.config = replace(controller.config, execution=ExecutionConfig.from_options(options))
+                controller.config = replace(controller.config, execution=ExecutionConfig.from_options(self.options))
                 controller.start()
             except BaseException as error:
                 errors.append(error)
 
         worker = threading.Thread(target=run_controller)
         with patch.dict(
-            options,
+            self.options,
             {
                 "async_mode": False,
                 "request_backend": "native",
@@ -130,7 +134,7 @@ class TestNativeControllerDeadlines(TestCase):
         controller = create_controller(fuzzer)
 
         with patch.dict(
-            options,
+            self.options,
             {
                 "async_mode": False,
                 "request_backend": "native",
@@ -138,7 +142,7 @@ class TestNativeControllerDeadlines(TestCase):
                 "target_max_time": 0,
             },
         ):
-            controller.config = replace(controller.config, execution=ExecutionConfig.from_options(options))
+            controller.config = replace(controller.config, execution=ExecutionConfig.from_options(self.options))
             controller.start()
 
         self.assertEqual(fuzzer.quit_calls, 0)
@@ -152,7 +156,7 @@ class TestNativeControllerDeadlines(TestCase):
 
         with (
             patch.dict(
-                options,
+                self.options,
                 {
                     "async_mode": False,
                     "request_backend": "native",
@@ -164,7 +168,7 @@ class TestNativeControllerDeadlines(TestCase):
                 QuitInterrupt, "Runtime exceeded the maximum set by the user"
             ),
         ):
-            controller.config = replace(controller.config, execution=ExecutionConfig.from_options(options))
+            controller.config = replace(controller.config, execution=ExecutionConfig.from_options(self.options))
             controller.start()
 
         self.assertFalse(fuzzer.started.is_set())
@@ -178,14 +182,14 @@ class TestNativeControllerDeadlines(TestCase):
         controller.start_time = 0
 
         with (
-            patch.dict(options, {"max_time": 1, "target_max_time": 0}),
+            patch.dict(self.options, {"max_time": 1, "target_max_time": 0}),
             patch("lib.controller.controller.threading.Timer", SuppressedTimer),
             patch("lib.controller.controller.time.time", side_effect=[0, 2]),
             self.assertRaisesRegex(
                 QuitInterrupt, "Runtime exceeded the maximum set by the user"
             ),
         ):
-            controller.config = replace(controller.config, execution=ExecutionConfig.from_options(options))
+            controller.config = replace(controller.config, execution=ExecutionConfig.from_options(self.options))
             controller.start_native_fuzzer(start_time=0)
 
         self.assertEqual(fuzzer.quit_calls, 0)
@@ -221,14 +225,14 @@ class TestNativeControllerDeadlines(TestCase):
         def run_controller():
             controller_thread_ids.append(threading.get_ident())
             try:
-                controller.config = replace(controller.config, execution=ExecutionConfig.from_options(options))
+                controller.config = replace(controller.config, execution=ExecutionConfig.from_options(self.options))
                 controller.start_native_fuzzer(start_time=time.time())
             except BaseException as error:
                 errors.append(error)
 
         fuzzer.start = record_fuzzer_thread
         worker = threading.Thread(target=run_controller)
-        with patch.dict(options, {"max_time": 0, "target_max_time": 0}):
+        with patch.dict(self.options, {"max_time": 0, "target_max_time": 0}):
             worker.start()
             try:
                 self.assertTrue(fuzzer.started.wait(timeout=1))
@@ -247,7 +251,7 @@ class TestNativeControllerDeadlines(TestCase):
         try:
             with (
                 patch.dict(
-                    options,
+                    self.options,
                     {
                         "async_mode": False,
                         "request_backend": "native",
@@ -263,7 +267,7 @@ class TestNativeControllerDeadlines(TestCase):
                     QuitInterrupt, "Native scan did not stop safely"
                 ),
             ):
-                controller.config = replace(controller.config, execution=ExecutionConfig.from_options(options))
+                controller.config = replace(controller.config, execution=ExecutionConfig.from_options(self.options))
                 controller.start()
         finally:
             fuzzer.release.set()

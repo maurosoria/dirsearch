@@ -92,7 +92,7 @@ The normal `python -m unittest discover -s tests -t .` suite includes:
 - Deep immutability and adapters independent of the global options dictionary.
 - Filter/calibration-state isolation for threaded, async and native fuzzers.
 - Fresh target state and shared immutable policy after setup or session restore.
-- Explicit sync/async scanner calibration policy with global options empty.
+- Explicit sync/async scanner calibration policy without ambient options.
 - Existing atomic threshold, native lazy/replay/reopen and loopback CLI contracts.
 - Installed-package imports for both new modules.
 

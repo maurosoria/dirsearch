@@ -10,7 +10,7 @@ preparation boundary as `RequestConfig`, before constructing requesters.
 | `ip` | `connect_host` | Existing scheme probe and requester IP override |
 | `proxies` or `tor` | `proxy_configured` | Existing prohibition on automatic scheme detection with an explicitly configured proxy/Tor |
 
-Changing global options after preparation cannot change these hints for the
+Changing source options after preparation cannot change these hints for the
 current or later targets. The options adapter uses only its supplied mapping;
 `set_target()` no longer reads global options. Internal callers that prepare
 targets directly must supply `controller.config.target` through an explicit
@@ -60,7 +60,7 @@ Run `python -m unittest discover -s tests -t .`.
 
 Coverage includes immutable supplied-mapping adaptation, proxy/Tor truth-table
 semantics, input mutation, absence of proxy credentials in the target policy,
-independent policies with global options cleared, changes to globals during
+independent policies without ambient options, changes to source input during
 requester construction, and real JSON checkpoint restoration for all three
 engines. Existing IPv6, URL, credentials and loopback CLI contracts remain in use.
 

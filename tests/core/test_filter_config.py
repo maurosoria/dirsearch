@@ -1,8 +1,7 @@
 from dataclasses import FrozenInstanceError
 from unittest import IsolatedAsyncioTestCase, TestCase
-from unittest.mock import patch
 
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.execution_config import ExecutionConfig
 from lib.core.filter_config import FilterConfig
@@ -17,6 +16,9 @@ class NativeRequesterStub:
 
 
 class TestFilterConfig(TestCase):
+    def setUp(self):
+        self.options = default_options()
+
     def test_collections_are_detached_and_deeply_immutable(self):
         statuses = {200}
         ranges = [[1, 10]]
@@ -41,10 +43,9 @@ class TestFilterConfig(TestCase):
             config.blacklists[403] = ()
 
     def test_options_adapter_reads_only_its_argument(self):
-        values = dict(options)
+        values = dict(self.options)
         values.update(exclude_texts=["private"], filter_regex="missing")
-        with patch.dict(options, {}, clear=True):
-            config = FilterConfig.from_options(values, blacklists={404: ["/missing"]})
+        config = FilterConfig.from_options(values, blacklists={404: ["/missing"]})
         values["exclude_texts"].clear()
         self.assertEqual(config.exclude_texts, ("private",))
         self.assertEqual(config.filter_regex, "missing")
@@ -62,7 +63,7 @@ class TestFilterConfig(TestCase):
     def test_filter_policy_and_state_are_isolated_in_every_engine(self):
         config = FilterConfig(filter_threshold=1, blacklists={403: ["/denied"]})
         for engine in (Fuzzer, AsyncFuzzer, NativeFuzzer):
-            with self.subTest(engine=engine.__name__), patch.dict(options, {}, clear=True):
+            with self.subTest(engine=engine.__name__):
                 def make_fuzzer(policy):
                     return engine(
                         NativeRequesterStub(), DummyDictionary(), filter_config=policy,
@@ -90,7 +91,7 @@ class TestFilterConfig(TestCase):
         config = FilterConfig(auto_calibration=True)
         candidate = response(body=b"a repeated template long enough for calibration")
         for engine in (Fuzzer, AsyncFuzzer, NativeFuzzer):
-            with self.subTest(engine=engine.__name__), patch.dict(options, {}, clear=True):
+            with self.subTest(engine=engine.__name__):
                 fuzzers = [
                     engine(
                         NativeRequesterStub(), DummyDictionary(), filter_config=config,
@@ -128,19 +129,18 @@ class AsyncFixedResponseRequester:
 
 class TestScannerFilterConfig(IsolatedAsyncioTestCase):
     async def test_calibration_uses_explicit_policy_without_global_options(self):
-        with patch.dict(options, {}, clear=True):
-            for forced in (False, True):
-                with self.subTest(forced=forced):
-                    config = FilterConfig(auto_calibration=forced)
-                    sync = Scanner(
-                        FixedResponseRequester(), filter_config=config, delay=0,
-                        path=WILDCARD_TEST_POINT_MARKER,
-                    )
-                    asynchronous = await AsyncScanner.create(
-                        AsyncFixedResponseRequester(), filter_config=config, delay=0,
-                        path=WILDCARD_TEST_POINT_MARKER,
-                    )
-                    for scanner in (sync, asynchronous):
-                        self.assertEqual(scanner.sample_count, 4 if forced else 2)
-                        self.assertFalse(scanner.check("missing", FixedResponseRequester().request("missing")))
-                    self.assertIsNot(sync.tested, asynchronous.tested)
+        for forced in (False, True):
+            with self.subTest(forced=forced):
+                config = FilterConfig(auto_calibration=forced)
+                sync = Scanner(
+                    FixedResponseRequester(), filter_config=config, delay=0,
+                    path=WILDCARD_TEST_POINT_MARKER,
+                )
+                asynchronous = await AsyncScanner.create(
+                    AsyncFixedResponseRequester(), filter_config=config, delay=0,
+                    path=WILDCARD_TEST_POINT_MARKER,
+                )
+                for scanner in (sync, asynchronous):
+                    self.assertEqual(scanner.sample_count, 4 if forced else 2)
+                    self.assertFalse(scanner.check("missing", FixedResponseRequester().request("missing")))
+                self.assertIsNot(sync.tested, asynchronous.tested)

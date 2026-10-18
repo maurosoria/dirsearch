@@ -3,7 +3,7 @@
 dirsearch can be used as a Python library for local automation, MCP servers,
 REST wrappers, and agent-controlled scans. The public API is intentionally small:
 it does not parse CLI flags, does not load the terminal interface, and does not
-mutate the CLI global options state.
+depend on CLI option storage.
 
 Use the public imports from `dirsearch`:
 

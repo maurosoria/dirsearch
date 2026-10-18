@@ -8,7 +8,7 @@ from lib.core.run_config import RunConfig
 from lib.controller.run_resources import RunResources
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.exceptions import QuitInterrupt, SkipTargetInterrupt
 from lib.core.execution_config import ExecutionConfig, ScanEngine
 from lib.core.scan_run_state import ScanRunState
@@ -42,27 +42,24 @@ class RecordingPauseFuture:
 
 class TestPauseState(TestCase):
     def setUp(self):
-        self.original_options = dict(options)
+        self.options = default_options()
         self.reset_controller()
 
     def reset_controller(self):
         self.controller = object.__new__(Controller)
+        self.controller._options = self.options
         self.controller.resources = RunResources(interface=Mock(), logger=Mock())
-        self.controller.config = RunConfig(execution=ExecutionConfig.from_options(options))
+        self.controller.config = RunConfig(execution=ExecutionConfig.from_options(self.options))
         self.controller.metadata = RunMetadata("dirsearch", "2026-10-05 23:59:59")
         self.controller.run_state = ScanRunState()
         self.controller.target_progress = TargetProgress()
-        self.controller.run_state.prepare_targets(options["urls"])
+        self.controller.run_state.prepare_targets(self.options["urls"])
         self.controller.run_state.activate_next()
         self.controller._handling_pause = False
         self.controller._force_quit_handler = RecordingForceQuitHandler()
         self.controller.fuzzer = Mock()
         self.controller.fuzzer.pause.return_value = True
         self.controller.target_progress.directories = ["first/", "second/"]
-
-    def tearDown(self):
-        options.clear()
-        options.update(self.original_options)
 
     def exercise_second_pause(self, first_option, second_option="c"):
         with patch("builtins.input", side_effect=(first_option, second_option)):
@@ -86,7 +83,7 @@ class TestPauseState(TestCase):
 
         for run_options in engine_options:
             with self.subTest(options=run_options), patch.dict(
-                options,
+                self.options,
                 {**run_options, "urls": ["https://example.test"]},
             ):
                 self.reset_controller()
@@ -103,7 +100,7 @@ class TestPauseState(TestCase):
             ):
                 with (
                     self.subTest(engine=engine, answers=answers),
-                    patch.dict(options, {
+                    patch.dict(self.options, {
                         "urls": ["http://first.test/", "http://second.test/"],
                         "session_file": None,
                     }),
@@ -113,7 +110,7 @@ class TestPauseState(TestCase):
                     self.controller.config = replace(self.controller.config, execution=ExecutionConfig(engine=engine))
                     self.controller.pause_future = RecordingPauseFuture()
                     self.controller._export = Mock()
-                    options.update(request_backend="python", async_mode=engine is not ScanEngine.ASYNC)
+                    self.options.update(request_backend="python", async_mode=engine is not ScanEngine.ASYNC)
                     if engine is ScanEngine.ASYNC:
                         self.controller.handle_pause()
                         self.assertIsInstance(self.controller.pause_future.error, error_type)
@@ -129,7 +126,7 @@ class TestPauseState(TestCase):
     def test_skip_target_rearms_pause_for_threaded_and_native_engines(self):
         for request_backend in ("python", "native"):
             with self.subTest(request_backend=request_backend), patch.dict(
-                options,
+                self.options,
                 {
                     "request_backend": request_backend,
                     "async_mode": False,
@@ -152,7 +149,7 @@ class TestPauseState(TestCase):
             for entered in ("", "custom-{datetime}"):
                 with (
                     self.subTest(engine=engine, entered=entered),
-                    patch.dict(options, {"session_file": "checkpoint-{datetime}"}),
+                    patch.dict(self.options, {"session_file": "checkpoint-{datetime}"}),
                     patch("builtins.input", side_effect=("q", "s", entered)),
                     patch("time.strftime", return_value="2026-10-06 00:00:01"),
                 ):
@@ -174,7 +171,7 @@ class TestPauseState(TestCase):
 
     def test_skip_target_rearms_pause_for_async_engine(self):
         with patch.dict(
-            options,
+            self.options,
             {
                 "request_backend": "python",
                 "async_mode": True,
@@ -193,11 +190,11 @@ class TestPauseState(TestCase):
         self.assert_pause_state_was_rearmed()
         self.controller.fuzzer.quit.assert_not_called()
 
-    def test_skip_uses_pending_state_even_if_global_urls_are_empty(self):
+    def test_skip_uses_pending_state_even_if_source_urls_are_empty(self):
         for engine in ScanEngine:
             with (
                 self.subTest(engine=engine),
-                patch.dict(options, {"urls": []}),
+                patch.dict(self.options, {"urls": []}),
                 patch("builtins.input", return_value="s"),
             ):
                 self.reset_controller()
@@ -215,11 +212,11 @@ class TestPauseState(TestCase):
                 # The menu signals the exit; only run() finishes the attempt.
                 self.assertEqual(self.controller.run_state.active_task.target, "first")
 
-    def test_last_active_target_cannot_skip_to_stale_global_urls(self):
+    def test_last_active_target_cannot_skip_to_stale_source_urls(self):
         for engine in ScanEngine:
             with (
                 self.subTest(engine=engine),
-                patch.dict(options, {"urls": ["stale", "also-stale"]}),
+                patch.dict(self.options, {"urls": ["stale", "also-stale"]}),
                 patch("builtins.input", side_effect=("s", "c")),
             ):
                 self.reset_controller()

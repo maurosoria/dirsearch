@@ -10,12 +10,15 @@ from lib.controller.controller import Controller
 from lib.controller.session_snapshot import RunCheckpoint, SessionSnapshot
 from lib.controller.session_options import SessionOptions
 from lib.core.task_checkpoint import DictionaryCheckpoint, TaskCheckpoint
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.options import parse_options
 from lib.core.settings import COMMON_EXTENSIONS
 
 
 class TestOptions(TestCase):
+    def setUp(self):
+        self.options = default_options()
+
     def test_client_certificate_and_key_must_be_used_together(self):
         with tempfile.NamedTemporaryFile() as identity_file:
             for flag in ("--cert-file", "--key-file"):
@@ -44,7 +47,6 @@ class TestOptions(TestCase):
                     )
 
     def test_random_agent_rejects_fixed_user_agent_from_session(self):
-        original_options = dict(options)
         session_store = Mock()
         session_store.load.return_value = SessionSnapshot(
             run=RunCheckpoint(0), task_checkpoint=TaskCheckpoint(DictionaryCheckpoint((), 0)),
@@ -56,87 +58,78 @@ class TestOptions(TestCase):
         )
         output = io.StringIO()
 
-        try:
-            options.clear()
-            options["session_file"] = "session.json"
+        self.options.clear()
+        self.options["session_file"] = "session.json"
+        with (
+            patch(
+                "lib.controller.controller.SessionStore",
+                return_value=session_store,
+            ),
+            patch(
+                "lib.controller.controller.validate_numeric_options",
+                side_effect=AssertionError(
+                    "session header validation ran too late"
+                ),
+            ),
+            redirect_stderr(output),
+            self.assertRaises(SystemExit) as raised,
+        ):
+            Controller._import(Controller(self.options), "session.json")
+
+        self.assertEqual(raised.exception.code, 1)
+        self.assertIn(
+            "--random-agent cannot be combined with a fixed User-Agent",
+            output.getvalue(),
+        )
+
+    def test_random_agent_rejects_fixed_user_agent_from_raw_request(self):
+        with tempfile.TemporaryDirectory() as directory:
+            raw_request_path = os.path.join(directory, "request.txt")
+            wordlist_path = os.path.join(directory, "wordlist.txt")
+            with open(raw_request_path, "wb") as raw_request:
+                raw_request.write(
+                    b"GET / HTTP/1.1\r\n"
+                    b"Host: example.test\r\n"
+                    b"User-Agent: fixed-from-raw\r\n"
+                    b"\r\n"
+                )
+            with open(wordlist_path, "w", encoding="utf-8") as wordlist:
+                wordlist.write("admin\n")
+
+            args = [
+                "dirsearch.py",
+                "--raw",
+                raw_request_path,
+                "--wordlists",
+                wordlist_path,
+                "-e",
+                "php",
+                "--random-agent",
+            ]
+            output = io.StringIO()
+
+            with patch("sys.argv", args):
+                parsed_options = parse_options()
+            self.options.clear()
+            self.options.update(parsed_options)
+
             with (
                 patch(
-                    "lib.controller.controller.SessionStore",
-                    return_value=session_store,
-                ),
-                patch(
-                    "lib.controller.controller.validate_numeric_options",
+                    "lib.controller.controller.Dictionary",
                     side_effect=AssertionError(
-                        "session header validation ran too late"
+                        "raw header validation ran too late"
                     ),
                 ),
                 redirect_stderr(output),
                 self.assertRaises(SystemExit) as raised,
             ):
-                Controller._import(object.__new__(Controller), "session.json")
+                Controller.setup(Controller(self.options))
 
-            self.assertEqual(raised.exception.code, 1)
-            self.assertIn(
-                "--random-agent cannot be combined with a fixed User-Agent",
-                output.getvalue(),
-            )
-        finally:
-            options.clear()
-            options.update(original_options)
-
-    def test_random_agent_rejects_fixed_user_agent_from_raw_request(self):
-        original_options = dict(options)
-        try:
-            with tempfile.TemporaryDirectory() as directory:
-                raw_request_path = os.path.join(directory, "request.txt")
-                wordlist_path = os.path.join(directory, "wordlist.txt")
-                with open(raw_request_path, "wb") as raw_request:
-                    raw_request.write(
-                        b"GET / HTTP/1.1\r\n"
-                        b"Host: example.test\r\n"
-                        b"User-Agent: fixed-from-raw\r\n"
-                        b"\r\n"
-                    )
-                with open(wordlist_path, "w", encoding="utf-8") as wordlist:
-                    wordlist.write("admin\n")
-
-                args = [
-                    "dirsearch.py",
-                    "--raw",
-                    raw_request_path,
-                    "--wordlists",
-                    wordlist_path,
-                    "-e",
-                    "php",
-                    "--random-agent",
-                ]
-                output = io.StringIO()
-
-                with patch("sys.argv", args):
-                    parsed_options = parse_options()
-                options.clear()
-                options.update(parsed_options)
-
-                with (
-                    patch(
-                        "lib.controller.controller.Dictionary",
-                        side_effect=AssertionError(
-                            "raw header validation ran too late"
-                        ),
-                    ),
-                    redirect_stderr(output),
-                    self.assertRaises(SystemExit) as raised,
-                ):
-                    Controller.setup(object.__new__(Controller))
-
-            self.assertEqual(raised.exception.code, 1)
-            self.assertIn(
-                "--random-agent cannot be combined with a fixed User-Agent",
-                output.getvalue(),
-            )
-        finally:
-            options.clear()
-            options.update(original_options)
+        self.assertEqual(raised.exception.code, 1)
+        self.assertIn(
+            "--random-agent cannot be combined with a fixed User-Agent",
+            output.getvalue(),
+        )
 
     def test_random_agent_rejects_fixed_user_agent_cli_sources(self):
         with tempfile.TemporaryDirectory() as directory:

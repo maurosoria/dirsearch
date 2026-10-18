@@ -11,7 +11,7 @@ from lib.controller.controller import Controller
 from lib.controller.session import SessionStore
 from lib.controller.session_options import SessionOptions
 from lib.controller.session_snapshot import RunCheckpoint, SessionSnapshot
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.execution_config import ScanEngine
 from lib.core.logger import RunLogger
 from lib.core.run_config import RunConfig
@@ -21,7 +21,8 @@ from lib.view.terminal import create_terminal
 
 class TestControllerRunConfig(TestCase):
     def setUp(self):
-        values = deepcopy(options)
+        self.options = default_options()
+        values = deepcopy(self.options)
         values.update(
             urls=[], wordlists=[], wordlist_backend="python",
             session_file=None, raw_file=None, output_formats=[],
@@ -29,14 +30,12 @@ class TestControllerRunConfig(TestCase):
             request_backend="python", async_mode=False,
             color=False, quiet=False, disable_cli=False,
         )
-        state = patch.dict(options, values, clear=True)
-        state.start()
-        self.addCleanup(state.stop)
+        self.options = values
 
     def test_resources_and_transport_share_one_preparation_for_all_engines(self):
         for engine in ScanEngine:
-            with self.subTest(engine=engine), patch.dict(options, deepcopy(options), clear=True):
-                options.update(
+            with self.subTest(engine=engine), patch.dict(self.options, deepcopy(self.options), clear=True):
+                self.options.update(
                     request_backend="native" if engine is ScanEngine.NATIVE else "python",
                     async_mode=engine is ScanEngine.ASYNC,
                     headers={"X-Prepared": "yes"}, http_method="POST", thread_count=3,
@@ -47,10 +46,10 @@ class TestControllerRunConfig(TestCase):
                     terminal = create_terminal(config, **kwargs)
                     terminals.append(terminal)
                     if len(terminals) == 2:
-                        prepared.append(deepcopy(options))
+                        prepared.append(deepcopy(controller._options))
                         # This runs after policy capture but before Dictionary,
                         # logger, reports and requester construction.
-                        options.update(
+                        self.options.update(
                             request_backend="invalid", async_mode=True,
                             http_method="DELETE", headers={}, thread_count=99,
                             extensions=("wrong",), prefixes=("wrong-",),
@@ -72,7 +71,7 @@ class TestControllerRunConfig(TestCase):
                     patch("lib.connection.requester.AsyncRequester", return_value=requester) as asynchronous,
                     patch("lib.connection.native.NativeRequester", return_value=requester) as native,
                 ):
-                    controller = Controller(output=StringIO())
+                    controller = Controller(self.options, output=StringIO())
                     controller.run()
                 self.assertEqual(controller.config, RunConfig.from_options(prepared[0]))
                 self.assertEqual(controller.session_options, SessionOptions.from_options(prepared[0]))
@@ -104,9 +103,9 @@ class TestControllerRunConfig(TestCase):
                 b"POST /api?next=%2Fhome HTTP/1.1\r\nHost: example.test\r\n"
                 b"Authorization: Bearer private-value\r\n\r\n\x80body\r\n"
             )
-            options.update(raw_file=str(raw), http_method="GET", data="ignored")
+            self.options.update(raw_file=str(raw), http_method="GET", data="ignored")
             with patch.object(Controller, "_run_targets"):
-                controller = Controller(output=StringIO())
+                controller = Controller(self.options, output=StringIO())
                 controller.run()
         self.assertEqual(controller.config.request.method, "POST")
         self.assertEqual(controller.config.terminal.method, "POST")
@@ -116,7 +115,8 @@ class TestControllerRunConfig(TestCase):
         self.assertEqual(saved_options["http_method"], "POST")
         self.assertEqual(saved_options["data"], b"\x80body\r\n")
         self.assertNotIn("urls", saved_options)
-        self.assertEqual(options["urls"], ["example.test/api?next=%2Fhome"])
+        self.assertEqual(controller._options["urls"], ["example.test/api?next=%2Fhome"])
+        self.assertEqual(self.options["urls"], [])
 
     def test_resume_prepares_saved_policy_once_and_keeps_overwrite_choice(self):
         for engine in ScanEngine:
@@ -124,9 +124,9 @@ class TestControllerRunConfig(TestCase):
                 with (
                     self.subTest(engine=engine, choice=choice),
                     TemporaryDirectory() as directory,
-                    patch.dict(options, deepcopy(options), clear=True),
+                    patch.dict(self.options, deepcopy(self.options), clear=True),
                 ):
-                    saved = deepcopy(options)
+                    saved = deepcopy(self.options)
                     saved.pop("urls")
                     saved.update(
                         request_backend="native" if engine is ScanEngine.NATIVE else "python",
@@ -139,15 +139,15 @@ class TestControllerRunConfig(TestCase):
                         task_checkpoint=TaskCheckpoint(DictionaryCheckpoint((), 0)),
                         options=SessionOptions(saved),
                     ), checkpoint)
-                    options.update(session_file=checkpoint, http_method="DELETE", thread_count=99)
+                    self.options.update(session_file=checkpoint, http_method="DELETE", thread_count=99)
 
                     def answer():
-                        options.update(http_method="PATCH", thread_count=7)
-                        options["headers"].clear()
+                        self.options.update(http_method="PATCH", thread_count=7)
+                        self.options["headers"].clear()
                         return choice
 
                     with patch("builtins.input", side_effect=answer), patch.object(Controller, "_run_targets"):
-                        controller = Controller(output=StringIO())
+                        controller = Controller(self.options, output=StringIO())
                         controller.run()
                     self.assertEqual(controller.config, RunConfig.from_options(saved))
                     self.assertIs(controller.config.execution.engine, engine)
@@ -160,7 +160,7 @@ class TestControllerRunConfig(TestCase):
                     self.assertEqual(prepared["session_file"], checkpoint if choice == "o" else None)
 
     def test_invalid_engine_stops_before_opening_prepared_resources(self):
-        options.update(request_backend="native", async_mode=True)
+        self.options.update(request_backend="native", async_mode=True)
         terminals = []
 
         def record_terminal(*args, **kwargs):
@@ -178,7 +178,7 @@ class TestControllerRunConfig(TestCase):
             patch("sys.stderr", new_callable=StringIO),
             self.assertRaises(SystemExit) as stopped,
         ):
-            Controller(output=StringIO()).run()
+            Controller(self.options, output=StringIO()).run()
         self.assertEqual(stopped.exception.code, 1)
         for resource in (dictionary, reports, logging, stores, run):
             resource.assert_not_called()
@@ -187,9 +187,10 @@ class TestControllerRunConfig(TestCase):
 
     def test_failed_preparation_does_not_publish_a_partial_configuration(self):
         controller = object.__new__(Controller)
-        controller._prepare_config(options)
+        controller._options = self.options
+        controller._prepare_config(self.options)
         previous, previous_options = controller.config, controller.session_options
-        invalid = deepcopy(options)
+        invalid = deepcopy(self.options)
         invalid.update(request_backend="unknown")
         with patch("sys.stderr", new_callable=StringIO), self.assertRaises(SystemExit):
             controller._prepare_config(invalid)
@@ -197,9 +198,10 @@ class TestControllerRunConfig(TestCase):
         self.assertIs(controller.session_options, previous_options)
 
     def test_local_preparation_input_cannot_mutate_policies_or_persistence(self):
-        values = deepcopy(options)
+        values = deepcopy(self.options)
         values.update(headers={"X-Test": "prepared"}, wordlists=["words.txt"], urls=["target"])
         controller = object.__new__(Controller)
+        controller._options = self.options
         local_input = controller._prepare_config(values)
         values["headers"].clear()
         values["wordlists"].clear()

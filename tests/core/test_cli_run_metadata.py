@@ -4,7 +4,6 @@ from pathlib import Path
 from unittest import TestCase
 from unittest.mock import Mock, patch
 
-from lib.core.data import options
 from lib.core.run_metadata import RunMetadata
 
 
@@ -22,10 +21,8 @@ class TestCLIRunMetadata(TestCase):
             sys.argv[:] = ["changed-after-entry"]
             return {"wordlist_status": False, "session_file": None}
 
-        # main() still writes the transitional global options dictionary.
         executions = [Mock(), Mock()]
         with (
-            patch.dict(options, {}, clear=True),
             patch.object(cli, "parse_options", side_effect=prepare_options),
             patch("lib.controller.controller.Controller", side_effect=executions) as controller,
         ):

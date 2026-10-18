@@ -5,7 +5,7 @@ import tempfile
 from pathlib import Path
 from unittest import TestCase
 
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.dictionary import Dictionary
 from lib.core.wordlist_config import WordlistConfig
 from lib.core.exceptions import WordlistLimitError
@@ -15,8 +15,8 @@ from lib.core.wordlist_template import DEFAULT_PLACEHOLDERS
 
 class TestDictionaryTemplates(TestCase):
     def setUp(self):
-        self._original_options = dict(options)
-        options.update(
+        self.options = default_options()
+        self.options.update(
             {
                 "extensions": ("php", "json"),
                 "exclude_extensions": (),
@@ -31,16 +31,12 @@ class TestDictionaryTemplates(TestCase):
             }
         )
 
-    def tearDown(self):
-        options.clear()
-        options.update(self._original_options)
-
     def _dictionary(self, *lines: str) -> Dictionary:
         fd, path = tempfile.mkstemp(prefix="dirsearch-template-", text=True)
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as handle:
                 handle.write("\n".join(lines))
-            return Dictionary(WordlistConfig.from_options(options), files=[path])
+            return Dictionary(WordlistConfig.from_options(self.options), files=[path])
         finally:
             os.unlink(path)
 
@@ -90,8 +86,8 @@ class TestDictionaryTemplates(TestCase):
         )
 
     def test_add_extra_filters_invalid_dynamic_paths(self):
-        options["exclude_extensions"] = ("zip",)
-        dictionary = Dictionary(WordlistConfig.from_options(options), files=[])
+        self.options["exclude_extensions"] = ("zip",)
+        dictionary = Dictionary(WordlistConfig.from_options(self.options), files=[])
 
         for path in ("", "#comment", "backup.zip?download=1"):
             dictionary.add_extra(path)
@@ -102,7 +98,7 @@ class TestDictionaryTemplates(TestCase):
             next(dictionary)
 
     def test_generation_limit(self):
-        options["wordlist_max_size"] = 1
+        self.options["wordlist_max_size"] = 1
 
         with self.assertRaises(WordlistLimitError):
             self._dictionary("%CRUD_OP%_articles.php")

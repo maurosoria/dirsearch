@@ -11,11 +11,14 @@ from lib.controller.session import SessionStore
 from lib.controller.session_snapshot import RunCheckpoint, SessionSnapshot
 from lib.controller.session_options import SessionOptions
 from lib.core.task_checkpoint import DictionaryCheckpoint, TaskCheckpoint
-from lib.core.data import options as runtime_options
+from lib.core.option_defaults import default_options
 from lib.core.options import parse_options
 
 
 class TestRegexOptionValidation(TestCase):
+    def setUp(self):
+        self.options = default_options()
+
     BASE_ARGUMENTS = ["dirsearch.py", "--wordlist-status", "-e", "php"]
     EXCLUSION_OPTIONS = (
         ("--exclude-regex", "exclude-regex", "exclude_regex"),
@@ -61,13 +64,14 @@ class TestRegexOptionValidation(TestCase):
             with self.subTest(option_key=option_key):
                 output = io.StringIO()
                 controller = object.__new__(Controller)
+                controller._options = self.options
                 payload = SessionSnapshot(
                     run=RunCheckpoint(0), task_checkpoint=TaskCheckpoint(DictionaryCheckpoint((), 0)),
                     options=SessionOptions({option_key: "["}),
                 )
 
                 with (
-                    patch.dict(runtime_options),
+                    patch.dict(self.options),
                     patch.object(SessionStore, "load", return_value=payload),
                     redirect_stderr(output),
                     self.assertRaises(SystemExit) as raised,

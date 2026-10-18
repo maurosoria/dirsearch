@@ -8,7 +8,7 @@ from lib.controller.run_resources import RunResources
 from lib.controller.controller import Controller
 from lib.core.target_progress import TargetProgress
 from lib.core.scan_run_state import ScanRunState
-from lib.core.data import options
+from lib.core.option_defaults import default_options
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.exceptions import RequestException
 from lib.core.execution_config import ExecutionConfig, ScanEngine
@@ -62,6 +62,7 @@ def resolved_html_response():
 
 def create_controller(requester, *, crawl=False, engine=ScanEngine.THREADED):
     controller = object.__new__(Controller)
+    controller._options = default_options()
     controller.resources = RunResources(interface=Mock(), logger=Mock())
     controller.config = RunConfig(execution=ExecutionConfig(engine=engine), discovery=DiscoveryConfig(crawl=crawl))
     controller.run_state = ScanRunState()
@@ -76,11 +77,7 @@ def create_controller(requester, *, crawl=False, engine=ScanEngine.THREADED):
 
 class TestRootCrawl(TestCase):
     def setUp(self):
-        self.original_options = dict(options)
-
-    def tearDown(self):
-        options.clear()
-        options.update(self.original_options)
+        self.options = default_options()
 
     def test_run_seeds_paths_from_target_root_before_scan(self):
         requester = Mock()
@@ -92,7 +89,7 @@ class TestRootCrawl(TestCase):
         controller.run_state.old_session = True
         controller.start = Mock()
 
-        options.update(
+        self.options.update(
             {
                 "urls": ["https://example.test/base/"],
                 "request_backend": "python",
@@ -112,7 +109,8 @@ class TestRootCrawl(TestCase):
             patch("lib.core.fuzzer.Fuzzer", DummyFuzzer),
             patch("lib.controller.controller.signal.signal"),
         ):
-            controller._prepare_config(options)
+            controller._options = self.options
+            controller._prepare_config(self.options)
             controller._run_targets()
 
         requester.request.assert_called_once_with("base/")
@@ -126,8 +124,7 @@ class TestRootCrawl(TestCase):
         controller.resources.loop = asyncio.new_event_loop()
 
         try:
-            with patch.dict(options, {}, clear=True):
-                controller.crawl_target()
+            controller.crawl_target()
         finally:
             controller.resources.loop.close()
 
@@ -144,14 +141,13 @@ class TestRootCrawl(TestCase):
             {"assets/api", "render?size=1", "render?size=2"},
         )
 
-    def test_threaded_and_native_root_requests_ignore_global_flags(self):
+    def test_threaded_and_native_root_requests_ignore_source_flags(self):
         for engine in (ScanEngine.THREADED, ScanEngine.NATIVE):
             with self.subTest(engine=engine):
                 requester = Mock()
                 requester.request.return_value = root_response()
                 controller = create_controller(requester, crawl=True, engine=engine)
-                with patch.dict(options, {}, clear=True):
-                    controller.crawl_target()
+                controller.crawl_target()
                 requester.request.assert_called_once_with("base/")
                 self.assertEqual(controller.dictionary.extra, ["root-only"])
 
@@ -159,7 +155,7 @@ class TestRootCrawl(TestCase):
         requester = Mock()
         controller = create_controller(requester)
 
-        with patch.dict(options, {"async_mode": False, "crawl": False}):
+        with patch.dict(self.options, {"async_mode": False, "crawl": False}):
             controller.crawl_target()
 
         requester.request.assert_not_called()
@@ -171,7 +167,7 @@ class TestRootCrawl(TestCase):
         requester.request.side_effect = error
         controller = create_controller(requester, crawl=True)
 
-        with patch.dict(options, {"async_mode": False, "crawl": True}):
+        with patch.dict(self.options, {"async_mode": False, "crawl": True}):
             controller.crawl_target()
 
         controller.raise_error.assert_called_once_with(error)

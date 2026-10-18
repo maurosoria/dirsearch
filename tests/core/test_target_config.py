@@ -1,8 +1,6 @@
 from dataclasses import FrozenInstanceError
 from unittest import TestCase
-from unittest.mock import patch
 
-from lib.core.data import options
 from lib.core.target_config import TargetConfig
 
 
@@ -18,8 +16,7 @@ class TestTargetConfig(TestCase):
             "scheme": "https", "ip": "2001:db8::7",
             "proxies": [], "tor": False,
         }
-        with patch.dict(options, {}, clear=True):
-            config = TargetConfig.from_options(values)
+        config = TargetConfig.from_options(values)
         self.assertEqual(config, TargetConfig("https", "2001:db8::7", False))
 
     def test_snapshot_does_not_follow_input_mutations(self):
