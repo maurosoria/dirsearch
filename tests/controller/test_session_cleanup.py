@@ -59,7 +59,6 @@ class TestSessionCleanup(TestCase):
         with (
             patch("lib.connection.requester.Requester", return_value=Mock()),
             patch("lib.core.fuzzer.Fuzzer", DummyFuzzer),
-            patch("lib.controller.controller.signal.signal"),
         ):
             controller._prepare_config(self.options)
             controller._run_targets()
@@ -158,7 +157,7 @@ class TestSessionCleanup(TestCase):
                     ),
                 )
 
-            def fail_run(controller):
+            def fail_run(controller, *, interrupts=None):
                 raise RuntimeError("scan failed")
 
             try:
@@ -200,7 +199,7 @@ class TestSessionCleanup(TestCase):
                     ),
                 )
 
-            def fail_run(controller):
+            def fail_run(controller, *, interrupts=None):
                 raise RuntimeError("scan failed")
 
             with (

@@ -32,7 +32,7 @@ from lib.core.option_defaults import default_options
 from lib.core.exceptions import WordlistLimitError
 from lib.core.options import parse_options
 from lib.core.run_metadata import RunMetadata
-from lib.utils.cli import fail
+from lib.utils.cli import cli_interrupts, fail
 
 __all__ = [
     "main",
@@ -80,7 +80,8 @@ def main():
 
     from lib.controller.controller import Controller
 
-    Controller(options, metadata=metadata).run()
+    controller = Controller(options, metadata=metadata)
+    controller.run(interrupts=cli_interrupts(controller.handle_pause))
 
 
 if __name__ == "__main__":

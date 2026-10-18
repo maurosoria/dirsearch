@@ -107,7 +107,6 @@ class TestRootCrawl(TestCase):
         with (
             patch("lib.connection.requester.Requester", return_value=requester),
             patch("lib.core.fuzzer.Fuzzer", DummyFuzzer),
-            patch("lib.controller.controller.signal.signal"),
         ):
             controller._options = self.options
             controller._prepare_config(self.options)

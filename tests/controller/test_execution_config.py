@@ -193,7 +193,6 @@ class TestControllerExecutionConfig(TestCase):
                         patch.object(Controller, "start", new=start),
                         patch(requester_path, side_effect=make_requester) as factory,
                         patch("lib.controller.controller.get_blacklists", return_value={}),
-                        patch("lib.controller.controller.signal.signal"),
                         patch("lib.controller.controller.create_terminal"),
                     ):
                         controller = Controller(self.options)
@@ -260,7 +259,6 @@ class TestControllerExecutionConfig(TestCase):
                     patch(requester_path, return_value=requester),
                     patch("lib.controller.controller.get_blacklists", return_value={}),
                     patch("lib.controller.controller.ReportManager", return_value=Mock(reports=())),
-                    patch("lib.controller.controller.signal.signal"),
                     patch("lib.controller.controller.create_terminal"),
                 ):
                     controller = Controller(self.options)

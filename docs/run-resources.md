@@ -39,7 +39,9 @@ The controller's final cleanup calls `resources.close()` once. The order is:
 1. Finish reports, unless already attempted on normal completion or quit.
 2. Close the requester; for async, await its close on the owned event loop,
    then close that loop even when requester closure fails. A loop with no
-   requester is also closed. Threaded and native requesters close directly.
+   requester is also closed. The async loop is acquired before its requester,
+   so partial startup always satisfies this ownership invariant. Threaded and
+   native requesters close directly.
 3. Close response stores, preserving the existing per-store `OSError`
    diagnostics and continuation to the following store.
 4. Close the terminal's owned output history, not its borrowed output stream.
@@ -66,9 +68,10 @@ handle is returned; the owner can close only handles already attached to it.
 
 CLI flags, checkpoint/report formats, request dispatch, Rust ABI, native chunk
 boundaries and batch defaults are unchanged. There is no throughput claim.
-Global CLI normalization, process signals and ambient contexts remain;
-independent resource owners alone do not prove complete concurrent-controller
-safety. The [controller lifecycle](controller-lifecycle.md) now separates
+CLI normalization is invocation-local, signal handlers belong to a scoped CLI
+adapter, and loop creation no longer changes global policy. Ambient raw-target
+context remains; independent resource owners alone do not prove complete
+concurrent-controller safety. The [controller lifecycle](controller-lifecycle.md) separates
 construction from execution; the constructor opens no handles. Further isolation
 remains in the [refactoring backlog](refactoring-backlog.md).
 

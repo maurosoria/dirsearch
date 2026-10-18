@@ -61,7 +61,6 @@ class TestProgressOwnership(TestCase):
                     patch("lib.core.fuzzer.Fuzzer", partial(RecordingFuzzer, records=records)),
                     patch("lib.core.fuzzer.AsyncFuzzer", partial(RecordingAsyncFuzzer, records=records)),
                     patch("lib.core.fuzzer.NativeFuzzer", partial(RecordingFuzzer, records=records)),
-                    patch("lib.controller.controller.signal.signal"),
                 ):
                     try:
                         controller._prepare_config(self.options)

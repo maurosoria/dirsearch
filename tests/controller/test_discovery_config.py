@@ -119,7 +119,6 @@ class TestControllerDiscoveryConfig(TestCase):
                         patch.object(Controller, "start", new=start),
                         patch(requester_path, return_value=requester),
                         patch("lib.controller.controller.get_blacklists", return_value={}),
-                        patch("lib.controller.controller.signal.signal"),
                         patch("lib.controller.controller.create_terminal"),
                     ):
                         controller = Controller(self.options)

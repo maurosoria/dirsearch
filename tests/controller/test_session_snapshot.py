@@ -304,7 +304,7 @@ class TestSessionSnapshot(TestCase):
             store.save(self._controller()._snapshot_session(SessionOptions(), "unrelated history"), directory)
             raw_headers = {"X-Raw": "prepared"}
 
-            def run(controller):
+            def run(controller, *, interrupts=None):
                 self.assertEqual(controller.output_history, [])
                 controller.run_state.prepare_targets(controller._options["urls"])
                 controller.run_state.activate_next()
@@ -354,7 +354,7 @@ class TestSessionSnapshot(TestCase):
                     if resume:
                         current.update(session_file=checkpoint, headers={"X-Test": "cli-value"}, auth="cli:value")
 
-                    def run(controller):
+                    def run(controller, *, interrupts=None):
                         controller.run_state.prepare_targets(saved["urls"])
                         controller.run_state.activate_next()
                         controller.target_progress.url = saved["urls"][0]

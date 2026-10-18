@@ -43,7 +43,7 @@ class TestControllerLoggingOwnership(TestCase):
                 controller._options.update(log_file=str(path), proxy_auth="user:raw/secret")
                 return ["http://example.test/"], "POST", {}, b""
 
-            def run(controller):
+            def run(controller, *, interrupts=None):
                 self.options.update(log_file=None, proxy_auth="user:unrelated")
                 controller.resources.logger.info("raw user:raw/secret@proxy.example.test")
 
@@ -62,7 +62,7 @@ class TestControllerLoggingOwnership(TestCase):
             cli = Path(directory, "cli.log")
             self.options.update(session_file="checkpoint.json", log_file=str(cli))
 
-            def run(controller):
+            def run(controller, *, interrupts=None):
                 controller.resources.logger.info("restored user:restored/secret@proxy.example.test")
 
             with (
@@ -96,7 +96,7 @@ class TestControllerLoggingOwnership(TestCase):
                     resources.logger.info("failure boundary")
                     raise RuntimeError("injected failure")
 
-                def fail_run(controller):
+                def fail_run(controller, *, interrupts=None):
                     fail(controller.resources)
 
                 with (
@@ -114,7 +114,7 @@ class TestControllerLoggingOwnership(TestCase):
             self.options["log_file"] = str(Path(directory, "run.log"))
             handlers = []
 
-            def run(controller):
+            def run(controller, *, interrupts=None):
                 handlers.extend(controller.resources.logger.handlers)
                 close = controller.resources.interface.close
                 self.addCleanup(close)

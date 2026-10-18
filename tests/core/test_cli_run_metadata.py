@@ -22,9 +22,11 @@ class TestCLIRunMetadata(TestCase):
             return {"wordlist_status": False, "session_file": None}
 
         executions = [Mock(), Mock()]
+        interrupt_scopes = [Mock(), Mock()]
         with (
             patch.object(cli, "parse_options", side_effect=prepare_options),
             patch("lib.controller.controller.Controller", side_effect=executions) as controller,
+            patch.object(cli, "cli_interrupts", side_effect=interrupt_scopes) as make_interrupts,
         ):
             for name in ("first", "second"):
                 with (
@@ -33,8 +35,9 @@ class TestCLIRunMetadata(TestCase):
                 ):
                     cli.main()
         self.assertEqual(controller.call_count, 2)
-        for execution in executions:
-            execution.run.assert_called_once_with()
+        for index, execution in enumerate(executions):
+            self.assertEqual(make_interrupts.call_args_list[index].args, (execution.handle_pause,))
+            execution.run.assert_called_once_with(interrupts=interrupt_scopes[index])
         for call, name in zip(controller.call_args_list, ("first", "second")):
             metadata = call.kwargs["metadata"]
             self.assertEqual(metadata.command, "dirsearch --auth <redacted> -w " + name)

@@ -73,7 +73,7 @@ class TestControllerTerminalOwnership(TestCase):
                 )
                 original_output = StringIO()
 
-                def save(controller):
+                def save(controller, *, interrupts=None):
                     controller.target_progress.base_path = ""
                     controller.target_progress.url = ""
                     controller.resources.interface.new_line("first run")
@@ -85,7 +85,7 @@ class TestControllerTerminalOwnership(TestCase):
                 self.options.update(session_file=checkpoint, quiet=False, verbose=False)
                 resumed_output = StringIO()
 
-                def resume(controller):
+                def resume(controller, *, interrupts=None):
                     self.assertIsInstance(controller.resources.interface, QuietCLI)
                     self.assertTrue(controller.resources.interface.config.verbose)
                     self.assertEqual(controller.resources.interface.buffer, "")

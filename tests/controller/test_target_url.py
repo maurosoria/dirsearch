@@ -237,7 +237,6 @@ class TestControllerTargetURL(TestCase):
                     patch("lib.core.fuzzer.Fuzzer", return_value=Mock()),
                     patch("lib.core.fuzzer.AsyncFuzzer", return_value=Mock()),
                     patch("lib.core.fuzzer.NativeFuzzer", return_value=Mock()),
-                    patch("lib.controller.controller.signal.signal"),
                     patch.object(controller.resources, "interface") as interface,
                 ):
                     try:

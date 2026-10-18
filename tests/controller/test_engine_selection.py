@@ -33,7 +33,7 @@ class TestEngineSelection(TestCase):
                 patch("lib.connection.requester.Requester") as threaded,
                 patch("lib.connection.requester.AsyncRequester") as asynchronous,
                 patch("lib.connection.native.NativeRequester") as native,
-                patch("lib.controller.controller.asyncio.new_event_loop") as make_loop,
+                patch("lib.controller.controller.create_event_loop") as make_loop,
                 patch("sys.stderr", new_callable=io.StringIO) as stderr,
                 self.assertRaises(SystemExit) as stopped,
             ):
