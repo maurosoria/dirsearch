@@ -55,6 +55,12 @@ from lib.connection.proxy import (
     proxy_error_status,
 )
 from lib.connection.rate_limiter import RequestRateLimiter
+from .request_target import (
+    PathPreservingPoolMixin,
+    RawRequestTarget,
+    RequestTargetURL,
+    join_request_target,
+)
 from lib.connection.response import AsyncResponse, Response
 from lib.core.request_config import RequestConfig
 from lib.core.exceptions import RequestException
@@ -74,13 +80,6 @@ from lib.utils.mimetype import guess_mimetype
 
 # Disable InsecureRequestWarning from urllib3
 urllib3.disable_warnings(urllib3.exceptions.SecurityWarning)
-_request_target_state = threading.local()
-
-
-def _join_request_target(base_url: str, quoted_path: str) -> str:
-    base_path = urlparse(base_url).path or "/"
-    target = "/" if base_path == "/" else f"{base_path.rstrip('/')}/"
-    return target + quoted_path.lstrip("/")
 
 
 class _IPOverrideConnection:
@@ -107,64 +106,42 @@ class _IPOverrideConnection:
             self._dns_host = original_host
 
 
-# urllib3 encodes origin-form targets before writing them to the socket. Keep
-# the already-quoted dirsearch target for direct requests so fuzzed characters
-# such as malformed percent escapes and backslashes reach the server unchanged.
-class _PathPreservingRequestMixin:
-    def request(self, method, url, body=None, headers=None, *args, **kwargs):
-        target = getattr(_request_target_state, "target", None)
-        if target:
-            url = target
-
-        return super().request(method, url, body, headers, *args, **kwargs)
-
-
-class PathPreservingHTTPConnection(
-    _PathPreservingRequestMixin,
+class IPOverrideHTTPConnection(
     _IPOverrideConnection,
     urllib3_connection.HTTPConnection,
 ):
     pass
 
 
-class PathPreservingHTTPSConnection(
-    _PathPreservingRequestMixin,
+class IPOverrideHTTPSConnection(
     _IPOverrideConnection,
     urllib3_connection.HTTPSConnection,
 ):
     pass
 
 
-class PathPreservingSOCKSConnection(
-    _PathPreservingRequestMixin,
-    urllib3_socks.SOCKSConnection,
+class PathPreservingHTTPConnectionPool(
+    PathPreservingPoolMixin, urllib3_connectionpool.HTTPConnectionPool,
+):
+    ConnectionCls = IPOverrideHTTPConnection
+
+
+class PathPreservingHTTPSConnectionPool(
+    PathPreservingPoolMixin, urllib3_connectionpool.HTTPSConnectionPool,
+):
+    ConnectionCls = IPOverrideHTTPSConnection
+
+
+class PathPreservingSOCKSConnectionPool(
+    PathPreservingPoolMixin, urllib3_socks.SOCKSHTTPConnectionPool,
 ):
     pass
-
-
-class PathPreservingSOCKSHTTPSConnection(
-    _PathPreservingRequestMixin,
-    urllib3_socks.SOCKSHTTPSConnection,
-):
-    pass
-
-
-class PathPreservingHTTPConnectionPool(urllib3_connectionpool.HTTPConnectionPool):
-    ConnectionCls = PathPreservingHTTPConnection
-
-
-class PathPreservingHTTPSConnectionPool(urllib3_connectionpool.HTTPSConnectionPool):
-    ConnectionCls = PathPreservingHTTPSConnection
-
-
-class PathPreservingSOCKSConnectionPool(urllib3_socks.SOCKSHTTPConnectionPool):
-    ConnectionCls = PathPreservingSOCKSConnection
 
 
 class PathPreservingSOCKSHTTPSConnectionPool(
-    urllib3_socks.SOCKSHTTPSConnectionPool
+    PathPreservingPoolMixin, urllib3_socks.SOCKSHTTPSConnectionPool,
 ):
-    ConnectionCls = PathPreservingSOCKSHTTPSConnection
+    pass
 
 
 class PathPreservingPoolManager(urllib3_poolmanager.PoolManager):
@@ -197,16 +174,16 @@ class PathPreservingSocketOptionsAdapter(SocketOptionsAdapter):
         )
 
     def request_url(self, request: requests.PreparedRequest, proxies: dict[str, str]) -> str:
-        target = getattr(request, "_dirsearch_request_target", None)
-        if not target:
-            return super().request_url(request, proxies)
-
         request_url = super().request_url(request, proxies)
+        if not isinstance(request.url, RequestTargetURL):
+            return request_url
+
+        target = request.url.request_target
         if request_url.startswith("/"):
-            return target
+            return RawRequestTarget(target)
 
         parsed_url = urlparse(request_url)
-        return f"{parsed_url.scheme}://{parsed_url.netloc}{target}"
+        return RawRequestTarget(f"{parsed_url.scheme}://{parsed_url.netloc}{target}")
 
     def proxy_manager_for(self, proxy, **proxy_kwargs):
         manager = super().proxy_manager_for(proxy, **proxy_kwargs)
@@ -221,18 +198,6 @@ class PathPreservingSocketOptionsAdapter(SocketOptionsAdapter):
                 "https": PathPreservingHTTPSConnectionPool,
             }
         return manager
-
-    def send(self, request, **kwargs):
-        target = getattr(request, "_dirsearch_request_target", None)
-        proxies = kwargs.get("proxies") or {}
-        if not target:
-            return super().send(request, **kwargs)
-
-        _request_target_state.target = self.request_url(request, proxies)
-        try:
-            return super().send(request, **kwargs)
-        finally:
-            del _request_target_state.target
 
 
 def _is_requests_ssl_error(exc: Exception) -> bool:
@@ -624,9 +589,8 @@ class Requester(BaseRequester):
                     data=self.config.body,
                 )
                 prep = self.session.prepare_request(request)
-                prep.url = url
-                prep._dirsearch_request_target = _join_request_target(
-                    self._url, quoted_request_path
+                prep.url = RequestTargetURL(
+                    url, join_request_target(self._url, quoted_request_path)
                 )
 
                 start_time = time.perf_counter()
@@ -959,7 +923,7 @@ class AsyncRequester(BaseRequester):
                     headers=self._request_headers(),
                     content=self.config.body,
                     extensions={
-                        "target": _join_request_target(
+                        "target": join_request_target(
                             self._url, quoted_request_path
                         ).encode()
                     },

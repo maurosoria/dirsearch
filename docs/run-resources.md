@@ -69,8 +69,8 @@ handle is returned; the owner can close only handles already attached to it.
 CLI flags, checkpoint/report formats, request dispatch, Rust ABI, native chunk
 boundaries and batch defaults are unchanged. There is no throughput claim.
 CLI normalization is invocation-local, signal handlers belong to a scoped CLI
-adapter, and loop creation no longer changes global policy. Ambient raw-target
-context remains; independent resource owners alone do not prove complete
+adapter, and loop creation no longer changes global policy. Raw targets have
+[explicit request ownership](request-target-ownership.md); independent resource owners alone do not prove complete
 concurrent-controller safety. The [controller lifecycle](controller-lifecycle.md) separates
 construction from execution; the constructor opens no handles. Further isolation
 remains in the [refactoring backlog](refactoring-backlog.md).

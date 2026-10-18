@@ -274,6 +274,46 @@ class TestProxyIntegration(TestCase):
                     self.assertIsNone(error)
                     self._assert_raw_target(target, expected, response)
 
+    def test_sync_nested_raw_targets_are_isolated_across_transport_routes(self):
+        for target in self.stack.targets:
+            for proxy in (None, *self.stack.proxies, self.stack.socks_proxy):
+                with self.subTest(target=target.scheme, proxy=proxy.scheme if proxy else "direct"):
+                    target.clear_events()
+                    if proxy is not None:
+                        proxy.clear_events()
+                    self.options["proxies"] = [proxy.url] if proxy else []
+                    outer = Requester(RequestConfig.from_options(self.options))
+                    inner = Requester(RequestConfig.from_options(self.options))
+                    outer.set_url(target.url)
+                    inner.set_url(target.url)
+
+                    def nested_request(_request, **_kwargs):
+                        self.assertEqual(inner.request("inner%1\\*").status, 200)
+
+                    try:
+                        with (
+                            warnings.catch_warnings(),
+                            patch.object(
+                                outer.session.get_adapter(target.url),
+                                "add_headers", side_effect=nested_request,
+                            ),
+                        ):
+                            warnings.simplefilter("ignore", InsecureRequestWarning)
+                            response = outer.request("outer%2\\*")
+                    finally:
+                        outer.close()
+                        inner.close()
+
+                    self.assertEqual(response.status, 200)
+                    self.assertEqual(target.events, [("GET", "/inner%1\\*"), ("GET", "/outer%2\\*")])
+                    if proxy is not None:
+                        expected = (
+                            [("CONNECT", target.authority)] * 2
+                            if target.scheme == "https" or proxy.scheme == "socks5"
+                            else [("GET", target.url + path) for path in ("inner%1\\*", "outer%2\\*")]
+                        )
+                        self.assertEqual(proxy.events, expected)
+
     def test_async_engine_preserves_raw_targets_through_proxies(self):
         asyncio.run(self._test_async_engine_raw_targets())
 
