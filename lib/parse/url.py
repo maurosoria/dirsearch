@@ -18,10 +18,8 @@
 
 from urllib.parse import urljoin, urlsplit, urlunsplit
 
+from lib.core.settings import STANDARD_PORTS
 from lib.utils.common import lstrip_once
-
-
-_DEFAULT_PORTS = {"http": 80, "https": 443}
 
 
 def _origin(value: str) -> tuple[str, str, int | None] | None:
@@ -39,7 +37,7 @@ def _origin(value: str) -> tuple[str, str, int | None] | None:
     return (
         scheme,
         hostname.lower(),
-        port if port is not None else _DEFAULT_PORTS.get(scheme),
+        port if port is not None else STANDARD_PORTS.get(scheme),
     )
 
 

@@ -10,7 +10,7 @@ from lib.core.dictionary import Dictionary
 from lib.core.wordlist_config import WordlistConfig
 from lib.core.exceptions import WordlistLimitError
 from lib.core.settings import ARCHIVE_EXTENSIONS, BACKUP_EXTENSIONS
-from lib.core.wordlist_template import DEFAULT_PLACEHOLDERS
+from lib.core.wordlist_template import DEFAULT_PLACEHOLDERS, expand_template_line
 
 
 class TestDictionaryTemplates(TestCase):
@@ -58,6 +58,20 @@ class TestDictionaryTemplates(TestCase):
         self.assertIn("dev/dev.txt", dictionary)
         self.assertIn("prod/prod.txt", dictionary)
         self.assertNotIn("dev/prod.txt", dictionary)
+
+    def test_custom_placeholders_do_not_change_later_default_expansion(self):
+        custom = {"ENV": ["sandbox", "preview"]}
+        self.assertEqual(
+            list(expand_template_line("%ENV%/%ENV%", placeholders=custom)),
+            ["sandbox/sandbox", "preview/preview"],
+        )
+        custom["ENV"].clear()
+        self.assertEqual(
+            list(expand_template_line("%ENV%/%ENV%")),
+            [f"{value}/{value}" for value in (
+                "dev", "development", "test", "stage", "staging", "prod", "production", "local",
+            )],
+        )
 
     def test_category_placeholder(self):
         dictionary = self._dictionary("%CATEGORY:keys%.txt")

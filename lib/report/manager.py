@@ -17,6 +17,7 @@
 #  Author: Mauro Soria
 
 import asyncio
+from types import MappingProxyType
 from urllib.parse import urlparse
 
 from lib.core.report_config import ReportConfig
@@ -34,7 +35,8 @@ from lib.utils.file import FileUtils
 
 # Destination keys refer to the supplied config, never to process-wide options.
 # Optional database drivers stay lazy: only load them for an enabled destination.
-output_handlers = {
+# This is a fixed registry, not a mutable plugin-registration interface.
+output_handlers = MappingProxyType({
     "simple": (SimpleReport, ("output_file",)),
     "plain": (PlainTextReport, ("output_file",)),
     "json": (JSONReport, ("output_file",)),
@@ -53,7 +55,7 @@ output_handlers = {
         "PostgreSQLReport",
         ("postgres_url", "output_table"),
     ),
-}
+})
 
 
 class ReportManager:

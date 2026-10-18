@@ -23,10 +23,21 @@ from lib.utils.common import (
     replace_path,
     strip_and_uniquify,
     get_valid_filename,
+    is_binary,
 )
 
 
 class TestCommonUtils(TestCase):
+    def test_binary_detection_preserves_all_byte_classifications(self):
+        self.assertFalse(is_binary(b""))
+        self.assertFalse(is_binary(b"text\twith\r\nlines\x80\xff"))
+        for value in range(256):
+            with self.subTest(value=value):
+                binary = value < 32 and value not in (7, 8, 9, 10, 12, 13, 27)
+                binary = binary or value == 127
+                self.assertEqual(is_binary(bytes([value])), binary)
+                self.assertEqual(is_binary(b"text" + bytes([value])), binary)
+
     def test_replace_path(self):
         self.assertEqual(replace_path("/abc or /abc?k=v", "abc", "REPLACED"), "REPLACED or REPLACED?k=v", "Path was not replaced")
         self.assertEqual(replace_path("http://a.co/abc", "abc", "REPLACED"), "http://a.coREPLACED", "Path was not replaced")

@@ -113,6 +113,17 @@ class TestReportManagerDestinations(TestCase):
 
         self.assertEqual(destination, "report-2026-09-13_07-30-45.txt")
 
+    def test_report_paths_preserve_explicit_and_default_ports(self):
+        manager = ReportManager(ReportConfig())
+        for host in ("example.test", "[2001:db8::1]"):
+            for scheme, default_port in (("http", 80), ("https", 443)):
+                for suffix, expected in (("", default_port), (f":{default_port}", default_port), (":8080", 8080)):
+                    with self.subTest(host=host, scheme=scheme, suffix=suffix):
+                        self.assertEqual(
+                            manager.format("report-{port}.{extension}", f"{scheme}://{host}{suffix}/", DummyReport),
+                            f"report-{expected}.txt",
+                        )
+
     def test_restored_file_and_sqlite_reports_persist_results(self):
         with TemporaryDirectory() as directory:
             output_file = str(Path(directory, "report-{format}.{extension}"))

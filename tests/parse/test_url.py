@@ -90,6 +90,19 @@ class TestURLParsers(TestCase):
             with self.subTest(url=url):
                 self.assertFalse(same_origin(base_url, url))
 
+    def test_default_ports_preserve_origin_matching_for_hostnames_and_ip_literals(self):
+        for host in ("example.test", "192.0.2.1", "[2001:db8::1]", "[::ffff:192.0.2.1]"):
+            for scheme, port in (("http", 80), ("https", 443)):
+                with self.subTest(host=host, scheme=scheme):
+                    implicit = f"{scheme}://{host}/first"
+                    explicit = f"{scheme}://{host}:{port}/second"
+                    self.assertTrue(same_origin(implicit, explicit))
+                    self.assertTrue(same_origin(explicit, implicit))
+                    self.assertFalse(same_origin(implicit, f"{scheme}://{host}:8080/"))
+        # This helper does not invent default ports for other schemes.
+        self.assertTrue(same_origin("custom://example.test/a", "custom://example.test/b"))
+        self.assertFalse(same_origin("custom://example.test/a", "custom://example.test:80/b"))
+
     def test_same_origin_path_resolves_relative_and_protocol_relative_urls(self):
         base_url = "https://example.com/admin"
 

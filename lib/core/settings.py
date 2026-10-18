@@ -19,6 +19,7 @@
 import os
 import sys
 import string
+from types import MappingProxyType
 
 from lib.utils.file import FileUtils
 
@@ -35,7 +36,9 @@ SCRIPT_PATH = FileUtils.parent(__file__, 3)
 IS_WINDOWS = sys.platform in ("win32", "msys")
 
 WORDLIST_CATEGORY_DIR = FileUtils.build_path(SCRIPT_PATH, "db", "categories")
-WORDLIST_CATEGORIES = {
+# Shared defaults are read-only. Callers customize their own copies, never the
+# tables used by later invocations in the same process.
+WORDLIST_CATEGORIES = MappingProxyType({
     "extensions": "extensions.txt",
     "conf": "conf.txt",
     "vcs": "vcs.txt",
@@ -83,7 +86,7 @@ WORDLIST_CATEGORIES = {
     "infra/docker": "infra/docker.txt",
     "infra/k8s": "infra/k8s.txt",
     "infra/aws": "infra/aws.txt",
-}
+})
 
 DEFAULT_ENCODING = "utf-8"
 
@@ -123,7 +126,8 @@ AUTHENTICATION_TYPES = ("basic", "digest", "bearer", "ntlm", "jwt")
 
 PROXY_SCHEMES = ("http://", "https://", "socks5://", "socks5h://", "socks4://", "socks4a://")
 
-STANDARD_PORTS = {"http": 80, "https": 443}
+# Keep target preparation, origin comparison and report paths on one table.
+STANDARD_PORTS = MappingProxyType({"http": 80, "https": 443})
 
 DEFAULT_TEST_PREFIXES = (".", ".ht")
 
@@ -131,13 +135,13 @@ DEFAULT_TEST_SUFFIXES = ("/", "~")
 
 DEFAULT_TOR_PROXIES = ("socks5://127.0.0.1:9050", "socks5://127.0.0.1:9150")
 
-DEFAULT_HEADERS = {
+DEFAULT_HEADERS = MappingProxyType({
     "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36",
     "accept": "*/*",
     "accept-encoding": "*",
     "keep-alive": "timeout=15, max=1000",
     "cache-control": "max-age=0",
-}
+})
 
 
 def _get_default_session_dir() -> str:
@@ -215,4 +219,5 @@ THREADED_WORKER_SHUTDOWN_TIMEOUT = 2.0
 
 URL_SAFE_CHARS = string.punctuation
 
-TEXT_CHARS = bytearray({7, 8, 9, 10, 12, 13, 27} | set(range(0x20, 0x100)) - {0x7F})
+# Deletion bytes for binary detection; high bytes remain accepted as before.
+TEXT_CHARS = bytes({7, 8, 9, 10, 12, 13, 27} | set(range(0x20, 0x100)) - {0x7F})
