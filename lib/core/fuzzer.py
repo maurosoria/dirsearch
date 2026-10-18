@@ -598,6 +598,25 @@ class NativeFuzzer(Fuzzer):
         self._lifecycle_lock = threading.Lock()
         self._prepared = False
 
+    def _update_static_response_profile(self, *, clear: bool = False) -> None:
+        setter = getattr(self._native_backend, "set_static_response_profile", None)
+        if setter is None:
+            return
+        profile = None
+        if not clear and self.filtered_chunk_callbacks and not self.logger.handlers:
+            scanner = self.filter_state.scanners["default"].get("random")
+            if scanner is not None and self._requester.config.method == "GET":
+                candidate = scanner.static_response_profile
+                if candidate is not None and candidate[0] not in self.execution_config.skip_on_status:
+                    # Let normal responses establish duplicate-calibration state
+                    # first. Otherwise omitting them changes later decisions.
+                    fingerprint = self.response_fingerprint(scanner.response)
+                    with self.filter_state.lock:
+                        learned = fingerprint in self.filter_state.auto_calibrated_fingerprints
+                    if learned or not self.should_record_auto_calibration(scanner.response):
+                        profile = candidate
+        setter(profile)
+
     def prepare_start(self) -> None:
         with self._lifecycle_lock:
             self._quit_event.clear()
@@ -620,7 +639,9 @@ class NativeFuzzer(Fuzzer):
         try:
             if self._native_backend is None:
                 self._native_backend = self._requester.get_backend()
+            self._update_static_response_profile(clear=True)
             self.setup_scanners()
+            self._update_static_response_profile()
             super().play()
             self._started_event.set()
 
@@ -644,6 +665,7 @@ class NativeFuzzer(Fuzzer):
                         lambda chunk: self._process_native_chunk(paths, chunk),
                         self._requester._query,
                     )
+                    self._update_static_response_profile()
                 except BaseException:
                     # A callback or native failure must not strand claims. A
                     # saved Python session will resume at the first prefix that

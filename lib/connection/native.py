@@ -86,6 +86,7 @@ class NativeHTTPBackend:
         self._engine = None
         self._engine_config = None
         self._native_filter_config = None
+        self._static_response_profile = None
         self._empty_native_filter_config = None
         self._proxy_override = proxy_override
         self._ip_overrides = (
@@ -449,6 +450,11 @@ class NativeHTTPBackend:
     def _using_proxy(self) -> bool:
         return self._proxy_override is not None or bool(self.config.proxies)
 
+    def set_static_response_profile(self, profile: tuple[int, str, bytes] | None) -> None:
+        if profile != self._static_response_profile:
+            self._static_response_profile = profile
+            self._native_filter_config = None
+
     def _get_native_filter_config(self, apply_filters: bool):
         if not apply_filters:
             if self._empty_native_filter_config is None:
@@ -458,6 +464,10 @@ class NativeHTTPBackend:
             self._native_filter_config = self._native.NativeFilterConfig(
                 **self.filter_config.native_options()
             )
+            # Older extension builds retain the Python classification path.
+            extend = getattr(self._native_filter_config, "with_static_response", None)
+            if self._static_response_profile is not None and extend is not None:
+                self._native_filter_config = extend(*self._static_response_profile)
         return self._native_filter_config
 
 
