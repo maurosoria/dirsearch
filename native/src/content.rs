@@ -275,18 +275,18 @@ fn static_patterns(first: &str, second: &str) -> Option<Vec<String>> {
 // synchronization. Split words contain no spaces/tabs, so charjunk is empty.
 fn fancy_patterns(
     a: &[&str],
-    alo: usize,
-    ahi: usize,
+    first_start: usize,
+    first_end: usize,
     b: &[&str],
-    blo: usize,
-    bhi: usize,
+    second_start: usize,
+    second_end: usize,
     patterns: &mut Vec<String>,
 ) {
-    let mut dump_i = alo;
-    for (j, second) in b.iter().enumerate().take(bhi).skip(blo) {
-        let equivalent = alo + j - blo;
+    let mut dump_i = first_start;
+    for (j, second) in b.iter().enumerate().take(second_end).skip(second_start) {
+        let equivalent = first_start + j - second_start;
         let start = equivalent.saturating_sub(10).max(dump_i);
-        let end = (equivalent + 11).min(ahi);
+        let end = (equivalent + 11).min(first_end);
         if start >= end {
             break;
         }

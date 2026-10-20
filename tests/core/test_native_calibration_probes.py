@@ -82,5 +82,5 @@ class TestNativeCalibrationProbes(TestCase):
 
     def test_explicit_cookie_and_rate_limit_preserve_sequential_calibration(self):
         self.assertEqual(self.measure(RequestConfig(concurrency=8, timeout=3,
-                                                  headers=(('Cookie', 'session=test'),))), 1)
+                                                   headers=(('Cookie', 'session=test'),))), 1)
         self.assertEqual(self.measure(RequestConfig(concurrency=8, timeout=3, max_rate=1000)), 1)
