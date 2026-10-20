@@ -90,19 +90,23 @@ impl NativeFilterConfig {
         {
             return false;
         }
-        let mut actual_type = "";
+        let mut actual_type = None;
+        let mut location_seen = false;
         for (name, value) in &result.headers {
-            if name.eq_ignore_ascii_case("location") && !value.is_empty() {
-                return false;
-            }
-            if name.eq_ignore_ascii_case("content-type") {
-                if !actual_type.is_empty() {
+            if name.eq_ignore_ascii_case("location") {
+                if location_seen || !value.is_empty() {
                     return false;
                 }
-                actual_type = value;
+                location_seen = true;
+            }
+            if name.eq_ignore_ascii_case("content-type") {
+                if actual_type.is_some() {
+                    return false;
+                }
+                actual_type = Some(value.as_str());
             }
         }
-        actual_type == content_type
+        actual_type.unwrap_or("") == content_type
     }
 
     pub(crate) fn status_filter_reason(&self, status: u16) -> Option<&'static str> {
@@ -645,6 +649,24 @@ mod static_response_tests {
         assert!(config
             .with_static_response_profile(404, String::new(), vec![0; 65537])
             .is_err());
+    }
+
+    #[test]
+    fn repeated_empty_headers_do_not_bypass_the_python_combined_value() {
+        let config = NativeFilterConfig::default()
+            .with_static_response_profile(404, String::new(), b"Missing page.".to_vec())
+            .unwrap();
+        let mut changed = response();
+        changed.headers = vec![
+            ("content-type".into(), "".into()),
+            ("content-type".into(), "".into()),
+        ];
+        assert!(!config.matches_static_response(&changed));
+        changed.headers = vec![
+            ("location".into(), "".into()),
+            ("location".into(), "".into()),
+        ];
+        assert!(!config.matches_static_response(&changed));
     }
 }
 
