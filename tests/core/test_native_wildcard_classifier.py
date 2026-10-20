@@ -169,6 +169,58 @@ class TestNativeWildcardClassifier(TestCase):
             thread.join(3)
             self.assertFalse(thread.is_alive())
 
+    def test_checked_findings_reuse_worker_comparison_and_normalization(self):
+        class Handler(BaseHTTPRequestHandler):
+            protocol_version = 'HTTP/1.1'
+
+            def do_GET(self):
+                data = ('A distinct account document with valuable unique details ' * 3).encode()
+                if self.path == '/unicode':
+                    data += 'ñ'.encode()
+                self.send_response(404)
+                self.send_header('Content-Type', 'text/html; charset=utf-8')
+                self.send_header('Content-Length', str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+
+            def log_message(self, *_):
+                pass
+
+        server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+        thread = Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        fuzzer = self.make_fuzzer()
+        scanner = Scanner(ProbeRequester(), filter_config=FilterConfig(), delay=0,
+                          path=WILDCARD_TEST_POINT_MARKER)
+        fuzzer.filter_state.scanners['default']['random'] = scanner
+        fuzzer.match_callbacks = (lambda response: None,)
+        fuzzer.not_found_callbacks = (lambda response: None,)
+        fuzzer._update_wildcard_classifier()
+        events = []
+        try:
+            fuzzer._native_backend.scan_chunks(
+                f'http://127.0.0.1:{server.server_port}/', ['unique', 'unicode'],
+                lambda chunk: events.extend(chunk.events))
+            self.assertEqual([event.path for event in events], ['unique', 'unicode'])
+            unique, unicode = [event.response for event in events]
+            self.assertTrue(unique.wildcard_checked)
+            self.assertEqual(unique.normalized_content, normalize_dynamic_content(unique.text))
+            self.assertFalse(unicode.wildcard_checked)
+            with patch.object(scanner, 'check', side_effect=AssertionError('duplicate comparison')):
+                self.assertEqual(fuzzer.response_callbacks('unique', unique), fuzzer.match_callbacks)
+                with patch.object(fuzzer, 'is_auto_calibrated', return_value=True):
+                    self.assertEqual(fuzzer.response_callbacks('unique', unique), fuzzer.not_found_callbacks)
+                with patch.object(fuzzer, 'is_filter_threshold_reached', return_value=True):
+                    self.assertEqual(fuzzer.response_callbacks('unique', unique), fuzzer.not_found_callbacks)
+            with patch.object(scanner, 'check', return_value=True) as compare:
+                self.assertEqual(fuzzer.response_callbacks('unicode', unicode), fuzzer.match_callbacks)
+                compare.assert_called_once_with('unicode', unicode)
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(3)
+            self.assertFalse(thread.is_alive())
+
     def test_redirect_or_unicode_profiles_keep_python_classification(self):
         backend = NativeHTTPBackend(RequestConfig(), filter_config=FilterConfig())
         try:

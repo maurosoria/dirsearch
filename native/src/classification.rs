@@ -309,7 +309,7 @@ impl NativeWildcardClassifier {
 impl NativeWildcardClassifier {
     pub(crate) fn prepare(
         &self,
-        result: &NativeHttpResult,
+        result: &mut NativeHttpResult,
         request_path: &str,
     ) -> Option<NativeObservation> {
         if result.filtered
@@ -379,6 +379,7 @@ impl NativeWildcardClassifier {
                     &normalized,
                 )
         }) {
+            result.normalized_content = Some(normalized);
             return None;
         }
         let path = path.trim_matches('/');
@@ -506,7 +507,7 @@ mod tests {
             blacklists: HashMap::new(),
             unknown_type: "unknown".into(),
         };
-        let response = crate::result::native_http_result(
+        let mut response = crate::result::native_http_result(
             "word".into(),
             404,
             vec![
@@ -518,6 +519,6 @@ mod tests {
             0.0,
             &crate::filters::NativeFilterConfig::default(),
         );
-        assert!(classifier.prepare(&response, "word").is_none());
+        assert!(classifier.prepare(&mut response, "word").is_none());
     }
 }

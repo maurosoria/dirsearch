@@ -241,6 +241,7 @@ class BaseResponse:
         self.body = b""
         self._body_complete = True
         self._body_digest = None
+        self.wildcard_checked = False
 
     @property
     def type(self) -> str:
@@ -436,6 +437,7 @@ class NativeResponse(BaseResponse):
         body_complete: bool | None = None,
         history: Iterable[str] = (),
         final_url: str | None = None,
+        normalized_content: str | None = None,
     ) -> None:
         # Native previously exposed HTTPX's lowercase header iteration. Keep
         # that stable while using dirsearch's transport-neutral header model.
@@ -448,6 +450,9 @@ class NativeResponse(BaseResponse):
             final_url,
         )
 
+        if normalized_content is not None:
+            self.normalized_content = normalized_content
+            self.wildcard_checked = True
         self._length = length
         self.filtered = filtered
         self.filter_reason = filter_reason

@@ -343,10 +343,11 @@ class BaseFuzzer:
         if self.is_excluded(response):
             return self.not_found_callbacks
 
-        for tester in scanners:
-            # Check if the response is unique, not wildcard
-            if not tester.check(path, response):
-                return self.not_found_callbacks
+        if not response.wildcard_checked:
+            for tester in scanners:
+                # Check if the response is unique, not wildcard
+                if not tester.check(path, response):
+                    return self.not_found_callbacks
 
         if self.is_filter_threshold_reached(response):
             return self.not_found_callbacks

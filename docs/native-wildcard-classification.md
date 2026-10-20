@@ -42,3 +42,8 @@ native callers without the complete classifier contract retain their existing
 execution path. Tests compare compiled pattern decisions with the Python parser,
 exercise shared state across native and Unicode fallback responses and isolate
 state between targets.
+
+Eligible responses that pass every compiled profile carry their normalized text
+back to Python. The fuzzer reuses that result instead of repeating wildcard
+comparisons, while still applying ordered auto-calibration, duplicate filtering,
+callbacks and reports. Unsupported responses carry no such hint.

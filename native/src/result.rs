@@ -6,6 +6,9 @@ use pyo3::prelude::*;
 #[pyclass]
 pub(crate) struct NativeHttpResult {
     pub(crate) wildcard_observation: Option<crate::classification::NativeObservation>,
+    /// Cached only when all eligible wildcard profiles passed on the worker.
+    #[pyo3(get)]
+    pub(crate) normalized_content: Option<String>,
     /// Position in the input chunk; Python uses gaps to reconstruct filtered runs.
     #[pyo3(get)]
     pub(crate) request_index: usize,
@@ -72,6 +75,7 @@ pub(crate) fn native_http_result_with_length(
             Err(error) => {
                 return NativeHttpResult {
                     wildcard_observation: None,
+                    normalized_content: None,
                     request_index: usize::MAX,
                     path,
                     status,
@@ -93,6 +97,7 @@ pub(crate) fn native_http_result_with_length(
 
     NativeHttpResult {
         wildcard_observation: None,
+        normalized_content: None,
         request_index: usize::MAX,
         path,
         status,
@@ -116,6 +121,7 @@ pub(crate) fn native_error_result(
 ) -> NativeHttpResult {
     NativeHttpResult {
         wildcard_observation: None,
+        normalized_content: None,
         request_index: usize::MAX,
         path,
         status: 0,
@@ -135,6 +141,7 @@ pub(crate) fn native_error_result(
 pub(crate) fn native_filtered_marker(status: u16, elapsed_ms: f64) -> NativeHttpResult {
     NativeHttpResult {
         wildcard_observation: None,
+        normalized_content: None,
         request_index: usize::MAX,
         path: String::new(),
         status,

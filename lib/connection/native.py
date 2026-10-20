@@ -418,6 +418,7 @@ class NativeHTTPBackend:
                     else ()
                 ),
                 final_url=result.final_url,
+                normalized_content=result.normalized_content,
             ),
             None,
         )

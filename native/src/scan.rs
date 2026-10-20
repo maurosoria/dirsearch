@@ -407,7 +407,7 @@ async fn run_scan_worker(
 
         if task.delivery.omits_filtered_results() {
             if let Some(classifier) = &task.filter_config.wildcard_classifier {
-                result.wildcard_observation = classifier.prepare(&result, path);
+                result.wildcard_observation = classifier.prepare(&mut result, path);
             }
         }
 
