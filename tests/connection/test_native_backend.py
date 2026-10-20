@@ -25,6 +25,7 @@ class FakeNativeResult:
     headers = [("content-type", "text/plain")]
     body = []
     body_complete = True
+    normalized_content = None
     history = ["https://example.com/before"]
     final_url = "https://example.com/missing%20page"
 
@@ -129,6 +130,7 @@ class IndexedNativeResult:
         self.headers = [("content-type", "text/plain")]
         self.body = [] if filtered else [111, 107]
         self.body_complete = True
+        self.normalized_content = None
         self.history = []
         self.final_url = f"https://example.com/{self.path}"
 
