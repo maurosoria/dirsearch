@@ -35,7 +35,7 @@ struct Observations {
     pending: BTreeMap<usize, NativeObservation>,
 }
 
-#[pyclass(frozen)]
+#[pyclass(frozen, skip_from_py_object)]
 #[derive(Clone)]
 pub(crate) struct NativeCalibrationState {
     inner: Arc<Mutex<Observations>>,
