@@ -2,6 +2,7 @@
 
 mod chunks;
 mod compression;
+mod content;
 mod engine;
 mod filters;
 mod ntlm;
@@ -57,6 +58,8 @@ fn dirsearch_native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add("__version__", env!("CARGO_PKG_VERSION"))?;
     module.add_function(wrap_pyfunction!(generate_wordlist, module)?)?;
     module.add_function(wrap_pyfunction!(generate_wordlist_owned, module)?)?;
+    module.add_function(wrap_pyfunction!(content::normalize_ascii_content, module)?)?;
+    module.add_function(wrap_pyfunction!(content::sequence_matcher_ratio, module)?)?;
     module.add_class::<NativeFilterConfig>()?;
     module.add_class::<NativeHttpEngine>()?;
     module.add_class::<NativeHttpSession>()?;

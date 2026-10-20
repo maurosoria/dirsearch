@@ -140,8 +140,18 @@ only within the current directory and only to GET responses with no redirects.
 Bodies must be nonempty and at most 64 KiB; differing or incomplete responses
 continue through normal Python classification. Existing duplicate-calibration
 state is established before the shortcut activates. Detailed logging and stop
-statuses retain the normal response path. This requires native extension 0.2.21;
+statuses retain the normal response path. This build requires native extension 0.2.22;
 older builds are rejected with instructions to run `dirsearch-build-native`.
+
+The extension also accelerates content normalization and similarity when it is
+installed, including scans using the Python transports. ASCII normalization
+preserves the Python replacement order and whitespace rules while avoiding
+copies for regex passes without matches. Non-ASCII normalization retains Python's
+Unicode regex semantics. The native similarity function preserves
+`SequenceMatcher(None, first, second).ratio()`, including argument order,
+`autojunk`, matching-block ties, and Unicode code points. Python strings containing
+lone surrogates use the Python implementation. Both operations retain the Python
+implementation when the matching extension is not installed.
 
 You can use the native scan path with the default GET method:
 
