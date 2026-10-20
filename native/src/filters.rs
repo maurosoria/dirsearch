@@ -196,9 +196,10 @@ impl NativeFilterConfig {
             return Ok(Some("maximum_response_size"));
         }
 
-        if self.needs_text() && has_non_utf8_charset(headers) {
-            // Python owns charset-aware decoding. Preserve this response so the
-            // common filter stack can evaluate it after NativeResponse decodes it.
+        if self.needs_text() && (has_non_utf8_charset(headers) || !body.is_ascii()) {
+            // ASCII has identical text/regex semantics for supported encodings.
+            // Python owns Unicode decoding, binary fallback and regex tables;
+            // a premature native rejection cannot be recovered downstream.
             return Ok(None);
         }
 
@@ -553,7 +554,12 @@ fn combine_advanced_checks(checks: &[bool], mode: &str, default: bool) -> bool {
 }
 
 fn word_count(text: Option<&str>) -> usize {
-    text.unwrap_or_default().split_whitespace().count()
+    text.unwrap_or_default()
+        .split(|character: char| {
+            character.is_whitespace() || ('\u{1c}'..='\u{1f}').contains(&character)
+        })
+        .filter(|word| !word.is_empty())
+        .count()
 }
 
 fn line_count(text: Option<&str>) -> usize {
@@ -625,5 +631,37 @@ mod static_response_tests {
         assert!(config
             .with_static_response_profile(404, String::new(), vec![0; 65537])
             .is_err());
+    }
+}
+
+#[cfg(test)]
+mod text_contract_tests {
+    use super::*;
+
+    #[test]
+    fn python_control_separators_count_as_whitespace() {
+        for separator in '\u{1c}'..='\u{1f}' {
+            assert_eq!(word_count(Some(&format!("admin{separator}secret"))), 2);
+        }
+        assert_eq!(word_count(Some(" \t\n")), 0);
+    }
+
+    #[test]
+    fn non_ascii_text_filters_are_deferred_without_losing_status_filters() {
+        let mut config = NativeFilterConfig::default();
+        config.match_regex = Some(Regex::new("café").unwrap());
+        assert_eq!(
+            config.filter_reason(200, 4, &[], b"caf\xe9", 0.0).unwrap(),
+            None
+        );
+        assert_eq!(
+            config.filter_reason(200, 4, &[], b"nope", 0.0).unwrap(),
+            Some("advanced_matcher")
+        );
+        config.exclude_status_codes = vec![404];
+        assert_eq!(
+            config.filter_reason(404, 4, &[], b"caf\xe9", 0.0).unwrap(),
+            Some("exclude_status")
+        );
     }
 }
