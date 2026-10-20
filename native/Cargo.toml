@@ -1,6 +1,6 @@
 [package]
 name = "dirsearch_native"
-version = "0.2.21"
+version = "0.2.22"
 edition = "2021"
 rust-version = "1.88"
 license = "GPL-2.0-only"
@@ -28,6 +28,7 @@ picky-asn1-der = "0.5"
 picky-asn1-x509 = "0.15"
 pyo3 = { version = "0.29", features = ["extension-module", "abi3-py313"] }
 rayon = "1.10"
+regex = "1.12"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "http2", "socks", "stream", "cookies"] }
 sha2 = "0.11"
 sha3 = "0.11"
