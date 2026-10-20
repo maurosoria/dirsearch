@@ -474,12 +474,21 @@ mod tests {
             let threshold = if forced { 3 } else { 8 };
             for i in 1..=threshold {
                 assert_eq!(
-                    state.observe(404, "text/plain".into(), "".into(), "missing", true),
+                    state.observe_key(
+                        Fingerprint::new(404, "text/plain".into(), "".into(), "missing"),
+                        true
+                    ),
                     i >= threshold
                 );
             }
-            assert!(state.observe(404, "text/plain".into(), "".into(), "missing", false));
-            assert!(!state.observe(200, "text/plain".into(), "".into(), "distinct", false));
+            assert!(state.observe_key(
+                Fingerprint::new(404, "text/plain".into(), "".into(), "missing"),
+                false
+            ));
+            assert!(!state.observe_key(
+                Fingerprint::new(200, "text/plain".into(), "".into(), "distinct"),
+                false
+            ));
         }
     }
 
