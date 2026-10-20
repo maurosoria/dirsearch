@@ -17,10 +17,10 @@ from lib.core.settings import WILDCARD_TEST_POINT_MARKER
 
 
 CASES = {
-    "latin1": (b"caf\xe9", "text/html", "caf\xe9"),
-    "distinct": (b"caf\xf1", "text/html", "caf\xf1"),
-    "utf8": ("caf\xe9".encode(), "text/html; charset=utf-8", "caf\xe9"),
-    "json": ("caf\xe9".encode(), "application/json", "caf\xe9"),
+    "latin1": (b"menu\xe9", "text/html", "menu\xe9"),
+    "distinct": (b"menu\xf1", "text/html", "menu\xf1"),
+    "utf8": ("menu\xe9".encode(), "text/html; charset=utf-8", "menu\xe9"),
+    "json": ("menu\xe9".encode(), "application/json", "menu\xe9"),
     "utf16": ("hello world".encode("utf-16"), "text/plain; charset=utf-16", "hello world"),
     "unknown": (b"abc", "text/plain; charset=unknown-test-codec", "abc"),
     "binary": (b"a\x00\xffb", "application/octet-stream", "a\x00b"),
@@ -120,7 +120,7 @@ class TestResponseTextContract(TestCase):
         self.assertEqual(response.text, "a\x00b")
 
     def test_native_unlabelled_latin1_regex_is_not_rejected_before_decoding(self):
-        backend = self.native_backend(FilterConfig(match_regex="caf\xe9"))
+        backend = self.native_backend(FilterConfig(match_regex="menu\xe9"))
         response = list(backend.scan(self.url, ["latin1"]))[0][1]
         self.assertFalse(response.filtered)
-        self.assertEqual(response.text, "caf\xe9")
+        self.assertEqual(response.text, "menu\xe9")

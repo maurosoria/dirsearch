@@ -650,12 +650,12 @@ mod text_contract_tests {
     fn non_ascii_text_filters_are_deferred_without_losing_status_filters() {
         let mut config = NativeFilterConfig {
             inner: Arc::new(NativeFilterConfigData {
-                match_regex: Some(Regex::new("café").unwrap()),
+                match_regex: Some(Regex::new("menué").unwrap()),
                 ..NativeFilterConfig::default().inner.as_ref().clone()
             }),
         };
         assert_eq!(
-            config.filter_reason(200, 4, &[], b"caf\xe9", 0.0).unwrap(),
+            config.filter_reason(200, 4, &[], b"menu\xe9", 0.0).unwrap(),
             None
         );
         assert_eq!(
@@ -664,7 +664,7 @@ mod text_contract_tests {
         );
         config.exclude_status_codes = vec![404];
         assert_eq!(
-            config.filter_reason(404, 4, &[], b"caf\xe9", 0.0).unwrap(),
+            config.filter_reason(404, 4, &[], b"menu\xe9", 0.0).unwrap(),
             Some("exclude_status")
         );
     }
