@@ -274,11 +274,13 @@ pub(crate) struct NativeWildcardClassifier {
     auto_calibration: bool,
     skip_statuses: Vec<u16>,
     blacklists: HashMap<u16, Vec<String>>,
+    unknown_type: String,
 }
 
 #[pymethods]
 impl NativeWildcardClassifier {
     #[new]
+    #[allow(clippy::too_many_arguments)]
     fn new(
         profiles: Vec<Py<NativeWildcardProfile>>,
         state: PyRef<'_, NativeCalibrationState>,
@@ -286,6 +288,7 @@ impl NativeWildcardClassifier {
         auto_calibration: bool,
         skip_statuses: Vec<u16>,
         blacklists: HashMap<u16, Vec<String>>,
+        unknown_type: String,
         py: Python<'_>,
     ) -> Self {
         Self {
@@ -298,6 +301,7 @@ impl NativeWildcardClassifier {
             auto_calibration,
             skip_statuses,
             blacklists,
+            unknown_type,
         }
     }
 }
@@ -328,9 +332,13 @@ impl NativeWildcardClassifier {
             return None;
         }
         let mut media_type = None;
+        let mut location_seen = false;
         for (name, value) in &result.headers {
-            if name.eq_ignore_ascii_case("location") && !value.is_empty() {
-                return None;
+            if name.eq_ignore_ascii_case("location") {
+                if location_seen || !value.is_empty() {
+                    return None;
+                }
+                location_seen = true;
             }
             if name.eq_ignore_ascii_case("content-type") {
                 if media_type.is_some() {
@@ -342,7 +350,10 @@ impl NativeWildcardClassifier {
         if crate::filters::has_non_utf8_charset(&result.headers) {
             return None;
         }
-        let media_type = media_type.unwrap_or("").split(';').next().unwrap_or("");
+        let media_type = match media_type {
+            Some(value) if !value.is_empty() => value.split(';').next().unwrap_or(""),
+            _ => &self.unknown_type,
+        };
         let response_path = format!("{}{}", self.base_path, request_path);
         let path = clean_path(&response_path);
         let candidate_path = clean_path(request_path);
@@ -467,5 +478,45 @@ mod tests {
         state.commit_range(2, 3);
         assert!(state.inner.lock().unwrap().learned.contains(&key));
         assert!(state.inner.lock().unwrap().pending.is_empty());
+    }
+
+    #[test]
+    fn duplicate_empty_locations_keep_the_python_header_view() {
+        let body = "Missing response with a complete stable template".to_string();
+        let profile = NativeWildcardProfile::new(
+            404,
+            "text/plain".into(),
+            body.clone(),
+            vec![body.clone()],
+            vec![],
+            true,
+            false,
+            body.len(),
+            "default".into(),
+            "random".into(),
+        )
+        .unwrap();
+        let classifier = NativeWildcardClassifier {
+            profiles: vec![profile],
+            state: NativeCalibrationState::new(false),
+            base_path: String::new(),
+            auto_calibration: false,
+            skip_statuses: vec![],
+            blacklists: HashMap::new(),
+            unknown_type: "unknown".into(),
+        };
+        let response = crate::result::native_http_result(
+            "word".into(),
+            404,
+            vec![
+                ("content-type".into(), "text/plain".into()),
+                ("location".into(), "".into()),
+                ("location".into(), "".into()),
+            ],
+            body.into_bytes(),
+            0.0,
+            &crate::filters::NativeFilterConfig::default(),
+        );
+        assert!(classifier.prepare(&response, "word").is_none());
     }
 }

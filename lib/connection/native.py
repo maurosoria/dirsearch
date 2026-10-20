@@ -35,6 +35,7 @@ from lib.core.settings import (
     MAX_RESPONSE_SIZE,
     PROXY_SCHEMES,
     SCRIPT_PATH,
+    UNKNOWN,
 )
 from lib.core.wordlist_backend import NativeWordlistChunk
 from lib.utils.file import FileUtils
@@ -480,7 +481,7 @@ class NativeHTTPBackend:
                 ))
         return self._native.NativeWildcardClassifier(
             profiles, state, base_path, self.filter_config.auto_calibration,
-            list(skip_statuses), dict(self.filter_config.blacklists),
+            list(skip_statuses), dict(self.filter_config.blacklists), UNKNOWN,
         )
 
     def set_wildcard_classifier(self, classifier) -> None:

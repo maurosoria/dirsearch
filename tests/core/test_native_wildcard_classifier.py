@@ -19,13 +19,14 @@ def body(value):
 
 
 class ProbeRequester:
-    def __init__(self):
+    def __init__(self, content_type='text/html; charset=utf-8'):
         self.number = 0
+        self.headers = [] if content_type is None else [('Content-Type', content_type)]
 
     def request(self, path):
         self.number += 1
         return NativeResponse('http://example.invalid/' + path, 404,
-                              [('Content-Type', 'text/html; charset=utf-8')], body(str(self.number)).encode())
+                              self.headers, body(str(self.number)).encode())
 
 
 class TestNativeWildcardClassifier(TestCase):
@@ -111,6 +112,12 @@ class TestNativeWildcardClassifier(TestCase):
         self.assertIsNone(fuzzer._native_calibration_state)
 
     def test_fallback_observations_commit_before_later_native_misses(self):
+        self.check_fallback_order('text/html; charset=utf-8')
+
+    def test_missing_content_type_uses_the_shared_unknown_fingerprint_type(self):
+        self.check_fallback_order(None)
+
+    def check_fallback_order(self, content_type):
         class Handler(BaseHTTPRequestHandler):
             protocol_version = 'HTTP/1.1'
 
@@ -118,7 +125,8 @@ class TestNativeWildcardClassifier(TestCase):
                 value = 'ñ' if self.path == '/fallback' else self.path
                 data = body(value).encode()
                 self.send_response(404)
-                self.send_header('Content-Type', 'text/html; charset=utf-8')
+                if content_type is not None:
+                    self.send_header('Content-Type', content_type)
                 self.send_header('Content-Length', str(len(data)))
                 self.end_headers()
                 self.wfile.write(data)
@@ -131,12 +139,12 @@ class TestNativeWildcardClassifier(TestCase):
         thread.start()
         backend = NativeHTTPBackend(RequestConfig(concurrency=3, timeout=2), filter_config=FilterConfig())
         try:
-            scanner = Scanner(ProbeRequester(), filter_config=FilterConfig(), delay=0, path=WILDCARD_TEST_POINT_MARKER)
+            scanner = Scanner(ProbeRequester(content_type), filter_config=FilterConfig(), delay=0, path=WILDCARD_TEST_POINT_MARKER)
             state = backend.new_calibration_state(True)
             backend.set_wildcard_classifier(backend.make_wildcard_classifier(
                 {'default': {'random': scanner}}, state, '', ()))
             normalized = normalize_dynamic_content(body('first'))
-            key = (404, 'text/html', '', normalized)
+            key = (404, scanner.response.type, '', normalized)
             delivered = []
 
             def receive(chunk):
