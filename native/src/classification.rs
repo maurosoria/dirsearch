@@ -1,5 +1,5 @@
 //! Stateless wildcard work runs on HTTP workers; observations commit in input order.
-use crate::content::{normalize_ascii, sequence_ratio};
+use crate::content::{normalize_ascii, sequence_ascii_ratio};
 use crate::result::NativeHttpResult;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
@@ -215,7 +215,7 @@ impl NativeWildcardProfile {
             }
         }
         if words(content).count() > self.base_words && self.patterns.len() < 20 {
-            return sequence_ratio(self.samples[0].as_bytes(), normalized.as_bytes()) > 0.75;
+            return sequence_ascii_ratio(self.samples[0].as_bytes(), normalized.as_bytes()) > 0.75;
         }
         true
     }
@@ -248,7 +248,7 @@ impl NativeWildcardProfile {
         {
             return false;
         }
-        if sequence_ratio(self.samples[0].as_bytes(), normalized.as_bytes()) < 0.9 {
+        if sequence_ascii_ratio(self.samples[0].as_bytes(), normalized.as_bytes()) < 0.9 {
             return false;
         }
         if self.base_length.abs_diff(length) as f64 / self.base_length.max(1) as f64 > 0.35 {

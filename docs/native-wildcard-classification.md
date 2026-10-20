@@ -14,6 +14,11 @@ All applicable prefix, suffix and default profiles retain their original roles.
 
 ## Ordered state
 
+ASCII similarity indexes positions directly by byte value and omits popular
+autojunk bytes before allocating their position lists. Unicode retains the
+generic code-point implementation. Argument order and matching-block ties are
+unchanged; the same exact differential tests cover both paths.
+
 Response comparison is stateless and can run on different HTTP workers.
 Auto-calibration observations are committed in input order as Python processes
 the corresponding filtered ranges. Responses requiring fallback observe the

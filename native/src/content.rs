@@ -61,6 +61,22 @@ struct MatchScratch {
     row: usize,
 }
 
+trait MatchPositions<T> {
+    fn indices(&self, element: &T) -> Option<&[usize]>;
+}
+
+impl<T: Eq + Hash> MatchPositions<T> for HashMap<T, Vec<usize>> {
+    fn indices(&self, element: &T) -> Option<&[usize]> {
+        self.get(element).map(Vec::as_slice)
+    }
+}
+
+impl MatchPositions<u8> for [Vec<usize>; 128] {
+    fn indices(&self, element: &u8) -> Option<&[usize]> {
+        Some(&self[*element as usize])
+    }
+}
+
 impl MatchScratch {
     fn new(size: usize) -> Self {
         Self {
@@ -74,7 +90,7 @@ impl MatchScratch {
         &mut self,
         a: &[T],
         b: &[T],
-        positions: &HashMap<T, Vec<usize>>,
+        positions: &impl MatchPositions<T>,
         bounds: (usize, usize, usize, usize),
     ) -> (usize, usize, usize) {
         let (first_start, first_end, second_start, second_end) = bounds;
@@ -83,7 +99,7 @@ impl MatchScratch {
         self.row += 1;
         for (i, element) in a.iter().enumerate().take(first_end).skip(first_start) {
             self.row += 1;
-            if let Some(indices) = positions.get(element) {
+            if let Some(indices) = positions.indices(element) {
                 // Descending positions keep the previous row at j - 1 intact.
                 for &j in indices.iter().rev() {
                     if j >= second_end {
@@ -141,11 +157,44 @@ pub(crate) fn sequence_ratio<T: Copy + Eq + Hash>(a: &[T], b: &[T]) -> f64 {
         let maximum = b.len() / 100 + 1;
         positions.retain(|_, indices| indices.len() <= maximum);
     }
+    ratio_with_positions(a, b, &positions)
+}
+
+pub(crate) fn sequence_ascii_ratio(a: &[u8], b: &[u8]) -> f64 {
+    if a == b {
+        return 1.0;
+    }
+    if a.is_empty() || b.is_empty() {
+        return 0.0;
+    }
+    let mut counts = [0usize; 128];
+    for &element in b {
+        counts[element as usize] += 1;
+    }
+    let maximum = if b.len() >= 200 {
+        b.len() / 100 + 1
+    } else {
+        usize::MAX
+    };
+    let mut positions: [Vec<usize>; 128] = std::array::from_fn(|_| Vec::new());
+    for (j, &element) in b.iter().enumerate() {
+        if counts[element as usize] <= maximum {
+            positions[element as usize].push(j);
+        }
+    }
+    ratio_with_positions(a, b, &positions)
+}
+
+fn ratio_with_positions<T: Copy + Eq + Hash>(
+    a: &[T],
+    b: &[T],
+    positions: &impl MatchPositions<T>,
+) -> f64 {
     let mut scratch = MatchScratch::new(b.len());
     let mut queue = vec![(0, a.len(), 0, b.len())];
     let mut matches = 0;
     while let Some(bounds @ (first_start, first_end, second_start, second_end)) = queue.pop() {
-        let (i, j, size) = scratch.longest(a, b, &positions, bounds);
+        let (i, j, size) = scratch.longest(a, b, positions, bounds);
         if size == 0 {
             continue;
         }
@@ -164,7 +213,7 @@ pub(crate) fn sequence_ratio<T: Copy + Eq + Hash>(a: &[T], b: &[T]) -> f64 {
 pub(crate) fn sequence_matcher_ratio(py: Python<'_>, first: &str, second: &str) -> f64 {
     py.detach(|| {
         if first.is_ascii() && second.is_ascii() {
-            sequence_ratio(first.as_bytes(), second.as_bytes())
+            sequence_ascii_ratio(first.as_bytes(), second.as_bytes())
         } else {
             // Python str compares Unicode code points rather than UTF-8 bytes.
             sequence_ratio(
@@ -185,6 +234,18 @@ mod tests {
         assert_eq!(sequence_ratio(b"diet", b"tide"), 0.5);
         assert_eq!(sequence_ratio(b"", b""), 1.0);
         assert_eq!(sequence_ratio(b"", b"x"), 0.0);
+    }
+
+    #[test]
+    fn ascii_tables_preserve_generic_matching_at_autojunk_boundaries() {
+        for length in [0, 1, 2, 198, 199, 200, 201, 300, 1000] {
+            let a: Vec<_> = (0u8..128).cycle().take(length).collect();
+            let b: Vec<_> = std::iter::once(b'x')
+                .chain(a.iter().copied().rev())
+                .collect();
+            assert_eq!(sequence_ascii_ratio(&a, &b), sequence_ratio(&a, &b));
+            assert_eq!(sequence_ascii_ratio(&b, &a), sequence_ratio(&b, &a));
+        }
     }
 
     #[test]
