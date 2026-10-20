@@ -3,6 +3,7 @@ use crate::content::{normalize_ascii, sequence_ascii_ratio};
 use crate::result::NativeHttpResult;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use pyo3::types::{PyBytes, PyString};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::{Arc, Mutex};
@@ -17,6 +18,27 @@ struct Fingerprint {
 }
 
 impl Fingerprint {
+    fn from_python(
+        status: u16,
+        media_type: String,
+        redirect: String,
+        content: &Bound<'_, PyString>,
+    ) -> PyResult<Self> {
+        if let Ok(text) = content.to_str() {
+            return Ok(Self::new(status, media_type, redirect, text));
+        }
+        // Explicit codecs can produce isolated surrogates in Python text.
+        let encoded = content.call_method1("encode", ("utf-8", "surrogatepass"))?;
+        let bytes = encoded.cast::<PyBytes>()?;
+        Ok(Self {
+            status,
+            media_type,
+            redirect,
+            length: content.as_any().len()?,
+            digest: Sha256::digest(bytes.as_bytes()).into(),
+        })
+    }
+
     fn new(status: u16, media_type: String, redirect: String, content: &str) -> Self {
         Self {
             status,
@@ -83,21 +105,29 @@ impl NativeCalibrationState {
         status: u16,
         media_type: String,
         redirect: String,
-        content: &str,
+        content: &Bound<'_, PyString>,
         record: bool,
-    ) -> bool {
-        self.observe_key(
-            Fingerprint::new(status, media_type, redirect, content),
+    ) -> PyResult<bool> {
+        Ok(self.observe_key(
+            Fingerprint::from_python(status, media_type, redirect, content)?,
             record,
-        )
+        ))
     }
 
-    fn is_learned(&self, status: u16, media_type: String, redirect: String, content: &str) -> bool {
-        self.inner
+    fn is_learned(
+        &self,
+        status: u16,
+        media_type: String,
+        redirect: String,
+        content: &Bound<'_, PyString>,
+    ) -> PyResult<bool> {
+        let key = Fingerprint::from_python(status, media_type, redirect, content)?;
+        Ok(self
+            .inner
             .lock()
             .unwrap_or_else(|error| error.into_inner())
             .learned
-            .contains(&Fingerprint::new(status, media_type, redirect, content))
+            .contains(&key))
     }
 
     fn has_learned_status(&self, status: u16) -> bool {

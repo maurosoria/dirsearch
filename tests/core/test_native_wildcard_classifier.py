@@ -74,6 +74,29 @@ class TestNativeWildcardClassifier(TestCase):
         self.assertTrue(first.has_learned_status(404))
         self.assertFalse(first.has_learned_status(200))
 
+    def test_state_preserves_isolated_surrogates_without_aliasing_other_text(self):
+        state = self.native.NativeCalibrationState(True)
+        for text in ['\ud800', '\udfff', '\\ud800', '\ufffd', '\U00010000', '\ud800\udc00']:
+            key = (404, 'text/plain', '', text)
+            self.assertFalse(state.is_learned(*key))
+            self.assertFalse(state.observe(*key, True))
+            self.assertFalse(state.observe(*key, True))
+            self.assertTrue(state.observe(*key, True))
+            self.assertTrue(state.is_learned(*key))
+
+    def test_decoded_surrogate_fallback_matches_python_calibration(self):
+        native = self.make_fuzzer()
+        reference = self.make_fuzzer()
+        native._native_calibration_state = self.native.NativeCalibrationState()
+        response = NativeResponse(
+            'http://example.invalid/account', 404,
+            [('Content-Type', 'text/plain; charset=unicode_escape')],
+            b'Account \\ud800 document with unique content and permission details')
+        self.assertIn('\ud800', response.text)
+        for _ in range(8):
+            self.assertEqual(native.is_auto_calibrated(response), reference.is_auto_calibrated(response))
+        self.assertTrue(native.is_auto_calibrated(response))
+
     def make_fuzzer(self):
         from lib.connection.native import NativeRequester
         from lib.core.discovery_config import DiscoveryConfig

@@ -47,3 +47,8 @@ Eligible responses that pass every compiled profile carry their normalized text
 back to Python. The fuzzer reuses that result instead of repeating wildcard
 comparisons, while still applying ordered auto-calibration, duplicate filtering,
 callbacks and reports. Unsupported responses carry no such hint.
+
+Shared calibration fingerprints also accept Python text containing isolated
+surrogates from explicit codecs. Valid Unicode keeps the direct UTF-8 path;
+surrogates use lossless UTF-8 surrogate-pass bytes and Python's character length,
+remaining distinct from replacement characters and literal escape sequences.
