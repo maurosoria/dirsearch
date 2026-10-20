@@ -140,7 +140,7 @@ only within the current directory and only to GET responses with no redirects.
 Bodies must be nonempty and at most 64 KiB; differing or incomplete responses
 continue through normal Python classification. Existing duplicate-calibration
 state is established before the shortcut activates. Detailed logging and stop
-statuses retain the normal response path. This build requires native extension 0.2.23;
+statuses retain the normal response path. This build requires native extension 0.2.24;
 older builds are rejected with instructions to run `dirsearch-build-native`.
 
 The extension also accelerates content normalization and similarity when it is

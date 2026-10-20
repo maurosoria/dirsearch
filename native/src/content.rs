@@ -25,7 +25,7 @@ static NORMALIZERS: LazyLock<Vec<(Regex, &'static str)>> = LazyLock::new(|| {
     .collect()
 });
 
-fn normalize_ascii(content: &str) -> String {
+pub(crate) fn normalize_ascii(content: &str) -> String {
     let mut normalized = Cow::Borrowed(content.as_bytes());
     for (regex, replacement) in NORMALIZERS.iter() {
         // A pass without a match borrows the previous text without copying it.
@@ -125,7 +125,7 @@ impl MatchScratch {
     }
 }
 
-fn sequence_ratio<T: Copy + Eq + Hash>(a: &[T], b: &[T]) -> f64 {
+pub(crate) fn sequence_ratio<T: Copy + Eq + Hash>(a: &[T], b: &[T]) -> f64 {
     if a == b {
         return 1.0;
     }

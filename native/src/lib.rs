@@ -1,6 +1,7 @@
 //! PyO3 module registration for the native dirsearch backend.
 
 mod chunks;
+mod classification;
 mod compression;
 mod content;
 mod engine;
@@ -61,6 +62,9 @@ fn dirsearch_native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(content::normalize_ascii_content, module)?)?;
     module.add_function(wrap_pyfunction!(content::sequence_matcher_ratio, module)?)?;
     module.add_class::<NativeFilterConfig>()?;
+    module.add_class::<classification::NativeCalibrationState>()?;
+    module.add_class::<classification::NativeWildcardProfile>()?;
+    module.add_class::<classification::NativeWildcardClassifier>()?;
     module.add_class::<NativeHttpEngine>()?;
     module.add_class::<NativeHttpSession>()?;
     module.add_class::<NativeHttpResult>()?;

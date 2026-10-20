@@ -44,7 +44,7 @@ from lib.core.settings import (
     WILDCARD_TEST_POINT_MARKER,
 )
 from lib.core.wordlist_backend import NativeWordlistChunk
-from lib.parse.url import clean_path
+from lib.parse.url import clean_path, parse_path
 from lib.utils.common import lstrip_once
 from lib.utils.random import StealthWordGenerator
 
@@ -597,6 +597,47 @@ class NativeFuzzer(Fuzzer):
         self._started_event = threading.Event()
         self._lifecycle_lock = threading.Lock()
         self._prepared = False
+        self._native_calibration_state = None
+
+    @staticmethod
+    def _native_fingerprint_values(resp: BaseResponse) -> tuple:
+        path = clean_path(resp.full_path).strip("/")
+        body = resp.normalized_content
+        redirect = clean_path(resp.redirect)
+        if path:
+            body = body.replace(path, "__PATH__")
+            redirect = redirect.replace(path, "__PATH__")
+        return resp.status, resp.type, redirect, body
+
+    def is_auto_calibrated(self, resp: BaseResponse) -> bool:
+        if self._native_calibration_state is None:
+            return super().is_auto_calibrated(resp)
+        return self._native_calibration_state.observe(
+            *self._native_fingerprint_values(resp), self.should_record_auto_calibration(resp)
+        )
+
+    def _update_wildcard_classifier(self, *, clear: bool = False) -> None:
+        if not isinstance(self._requester, NativeRequester):
+            return
+        assert self._native_backend is not None
+        config = self.filter_config
+        supported = not any((
+            self.logger.handlers, not self.filtered_chunk_callbacks,
+            self._requester.config.method != "GET", config.exclude_sizes,
+            config.exclude_texts, config.exclude_regex, config.exclude_redirect,
+            self.has_advanced_matchers(), config.filter_status_codes, config.filter_sizes,
+            config.filter_words, config.filter_lines, config.filter_regex,
+            config.filter_headers, config.filter_header_regex, config.filter_time,
+        ))
+        if supported and self._native_calibration_state is None:
+            self._native_calibration_state = self._native_backend.new_calibration_state(config.auto_calibration)
+        classifier = None
+        if supported and not clear:
+            classifier = self._native_backend.make_wildcard_classifier(
+                self.filter_state.scanners, self._native_calibration_state,
+                parse_path(self._requester._url), self.execution_config.skip_on_status,
+            )
+        self._native_backend.set_wildcard_classifier(classifier)
 
     def _update_static_response_profile(self, *, clear: bool = False) -> None:
         assert self._native_backend is not None
@@ -608,9 +649,14 @@ class NativeFuzzer(Fuzzer):
                 if candidate is not None and candidate[0] not in self.execution_config.skip_on_status:
                     # Let normal responses establish duplicate-calibration state
                     # first. Otherwise omitting them changes later decisions.
-                    fingerprint = self.response_fingerprint(scanner.response)
-                    with self.filter_state.lock:
-                        learned = fingerprint in self.filter_state.auto_calibrated_fingerprints
+                    if self._native_calibration_state is not None:
+                        learned = self._native_calibration_state.is_learned(
+                            *self._native_fingerprint_values(scanner.response)
+                        )
+                    else:
+                        fingerprint = self.response_fingerprint(scanner.response)
+                        with self.filter_state.lock:
+                            learned = fingerprint in self.filter_state.auto_calibrated_fingerprints
                     if learned or not self.should_record_auto_calibration(scanner.response):
                         profile = candidate
         self._native_backend.set_static_response_profile(profile)
@@ -638,8 +684,10 @@ class NativeFuzzer(Fuzzer):
             if self._native_backend is None:
                 self._native_backend = self._requester.get_backend()
             self._update_static_response_profile(clear=True)
+            self._update_wildcard_classifier(clear=True)
             self.setup_scanners()
             self._update_static_response_profile()
+            self._update_wildcard_classifier()
             super().play()
             self._started_event.set()
 
@@ -722,6 +770,8 @@ class NativeFuzzer(Fuzzer):
         count = end - start
         if count <= 0:
             return
+        if self._native_calibration_state is not None:
+            self._native_calibration_state.commit_range(start, end)
         if isinstance(paths, NativeWordlistChunk):
             try:
                 for callback in self.filtered_chunk_callbacks:

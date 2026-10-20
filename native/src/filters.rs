@@ -22,6 +22,7 @@ pub(crate) struct NativeFilterConfig {
 
 #[derive(Clone)]
 pub(crate) struct NativeFilterConfigData {
+    pub(crate) wildcard_classifier: Option<crate::classification::NativeWildcardClassifier>,
     static_response: Option<(u16, String, Vec<u8>)>,
     pub(crate) include_status_codes: Vec<u16>,
     pub(crate) exclude_status_codes: Vec<u16>,
@@ -143,6 +144,7 @@ impl NativeFilterConfig {
     ) -> Result<Self, String> {
         Ok(Self {
             inner: Arc::new(NativeFilterConfigData {
+                wildcard_classifier: None,
                 static_response: None,
                 include_status_codes,
                 exclude_status_codes,
@@ -362,6 +364,15 @@ impl Default for NativeFilterConfig {
 
 #[pymethods]
 impl NativeFilterConfig {
+    fn with_wildcard_classifier(
+        &self,
+        classifier: PyRef<'_, crate::classification::NativeWildcardClassifier>,
+    ) -> Self {
+        let mut result = self.clone();
+        Arc::make_mut(&mut result.inner).wildcard_classifier = Some(classifier.clone());
+        result
+    }
+
     /// Return an immutable per-directory snapshot; in-flight workers keep theirs.
     fn with_static_response(
         &self,
@@ -451,7 +462,7 @@ impl NativeFilterConfig {
     }
 }
 
-fn has_non_utf8_charset(headers: &[(String, String)]) -> bool {
+pub(crate) fn has_non_utf8_charset(headers: &[(String, String)]) -> bool {
     response_charset(headers).is_some_and(|charset| {
         charset
             .chars()

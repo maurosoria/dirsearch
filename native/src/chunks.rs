@@ -148,6 +148,31 @@ pub(crate) fn deliver_chunk(callback: &Py<PyAny>, chunk: NativeScanChunk) -> PyR
     })
 }
 
+pub(crate) fn deliver_classified_chunk(
+    callback: &Py<PyAny>,
+    mut chunk: NativeScanChunk,
+    classifier: Option<&crate::classification::NativeWildcardClassifier>,
+    cancelled: &AtomicBool,
+) -> PyResult<()> {
+    let Some(classifier) = classifier else {
+        return deliver_chunk(callback, chunk);
+    };
+    if cancelled.load(Ordering::Acquire) {
+        return Ok(());
+    }
+    chunk.results.retain_mut(|result| {
+        if let Some(observation) = result.wildcard_observation.take() {
+            // Python commits observations as it processes each filtered range.
+            // Pause/quit leaves later keys pending without advancing counters.
+            classifier.register(result.request_index, observation);
+            false
+        } else {
+            true
+        }
+    });
+    deliver_chunk(callback, chunk)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -87,6 +87,7 @@ class NativeHTTPBackend:
         self._engine_config = None
         self._native_filter_config = None
         self._static_response_profile = None
+        self._wildcard_classifier = None
         self._empty_native_filter_config = None
         self._proxy_override = proxy_override
         self._ip_overrides = (
@@ -455,6 +456,37 @@ class NativeHTTPBackend:
             self._static_response_profile = profile
             self._native_filter_config = None
 
+    def new_calibration_state(self, auto_calibration: bool):
+        return self._native.NativeCalibrationState(auto_calibration=auto_calibration)
+
+    def make_wildcard_classifier(self, scanners, state, base_path, skip_statuses):
+        profiles = []
+        for selection, group in scanners.items():
+            for selector, scanner in group.items():
+                response = scanner.response
+                parser = scanner.content_parser
+                if (not response.body_complete or response.redirect or response.history
+                        or scanner.wildcard_redirect_regex or not response.content
+                        or not response.content.isascii() or len(response.content) > 262144
+                        or parser._base_content != response.content
+                        or not all(sample.isascii() for sample in parser._normalized_contents)
+                        or not all(pattern.isascii() for pattern in parser.static_patterns)):
+                    return None
+                profiles.append(self._native.NativeWildcardProfile(
+                    response.status, response.type, response.content,
+                    parser._normalized_contents, parser.static_patterns,
+                    parser._is_static, parser.is_ambiguous, response.length,
+                    selection, selector,
+                ))
+        return self._native.NativeWildcardClassifier(
+            profiles, state, base_path, self.filter_config.auto_calibration,
+            list(skip_statuses), dict(self.filter_config.blacklists),
+        )
+
+    def set_wildcard_classifier(self, classifier) -> None:
+        self._wildcard_classifier = classifier
+        self._native_filter_config = None
+
     def _get_native_filter_config(self, apply_filters: bool):
         if not apply_filters:
             if self._empty_native_filter_config is None:
@@ -467,6 +499,10 @@ class NativeHTTPBackend:
             if self._static_response_profile is not None:
                 self._native_filter_config = self._native_filter_config.with_static_response(
                     *self._static_response_profile
+                )
+            if self._wildcard_classifier is not None:
+                self._native_filter_config = self._native_filter_config.with_wildcard_classifier(
+                    self._wildcard_classifier
                 )
         return self._native_filter_config
 
