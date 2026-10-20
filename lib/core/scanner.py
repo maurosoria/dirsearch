@@ -268,12 +268,14 @@ class Scanner(BaseScanner):
         context: str = "all cases",
         logger: RunLogger | None = None,
         word_generator: StealthWordGenerator | None = None,
+        first_probe: tuple[str, BaseResponse] | None = None,
     ) -> None:
         super().__init__(
             requester, filter_config=filter_config, delay=delay,
             path=path, tested=tested, context=context, logger=logger,
             word_generator=word_generator,
         )
+        self._first_probe = first_probe
         self.setup()
 
     def setup(self) -> None:
@@ -282,11 +284,14 @@ class Scanner(BaseScanner):
         used to compare with other path responses
         """
 
-        first_path = self.path.replace(
-            WILDCARD_TEST_POINT_MARKER,
-            self.word_generator.generate(),
-        )
-        first_response = self.requester.request(first_path)
+        if self._first_probe is None:
+            first_path = self.path.replace(
+                WILDCARD_TEST_POINT_MARKER,
+                self.word_generator.generate(),
+            )
+            first_response = self.requester.request(first_path)
+        else:
+            first_path, first_response = self._first_probe
         self.response = first_response
         self.sample_count = 1
         self._observe_static_response(first_response)

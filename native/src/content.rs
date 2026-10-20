@@ -5,6 +5,7 @@ use pyo3::prelude::*;
 use regex::bytes::{Regex, RegexBuilder};
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::hash::Hash;
 use std::sync::LazyLock;
 
@@ -222,6 +223,106 @@ pub(crate) fn sequence_matcher_ratio(py: Python<'_>, first: &str, second: &str) 
             )
         }
     })
+}
+
+fn static_patterns(first: &str, second: &str) -> Option<Vec<String>> {
+    let split = |c: char| c.is_ascii_whitespace() || ('\u{1c}'..='\u{1f}').contains(&c);
+    let a: Vec<_> = first.split(split).filter(|s| !s.is_empty()).collect();
+    let b: Vec<_> = second.split(split).filter(|s| !s.is_empty()).collect();
+    let mut positions: HashMap<&str, Vec<usize>> = HashMap::new();
+    for (j, &word) in b.iter().enumerate() {
+        positions.entry(word).or_default().push(j);
+    }
+    if b.len() >= 200 {
+        let maximum = b.len() / 100 + 1;
+        positions.retain(|_, indices| indices.len() <= maximum);
+    }
+    let mut scratch = MatchScratch::new(b.len());
+    let mut queue = vec![(0, a.len(), 0, b.len())];
+    let mut blocks = Vec::new();
+    while let Some(bounds @ (a_start, a_end, b_start, b_end)) = queue.pop() {
+        let (i, j, size) = scratch.longest(&a, &b, &positions, bounds);
+        if size == 0 {
+            continue;
+        }
+        blocks.push((i, j, size));
+        if a_start < i && b_start < j {
+            queue.push((a_start, i, b_start, j));
+        }
+        if i + size < a_end && j + size < b_end {
+            queue.push((i + size, a_end, j + size, b_end));
+        }
+    }
+    blocks.sort_unstable();
+    blocks.push((a.len(), b.len(), 0));
+    let (mut previous_a, mut previous_b) = (0, 0);
+    let mut patterns = Vec::new();
+    for (i, j, size) in blocks {
+        if previous_a < i && previous_b < j {
+            let replaced: HashSet<_> = a[previous_a..i].iter().copied().collect();
+            if b[previous_b..j].iter().any(|word| replaced.contains(word)) {
+                fancy_patterns(&a, previous_a, i, &b, previous_b, j, &mut patterns);
+            }
+        }
+        patterns.extend(a[i..i + size].iter().map(|word| (*word).to_string()));
+        previous_a = i + size;
+        previous_b = j + size;
+    }
+    Some(patterns)
+}
+
+// Python 3.14 Differ uses a bounded, non-recursive window for replacement
+// synchronization. Split words contain no spaces/tabs, so charjunk is empty.
+fn fancy_patterns(
+    a: &[&str],
+    alo: usize,
+    ahi: usize,
+    b: &[&str],
+    blo: usize,
+    bhi: usize,
+    patterns: &mut Vec<String>,
+) {
+    let mut dump_i = alo;
+    for (j, second) in b.iter().enumerate().take(bhi).skip(blo) {
+        let equivalent = alo + j - blo;
+        let start = equivalent.saturating_sub(10).max(dump_i);
+        let end = (equivalent + 11).min(ahi);
+        if start >= end {
+            break;
+        }
+        let mut best = None;
+        let mut best_ratio = 0.74999;
+        for (i, first) in a.iter().enumerate().take(end).skip(start) {
+            let total = first.len() + second.len();
+            if total > 0 && 2.0 * first.len().min(second.len()) as f64 / total as f64 <= best_ratio
+            {
+                continue;
+            }
+            let ratio = sequence_ratio(first.as_bytes(), second.as_bytes());
+            if ratio > best_ratio {
+                best = Some(i);
+                best_ratio = ratio;
+            }
+        }
+        if let Some(i) = best {
+            if a[i] == *second {
+                patterns.push(a[i].to_string());
+            }
+            dump_i = i + 1;
+        }
+    }
+}
+
+#[pyfunction]
+pub(crate) fn static_ascii_patterns(
+    py: Python<'_>,
+    first: &str,
+    second: &str,
+) -> PyResult<Option<Vec<String>>> {
+    if !first.is_ascii() || !second.is_ascii() {
+        return Err(PyValueError::new_err("ASCII content required"));
+    }
+    Ok(py.detach(|| static_patterns(first, second)))
 }
 
 #[cfg(test)]
