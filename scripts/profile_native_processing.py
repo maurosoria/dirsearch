@@ -72,7 +72,7 @@ def profile_stages():
             stack.enter_context(patch.object(owner, attribute, timer.wrap(name, original)))
         stack.enter_context(patch.object(response, 'normalize_dynamic_content', diff.normalize_dynamic_content))
         stack.enter_context(patch.object(BaseFuzzer, 'response_fingerprint',
-                           staticmethod(timer.wrap('fingerprint', BaseFuzzer.response_fingerprint))))
+                                         staticmethod(timer.wrap('fingerprint', BaseFuzzer.response_fingerprint))))
         yield timer.totals
 
 
@@ -93,7 +93,7 @@ def main():
             runpy.run_path(sys.argv[0], run_name='__main__')
         finally:
             arguments.output.write_text(json.dumps(dict(
-                diagnostic=True, wall_s=time.perf_counter()-started, stages=stages,
+                diagnostic=True, wall_s=time.perf_counter() - started, stages=stages,
                 note='Instrumentation changes timing. Measure RPS in separate uninstrumented runs.',
             ), indent=2))
 

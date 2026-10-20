@@ -16,6 +16,7 @@ class TestStageTimer(TestCase):
     def test_exception_still_records_cpu_and_restores_the_stack(self):
         ticks = iter([1, 4, 5, 9])
         timer = StageTimer(clock=lambda: next(ticks))
+
         def fail():
             raise ValueError('example')
         with self.assertRaises(ValueError):
