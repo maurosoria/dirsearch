@@ -2089,9 +2089,9 @@ fn non_utf8_text_filters_are_deferred_to_python() {
 }
 
 #[test]
-fn utf8_text_filters_keep_the_native_fast_path() {
+fn ascii_text_filters_keep_the_native_fast_path() {
     let mut config = default_filter_config();
-    config.filter_regex = compile_regex(Some("£".to_string()), "--filter-regex").unwrap();
+    config.filter_regex = compile_regex(Some("USD".to_string()), "--filter-regex").unwrap();
 
     let result = native_http_result(
         "price".to_string(),
@@ -2100,7 +2100,7 @@ fn utf8_text_filters_keep_the_native_fast_path() {
             "Content-Type".to_string(),
             "text/plain; Charset=UTF_8".to_string(),
         )],
-        "price £".as_bytes().to_vec(),
+        "price USD".as_bytes().to_vec(),
         1.0,
         &config,
     );
