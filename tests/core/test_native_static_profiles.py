@@ -1,5 +1,6 @@
 import importlib.util
 import logging
+import re
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Thread
 from unittest import TestCase, skipUnless
@@ -10,7 +11,9 @@ from lib.connection.response import NativeResponse
 from lib.core.filter_config import FilterConfig
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.execution_config import ExecutionConfig
+from lib.core.exceptions import RequestException
 from lib.core.fuzzer import NativeFuzzer
+from lib.core.native_runtime import NATIVE_EXTENSION_VERSION, get_native_extension_version_error
 from lib.core.request_config import RequestConfig
 from lib.core.scanner import Scanner
 from lib.core.settings import WILDCARD_TEST_POINT_MARKER
@@ -77,15 +80,33 @@ class TestStaticProfiles(TestCase):
         self.assertEqual(duplicate.sample_count, 1)
         self.assertIsNone(duplicate.static_response_profile)
 
-    def test_older_extension_retains_the_normal_response_path(self):
+    def test_older_extension_requires_a_rebuild(self):
         module = FakeNativeModule(results=[])
+        module.__version__ = "0.2.20"
+        with (
+            patch.dict("sys.modules", {"dirsearch_native": module}),
+            self.assertRaisesRegex(
+                RequestException,
+                rf"expected {re.escape(NATIVE_EXTENSION_VERSION)}, found 0\.2\.20.*dirsearch-build-native",
+            ),
+        ):
+            NativeHTTPBackend(RequestConfig(), filter_config=FilterConfig())
+        self.assertEqual(module.engines, [])
+
+    def test_profile_configuration_is_explicit_and_calibration_stays_unfiltered(self):
+        module = FakeNativeModule(results=[])
+        profile = (404, "text/plain", b"Missing page.")
         with patch.dict("sys.modules", {"dirsearch_native": module}):
             backend = NativeHTTPBackend(RequestConfig(), filter_config=FilterConfig())
-            backend.set_static_response_profile((404, "text/plain", b"Missing page."))
-            chunks = []
-            backend.scan_chunks("http://example.com/", ["missing"], chunks.append)
-        self.assertEqual(chunks[0].end_index, 1)
-        self.assertEqual(module.filter_configs[0].config["exclude_status_codes"], [])
+            backend.set_static_response_profile(profile)
+            backend.scan_chunks("http://example.com/", ["missing"], lambda chunk: None)
+            backend.scan_unfiltered("http://example.com/", "calibration")
+            backend.set_static_response_profile(None)
+            backend.scan_chunks("http://example.com/", ["next"], lambda chunk: None)
+        calls = module.engines[0].chunk_calls
+        self.assertEqual(calls[0][1]["filter_config"].static_response_profile, profile)
+        self.assertIsNone(module.engines[0].calls[0][1]["filter_config"].static_response_profile)
+        self.assertIsNone(calls[1][1]["filter_config"].static_response_profile)
 
 
 class ProfileBackend:
@@ -172,8 +193,8 @@ class TestStaticProfileFuzzer(TestCase):
 class TestNativeStaticProfileContract(TestCase):
     def setUp(self):
         import dirsearch_native
-        if not hasattr(dirsearch_native.NativeFilterConfig, "with_static_response"):
-            self.skipTest("native extension predates static response profiles")
+        if version_error := get_native_extension_version_error(dirsearch_native):
+            self.skipTest(version_error)
 
         class Handler(BaseHTTPRequestHandler):
             protocol_version = "HTTP/1.1"

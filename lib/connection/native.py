@@ -464,10 +464,10 @@ class NativeHTTPBackend:
             self._native_filter_config = self._native.NativeFilterConfig(
                 **self.filter_config.native_options()
             )
-            # Older extension builds retain the Python classification path.
-            extend = getattr(self._native_filter_config, "with_static_response", None)
-            if self._static_response_profile is not None and extend is not None:
-                self._native_filter_config = extend(*self._static_response_profile)
+            if self._static_response_profile is not None:
+                self._native_filter_config = self._native_filter_config.with_static_response(
+                    *self._static_response_profile
+                )
         return self._native_filter_config
 
 

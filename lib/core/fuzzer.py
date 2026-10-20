@@ -599,9 +599,7 @@ class NativeFuzzer(Fuzzer):
         self._prepared = False
 
     def _update_static_response_profile(self, *, clear: bool = False) -> None:
-        setter = getattr(self._native_backend, "set_static_response_profile", None)
-        if setter is None:
-            return
+        assert self._native_backend is not None
         profile = None
         if not clear and self.filtered_chunk_callbacks and not self.logger.handlers:
             scanner = self.filter_state.scanners["default"].get("random")
@@ -615,7 +613,7 @@ class NativeFuzzer(Fuzzer):
                         learned = fingerprint in self.filter_state.auto_calibrated_fingerprints
                     if learned or not self.should_record_auto_calibration(scanner.response):
                         profile = candidate
-        setter(profile)
+        self._native_backend.set_static_response_profile(profile)
 
     def prepare_start(self) -> None:
         with self._lifecycle_lock:

@@ -80,6 +80,17 @@ class FakeNativeSession:
         return self.rate_value
 
 
+class FakeNativeFilterConfig:
+    def __init__(self, config):
+        self.config = config
+        self.static_response_profile = None
+
+    def with_static_response(self, status, content_type, body):
+        config = FakeNativeFilterConfig(self.config.copy())
+        config.static_response_profile = (status, content_type, body)
+        return config
+
+
 class FakeNativeModule:
     __version__ = NATIVE_EXTENSION_VERSION
 
@@ -100,7 +111,7 @@ class FakeNativeModule:
         return engine
 
     def NativeFilterConfig(self, **config):
-        filter_config = type("FakeNativeFilterConfig", (), {"config": config})()
+        filter_config = FakeNativeFilterConfig(config)
         self.filter_configs.append(filter_config)
         return filter_config
 
