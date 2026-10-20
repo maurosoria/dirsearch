@@ -22,6 +22,7 @@ pub(crate) struct NativeFilterConfig {
 
 #[derive(Clone)]
 pub(crate) struct NativeFilterConfigData {
+    static_response: Option<(u16, String, Vec<u8>)>,
     pub(crate) include_status_codes: Vec<u16>,
     pub(crate) exclude_status_codes: Vec<u16>,
     pub(crate) minimum_response_size: usize,
@@ -62,6 +63,47 @@ impl DerefMut for NativeFilterConfig {
 }
 
 impl NativeFilterConfig {
+    fn with_static_response_profile(
+        &self,
+        status: u16,
+        content_type: String,
+        body: Vec<u8>,
+    ) -> Result<Self, String> {
+        if body.is_empty() || body.len() > 65536 {
+            return Err("Static response must contain 1 to 65536 bytes".to_string());
+        }
+        let mut result = self.clone();
+        Arc::make_mut(&mut result.inner).static_response = Some((status, content_type, body));
+        Ok(result)
+    }
+
+    pub(crate) fn matches_static_response(&self, result: &crate::result::NativeHttpResult) -> bool {
+        let Some((status, content_type, body)) = &self.static_response else {
+            return false;
+        };
+        if result.error.is_some()
+            || !result.body_complete
+            || !result.history.is_empty()
+            || result.status != *status
+            || result.body != *body
+        {
+            return false;
+        }
+        let mut actual_type = "";
+        for (name, value) in &result.headers {
+            if name.eq_ignore_ascii_case("location") && !value.is_empty() {
+                return false;
+            }
+            if name.eq_ignore_ascii_case("content-type") {
+                if !actual_type.is_empty() {
+                    return false;
+                }
+                actual_type = value;
+            }
+        }
+        actual_type == content_type
+    }
+
     pub(crate) fn status_filter_reason(&self, status: u16) -> Option<&'static str> {
         if self.exclude_status_codes.contains(&status) {
             return Some("exclude_status");
@@ -101,6 +143,7 @@ impl NativeFilterConfig {
     ) -> Result<Self, String> {
         Ok(Self {
             inner: Arc::new(NativeFilterConfigData {
+                static_response: None,
                 include_status_codes,
                 exclude_status_codes,
                 minimum_response_size,
@@ -318,6 +361,17 @@ impl Default for NativeFilterConfig {
 
 #[pymethods]
 impl NativeFilterConfig {
+    /// Return an immutable per-directory snapshot; in-flight workers keep theirs.
+    fn with_static_response(
+        &self,
+        status: u16,
+        content_type: String,
+        body: Vec<u8>,
+    ) -> PyResult<Self> {
+        self.with_static_response_profile(status, content_type, body)
+            .map_err(PyRuntimeError::new_err)
+    }
+
     #[new]
     #[allow(clippy::too_many_arguments)]
     #[pyo3(signature = (
@@ -509,4 +563,67 @@ fn line_count(text: Option<&str>) -> usize {
     }
 
     text.matches('\n').count() + 1
+}
+
+#[cfg(test)]
+mod static_response_tests {
+    use super::*;
+    use crate::result::native_http_result;
+
+    fn response() -> crate::result::NativeHttpResult {
+        native_http_result(
+            "missing".to_string(),
+            404,
+            vec![("content-type".to_string(), "text/plain".to_string())],
+            b"Missing page.".to_vec(),
+            0.0,
+            &NativeFilterConfig::default(),
+        )
+    }
+
+    #[test]
+    fn static_response_requires_the_complete_body_and_original_context() {
+        let empty = NativeFilterConfig::default();
+        let config = empty
+            .with_static_response_profile(404, "text/plain".to_string(), b"Missing page.".to_vec())
+            .unwrap();
+        assert!(!empty.matches_static_response(&response()));
+        assert!(config.matches_static_response(&response()));
+        let mut changed = response();
+        changed.body_complete = false;
+        assert!(!config.matches_static_response(&changed));
+        let mut changed = response();
+        changed
+            .history
+            .push("http://example.com/redirect".to_string());
+        assert!(!config.matches_static_response(&changed));
+        let mut changed = response();
+        changed
+            .headers
+            .push(("location".to_string(), "/login".to_string()));
+        assert!(!config.matches_static_response(&changed));
+        let mut changed = response();
+        changed.body.push(b'!');
+        assert!(!config.matches_static_response(&changed));
+        let mut changed = response();
+        changed.status = 200;
+        assert!(!config.matches_static_response(&changed));
+        let mut changed = response();
+        changed.headers[0].1 = "application/json".to_string();
+        assert!(!config.matches_static_response(&changed));
+        let mut changed = response();
+        changed.error = Some("incomplete transfer".to_string());
+        assert!(!config.matches_static_response(&changed));
+    }
+
+    #[test]
+    fn static_response_rejects_empty_or_unbounded_templates() {
+        let config = NativeFilterConfig::default();
+        assert!(config
+            .with_static_response_profile(404, String::new(), Vec::new())
+            .is_err());
+        assert!(config
+            .with_static_response_profile(404, String::new(), vec![0; 65537])
+            .is_err());
+    }
 }

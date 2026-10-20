@@ -1,6 +1,7 @@
 # Changelog
 
 ## [Unreleased]
+- Improved native scan throughput by filtering exact, repeatedly verified static wildcard responses before Python processing.
 - Added opt-in backup discovery for matched files.
 
 - Split CLI help into common (`-h` / `--help`) and complete (`-hh` / `--help-all`) views.

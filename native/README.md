@@ -133,6 +133,16 @@ stable ABI. `maturin` is pulled by pip/build scripts from `native/pyproject.toml
 The benchmark summary for this backend is in
 [`docs/native-backend-benchmarks.md`](../docs/native-backend-benchmarks.md).
 
+For static wildcard pages, native scans can omit identical misses before
+constructing Python response objects. The profile requires at least two complete
+missing-path probes with identical status, Content-Type, and body. It applies
+only within the current directory and only to GET responses with no redirects.
+Bodies must be nonempty and at most 64 KiB; differing or incomplete responses
+continue through normal Python classification. Existing duplicate-calibration
+state is established before the shortcut activates. Detailed logging and stop
+statuses retain the normal response path. This requires native extension 0.2.21;
+older builds are rejected with instructions to run `dirsearch-build-native`.
+
 You can use the native scan path with the default GET method:
 
 ```sh

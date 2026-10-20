@@ -9,6 +9,7 @@ from lib.core.discovery_config import DiscoveryConfig
 from lib.core.execution_config import ExecutionConfig
 from lib.core.filter_config import FilterConfig
 from lib.core.fuzzer import AsyncFuzzer, Fuzzer, NativeFuzzer
+from tests.core.test_native_fuzzer import StaticProfileBackend
 
 
 class DummyDictionary:
@@ -85,7 +86,7 @@ class DummyNativeRequester:
         return self.backend
 
 
-class FilteringNativeBackend:
+class FilteringNativeBackend(StaticProfileBackend):
     def scan_chunks(self, base_url, paths, callback, query=""):
         del base_url
         del query

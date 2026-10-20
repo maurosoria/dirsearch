@@ -391,7 +391,7 @@ async fn run_scan_worker(
         result.request_index = request_index;
 
         let omit_result = task.delivery.omits_filtered_results()
-            && result.filtered
+            && (result.filtered || task.filter_config.matches_static_response(&result))
             && result.error.is_none()
             && result.status != PROXY_AUTHENTICATION_REQUIRED;
         match &task.delivery {

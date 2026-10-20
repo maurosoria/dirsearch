@@ -43,6 +43,7 @@ from lib.utils.random import StealthWordGenerator
 AUTO_CALIBRATION_EXTRA_SAMPLES = 2
 AMBIGUOUS_SIMILARITY_THRESHOLD = 0.9
 AMBIGUOUS_SIMILARITY_MAX_CONTENT_LENGTH = 262144
+MAX_STATIC_PROFILE_BODY = 65536
 
 
 class BaseScanner:
@@ -72,6 +73,35 @@ class BaseScanner:
         self.wildcard_redirect_regex = None
         self.sample_count = 0
         self.reason = ""
+        self._static_profile = None
+        self._static_samples = 0
+        self._static_profile_valid = True
+
+    @property
+    def static_response_profile(self) -> tuple[int, str, bytes] | None:
+        """Exact, complete responses observed on at least two missing probes."""
+        if self._static_profile_valid and self._static_samples >= 2:
+            return self._static_profile
+        return None
+
+    def _observe_static_response(self, response: BaseResponse) -> None:
+        profile = None
+        if (
+            response.body_complete
+            and 0 < len(response.body) <= MAX_STATIC_PROFILE_BODY
+            and not response.redirect
+            and not response.history
+        ):
+            profile = (
+                response.status,
+                response.headers.get("content-type", ""),
+                response.body,
+            )
+        if not self._static_samples:
+            self._static_profile = profile
+        self._static_samples += 1
+        if profile is None or profile != self._static_profile:
+            self._static_profile_valid = False
 
     def check(self, path: str, response: BaseResponse) -> bool:
         """
@@ -199,6 +229,7 @@ class BaseScanner:
 
     def add_calibration_sample(self, response: BaseResponse) -> None:
         self.sample_count += 1
+        self._observe_static_response(response)
         if response.content:
             self.content_parser.add_sample(response.content)
 
@@ -258,6 +289,7 @@ class Scanner(BaseScanner):
         first_response = self.requester.request(first_path)
         self.response = first_response
         self.sample_count = 1
+        self._observe_static_response(first_response)
         time.sleep(self.delay)
 
         # Another test was performed before and has the same response as this
@@ -273,6 +305,7 @@ class Scanner(BaseScanner):
         )
         second_response = self.requester.request(second_path)
         self.sample_count += 1
+        self._observe_static_response(second_response)
         time.sleep(self.delay)
 
         if first_response.redirect and second_response.redirect:
@@ -362,6 +395,7 @@ class AsyncScanner(BaseScanner):
         first_response = await self.requester.request(first_path)
         self.response = first_response
         self.sample_count = 1
+        self._observe_static_response(first_response)
         await asyncio.sleep(self.delay)
 
         duplicate = self.get_duplicate(first_response)
@@ -378,6 +412,7 @@ class AsyncScanner(BaseScanner):
         )
         second_response = await self.requester.request(second_path)
         self.sample_count += 1
+        self._observe_static_response(second_response)
         await asyncio.sleep(self.delay)
 
         if first_response.redirect and second_response.redirect:
