@@ -469,11 +469,14 @@ fn response_charset(headers: &[(String, String)]) -> Option<&str> {
 
     content_type.split(';').skip(1).find_map(|parameter| {
         let (name, value) = parameter.split_once('=')?;
-        name.trim().eq_ignore_ascii_case("charset").then(|| {
-            value
-                .trim()
-                .trim_matches(|character| matches!(character, '\'' | '"'))
-        })
+        name.trim()
+            .trim_matches(|character| matches!(character, '\'' | '"'))
+            .eq_ignore_ascii_case("charset")
+            .then(|| {
+                value
+                    .trim()
+                    .trim_matches(|character| matches!(character, '\'' | '"'))
+            })
     })
 }
 

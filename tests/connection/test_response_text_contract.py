@@ -23,6 +23,7 @@ CASES = {
     "json": ("menu\xe9".encode(), "application/json", "menu\xe9"),
     "utf16": ("hello world".encode("utf-16"), "text/plain; charset=utf-16", "hello world"),
     "unknown": (b"abc", "text/plain; charset=unknown-test-codec", "abc"),
+    "quoted_utf7": (b"+AKM-", 'text/plain; "charset"="utf-7"', "£"),
     "binary": (b"a\x00\xffb", "application/octet-stream", "a\x00b"),
     "words": (b"admin\x1csecret", "text/plain", "admin\x1csecret"),
 }
@@ -124,3 +125,9 @@ class TestResponseTextContract(TestCase):
         response = list(backend.scan(self.url, ["latin1"]))[0][1]
         self.assertFalse(response.filtered)
         self.assertEqual(response.text, "menu\xe9")
+
+    def test_quoted_charset_parameter_defers_ascii_encoded_non_utf8_text(self):
+        backend = self.native_backend(FilterConfig(match_regex="£"))
+        response = list(backend.scan(self.url, ["quoted_utf7"]))[0][1]
+        self.assertFalse(response.filtered)
+        self.assertEqual(response.text, "£")
