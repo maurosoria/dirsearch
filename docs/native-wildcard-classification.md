@@ -12,6 +12,11 @@ profiles that cannot preserve Python text semantics retain Python classification
 Potential findings also retain the normal Python callback and report path.
 All applicable prefix, suffix and default profiles retain their original roles.
 
+Both profile and candidate bodies are limited to 256 KiB for this shortcut;
+larger bodies keep the common path instead of allocating comparison scratch
+space on several native workers at once. Missing media types use the shared
+Python sentinel, and ambiguous repeated headers keep Python's combined view.
+
 ## Ordered state
 
 ASCII similarity indexes positions directly by byte value and omits popular

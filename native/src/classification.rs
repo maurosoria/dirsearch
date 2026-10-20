@@ -318,6 +318,7 @@ impl NativeWildcardClassifier {
             || !result.history.is_empty()
             || self.skip_statuses.contains(&result.status)
             || result.body.is_empty()
+            || result.body.len() > 262144
             || !result.body.is_ascii()
             || result.body.iter().any(|byte| !text_byte(*byte))
             || request_path.contains('%')
