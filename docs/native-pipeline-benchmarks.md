@@ -43,58 +43,74 @@ probe counts within each cell.
 | --- | --- | --- |
 | Content acceleration | `0adee4c` | 0.2.22 |
 | Text parity | `cd3b9b1` | 0.2.23 |
-| Native classification | `ef5562b` | 0.2.24 |
-| Native calibration | `b7b8582` | 0.2.25 |
+| Native classification | `26b00e7` | 0.2.24 |
+| Native calibration | `27a5064` | 0.2.25 |
 
 | Corpus | Entries | Threads | Delay | Previous RPS | Final RPS | Ratio |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Static 404, 896 B | 20,005 | 40 | 0 ms | 11,963 | 13,154 | 1.10x |
-| Static 404, 896 B | 100,000 | 40 | 0 ms | 16,167 | 17,596 | 1.09x |
-| Reflected HTML, ~4 KiB | 6,005 | 40 | 0 ms | 4,922 | 5,614 | 1.14x |
-| Token HTML, ~4 KiB | 6,005 | 40 | 0 ms | 4,914 | 5,361 | 1.09x |
-| Variable HTML, ~4 KiB | 6,005 | 40 | 0 ms | 3,486 | 5,614 | 1.61x |
-| Compact JSON, ~4 KiB | 6,005 | 40 | 0 ms | 2,425 | 4,377 | 1.80x |
-| Compact JSON, ~64 KiB | 505 | 40 | 0 ms | 175.7 | 495.8 | 2.82x |
-| Reflected HTML, ~64 KiB | 505 | 40 | 0 ms | 495.2 | 548.9 | 1.11x |
-| Repeated-path HTML, ~64 KiB | 129 | 40 | 0 ms | 53.3 | 120.7 | 2.27x |
-| Same-status JSON controls, ~4 KiB | 6,005 | 40 | 0 ms | 2,475 | 4,382 | 1.77x |
-| Unicode UTF-8 HTML, ~4 KiB | 6,005 | 40 | 0 ms | 1,387 | 1,370 | 0.99x |
-| Latin-1 HTML, ~4 KiB | 6,005 | 40 | 0 ms | 1,194 | 1,205 | 1.01x |
-| All-positive HTML, ~16 KiB | 1,205 | 40 | 0 ms | 1,127 | 1,566 | 1.39x |
-| All-positive 404 HTML, ~4 KiB | 6,005 | 40 | 0 ms | 2,640 | 3,119 | 1.18x |
-| All-positive binary 404, 64 KiB | 405 | 40 | 0 ms | 494.4 | 494.3 | 1.00x |
-| Token HTML, ~4 KiB | 6,005 | 100 | 20 ms | 2,895 | 2,968 | 1.03x |
+| Static 404, 896 B | 20,005 | 40 | 0 ms | 11,623 | 13,153 | 1.13x |
+| Static 404, 896 B | 100,000 | 40 | 0 ms | 16,037 | 17,588 | 1.10x |
+| Reflected HTML, ~4 KiB | 6,005 | 40 | 0 ms | 4,916 | 5,616 | 1.14x |
+| Token HTML, ~4 KiB | 6,005 | 40 | 0 ms | 4,721 | 5,357 | 1.13x |
+| Variable HTML, ~4 KiB | 6,005 | 40 | 0 ms | 3,488 | 5,608 | 1.61x |
+| Compact JSON, ~4 KiB | 6,005 | 40 | 0 ms | 2,426 | 4,546 | 1.87x |
+| Compact JSON, ~64 KiB | 505 | 40 | 0 ms | 175.7 | 520.3 | 2.96x |
+| Reflected HTML, ~64 KiB | 505 | 40 | 0 ms | 494.2 | 581.0 | 1.18x |
+| Repeated-path HTML, ~64 KiB | 129 | 40 | 0 ms | 52.1 | 120.6 | 2.31x |
+| Same-status JSON controls, ~4 KiB | 6,005 | 40 | 0 ms | 2,427 | 4,546 | 1.87x |
+| Unicode UTF-8 HTML, ~4 KiB | 6,005 | 40 | 0 ms | 1,388 | 1,387 | 1.00x |
+| Latin-1 HTML, ~4 KiB | 6,005 | 40 | 0 ms | 1,205 | 1,171 | 0.97x |
+| All-positive HTML, ~16 KiB | 1,205 | 40 | 0 ms | 1,126 | 1,564 | 1.39x |
+| All-positive 404 HTML, ~4 KiB | 6,005 | 40 | 0 ms | 2,362 | 3,123 | 1.32x |
+| All-positive binary 404, 64 KiB | 405 | 40 | 0 ms | 494.4 | 494.5 | 1.00x |
+| Token HTML, ~4 KiB | 6,005 | 100 | 20 ms | 2,822 | 2,966 | 1.05x |
 | Token HTML, ~4 KiB | 2 | 40 | 150 ms | 0.94 | 1.20 | 1.27x |
 
 The previous and final columns compare extension 0.2.22 with 0.2.25. Compact JSON
-improves by 80% at 4 KiB and 2.82x at 64 KiB; the all-positive 404 HTML row improves
-by 18%. Unicode, Latin-1 and binary fallback rows remain approximately flat.
+improves by 87% at 4 KiB and 2.96x at 64 KiB; the all-positive 404 HTML row improves
+by 32%. Unicode and binary fallback medians remain approximately flat. Latin-1
+is 3% lower in this matrix; the raw samples retain the measured ranges.
 These are complete-process rates, including calibration costs.
 
 The intermediate cohorts separate classification from calibration work:
 
 | Corpus | Content 0.2.22 | Parity 0.2.23 | Classification 0.2.24 | Calibration 0.2.25 |
 | --- | ---: | ---: | ---: | ---: |
-| Static 404, 896 B | 16,167 | 16,037 | 17,439 | 17,596 |
-| Compact JSON, ~4 KiB | 2,425 | 2,427 | 4,382 | 4,377 |
-| Compact JSON, ~64 KiB | 175.7 | 178.7 | 311.7 | 495.8 |
-| Repeated-path HTML, ~64 KiB | 53.3 | 53.2 | 53.1 | 120.7 |
-| All-positive HTML, ~16 KiB | 1,127 | 1,126 | 1,471 | 1,566 |
-| All-positive 404 HTML, ~4 KiB | 2,640 | 2,698 | 3,201 | 3,119 |
-| All-positive binary 404, 64 KiB | 494.4 | 493.6 | 494.1 | 494.3 |
-
+| Static 404, 896 B | 16,037 | 16,038 | 17,596 | 17,588 |
+| Compact JSON, ~4 KiB | 2,426 | 2,428 | 4,545 | 4,546 |
+| Compact JSON, ~64 KiB | 175.7 | 175.7 | 311.8 | 520.3 |
+| Repeated-path HTML, ~64 KiB | 52.1 | 53.2 | 53.2 | 120.6 |
+| All-positive HTML, ~16 KiB | 1,126 | 1,180 | 1,562 | 1,564 |
+| All-positive 404 HTML, ~4 KiB | 2,362 | 2,642 | 3,124 | 3,123 |
+| All-positive binary 404, 64 KiB | 494.4 | 494.6 | 494.8 | 494.5 |
 
 Static rows return identical negative bodies. Dynamic HTML/JSON rows vary paths,
 tokens or identifiers inside a negative template and retain five control
 findings. The same-status control uses distinct positive JSON with the same HTTP
-status as the soft-404 profile. The all-positive 404 HTML case includes 6,000 distinct 404 documents with
-the same content type and comparable body length, plus five control findings.
+status as the soft-404 profile. The all-positive 404 HTML case includes 6,000
+distinct 404 documents with the same content type and comparable body length, plus five control findings.
 All-positive HTML and binary rows retain every requested path. The two-entry
 150 ms case retains one finding and primarily measures preparation cost.
 
 Direct HTTP client rates and CPU replay are different measurements and must not
 be compared with these end-to-end rates. Earlier benchmark tables used different
 builds and corpora; compare variants within this matrix.
+
+## Native wordlist comparison
+
+A separate experiment compares the final 0.2.25 build with Python and native
+wordlist readers, using `--wordlist-backend python` and `--wordlist-backend native`.
+Each reader has one full warmup and three measured fresh processes per case at
+40 HTTP requests in flight. These 12 measured native scans retain exactly the
+same five findings, complete path sets and request counts.
+
+| Corpus | Entries | Python wordlist RPS | Native wordlist RPS | Ratio |
+| --- | ---: | ---: | ---: | ---: |
+| Static 404, 896 B | 100,000 | 17,586 | 23,091 | 1.31x |
+| Compact JSON, ~4 KiB | 6,005 | 4,548 | 4,918 | 1.08x |
+
+These rates include preparation and reporting. Keep this comparison separate
+from the four-cohort matrix, where every build uses the Python wordlist reader.
 
 ## Correctness and release checks
 
@@ -109,11 +125,11 @@ authentication/cookie guards preserve sequential preparation for known session
 state; the throughput corpus uses controlled stateless targets. These checks do
 not establish equivalence for arbitrary request-order-dependent applications.
 
-The matching Python 3.14/native suite runs 1,163 tests with four skips, and the
+The matching Python 3.14/native suite runs 1,165 tests with four skips, and the
 Rust release suite passes 100 tests with formatting and Clippy checks. The
 function audit completes 163,399 normalization, similarity and parser comparisons
 without differences. Additional tests cover exact calibrated-pattern parity,
-shared native/fallback state and positive-decision reuse. Source-file and wheel
+shared native/fallback state, isolated surrogate text and positive-decision reuse. Source-file and wheel
 checksums verify every timed cohort against its recorded artifacts.
 
 Release validation covers Python 3.11 without the extension, Python 3.14 native
