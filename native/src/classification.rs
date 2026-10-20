@@ -32,6 +32,7 @@ impl Fingerprint {
 struct Observations {
     counts: HashMap<Fingerprint, usize>,
     learned: HashSet<Fingerprint>,
+    learned_statuses: HashSet<u16>,
     pending: BTreeMap<usize, NativeObservation>,
 }
 
@@ -60,6 +61,7 @@ impl NativeCalibrationState {
         if *count < threshold {
             return false;
         }
+        state.learned_statuses.insert(key.status);
         state.learned.insert(key);
         true
     }
@@ -96,6 +98,14 @@ impl NativeCalibrationState {
             .unwrap_or_else(|error| error.into_inner())
             .learned
             .contains(&Fingerprint::new(status, media_type, redirect, content))
+    }
+
+    fn has_learned_status(&self, status: u16) -> bool {
+        self.inner
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .learned_statuses
+            .contains(&status)
     }
 
     fn commit_range(&self, start: usize, end: usize) {

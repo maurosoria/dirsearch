@@ -598,6 +598,7 @@ class NativeFuzzer(Fuzzer):
         self._lifecycle_lock = threading.Lock()
         self._prepared = False
         self._native_calibration_state = None
+        self._native_classification_initialized = False
 
     @staticmethod
     def _native_fingerprint_values(resp: BaseResponse) -> tuple:
@@ -612,14 +613,20 @@ class NativeFuzzer(Fuzzer):
     def is_auto_calibrated(self, resp: BaseResponse) -> bool:
         if self._native_calibration_state is None:
             return super().is_auto_calibrated(resp)
+        record = self.should_record_auto_calibration(resp)
+        if not record and not self._native_calibration_state.has_learned_status(resp.status):
+            return False
         return self._native_calibration_state.observe(
-            *self._native_fingerprint_values(resp), self.should_record_auto_calibration(resp)
+            *self._native_fingerprint_values(resp), record
         )
 
     def _update_wildcard_classifier(self, *, clear: bool = False) -> None:
         if not isinstance(self._requester, NativeRequester):
             return
         assert self._native_backend is not None
+        if clear:
+            self._native_backend.set_wildcard_classifier(None)
+            return
         config = self.filter_config
         supported = not any((
             self.logger.handlers, not self.filtered_chunk_callbacks,
@@ -629,10 +636,18 @@ class NativeFuzzer(Fuzzer):
             config.filter_words, config.filter_lines, config.filter_regex,
             config.filter_headers, config.filter_header_regex, config.filter_time,
         ))
-        if supported and self._native_calibration_state is None:
-            self._native_calibration_state = self._native_backend.new_calibration_state(config.auto_calibration)
         classifier = None
-        if supported and not clear:
+        if not self._native_classification_initialized:
+            self._native_classification_initialized = True
+            if supported and not (self.filter_state.similar_fingerprints or self.filter_state.auto_calibrated_fingerprints):
+                state = self._native_backend.new_calibration_state(config.auto_calibration)
+                classifier = self._native_backend.make_wildcard_classifier(
+                    self.filter_state.scanners, state,
+                    parse_path(self._requester._url), self.execution_config.skip_on_status,
+                )
+                if classifier is not None:
+                    self._native_calibration_state = state
+        elif supported and self._native_calibration_state is not None:
             classifier = self._native_backend.make_wildcard_classifier(
                 self.filter_state.scanners, self._native_calibration_state,
                 parse_path(self._requester._url), self.execution_config.skip_on_status,
