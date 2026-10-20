@@ -18,6 +18,7 @@
 
 import difflib
 import re
+import sys
 
 from lib.utils.common import lstrip_once
 from lib.core.native_runtime import get_native_extension_version_error
@@ -29,9 +30,14 @@ except ImportError:
 
 _native_normalize_ascii = None
 _native_similarity = None
+_native_static_patterns = None
 if dirsearch_native is not None and get_native_extension_version_error(dirsearch_native) is None:
     _native_normalize_ascii = dirsearch_native.normalize_ascii_content
     _native_similarity = dirsearch_native.sequence_matcher_ratio
+    # The replacement-window policy is version-specific; other Python minors
+    # keep their own Differ implementation until its semantics are validated.
+    if sys.version_info[:2] == (3, 14):
+        _native_static_patterns = dirsearch_native.static_ascii_patterns
 
 
 _DYNAMIC_TOKEN_REGEXES = (
@@ -202,9 +208,13 @@ class DynamicContentParser:
             return
 
         first, second = self._normalized_contents[:2]
-        patterns = self.get_static_patterns(
-            self._differ.compare(first.split(), second.split())
-        )
+        patterns = None
+        if _native_static_patterns is not None and first.isascii() and second.isascii():
+            patterns = _native_static_patterns(first, second)
+        if patterns is None:
+            patterns = self.get_static_patterns(
+                self._differ.compare(first.split(), second.split())
+            )
 
         for normalized_content in self._normalized_contents[2:]:
             normalized_words = normalized_content.split()

@@ -391,65 +391,35 @@ class Fuzzer(BaseFuzzer):
         self._quit_event = threading.Event()
         self._pause_semaphore = threading.Semaphore(0)
 
-    def setup_scanners(self) -> None:
-        scanners = self.filter_state.scanners
-        # Default scanners (wildcard testers)
-        scanners["default"]["random"] = Scanner(
-            self._requester,
-            filter_config=self.filter_config,
-            delay=self.execution_config.delay,
-            word_generator=self._word_generator,
-            logger=self.logger,
-            path=self._base_path + WILDCARD_TEST_POINT_MARKER,
-        )
-
+    def _scanner_specs(self):
+        yield "default", "random", self._base_path + WILDCARD_TEST_POINT_MARKER, "all cases"
         if self.filter_config.exclude_response:
-            scanners["default"]["custom"] = Scanner(
-                self._requester,
-                filter_config=self.filter_config,
-                delay=self.execution_config.delay,
-                word_generator=self._word_generator,
-                logger=self.logger,
-                tested=scanners,
-                path=self.filter_config.exclude_response,
-            )
-
+            yield "default", "custom", self.filter_config.exclude_response, "all cases"
         for prefix in set(self.discovery_config.prefixes + DEFAULT_TEST_PREFIXES):
-            scanners["prefixes"][prefix] = Scanner(
-                self._requester,
-                filter_config=self.filter_config,
-                delay=self.execution_config.delay,
-                word_generator=self._word_generator,
-                logger=self.logger,
-                tested=scanners,
-                path=f"{self._base_path}{prefix}{WILDCARD_TEST_POINT_MARKER}",
-                context=f"/{self._base_path}{prefix}***",
-            )
-
-        for suffix in set(self.discovery_config.suffixes + DEFAULT_TEST_SUFFIXES):
-            scanners["suffixes"][suffix] = Scanner(
-                self._requester,
-                filter_config=self.filter_config,
-                delay=self.execution_config.delay,
-                word_generator=self._word_generator,
-                logger=self.logger,
-                tested=scanners,
-                path=f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}{suffix}",
-                context=f"/{self._base_path}***{suffix}",
-            )
-
+            yield "prefixes", prefix, f"{self._base_path}{prefix}{WILDCARD_TEST_POINT_MARKER}", f"/{self._base_path}{prefix}***"
+        suffixes = set(self.discovery_config.suffixes + DEFAULT_TEST_SUFFIXES)
+        known_suffixes = set(self.filter_state.scanners["suffixes"]) | suffixes
+        for suffix in suffixes:
+            yield "suffixes", suffix, f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}{suffix}", f"/{self._base_path}***{suffix}"
         for extension in self.discovery_config.extensions:
-            if "." + extension not in scanners["suffixes"]:
-                scanners["suffixes"]["." + extension] = Scanner(
-                    self._requester,
-                    filter_config=self.filter_config,
-                    delay=self.execution_config.delay,
-                    word_generator=self._word_generator,
-                    logger=self.logger,
-                    tested=scanners,
-                    path=f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}.{extension}",
-                    context=f"/{self._base_path}***.{extension}",
-                )
+            suffix = "." + extension
+            if suffix not in known_suffixes:
+                known_suffixes.add(suffix)
+                yield "suffixes", suffix, f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}{suffix}", f"/{self._base_path}***{suffix}"
+
+    def _setup_scanner_specs(self, specs, first_probes=None) -> None:
+        scanners = self.filter_state.scanners
+        for selection, selector, path, context in specs:
+            first_probe = first_probes.get((selection, selector)) if first_probes is not None else None
+            scanners[selection][selector] = Scanner(
+                self._requester, filter_config=self.filter_config,
+                delay=self.execution_config.delay, word_generator=self._word_generator,
+                logger=self.logger, tested=None if (selection, selector) == ("default", "random") else scanners,
+                path=path, context=context, first_probe=first_probe,
+            )
+
+    def setup_scanners(self) -> None:
+        self._setup_scanner_specs(self._scanner_specs())
 
     def setup_threads(self) -> None:
         if self._threads:
@@ -600,6 +570,30 @@ class NativeFuzzer(Fuzzer):
         self._prepared = False
         self._native_calibration_state = None
         self._native_classification_initialized = False
+
+    def setup_scanners(self) -> None:
+        if not isinstance(self._requester, NativeRequester):
+            return super().setup_scanners()
+        config = self._requester.config
+        if (config.method != "GET"
+                or config.max_rate or config.delay or self.execution_config.delay
+                or config.auth or self._requester._origin_auth != ("", "")
+                or config.follow_redirects
+                or any(name.lower() in ("cookie", "authorization") for name, _ in config.headers)):
+            return super().setup_scanners()
+        assert self._native_backend is not None
+        specs = list(self._scanner_specs())
+        self._setup_scanner_specs(specs[:1])
+        if self._native_backend.session.has_cookies():
+            return self._setup_scanner_specs(specs[1:])
+        paths = [path.replace(WILDCARD_TEST_POINT_MARKER, self._word_generator.generate())
+                 for _, _, path, _ in specs[1:]]
+        responses = self._native_backend.prefetch_calibration(
+            self._requester._url, paths, self._requester._query,
+        )
+        first_probes = {(selection, selector): (path, response)
+                        for (selection, selector, _, _), path, response in zip(specs[1:], paths, responses)}
+        self._setup_scanner_specs(specs[1:], first_probes)
 
     @staticmethod
     def _native_fingerprint_values(resp: BaseResponse) -> tuple:

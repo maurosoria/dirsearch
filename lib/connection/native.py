@@ -461,6 +461,22 @@ class NativeHTTPBackend:
     def new_calibration_state(self, auto_calibration: bool):
         return self._native.NativeCalibrationState(auto_calibration=auto_calibration)
 
+    def prefetch_calibration(self, base_url: str, paths: list[str], query: str = "") -> list[NativeResponse]:
+        responses = []
+        for start in range(0, len(paths), 4):
+            batch = paths[start:start + 4]
+            _, results = self._scan(base_url, batch, query, apply_filters=False)
+            if len(results) != len(batch):
+                raise RequestException("Native calibration was cancelled")
+            for result in results:
+                response, error = self._convert_result(base_url, result)
+                if error is not None:
+                    raise error
+                if response is None:
+                    raise RequestException("Native calibration returned no response")
+                responses.append(response)
+        return responses
+
     def make_wildcard_classifier(self, scanners, state, base_path, skip_statuses):
         profiles = []
         for selection, group in scanners.items():

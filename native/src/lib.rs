@@ -61,6 +61,7 @@ fn dirsearch_native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_function(wrap_pyfunction!(generate_wordlist_owned, module)?)?;
     module.add_function(wrap_pyfunction!(content::normalize_ascii_content, module)?)?;
     module.add_function(wrap_pyfunction!(content::sequence_matcher_ratio, module)?)?;
+    module.add_function(wrap_pyfunction!(content::static_ascii_patterns, module)?)?;
     module.add_class::<NativeFilterConfig>()?;
     module.add_class::<classification::NativeCalibrationState>()?;
     module.add_class::<classification::NativeWildcardProfile>()?;
