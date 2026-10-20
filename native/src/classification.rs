@@ -484,19 +484,19 @@ mod tests {
     #[test]
     fn duplicate_empty_locations_keep_the_python_header_view() {
         let body = "Missing response with a complete stable template".to_string();
-        let profile = NativeWildcardProfile::new(
-            404,
-            "text/plain".into(),
-            body.clone(),
-            vec![body.clone()],
-            vec![],
-            true,
-            false,
-            body.len(),
-            "default".into(),
-            "random".into(),
-        )
-        .unwrap();
+        let profile = NativeWildcardProfile {
+            status: 404,
+            media_type: "text/plain".into(),
+            base_content: body.clone(),
+            samples: vec![body.clone()],
+            patterns: vec![],
+            is_static: true,
+            ambiguous: false,
+            base_length: body.len(),
+            base_words: words(&body).count(),
+            selection: "default".into(),
+            selector: "random".into(),
+        };
         let classifier = NativeWildcardClassifier {
             profiles: vec![profile],
             state: NativeCalibrationState::new(false),
