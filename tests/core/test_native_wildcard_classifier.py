@@ -2,6 +2,7 @@ import random
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Thread
 from unittest import TestCase
+from unittest.mock import patch
 
 from lib.connection.native import NativeHTTPBackend
 from lib.connection.response import NativeResponse
@@ -69,6 +70,45 @@ class TestNativeWildcardClassifier(TestCase):
         self.assertTrue(first.observe(*key, True))
         self.assertTrue(first.observe(*key, False))
         self.assertFalse(second.is_learned(*key))
+        self.assertTrue(first.has_learned_status(404))
+        self.assertFalse(first.has_learned_status(200))
+
+    def make_fuzzer(self):
+        from lib.connection.native import NativeRequester
+        from lib.core.discovery_config import DiscoveryConfig
+        from lib.core.execution_config import ExecutionConfig
+        from lib.core.fuzzer import NativeFuzzer
+        from tests.core.test_native_fuzzer import DummyDictionary
+        requester = NativeRequester(RequestConfig(), filter_config=FilterConfig())
+        requester.set_url('http://example.invalid/')
+        requester.get_backend()
+        self.addCleanup(requester.close)
+        return NativeFuzzer(requester, DummyDictionary([]), filter_config=FilterConfig(),
+                            discovery_config=DiscoveryConfig(), execution_config=ExecutionConfig(),
+                            match_callbacks=(), not_found_callbacks=(), error_callbacks=(),
+                            filtered_chunk_callbacks=(lambda count: None,))
+
+    def test_unrecorded_status_without_learned_keys_avoids_body_fingerprint(self):
+        fuzzer = self.make_fuzzer()
+        fuzzer._native_calibration_state = self.native.NativeCalibrationState()
+        response = NativeResponse('http://example.invalid/endpoint', 201, [], b'A distinct account document')
+        with patch.object(fuzzer, '_native_fingerprint_values', side_effect=AssertionError('unnecessary fingerprint')):
+            self.assertFalse(fuzzer.is_auto_calibrated(response))
+
+    def test_unsupported_initial_profile_keeps_existing_python_state(self):
+        fuzzer = self.make_fuzzer()
+        scanner = Scanner(ProbeRequester(), filter_config=FilterConfig(), delay=0, path=WILDCARD_TEST_POINT_MARKER)
+        scanner.response = NativeResponse('http://example.invalid/probe', 404, [], b'\x00\xff')
+        fuzzer.filter_state.scanners['default']['random'] = scanner
+        fuzzer._update_wildcard_classifier(clear=True)
+        fuzzer._update_wildcard_classifier()
+        self.assertIsNone(fuzzer._native_calibration_state)
+        candidate = NativeResponse('http://example.invalid/path', 404, [], b'other document ' * 4)
+        self.assertFalse(fuzzer.is_auto_calibrated(candidate))
+        self.assertTrue(fuzzer.filter_state.similar_fingerprints)
+        scanner.response = ProbeRequester().request('probe')
+        fuzzer._update_wildcard_classifier()
+        self.assertIsNone(fuzzer._native_calibration_state)
 
     def test_fallback_observations_commit_before_later_native_misses(self):
         class Handler(BaseHTTPRequestHandler):
