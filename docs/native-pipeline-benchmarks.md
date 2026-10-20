@@ -27,7 +27,7 @@ follow available CPUs rather than HTTP concurrency. All variants use the Python
 wordlist backend, no explicit status exclusions and no retries, crawl or
 recursion. Network-delay cases add deterministic delay per request.
 
-The target verifies the complete requested path set, request count and absence
+The target verifies the complete wordlist path set, request count and absence
 of duplicates. JSON reports must contain exactly the expected finding paths;
 checksums compare full sets, not only counts. Large positive corpora exercise
 response conversion, callbacks and reporting as well as negative classification.
