@@ -77,19 +77,19 @@ impl MatchScratch {
         positions: &HashMap<T, Vec<usize>>,
         bounds: (usize, usize, usize, usize),
     ) -> (usize, usize, usize) {
-        let (alo, ahi, blo, bhi) = bounds;
-        let (mut best_a, mut best_b, mut best_size) = (alo, blo, 0);
+        let (first_start, first_end, second_start, second_end) = bounds;
+        let (mut best_a, mut best_b, mut best_size) = (first_start, second_start, 0);
         // Leave an unused generation between separate subrange searches.
         self.row += 1;
-        for (i, element) in a.iter().enumerate().take(ahi).skip(alo) {
+        for (i, element) in a.iter().enumerate().take(first_end).skip(first_start) {
             self.row += 1;
             if let Some(indices) = positions.get(element) {
                 // Descending positions keep the previous row at j - 1 intact.
                 for &j in indices.iter().rev() {
-                    if j >= bhi {
+                    if j >= second_end {
                         continue;
                     }
-                    if j < blo {
+                    if j < second_start {
                         break;
                     }
                     let size = if j > 0 && self.rows[j - 1] == self.row - 1 {
@@ -110,13 +110,13 @@ impl MatchScratch {
             }
         }
         // With isjunk=None, popular elements may extend a discovered block.
-        while best_a > alo && best_b > blo && a[best_a - 1] == b[best_b - 1] {
+        while best_a > first_start && best_b > second_start && a[best_a - 1] == b[best_b - 1] {
             best_a -= 1;
             best_b -= 1;
             best_size += 1;
         }
-        while best_a + best_size < ahi
-            && best_b + best_size < bhi
+        while best_a + best_size < first_end
+            && best_b + best_size < second_end
             && a[best_a + best_size] == b[best_b + best_size]
         {
             best_size += 1;
@@ -144,17 +144,17 @@ fn sequence_ratio<T: Copy + Eq + Hash>(a: &[T], b: &[T]) -> f64 {
     let mut scratch = MatchScratch::new(b.len());
     let mut queue = vec![(0, a.len(), 0, b.len())];
     let mut matches = 0;
-    while let Some(bounds @ (alo, ahi, blo, bhi)) = queue.pop() {
+    while let Some(bounds @ (first_start, first_end, second_start, second_end)) = queue.pop() {
         let (i, j, size) = scratch.longest(a, b, &positions, bounds);
         if size == 0 {
             continue;
         }
         matches += size;
-        if alo < i && blo < j {
-            queue.push((alo, i, blo, j));
+        if first_start < i && second_start < j {
+            queue.push((first_start, i, second_start, j));
         }
-        if i + size < ahi && j + size < bhi {
-            queue.push((i + size, ahi, j + size, bhi));
+        if i + size < first_end && j + size < second_end {
+            queue.push((i + size, first_end, j + size, second_end));
         }
     }
     2.0 * matches as f64 / (a.len() + b.len()) as f64
