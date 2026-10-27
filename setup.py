@@ -86,6 +86,7 @@ setuptools.setup(
         "Programming Language :: Python :: 3.12",
         "Programming Language :: Python :: 3.13",
         "Programming Language :: Python :: 3.14",
+        "Programming Language :: Python :: 3.15",
     ],
     install_requires=read_requirements(ROOT / "requirements/runtime.txt"),
     extras_require={

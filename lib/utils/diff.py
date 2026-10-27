@@ -21,7 +21,7 @@ import re
 import sys
 
 from lib.utils.common import lstrip_once
-from lib.core.native_runtime import get_native_extension_version_error
+from lib.core.native_runtime import MIN_NATIVE_PYTHON, get_native_extension_version_error
 
 try:
     import dirsearch_native
@@ -34,9 +34,10 @@ _native_static_patterns = None
 if dirsearch_native is not None and get_native_extension_version_error(dirsearch_native) is None:
     _native_normalize_ascii = dirsearch_native.normalize_ascii_content
     _native_similarity = dirsearch_native.sequence_matcher_ratio
-    # The replacement-window policy is version-specific; other Python minors
-    # keep their own Differ implementation until its semantics are validated.
-    if sys.version_info[:2] == (3, 14):
+    # Match the bounded Differ policy introduced in Python 3.14. Supported
+    # runtimes use this path; differential tests check each CI runtime against
+    # its own standard-library implementation instead of allowing one minor.
+    if sys.version_info[:2] >= MIN_NATIVE_PYTHON:
         _native_static_patterns = dirsearch_native.static_ascii_patterns
 
 

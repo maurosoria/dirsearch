@@ -271,8 +271,9 @@ fn static_patterns(first: &str, second: &str) -> Option<Vec<String>> {
     Some(patterns)
 }
 
-// Python 3.14 Differ uses a bounded, non-recursive window for replacement
-// synchronization. Split words contain no spaces/tabs, so charjunk is empty.
+// Match the bounded, non-recursive Differ policy introduced in Python 3.14.
+// Use its replacement-synchronization window; Python 3.15 preserves the policy.
+// Split words contain no spaces/tabs, so charjunk is empty.
 fn fancy_patterns(
     a: &[&str],
     first_start: usize,

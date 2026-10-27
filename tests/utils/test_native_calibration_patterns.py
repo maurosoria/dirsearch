@@ -6,8 +6,16 @@ from unittest.mock import patch
 from lib.utils import diff
 
 
-@skipUnless(diff._native_static_patterns is not None, 'matching native pattern implementation unavailable')
+@skipUnless(diff._native_similarity is not None, 'matching native extension unavailable')
 class TestNativeCalibrationPatterns(TestCase):
+    def test_supported_runtime_uses_native_patterns_for_ascii_samples(self):
+        # This must run whenever the matching extension is installed. Skipping
+        # on the pattern function itself would hide a new Python minor losing
+        # the native path while the rest of the extension still works.
+        with patch.object(difflib.Differ, 'compare', side_effect=AssertionError('unexpected Python pattern fallback')):
+            parser = diff.DynamicContentParser('resource /alpha not found', 'resource /bravo not found')
+        self.assertEqual(parser.static_patterns, ['resource', 'not', 'found'])
+
     def assert_patterns(self, first, second):
         expected = diff.DynamicContentParser.get_static_patterns(difflib.Differ().compare(first.split(), second.split()))
         self.assertEqual(diff._native_static_patterns(first, second), expected, (first[:80], second[:80]))
