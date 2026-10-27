@@ -18,8 +18,26 @@
 
 import difflib
 import re
+import sys
 
 from lib.utils.common import lstrip_once
+from lib.core.native_runtime import get_native_extension_version_error
+
+try:
+    import dirsearch_native
+except ImportError:
+    dirsearch_native = None
+
+_native_normalize_ascii = None
+_native_similarity = None
+_native_static_patterns = None
+if dirsearch_native is not None and get_native_extension_version_error(dirsearch_native) is None:
+    _native_normalize_ascii = dirsearch_native.normalize_ascii_content
+    _native_similarity = dirsearch_native.sequence_matcher_ratio
+    # The replacement-window policy is version-specific; other Python minors
+    # keep their own Differ implementation until its semantics are validated.
+    if sys.version_info[:2] == (3, 14):
+        _native_static_patterns = dirsearch_native.static_ascii_patterns
 
 
 _DYNAMIC_TOKEN_REGEXES = (
@@ -40,7 +58,7 @@ _HTML_ATTRIBUTE_VALUE_REGEX = re.compile(
 )
 
 
-def normalize_dynamic_content(content: str) -> str:
+def _normalize_dynamic_content_python(content: str) -> str:
     """Return content with common volatile values replaced by stable markers."""
 
     normalized = content
@@ -52,6 +70,17 @@ def normalize_dynamic_content(content: str) -> str:
     return " ".join(normalized.split())
 
 
+def normalize_dynamic_content(content: str) -> str:
+    """Normalize once using the native ASCII path when available.
+
+    Unicode keeps Python's regex case folding, word boundaries and whitespace
+    definitions rather than depending on another engine's Unicode tables.
+    """
+    if _native_normalize_ascii is not None and content.isascii():
+        return _native_normalize_ascii(content)
+    return _normalize_dynamic_content_python(content)
+
+
 def content_similarity(content1: str, content2: str) -> float:
     """Return similarity after removing common dynamic values."""
 
@@ -61,14 +90,23 @@ def content_similarity(content1: str, content2: str) -> float:
     )
 
 
-def normalized_content_similarity(content1: str, content2: str) -> float:
-    """Return similarity between content that is already normalized."""
-
+def _normalized_content_similarity_python(content1: str, content2: str) -> float:
     return difflib.SequenceMatcher(
         None,
         content1,
         content2,
     ).ratio()
+
+
+def normalized_content_similarity(content1: str, content2: str) -> float:
+    """Return the existing difflib ratio, accelerated by the optional extension."""
+    if _native_similarity is not None:
+        try:
+            return _native_similarity(content1, content2)
+        except UnicodeEncodeError:
+            # Lone surrogates in Python strings cannot cross the UTF-8 boundary.
+            pass
+    return _normalized_content_similarity_python(content1, content2)
 
 
 class DynamicContentParser:
@@ -170,9 +208,13 @@ class DynamicContentParser:
             return
 
         first, second = self._normalized_contents[:2]
-        patterns = self.get_static_patterns(
-            self._differ.compare(first.split(), second.split())
-        )
+        patterns = None
+        if _native_static_patterns is not None and first.isascii() and second.isascii():
+            patterns = _native_static_patterns(first, second)
+        if patterns is None:
+            patterns = self.get_static_patterns(
+                self._differ.compare(first.split(), second.split())
+            )
 
         for normalized_content in self._normalized_contents[2:]:
             normalized_words = normalized_content.split()

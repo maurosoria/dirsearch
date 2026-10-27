@@ -63,7 +63,14 @@ class DummyRequester:
         return self.backend
 
 
-class FakeNativeBackend:
+class StaticProfileBackend:
+    static_response_profile = None
+
+    def set_static_response_profile(self, profile):
+        self.static_response_profile = profile
+
+
+class FakeNativeBackend(StaticProfileBackend):
     def __init__(self, items):
         self.items = items
         self.calls = []
@@ -86,7 +93,7 @@ class FakeNativeBackend:
         self.cancelled = False
 
 
-class FakeChunkNativeBackend:
+class FakeChunkNativeBackend(StaticProfileBackend):
     def __init__(self, chunk):
         self.chunk = chunk
         self.calls = []
@@ -103,7 +110,7 @@ class FakeChunkNativeBackend:
         return None
 
 
-class CoordinatedNativeBackend:
+class CoordinatedNativeBackend(StaticProfileBackend):
     def __init__(self):
         self.calls = []
         self.cancelled = threading.Event()
@@ -140,7 +147,7 @@ class CoordinatedNativeBackend:
         self.cancelled.clear()
 
 
-class UncooperativeNativeBackend:
+class UncooperativeNativeBackend(StaticProfileBackend):
     def __init__(self):
         self.started = threading.Event()
         self.cancelled = threading.Event()
@@ -158,7 +165,7 @@ class UncooperativeNativeBackend:
         self.cancelled.clear()
 
 
-class CancelAwareNativeBackend:
+class CancelAwareNativeBackend(StaticProfileBackend):
     def __init__(self):
         self.cancelled = threading.Event()
 
@@ -174,7 +181,7 @@ class CancelAwareNativeBackend:
         self.cancelled.clear()
 
 
-class IncrementalNativeBackend:
+class IncrementalNativeBackend(StaticProfileBackend):
     def __init__(self, *, fail_after_first=False):
         self.first_delivered = threading.Event()
         self.release = threading.Event()
@@ -206,7 +213,7 @@ class IncrementalNativeBackend:
         return None
 
 
-class IncompleteNativeBackend:
+class IncompleteNativeBackend(StaticProfileBackend):
     def cancel(self):
         return None
 

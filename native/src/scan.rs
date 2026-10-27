@@ -1,6 +1,8 @@
 //! Per-scan scheduling, worker ownership, cancellation, and result delivery.
 
-use crate::chunks::{deliver_chunk, CompletionWriter, OrderedChunkBuffer, WorkerCompletion};
+use crate::chunks::{
+    deliver_classified_chunk, CompletionWriter, OrderedChunkBuffer, WorkerCompletion,
+};
 use crate::filters::NativeFilterConfig;
 use crate::pacing::NativeDelayPacer;
 use crate::proxy::ProxyClientPool;
@@ -93,6 +95,8 @@ pub(crate) struct ScanJob {
     pub(crate) max_retries: usize,
     pub(crate) max_body_size: usize,
     pub(crate) filter_config: Arc<NativeFilterConfig>,
+    /// Diagnostic logs may inspect metadata of otherwise compacted exclusions.
+    pub(crate) include_filtered: bool,
 }
 
 enum ResultDelivery {
@@ -118,6 +122,7 @@ struct ScanTask {
     cancelled: Arc<AtomicBool>,
     max_retries: usize,
     max_body_size: usize,
+    include_filtered: bool,
     delivery: ResultDelivery,
 }
 
@@ -137,10 +142,11 @@ pub(crate) async fn collect_results(
         next_request: AtomicUsize::new(0),
         base_url: job.base_url,
         request_context,
-        filter_config: job.filter_config,
+        filter_config: job.filter_config.clone(),
         cancelled: cancelled.clone(),
         max_retries: job.max_retries,
         max_body_size: job.max_body_size,
+        include_filtered: job.include_filtered,
         delivery: ResultDelivery::CollectAll,
     });
     let mut tasks = spawn_workers(scan_task, concurrency.min(result_count));
@@ -210,16 +216,20 @@ pub(crate) async fn deliver_result_chunks(
 
     let paths = Arc::new(job.paths);
     let mut chunks = OrderedChunkBuffer::new(result_count);
+    if let Some(classifier) = &job.filter_config.wildcard_classifier {
+        classifier.reset_pending();
+    }
     let scan_task = Arc::new(ScanTask {
         paths,
         query: job.query,
         next_request: AtomicUsize::new(0),
         base_url: job.base_url,
         request_context,
-        filter_config: job.filter_config,
+        filter_config: job.filter_config.clone(),
         cancelled: cancelled.clone(),
         max_retries: job.max_retries,
         max_body_size: job.max_body_size,
+        include_filtered: job.include_filtered,
         delivery: ResultDelivery::Chunks(chunks.writer()),
     });
     let mut tasks = spawn_workers(scan_task, concurrency.min(result_count));
@@ -255,7 +265,12 @@ pub(crate) async fn deliver_result_chunks(
             }
         }
         while let Some(chunk) = chunks.take_ready(chunk_size, force_flush) {
-            if let Err(error) = deliver_chunk(&callback, chunk) {
+            if let Err(error) = deliver_classified_chunk(
+                &callback,
+                chunk,
+                job.filter_config.wildcard_classifier.as_ref(),
+                &cancelled,
+            ) {
                 abort_and_drain(&mut tasks).await;
                 return Err(error);
             }
@@ -266,7 +281,12 @@ pub(crate) async fn deliver_result_chunks(
         return Ok(chunks.delivered_count());
     }
     while let Some(chunk) = chunks.take_ready(chunk_size, true) {
-        deliver_chunk(&callback, chunk)?;
+        deliver_classified_chunk(
+            &callback,
+            chunk,
+            job.filter_config.wildcard_classifier.as_ref(),
+            &cancelled,
+        )?;
     }
     let delivered_count = chunks.delivered_count();
     if delivered_count != result_count {
@@ -379,6 +399,7 @@ async fn run_scan_worker(
                 start,
                 filter_config: task.filter_config.as_ref(),
                 skip_status_filtered_body: task.delivery.omits_filtered_results(),
+                capture_filtered_metadata: task.include_filtered,
                 origin_auth: &request_context.origin_auth,
                 random_user_agents: request_context.random_user_agents.as_ref(),
             })
@@ -390,8 +411,15 @@ async fn run_scan_worker(
         }
         result.request_index = request_index;
 
+        if task.delivery.omits_filtered_results() {
+            if let Some(classifier) = &task.filter_config.wildcard_classifier {
+                result.wildcard_observation = classifier.prepare(&mut result, path);
+            }
+        }
+
         let omit_result = task.delivery.omits_filtered_results()
-            && result.filtered
+            && !task.include_filtered
+            && (result.filtered || task.filter_config.matches_static_response(&result))
             && result.error.is_none()
             && result.status != PROXY_AUTHENTICATION_REQUIRED;
         match &task.delivery {

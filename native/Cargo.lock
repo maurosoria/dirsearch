@@ -395,7 +395,7 @@ dependencies = [
 
 [[package]]
 name = "dirsearch_native"
-version = "0.2.20"
+version = "0.2.25"
 dependencies = [
  "async-compression",
  "base64 0.22.1",
@@ -418,6 +418,7 @@ dependencies = [
  "pyo3",
  "rayon",
  "rcgen",
+ "regex",
  "reqwest",
  "rustls",
  "sha2 0.11.0",
@@ -1416,6 +1417,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "regex"
+version = "1.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f020237b6c8eed93db2e2cb53c00c60a8e1bc73da7d073199a1180401450218d"
+dependencies = [
+ "aho-corasick",
+ "memchr",
+ "regex-automata",
+ "regex-syntax",
+]
+
+[[package]]
 name = "regex-automata"
 version = "0.4.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1428,9 +1441,9 @@ dependencies = [
 
 [[package]]
 name = "regex-syntax"
-version = "0.8.10"
+version = "0.8.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc897dd8d9e8bd1ed8cdad82b5966c3e0ecae09fb1907d58efaa013543185d0a"
+checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
 name = "reqwest"

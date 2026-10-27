@@ -47,6 +47,7 @@ class DynamicSoft404Requester:
 
 
 class ChunkedResponse:
+    raw = None
     status_code = 200
     history = []
     encoding = None

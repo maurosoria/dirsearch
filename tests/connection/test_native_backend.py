@@ -15,6 +15,7 @@ from lib.core.wordlist_backend import NativeWordlistChunk
 
 
 class FakeNativeResult:
+    http_version = "HTTP/2"
     path = "missing%20page"
     status = 404
     length = 64
@@ -25,6 +26,7 @@ class FakeNativeResult:
     headers = [("content-type", "text/plain")]
     body = []
     body_complete = True
+    normalized_content = None
     history = ["https://example.com/before"]
     final_url = "https://example.com/missing%20page"
 
@@ -80,6 +82,17 @@ class FakeNativeSession:
         return self.rate_value
 
 
+class FakeNativeFilterConfig:
+    def __init__(self, config):
+        self.config = config
+        self.static_response_profile = None
+
+    def with_static_response(self, status, content_type, body):
+        config = FakeNativeFilterConfig(self.config.copy())
+        config.static_response_profile = (status, content_type, body)
+        return config
+
+
 class FakeNativeModule:
     __version__ = NATIVE_EXTENSION_VERSION
 
@@ -100,12 +113,14 @@ class FakeNativeModule:
         return engine
 
     def NativeFilterConfig(self, **config):
-        filter_config = type("FakeNativeFilterConfig", (), {"config": config})()
+        filter_config = FakeNativeFilterConfig(config)
         self.filter_configs.append(filter_config)
         return filter_config
 
 
 class IndexedNativeResult:
+    http_version = "HTTP/1.1"
+
     def __init__(self, request_index, *, filtered, status=404, error=None):
         self.request_index = request_index
         self.path = f"path-{request_index}"
@@ -118,6 +133,7 @@ class IndexedNativeResult:
         self.headers = [("content-type", "text/plain")]
         self.body = [] if filtered else [111, 107]
         self.body_complete = True
+        self.normalized_content = None
         self.history = []
         self.final_url = f"https://example.com/{self.path}"
 

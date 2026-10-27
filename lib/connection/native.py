@@ -18,6 +18,7 @@ from lib.connection.proxy import (
 )
 from lib.connection.response import NativeResponse
 from lib.core.filter_config import FilterConfig
+from lib.core.logger import RunLogger
 from lib.core.request_config import RequestConfig
 from lib.core.exceptions import RequestException
 from lib.core.native_runtime import (
@@ -35,6 +36,7 @@ from lib.core.settings import (
     MAX_RESPONSE_SIZE,
     PROXY_SCHEMES,
     SCRIPT_PATH,
+    UNKNOWN,
 )
 from lib.core.wordlist_backend import NativeWordlistChunk
 from lib.utils.file import FileUtils
@@ -70,6 +72,7 @@ class NativeHTTPBackend:
         session: Any | None = None,
         auth_override: tuple[str, str] | None = None,
         ip_overrides: IPOverrides | None = None,
+        logger: RunLogger | None = None,
     ) -> None:
         try:
             import dirsearch_native
@@ -80,12 +83,15 @@ class NativeHTTPBackend:
             raise RequestException(version_error)
 
         self.config = config
+        self.logger = logger if logger is not None else RunLogger()
         # Filters are supplied by orchestration, independently of request policy.
         self.filter_config = filter_config
         self._native = dirsearch_native
         self._engine = None
         self._engine_config = None
         self._native_filter_config = None
+        self._static_response_profile = None
+        self._wildcard_classifier = None
         self._empty_native_filter_config = None
         self._proxy_override = proxy_override
         self._ip_overrides = (
@@ -277,6 +283,7 @@ class NativeHTTPBackend:
             "max_retries": self.config.max_retries,
             "max_body_size": MAX_RESPONSE_SIZE,
             "filter_config": self._get_native_filter_config(True),
+            "include_filtered": not self.logger.disabled,
         }
         try:
             if isinstance(raw_paths, NativeWordlistChunk):
@@ -313,6 +320,8 @@ class NativeHTTPBackend:
                 self._using_proxy
                 and result.status == PROXY_AUTHENTICATION_REQUIRED
             ):
+                if not self.logger.disabled:
+                    self._convert_result(base_url, result)
                 continue
             request_index = result.request_index
             response, error = self._convert_result(base_url, result)
@@ -397,27 +406,31 @@ class NativeHTTPBackend:
         if self._using_proxy and result.status == PROXY_AUTHENTICATION_REQUIRED:
             return None, RequestException("Proxy authentication required")
 
-        return (
-            NativeResponse(
-                base_url + result.path,
-                result.status,
-                result.headers,
-                result.body,
-                result.elapsed_ms / 1000,
-                length=result.length,
-                filtered=result.filtered,
-                filter_reason=result.filter_reason,
-                body_complete=result.body_complete,
-                history=(
-                    result.history
-                    if self._engine_config is not None
-                    and self._engine_config["follow_redirects"]
-                    else ()
-                ),
-                final_url=result.final_url,
+        response = NativeResponse(
+            base_url + result.path,
+            result.status,
+            result.headers,
+            result.body,
+            result.elapsed_ms / 1000,
+            length=result.length,
+            filtered=result.filtered,
+            filter_reason=result.filter_reason,
+            body_complete=result.body_complete,
+            history=(
+                result.history
+                if self._engine_config is not None
+                and self._engine_config["follow_redirects"]
+                else ()
             ),
-            None,
+            final_url=result.final_url,
+            normalized_content=result.normalized_content,
+            http_version=result.http_version,
         )
+        self.logger.response(
+            self.config.method, response, backend="native",
+            filter_reason=(response.filter_reason or "unknown") if response.filtered else None,
+        )
+        return response, None
 
     @staticmethod
     def _proxy_urls(config: RequestConfig) -> list[str]:
@@ -449,6 +462,58 @@ class NativeHTTPBackend:
     def _using_proxy(self) -> bool:
         return self._proxy_override is not None or bool(self.config.proxies)
 
+    def set_static_response_profile(self, profile: tuple[int, str, bytes] | None) -> None:
+        if profile != self._static_response_profile:
+            self._static_response_profile = profile
+            self._native_filter_config = None
+
+    def new_calibration_state(self, auto_calibration: bool):
+        return self._native.NativeCalibrationState(auto_calibration=auto_calibration)
+
+    def prefetch_calibration(self, base_url: str, paths: list[str], query: str = "") -> list[NativeResponse]:
+        responses = []
+        for start in range(0, len(paths), 4):
+            batch = paths[start:start + 4]
+            _, results = self._scan(base_url, batch, query, apply_filters=False)
+            if len(results) != len(batch):
+                raise RequestException("Native calibration was cancelled")
+            for result in results:
+                response, error = self._convert_result(base_url, result)
+                if error is not None:
+                    raise error
+                if response is None:
+                    raise RequestException("Native calibration returned no response")
+                responses.append(response)
+        return responses
+
+    def make_wildcard_classifier(self, scanners, state, base_path, skip_statuses):
+        profiles = []
+        for selection, group in scanners.items():
+            for selector, scanner in group.items():
+                response = scanner.response
+                parser = scanner.content_parser
+                if (not response.body_complete or response.redirect or response.history
+                        or scanner.wildcard_redirect_regex or not response.content
+                        or not response.content.isascii() or len(response.content) > 262144
+                        or parser._base_content != response.content
+                        or not all(sample.isascii() for sample in parser._normalized_contents)
+                        or not all(pattern.isascii() for pattern in parser.static_patterns)):
+                    return None
+                profiles.append(self._native.NativeWildcardProfile(
+                    response.status, response.type, response.content,
+                    parser._normalized_contents, parser.static_patterns,
+                    parser._is_static, parser.is_ambiguous, response.length,
+                    selection, selector,
+                ))
+        return self._native.NativeWildcardClassifier(
+            profiles, state, base_path, self.filter_config.auto_calibration,
+            list(skip_statuses), dict(self.filter_config.blacklists), UNKNOWN,
+        )
+
+    def set_wildcard_classifier(self, classifier) -> None:
+        self._wildcard_classifier = classifier
+        self._native_filter_config = None
+
     def _get_native_filter_config(self, apply_filters: bool):
         if not apply_filters:
             if self._empty_native_filter_config is None:
@@ -458,6 +523,14 @@ class NativeHTTPBackend:
             self._native_filter_config = self._native.NativeFilterConfig(
                 **self.filter_config.native_options()
             )
+            if self._static_response_profile is not None:
+                self._native_filter_config = self._native_filter_config.with_static_response(
+                    *self._static_response_profile
+                )
+            if self._wildcard_classifier is not None:
+                self._native_filter_config = self._native_filter_config.with_wildcard_classifier(
+                    self._wildcard_classifier
+                )
         return self._native_filter_config
 
 
@@ -465,9 +538,11 @@ class NativeRequester:
     """Minimal requester facade used by native scans and calibration."""
 
     def __init__(
-        self, config: RequestConfig, *, filter_config: FilterConfig
+        self, config: RequestConfig, *, filter_config: FilterConfig,
+        logger: RunLogger | None = None,
     ) -> None:
         self.config = config
+        self.logger = logger if logger is not None else RunLogger()
         self.filter_config = filter_config
         self._url = ""
         self._query = ""
@@ -490,6 +565,7 @@ class NativeRequester:
                 filter_config=self.filter_config,
                 auth_override=self._origin_auth,
                 ip_overrides=self._ip_overrides,
+                logger=self.logger,
             )
         return self.backend
 
@@ -531,6 +607,7 @@ class NativeRequester:
                 proxy_override=proxy,
                 session=origin_backend.session,
                 auth_override=self._origin_auth,
+                logger=self.logger,
             )
         else:
             backend = self.get_backend()

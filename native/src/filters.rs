@@ -22,6 +22,8 @@ pub(crate) struct NativeFilterConfig {
 
 #[derive(Clone)]
 pub(crate) struct NativeFilterConfigData {
+    pub(crate) wildcard_classifier: Option<crate::classification::NativeWildcardClassifier>,
+    static_response: Option<(u16, String, Vec<u8>)>,
     pub(crate) include_status_codes: Vec<u16>,
     pub(crate) exclude_status_codes: Vec<u16>,
     pub(crate) minimum_response_size: usize,
@@ -62,6 +64,51 @@ impl DerefMut for NativeFilterConfig {
 }
 
 impl NativeFilterConfig {
+    fn with_static_response_profile(
+        &self,
+        status: u16,
+        content_type: String,
+        body: Vec<u8>,
+    ) -> Result<Self, String> {
+        if body.is_empty() || body.len() > 65536 {
+            return Err("Static response must contain 1 to 65536 bytes".to_string());
+        }
+        let mut result = self.clone();
+        Arc::make_mut(&mut result.inner).static_response = Some((status, content_type, body));
+        Ok(result)
+    }
+
+    pub(crate) fn matches_static_response(&self, result: &crate::result::NativeHttpResult) -> bool {
+        let Some((status, content_type, body)) = &self.static_response else {
+            return false;
+        };
+        if result.error.is_some()
+            || !result.body_complete
+            || !result.history.is_empty()
+            || result.status != *status
+            || result.body != *body
+        {
+            return false;
+        }
+        let mut actual_type = None;
+        let mut location_seen = false;
+        for (name, value) in &result.headers {
+            if name.eq_ignore_ascii_case("location") {
+                if location_seen || !value.is_empty() {
+                    return false;
+                }
+                location_seen = true;
+            }
+            if name.eq_ignore_ascii_case("content-type") {
+                if actual_type.is_some() {
+                    return false;
+                }
+                actual_type = Some(value.as_str());
+            }
+        }
+        actual_type.unwrap_or("") == content_type
+    }
+
     pub(crate) fn status_filter_reason(&self, status: u16) -> Option<&'static str> {
         if self.exclude_status_codes.contains(&status) {
             return Some("exclude_status");
@@ -101,6 +148,8 @@ impl NativeFilterConfig {
     ) -> Result<Self, String> {
         Ok(Self {
             inner: Arc::new(NativeFilterConfigData {
+                wildcard_classifier: None,
+                static_response: None,
                 include_status_codes,
                 exclude_status_codes,
                 minimum_response_size,
@@ -153,9 +202,10 @@ impl NativeFilterConfig {
             return Ok(Some("maximum_response_size"));
         }
 
-        if self.needs_text() && has_non_utf8_charset(headers) {
-            // Python owns charset-aware decoding. Preserve this response so the
-            // common filter stack can evaluate it after NativeResponse decodes it.
+        if self.needs_text() && (has_non_utf8_charset(headers) || !body.is_ascii()) {
+            // ASCII has identical text/regex semantics for supported encodings.
+            // Python owns Unicode decoding, binary fallback and regex tables;
+            // a premature native rejection cannot be recovered downstream.
             return Ok(None);
         }
 
@@ -318,6 +368,26 @@ impl Default for NativeFilterConfig {
 
 #[pymethods]
 impl NativeFilterConfig {
+    fn with_wildcard_classifier(
+        &self,
+        classifier: PyRef<'_, crate::classification::NativeWildcardClassifier>,
+    ) -> Self {
+        let mut result = self.clone();
+        Arc::make_mut(&mut result.inner).wildcard_classifier = Some(classifier.clone());
+        result
+    }
+
+    /// Return an immutable per-directory snapshot; in-flight workers keep theirs.
+    fn with_static_response(
+        &self,
+        status: u16,
+        content_type: String,
+        body: Vec<u8>,
+    ) -> PyResult<Self> {
+        self.with_static_response_profile(status, content_type, body)
+            .map_err(PyRuntimeError::new_err)
+    }
+
     #[new]
     #[allow(clippy::too_many_arguments)]
     #[pyo3(signature = (
@@ -396,7 +466,7 @@ impl NativeFilterConfig {
     }
 }
 
-fn has_non_utf8_charset(headers: &[(String, String)]) -> bool {
+pub(crate) fn has_non_utf8_charset(headers: &[(String, String)]) -> bool {
     response_charset(headers).is_some_and(|charset| {
         charset
             .chars()
@@ -414,11 +484,14 @@ fn response_charset(headers: &[(String, String)]) -> Option<&str> {
 
     content_type.split(';').skip(1).find_map(|parameter| {
         let (name, value) = parameter.split_once('=')?;
-        name.trim().eq_ignore_ascii_case("charset").then(|| {
-            value
-                .trim()
-                .trim_matches(|character| matches!(character, '\'' | '"'))
-        })
+        name.trim()
+            .trim_matches(|character| matches!(character, '\'' | '"'))
+            .eq_ignore_ascii_case("charset")
+            .then(|| {
+                value
+                    .trim()
+                    .trim_matches(|character| matches!(character, '\'' | '"'))
+            })
     })
 }
 
@@ -499,7 +572,12 @@ fn combine_advanced_checks(checks: &[bool], mode: &str, default: bool) -> bool {
 }
 
 fn word_count(text: Option<&str>) -> usize {
-    text.unwrap_or_default().split_whitespace().count()
+    text.unwrap_or_default()
+        .split(|character: char| {
+            character.is_whitespace() || ('\u{1c}'..='\u{1f}').contains(&character)
+        })
+        .filter(|word| !word.is_empty())
+        .count()
 }
 
 fn line_count(text: Option<&str>) -> usize {
@@ -509,4 +587,121 @@ fn line_count(text: Option<&str>) -> usize {
     }
 
     text.matches('\n').count() + 1
+}
+
+#[cfg(test)]
+mod static_response_tests {
+    use super::*;
+    use crate::result::native_http_result;
+
+    fn response() -> crate::result::NativeHttpResult {
+        native_http_result(
+            "missing".to_string(),
+            404,
+            vec![("content-type".to_string(), "text/plain".to_string())],
+            b"Missing page.".to_vec(),
+            0.0,
+            &NativeFilterConfig::default(),
+        )
+    }
+
+    #[test]
+    fn static_response_requires_the_complete_body_and_original_context() {
+        let empty = NativeFilterConfig::default();
+        let config = empty
+            .with_static_response_profile(404, "text/plain".to_string(), b"Missing page.".to_vec())
+            .unwrap();
+        assert!(!empty.matches_static_response(&response()));
+        assert!(config.matches_static_response(&response()));
+        let mut changed = response();
+        changed.body_complete = false;
+        assert!(!config.matches_static_response(&changed));
+        let mut changed = response();
+        changed
+            .history
+            .push("http://example.com/redirect".to_string());
+        assert!(!config.matches_static_response(&changed));
+        let mut changed = response();
+        changed
+            .headers
+            .push(("location".to_string(), "/login".to_string()));
+        assert!(!config.matches_static_response(&changed));
+        let mut changed = response();
+        changed.body.push(b'!');
+        assert!(!config.matches_static_response(&changed));
+        let mut changed = response();
+        changed.status = 200;
+        assert!(!config.matches_static_response(&changed));
+        let mut changed = response();
+        changed.headers[0].1 = "application/json".to_string();
+        assert!(!config.matches_static_response(&changed));
+        let mut changed = response();
+        changed.error = Some("incomplete transfer".to_string());
+        assert!(!config.matches_static_response(&changed));
+    }
+
+    #[test]
+    fn static_response_rejects_empty_or_unbounded_templates() {
+        let config = NativeFilterConfig::default();
+        assert!(config
+            .with_static_response_profile(404, String::new(), Vec::new())
+            .is_err());
+        assert!(config
+            .with_static_response_profile(404, String::new(), vec![0; 65537])
+            .is_err());
+    }
+
+    #[test]
+    fn repeated_empty_headers_do_not_bypass_the_python_combined_value() {
+        let config = NativeFilterConfig::default()
+            .with_static_response_profile(404, String::new(), b"Missing page.".to_vec())
+            .unwrap();
+        let mut changed = response();
+        changed.headers = vec![
+            ("content-type".into(), "".into()),
+            ("content-type".into(), "".into()),
+        ];
+        assert!(!config.matches_static_response(&changed));
+        changed.headers = vec![
+            ("location".into(), "".into()),
+            ("location".into(), "".into()),
+        ];
+        assert!(!config.matches_static_response(&changed));
+    }
+}
+
+#[cfg(test)]
+mod text_contract_tests {
+    use super::*;
+
+    #[test]
+    fn python_control_separators_count_as_whitespace() {
+        for separator in '\u{1c}'..='\u{1f}' {
+            assert_eq!(word_count(Some(&format!("admin{separator}secret"))), 2);
+        }
+        assert_eq!(word_count(Some(" \t\n")), 0);
+    }
+
+    #[test]
+    fn non_ascii_text_filters_are_deferred_without_losing_status_filters() {
+        let mut config = NativeFilterConfig {
+            inner: Arc::new(NativeFilterConfigData {
+                match_regex: Some(Regex::new("menué").unwrap()),
+                ..NativeFilterConfig::default().inner.as_ref().clone()
+            }),
+        };
+        assert_eq!(
+            config.filter_reason(200, 4, &[], b"menu\xe9", 0.0).unwrap(),
+            None
+        );
+        assert_eq!(
+            config.filter_reason(200, 4, &[], b"nope", 0.0).unwrap(),
+            Some("advanced_matcher")
+        );
+        config.exclude_status_codes = vec![404];
+        assert_eq!(
+            config.filter_reason(404, 4, &[], b"menu\xe9", 0.0).unwrap(),
+            Some("exclude_status")
+        );
+    }
 }

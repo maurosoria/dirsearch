@@ -74,6 +74,19 @@ def _declared_charset(headers) -> str | None:
     return None
 
 
+def _response_encoding(headers) -> str:
+    """Resolve text encoding independently of the HTTP client.
+
+    Preserve the threaded client's established Latin-1 default for text media
+    without a charset. Other media retain dirsearch's UTF-8 default.
+    """
+    declared = _declared_charset(headers)
+    if declared:
+        return declared
+    media_type = headers.get("content-type", "").split(";", 1)[0].strip().lower()
+    return "iso-8859-1" if media_type.startswith("text/") else DEFAULT_ENCODING
+
+
 def _is_known_charset(charset: str | None) -> bool:
     if charset is None:
         return False
@@ -213,6 +226,7 @@ class BaseResponse:
         elapsed: float = 0.0,
         history: Iterable[str] = (),
         final_url: str | None = None,
+        http_version: str | None = None,
     ) -> None:
         self.datetime = time.strftime("%Y-%m-%d %H:%M:%S")
         self.url = url
@@ -224,10 +238,12 @@ class BaseResponse:
         self.redirect = self.headers.get("location", "")
         self.history = list(history)
         self.elapsed = elapsed
+        self.http_version = http_version
         self.content = ""
         self.body = b""
         self._body_complete = True
         self._body_digest = None
+        self.wildcard_checked = False
 
     @property
     def type(self) -> str:
@@ -338,6 +354,11 @@ class Response(BaseResponse):
             elapsed,
             (str(item.url) for item in response.history),
             final_url=str(getattr(response, "url", url)),
+            # urllib3 exposes the actual response version as a numeric code.
+            # Test/custom requests adapters may have no raw HTTP response.
+            http_version={10: "HTTP/1.0", 11: "HTTP/1.1", 20: "HTTP/2"}.get(
+                getattr(response.raw, "version", None)
+            ) if response.raw is not None else None,
         )
         declared_charset = _declared_charset(self.headers)
         decode_binary_text = _should_decode_binary_text(
@@ -360,7 +381,7 @@ class Response(BaseResponse):
         self._body_digest = capture.body_digest
         self.content = _decode_response_body(
             self.body,
-            declared_charset or response.encoding,
+            _response_encoding(self.headers),
             decode_binary_text,
         )
 
@@ -381,6 +402,7 @@ class AsyncResponse(BaseResponse):
             elapsed,
             (str(item.url) for item in response.history),
             final_url=str(getattr(response, "url", url)),
+            http_version=response.http_version,
         )
         declared_charset = _declared_charset(self.headers)
         decode_binary_text = _should_decode_binary_text(
@@ -402,7 +424,7 @@ class AsyncResponse(BaseResponse):
         self._body_digest = capture.body_digest
         self.content = _decode_response_body(
             self.body,
-            declared_charset or response.encoding,
+            _response_encoding(self.headers),
             decode_binary_text,
         )
 
@@ -423,6 +445,8 @@ class NativeResponse(BaseResponse):
         body_complete: bool | None = None,
         history: Iterable[str] = (),
         final_url: str | None = None,
+        normalized_content: str | None = None,
+        http_version: str | None = None,
     ) -> None:
         # Native previously exposed HTTPX's lowercase header iteration. Keep
         # that stable while using dirsearch's transport-neutral header model.
@@ -433,8 +457,12 @@ class NativeResponse(BaseResponse):
             elapsed,
             history,
             final_url,
+            http_version,
         )
 
+        if normalized_content is not None:
+            self.normalized_content = normalized_content
+            self.wildcard_checked = True
         self._length = length
         self.filtered = filtered
         self.filter_reason = filter_reason
@@ -446,7 +474,7 @@ class NativeResponse(BaseResponse):
         declared_charset = _declared_charset(self.headers)
         self.content = _decode_response_body(
             self.body,
-            declared_charset,
+            _response_encoding(self.headers),
             _should_decode_binary_text(self.headers, declared_charset),
         )
 

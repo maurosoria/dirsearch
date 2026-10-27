@@ -33,6 +33,16 @@ impl NativeHttpSession {
     fn rate(&self) -> usize {
         self.rate_limiter.rate()
     }
+
+    fn has_cookies(&self) -> bool {
+        self.cookie_store
+            .store
+            .read()
+            .unwrap()
+            .iter_any()
+            .next()
+            .is_some()
+    }
 }
 
 #[derive(Debug, Default)]
