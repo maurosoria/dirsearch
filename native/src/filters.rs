@@ -64,6 +64,13 @@ impl DerefMut for NativeFilterConfig {
 }
 
 impl NativeFilterConfig {
+    /// Return a configuration copy containing the current directory's exact
+    /// missing-page response: status, Content-Type and body bytes.
+    ///
+    /// Python calibration must first establish this profile from repeated,
+    /// complete, identical probes. This method only stores that template and
+    /// bounds its size; it does not send requests or classify responses.
+    /// Copying the configuration keeps in-flight workers on their old snapshot.
     fn with_static_response_profile(
         &self,
         status: u16,
@@ -78,6 +85,13 @@ impl NativeFilterConfig {
         Ok(result)
     }
 
+    /// Check whether a response is exactly the calibrated missing page.
+    ///
+    /// Status, Content-Type and the complete body must match. Errors, partial
+    /// captures, redirects and ambiguous headers keep the normal filter path.
+    /// A matching status alone is insufficient: a distinct 404 can be a finding.
+    /// The scan worker can omit an exact match's response object while still
+    /// recording its completed input index for progress and session recovery.
     pub(crate) fn matches_static_response(&self, result: &crate::result::NativeHttpResult) -> bool {
         let Some((status, content_type, body)) = &self.static_response else {
             return false;
@@ -368,6 +382,14 @@ impl Default for NativeFilterConfig {
 
 #[pymethods]
 impl NativeFilterConfig {
+    /// Return a configuration copy with the calibrated missing-page classifier.
+    ///
+    /// The classifier recognizes supported pages whose bodies can vary, such
+    /// as an error page containing the requested path, using normalized text
+    /// and stable patterns. This method only attaches it; HTTP workers perform
+    /// the comparisons in NativeWildcardClassifier::prepare.
+    /// Clones share the target's calibration state, whose observations Python
+    /// commits in input order. Existing filter configurations stay unchanged.
     fn with_wildcard_classifier(
         &self,
         classifier: PyRef<'_, crate::classification::NativeWildcardClassifier>,
