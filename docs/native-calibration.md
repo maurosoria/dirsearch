@@ -85,11 +85,13 @@ scores approximately 0.571 with SequenceMatcher and 0.857 with RapidFuzz.
 cdifflib matched all 15,244 tested ratios and compiled on Python 3.14.10 and
 3.15.2. It does not remove the dependency on Differ's policy.
 
-The current Rust implementation already preserves the tested results without
-adding a dependency. Adopting another algorithm would require labelled
-scanner-level evaluation of missing pages and real findings, including all
-request engines. Faster diff timings alone do not establish better discovery;
-these experiments do not replace full CLI throughput measurements.
+The current Rust implementation preserves the tested reference results without
+adding a dependency. The subsequent [performance and detection benchmark](diff-library-benchmarks.md)
+evaluates these candidates with labelled missing pages and valid routes,
+including all request engines on Python 3.14 and 3.15. Similar accelerated some
+isolated operations, but showed no consistent full-scan improvement beyond the
+unchanged-algorithm control. All candidates shared the labelled corpus's
+omissions and false positives. The default implementation remains unchanged.
 
 Library sources: [cdifflib](https://github.com/mduggan/cdifflib),
 [RapidFuzz's ratio semantics](https://github.com/rapidfuzz/RapidFuzz/blob/main/api_differences.md),
