@@ -153,8 +153,9 @@ pub(crate) fn deliver_chunk(callback: &Py<PyAny>, chunk: NativeScanChunk) -> PyR
 /// Deliver a completed input range after HTTP workers' wildcard comparisons.
 ///
 /// A wildcard observation marks a response already recognized as a missing
-/// page. Keep that observation pending by input index and omit its response
-/// object from the Python callback. Potential findings, errors and unsupported
+/// page. Keep that observation pending by input index and normally omit its
+/// response object from the Python callback. Diagnostic scans retain compact
+/// metadata after the worker discards the body. Potential findings, errors and unsupported
 /// responses remain in the result list for Python to process normally.
 ///
 /// For example, `[missing, finding, missing]` delivers range `[0, 3)` with only
@@ -180,7 +181,9 @@ pub(crate) fn deliver_classified_chunk(
             // Python commits observations as it processes each filtered range.
             // Pause/quit leaves later keys pending without advancing counters.
             classifier.register(result.request_index, observation);
-            false
+            // Logging retains only the compact metadata; the worker has already
+            // dropped the body. Calibration still commits at the processed gap.
+            result.filtered
         } else {
             true
         }

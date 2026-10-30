@@ -415,6 +415,21 @@ async fn run_scan_worker(
             if let Some(classifier) = &task.filter_config.wildcard_classifier {
                 result.wildcard_observation = classifier.prepare(&mut result, path);
             }
+            if task.include_filtered && !result.filtered {
+                let reason = if result.wildcard_observation.is_some() {
+                    Some("wildcard")
+                } else if task.filter_config.matches_static_response(&result) {
+                    Some("static_response")
+                } else {
+                    None
+                };
+                if let Some(reason) = reason {
+                    result.filtered = true;
+                    result.filter_reason = Some(reason.to_string());
+                    result.body = Vec::new();
+                    result.body_complete = false;
+                }
+            }
         }
 
         let omit_result = task.delivery.omits_filtered_results()

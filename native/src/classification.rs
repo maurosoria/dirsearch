@@ -71,6 +71,28 @@ impl NativeCalibrationState {
         Self::record(&mut state, key, record, self.threshold)
     }
 
+    fn commit_pending(&self, start: usize, end: usize, log: bool) -> Vec<(usize, bool, bool)> {
+        let mut decisions = Vec::new();
+        if start >= end {
+            return decisions;
+        }
+        let mut state = self.inner.lock().unwrap_or_else(|error| error.into_inner());
+        while let Some((&index, _)) = state.pending.range(start..end).next() {
+            let observation = state.pending.remove(&index).expect("observed pending key");
+            let repeated = log && state.learned.contains(&observation.key);
+            let calibrated = Self::record(
+                &mut state,
+                observation.key,
+                observation.record,
+                self.threshold,
+            );
+            if log {
+                decisions.push((index, calibrated, repeated));
+            }
+        }
+        decisions
+    }
+
     fn record(state: &mut Observations, key: Fingerprint, record: bool, threshold: usize) -> bool {
         if state.learned.contains(&key) {
             return true;
@@ -139,19 +161,26 @@ impl NativeCalibrationState {
     }
 
     fn commit_range(&self, start: usize, end: usize) {
-        if start >= end {
-            return;
-        }
+        self.commit_pending(start, end, false);
+    }
+
+    fn commit_range_with_decisions(&self, start: usize, end: usize) -> Vec<(usize, bool, bool)> {
+        self.commit_pending(start, end, true)
+    }
+
+    fn observe_decision(
+        &self,
+        status: u16,
+        media_type: String,
+        redirect: String,
+        content: &Bound<'_, PyString>,
+        record: bool,
+    ) -> PyResult<(bool, bool)> {
+        let key = Fingerprint::from_python(status, media_type, redirect, content)?;
         let mut state = self.inner.lock().unwrap_or_else(|error| error.into_inner());
-        while let Some((&index, _)) = state.pending.range(start..end).next() {
-            let observation = state.pending.remove(&index).expect("observed pending key");
-            Self::record(
-                &mut state,
-                observation.key,
-                observation.record,
-                self.threshold,
-            );
-        }
+        let repeated = state.learned.contains(&key);
+        let filtered = Self::record(&mut state, key, record, self.threshold);
+        Ok((filtered, repeated))
     }
 }
 

@@ -115,6 +115,22 @@ class BaseFuzzer:
         for scanner in scanners["default"].values():
             yield scanner
 
+    def _scanner_specs(self) -> Generator[tuple[str, str, str, str], None, None]:
+        yield "default", "random", self._base_path + WILDCARD_TEST_POINT_MARKER, "all cases"
+        if self.filter_config.exclude_response:
+            yield "default", "custom", self.filter_config.exclude_response, "all cases"
+        for prefix in dict.fromkeys(self.discovery_config.prefixes + DEFAULT_TEST_PREFIXES):
+            yield "prefixes", prefix, f"{self._base_path}{prefix}{WILDCARD_TEST_POINT_MARKER}", f"/{self._base_path}{prefix}***"
+        suffixes = dict.fromkeys(self.discovery_config.suffixes + DEFAULT_TEST_SUFFIXES)
+        known_suffixes = set(suffixes)
+        for suffix in suffixes:
+            yield "suffixes", suffix, f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}{suffix}", f"/{self._base_path}***{suffix}"
+        for extension in self.discovery_config.extensions:
+            suffix = "." + extension
+            if suffix not in known_suffixes:
+                known_suffixes.add(suffix)
+                yield "suffixes", suffix, f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}{suffix}", f"/{self._base_path}***{suffix}"
+
     def is_excluded(self, resp: BaseResponse) -> bool:
         """Validate the response by different filters"""
         config = self.filter_config
@@ -250,14 +266,16 @@ class BaseFuzzer:
                     return False
                 state.auto_calibrated_fingerprints.add(fingerprint)
 
-        if repeated_fingerprint:
-            self.logger.debug(f'"{resp.url}" filtered by auto-calibration fingerprint')
-        else:
-            self.logger.debug(
-                f'"{resp.url}" filtered by repeated response auto-calibration '
-                f'(threshold={threshold})'
-            )
+        self._log_auto_calibration(resp.url, repeated=repeated_fingerprint)
         return True
+
+    def _log_auto_calibration(self, url: str, *, repeated: bool) -> None:
+        if repeated:
+            self.logger.debug('"%s" filtered by auto-calibration fingerprint', url)
+        else:
+            threshold = (AUTO_CALIBRATION_FORCED_THRESHOLD if self.filter_config.auto_calibration
+                         else AUTO_CALIBRATION_DUPLICATE_THRESHOLD)
+            self.logger.debug('"%s" filtered by repeated response auto-calibration (threshold=%s)', url, threshold)
 
     def is_filter_threshold_reached(self, resp: BaseResponse) -> bool:
         state = self.filter_state
@@ -394,22 +412,6 @@ class Fuzzer(BaseFuzzer):
         self._play_event = threading.Event()
         self._quit_event = threading.Event()
         self._pause_semaphore = threading.Semaphore(0)
-
-    def _scanner_specs(self):
-        yield "default", "random", self._base_path + WILDCARD_TEST_POINT_MARKER, "all cases"
-        if self.filter_config.exclude_response:
-            yield "default", "custom", self.filter_config.exclude_response, "all cases"
-        for prefix in set(self.discovery_config.prefixes + DEFAULT_TEST_PREFIXES):
-            yield "prefixes", prefix, f"{self._base_path}{prefix}{WILDCARD_TEST_POINT_MARKER}", f"/{self._base_path}{prefix}***"
-        suffixes = set(self.discovery_config.suffixes + DEFAULT_TEST_SUFFIXES)
-        known_suffixes = set(self.filter_state.scanners["suffixes"]) | suffixes
-        for suffix in suffixes:
-            yield "suffixes", suffix, f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}{suffix}", f"/{self._base_path}***{suffix}"
-        for extension in self.discovery_config.extensions:
-            suffix = "." + extension
-            if suffix not in known_suffixes:
-                known_suffixes.add(suffix)
-                yield "suffixes", suffix, f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}{suffix}", f"/{self._base_path}***{suffix}"
 
     def _setup_scanner_specs(self, specs, first_probes=None) -> None:
         scanners = self.filter_state.scanners
@@ -573,7 +575,6 @@ class NativeFuzzer(Fuzzer):
         self._lifecycle_lock = threading.Lock()
         self._prepared = False
         self._native_calibration_state = None
-        self._native_classification_initialized = False
 
     def setup_scanners(self) -> None:
         if not isinstance(self._requester, NativeRequester):
@@ -615,9 +616,13 @@ class NativeFuzzer(Fuzzer):
         record = self.should_record_auto_calibration(resp)
         if not record and not self._native_calibration_state.has_learned_status(resp.status):
             return False
-        return self._native_calibration_state.observe(
-            *self._native_fingerprint_values(resp), record
-        )
+        values = self._native_fingerprint_values(resp)
+        if self.logger.disabled:
+            return self._native_calibration_state.observe(*values, record)
+        filtered, repeated = self._native_calibration_state.observe_decision(*values, record)
+        if filtered:
+            self._log_auto_calibration(resp.url, repeated=repeated)
+        return filtered
 
     def _update_wildcard_classifier(self, *, clear: bool = False) -> None:
         if not isinstance(self._requester, NativeRequester):
@@ -628,7 +633,7 @@ class NativeFuzzer(Fuzzer):
             return
         config = self.filter_config
         supported = not any((
-            self.logger.handlers, not self.filtered_chunk_callbacks,
+            not self.filtered_chunk_callbacks,
             self._requester.config.method != "GET", config.exclude_sizes,
             config.exclude_texts, config.exclude_regex, config.exclude_redirect,
             self.has_advanced_matchers(), config.filter_status_codes, config.filter_sizes,
@@ -636,27 +641,24 @@ class NativeFuzzer(Fuzzer):
             config.filter_headers, config.filter_header_regex, config.filter_time,
         ))
         classifier = None
-        if not self._native_classification_initialized:
-            self._native_classification_initialized = True
-            if supported and not (self.filter_state.similar_fingerprints or self.filter_state.auto_calibrated_fingerprints):
-                state = self._native_backend.new_calibration_state(config.auto_calibration)
+        if supported:
+            if self._native_calibration_state is None and not (
+                self.filter_state.similar_fingerprints or self.filter_state.auto_calibrated_fingerprints
+            ):
+                # Own counts from the first directory even when its profile
+                # requires Python. Later compatible profiles reuse those counts.
+                self._native_calibration_state = self._native_backend.new_calibration_state(config.auto_calibration)
+            if self._native_calibration_state is not None:
                 classifier = self._native_backend.make_wildcard_classifier(
-                    self.filter_state.scanners, state,
+                    self.filter_state.scanners, self._native_calibration_state,
                     parse_path(self._requester._url), self.execution_config.skip_on_status,
                 )
-                if classifier is not None:
-                    self._native_calibration_state = state
-        elif supported and self._native_calibration_state is not None:
-            classifier = self._native_backend.make_wildcard_classifier(
-                self.filter_state.scanners, self._native_calibration_state,
-                parse_path(self._requester._url), self.execution_config.skip_on_status,
-            )
         self._native_backend.set_wildcard_classifier(classifier)
 
     def _update_static_response_profile(self, *, clear: bool = False) -> None:
         assert self._native_backend is not None
         profile = None
-        if not clear and self.filtered_chunk_callbacks and not self.logger.handlers:
+        if not clear and self.filtered_chunk_callbacks:
             scanner = self.filter_state.scanners["default"].get("random")
             if scanner is not None and self._requester.config.method == "GET":
                 candidate = scanner.static_response_profile
@@ -785,7 +787,18 @@ class NativeFuzzer(Fuzzer):
         if count <= 0:
             return
         if self._native_calibration_state is not None:
-            self._native_calibration_state.commit_range(start, end)
+            if self.logger.disabled:
+                self._native_calibration_state.commit_range(start, end)
+            else:
+                decisions = self._native_calibration_state.commit_range_with_decisions(start, end)
+                for index, calibrated, repeated in decisions:
+                    path = paths.path_at(index) if isinstance(paths, NativeWordlistChunk) else paths[index]
+                    url = self._requester._url + path
+                    if calibrated:
+                        self._log_auto_calibration(url, repeated=repeated)
+                    else:
+                        self.logger.debug('"%s" filtered by wildcard profile', url)
+                    self.logger.debug('"%s" decision=%s', url, "excluded" if calibrated else "wildcard")
         if isinstance(paths, NativeWordlistChunk):
             try:
                 for callback in self.filtered_chunk_callbacks:
@@ -913,63 +926,13 @@ class AsyncFuzzer(BaseFuzzer):
 
     async def setup_scanners(self) -> None:
         scanners = self.filter_state.scanners
-        # Default scanners (wildcard testers)
-        scanners["default"]["random"] = await AsyncScanner.create(
-            self._requester,
-            filter_config=self.filter_config,
-            delay=self.execution_config.delay,
-            word_generator=self._word_generator,
-            logger=self.logger,
-            path=self._base_path + WILDCARD_TEST_POINT_MARKER,
-        )
-
-        if self.filter_config.exclude_response:
-            scanners["default"]["custom"] = await AsyncScanner.create(
-                self._requester,
-                filter_config=self.filter_config,
-                delay=self.execution_config.delay,
-                word_generator=self._word_generator,
-                logger=self.logger,
-                tested=scanners,
-                path=self.filter_config.exclude_response,
+        for selection, selector, path, context in self._scanner_specs():
+            scanners[selection][selector] = await AsyncScanner.create(
+                self._requester, filter_config=self.filter_config,
+                delay=self.execution_config.delay, word_generator=self._word_generator,
+                logger=self.logger, tested=None if (selection, selector) == ("default", "random") else scanners,
+                path=path, context=context,
             )
-
-        for prefix in self.discovery_config.prefixes + DEFAULT_TEST_PREFIXES:
-            scanners["prefixes"][prefix] = await AsyncScanner.create(
-                self._requester,
-                filter_config=self.filter_config,
-                delay=self.execution_config.delay,
-                word_generator=self._word_generator,
-                logger=self.logger,
-                tested=scanners,
-                path=f"{self._base_path}{prefix}{WILDCARD_TEST_POINT_MARKER}",
-                context=f"/{self._base_path}{prefix}***",
-            )
-
-        for suffix in self.discovery_config.suffixes + DEFAULT_TEST_SUFFIXES:
-            scanners["suffixes"][suffix] = await AsyncScanner.create(
-                self._requester,
-                filter_config=self.filter_config,
-                delay=self.execution_config.delay,
-                word_generator=self._word_generator,
-                logger=self.logger,
-                tested=scanners,
-                path=f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}{suffix}",
-                context=f"/{self._base_path}***{suffix}",
-            )
-
-        for extension in self.discovery_config.extensions:
-            if "." + extension not in scanners["suffixes"]:
-                scanners["suffixes"]["." + extension] = await AsyncScanner.create(
-                    self._requester,
-                    filter_config=self.filter_config,
-                    delay=self.execution_config.delay,
-                    word_generator=self._word_generator,
-                    logger=self.logger,
-                    tested=scanners,
-                    path=f"{self._base_path}{WILDCARD_TEST_POINT_MARKER}.{extension}",
-                    context=f"/{self._base_path}***.{extension}",
-                )
 
     async def start(self) -> None:
         # In Python 3.9, initialize the Semaphore within the coroutine

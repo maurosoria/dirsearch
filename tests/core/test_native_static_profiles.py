@@ -178,8 +178,8 @@ class TestStaticProfileFuzzer(TestCase):
         self.assertIsNone(backend.used_profiles[-1])
         self.assertEqual(matches[-1].path, "other/distinct")
 
-    def test_head_stop_status_and_logging_keep_normal_callbacks(self):
-        for options in ({"method": "HEAD"}, {"skip_status": (404,)}, {"logging_enabled": True}):
+    def test_head_and_stop_status_keep_normal_callbacks(self):
+        for options in ({"method": "HEAD"}, {"skip_status": (404,)}):
             with self.subTest(options=options):
                 fuzzer, backend, matches, misses, filtered = self.make_fuzzer(**options)
                 fuzzer.start()
@@ -187,6 +187,15 @@ class TestStaticProfileFuzzer(TestCase):
                 self.assertEqual(len(matches), 1)
                 self.assertEqual(len(misses), 1009)
                 self.assertEqual(filtered, [])
+
+    def test_logging_keeps_static_profile_compaction(self):
+        fuzzer, backend, matches, misses, filtered = self.make_fuzzer(logging_enabled=True)
+        fuzzer.start()
+        self.assertIsNone(backend.used_profiles[0])
+        self.assertIsNotNone(backend.used_profiles[1])
+        self.assertEqual([response.path for response in matches], ["distinct"])
+        self.assertEqual(len(misses), 1000)
+        self.assertEqual(sum(filtered), 9)
 
 
 @skipUnless(importlib.util.find_spec("dirsearch_native"), "native extension is not installed")

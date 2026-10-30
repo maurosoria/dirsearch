@@ -19,6 +19,7 @@
 import difflib
 import re
 import sys
+from dataclasses import dataclass
 
 from lib.utils.common import lstrip_once
 from lib.core.native_runtime import MIN_NATIVE_PYTHON, get_native_extension_version_error
@@ -110,6 +111,17 @@ def normalized_content_similarity(content1: str, content2: str) -> float:
     return _normalized_content_similarity_python(content1, content2)
 
 
+@dataclass(frozen=True, slots=True)
+class ContentComparisonProfile:
+    """Immutable comparison data exported to request-engine adapters."""
+
+    base_content: str
+    normalized_contents: tuple[str, ...]
+    static_patterns: tuple[str, ...]
+    is_static: bool
+    is_ambiguous: bool
+
+
 class DynamicContentParser:
     def __init__(self, content1, content2):
         self._static_patterns = None
@@ -123,6 +135,13 @@ class DynamicContentParser:
         self._is_static = False
 
         self._recalculate()
+
+    @property
+    def comparison_profile(self) -> ContentComparisonProfile:
+        return ContentComparisonProfile(
+            self._base_content, tuple(self._normalized_contents),
+            tuple(self.static_patterns), self._is_static, self.is_ambiguous,
+        )
 
     @property
     def static_patterns(self):

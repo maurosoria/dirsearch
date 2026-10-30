@@ -101,7 +101,7 @@ class TestCalibrationEndToEndContract(TestCase):
             self.assertEqual({item["status"] for item in results}, {200, 201}, details)
             contents = log.read_text(encoding="utf-8")
             self.assertIn(f"RESPONSE backend={backend} http_version=HTTP/1.1", contents, details)
-            self.assertIn("content_encoding=identity reported_length=", contents, details)
+            self.assertIn("content_encoding=identity retained_length=", contents, details)
             self.assertIn("retained_sha256=", contents, details)
             self.assertIn("decision=match", contents, details)
             if scenario == "prefix":

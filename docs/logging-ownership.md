@@ -64,12 +64,14 @@ the native byte-preserving raw HTTP fallback. `decision=match`, `excluded`,
 Existing calibration messages provide the more specific wildcard/threshold
 reason where applicable.
 
-`reported_length` is dirsearch's filtering/display length, which can use the
+The status line reports dirsearch's filtering/display length once, which can use
 compressed `Content-Length`; `retained_length` counts decoded bytes actually
 available in the response object. Equal lengths alone do not prove equal pages.
-`retained_sha256` is stable across processes and engines, but compares only the
-retained capture. If `body_complete=false`, it must not be interpreted as a hash
-of the complete response. Native prefilters discard bodies before returning to
+`retained_sha256` compares retained captures up to 64 KiB. Larger bodies use
+`sample_sha256` for their first 64 KiB and leave `retained_sha256=unavailable`;
+`hashed_length` states the actual amount hashed. A prefix hash is not evidence
+that complete responses are equal. If `body_complete=false`, a retained-capture
+hash must not be interpreted as a hash of the complete response. Native prefilters discard bodies before returning to
 Python: their log includes the reason (`native_filter`) and metadata, but uses
 `retained_sha256=unavailable`, not the hash of an empty response.
 
@@ -80,8 +82,8 @@ for predictable bodies. Review logs before sharing, especially URL paths and
 any error messages emitted by dependencies.
 
 No diagnostic hash is computed without `--log`. Enabling it intentionally adds
-file I/O and hashing of retained bodies. Native logging also returns metadata
-for otherwise compacted filter exclusions, without transferring their bodies;
+file I/O and at most 64 KiB of hashing per retained response. Native logging also
+returns metadata for otherwise compacted filter exclusions, without transferring their bodies;
 normal scans keep the existing compact progress-only path. Compare engines
 with logging enabled consistently, not against an unlogged performance run.
 

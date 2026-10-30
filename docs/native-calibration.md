@@ -1,6 +1,6 @@
 # Native wildcard calibration
 
-Native extension 0.2.25 accelerates stable-pattern extraction for ASCII samples
+Native extension 0.2.26 accelerates stable-pattern extraction for ASCII samples
 on supported Python runtimes, starting with Python 3.14. It preserves the token
 SequenceMatcher blocks, autojunk policy, matching ties and the bounded
 replacement synchronization window introduced in Python 3.14's Differ. Only
@@ -13,6 +13,13 @@ CI exercises Python 3.14 and 3.15, including the native extension, and compares
 patterns against each runtime's own Differ. The native-pattern tests require
 the optimized path whenever a matching extension is available; a future Python
 minor silently disabling it is a failure rather than a skipped test.
+
+The adapter consumes an immutable public comparison profile. Native calibration
+counts remain authoritative when a directory requires Python fallback, allowing
+later compatible recursive directories to enable the worker classifier without
+losing earlier observations. Logging retains worker classification: compact
+metadata records carry exclusions, and calibration decisions are logged only
+when their input ranges commit. Filtered bodies are not decoded for diagnostics.
 
 The default profile is prepared first. Eligible native GET scans then prefetch
 the initial probe for the remaining profile shapes in batches of at most four.

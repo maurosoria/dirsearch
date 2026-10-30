@@ -1,10 +1,9 @@
 # Native response processing profile
 
-Use `scripts/profile_native_processing.py --output stages.json --` followed by
-ordinary dirsearch arguments selecting the native request backend. It measures
-Python thread CPU in normalization, similarity, pattern comparison, calibration,
-response construction, filters and dispatch. Exclusive time subtracts nested
-stages; inclusive percentages must not be added together.
+Local instrumentation measured Python thread CPU in normalization, similarity,
+pattern comparison, calibration, response construction, filters and dispatch.
+Exclusive time subtracts nested stages; inclusive percentages must not be added
+together. Temporary instrumentation and raw output stay outside version control.
 
 Run the same controlled corpus separately without instrumentation to measure
 full CLI RPS. Include process startup, wildcard calibration and reports; use at

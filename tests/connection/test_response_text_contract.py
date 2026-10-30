@@ -22,7 +22,7 @@ from lib.core.settings import WILDCARD_TEST_POINT_MARKER
 CASES = {
     "latin1": (b"menu\xe9", "text/html; charset=iso-8859-1", "menu\xe9"),
     "distinct": (b"menu\xf1", "text/html; charset=iso-8859-1", "menu\xf1"),
-    "unlabelled_utf8": ("caf\xe9".encode(), "text/html", "caf\xe9"),
+    "unlabelled_utf8": ("café".encode(), "text/html", "café"),
     "utf8": ("menu\xe9".encode(), "text/html; charset=utf-8", "menu\xe9"),
     "json": ("menu\xe9".encode(), "application/json", "menu\xe9"),
     "utf16": ("hello world".encode("utf-16"), "text/plain; charset=utf-16", "hello world"),
@@ -105,19 +105,19 @@ class TestResponseTextContract(TestCase):
 
     def test_unlabelled_utf8_text_filters_use_decoded_characters(self):
         asynchronous = asyncio.run(self.async_response("unlabelled_utf8"))
-        backend = self.native_backend(FilterConfig(match_regex="caf\xe9"))
+        backend = self.native_backend(FilterConfig(match_regex="café"))
         native = list(backend.scan(self.url, ["unlabelled_utf8"]))[0][1]
         for response in (asynchronous, native):
-            self.assertEqual(response.text, "caf\xe9")
+            self.assertEqual(response.text, "café")
             if response is native:
                 self.assertFalse(response.filtered)
-            for config in (FilterConfig(exclude_texts=("caf\xe9",)), FilterConfig(exclude_regex="caf\xe9")):
+            for config in (FilterConfig(exclude_texts=("café",)), FilterConfig(exclude_regex="café")):
                 fuzzer = BaseFuzzer(None, None, filter_config=config, discovery_config=DiscoveryConfig(),
                                     execution_config=ExecutionConfig(), match_callbacks=(),
                                     not_found_callbacks=(), error_callbacks=())
                 self.assertTrue(fuzzer.is_excluded(response))
             matcher = BaseFuzzer(
-                None, None, filter_config=FilterConfig(match_regex="caf\xe9"),
+                None, None, filter_config=FilterConfig(match_regex="café"),
                 discovery_config=DiscoveryConfig(), execution_config=ExecutionConfig(),
                 match_callbacks=(), not_found_callbacks=(), error_callbacks=(),
             )

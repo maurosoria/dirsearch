@@ -2,6 +2,10 @@ import random
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Thread
 from unittest import TestCase
+from tempfile import TemporaryDirectory
+from pathlib import Path
+from lib.core.logger import RunLogger
+from lib.core.log_config import LogConfig
 from unittest.mock import patch
 
 from lib.connection.native import NativeHTTPBackend
@@ -44,9 +48,10 @@ class TestNativeWildcardClassifier(TestCase):
 
     def profile(self, first, second):
         parser = DynamicContentParser(first, second)
+        snapshot = parser.comparison_profile
         return parser, self.native.NativeWildcardProfile(
-            404, 'text/html', first, parser._normalized_contents, parser.static_patterns,
-            parser._is_static, parser.is_ambiguous, len(first), 'default', 'random')
+            404, 'text/html', first, snapshot.normalized_contents, snapshot.static_patterns,
+            snapshot.is_static, snapshot.is_ambiguous, len(first), 'default', 'random')
 
     def test_compiled_pattern_comparison_matches_python(self):
         rng = random.Random(20261022)
@@ -119,20 +124,106 @@ class TestNativeWildcardClassifier(TestCase):
         with patch.object(fuzzer, '_native_fingerprint_values', side_effect=AssertionError('unnecessary fingerprint')):
             self.assertFalse(fuzzer.is_auto_calibrated(response))
 
-    def test_unsupported_initial_profile_keeps_existing_python_state(self):
+    def test_unsupported_first_directory_can_enable_later_without_losing_counts(self):
         fuzzer = self.make_fuzzer()
         scanner = Scanner(ProbeRequester(), filter_config=FilterConfig(), delay=0, path=WILDCARD_TEST_POINT_MARKER)
         scanner.response = NativeResponse('http://example.invalid/probe', 404, [], b'\x00\xff')
         fuzzer.filter_state.scanners['default']['random'] = scanner
         fuzzer._update_wildcard_classifier(clear=True)
         fuzzer._update_wildcard_classifier()
-        self.assertIsNone(fuzzer._native_calibration_state)
+        state = fuzzer._native_calibration_state
+        self.assertIsNotNone(state)
+        self.assertIsNone(fuzzer._native_backend._wildcard_classifier)
+        candidate = NativeResponse('http://example.invalid/path', 404, [], b'other document ' * 4)
+        for _ in range(7):
+            self.assertFalse(fuzzer.is_auto_calibrated(candidate))
+        fuzzer.set_base_path('later/')
+        fuzzer._update_wildcard_classifier(clear=True)
+        fuzzer.filter_state.scanners['default']['random'] = Scanner(
+            ProbeRequester(), filter_config=FilterConfig(), delay=0, path=WILDCARD_TEST_POINT_MARKER)
+        fuzzer._update_wildcard_classifier()
+        self.assertIs(fuzzer._native_calibration_state, state)
+        self.assertIsNotNone(fuzzer._native_backend._wildcard_classifier)
+        self.assertTrue(fuzzer.is_auto_calibrated(candidate))
+
+    def test_existing_python_counts_are_not_discarded_to_enable_native(self):
+        fuzzer = self.make_fuzzer()
         candidate = NativeResponse('http://example.invalid/path', 404, [], b'other document ' * 4)
         self.assertFalse(fuzzer.is_auto_calibrated(candidate))
-        self.assertTrue(fuzzer.filter_state.similar_fingerprints)
-        scanner.response = ProbeRequester().request('probe')
+        fuzzer.filter_state.scanners['default']['random'] = Scanner(
+            ProbeRequester(), filter_config=FilterConfig(), delay=0, path=WILDCARD_TEST_POINT_MARKER)
         fuzzer._update_wildcard_classifier()
         self.assertIsNone(fuzzer._native_calibration_state)
+        for _ in range(6):
+            self.assertFalse(fuzzer.is_auto_calibrated(candidate))
+        self.assertTrue(fuzzer.is_auto_calibrated(candidate))
+
+    def test_native_fallback_logs_threshold_and_learned_fingerprint(self):
+        fuzzer = self.make_fuzzer()
+        fuzzer._native_calibration_state = self.native.NativeCalibrationState()
+        with TemporaryDirectory() as directory:
+            log = Path(directory, 'scan.log')
+            with_logger = RunLogger(LogConfig(str(log)))
+            try:
+                fuzzer.logger = with_logger
+                candidate = NativeResponse('http://example.invalid/account', 404, [], b'other document ' * 4)
+                for _ in range(7):
+                    self.assertFalse(fuzzer.is_auto_calibrated(candidate))
+                self.assertTrue(fuzzer.is_auto_calibrated(candidate))
+                self.assertTrue(fuzzer.is_auto_calibrated(candidate))
+            finally:
+                with_logger.close()
+            text = log.read_text()
+            self.assertIn('repeated response auto-calibration (threshold=8)', text)
+            self.assertIn('filtered by auto-calibration fingerprint', text)
+
+    def test_logged_wildcards_keep_compact_delivery_and_ordered_decisions(self):
+        class Handler(BaseHTTPRequestHandler):
+            protocol_version = 'HTTP/1.1'
+
+            def do_GET(self):
+                data = body(self.path).encode()
+                self.send_response(404)
+                self.send_header('Content-Type', 'text/html; charset=utf-8')
+                self.send_header('Content-Length', str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+
+            def log_message(self, *_):
+                pass
+        server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+        thread = Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        fuzzer = self.make_fuzzer()
+        fuzzer._requester.set_url(f'http://127.0.0.1:{server.server_port}/')
+        fuzzer.filter_state.scanners['default']['random'] = Scanner(
+            ProbeRequester(), filter_config=FilterConfig(), delay=0, path=WILDCARD_TEST_POINT_MARKER)
+        paths = [f'missing-{i}' for i in range(12)]
+        with TemporaryDirectory() as directory:
+            log = Path(directory, 'scan.log')
+            logger = RunLogger(LogConfig(str(log)))
+            fuzzer.logger = fuzzer._native_backend.logger = logger
+            try:
+                fuzzer._update_wildcard_classifier()
+                self.assertIsNotNone(fuzzer._native_backend._wildcard_classifier)
+                fuzzer.play()
+                with patch('lib.connection.native.NativeResponse', side_effect=AssertionError('wildcard decoded')):
+                    processed = fuzzer._native_backend.scan_chunks(
+                        server_url := f'http://127.0.0.1:{server.server_port}/', paths,
+                        lambda chunk: fuzzer._process_native_chunk(paths, chunk))
+                self.assertEqual(processed, len(paths))
+            finally:
+                logger.close()
+                server.shutdown()
+                server.server_close()
+                thread.join(3)
+            text = log.read_text()
+            self.assertEqual(text.count('native_filter=wildcard'), len(paths))
+            self.assertIn('repeated response auto-calibration (threshold=8)', text)
+            self.assertIn('filtered by auto-calibration fingerprint', text)
+            self.assertIn('decision=excluded', text)
+            self.assertIn(server_url + paths[-1], text)
+            self.assertFalse(thread.is_alive())
 
     def test_fallback_observations_commit_before_later_native_misses(self):
         self.check_fallback_order('text/html; charset=utf-8')

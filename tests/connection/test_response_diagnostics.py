@@ -17,7 +17,7 @@ from lib.connection.requester import AsyncRequester, Requester
 from lib.connection.response import NativeResponse, Response
 from lib.core.filter_config import FilterConfig
 from lib.core.log_config import LogConfig
-from lib.core.logger import RunLogger
+from lib.core.logger import MAX_LOG_DIGEST_BYTES, RunLogger
 from lib.core.native_runtime import is_native_backend_available
 from lib.core.request_config import RequestConfig
 from tests.connection.test_native_engine import CountingHTTPServer
@@ -95,12 +95,27 @@ class TestResponseDiagnostics(IsolatedAsyncioTestCase):
         contents = destination.read_text()
         self.assertIn("backend=native http_version=HTTP/2 content_encoding=gzip", contents)
         self.assertIn("200 - 53B", contents)
-        self.assertIn(f"reported_length=53 retained_length={len(BODY)} body_complete=true", contents)
+        self.assertNotIn("reported_length=", contents)
+        self.assertIn(f"retained_length={len(BODY)} body_complete=true", contents)
         self.assertIn(f"retained_sha256={hashlib.sha256(BODY).hexdigest()}", contents)
         self.assertIn("?token=<redacted>", contents)
         self.assertIn("final_url=https://example.test/account/login?token=<redacted>", contents)
         for secret in ("user:password", "query-secret", "final-secret", "fragment-secret", "cookie-secret", "auth-secret", BODY.decode()):
             self.assertNotIn(secret, contents)
+
+    def test_large_capture_hashes_only_an_explicit_bounded_prefix(self):
+        logger, destination = self.make_log()
+        body = b"x" * (MAX_LOG_DIGEST_BYTES * 3) + b"different tail"
+        response = NativeResponse("https://example.test/large", 200, [], body)
+        with patch("lib.core.logger.hashlib.sha256", wraps=hashlib.sha256) as digest:
+            logger.response("GET", response, backend="async")
+        digest.assert_called_once()
+        self.assertEqual(bytes(digest.call_args.args[0]), body[:MAX_LOG_DIGEST_BYTES])
+        logger.close()
+        contents = destination.read_text()
+        self.assertIn("retained_sha256=unavailable", contents)
+        self.assertIn(f"sample_sha256={hashlib.sha256(body[:MAX_LOG_DIGEST_BYTES]).hexdigest()}", contents)
+        self.assertIn(f"hashed_length={MAX_LOG_DIGEST_BYTES}", contents)
 
     def test_partial_hash_is_explicitly_a_retained_capture_not_complete_body(self):
         logger, destination = self.make_log()
@@ -185,6 +200,27 @@ class TestResponseDiagnostics(IsolatedAsyncioTestCase):
                 await asyncio.to_thread(server.close)
                 self.assertFalse(server.thread.is_alive())
 
+    def test_logged_exact_static_profile_avoids_response_construction(self):
+        if not is_native_backend_available():
+            self.skipTest("native extension is not installed")
+        logger, destination = self.make_log()
+        server = CountingHTTPServer(DiagnosticHandler)
+        backend = NativeHTTPBackend(RequestConfig(timeout=2, max_retries=0),
+                                    filter_config=FilterConfig(), logger=logger)
+        backend.set_static_response_profile((404, "text/plain", BODY))
+        chunks = []
+        try:
+            with patch("lib.connection.native.NativeResponse", side_effect=AssertionError("static body decoded")):
+                processed = backend.scan_chunks(server.url, ["missing"], chunks.append)
+        finally:
+            backend.close()
+            server.close()
+            logger.close()
+        self.assertEqual(processed, 1)
+        self.assertEqual(sum(len(chunk.events) for chunk in chunks), 0)
+        self.assertIn("native_filter=static_response", destination.read_text())
+        self.assertFalse(server.thread.is_alive())
+
     def test_native_prefilters_log_reason_without_delivering_filtered_events(self):
         if not is_native_backend_available():
             self.skipTest("native extension is not installed")
@@ -194,7 +230,8 @@ class TestResponseDiagnostics(IsolatedAsyncioTestCase):
                                     filter_config=FilterConfig(exclude_status_codes=(404,)), logger=logger)
         chunks = []
         try:
-            processed = backend.scan_chunks(server.url, ["missing?token=query-secret"], chunks.append)
+            with patch("lib.connection.native.NativeResponse", side_effect=AssertionError("filtered body decoded")):
+                processed = backend.scan_chunks(server.url, ["missing?token=query-secret"], chunks.append)
         finally:
             backend.close()
             server.close()

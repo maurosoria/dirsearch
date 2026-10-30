@@ -16,7 +16,7 @@ from lib.connection.proxy import (
     is_proxy_connect_rejection,
     proxy_error_status,
 )
-from lib.connection.response import NativeResponse
+from lib.connection.response import NativeResponse, ResponseHeaders
 from lib.core.filter_config import FilterConfig
 from lib.core.logger import RunLogger
 from lib.core.request_config import RequestConfig
@@ -321,7 +321,7 @@ class NativeHTTPBackend:
                 and result.status == PROXY_AUTHENTICATION_REQUIRED
             ):
                 if not self.logger.disabled:
-                    self._convert_result(base_url, result)
+                    self._log_filtered_result(base_url, result)
                 continue
             request_index = result.request_index
             response, error = self._convert_result(base_url, result)
@@ -384,6 +384,22 @@ class NativeHTTPBackend:
                 self._consumed_cancel_generation = self._cancel_generation
 
         return raw_paths, results
+
+    def _log_filtered_result(self, base_url: str, result: Any) -> None:
+        """Log the worker's compact exclusion metadata without reading its body."""
+        url = base_url + result.path
+        self.logger.response_metadata(
+            self.config.method, url, backend="native", status=result.status,
+            headers=ResponseHeaders(result.headers), http_version=result.http_version,
+            length=result.length, retained_length=0, body_complete=False,
+            history=result.history, final_url=result.final_url or url,
+            filter_reason=result.filter_reason or "unknown",
+        )
+        if result.filter_reason == "static_response":
+            self.logger.debug('"%s" filtered by wildcard profile (exact static response)', url)
+        if result.filter_reason != "wildcard":
+            self.logger.debug('"%s" decision=%s', url,
+                              "wildcard" if result.filter_reason == "static_response" else "excluded")
 
     def _convert_result(
         self,
@@ -491,18 +507,19 @@ class NativeHTTPBackend:
         for selection, group in scanners.items():
             for selector, scanner in group.items():
                 response = scanner.response
-                parser = scanner.content_parser
                 if (not response.body_complete or response.redirect or response.history
                         or scanner.wildcard_redirect_regex or not response.content
-                        or not response.content.isascii() or len(response.content) > 262144
-                        or parser._base_content != response.content
-                        or not all(sample.isascii() for sample in parser._normalized_contents)
-                        or not all(pattern.isascii() for pattern in parser.static_patterns)):
+                        or not response.content.isascii() or len(response.content) > 262144):
+                    return None
+                profile = scanner.content_parser.comparison_profile
+                if (profile.base_content != response.content
+                        or not all(sample.isascii() for sample in profile.normalized_contents)
+                        or not all(pattern.isascii() for pattern in profile.static_patterns)):
                     return None
                 profiles.append(self._native.NativeWildcardProfile(
                     response.status, response.type, response.content,
-                    parser._normalized_contents, parser.static_patterns,
-                    parser._is_static, parser.is_ambiguous, response.length,
+                    profile.normalized_contents, profile.static_patterns,
+                    profile.is_static, profile.is_ambiguous, response.length,
                     selection, selector,
                 ))
         return self._native.NativeWildcardClassifier(
