@@ -1,4 +1,4 @@
-"""HTTP adapters must expose the same text before any native discard."""
+"""Explicit charsets agree; unlabelled text retains each engine's defaults."""
 import asyncio
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Thread
@@ -10,6 +10,9 @@ import requests
 from lib.connection.native import NativeHTTPBackend
 from lib.connection.response import AsyncResponse, NativeResponse, Response
 from lib.core.filter_config import FilterConfig
+from lib.core.discovery_config import DiscoveryConfig
+from lib.core.execution_config import ExecutionConfig
+from lib.core.fuzzer import BaseFuzzer
 from lib.core.native_runtime import get_native_extension_version_error
 from lib.core.request_config import RequestConfig
 from lib.core.scanner import Scanner
@@ -17,8 +20,9 @@ from lib.core.settings import WILDCARD_TEST_POINT_MARKER
 
 
 CASES = {
-    "latin1": (b"menu\xe9", "text/html", "menu\xe9"),
-    "distinct": (b"menu\xf1", "text/html", "menu\xf1"),
+    "latin1": (b"menu\xe9", "text/html; charset=iso-8859-1", "menu\xe9"),
+    "distinct": (b"menu\xf1", "text/html; charset=iso-8859-1", "menu\xf1"),
+    "unlabelled_utf8": ("caf\xe9".encode(), "text/html", "caf\xe9"),
     "utf8": ("menu\xe9".encode(), "text/html; charset=utf-8", "menu\xe9"),
     "json": ("menu\xe9".encode(), "application/json", "menu\xe9"),
     "utf16": ("hello world".encode("utf-16"), "text/plain; charset=utf-16", "hello world"),
@@ -94,9 +98,30 @@ class TestResponseTextContract(TestCase):
                 asynchronous = asyncio.run(self.async_response(name))
                 native = NativeResponse(self.url + name, 404, [("content-type", media_type)], body)
                 for response in (sync, asynchronous, native):
+                    engine_expected = body.decode("iso-8859-1") if name == "unlabelled_utf8" and response is sync else expected
                     self.assertEqual(response.body, body)
-                    self.assertEqual(response.text, expected)
-                    self.assertEqual(response.words, len(expected.split()))
+                    self.assertEqual(response.text, engine_expected)
+                    self.assertEqual(response.words, len(engine_expected.split()))
+
+    def test_unlabelled_utf8_text_filters_use_decoded_characters(self):
+        asynchronous = asyncio.run(self.async_response("unlabelled_utf8"))
+        backend = self.native_backend(FilterConfig(match_regex="caf\xe9"))
+        native = list(backend.scan(self.url, ["unlabelled_utf8"]))[0][1]
+        for response in (asynchronous, native):
+            self.assertEqual(response.text, "caf\xe9")
+            if response is native:
+                self.assertFalse(response.filtered)
+            for config in (FilterConfig(exclude_texts=("caf\xe9",)), FilterConfig(exclude_regex="caf\xe9")):
+                fuzzer = BaseFuzzer(None, None, filter_config=config, discovery_config=DiscoveryConfig(),
+                                    execution_config=ExecutionConfig(), match_callbacks=(),
+                                    not_found_callbacks=(), error_callbacks=())
+                self.assertTrue(fuzzer.is_excluded(response))
+            matcher = BaseFuzzer(
+                None, None, filter_config=FilterConfig(match_regex="caf\xe9"),
+                discovery_config=DiscoveryConfig(), execution_config=ExecutionConfig(),
+                match_callbacks=(), not_found_callbacks=(), error_callbacks=(),
+            )
+            self.assertTrue(matcher.matches_advanced_matchers(response))
 
     def test_distinct_unlabelled_pages_do_not_collapse_into_one_wildcard(self):
         backend = self.native_backend()
@@ -120,7 +145,7 @@ class TestResponseTextContract(TestCase):
         self.assertFalse(response.filtered)
         self.assertEqual(response.text, "a\x00b")
 
-    def test_native_unlabelled_latin1_regex_is_not_rejected_before_decoding(self):
+    def test_native_declared_latin1_regex_is_not_rejected_before_decoding(self):
         backend = self.native_backend(FilterConfig(match_regex="menu\xe9"))
         response = list(backend.scan(self.url, ["latin1"]))[0][1]
         self.assertFalse(response.filtered)

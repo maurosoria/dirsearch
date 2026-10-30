@@ -74,17 +74,17 @@ def _declared_charset(headers) -> str | None:
     return None
 
 
-def _response_encoding(headers) -> str:
-    """Resolve text encoding independently of the HTTP client.
+def _response_encoding(headers, *, text_default: str = DEFAULT_ENCODING) -> str:
+    """Share charset parsing while preserving the transport's text default.
 
-    Preserve the threaded client's established Latin-1 default for text media
-    without a charset. Other media retain dirsearch's UTF-8 default.
+    Requests defaults unlabelled text to Latin-1; HTTPX and the native adapter
+    default to UTF-8. Explicit charsets use the same parser in every adapter.
     """
     declared = _declared_charset(headers)
     if declared:
         return declared
     media_type = headers.get("content-type", "").split(";", 1)[0].strip().lower()
-    return "iso-8859-1" if media_type.startswith("text/") else DEFAULT_ENCODING
+    return text_default if media_type.startswith("text/") else DEFAULT_ENCODING
 
 
 def _is_known_charset(charset: str | None) -> bool:
@@ -381,7 +381,7 @@ class Response(BaseResponse):
         self._body_digest = capture.body_digest
         self.content = _decode_response_body(
             self.body,
-            _response_encoding(self.headers),
+            _response_encoding(self.headers, text_default="iso-8859-1"),
             decode_binary_text,
         )
 
