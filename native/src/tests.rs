@@ -619,6 +619,7 @@ fn run_ntlm_request_with_proxy(
         start: Instant::now(),
         filter_config: &filter_config,
         skip_status_filtered_body: false,
+        capture_filtered_metadata: false,
         origin_auth: &auth,
         random_user_agents: None,
     }));
@@ -771,6 +772,7 @@ async fn run_https_ntlm_request() -> (NativeHttpResult, Result<Vec<Vec<u8>>, Str
         start: Instant::now(),
         filter_config: &filter_config,
         skip_status_filtered_body: false,
+        capture_filtered_metadata: false,
         origin_auth: &auth,
         random_user_agents: None,
     })
@@ -828,6 +830,7 @@ fn run_reqwest_request_with_user_agents(
         start: Instant::now() - Duration::from_secs(5),
         filter_config: &filter_config,
         skip_status_filtered_body: false,
+        capture_filtered_metadata: false,
         origin_auth: &OriginAuth::None,
         random_user_agents,
     }));
@@ -895,6 +898,7 @@ fn run_authenticated_requests_with_cookie(
                     start: Instant::now(),
                     filter_config: &filter_config,
                     skip_status_filtered_body: false,
+                    capture_filtered_metadata: false,
                     origin_auth: &auth,
                     random_user_agents,
                 })
@@ -1405,6 +1409,7 @@ fn reqwest_redirects_preserve_every_requested_url_in_history() {
         start: std::time::Instant::now(),
         filter_config: &filter_config,
         skip_status_filtered_body: false,
+        capture_filtered_metadata: false,
         origin_auth: &OriginAuth::None,
         random_user_agents: None,
     }));
@@ -2089,9 +2094,9 @@ fn non_utf8_text_filters_are_deferred_to_python() {
 }
 
 #[test]
-fn utf8_text_filters_keep_the_native_fast_path() {
+fn ascii_text_filters_keep_the_native_fast_path() {
     let mut config = default_filter_config();
-    config.filter_regex = compile_regex(Some("£".to_string()), "--filter-regex").unwrap();
+    config.filter_regex = compile_regex(Some("USD".to_string()), "--filter-regex").unwrap();
 
     let result = native_http_result(
         "price".to_string(),
@@ -2100,7 +2105,7 @@ fn utf8_text_filters_keep_the_native_fast_path() {
             "Content-Type".to_string(),
             "text/plain; Charset=UTF_8".to_string(),
         )],
-        "price £".as_bytes().to_vec(),
+        "price USD".as_bytes().to_vec(),
         1.0,
         &config,
     );
@@ -2381,6 +2386,7 @@ fn proxied_requests_receive_request_local_random_user_agents() {
         start: Instant::now(),
         filter_config: &filter_config,
         skip_status_filtered_body: false,
+        capture_filtered_metadata: false,
         origin_auth: &OriginAuth::None,
         random_user_agents: Some(&pool),
     }));
@@ -2579,6 +2585,7 @@ async fn run_mutual_tls_request(
         start: Instant::now(),
         filter_config: &filter_config,
         skip_status_filtered_body: false,
+        capture_filtered_metadata: false,
         origin_auth: &OriginAuth::None,
         random_user_agents: None,
     })

@@ -15,6 +15,7 @@ from lib.core.run_config import RunConfig
 from lib.core.dictionary import Dictionary
 from lib.core.wordlist_config import WordlistConfig
 from lib.core.fuzzer import AsyncFuzzer, Fuzzer, NativeFuzzer
+from tests.core.test_native_fuzzer import StaticProfileBackend
 
 
 def make_dictionary(paths: list[str], *, options) -> Dictionary:
@@ -77,8 +78,8 @@ class RecordingAsyncRequester:
 
 
 class DummyNativeRequester:
-    _url = "https://example.com/"
-    _query = ""
+    base_url = "https://example.com/"
+    query = ""
 
     def __init__(self, backend):
         self.backend = backend
@@ -87,7 +88,7 @@ class DummyNativeRequester:
         return self.backend
 
 
-class RecordingNativeBackend:
+class RecordingNativeBackend(StaticProfileBackend):
     def __init__(self):
         self.calls = []
 

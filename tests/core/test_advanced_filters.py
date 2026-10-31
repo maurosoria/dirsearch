@@ -1,6 +1,7 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import TestCase
+from unittest.mock import Mock, patch
 
 from lib.connection.response import NativeResponse
 from lib.core.discovery_config import DiscoveryConfig
@@ -237,3 +238,27 @@ class TestAdvancedFilters(TestCase):
         self.assertIn("?token=<redacted>", contents)
         self.assertNotIn("query-secret", contents)
         self.assertNotIn("private response body", contents)
+
+    def test_response_decision_logs_distinguish_matching_and_exclusion_stages(self):
+        for decision in ("excluded", "wildcard", "duplicate", "match"):
+            with self.subTest(decision=decision), TemporaryDirectory() as directory:
+                fuzzer = self.make_fuzzer()
+                candidate = response(path="account/login?token=query-secret", body=b"private body")
+                destination = Path(directory, "scan.log")
+                fuzzer.logger = RunLogger(LogConfig(str(destination)))
+                scanner = Mock()
+                scanner.check.return_value = decision != "wildcard"
+                try:
+                    with (
+                        patch.object(fuzzer, "is_excluded", return_value=decision == "excluded"),
+                        patch.object(fuzzer, "get_scanners_for", return_value=iter([scanner])),
+                        patch.object(fuzzer, "is_filter_threshold_reached", return_value=decision == "duplicate"),
+                    ):
+                        fuzzer.response_callbacks(candidate.path, candidate)
+                finally:
+                    fuzzer.logger.close()
+                contents = destination.read_text()
+                self.assertIn(f"decision={decision}", contents)
+                self.assertEqual(contents.count("decision="), 1)
+                self.assertNotIn("query-secret", contents)
+                self.assertNotIn("private body", contents)

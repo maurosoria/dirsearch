@@ -9,6 +9,7 @@ from lib.core.discovery_config import DiscoveryConfig
 from lib.core.execution_config import ExecutionConfig
 from lib.core.filter_config import FilterConfig
 from lib.core.fuzzer import AsyncFuzzer, Fuzzer, NativeFuzzer
+from tests.core.test_native_fuzzer import StaticProfileBackend
 
 
 class DummyDictionary:
@@ -45,6 +46,9 @@ class DummyDictionary:
     def release_native_claims(self, _batch, _count):
         return None
 
+    def requeue_claims(self):
+        return None
+
 
 def stack_response(path, body, *, filtered=False, filter_reason=None):
     return NativeResponse(
@@ -75,8 +79,8 @@ class DummyAsyncRequester:
 
 
 class DummyNativeRequester:
-    _url = "https://example.com/"
-    _query = ""
+    base_url = "https://example.com/"
+    query = ""
 
     def __init__(self, backend):
         self.backend = backend
@@ -85,7 +89,7 @@ class DummyNativeRequester:
         return self.backend
 
 
-class FilteringNativeBackend:
+class FilteringNativeBackend(StaticProfileBackend):
     def scan_chunks(self, base_url, paths, callback, query=""):
         del base_url
         del query

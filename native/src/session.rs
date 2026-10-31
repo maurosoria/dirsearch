@@ -33,6 +33,16 @@ impl NativeHttpSession {
     fn rate(&self) -> usize {
         self.rate_limiter.rate()
     }
+
+    fn has_cookies(&self) -> bool {
+        self.cookie_store
+            .store
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+            .iter_any()
+            .next()
+            .is_some()
+    }
 }
 
 #[derive(Debug, Default)]
@@ -46,7 +56,7 @@ impl NativeCookieStore {
             if allows_cookie_domain_attribute(&cookie) {
                 self.store
                     .write()
-                    .unwrap()
+                    .unwrap_or_else(|error| error.into_inner())
                     .store_response_cookies(std::iter::once(cookie), url);
             }
         }
@@ -69,7 +79,7 @@ impl CookieStore for NativeCookieStore {
         });
         self.store
             .write()
-            .unwrap()
+            .unwrap_or_else(|error| error.into_inner())
             .store_response_cookies(cookies, url);
     }
 
@@ -82,7 +92,7 @@ impl CookieStore for NativeCookieStore {
         {
             return Some(cookie);
         }
-        let store = self.store.read().unwrap();
+        let store = self.store.read().unwrap_or_else(|error| error.into_inner());
         let mut cookies = store
             .matches(url)
             .into_iter()
@@ -119,4 +129,32 @@ where
     INITIAL_COOKIE_OVERRIDE
         .scope(RefCell::new(cookie), future)
         .await
+}
+
+#[cfg(test)]
+mod recovery_tests {
+    use super::*;
+
+    #[test]
+    fn poisoned_cookie_store_keeps_session_reads_and_writes_available() {
+        let session = NativeHttpSession::default();
+        let store = session.cookie_store.clone();
+        assert!(std::thread::spawn(move || {
+            let _guard = store.store.write().unwrap();
+            panic!("controlled cookie-store writer failure");
+        })
+        .join()
+        .is_err());
+        assert!(!session.has_cookies());
+        let url = reqwest::Url::parse("https://example.test/").unwrap();
+        session
+            .cookie_store
+            .add_cookie_str("session=one; Path=/", &url);
+        assert!(session.has_cookies());
+        let value = HeaderValue::from_static("session=two; Path=/");
+        session
+            .cookie_store
+            .set_cookies(&mut std::iter::once(&value), &url);
+        assert_eq!(session.cookie_store.cookies(&url).unwrap(), "session=two");
+    }
 }

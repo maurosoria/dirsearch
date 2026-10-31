@@ -617,12 +617,7 @@ class Requester(BaseRequester):
                     origin_response.close()
                 response.elapsed = time.perf_counter() - start_time
 
-                log_msg = f'"{self.config.method} {response.url}" {response.status} - {response.length}B'
-
-                if response.redirect:
-                    log_msg += f" - LOCATION: {response.redirect}"
-
-                self.logger.info(log_msg)
+                self.logger.response(self.config.method, response, backend="threaded")
 
                 return response
 
@@ -955,12 +950,7 @@ class AsyncRequester(BaseRequester):
                 # modes report the same thing.
                 response.elapsed = time.perf_counter() - start_time
 
-                log_msg = f'"{self.config.method} {response.url}" {response.status} - {response.length}B'
-
-                if response.redirect:
-                    log_msg += f" - LOCATION: {response.redirect}"
-
-                self.logger.info(log_msg)
+                self.logger.response(self.config.method, response, backend="async")
 
                 return response
 

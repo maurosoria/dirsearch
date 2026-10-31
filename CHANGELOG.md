@@ -1,6 +1,9 @@
 # Changelog
 
 ## [Unreleased]
+- Fixed empty directory exclusions, native regex/header filtering and stop-status precedence so scans preserve findings and honor target stops.
+- Preserved sequential calibration sessions and scoped native content acceleration to the selected request engine and verified Differ versions.
+- Improved native scan throughput by filtering exact, repeatedly verified static wildcard responses before Python processing.
 - Added opt-in backup discovery for matched files.
 
 - Split CLI help into common (`-h` / `--help`) and complete (`-hh` / `--help-all`) views.

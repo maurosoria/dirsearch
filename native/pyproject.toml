@@ -4,12 +4,13 @@ build-backend = "maturin"
 
 [project]
 name = "dirsearch-native"
-version = "0.2.20"
+version = "0.2.27"
 description = "Rust native backend for dirsearch"
 requires-python = ">=3.14"
 license = "GPL-2.0-only"
 classifiers = [
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Programming Language :: Rust",
 ]
 

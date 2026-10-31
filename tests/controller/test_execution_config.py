@@ -210,7 +210,7 @@ class TestControllerExecutionConfig(TestCase):
                     self.assertEqual(transport.delay, controller.config.execution.delay)
                     self.assertEqual(factory.call_count, 1)
                     self.assertEqual(factory.call_args.kwargs, (
-                        {"filter_config": controller.config.filters}
+                        {"filter_config": controller.config.filters, "logger": controller.resources.logger}
                         if engine is ScanEngine.NATIVE else {"logger": controller.resources.logger}
                     ))
                     if async_mode:

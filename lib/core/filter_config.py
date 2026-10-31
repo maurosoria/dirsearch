@@ -118,7 +118,7 @@ class FilterConfig:
         Python still applies the remaining policy and target-local calibration.
         Unfiltered calibration/replay requests deliberately bypass this adapter.
         """
-        return {
+        options = {
             "include_status_codes": sorted(self.include_status_codes),
             "exclude_status_codes": sorted(self.exclude_status_codes),
             "minimum_response_size": self.minimum_response_size,
@@ -133,12 +133,25 @@ class FilterConfig:
             "filter_words": list(self.filter_words),
             "match_lines": list(self.match_lines),
             "filter_lines": list(self.filter_lines),
-            "match_regex": self.match_regex,
-            "filter_regex": self.filter_regex,
+            "match_regex": self.match_regex or None,
+            "filter_regex": self.filter_regex or None,
             "match_headers": list(self.match_headers),
             "filter_headers": list(self.filter_headers),
-            "match_header_regex": self.match_header_regex,
-            "filter_header_regex": self.filter_header_regex,
+            "match_header_regex": self.match_header_regex or None,
+            "filter_header_regex": self.filter_header_regex or None,
             "match_time": list(self.match_time),
             "filter_time": list(self.filter_time),
         }
+        # Rust regexes do not preserve Python's anchors, whitespace classes or
+        # supported flags, even for ASCII. Defer the complete boolean group so
+        # dropping one term cannot change an OR matcher or an AND filter.
+        for group, python_regex in (
+            ("match", self.match_regex or self.match_header_regex),
+            ("filter", self.filter_regex or self.filter_header_regex),
+        ):
+            if python_regex:
+                for suffix in ("status_codes", "sizes", "words", "lines", "headers", "time"):
+                    options[f"{group}_{suffix}"] = []
+                options[f"{group}_regex"] = None
+                options[f"{group}_header_regex"] = None
+        return options

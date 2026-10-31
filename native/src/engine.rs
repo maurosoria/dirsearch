@@ -162,6 +162,7 @@ impl NativeHttpEngine {
                 max_retries,
                 max_body_size,
                 filter_config: Arc::new(filter_config),
+                include_filtered: false,
             },
         )
     }
@@ -176,6 +177,7 @@ impl NativeHttpEngine {
         max_body_size=83886080,
         filter_config=None,
         chunk_size=DEFAULT_RESULT_CHUNK_SIZE,
+        include_filtered=false,
     ))]
     fn scan_chunks(
         &self,
@@ -188,6 +190,7 @@ impl NativeHttpEngine {
         max_body_size: usize,
         filter_config: Option<Py<NativeFilterConfig>>,
         chunk_size: usize,
+        include_filtered: bool,
     ) -> PyResult<usize> {
         validate_chunk_callback(py, &callback)?;
         let filter_config = filter_config
@@ -202,6 +205,7 @@ impl NativeHttpEngine {
                 max_retries,
                 max_body_size,
                 filter_config: Arc::new(filter_config),
+                include_filtered,
             },
             callback,
             chunk_size,
@@ -218,6 +222,7 @@ impl NativeHttpEngine {
         max_body_size=83886080,
         filter_config=None,
         chunk_size=DEFAULT_RESULT_CHUNK_SIZE,
+        include_filtered=false,
     ))]
     fn scan_owned_chunks(
         &self,
@@ -230,6 +235,7 @@ impl NativeHttpEngine {
         max_body_size: usize,
         filter_config: Option<Py<NativeFilterConfig>>,
         chunk_size: usize,
+        include_filtered: bool,
     ) -> PyResult<usize> {
         validate_chunk_callback(py, &callback)?;
         let owned_chunk = (*chunk).clone();
@@ -245,6 +251,7 @@ impl NativeHttpEngine {
                 max_retries,
                 max_body_size,
                 filter_config: Arc::new(filter_config),
+                include_filtered,
             },
             callback,
             chunk_size,
