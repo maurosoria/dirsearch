@@ -46,6 +46,9 @@ class DummyDictionary:
     def release_native_claims(self, _batch, _count):
         return None
 
+    def requeue_claims(self):
+        return None
+
 
 def stack_response(path, body, *, filtered=False, filter_reason=None):
     return NativeResponse(
@@ -76,8 +79,8 @@ class DummyAsyncRequester:
 
 
 class DummyNativeRequester:
-    _url = "https://example.com/"
-    _query = ""
+    base_url = "https://example.com/"
+    query = ""
 
     def __init__(self, backend):
         self.backend = backend

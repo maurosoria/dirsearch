@@ -54,6 +54,9 @@ from lib.connection.requester import (
     _format_ssl_error,
 )
 from lib.core.filter_config import FilterConfig
+from lib.core.discovery_config import DiscoveryConfig
+from lib.core.execution_config import ExecutionConfig
+from lib.core.fuzzer import BaseFuzzer
 from lib.core.request_config import RequestConfig
 from lib.core.target_config import TargetConfig
 from lib.core.run_config import RunConfig
@@ -3128,7 +3131,7 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
             self.assertEqual(server.target_counts[b"/retry-body"], 1)
             self.assertEqual(server.target_counts[b"/retry-body%1"], 1)
 
-    def test_native_batch_filters_advanced_python_regexes_in_rust(self):
+    def test_native_batch_preserves_advanced_regexes_for_python_filtering(self):
         with RequestTargetServer() as server:
             cases = (
                 ("lookahead", "admin", r"(?=ok)ok"),
@@ -3148,12 +3151,22 @@ class TestNativeRequesterPathPreservation(BaseRequesterTestCase):
                         )
                     except RequestException as error:
                         self.skipTest(str(error))
+                    self.addCleanup(backend.close)
                     chunks = []
                     backend.scan_chunks(server.url, [path], chunks.append)
                     chunk = chunks[0]
 
                     self.assertEqual(chunk.end_index, 1)
-                    self.assertEqual(chunk.events, ())
+                    self.assertEqual(len(chunk.events), 1)
+                    response = chunk.events[0].response
+                    self.assertFalse(response.filtered)
+                    self.assertIsNotNone(re.search(pattern, response.text))
+                    fuzzer = BaseFuzzer(
+                        None, None, filter_config=backend.filter_config,
+                        discovery_config=DiscoveryConfig(), execution_config=ExecutionConfig(),
+                        match_callbacks=(), not_found_callbacks=(), error_callbacks=(),
+                    )
+                    self.assertTrue(fuzzer.is_excluded(response))
 
     def test_native_requester_uses_authenticated_http_proxy(self):
         with RequestTargetServer() as proxy:

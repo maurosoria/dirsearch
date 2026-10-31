@@ -413,17 +413,17 @@ class TestNativeHTTPBackend(TestCase):
         self.assertEqual(filter_options["maximum_response_size"], 200)
         self.assertEqual(filter_options["matcher_mode"], "and")
         self.assertEqual(filter_options["filter_mode"], "or")
-        self.assertEqual(filter_options["match_status_codes"], [200])
-        self.assertEqual(filter_options["filter_status_codes"], [404])
-        self.assertEqual(filter_options["match_sizes"], [(10, 100)])
-        self.assertEqual(filter_options["filter_regex"], "not found")
-        self.assertEqual(filter_options["match_headers"], ["etag: w/"])
-        self.assertEqual(filter_options["filter_headers"], ["x-cache: fallback"])
-        self.assertEqual(filter_options["match_header_regex"], "etag: .+")
-        self.assertEqual(
-            filter_options["filter_header_regex"], "x-cache: fallback-[0-9]+"
-        )
-        self.assertEqual(filter_options["match_time"], [(">", 100.0)])
+        # Both groups contain Python regexes. Defer each complete group so
+        # native filtering cannot decide with only part of an AND/OR policy.
+        self.assertEqual(filter_options["match_status_codes"], [])
+        self.assertEqual(filter_options["filter_status_codes"], [])
+        self.assertEqual(filter_options["match_sizes"], [])
+        self.assertIsNone(filter_options["filter_regex"])
+        self.assertEqual(filter_options["match_headers"], [])
+        self.assertEqual(filter_options["filter_headers"], [])
+        self.assertIsNone(filter_options["match_header_regex"])
+        self.assertIsNone(filter_options["filter_header_regex"])
+        self.assertEqual(filter_options["match_time"], [])
 
     def test_requester_reports_the_shared_native_request_rate(self):
         self.options["proxies"] = []

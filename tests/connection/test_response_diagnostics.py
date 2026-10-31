@@ -47,6 +47,15 @@ class HTTP10DiagnosticHandler(DiagnosticHandler):
     protocol_version = "HTTP/1.0"
 
 
+class RedirectDiagnosticHandler(DiagnosticHandler):
+    def do_GET(self):
+        self.send_response(302)
+        self.send_header("Location", "/login?token=redirect-secret#fragment-secret")
+        self.send_header("Set-Cookie", "session=cookie-secret")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+
 class TestResponseDiagnostics(IsolatedAsyncioTestCase):
     def make_log(self):
         directory = self.enterContext(TemporaryDirectory())
@@ -244,3 +253,28 @@ class TestResponseDiagnostics(IsolatedAsyncioTestCase):
         self.assertIn("native_filter=exclude_status", contents)
         self.assertIn("retained_sha256=unavailable", contents)
         self.assertNotIn("query-secret", contents)
+
+    def test_native_status_exclusions_keep_redacted_redirect_metadata(self):
+        if not is_native_backend_available():
+            self.skipTest("native extension is not installed")
+        logger, destination = self.make_log()
+        server = CountingHTTPServer(RedirectDiagnosticHandler)
+        backend = NativeHTTPBackend(
+            RequestConfig(timeout=2, max_retries=0),
+            filter_config=FilterConfig(exclude_status_codes={302}), logger=logger,
+        )
+        chunks = []
+        try:
+            with patch("lib.connection.native.NativeResponse", side_effect=AssertionError("filtered body decoded")):
+                self.assertEqual(backend.scan_chunks(server.url, ["redirect"], chunks.append), 1)
+        finally:
+            backend.close()
+            server.close()
+            logger.close()
+        self.assertFalse(server.thread.is_alive())
+        self.assertEqual(sum(len(chunk.events) for chunk in chunks), 0)
+        contents = destination.read_text()
+        self.assertIn("LOCATION: /login?token=<redacted>", contents)
+        self.assertIn("native_filter=exclude_status", contents)
+        for secret in ("redirect-secret", "fragment-secret", "cookie-secret"):
+            self.assertNotIn(secret, contents)

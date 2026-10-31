@@ -225,7 +225,7 @@ pub(crate) fn sequence_matcher_ratio(py: Python<'_>, first: &str, second: &str) 
     })
 }
 
-fn static_patterns(first: &str, second: &str) -> Option<Vec<String>> {
+fn static_patterns(first: &str, second: &str) -> Vec<String> {
     let split = |c: char| c.is_ascii_whitespace() || ('\u{1c}'..='\u{1f}').contains(&c);
     let a: Vec<_> = first.split(split).filter(|s| !s.is_empty()).collect();
     let b: Vec<_> = second.split(split).filter(|s| !s.is_empty()).collect();
@@ -268,7 +268,7 @@ fn static_patterns(first: &str, second: &str) -> Option<Vec<String>> {
         previous_a = i + size;
         previous_b = j + size;
     }
-    Some(patterns)
+    patterns
 }
 
 // Match the bounded, non-recursive Differ policy introduced in Python 3.14.
@@ -319,7 +319,7 @@ pub(crate) fn static_ascii_patterns(
     py: Python<'_>,
     first: &str,
     second: &str,
-) -> PyResult<Option<Vec<String>>> {
+) -> PyResult<Vec<String>> {
     if !first.is_ascii() || !second.is_ascii() {
         return Err(PyValueError::new_err("ASCII content required"));
     }

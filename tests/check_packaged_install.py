@@ -73,10 +73,14 @@ def main() -> None:
     )
     from dirsearch.lib.view.terminal import create_terminal
     from dirsearch.lib.utils.cli import cli_interrupts
+    from dirsearch.lib.native import NATIVE_EXTENSION_VERSION, supports_native_differ
 
     expected_version = read_source_version()
     installed_version = importlib.metadata.version("dirsearch")
     assert installed_version == expected_version, (installed_version, expected_version)
+    assert NATIVE_EXTENSION_VERSION
+    assert supports_native_differ((3, 14, 0))
+    assert not supports_native_differ((3, 16, 0))
     assert DirsearchFuzzer
     assert FuzzerConfig
     assert FuzzerResult

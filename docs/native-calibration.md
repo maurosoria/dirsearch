@@ -1,18 +1,20 @@
 # Native wildcard calibration
 
-Native extension 0.2.26 accelerates stable-pattern extraction for ASCII samples
-on supported Python runtimes, starting with Python 3.14. It preserves the token
+Native extension 0.2.27 accelerates stable-pattern extraction for ASCII samples
+when the native request engine is selected. It preserves the token
 SequenceMatcher blocks, autojunk policy, matching ties and the bounded
 replacement synchronization window introduced in Python 3.14's Differ. Only
 equal words are retained, so intraline display annotations are not constructed.
-Unicode retains the standard-library Differ. The minimum version check leaves
-older, unsupported runtimes on their own Differ if an extension is installed
-outside its declared Python requirements.
+Unicode retains the standard-library Differ. Native pattern extraction is
+enabled on the verified Python 3.14 and 3.15 minors. Other Python minors keep
+their own Differ while retaining the native HTTP backend on Python 3.14+.
+Threaded and async responses always use Python content algorithms; installing
+the extension does not change their normalization or comparison behavior.
 
 CI exercises Python 3.14 and 3.15, including the native extension, and compares
 patterns against each runtime's own Differ. The native-pattern tests require
-the optimized path whenever a matching extension is available; a future Python
-minor silently disabling it is a failure rather than a skipped test.
+the optimized path on those verified minors whenever a matching extension is
+available. Version-boundary tests keep unverified minors on the Python path.
 
 The adapter consumes an immutable public comparison profile. Native calibration
 counts remain authoritative when a directory requires Python fallback, allowing
@@ -21,22 +23,20 @@ losing earlier observations. Logging retains worker classification: compact
 metadata records carry exclusions, and calibration decisions are logged only
 when their input ranges commit. Filtered bodies are not decoded for diagnostics.
 
-The default profile is prepared first. Eligible native GET scans then prefetch
-the initial probe for the remaining profile shapes in batches of at most four.
-Profiles consume those responses in their original order. Duplicate reuse,
-second probes and adaptive samples retain their existing behavior; prefetched
-responses do not add extra requests to the ordinary probe budget.
+Calibration is sequential in every engine. Each profile completes its probes
+and adaptive samples before the next profile starts. A prefix or suffix can
+establish a session even when the default profile did not receive cookies;
+later probes must observe that updated session. Duplicate-profile reuse and
+the ordinary probe budget are preserved.
 
-Calibration remains sequential for configured delays or rate limits,
-authentication, explicit Cookie/Authorization headers, existing session cookies
-and redirect-following requests. Default-profile responses establish cookie
-state before eligibility is checked. The HTTP in-flight concurrency still caps
-each batch, independently of the runtime's CPU worker count.
+Statuses configured with `--skip-on-status` stop the target before a calibration
+probe becomes a profile. Candidate responses with those statuses bypass native
+suppression and stop before explicit filters or wildcard comparisons run.
 
 Tests compare extracted patterns and parser decisions against Python's Differ,
 including replacement windows and repetitive reflected bodies. Controlled HTTP
-tests verify bounded overlap, unchanged probe count and sequential behavior for
-cookies and rate limits. Calibration errors and cancellation propagate through
+tests verify sequential requests, unchanged probe count and cookies first issued
+by a later prefix. Calibration errors and cancellation propagate through
 the unfiltered request path.
 
 ## Version compatibility research

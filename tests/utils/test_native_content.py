@@ -1,20 +1,50 @@
 import itertools
 import random
 import string
+import subprocess
+import sys
+from pathlib import Path
 from unittest import TestCase, skipUnless
 from unittest.mock import patch
 
 from lib.utils import diff
 
 
-NATIVE_AVAILABLE = diff._native_similarity is not None
+NATIVE_AVAILABLE = diff._get_native_content_helpers() is not None
 
 
 class TestContentFallback(TestCase):
+    def test_python_module_import_does_not_load_the_optional_extension(self):
+        source = """
+import sys
+class BlockNativeImport:
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname == 'dirsearch_native':
+            raise AssertionError('Python comparison imported the native extension')
+sys.meta_path.insert(0, BlockNativeImport())
+from lib.utils.diff import DynamicContentParser, normalize_dynamic_content
+assert normalize_dynamic_content("token='value'") == '__DYNAMIC_ATTR__'
+parser = DynamicContentParser('missing alpha', 'missing bravo')
+assert parser.compare_to('missing charlie')
+"""
+        completed = subprocess.run(
+            [sys.executable, "-c", source], cwd=Path(__file__).resolve().parents[2],
+            capture_output=True, text=True, timeout=10, check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+
     def test_optional_extension_is_not_required(self):
-        with patch.multiple(diff, _native_normalize_ascii=None, _native_similarity=None):
-            self.assertEqual(diff.normalize_dynamic_content("token='value' 123456"), "__DYNAMIC_ATTR__ __DYNAMIC__")
+        with patch.object(diff, "_get_native_content_helpers", return_value=None):
+            self.assertEqual(diff.normalize_dynamic_content("token='value' 123456", use_native=True), "__DYNAMIC_ATTR__ __DYNAMIC__")
+            self.assertEqual(diff.normalized_content_similarity("tide", "diet", use_native=True), 0.25)
+
+    def test_python_comparisons_do_not_load_the_optional_extension(self):
+        with patch.object(diff, "_get_native_content_helpers", side_effect=AssertionError("native was not selected")):
+            self.assertEqual(diff.normalize_dynamic_content("token='value'"), "__DYNAMIC_ATTR__")
             self.assertEqual(diff.normalized_content_similarity("tide", "diet"), 0.25)
+            parser = diff.DynamicContentParser("missing alpha stable template", "missing bravo stable template")
+            parser.add_sample("missing charlie stable template")
+            self.assertTrue(parser.compare_to("missing delta stable template"))
 
     def test_unicode_normalization_keeps_python_semantics(self):
         samples = (
@@ -23,19 +53,27 @@ class TestContentFallback(TestCase):
             "\ud800 token='value' \udfff",
             "١٢٣٤٥٦ / 123456 / ＡＢＣＤ",
         )
-        with patch.object(diff, "_native_normalize_ascii", side_effect=AssertionError("Unicode must use Python")):
+        with patch.object(diff, "_get_native_content_helpers", side_effect=AssertionError("Unicode must use Python")):
             for sample in samples:
-                self.assertEqual(diff.normalize_dynamic_content(sample), diff._normalize_dynamic_content_python(sample))
+                self.assertEqual(diff.normalize_dynamic_content(sample, use_native=True), diff._normalize_dynamic_content_python(sample))
 
 
 @skipUnless(NATIVE_AVAILABLE, "matching native extension not installed")
 class TestNativeContent(TestCase):
     def assert_ratio(self, first, second):
         self.assertEqual(
-            diff.normalized_content_similarity(first, second),
+            diff.normalized_content_similarity(first, second, use_native=True),
             diff._normalized_content_similarity_python(first, second),
             (repr(first[:60]), repr(second[:60]), len(first), len(second)),
         )
+
+    def test_opted_in_ascii_uses_native_normalization_and_similarity(self):
+        with (
+            patch.object(diff, "_normalize_dynamic_content_python", side_effect=AssertionError("unexpected Python normalization")),
+            patch.object(diff, "_normalized_content_similarity_python", side_effect=AssertionError("unexpected Python ratio")),
+        ):
+            self.assertEqual(diff.normalize_dynamic_content("token='value'", use_native=True), "__DYNAMIC_ATTR__")
+            self.assertEqual(diff.normalized_content_similarity("tide", "diet", use_native=True), 0.25)
 
     def test_exhaustive_short_sequences_preserve_matching_block_ties(self):
         texts = ["".join(chars) for n in range(5) for chars in itertools.product("abc", repeat=n)]
@@ -94,7 +132,7 @@ class TestNativeContent(TestCase):
         fragments = samples[2:] + [string.ascii_letters, string.digits, "\x00\x1c", "_", "/", "+", "="]
         samples.extend(" ".join(rng.choices(fragments, k=rng.randrange(1, 30))) for _ in range(500))
         for sample in samples:
-            self.assertEqual(diff.normalize_dynamic_content(sample), diff._normalize_dynamic_content_python(sample), repr(sample))
+            self.assertEqual(diff.normalize_dynamic_content(sample, use_native=True), diff._normalize_dynamic_content_python(sample), repr(sample))
 
     def test_parser_decisions_match_the_python_reference(self):
         profiles = (
@@ -106,9 +144,8 @@ class TestNativeContent(TestCase):
             ("", "", "valid content"),
         )
         for first, second, candidate in profiles:
-            native = diff.DynamicContentParser(first, second)
+            native = diff.DynamicContentParser(first, second, use_native=True)
             observed = (native.compare_to(candidate), native.similarity_to(candidate), native.is_ambiguous)
-            with patch.multiple(diff, _native_normalize_ascii=None, _native_similarity=None):
-                reference = diff.DynamicContentParser(first, second)
-                expected = (reference.compare_to(candidate), reference.similarity_to(candidate), reference.is_ambiguous)
+            reference = diff.DynamicContentParser(first, second)
+            expected = (reference.compare_to(candidate), reference.similarity_to(candidate), reference.is_ambiguous)
             self.assertEqual(observed, expected)

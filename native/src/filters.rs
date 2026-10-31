@@ -1,6 +1,7 @@
 //! Native response matcher and filter policy.
 
 use fancy_regex::{Regex, RegexBuilder};
+use indexmap::IndexMap;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use std::ops::Deref;
@@ -24,6 +25,7 @@ pub(crate) struct NativeFilterConfig {
 pub(crate) struct NativeFilterConfigData {
     pub(crate) wildcard_classifier: Option<crate::classification::NativeWildcardClassifier>,
     static_response: Option<(u16, String, Vec<u8>)>,
+    preserved_statuses: Vec<u16>,
     pub(crate) include_status_codes: Vec<u16>,
     pub(crate) exclude_status_codes: Vec<u16>,
     pub(crate) minimum_response_size: usize,
@@ -97,6 +99,7 @@ impl NativeFilterConfig {
             return false;
         };
         if result.error.is_some()
+            || self.preserved_statuses.contains(&result.status)
             || !result.body_complete
             || !result.history.is_empty()
             || result.status != *status
@@ -124,6 +127,9 @@ impl NativeFilterConfig {
     }
 
     pub(crate) fn status_filter_reason(&self, status: u16) -> Option<&'static str> {
+        if self.preserved_statuses.contains(&status) {
+            return None;
+        }
         if self.exclude_status_codes.contains(&status) {
             return Some("exclude_status");
         }
@@ -164,6 +170,7 @@ impl NativeFilterConfig {
             inner: Arc::new(NativeFilterConfigData {
                 wildcard_classifier: None,
                 static_response: None,
+                preserved_statuses: Vec::new(),
                 include_status_codes,
                 exclude_status_codes,
                 minimum_response_size,
@@ -204,6 +211,11 @@ impl NativeFilterConfig {
         body: &[u8],
         elapsed_ms: f64,
     ) -> Result<Option<&'static str>, String> {
+        // Execution control owns these responses, including when ordinary
+        // exclusions or advanced filters would otherwise discard them.
+        if self.preserved_statuses.contains(&status) {
+            return Ok(None);
+        }
         if let Some(reason) = self.status_filter_reason(status) {
             return Ok(Some(reason));
         }
@@ -382,6 +394,13 @@ impl Default for NativeFilterConfig {
 
 #[pymethods]
 impl NativeFilterConfig {
+    /// Preserve control responses for Python before applying any suppression.
+    fn with_preserved_statuses(&self, statuses: Vec<u16>) -> Self {
+        let mut result = self.clone();
+        Arc::make_mut(&mut result.inner).preserved_statuses = statuses;
+        result
+    }
+
     /// Return a configuration copy with the calibrated missing-page classifier.
     ///
     /// The classifier recognizes supported pages whose bodies can vary, such
@@ -567,8 +586,20 @@ fn matches_time_filters(elapsed_ms: f64, filters: &[TimeFilter]) -> bool {
 }
 
 fn headers_to_text(headers: &[(String, String)]) -> String {
-    headers
-        .iter()
+    // NativeResponse lowercases names and ResponseHeaders joins repeated values
+    // in wire order. Match that view before evaluating header matchers/filters.
+    let mut combined = IndexMap::<String, String>::new();
+    for (name, value) in headers {
+        combined
+            .entry(name.to_ascii_lowercase())
+            .and_modify(|existing| {
+                existing.push_str(", ");
+                existing.push_str(value);
+            })
+            .or_insert_with(|| value.clone());
+    }
+    combined
+        .into_iter()
         .map(|(name, value)| format!("{name}: {value}"))
         .collect::<Vec<_>>()
         .join("\n")
@@ -695,6 +726,53 @@ mod static_response_tests {
 #[cfg(test)]
 mod text_contract_tests {
     use super::*;
+
+    #[test]
+    fn repeated_headers_share_the_python_combined_view() {
+        let headers = vec![
+            ("X-Role".into(), "first".into()),
+            ("X-Other".into(), "value".into()),
+            ("x-role".into(), "second".into()),
+        ];
+        let text = headers_to_text(&headers);
+        assert_eq!(text, "x-role: first, second\nx-other: value");
+        assert!(matches_header_text(
+            Some(&text),
+            &["X-Role: first, second".into()]
+        ));
+    }
+
+    #[test]
+    fn preserved_statuses_bypass_every_filter_and_static_profile() {
+        let original = NativeFilterConfig {
+            inner: Arc::new(NativeFilterConfigData {
+                exclude_status_codes: vec![404],
+                minimum_response_size: 1000,
+                match_status_codes: vec![200],
+                ..NativeFilterConfig::default().inner.as_ref().clone()
+            }),
+        };
+        let config = original
+            .with_static_response_profile(404, String::new(), b"Missing".to_vec())
+            .unwrap()
+            .with_preserved_statuses(vec![404]);
+        assert_eq!(original.status_filter_reason(404), Some("exclude_status"));
+        assert_eq!(config.status_filter_reason(404), None);
+        assert_eq!(
+            config.filter_reason(404, 7, &[], b"Missing", 0.0).unwrap(),
+            None
+        );
+        let response = crate::result::native_http_result(
+            "missing".into(),
+            404,
+            vec![],
+            b"Missing".to_vec(),
+            0.0,
+            &config,
+        );
+        assert!(!response.filtered);
+        assert!(!config.matches_static_response(&response));
+    }
 
     #[test]
     fn python_control_separators_count_as_whitespace() {

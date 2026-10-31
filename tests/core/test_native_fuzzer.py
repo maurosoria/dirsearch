@@ -53,8 +53,8 @@ class DummyDictionary:
 
 
 class DummyRequester:
-    _url = "https://example.com/"
-    _query = ""
+    base_url = "https://example.com/"
+    query = ""
 
     def __init__(self, backend):
         self.backend = backend

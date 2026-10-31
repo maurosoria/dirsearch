@@ -48,7 +48,7 @@ from lib.core.exceptions import (
     UnpicklingError,
     WordlistLimitError,
 )
-from ..core.execution_config import ScanEngine
+from ..core.execution_config import ScanEngine, check_skip_status
 from ..core.run_config import RunConfig
 from lib.core.logger import RunLogger
 from lib.core.options import (
@@ -982,10 +982,7 @@ class Controller:
         discovery = self.config.discovery
         replay = None
 
-        if response.status in self.config.execution.skip_on_status:
-            raise SkipTargetInterrupt(
-                f"Skipped the target due to {response.status} status code"
-            )
+        check_skip_status(response.status, self.config.execution.skip_on_status)
 
         self.resources.interface.status_report(response, self.config.results.full_url)
 

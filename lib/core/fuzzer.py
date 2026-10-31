@@ -31,7 +31,7 @@ from lib.connection.response import BaseResponse
 from lib.core.dictionary import Dictionary
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.exceptions import RequestException
-from lib.core.execution_config import ExecutionConfig
+from lib.core.execution_config import ExecutionConfig, check_skip_status
 from lib.core.filter_config import FilterConfig
 from lib.core.filter_state import FilterState
 from lib.core.filters import matches_numeric_ranges, matches_time_filters
@@ -333,7 +333,7 @@ class BaseFuzzer:
         )
 
     @staticmethod
-    def response_fingerprint(resp: BaseResponse) -> tuple:
+    def response_fingerprint_values(resp: BaseResponse) -> tuple[int, str, str, str]:
         path = clean_path(resp.full_path).strip("/")
         body = resp.normalized_content
         redirect = clean_path(resp.redirect)
@@ -342,9 +342,14 @@ class BaseFuzzer:
             body = body.replace(path, "__PATH__")
             redirect = redirect.replace(path, "__PATH__")
 
+        return resp.status, resp.type, redirect, body
+
+    @staticmethod
+    def response_fingerprint(resp: BaseResponse) -> tuple:
+        status, media_type, redirect, body = BaseFuzzer.response_fingerprint_values(resp)
         return (
-            resp.status,
-            resp.type,
+            status,
+            media_type,
             redirect,
             len(body),
             # Shared layouts can have identical prefixes while their page
@@ -356,6 +361,7 @@ class BaseFuzzer:
     def response_callbacks(
         self, path: str, response: BaseResponse
     ) -> tuple[Callable[[BaseResponse], Any], ...]:
+        check_skip_status(response.status, self.execution_config.skip_on_status)
         scanners = self.get_scanners_for(path)
 
         if self.is_excluded(response):
@@ -413,15 +419,14 @@ class Fuzzer(BaseFuzzer):
         self._quit_event = threading.Event()
         self._pause_semaphore = threading.Semaphore(0)
 
-    def _setup_scanner_specs(self, specs, first_probes=None) -> None:
+    def _setup_scanner_specs(self, specs) -> None:
         scanners = self.filter_state.scanners
         for selection, selector, path, context in specs:
-            first_probe = first_probes.get((selection, selector)) if first_probes is not None else None
             scanners[selection][selector] = Scanner(
                 self._requester, filter_config=self.filter_config,
                 delay=self.execution_config.delay, word_generator=self._word_generator,
                 logger=self.logger, tested=None if (selection, selector) == ("default", "random") else scanners,
-                path=path, context=context, first_probe=first_probe,
+                path=path, context=context, skip_on_status=self.execution_config.skip_on_status,
             )
 
     def setup_scanners(self) -> None:
@@ -576,39 +581,9 @@ class NativeFuzzer(Fuzzer):
         self._prepared = False
         self._native_calibration_state = None
 
-    def setup_scanners(self) -> None:
-        if not isinstance(self._requester, NativeRequester):
-            return super().setup_scanners()
-        config = self._requester.config
-        if (config.method != "GET"
-                or config.max_rate or config.delay or self.execution_config.delay
-                or config.auth or self._requester._origin_auth != ("", "")
-                or config.follow_redirects
-                or any(name.lower() in ("cookie", "authorization") for name, _ in config.headers)):
-            return super().setup_scanners()
-        assert self._native_backend is not None
-        specs = list(self._scanner_specs())
-        self._setup_scanner_specs(specs[:1])
-        if self._native_backend.session.has_cookies():
-            return self._setup_scanner_specs(specs[1:])
-        paths = [path.replace(WILDCARD_TEST_POINT_MARKER, self._word_generator.generate())
-                 for _, _, path, _ in specs[1:]]
-        responses = self._native_backend.prefetch_calibration(
-            self._requester._url, paths, self._requester._query,
-        )
-        first_probes = {(selection, selector): (path, response)
-                        for (selection, selector, _, _), path, response in zip(specs[1:], paths, responses)}
-        self._setup_scanner_specs(specs[1:], first_probes)
-
     @staticmethod
     def _native_fingerprint_values(resp: BaseResponse) -> tuple:
-        path = clean_path(resp.full_path).strip("/")
-        body = resp.normalized_content
-        redirect = clean_path(resp.redirect)
-        if path:
-            body = body.replace(path, "__PATH__")
-            redirect = redirect.replace(path, "__PATH__")
-        return resp.status, resp.type, redirect, body
+        return BaseFuzzer.response_fingerprint_values(resp)
 
     def is_auto_calibrated(self, resp: BaseResponse) -> bool:
         if self._native_calibration_state is None:
@@ -651,7 +626,7 @@ class NativeFuzzer(Fuzzer):
             if self._native_calibration_state is not None:
                 classifier = self._native_backend.make_wildcard_classifier(
                     self.filter_state.scanners, self._native_calibration_state,
-                    parse_path(self._requester._url), self.execution_config.skip_on_status,
+                    parse_path(self._requester.base_url), self.execution_config.skip_on_status,
                 )
         self._native_backend.set_wildcard_classifier(classifier)
 
@@ -699,6 +674,8 @@ class NativeFuzzer(Fuzzer):
         try:
             if self._native_backend is None:
                 self._native_backend = self._requester.get_backend()
+            if isinstance(self._requester, NativeRequester):
+                self._native_backend.set_preserved_statuses(self.execution_config.skip_on_status)
             self._update_static_response_profile(clear=True)
             self._update_wildcard_classifier(clear=True)
             self.setup_scanners()
@@ -722,10 +699,10 @@ class NativeFuzzer(Fuzzer):
 
                 try:
                     self._native_backend.scan_chunks(
-                        self._requester._url,
+                        self._requester.base_url,
                         paths,
                         lambda chunk: self._process_native_chunk(paths, chunk),
-                        self._requester._query,
+                        self._requester.query,
                     )
                     self._update_static_response_profile()
                 except BaseException:
@@ -793,7 +770,7 @@ class NativeFuzzer(Fuzzer):
                 decisions = self._native_calibration_state.commit_range_with_decisions(start, end)
                 for index, calibrated, repeated in decisions:
                     path = paths.path_at(index) if isinstance(paths, NativeWordlistChunk) else paths[index]
-                    url = self._requester._url + path
+                    url = self._requester.base_url + path
                     if calibrated:
                         self._log_auto_calibration(url, repeated=repeated)
                     else:
@@ -833,6 +810,7 @@ class NativeFuzzer(Fuzzer):
             return
         if response is None:
             raise RuntimeError("Native backend returned neither response nor error")
+        check_skip_status(response.status, self.execution_config.skip_on_status)
         if response.filtered:
             for callback in self.not_found_callbacks:
                 callback(response)
@@ -931,7 +909,7 @@ class AsyncFuzzer(BaseFuzzer):
                 self._requester, filter_config=self.filter_config,
                 delay=self.execution_config.delay, word_generator=self._word_generator,
                 logger=self.logger, tested=None if (selection, selector) == ("default", "random") else scanners,
-                path=path, context=context,
+                path=path, context=context, skip_on_status=self.execution_config.skip_on_status,
             )
 
     async def start(self) -> None:

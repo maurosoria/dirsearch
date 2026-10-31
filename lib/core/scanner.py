@@ -26,6 +26,7 @@ from typing import Any
 from lib.connection.requester import AsyncRequester, BaseRequester, Requester
 from lib.connection.response import BaseResponse
 from lib.core.filter_config import FilterConfig
+from lib.core.execution_config import check_skip_status
 from lib.core.logger import RunLogger
 from lib.core.settings import (
     REFLECTED_PATH_MARKER,
@@ -34,7 +35,6 @@ from lib.core.settings import (
 from lib.parse.url import clean_path
 from lib.utils.common import replace_path
 from lib.utils.diff import (
-    DynamicContentParser,
     generate_matching_regex,
 )
 from lib.utils.random import StealthWordGenerator
@@ -58,6 +58,7 @@ class BaseScanner:
         context: str = "all cases",
         logger: RunLogger | None = None,
         word_generator: StealthWordGenerator | None = None,
+        skip_on_status: frozenset[int] = frozenset(),
     ) -> None:
         self.logger = logger if logger is not None else RunLogger()
         # Fuzzer profiles borrow one target-owned generator. A standalone
@@ -66,6 +67,7 @@ class BaseScanner:
         self.path = path
         self.tested = tested if tested is not None else {}
         self.filter_config = filter_config
+        self.skip_on_status = skip_on_status
         self.delay = delay
         self.context = context
         self.requester = requester
@@ -228,6 +230,7 @@ class BaseScanner:
         return self.filter_config.auto_calibration or self.content_parser.is_ambiguous
 
     def add_calibration_sample(self, response: BaseResponse) -> None:
+        check_skip_status(response.status, self.skip_on_status)
         self.sample_count += 1
         self._observe_static_response(response)
         if response.content:
@@ -268,14 +271,13 @@ class Scanner(BaseScanner):
         context: str = "all cases",
         logger: RunLogger | None = None,
         word_generator: StealthWordGenerator | None = None,
-        first_probe: tuple[str, BaseResponse] | None = None,
+        skip_on_status: frozenset[int] = frozenset(),
     ) -> None:
         super().__init__(
             requester, filter_config=filter_config, delay=delay,
             path=path, tested=tested, context=context, logger=logger,
-            word_generator=word_generator,
+            word_generator=word_generator, skip_on_status=skip_on_status,
         )
-        self._first_probe = first_probe
         self.setup()
 
     def setup(self) -> None:
@@ -284,14 +286,14 @@ class Scanner(BaseScanner):
         used to compare with other path responses
         """
 
-        if self._first_probe is None:
-            first_path = self.path.replace(
-                WILDCARD_TEST_POINT_MARKER,
-                self.word_generator.generate(),
-            )
-            first_response = self.requester.request(first_path)
-        else:
-            first_path, first_response = self._first_probe
+        # A probe can establish a session even when earlier profiles did not.
+        # Preserve request order rather than speculating on cookie-free batches.
+        first_path = self.path.replace(
+            WILDCARD_TEST_POINT_MARKER,
+            self.word_generator.generate(),
+        )
+        first_response = self.requester.request(first_path)
+        check_skip_status(first_response.status, self.skip_on_status)
         self.response = first_response
         self.sample_count = 1
         self._observe_static_response(first_response)
@@ -309,6 +311,7 @@ class Scanner(BaseScanner):
             self.word_generator.generate(omit=first_path),
         )
         second_response = self.requester.request(second_path)
+        check_skip_status(second_response.status, self.skip_on_status)
         self.sample_count += 1
         self._observe_static_response(second_response)
         time.sleep(self.delay)
@@ -326,9 +329,7 @@ class Scanner(BaseScanner):
                 f'Pattern (regex) to detect wildcard redirects for "{self.context}": {self.wildcard_redirect_regex}'
             )
 
-        self.content_parser = DynamicContentParser(
-            first_response.content, second_response.content
-        )
+        self.content_parser = first_response.make_content_parser(second_response.content)
         self.auto_calibrate((first_path, second_path))
 
     def auto_calibrate(self, tested_paths: tuple[str, ...]) -> None:
@@ -359,11 +360,12 @@ class AsyncScanner(BaseScanner):
         context: str = "all cases",
         logger: RunLogger | None = None,
         word_generator: StealthWordGenerator | None = None,
+        skip_on_status: frozenset[int] = frozenset(),
     ) -> None:
         super().__init__(
             requester, filter_config=filter_config, delay=delay,
             path=path, tested=tested, context=context, logger=logger,
-            word_generator=word_generator,
+            word_generator=word_generator, skip_on_status=skip_on_status,
         )
 
     @classmethod
@@ -378,11 +380,12 @@ class AsyncScanner(BaseScanner):
         context: str = "all cases",
         logger: RunLogger | None = None,
         word_generator: StealthWordGenerator | None = None,
+        skip_on_status: frozenset[int] = frozenset(),
     ) -> AsyncScanner:
         self = cls(
             requester, filter_config=filter_config, delay=delay,
             path=path, tested=tested, context=context, logger=logger,
-            word_generator=word_generator,
+            word_generator=word_generator, skip_on_status=skip_on_status,
         )
         await self.setup()
         return self
@@ -398,6 +401,7 @@ class AsyncScanner(BaseScanner):
             self.word_generator.generate(),
         )
         first_response = await self.requester.request(first_path)
+        check_skip_status(first_response.status, self.skip_on_status)
         self.response = first_response
         self.sample_count = 1
         self._observe_static_response(first_response)
@@ -416,6 +420,7 @@ class AsyncScanner(BaseScanner):
             self.word_generator.generate(omit=first_path),
         )
         second_response = await self.requester.request(second_path)
+        check_skip_status(second_response.status, self.skip_on_status)
         self.sample_count += 1
         self._observe_static_response(second_response)
         await asyncio.sleep(self.delay)
@@ -431,9 +436,7 @@ class AsyncScanner(BaseScanner):
                 f'Pattern (regex) to detect wildcard redirects for "{self.context}": {self.wildcard_redirect_regex}'
             )
 
-        self.content_parser = DynamicContentParser(
-            first_response.content, second_response.content
-        )
+        self.content_parser = first_response.make_content_parser(second_response.content)
         await self.auto_calibrate((first_path, second_path))
 
     async def auto_calibrate(self, tested_paths: tuple[str, ...]) -> None:

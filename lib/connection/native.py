@@ -92,6 +92,7 @@ class NativeHTTPBackend:
         self._native_filter_config = None
         self._static_response_profile = None
         self._wildcard_classifier = None
+        self._preserved_statuses: tuple[int, ...] = ()
         self._empty_native_filter_config = None
         self._proxy_override = proxy_override
         self._ip_overrides = (
@@ -486,21 +487,12 @@ class NativeHTTPBackend:
     def new_calibration_state(self, auto_calibration: bool):
         return self._native.NativeCalibrationState(auto_calibration=auto_calibration)
 
-    def prefetch_calibration(self, base_url: str, paths: list[str], query: str = "") -> list[NativeResponse]:
-        responses = []
-        for start in range(0, len(paths), 4):
-            batch = paths[start:start + 4]
-            _, results = self._scan(base_url, batch, query, apply_filters=False)
-            if len(results) != len(batch):
-                raise RequestException("Native calibration was cancelled")
-            for result in results:
-                response, error = self._convert_result(base_url, result)
-                if error is not None:
-                    raise error
-                if response is None:
-                    raise RequestException("Native calibration returned no response")
-                responses.append(response)
-        return responses
+    def set_preserved_statuses(self, statuses: Iterable[int]) -> None:
+        """Keep execution-control responses visible to the Python owner."""
+        preserved = tuple(sorted(statuses))
+        if preserved != self._preserved_statuses:
+            self._preserved_statuses = preserved
+            self._native_filter_config = None
 
     def make_wildcard_classifier(self, scanners, state, base_path, skip_statuses):
         profiles = []
@@ -540,6 +532,10 @@ class NativeHTTPBackend:
             self._native_filter_config = self._native.NativeFilterConfig(
                 **self.filter_config.native_options()
             )
+            if self._preserved_statuses:
+                self._native_filter_config = self._native_filter_config.with_preserved_statuses(
+                    list(self._preserved_statuses)
+                )
             if self._static_response_profile is not None:
                 self._native_filter_config = self._native_filter_config.with_static_response(
                     *self._static_response_profile
@@ -589,6 +585,14 @@ class NativeRequester:
     @property
     def rate(self) -> int:
         return 0 if self.backend is None else self.backend.rate
+
+    @property
+    def base_url(self) -> str:
+        return self._url
+
+    @property
+    def query(self) -> str:
+        return self._query
 
     def set_url(self, url: str) -> None:
         self._url = url

@@ -163,7 +163,7 @@ class TestScanner(TestCase):
             BaseFuzzer.response_fingerprint(response)
             self.assertEqual(scanner.classify("admin", response), "wildcard")
 
-        normalize.assert_called_once_with(candidate_content)
+            normalize.assert_called_once_with(candidate_content, use_native=True)
 
     def test_probable_wildcard_skips_expensive_similarity_for_large_bodies(self):
         class DummyParser:

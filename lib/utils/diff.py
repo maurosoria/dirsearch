@@ -19,27 +19,36 @@
 import difflib
 import re
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
+from functools import cache
 
 from lib.utils.common import lstrip_once
-from lib.core.native_runtime import MIN_NATIVE_PYTHON, get_native_extension_version_error
+from lib.native import get_native_extension_version_error, supports_native_differ
 
-try:
-    import dirsearch_native
-except ImportError:
-    dirsearch_native = None
 
-_native_normalize_ascii = None
-_native_similarity = None
-_native_static_patterns = None
-if dirsearch_native is not None and get_native_extension_version_error(dirsearch_native) is None:
-    _native_normalize_ascii = dirsearch_native.normalize_ascii_content
-    _native_similarity = dirsearch_native.sequence_matcher_ratio
-    # Match the bounded Differ policy introduced in Python 3.14. Supported
-    # runtimes use this path; differential tests check each CI runtime against
-    # its own standard-library implementation instead of allowing one minor.
-    if sys.version_info[:2] >= MIN_NATIVE_PYTHON:
-        _native_static_patterns = dirsearch_native.static_ascii_patterns
+@dataclass(frozen=True, slots=True)
+class _NativeContentHelpers:
+    normalize: Callable[[str], str]
+    similarity: Callable[[str, str], float]
+    static_patterns: Callable[[str, str], list[str]] | None
+
+
+@cache
+def _get_native_content_helpers() -> _NativeContentHelpers | None:
+    """Load the optional extension only after a native caller opts in."""
+    try:
+        import dirsearch_native
+    except ImportError:
+        return None
+    if get_native_extension_version_error(dirsearch_native) is not None:
+        return None
+    return _NativeContentHelpers(
+        dirsearch_native.normalize_ascii_content,
+        dirsearch_native.sequence_matcher_ratio,
+        # Unknown minors keep their Differ without disabling native HTTP.
+        dirsearch_native.static_ascii_patterns if supports_native_differ(sys.version_info) else None,
+    )
 
 
 _DYNAMIC_TOKEN_REGEXES = (
@@ -72,23 +81,25 @@ def _normalize_dynamic_content_python(content: str) -> str:
     return " ".join(normalized.split())
 
 
-def normalize_dynamic_content(content: str) -> str:
-    """Normalize once using the native ASCII path when available.
+def normalize_dynamic_content(content: str, *, use_native: bool = False) -> str:
+    """Normalize with Python unless this response belongs to the native engine.
 
     Unicode keeps Python's regex case folding, word boundaries and whitespace
     definitions rather than depending on another engine's Unicode tables.
     """
-    if _native_normalize_ascii is not None and content.isascii():
-        return _native_normalize_ascii(content)
+    if use_native and content.isascii():
+        if helpers := _get_native_content_helpers():
+            return helpers.normalize(content)
     return _normalize_dynamic_content_python(content)
 
 
-def content_similarity(content1: str, content2: str) -> float:
+def content_similarity(content1: str, content2: str, *, use_native: bool = False) -> float:
     """Return similarity after removing common dynamic values."""
 
     return normalized_content_similarity(
-        normalize_dynamic_content(content1),
-        normalize_dynamic_content(content2),
+        normalize_dynamic_content(content1, use_native=use_native),
+        normalize_dynamic_content(content2, use_native=use_native),
+        use_native=use_native,
     )
 
 
@@ -100,11 +111,12 @@ def _normalized_content_similarity_python(content1: str, content2: str) -> float
     ).ratio()
 
 
-def normalized_content_similarity(content1: str, content2: str) -> float:
-    """Return the existing difflib ratio, accelerated by the optional extension."""
-    if _native_similarity is not None:
+def normalized_content_similarity(content1: str, content2: str, *, use_native: bool = False) -> float:
+    """Return the difflib ratio, optionally accelerated for native responses."""
+    helpers = _get_native_content_helpers() if use_native else None
+    if helpers is not None:
         try:
-            return _native_similarity(content1, content2)
+            return helpers.similarity(content1, content2)
         except UnicodeEncodeError:
             # Lone surrogates in Python strings cannot cross the UTF-8 boundary.
             pass
@@ -123,13 +135,14 @@ class ContentComparisonProfile:
 
 
 class DynamicContentParser:
-    def __init__(self, content1, content2):
+    def __init__(self, content1, content2, *, use_native: bool = False):
+        self._use_native = use_native
         self._static_patterns = None
         self._differ = difflib.Differ()
         self._contents = [content1, content2]
         self._normalized_contents = [
-            normalize_dynamic_content(content1),
-            normalize_dynamic_content(content2),
+            normalize_dynamic_content(content1, use_native=use_native),
+            normalize_dynamic_content(content2, use_native=use_native),
         ]
         self._base_content = content1
         self._is_static = False
@@ -162,7 +175,7 @@ class DynamicContentParser:
 
     def add_sample(self, content):
         self._contents.append(content)
-        self._normalized_contents.append(normalize_dynamic_content(content))
+        self._normalized_contents.append(normalize_dynamic_content(content, use_native=self._use_native))
         self._recalculate()
 
     def compare_to(self, content, normalized_content=None):
@@ -177,7 +190,7 @@ class DynamicContentParser:
         """
 
         if normalized_content is None:
-            normalized_content = normalize_dynamic_content(content)
+            normalized_content = normalize_dynamic_content(content, use_native=self._use_native)
 
         if self._is_static:
             return (
@@ -213,11 +226,12 @@ class DynamicContentParser:
 
     def similarity_to(self, content, normalized_content=None):
         if normalized_content is None:
-            normalized_content = normalize_dynamic_content(content)
+            normalized_content = normalize_dynamic_content(content, use_native=self._use_native)
 
         return normalized_content_similarity(
             self._normalized_contents[0],
             normalized_content,
+            use_native=self._use_native,
         )
 
     def _recalculate(self):
@@ -229,8 +243,9 @@ class DynamicContentParser:
 
         first, second = self._normalized_contents[:2]
         patterns = None
-        if _native_static_patterns is not None and first.isascii() and second.isascii():
-            patterns = _native_static_patterns(first, second)
+        helpers = _get_native_content_helpers() if self._use_native else None
+        if helpers is not None and helpers.static_patterns is not None and first.isascii() and second.isascii():
+            patterns = helpers.static_patterns(first, second)
         if patterns is None:
             patterns = self.get_static_patterns(
                 self._differ.compare(first.split(), second.split())

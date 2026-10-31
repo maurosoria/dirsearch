@@ -17,7 +17,7 @@ use bytes::Bytes;
 use digest_auth::{AuthContext, HttpMethod};
 use futures_util::TryStreamExt;
 use reqwest::header::{
-    HeaderMap, HeaderValue, AUTHORIZATION, CONNECTION, CONTENT_ENCODING, CONTENT_LENGTH,
+    HeaderMap, HeaderValue, AUTHORIZATION, CONNECTION, CONTENT_ENCODING, CONTENT_LENGTH, LOCATION,
     USER_AGENT, WWW_AUTHENTICATE,
 };
 use reqwest::Method;
@@ -369,7 +369,9 @@ async fn request_once(
             response
                 .headers()
                 .iter()
-                .filter(|(name, _)| *name == CONTENT_LENGTH || *name == CONTENT_ENCODING)
+                .filter(|(name, _)| {
+                    *name == CONTENT_LENGTH || *name == CONTENT_ENCODING || *name == LOCATION
+                })
                 .map(|(name, value)| {
                     (
                         name.as_str().to_string(),

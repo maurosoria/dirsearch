@@ -42,7 +42,7 @@ from lib.utils.common import (
     is_binary,
     replace_path,
 )
-from lib.utils.diff import normalize_dynamic_content
+from lib.utils.diff import DynamicContentParser, normalize_dynamic_content
 
 
 def _decoded_content_length(headers) -> int | None:
@@ -227,6 +227,8 @@ class BaseResponse:
         history: Iterable[str] = (),
         final_url: str | None = None,
         http_version: str | None = None,
+        *,
+        use_native_content: bool = False,
     ) -> None:
         self.datetime = time.strftime("%Y-%m-%d %H:%M:%S")
         self.url = url
@@ -244,6 +246,7 @@ class BaseResponse:
         self._body_complete = True
         self._body_digest = None
         self.wildcard_checked = False
+        self._use_native_content = use_native_content
 
     @property
     def type(self) -> str:
@@ -280,7 +283,11 @@ class BaseResponse:
     @cached_property
     def normalized_content(self) -> str:
         """Return cached text with volatile response values normalized."""
-        return normalize_dynamic_content(self.text)
+        return normalize_dynamic_content(self.text, use_native=self._use_native_content)
+
+    def make_content_parser(self, other_content: str) -> DynamicContentParser:
+        """Keep comparison algorithms scoped to this response's request engine."""
+        return DynamicContentParser(self.content, other_content, use_native=self._use_native_content)
 
     @property
     def words(self) -> int:
@@ -458,6 +465,7 @@ class NativeResponse(BaseResponse):
             history,
             final_url,
             http_version,
+            use_native_content=True,
         )
 
         if normalized_content is not None:

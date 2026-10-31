@@ -11,7 +11,7 @@ from lib.connection.response import NativeResponse
 from lib.core.filter_config import FilterConfig
 from lib.core.discovery_config import DiscoveryConfig
 from lib.core.execution_config import ExecutionConfig
-from lib.core.exceptions import RequestException
+from lib.core.exceptions import RequestException, SkipTargetInterrupt
 from lib.core.fuzzer import NativeFuzzer
 from lib.core.native_runtime import NATIVE_EXTENSION_VERSION, get_native_extension_version_error
 from lib.core.request_config import RequestConfig
@@ -178,15 +178,22 @@ class TestStaticProfileFuzzer(TestCase):
         self.assertIsNone(backend.used_profiles[-1])
         self.assertEqual(matches[-1].path, "other/distinct")
 
-    def test_head_and_stop_status_keep_normal_callbacks(self):
-        for options in ({"method": "HEAD"}, {"skip_status": (404,)}):
-            with self.subTest(options=options):
-                fuzzer, backend, matches, misses, filtered = self.make_fuzzer(**options)
-                fuzzer.start()
-                self.assertEqual(backend.used_profiles, [None, None])
-                self.assertEqual(len(matches), 1)
-                self.assertEqual(len(misses), 1009)
-                self.assertEqual(filtered, [])
+    def test_head_keeps_normal_callbacks(self):
+        fuzzer, backend, matches, misses, filtered = self.make_fuzzer(method="HEAD")
+        fuzzer.start()
+        self.assertEqual(backend.used_profiles, [None, None])
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(len(misses), 1009)
+        self.assertEqual(filtered, [])
+
+    def test_stop_status_is_delivered_before_static_suppression(self):
+        fuzzer, backend, matches, misses, filtered = self.make_fuzzer(skip_status=(404,))
+        with self.assertRaisesRegex(SkipTargetInterrupt, "due to 404 status code"):
+            fuzzer.start()
+        self.assertEqual(backend.used_profiles, [None])
+        self.assertEqual(matches, [])
+        self.assertEqual(misses, [])
+        self.assertEqual(filtered, [])
 
     def test_logging_keeps_static_profile_compaction(self):
         fuzzer, backend, matches, misses, filtered = self.make_fuzzer(logging_enabled=True)

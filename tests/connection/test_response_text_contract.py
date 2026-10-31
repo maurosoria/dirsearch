@@ -3,6 +3,7 @@ import asyncio
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Thread
 from unittest import TestCase
+from unittest.mock import patch
 
 import httpx
 import requests
@@ -87,6 +88,20 @@ class TestResponseTextContract(TestCase):
         async with httpx.AsyncClient(trust_env=False) as client:
             async with client.stream("GET", self.url + name) as response:
                 return await AsyncResponse.create(self.url + name, response)
+
+    def test_python_response_comparisons_do_not_select_native_algorithms(self):
+        session = requests.Session()
+        session.trust_env = False
+        self.addCleanup(session.close)
+        with patch("lib.utils.diff._get_native_content_helpers", side_effect=AssertionError("native was not selected")):
+            with session.get(self.url + "unknown", timeout=2) as raw:
+                threaded = Response(self.url + "unknown", raw)
+            asynchronous = asyncio.run(self.async_response("unknown"))
+            for response in (threaded, asynchronous):
+                self.assertEqual(response.normalized_content, "abc")
+                parser = response.make_content_parser("abc changed")
+                self.assertTrue(parser.compare_to("abc"))
+                self.assertEqual(parser.similarity_to("abc"), 1.0)
 
     def test_sync_async_and_native_share_encoding_and_binary_text_rules(self):
         session = requests.Session()

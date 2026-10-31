@@ -139,12 +139,14 @@ missing-path probes with identical status, Content-Type, and body. It applies
 only within the current directory and only to GET responses with no redirects.
 Bodies must be nonempty and at most 64 KiB; differing or incomplete responses
 continue through normal Python classification. Existing duplicate-calibration
-state is established before the shortcut activates. Detailed logging and stop
-statuses retain the normal response path. This build requires native extension 0.2.25;
+state is established before the shortcut activates. Detailed logging receives
+compact metadata, including redirect Location values, without decoded bodies.
+Stop statuses retain the normal response path. This build requires native extension 0.2.27;
 older builds are rejected with instructions to run `dirsearch-build-native`.
 
-The extension also accelerates content normalization and similarity when it is
-installed, including scans using the Python transports. ASCII normalization
+The native request engine also opts into accelerated normalization and similarity.
+Python transports keep their Python algorithms when the extension is installed.
+ASCII normalization
 preserves the Python replacement order and whitespace rules while avoiding
 copies for regex passes without matches. Non-ASCII normalization retains Python's
 Unicode regex semantics. The native similarity function preserves
@@ -152,6 +154,10 @@ Unicode regex semantics. The native similarity function preserves
 `autojunk`, matching-block ties, and Unicode code points. Python strings containing
 lone surrogates use the Python implementation. Both operations retain the Python
 implementation when the matching extension is not installed.
+Native stable-pattern extraction is enabled on the verified Python 3.14 and
+3.15 minors. Other minors keep Python's Differ while native HTTP remains
+available on Python 3.14 and newer. Calibration probes run sequentially to
+preserve sessions established by any prefix or suffix probe.
 
 You can use the native scan path with the default GET method:
 

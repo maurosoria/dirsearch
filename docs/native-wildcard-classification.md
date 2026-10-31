@@ -6,11 +6,14 @@ and apply the existing similarity fallback in Rust. A proven negative crosses
 the Python boundary as progress rather than a response object.
 
 The shortcut requires GET, aggregated filtered progress callbacks and ordinary
-filter policy. Detailed logging, unsupported explicit filters, redirects,
+filter policy. Unsupported explicit filters, redirects,
 incomplete bodies, binary controls, non-ASCII bodies, encoded request paths and
 profiles that cannot preserve Python text semantics retain Python classification.
 Potential findings also retain the normal Python callback and report path.
 All applicable prefix, suffix and default profiles retain their original roles.
+Detailed logging preserves the worker shortcut and receives compact metadata.
+Configured stop statuses remain visible to Python before any filter can omit
+their response or commit a calibration observation.
 
 Both profile and candidate bodies are limited to 256 KiB for this shortcut;
 larger bodies keep the common path instead of allocating comparison scratch
@@ -37,7 +40,7 @@ It does not retain response bodies. The thresholds and recording conditions
 remain unchanged. Duplicate-result filtering retains its separate Python state;
 wildcard negatives never reached that stage in the existing pipeline.
 
-The extension API is 0.2.24 and requires rebuilding. Python request engines and
+The extension API is 0.2.27 and requires rebuilding. Python request engines and
 native callers without the complete classifier contract retain their existing
 execution path. Tests compare compiled pattern decisions with the Python parser,
 exercise shared state across native and Unicode fallback responses and isolate
