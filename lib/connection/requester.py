@@ -23,9 +23,11 @@ import random
 import re
 import socket
 import ssl
+import sys
 import threading
 import time
 from typing import Any, Generator
+from urllib import request as urllib_request
 from urllib.parse import urlparse
 
 import httpx
@@ -776,6 +778,18 @@ class ProxyRoatingTransport(httpx.AsyncBaseTransport):
             raise first_error
 
 
+class MacOSProxyAsyncClient(httpx.AsyncClient):
+    """Apply system exclusions before selecting an inherited proxy transport."""
+
+    def _transport_for_url(self, url: httpx.URL) -> httpx.AsyncBaseTransport:
+        # HTTPX reads macOS proxy URLs through urllib, but its mount map only
+        # includes NO_PROXY exclusions. Check system exceptions for every URL,
+        # including redirects, and reuse the default IP-override transport.
+        if urllib_request.proxy_bypass(url.host):
+            return self._transport
+        return super()._transport_for_url(url)
+
+
 class AsyncRequester(BaseRequester):
     def __init__(self, config: RequestConfig, *, logger: RunLogger | None = None) -> None:
         super().__init__(config, logger=logger)
@@ -799,7 +813,16 @@ class AsyncRequester(BaseRequester):
             )
             mounts = self._environment_proxy_mounts(tpargs)
 
-        self.session = httpx.AsyncClient(
+        client_class = httpx.AsyncClient
+        if (
+            sys.platform == "darwin"
+            and self._inherited_proxy_transports
+            and not urllib_request.getproxies_environment()
+        ):
+            # urllib falls back to system settings only without environment
+            # proxy settings. Explicit and environment proxies keep priority.
+            client_class = MacOSProxyAsyncClient
+        self.session = client_class(
             transport=transport,
             mounts=mounts,
             timeout=httpx.Timeout(self.config.timeout),
