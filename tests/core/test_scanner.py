@@ -16,6 +16,7 @@
 #
 #  Author: Mauro Soria
 
+import re
 from unittest import TestCase
 from unittest.mock import patch
 
@@ -25,6 +26,28 @@ from lib.core.fuzzer import BaseFuzzer
 from lib.core.scanner import BaseScanner
 from lib.core.settings import REFLECTED_PATH_MARKER, WILDCARD_TEST_POINT_MARKER
 from lib.utils.diff import DynamicContentParser, normalize_dynamic_content
+from lib.utils.random import StealthWordGenerator
+
+
+class AlternatingRedirectRequester:
+    """302 whose Location alternates between a path and its trailing-slash form."""
+
+    def __init__(self):
+        self.responses = []
+
+    def request(self, path):
+        if path == "login":
+            location = "/dashboard"
+        else:
+            location = "/missing" + ("/" if len(self.responses) % 2 else "")
+        response = NativeResponse(
+            f"http://example.com/{path}",
+            302,
+            [("location", location)],
+            b"",
+        )
+        self.responses.append(response)
+        return response
 
 
 class DynamicSoft404Requester:
@@ -75,6 +98,50 @@ class TestScanner(TestCase):
             rf"^http://example\.com/abc{REFLECTED_PATH_MARKER}/.*$",
             "Redirect regex generator gives unexpected result"
         )
+
+    def test_trailing_slash_redirect_profile_filters_same_family(self):
+        from lib.core.scanner import Scanner
+
+        requester = AlternatingRedirectRequester()
+        scanner = Scanner(
+            requester, filter_config=FilterConfig(auto_calibration=True),
+            delay=0, path=WILDCARD_TEST_POINT_MARKER,
+            word_generator=StealthWordGenerator(seed=7),
+        )
+
+        calibration = requester.responses[:2]
+        self.assertNotEqual(calibration[0].redirect, calibration[1].redirect)
+        for response in calibration:
+            with self.subTest(redirect=response.redirect):
+                self.assertIsNotNone(
+                    re.match(scanner.wildcard_redirect_regex, response.redirect),
+                    scanner.wildcard_redirect_regex,
+                )
+
+        for path in ("admin", "backup", "api"):
+            with self.subTest(path=path):
+                self.assertEqual(scanner.classify(path, requester.request(path)), "wildcard")
+
+        login = requester.request("login")
+        self.assertEqual(scanner.classify("login", login), "unique")
+        self.assertEqual(scanner.reason, "redirect differs from wildcard profile")
+
+        wrong_status = NativeResponse(
+            "http://example.com/admin",
+            200,
+            [("location", "/missing")],
+            b"",
+        )
+        self.assertEqual(scanner.classify("admin", wrong_status), "unique")
+        self.assertEqual(scanner.reason, "status differs from wildcard profile")
+
+        body_control = NativeResponse(
+            "http://example.com/admin",
+            302,
+            [("location", "/missing")],
+            b"unique payload",
+        )
+        self.assertEqual(scanner.classify("admin", body_control), "unique")
 
     def test_auto_calibration_filters_dynamic_soft_404(self):
         from lib.core.scanner import Scanner

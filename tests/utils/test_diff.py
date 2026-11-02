@@ -16,6 +16,7 @@
 #
 #  Author: Mauro Soria
 
+import re
 from unittest import TestCase
 from unittest.mock import patch
 
@@ -52,6 +53,39 @@ class TestDiff(TestCase):
 
     def test_generate_matching_regex(self):
         self.assertEqual(generate_matching_regex("add.php", "abc.php"), "^a.*\\.php$", "Matching regex isn't correct")
+
+    def test_generate_matching_regex_matches_both_strict_prefix_samples(self):
+        cases = (
+            ("/err/abc", "/err/abcabc"),
+            ("/err/abcabc", "/err/abc"),
+            ("/err/aaaa", "/err/aaaaaa"),
+            ("/err/aaaaaa", "/err/aaaa"),
+            ("/a+b?c", "/a+b?c/d"),
+            ("", "/err/x"),
+            ("/err/x", ""),
+        )
+
+        for first, second in cases:
+            with self.subTest(first=first, second=second):
+                pattern = generate_matching_regex(first, second)
+                self.assertIsNotNone(re.match(pattern, first), pattern)
+                self.assertIsNotNone(re.match(pattern, second), pattern)
+
+    def test_generate_matching_regex_does_not_count_prefix_twice_as_suffix(self):
+        pattern = generate_matching_regex("/err/abc", "/err/abcabc")
+
+        self.assertEqual(pattern, "^/err/abc.*$")
+        self.assertIsNotNone(re.match(pattern, "/err/abc-more"))
+        self.assertIsNone(re.match(pattern, "/other/abcabc"))
+
+    def test_generate_matching_regex_preserves_equal_and_suffix_behavior(self):
+        self.assertEqual(generate_matching_regex("add.php", "add.php"), "^add\\.php$")
+        self.assertEqual(generate_matching_regex("a+b?c", "a+b?c"), "^a\\+b\\?c$")
+
+        pattern = generate_matching_regex("add.php", "abc.php")
+        self.assertEqual(pattern, "^a.*\\.php$")
+        self.assertIsNotNone(re.match(pattern, "and.php"))
+        self.assertIsNone(re.match(pattern, "add.txt"))
 
     def test_dynamic_content_parser(self):
         self.assertEqual(DynamicContentParser("a b c", "a b d")._static_patterns, ["a", "b"], "Static patterns are not right")
