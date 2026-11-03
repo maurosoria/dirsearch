@@ -78,6 +78,23 @@ class TestDiff(TestCase):
         self.assertIsNotNone(re.match(pattern, "/err/abc-more"))
         self.assertIsNone(re.match(pattern, "/other/abcabc"))
 
+    def test_generate_matching_regex_bounds_suffix_for_non_prefix_samples(self):
+        cases = (
+            ("/err/ab", "/err/aab"),
+            ("/err/aab", "/err/ab"),
+        )
+
+        for first, second in cases:
+            with self.subTest(first=first, second=second):
+                pattern = generate_matching_regex(first, second)
+
+                self.assertEqual(pattern, "^/err/a.*b$")
+                self.assertIsNotNone(re.fullmatch(pattern, first))
+                self.assertIsNotNone(re.fullmatch(pattern, second))
+                self.assertIsNotNone(re.fullmatch(pattern, "/err/axb"))
+                self.assertIsNone(re.fullmatch(pattern, "/other/aab"))
+                self.assertIsNone(re.fullmatch(pattern, "/err/aac"))
+
     def test_generate_matching_regex_preserves_equal_and_suffix_behavior(self):
         self.assertEqual(generate_matching_regex("add.php", "add.php"), "^add\\.php$")
         self.assertEqual(generate_matching_regex("a+b?c", "a+b?c"), "^a\\+b\\?c$")
