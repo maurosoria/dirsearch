@@ -192,16 +192,24 @@ class DynamicContentParser:
 def generate_matching_regex(string1: str, string2: str) -> str:
     start = "^"
     end = "$"
+    prefix_length = 0
 
     for char1, char2 in zip(string1, string2):
         if char1 != char2:
-            start += ".*"
             break
 
         start += re.escape(char1)
+        prefix_length += 1
 
-    if start.endswith(".*"):
-        for char1, char2 in zip(string1[::-1], string2[::-1]):
+    if prefix_length < max(len(string1), len(string2)):
+        start += ".*"
+
+        # The literal prefix already owns its characters, so only the
+        # remainders may contribute to the common suffix.
+        for char1, char2 in zip(
+            string1[prefix_length:][::-1],
+            string2[prefix_length:][::-1],
+        ):
             if char1 != char2:
                 break
 
