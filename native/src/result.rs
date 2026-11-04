@@ -5,6 +5,10 @@ use pyo3::prelude::*;
 
 #[pyclass]
 pub(crate) struct NativeHttpResult {
+    pub(crate) wildcard_observation: Option<crate::classification::NativeObservation>,
+    /// Cached only when all eligible wildcard profiles passed on the worker.
+    #[pyo3(get)]
+    pub(crate) normalized_content: Option<String>,
     /// Position in the input chunk; Python uses gaps to reconstruct filtered runs.
     #[pyo3(get)]
     pub(crate) request_index: usize,
@@ -32,6 +36,8 @@ pub(crate) struct NativeHttpResult {
     pub(crate) history: Vec<String>,
     #[pyo3(get)]
     pub(crate) final_url: String,
+    #[pyo3(get)]
+    pub(crate) http_version: Option<&'static str>,
 }
 
 #[cfg(test)]
@@ -70,6 +76,8 @@ pub(crate) fn native_http_result_with_length(
             Ok(reason) => reason.map(str::to_string),
             Err(error) => {
                 return NativeHttpResult {
+                    wildcard_observation: None,
+                    normalized_content: None,
                     request_index: usize::MAX,
                     path,
                     status,
@@ -83,6 +91,7 @@ pub(crate) fn native_http_result_with_length(
                     body_complete: false,
                     history: Vec::new(),
                     final_url: String::new(),
+                    http_version: None,
                 };
             }
         };
@@ -90,6 +99,8 @@ pub(crate) fn native_http_result_with_length(
     let body_complete = !filtered && body.len() == body_length;
 
     NativeHttpResult {
+        wildcard_observation: None,
+        normalized_content: None,
         request_index: usize::MAX,
         path,
         status,
@@ -103,6 +114,7 @@ pub(crate) fn native_http_result_with_length(
         body_complete,
         history: Vec::new(),
         final_url: String::new(),
+        http_version: None,
     }
 }
 
@@ -112,6 +124,8 @@ pub(crate) fn native_error_result(
     error: String,
 ) -> NativeHttpResult {
     NativeHttpResult {
+        wildcard_observation: None,
+        normalized_content: None,
         request_index: usize::MAX,
         path,
         status: 0,
@@ -125,11 +139,14 @@ pub(crate) fn native_error_result(
         body_complete: false,
         history: Vec::new(),
         final_url: String::new(),
+        http_version: None,
     }
 }
 
 pub(crate) fn native_filtered_marker(status: u16, elapsed_ms: f64) -> NativeHttpResult {
     NativeHttpResult {
+        wildcard_observation: None,
+        normalized_content: None,
         request_index: usize::MAX,
         path: String::new(),
         status,
@@ -143,6 +160,7 @@ pub(crate) fn native_filtered_marker(status: u16, elapsed_ms: f64) -> NativeHttp
         body_complete: false,
         history: Vec::new(),
         final_url: String::new(),
+        http_version: None,
     }
 }
 

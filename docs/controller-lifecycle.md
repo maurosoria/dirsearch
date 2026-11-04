@@ -89,7 +89,7 @@ Signals now have a bounded CLI owner and loop creation no longer changes global
 policy. [Raw targets](request-target-ownership.md) now belong to each request. This does not
 enable concurrent controllers,
 parallel targets, external scheduling, or independently executable checkpoints.
-Those require separate designs and acceptance tests; see the
+Those require separate designs and overlapping-execution acceptance tests; see the
 [refactoring backlog](refactoring-backlog.md).
 
 Run `python -m unittest discover -s tests -t .`. Lifecycle tests cover deferred
@@ -104,6 +104,19 @@ handlers for all three engine policies, worker-thread execution without signal
 patches, scope rollback/restoration, startup/cleanup failures and optional uvloop
 selection. POSIX subprocess contracts deliver real `SIGINT` and `SIGTERM` during
 a loopback scan and exercise quit through the CLI menu for every available engine.
+
+`tests.controller.test_lifecycle_acceptance` also exercises complete sequential
+lifecycles with real loopback HTTP and no process-global patching. Its bounded
+child-process runner isolates inherited proxies; the controllers within each
+scenario share one process. It verifies detached options/headers, independent terminal streams,
+JSON reports, JSONL response bodies, logs and progress; real output failure and
+deadline cancellation followed by a healthy invocation; and full session-store
+restoration with outstanding words, later directories and later targets. Each
+available engine runs the same scenarios. It asserts worker/task cleanup, closed
+stores and event loops, unchanged signal handlers/stdout, and no late log writes.
+The resume fixture selects "new" at its instance-local overwrite-question seam;
+it does not replace parsing, persistence, preparation, execution or cleanup.
+These tests do not prove simultaneous execution or a distributed task contract.
 
 No dependencies, CLI flags, checkpoint/report schemas, request pacing or native
 chunk defaults are changed. The separate option-default factory is collected by

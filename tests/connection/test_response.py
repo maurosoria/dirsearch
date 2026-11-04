@@ -8,6 +8,7 @@ from lib.connection.response import AsyncResponse, Response, ResponseHeaders
 
 
 class DummyResponse:
+    raw = None
     status_code = 200
     history = []
 
@@ -22,6 +23,7 @@ class DummyResponse:
 
 
 class DummyAsyncResponse:
+    http_version = "HTTP/1.1"
     status_code = 200
     history = []
 

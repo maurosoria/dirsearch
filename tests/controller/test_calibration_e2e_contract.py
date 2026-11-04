@@ -99,14 +99,22 @@ class TestCalibrationEndToEndContract(TestCase):
             self.assertIn("/control", matches, details)
             self.assertNotIn("/known-missing", matches, details)
             self.assertEqual({item["status"] for item in results}, {200, 201}, details)
+            contents = log.read_text(encoding="utf-8")
+            self.assertIn(f"RESPONSE backend={backend} http_version=HTTP/1.1", contents, details)
+            self.assertIn("content_encoding=identity retained_length=", contents, details)
+            self.assertIn("retained_sha256=", contents, details)
+            self.assertIn("decision=match", contents, details)
             if scenario == "prefix":
                 self.assertTrue(set(DISTINCT_PAGES).issubset(matches), details)
                 # Preserve intentional repeated-response filtering too. The
                 # selected two aliases can depend on completion order.
                 self.assertEqual(len(matches & DUPLICATE_PATHS), 2, details)
+                if backend == "native":
+                    self.assertIn("native_filter=include_status", contents, details)
             else:
                 self.assertEqual(matches, {"/account/login", "/control"}, details)
-                self.assertIn("filtered by wildcard profile", log.read_text(encoding="utf-8"), details)
+                self.assertIn("filtered by wildcard profile", contents, details)
+                self.assertIn("decision=wildcard", contents, details)
 
     def run_prefix_cases(self, backend):
         for concurrency in (1, 100):

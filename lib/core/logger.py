@@ -16,12 +16,18 @@
 #
 #  Author: Mauro Soria
 
+import hashlib
 import logging
 import re
+from collections.abc import Mapping, Sequence
+from typing import TYPE_CHECKING
 from logging.handlers import RotatingFileHandler
 
 from lib.core.log_config import LogConfig
 from lib.utils.command import REDACTED_VALUE
+
+if TYPE_CHECKING:
+    from lib.connection.response import BaseResponse
 
 
 URL_USERINFO_PATTERN = re.compile(
@@ -84,6 +90,9 @@ class _RunFileHandler(RotatingFileHandler):
             super().emit(record)
 
 
+MAX_LOG_DIGEST_BYTES = 64 * 1024
+
+
 class RunLogger(logging.Logger):
     """One invocation's file handler, borrowed by its runtime components.
 
@@ -107,6 +116,65 @@ class RunLogger(logging.Logger):
             self._file_handler = handler
             self.addHandler(handler)
             self.disabled = False
+
+    def response(
+        self, method: str, response: "BaseResponse", *, backend: str,
+        filter_reason: str | None = None,
+    ) -> None:
+        """Log bounded capture evidence, never bodies or arbitrary headers.
+
+        Large captures hash at most a 64 KiB prefix, labelled separately from
+        complete retained-capture hashes. Native exclusions carry metadata only.
+        """
+        if not self.isEnabledFor(logging.INFO):
+            return
+        digest = sample = "unavailable"
+        hashed_length = 0
+        if filter_reason is None:
+            hashed_length = min(len(response.body), MAX_LOG_DIGEST_BYTES)
+            captured_hash = hashlib.sha256(memoryview(response.body)[:hashed_length]).hexdigest()
+            if len(response.body) <= MAX_LOG_DIGEST_BYTES:
+                digest = captured_hash
+            else:
+                sample = captured_hash
+        self.response_metadata(
+            method, response.url, backend=backend, status=response.status,
+            headers=response.headers, http_version=response.http_version,
+            length=response.length, retained_length=len(response.body),
+            body_complete=response.body_complete, history=response.history,
+            final_url=response.final_url, filter_reason=filter_reason,
+            retained_sha256=digest, sample_sha256=sample, hashed_length=hashed_length,
+        )
+
+    def response_metadata(
+        self, method: str, url: str, *, backend: str, status: int,
+        headers: Mapping[str, str], http_version: str | None, length: int,
+        retained_length: int, body_complete: bool, history: Sequence[str],
+        final_url: str, filter_reason: str | None = None,
+        retained_sha256: str = "unavailable", sample_sha256: str = "unavailable",
+        hashed_length: int = 0,
+    ) -> None:
+        """Accept compact transport metadata without a decoded response object."""
+        if not self.isEnabledFor(logging.INFO):
+            return
+        encoding = headers.get("content-encoding", "identity").lower()
+        codings = [part.strip() for part in encoding.split(",")]
+        safe_encoding = ",".join(codings) if all(
+            part in {"identity", "gzip", "x-gzip", "deflate", "br", "zstd"}
+            for part in codings
+        ) else "other"
+        redirect = headers.get("location", "").split("#", 1)[0].replace("\r", "").replace("\n", "")
+        location = f" - LOCATION: {redirect}" if redirect else ""
+        self.info(
+            '"%s %s" %s - %sB%s - RESPONSE backend=%s http_version=%s '
+            'content_encoding=%s retained_length=%s body_complete=%s '
+            'retained_sha256=%s sample_sha256=%s hashed_length=%s '
+            'redirect_hops=%s final_url=%s native_filter=%s',
+            method, url.split("#", 1)[0], status, length, location, backend,
+            http_version or "unknown", safe_encoding, retained_length,
+            str(body_complete).lower(), retained_sha256, sample_sha256, hashed_length,
+            len(history), final_url.split("#", 1)[0], filter_reason or "none",
+        )
 
     def close(self) -> None:
         """Stop intake and drain the handler's active write; safe to repeat.

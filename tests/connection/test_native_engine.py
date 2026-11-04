@@ -620,6 +620,35 @@ class TestNativeHttpEngine(TestCase):
         )
         self.assertTrue(all(not results for _start, _end, results in chunks))
 
+    def test_diagnostic_chunks_keep_filtered_metadata_without_response_bodies(self):
+        wordlist = dirsearch_native.generate_wordlist_owned(["tests/static/wordlist.txt"], ["php"])
+        for owned in (False, True):
+            with self.subTest(owned_wordlist=owned):
+                server = CountingHTTPServer()
+                engine = dirsearch_native.NativeHttpEngine(concurrency=2)
+                chunks = []
+                paths = wordlist.chunk(0, 2, "api/") if owned else ["zero", "one"]
+                scan = engine.scan_owned_chunks if owned else engine.scan_chunks
+                try:
+                    count = scan(
+                        server.url, paths,
+                        lambda start, end, results: chunks.append((start, end, results)),
+                        filter_config=dirsearch_native.NativeFilterConfig(exclude_status_codes=[200]),
+                        include_filtered=True,
+                    )
+                finally:
+                    server.close()
+                results = [result for _start, _end, chunk in chunks for result in chunk]
+                self.assertEqual(count, 2)
+                self.assertEqual([result.request_index for result in results], [0, 1])
+                self.assertTrue(all(result.filtered for result in results))
+                self.assertTrue(all(result.filter_reason == "exclude_status" for result in results))
+                self.assertTrue(all(result.http_version == "HTTP/1.1" for result in results))
+                self.assertTrue(all(result.length == 2 for result in results))
+                self.assertTrue(all(result.headers == [("content-length", "2")] for result in results))
+                self.assertTrue(all(not result.body for result in results))
+                self.assertFalse(server.thread.is_alive())
+
     def test_chunks_wait_for_missing_prefix_before_delivering(self):
         server = CountingHTTPServer(ControlledStreamHandler)
         engine = dirsearch_native.NativeHttpEngine(concurrency=2)

@@ -2,12 +2,19 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
 from lib.core.request_backend import NATIVE_ASYNC_ERROR, REQUEST_BACKENDS
+from lib.core.exceptions import SkipTargetInterrupt
+
+
+def check_skip_status(status: int, skip_on_status: Collection[int]) -> None:
+    """Stop before calibration, exclusions or wildcard suppression can hide it."""
+    if status in skip_on_status:
+        raise SkipTargetInterrupt(f"Skipped the target due to {status} status code")
 
 
 class ScanEngine(Enum):

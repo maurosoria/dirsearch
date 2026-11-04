@@ -4,9 +4,20 @@ import importlib.util
 import sys
 from collections.abc import Sequence
 
+from lib.native import (
+    NATIVE_EXTENSION_VERSION as NATIVE_EXTENSION_VERSION,
+    get_native_extension_version_error as get_native_extension_version_error,
+)
+
+__all__ = (
+    "MIN_NATIVE_PYTHON", "NATIVE_EXTENSION_VERSION", "format_python_version",
+    "get_native_python_version_error", "is_native_backend_available",
+    "get_native_backend_install_error", "get_native_extension_version_error",
+    "get_native_runtime_error",
+)
+
 
 MIN_NATIVE_PYTHON = (3, 14)
-NATIVE_EXTENSION_VERSION = "0.2.20"
 
 
 def format_python_version(version_info: Sequence[int] | None = None) -> str:
@@ -46,19 +57,6 @@ def get_native_backend_install_error(
         "dirsearch-build-native. "
         "The build requires Python 3.14 development headers, Rust 1.88 or newer, "
         "and a C compiler."
-    )
-
-
-def get_native_extension_version_error(native_module: object) -> str | None:
-    installed_version = getattr(native_module, "__version__", None)
-    if installed_version == NATIVE_EXTENSION_VERSION:
-        return None
-
-    found = installed_version if installed_version is not None else "unversioned"
-    return (
-        "Native Rust backend version is incompatible with this dirsearch build "
-        f"(expected {NATIVE_EXTENSION_VERSION}, found {found}). "
-        "Rebuild it with: dirsearch-build-native"
     )
 
 

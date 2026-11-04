@@ -15,6 +15,7 @@ from lib.core.wordlist_backend import NativeWordlistChunk
 
 
 class FakeNativeResult:
+    http_version = "HTTP/2"
     path = "missing%20page"
     status = 404
     length = 64
@@ -25,6 +26,7 @@ class FakeNativeResult:
     headers = [("content-type", "text/plain")]
     body = []
     body_complete = True
+    normalized_content = None
     history = ["https://example.com/before"]
     final_url = "https://example.com/missing%20page"
 
@@ -80,6 +82,17 @@ class FakeNativeSession:
         return self.rate_value
 
 
+class FakeNativeFilterConfig:
+    def __init__(self, config):
+        self.config = config
+        self.static_response_profile = None
+
+    def with_static_response(self, status, content_type, body):
+        config = FakeNativeFilterConfig(self.config.copy())
+        config.static_response_profile = (status, content_type, body)
+        return config
+
+
 class FakeNativeModule:
     __version__ = NATIVE_EXTENSION_VERSION
 
@@ -100,12 +113,14 @@ class FakeNativeModule:
         return engine
 
     def NativeFilterConfig(self, **config):
-        filter_config = type("FakeNativeFilterConfig", (), {"config": config})()
+        filter_config = FakeNativeFilterConfig(config)
         self.filter_configs.append(filter_config)
         return filter_config
 
 
 class IndexedNativeResult:
+    http_version = "HTTP/1.1"
+
     def __init__(self, request_index, *, filtered, status=404, error=None):
         self.request_index = request_index
         self.path = f"path-{request_index}"
@@ -118,6 +133,7 @@ class IndexedNativeResult:
         self.headers = [("content-type", "text/plain")]
         self.body = [] if filtered else [111, 107]
         self.body_complete = True
+        self.normalized_content = None
         self.history = []
         self.final_url = f"https://example.com/{self.path}"
 
@@ -397,17 +413,17 @@ class TestNativeHTTPBackend(TestCase):
         self.assertEqual(filter_options["maximum_response_size"], 200)
         self.assertEqual(filter_options["matcher_mode"], "and")
         self.assertEqual(filter_options["filter_mode"], "or")
-        self.assertEqual(filter_options["match_status_codes"], [200])
-        self.assertEqual(filter_options["filter_status_codes"], [404])
-        self.assertEqual(filter_options["match_sizes"], [(10, 100)])
-        self.assertEqual(filter_options["filter_regex"], "not found")
-        self.assertEqual(filter_options["match_headers"], ["etag: w/"])
-        self.assertEqual(filter_options["filter_headers"], ["x-cache: fallback"])
-        self.assertEqual(filter_options["match_header_regex"], "etag: .+")
-        self.assertEqual(
-            filter_options["filter_header_regex"], "x-cache: fallback-[0-9]+"
-        )
-        self.assertEqual(filter_options["match_time"], [(">", 100.0)])
+        # Both groups contain Python regexes. Defer each complete group so
+        # native filtering cannot decide with only part of an AND/OR policy.
+        self.assertEqual(filter_options["match_status_codes"], [])
+        self.assertEqual(filter_options["filter_status_codes"], [])
+        self.assertEqual(filter_options["match_sizes"], [])
+        self.assertIsNone(filter_options["filter_regex"])
+        self.assertEqual(filter_options["match_headers"], [])
+        self.assertEqual(filter_options["filter_headers"], [])
+        self.assertIsNone(filter_options["match_header_regex"])
+        self.assertIsNone(filter_options["filter_header_regex"])
+        self.assertEqual(filter_options["match_time"], [])
 
     def test_requester_reports_the_shared_native_request_rate(self):
         self.options["proxies"] = []

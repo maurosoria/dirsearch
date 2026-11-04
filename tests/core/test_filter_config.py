@@ -60,6 +60,33 @@ class TestFilterConfig(TestCase):
         self.assertEqual(second["include_status_codes"], [200, 201])
         self.assertEqual(second["match_sizes"], [(1, 10)])
 
+    def test_regex_matcher_groups_are_deferred_without_changing_or_semantics(self):
+        for regex in ({"match_regex": "admin$"}, {"match_header_regex": "x-role: first, second"}):
+            with self.subTest(regex=regex):
+                config = FilterConfig(
+                    matcher_mode="or", match_status_codes={201}, match_sizes=((99, 99),),
+                    match_headers=("x-public: yes",), filter_status_codes={403}, **regex,
+                )
+                native = config.native_options()
+                for name in ("match_status_codes", "match_sizes", "match_headers"):
+                    self.assertFalse(native[name])
+                self.assertIsNone(native["match_regex"])
+                self.assertIsNone(native["match_header_regex"])
+                self.assertEqual(native["filter_status_codes"], [403])
+
+    def test_regex_filter_groups_are_deferred_without_changing_and_semantics(self):
+        for regex in ({"filter_regex": "admin$"}, {"filter_header_regex": "x-role: first, second"}):
+            with self.subTest(regex=regex):
+                native = FilterConfig(
+                    filter_mode="and", filter_status_codes={200}, filter_sizes=((5, 5),),
+                    filter_headers=("x-public: yes",), match_status_codes={200}, **regex,
+                ).native_options()
+                for name in ("filter_status_codes", "filter_sizes", "filter_headers"):
+                    self.assertFalse(native[name])
+                self.assertIsNone(native["filter_regex"])
+                self.assertIsNone(native["filter_header_regex"])
+                self.assertEqual(native["match_status_codes"], [200])
+
     def test_filter_policy_and_state_are_isolated_in_every_engine(self):
         config = FilterConfig(filter_threshold=1, blacklists={403: ["/denied"]})
         for engine in (Fuzzer, AsyncFuzzer, NativeFuzzer):

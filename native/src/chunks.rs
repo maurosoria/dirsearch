@@ -42,6 +42,8 @@ impl CompletionWriter {
     }
 }
 
+/// One completed input range [start_index, end_index), in wordlist order.
+/// Results may omit filtered paths; the range still counts those completions.
 pub(crate) struct NativeScanChunk {
     pub(crate) start_index: usize,
     pub(crate) end_index: usize,
@@ -146,6 +148,47 @@ pub(crate) fn deliver_chunk(callback: &Py<PyAny>, chunk: NativeScanChunk) -> PyR
             .call1((chunk.start_index, chunk.end_index, chunk.results))
             .map(|_| ())
     })
+}
+
+/// Deliver a completed input range after HTTP workers' wildcard comparisons.
+///
+/// A wildcard observation marks a response already recognized as a missing
+/// page. Keep that observation pending by input index and normally omit its
+/// response object from the Python callback. Diagnostic scans retain compact
+/// metadata after the worker discards the body. Potential findings, errors and unsupported
+/// responses remain in the result list for Python to process normally.
+///
+/// For example, `[missing, finding, missing]` delivers range `[0, 3)` with only
+/// result 1. Python still advances all three paths and commits observations
+/// through `NativeFuzzer._process_filtered_range` as it consumes each gap.
+/// Registering is not committing: a pause or cancellation must not make later,
+/// unprocessed paths affect calibration counts or an earlier Python decision.
+/// Without a classifier, deliver the original chunk directly.
+pub(crate) fn deliver_classified_chunk(
+    callback: &Py<PyAny>,
+    mut chunk: NativeScanChunk,
+    classifier: Option<&crate::classification::NativeWildcardClassifier>,
+    cancelled: &AtomicBool,
+) -> PyResult<()> {
+    let Some(classifier) = classifier else {
+        return deliver_chunk(callback, chunk);
+    };
+    if cancelled.load(Ordering::Acquire) {
+        return Ok(());
+    }
+    chunk.results.retain_mut(|result| {
+        if let Some(observation) = result.wildcard_observation.take() {
+            // Python commits observations as it processes each filtered range.
+            // Pause/quit leaves later keys pending without advancing counters.
+            classifier.register(result.request_index, observation);
+            // Logging retains only the compact metadata; the worker has already
+            // dropped the body. Calibration still commits at the processed gap.
+            result.filtered
+        } else {
+            true
+        }
+    });
+    deliver_chunk(callback, chunk)
 }
 
 #[cfg(test)]

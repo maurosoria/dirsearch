@@ -26,6 +26,7 @@ from typing import Any
 from lib.connection.requester import AsyncRequester, BaseRequester, Requester
 from lib.connection.response import BaseResponse
 from lib.core.filter_config import FilterConfig
+from lib.core.execution_config import check_skip_status
 from lib.core.logger import RunLogger
 from lib.core.settings import (
     REFLECTED_PATH_MARKER,
@@ -34,7 +35,6 @@ from lib.core.settings import (
 from lib.parse.url import clean_path
 from lib.utils.common import replace_path
 from lib.utils.diff import (
-    DynamicContentParser,
     generate_matching_regex,
 )
 from lib.utils.random import StealthWordGenerator
@@ -43,6 +43,7 @@ from lib.utils.random import StealthWordGenerator
 AUTO_CALIBRATION_EXTRA_SAMPLES = 2
 AMBIGUOUS_SIMILARITY_THRESHOLD = 0.9
 AMBIGUOUS_SIMILARITY_MAX_CONTENT_LENGTH = 262144
+MAX_STATIC_PROFILE_BODY = 65536
 
 
 class BaseScanner:
@@ -57,6 +58,7 @@ class BaseScanner:
         context: str = "all cases",
         logger: RunLogger | None = None,
         word_generator: StealthWordGenerator | None = None,
+        skip_on_status: frozenset[int] = frozenset(),
     ) -> None:
         self.logger = logger if logger is not None else RunLogger()
         # Fuzzer profiles borrow one target-owned generator. A standalone
@@ -65,6 +67,7 @@ class BaseScanner:
         self.path = path
         self.tested = tested if tested is not None else {}
         self.filter_config = filter_config
+        self.skip_on_status = skip_on_status
         self.delay = delay
         self.context = context
         self.requester = requester
@@ -72,6 +75,35 @@ class BaseScanner:
         self.wildcard_redirect_regex = None
         self.sample_count = 0
         self.reason = ""
+        self._static_profile = None
+        self._static_samples = 0
+        self._static_profile_valid = True
+
+    @property
+    def static_response_profile(self) -> tuple[int, str, bytes] | None:
+        """Exact, complete responses observed on at least two missing probes."""
+        if self._static_profile_valid and self._static_samples >= 2:
+            return self._static_profile
+        return None
+
+    def _observe_static_response(self, response: BaseResponse) -> None:
+        profile = None
+        if (
+            response.body_complete
+            and 0 < len(response.body) <= MAX_STATIC_PROFILE_BODY
+            and not response.redirect
+            and not response.history
+        ):
+            profile = (
+                response.status,
+                response.headers.get("content-type", ""),
+                response.body,
+            )
+        if not self._static_samples:
+            self._static_profile = profile
+        self._static_samples += 1
+        if profile is None or profile != self._static_profile:
+            self._static_profile_valid = False
 
     def check(self, path: str, response: BaseResponse) -> bool:
         """
@@ -198,7 +230,9 @@ class BaseScanner:
         return self.filter_config.auto_calibration or self.content_parser.is_ambiguous
 
     def add_calibration_sample(self, response: BaseResponse) -> None:
+        check_skip_status(response.status, self.skip_on_status)
         self.sample_count += 1
+        self._observe_static_response(response)
         if response.content:
             self.content_parser.add_sample(response.content)
 
@@ -237,11 +271,12 @@ class Scanner(BaseScanner):
         context: str = "all cases",
         logger: RunLogger | None = None,
         word_generator: StealthWordGenerator | None = None,
+        skip_on_status: frozenset[int] = frozenset(),
     ) -> None:
         super().__init__(
             requester, filter_config=filter_config, delay=delay,
             path=path, tested=tested, context=context, logger=logger,
-            word_generator=word_generator,
+            word_generator=word_generator, skip_on_status=skip_on_status,
         )
         self.setup()
 
@@ -251,13 +286,17 @@ class Scanner(BaseScanner):
         used to compare with other path responses
         """
 
+        # A probe can establish a session even when earlier profiles did not.
+        # Preserve request order rather than speculating on cookie-free batches.
         first_path = self.path.replace(
             WILDCARD_TEST_POINT_MARKER,
             self.word_generator.generate(),
         )
         first_response = self.requester.request(first_path)
+        check_skip_status(first_response.status, self.skip_on_status)
         self.response = first_response
         self.sample_count = 1
+        self._observe_static_response(first_response)
         time.sleep(self.delay)
 
         # Another test was performed before and has the same response as this
@@ -272,7 +311,9 @@ class Scanner(BaseScanner):
             self.word_generator.generate(omit=first_path),
         )
         second_response = self.requester.request(second_path)
+        check_skip_status(second_response.status, self.skip_on_status)
         self.sample_count += 1
+        self._observe_static_response(second_response)
         time.sleep(self.delay)
 
         if first_response.redirect and second_response.redirect:
@@ -288,9 +329,7 @@ class Scanner(BaseScanner):
                 f'Pattern (regex) to detect wildcard redirects for "{self.context}": {self.wildcard_redirect_regex}'
             )
 
-        self.content_parser = DynamicContentParser(
-            first_response.content, second_response.content
-        )
+        self.content_parser = first_response.make_content_parser(second_response.content)
         self.auto_calibrate((first_path, second_path))
 
     def auto_calibrate(self, tested_paths: tuple[str, ...]) -> None:
@@ -321,11 +360,12 @@ class AsyncScanner(BaseScanner):
         context: str = "all cases",
         logger: RunLogger | None = None,
         word_generator: StealthWordGenerator | None = None,
+        skip_on_status: frozenset[int] = frozenset(),
     ) -> None:
         super().__init__(
             requester, filter_config=filter_config, delay=delay,
             path=path, tested=tested, context=context, logger=logger,
-            word_generator=word_generator,
+            word_generator=word_generator, skip_on_status=skip_on_status,
         )
 
     @classmethod
@@ -340,11 +380,12 @@ class AsyncScanner(BaseScanner):
         context: str = "all cases",
         logger: RunLogger | None = None,
         word_generator: StealthWordGenerator | None = None,
+        skip_on_status: frozenset[int] = frozenset(),
     ) -> AsyncScanner:
         self = cls(
             requester, filter_config=filter_config, delay=delay,
             path=path, tested=tested, context=context, logger=logger,
-            word_generator=word_generator,
+            word_generator=word_generator, skip_on_status=skip_on_status,
         )
         await self.setup()
         return self
@@ -360,8 +401,10 @@ class AsyncScanner(BaseScanner):
             self.word_generator.generate(),
         )
         first_response = await self.requester.request(first_path)
+        check_skip_status(first_response.status, self.skip_on_status)
         self.response = first_response
         self.sample_count = 1
+        self._observe_static_response(first_response)
         await asyncio.sleep(self.delay)
 
         duplicate = self.get_duplicate(first_response)
@@ -377,7 +420,9 @@ class AsyncScanner(BaseScanner):
             self.word_generator.generate(omit=first_path),
         )
         second_response = await self.requester.request(second_path)
+        check_skip_status(second_response.status, self.skip_on_status)
         self.sample_count += 1
+        self._observe_static_response(second_response)
         await asyncio.sleep(self.delay)
 
         if first_response.redirect and second_response.redirect:
@@ -391,9 +436,7 @@ class AsyncScanner(BaseScanner):
                 f'Pattern (regex) to detect wildcard redirects for "{self.context}": {self.wildcard_redirect_regex}'
             )
 
-        self.content_parser = DynamicContentParser(
-            first_response.content, second_response.content
-        )
+        self.content_parser = first_response.make_content_parser(second_response.content)
         await self.auto_calibrate((first_path, second_path))
 
     async def auto_calibrate(self, tested_paths: tuple[str, ...]) -> None:

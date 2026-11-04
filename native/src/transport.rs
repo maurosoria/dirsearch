@@ -6,7 +6,8 @@ use crate::ntlm::{tls_server_end_point, NtlmExchange};
 use crate::proxy::{configure_client as configure_proxy_client, is_non_retryable_error};
 use crate::raw_http;
 use crate::result::{
-    native_error_result, native_filtered_marker, native_http_result_with_length, NativeHttpResult,
+    native_error_result, native_filtered_marker, native_http_result_with_length, response_length,
+    NativeHttpResult,
 };
 use crate::routing::ConnectionRoutes;
 use crate::session::{with_initial_cookie_override, NativeCookieStore};
@@ -16,8 +17,8 @@ use bytes::Bytes;
 use digest_auth::{AuthContext, HttpMethod};
 use futures_util::TryStreamExt;
 use reqwest::header::{
-    HeaderMap, HeaderValue, AUTHORIZATION, CONNECTION, CONTENT_ENCODING, USER_AGENT,
-    WWW_AUTHENTICATE,
+    HeaderMap, HeaderValue, AUTHORIZATION, CONNECTION, CONTENT_ENCODING, CONTENT_LENGTH, LOCATION,
+    USER_AGENT, WWW_AUTHENTICATE,
 };
 use reqwest::Method;
 use std::cell::RefCell;
@@ -295,6 +296,8 @@ pub(crate) struct ClientRequest<'a> {
     pub(crate) filter_config: &'a NativeFilterConfig,
     /// Avoid retaining a response body when its status alone excludes it.
     pub(crate) skip_status_filtered_body: bool,
+    /// Return only log-safe metadata for a status exclusion, never its body.
+    pub(crate) capture_filtered_metadata: bool,
     pub(crate) origin_auth: &'a OriginAuth,
     /// Selected independently for every network attempt and then kept stable
     /// across redirects or a Digest challenge within that attempt.
@@ -347,17 +350,52 @@ async fn request_once(
         (send_request().await, Vec::new())
     };
     let response = response?;
+    // Static labels avoid per-request formatting/allocation when logs are off.
+    let http_version = match response.version() {
+        reqwest::Version::HTTP_09 => Some("HTTP/0.9"),
+        reqwest::Version::HTTP_10 => Some("HTTP/1.0"),
+        reqwest::Version::HTTP_11 => Some("HTTP/1.1"),
+        reqwest::Version::HTTP_2 => Some("HTTP/2"),
+        reqwest::Version::HTTP_3 => Some("HTTP/3"),
+        _ => None,
+    };
     let status = response.status().as_u16();
     let final_url = response.url().to_string();
     if request.skip_status_filtered_body
         && status != 407
         && request.filter_config.status_filter_reason(status).is_some()
     {
+        let headers = if request.capture_filtered_metadata {
+            response
+                .headers()
+                .iter()
+                .filter(|(name, _)| {
+                    *name == CONTENT_LENGTH || *name == CONTENT_ENCODING || *name == LOCATION
+                })
+                .map(|(name, value)| {
+                    (
+                        name.as_str().to_string(),
+                        value.to_str().unwrap_or_default().to_string(),
+                    )
+                })
+                .collect::<Vec<_>>()
+        } else {
+            Vec::new()
+        };
         let encodings = response_encodings(response.headers());
-        read_decoded_body(response, encodings, 0, false).await?;
+        let (_, decoded_length) = read_decoded_body(response, encodings, 0, false).await?;
         let mut result = native_filtered_marker(status, start.elapsed().as_secs_f64() * 1000.0);
+        if request.capture_filtered_metadata {
+            result.length = response_length(&headers, decoded_length);
+            result.headers = headers;
+            result.filter_reason = request
+                .filter_config
+                .status_filter_reason(status)
+                .map(str::to_string);
+        }
         result.history = redirect_history;
         result.final_url = final_url;
+        result.http_version = http_version;
         return Ok(result);
     }
     let headers = response
@@ -382,6 +420,7 @@ async fn request_once(
     );
     result.history = redirect_history;
     result.final_url = final_url;
+    result.http_version = http_version;
     Ok(result)
 }
 

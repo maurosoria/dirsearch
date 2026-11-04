@@ -290,6 +290,7 @@ def parse_options() -> dict[str, Any]:
             [
                 subdir if subdir.endswith("/") else subdir + "/"
                 for subdir in opt.exclude_subdirs.split(",")
+                if subdir.strip()
             ]
         )
     ]

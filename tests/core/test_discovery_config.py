@@ -67,7 +67,7 @@ class AsyncCalibrationRequester:
 
 
 class TestCalibrationDiscoveryConfig(IsolatedAsyncioTestCase):
-    async def test_existing_profile_construction_multiplicity_is_preserved(self):
+    async def test_profile_construction_is_deduplicated_in_each_engine(self):
         policy = DiscoveryConfig(
             prefixes=("first-", "first-"), suffixes=(".txt",), extensions=("txt",),
         )
@@ -93,16 +93,15 @@ class TestCalibrationDiscoveryConfig(IsolatedAsyncioTestCase):
                         fuzzer.setup_scanners()
 
                 paths = [call.kwargs["path"] for call in factory.call_args_list]
-                # Threaded/native deduplicate explicit profile prefixes;
-                # async currently iterates them. This refactor preserves both.
+                # Every engine constructs each configured shape once.
                 self.assertEqual(
                     sum(path.startswith("base/first-") for path in paths),
-                    2 if asynchronous else 1,
+                    1,
                 )
                 # An explicit .txt suffix already provides this profile;
                 # the extension loop must not create another one.
                 self.assertEqual(sum(path.endswith(".txt") for path in paths), 1)
-                self.assertEqual(len(paths), 8 if asynchronous else 7)
+                self.assertEqual(len(paths), 7)
 
     async def test_profile_variants_are_owned_by_each_fuzzer(self):
         policies = (
