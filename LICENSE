@@ -1,0 +1,23 @@
+dirsearch
+Copyright (C) Mauro Soria and contributors
+
+Except where a file states otherwise, dirsearch's original code is free
+software: you can redistribute it and/or modify it under the terms of the GNU
+General Public License as published by the Free Software Foundation, either
+version 2 of the License, or (at your option) any later version.
+
+This grant covers the Python application, including files without an individual
+license header, and the Rust native backend. The SPDX identifier for this grant
+is GPL-2.0-or-later. Existing individual copyright and license notices remain in
+effect. Third-party code is covered by its own notices and licenses.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+The full text of GPL version 2 is in COPYING. GPL version 3 is in COPYING.GPL3.
+When distributing a combined work containing Apache-2.0 components, select GPL
+version 3 under the above grant and comply with the applicable third-party
+licenses and notices. This does not grant an exception to GPL version 2.
+
+See THIRD_PARTY_NOTICES.md for dependency licensing and distribution notes.

@@ -1,4 +1,5 @@
 import os
+import importlib.metadata
 import tomllib
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -14,6 +15,44 @@ from scripts.build_native import install_native_wheel, resolve_python
 
 
 class TestNativeInstallPackaging(TestCase):
+    def test_project_and_native_licenses_allow_later_gpl_versions(self):
+        for path, table in (
+            (Path("pyproject.toml"), "project"),
+            (Path("native/pyproject.toml"), "project"),
+            (Path("native/Cargo.toml"), "package"),
+        ):
+            with self.subTest(path=str(path)):
+                manifest = tomllib.loads(path.read_text(encoding="utf-8"))
+                self.assertEqual(manifest[table]["license"], "GPL-2.0-or-later")
+
+    def test_standalone_native_sources_have_the_same_project_license_texts(self):
+        for filename in ("LICENSE", "COPYING", "COPYING.GPL3", "THIRD_PARTY_NOTICES.md"):
+            with self.subTest(filename=filename):
+                self.assertEqual(
+                    Path("native", filename).read_bytes(),
+                    Path(filename).read_bytes(),
+                )
+
+    def test_installed_native_wheel_preserves_license_texts_and_ring_notices(self):
+        try:
+            distribution = importlib.metadata.distribution("dirsearch-native")
+        except importlib.metadata.PackageNotFoundError:
+            self.skipTest("Native wheel is not installed")
+        self.assertEqual(distribution.metadata["License-Expression"], "GPL-2.0-or-later")
+        expected = {"LICENSE", "COPYING", "COPYING.GPL3", "THIRD_PARTY_NOTICES.md"}
+        expected.update(
+            path.relative_to("native").as_posix()
+            for path in Path("native/licenses").rglob("*")
+            if path.is_file()
+        )
+        self.assertEqual(set(distribution.metadata.get_all("License-File") or []), expected)
+        for filename in expected:
+            with self.subTest(filename=filename):
+                installed = distribution.locate_file(
+                    f"dirsearch_native-{distribution.version}.dist-info/licenses/{filename}"
+                )
+                self.assertEqual(installed.read_bytes(), Path("native", filename).read_bytes())
+
     def test_setuptools_build_floor_is_patched_and_not_runtime(self):
         minimum_safe_version = (83, 0, 0)
         root_requirements = Path("requirements.txt").read_text(

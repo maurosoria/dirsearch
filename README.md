@@ -83,4 +83,10 @@ Pull requests and feature requests are welcome. See [CONTRIBUTORS.md](CONTRIBUTO
 
 Copyright (C) Mauro Soria (maurosoria@gmail.com)
 
-License: GNU General Public License, version 2.
+dirsearch's original code, including the Python application and Rust native
+backend, is licensed under the GNU General Public License, version 2 or (at your
+option) any later version (`GPL-2.0-or-later`). See [LICENSE](LICENSE).
+
+Distributions combining dirsearch with Apache-2.0 dependencies use GPL version 3
+for the combined work. Third-party components retain their own licenses and
+notices; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

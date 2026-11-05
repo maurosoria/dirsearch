@@ -107,6 +107,11 @@ setuptools.setup(
     package_data={
         "dirsearch": [
             "config.ini",
+            "LICENSE",
+            "COPYING",
+            "COPYING.GPL3",
+            "THIRD_PARTY_NOTICES.md",
+            *package_files(ROOT / "licenses"),
             *package_files(ROOT / "db"),
             *package_files(ROOT / "native"),
         ],

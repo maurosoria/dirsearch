@@ -24,7 +24,9 @@ jobs:
         pip install codespell flake8 -r requirements.txt
     - name: Packaging smoke test
       run: |
-        python -m pip install .
+        python -m pip install build
+        python -m build
+        python -m pip install --no-index --find-links dist --no-deps --force-reinstall dirsearch
         dirsearch --version
         python tests/check_packaged_install.py
     - name: Test

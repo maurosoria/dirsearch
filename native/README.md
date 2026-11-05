@@ -3,6 +3,11 @@
 This crate is an experimental Phase 5 native backend. It is opt-in for source
 installs and is included in `native-rust` release artifacts.
 
+The original code in this crate is licensed under `GPL-2.0-or-later`; see
+[LICENSE](LICENSE). Native binaries containing Apache-2.0 dependencies are
+distributed under GPL version 3 for the combined work. Dependencies retain
+their own licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
 It exposes a small PyO3 API:
 
 - `generate_wordlist(...)` for deterministic ordered wordlist generation.
