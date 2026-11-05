@@ -25,7 +25,8 @@ name = "dirsearch"
 description = "Advanced web path scanner"
 readme = "README.md"
 requires-python = ">=3.11"
-license = "GPL-2.0-only"
+license = "GPL-2.0-or-later"
+license-files = ["LICENSE", "COPYING*", "THIRD_PARTY_NOTICES.md", "licenses/**/*", "native/licenses/**/*"]
 authors = [
     {name = "Mauro Soria", email = "maurosoria@protonmail.com"},
 ]

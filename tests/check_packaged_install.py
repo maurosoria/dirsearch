@@ -76,6 +76,23 @@ def main() -> None:
     expected_version = read_source_version()
     installed_version = importlib.metadata.version("dirsearch")
     assert installed_version == expected_version, (installed_version, expected_version)
+    distribution = importlib.metadata.distribution("dirsearch")
+    assert distribution.metadata["License-Expression"] == "GPL-2.0-or-later"
+    license_files = distribution.metadata.get_all("License-File") or []
+    source_root = Path(__file__).resolve().parents[1]
+    expected_licenses = {"LICENSE", "COPYING", "COPYING.GPL3", "THIRD_PARTY_NOTICES.md"}
+    for directory in (source_root / "licenses", source_root / "native/licenses"):
+        expected_licenses.update(
+            path.relative_to(source_root).as_posix()
+            for path in directory.rglob("*") if path.is_file()
+        )
+    assert set(license_files) == expected_licenses, license_files
+    for filename in license_files:
+        source = source_root / filename
+        installed = distribution.locate_file(
+            f"dirsearch-{installed_version}.dist-info/licenses/{filename}"
+        )
+        assert installed.read_bytes() == source.read_bytes(), filename
     assert DirsearchFuzzer
     assert FuzzerConfig
     assert FuzzerResult

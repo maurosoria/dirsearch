@@ -7,8 +7,10 @@ Generates standalone executables for multiple platforms
 import os
 import sys
 import importlib.util
+from importlib.metadata import PackageNotFoundError, distribution
 import configparser
-from PyInstaller.utils.hooks import collect_data_files, collect_submodules
+from packaging.requirements import Requirement
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules, copy_metadata
 
 block_cipher = None
 
@@ -70,6 +72,32 @@ datas = [
     (os.path.join(PROJECT_ROOT, 'db'), 'db'),
     (os.path.join(PROJECT_ROOT, 'config.ini'), '.'),
 ]
+
+for filename in ('LICENSE', 'COPYING', 'COPYING.GPL3', 'THIRD_PARTY_NOTICES.md'):
+    datas.append((os.path.join(PROJECT_ROOT, filename), '.'))
+datas.append((os.path.join(PROJECT_ROOT, 'licenses'), 'licenses'))
+if native_stack_enabled:
+    datas.append((os.path.join(PROJECT_ROOT, 'native', 'licenses'), 'native/licenses'))
+    datas += copy_metadata('dirsearch-native')
+
+# Preserve installed dependency licenses and notices in frozen distributions.
+for requirements_file in ('runtime.txt', 'db.txt'):
+    with open(os.path.join(PROJECT_ROOT, 'requirements', requirements_file), encoding='utf-8') as source:
+        for line in source:
+            requirement = line.strip()
+            if requirement and not requirement.startswith('#'):
+                name = Requirement(requirement).name
+                if requirements_file == 'db.txt':
+                    try:
+                        distribution(name)
+                    except PackageNotFoundError:
+                        continue
+                datas += copy_metadata(name, recursive=True)
+# This optional extra is loaded by psycopg's binary implementation.
+try:
+    datas += copy_metadata('psycopg-binary')
+except PackageNotFoundError:
+    pass
 
 # Add static directory if it exists
 static_dir = os.path.join(PROJECT_ROOT, 'static')
