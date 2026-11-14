@@ -128,7 +128,7 @@ class FileUtils:
 
     @staticmethod
     def get_lines(file_name: str) -> list[str]:
-        with open(file_name, "r", errors="replace") as fd:
+        with open(file_name, "r", encoding="utf-8", errors="replace") as fd:
             return fd.read().splitlines()
 
     @staticmethod
