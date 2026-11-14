@@ -292,3 +292,14 @@ class TestFileUtils(TestCase):
                 FileUtils.open_binary_append(file_name)
 
             self.assertFalse(FileUtils.exists(outside))
+
+    def test_get_lines_reads_utf8(self):
+        with tempfile.TemporaryDirectory() as directory:
+            file_name = FileUtils.build_path(directory, "wordlist.txt")
+            with open(file_name, "wb") as file_handle:
+                file_handle.write("관리자\nŁukasz ✨/\n".encode("utf-8"))
+
+            self.assertEqual(
+                FileUtils.get_lines(file_name),
+                ["관리자", "Łukasz ✨/"],
+            )

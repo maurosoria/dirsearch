@@ -125,6 +125,19 @@ class TestWordlistBackend(TestCase):
         ):
             NativeWordlistBackend(WordlistConfig.from_options(self.options))
 
+    def test_python_backend_keeps_non_ascii_paths(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            wordlist = Path(temp_dir) / "wordlist.txt"
+            wordlist.write_text("관리자\nŁukasz ✨/\n", encoding="utf-8")
+
+            config = WordlistConfig.from_options(self.options)
+            backend = get_wordlist_backend(replace(config, backend="python"))
+
+            self.assertEqual(
+                list(backend.generate([str(wordlist)])),
+                ["관리자", "Łukasz ✨/"],
+            )
+
     def test_percent_encoded_paths_do_not_force_python_expansion(self):
         backend = object.__new__(NativeWordlistBackend)
         with tempfile.TemporaryDirectory() as temp_dir:

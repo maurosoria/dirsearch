@@ -257,7 +257,7 @@ class NativeWordlistBackend:
     def _requires_python_template_expansion(self, files: list[str]) -> bool:
         extension_token = EXTENSION_TAG.strip("%").upper()
         for dict_file in files:
-            with open(dict_file, "r", errors="replace") as handle:
+            with open(dict_file, "r", encoding="utf-8", errors="replace") as handle:
                 for line in handle:
                     if "%" not in line:
                         continue
